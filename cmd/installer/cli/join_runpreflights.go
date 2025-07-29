@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -104,7 +105,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
-	hpf, err := preflights.Prepare(ctx, preflights.PrepareOptions{
+	opts := preflights.PrepareOptions{
 		HostPreflightSpec:       release.GetHostPreflights(),
 		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
@@ -120,7 +121,29 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		IsAirgap:                jcmd.InstallationSpec.AirGap,
 		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
 		IsJoin:                  true,
-	})
+	}
+
+	// Calculate airgap storage space requirement based on node type
+	if jcmd.InstallationSpec.AirGap {
+		// Determine if this is a controller node by checking the join command
+		isController := strings.Contains(jcmd.K0sJoinCommand, "controller")
+		logrus.Debugf("node type determined from join command: %s", map[bool]string{true: "controller", false: "worker"}[isController])
+
+		airgapStorageSpace := preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   jcmd.InstallationSpec.AirgapUncompressedSize,
+			EmbeddedAssetsSize: flags.embeddedAssetsSize,
+			K0sImageSize:       jcmd.InstallationSpec.K0sImageSize,
+			IsController:       isController,
+		})
+
+		if isController {
+			opts.ControllerAirgapStorageSpace = airgapStorageSpace
+		} else {
+			opts.WorkerAirgapStorageSpace = airgapStorageSpace
+		}
+	}
+
+	hpf, err := preflights.Prepare(ctx, opts)
 	if err != nil {
 		return err
 	}

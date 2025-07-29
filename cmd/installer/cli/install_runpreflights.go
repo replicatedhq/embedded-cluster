@@ -98,20 +98,32 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
 
+	// Calculate airgap storage space requirement
+	var controllerAirgapStorageSpace string
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: flags.embeddedAssetsSize,
+			K0sImageSize:       flags.airgapMetadata.K0sImageSize,
+			IsController:       true,
+		})
+	}
+
 	opts := preflights.PrepareOptions{
-		HostPreflightSpec:       release.GetHostPreflights(),
-		ReplicatedAppURL:        replicatedAppURL,
-		ProxyRegistryURL:        proxyRegistryURL,
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 rc.PodCIDR(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-		NodeIP:                  nodeIP,
-		IsAirgap:                flags.isAirgap,
+		HostPreflightSpec:            release.GetHostPreflights(),
+		ReplicatedAppURL:             replicatedAppURL,
+		ProxyRegistryURL:             proxyRegistryURL,
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      rc.PodCIDR(),
+		ServiceCIDR:                  rc.ServiceCIDR(),
+		NodeIP:                       nodeIP,
+		IsAirgap:                     flags.isAirgap,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
 		opts.GlobalCIDR = &globalCIDR

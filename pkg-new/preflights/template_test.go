@@ -620,3 +620,74 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestCalculateAirgapStorageSpace(t *testing.T) {
+	embeddedAssetsSize := int64(1024 * 1024 * 1024)
+
+	tests := []struct {
+		name               string
+		uncompressedSize   int64
+		embeddedAssetsSize int64
+		k0sImageSize       int64
+		isController       bool
+		expected           string
+	}{
+		{
+			name:               "controller node with 1GB uncompressed size",
+			uncompressedSize:   1024 * 1024 * 1024, // 1GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "3Gi", // 2x for uncompressed size + 1x for embedded assets
+		},
+		{
+			name:               "worker node with 1GB k0s image size",
+			uncompressedSize:   1024 * 1024 * 1024, // 1GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1024 * 1024 * 1024,
+			isController:       false,
+			expected:           "2Gi", // 1x for k0s image + 1x for embedded assets
+		},
+		{
+			name:               "controller node with 500MB uncompressed size",
+			uncompressedSize:   512 * 1024 * 1024, // 1.5GB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "2Gi",
+		},
+		{
+			name:               "controller node with 513MB uncompressed size",
+			uncompressedSize:   513 * 1024 * 1024, // 513MB
+			embeddedAssetsSize: embeddedAssetsSize,
+			isController:       true,
+			expected:           "3Gi",
+		},
+		{
+			name:               "worker node with 100MB uncompressed size",
+			uncompressedSize:   1,
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1 * 1024 * 1024, // 1MB,
+			isController:       false,
+			expected:           "2Gi",
+		},
+		{
+			name:               "zero uncompressed size gives embedded assets size",
+			uncompressedSize:   0,
+			embeddedAssetsSize: embeddedAssetsSize,
+			k0sImageSize:       1024 * 1024 * 1024,
+			isController:       true,
+			expected:           "1Gi",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := CalculateAirgapStorageSpace(AirgapStorageSpaceCalcArgs{
+				UncompressedSize:   tt.uncompressedSize,
+				EmbeddedAssetsSize: tt.embeddedAssetsSize,
+				K0sImageSize:       tt.k0sImageSize,
+				IsController:       tt.isController,
+			})
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}

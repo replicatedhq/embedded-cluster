@@ -235,6 +235,44 @@ spec:
                 {{- end }}
           - pass:
               message: The filesystem at {{ .DataDir }} has sufficient space
+{{- if ne .ControllerAirgapStorageSpace "" }}
+    - diskUsage:
+        checkName: Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'available < {{ .ControllerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for airgap bundle processing
+{{- end }}
+{{- if ne .WorkerAirgapStorageSpace "" }}
+    - diskUsage:
+        checkName: Worker Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'available < {{ .WorkerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for worker airgap storage
+{{- end }}
     - textAnalyze:
         checkName: Default Route
         fileName: host-collectors/run-host/ip-route-table.txt
