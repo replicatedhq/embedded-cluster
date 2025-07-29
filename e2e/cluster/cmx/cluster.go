@@ -343,7 +343,7 @@ func runCommandOnNode(node Node, line []string, envs ...map[string]string) (stri
 			line = append([]string{fmt.Sprintf("%s=%s", k, v)}, line...)
 		}
 	}
-	line = append([]string{"sudo", "PATH=$PATH:/usr/local/bin"}, line...)
+	line = append([]string{"sudo"}, line...)
 
 	cmd := exec.Command("ssh", append(sshArgs(), node.sshEndpoint, strings.Join(line, " "))...)
 	var stdout, stderr bytes.Buffer
