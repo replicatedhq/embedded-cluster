@@ -11,15 +11,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
 	kyaml "sigs.k8s.io/yaml"
 )
 
 // TemplateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
 func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error) {
-	if m.releaseData == nil {
-		return nil, fmt.Errorf("release data not initialized")
-	}
-
 	if m.templateEngine == nil {
 		return nil, fmt.Errorf("template engine not initialized")
 	}
@@ -70,10 +67,6 @@ func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValu
 func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
 	if templatedCR == nil {
 		return nil, fmt.Errorf("templated CR is nil")
-	}
-
-	if m.releaseData == nil {
-		return nil, fmt.Errorf("release data not initialized")
 	}
 
 	// Check if the chart should be excluded
@@ -180,4 +173,23 @@ func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR 
 	}
 
 	return helmValues, nil
+}
+
+// ExtractTroubleshootKinds extracts troubleshoot specifications from Helm chart manifests
+func (m *appReleaseManager) ExtractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error) {
+	// Convert [][]byte manifests to []string for troubleshootloader
+	rawSpecs := make([]string, len(manifests))
+	for i, manifest := range manifests {
+		rawSpecs[i] = string(manifest)
+	}
+
+	// Use troubleshootloader to parse all specs
+	tsKinds, err := troubleshootloader.LoadSpecs(ctx, troubleshootloader.LoadOptions{
+		RawSpecs: rawSpecs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load troubleshoot specs: %w", err)
+	}
+
+	return tsKinds, nil
 }

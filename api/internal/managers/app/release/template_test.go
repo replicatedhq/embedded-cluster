@@ -10,6 +10,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/replicatedhq/kotskinds/multitype"
+	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	kyaml "sigs.k8s.io/yaml"
@@ -249,10 +250,11 @@ spec:
 			}
 
 			// Create manager
-			manager := NewAppReleaseManager(
+			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
 			)
+			require.NoError(t, err)
 
 			// Execute the function
 			result, err := manager.TemplateHelmChartCRs(ctx, tt.configValues)
@@ -523,10 +525,11 @@ spec:
 			releaseData := &release.ReleaseData{
 				HelmChartArchives: tt.helmChartArchives,
 			}
-			manager := NewAppReleaseManager(
+			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
 			)
+			require.NoError(t, err)
 
 			// Execute the function
 			result, err := manager.DryRunHelmChart(ctx, tt.templatedCR)
@@ -900,7 +903,8 @@ spec:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := createTestConfig()
-			manager := NewAppReleaseManager(config)
+			manager, err := NewAppReleaseManager(config, WithReleaseData(&release.ReleaseData{}))
+			require.NoError(t, err)
 
 			result, err := manager.GenerateHelmValues(ctx, tt.templatedCR)
 
@@ -911,6 +915,295 @@ spec:
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAppReleaseManager_ExtractTroubleshootKinds(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name                 string
+		manifests            [][]byte
+		expectError          bool
+		errorContains        string
+		validateTroubleshoot func(t *testing.T, tsKinds any)
+	}{
+		{
+			name:        "empty manifests",
+			manifests:   [][]byte{},
+			expectError: false,
+			validateTroubleshoot: func(t *testing.T, tsKinds any) {
+				kinds := tsKinds.(*troubleshootloader.TroubleshootKinds)
+				assert.Empty(t, kinds.PreflightsV1Beta2)
+				assert.Empty(t, kinds.SupportBundlesV1Beta2)
+			},
+		},
+		{
+			name: "manifests with no troubleshoot specs",
+			manifests: [][]byte{
+				[]byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config
+data:
+  key: value`),
+				[]byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-deployment
+spec:
+  replicas: 1`),
+			},
+			expectError: false,
+			validateTroubleshoot: func(t *testing.T, tsKinds any) {
+				kinds := tsKinds.(*troubleshootloader.TroubleshootKinds)
+				assert.Empty(t, kinds.PreflightsV1Beta2)
+				assert.Empty(t, kinds.SupportBundlesV1Beta2)
+			},
+		},
+		{
+			name: "manifest with direct Preflight resource",
+			manifests: [][]byte{
+				[]byte(`apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: test-preflight
+spec:
+  collectors:
+    - clusterInfo: {}
+  analyzers:
+    - clusterVersion:
+        checkName: "Kubernetes Version"
+        outcomes:
+          - fail:
+              when: "< 1.19.0"
+              message: "Kubernetes version must be at least 1.19.0"
+          - pass:
+              message: "Kubernetes version is supported"`),
+			},
+			expectError: false,
+			validateTroubleshoot: func(t *testing.T, tsKinds any) {
+				kinds := tsKinds.(*troubleshootloader.TroubleshootKinds)
+
+				// Should have 1 preflight
+				assert.Len(t, kinds.PreflightsV1Beta2, 1)
+				assert.Equal(t, "test-preflight", kinds.PreflightsV1Beta2[0].Name)
+
+				// Should have no support bundles
+				assert.Empty(t, kinds.SupportBundlesV1Beta2)
+			},
+		},
+		{
+			name: "manifest with Secret containing preflight.yaml",
+			manifests: [][]byte{
+				[]byte(`apiVersion: v1
+kind: Secret
+metadata:
+  name: test-preflight-secret
+type: Opaque
+stringData:
+  preflight.yaml: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: Preflight
+    metadata:
+      name: secret-preflight
+    spec:
+      collectors:
+        - clusterResources: {}
+      analyzers:
+        - nodeResources:
+            checkName: "Node Resources"
+            outcomes:
+              - fail:
+                  when: "count() < 3"
+                  message: "At least 3 nodes required"
+              - pass:
+                  message: "Sufficient nodes available"`),
+			},
+			expectError: false,
+			validateTroubleshoot: func(t *testing.T, tsKinds any) {
+				kinds := tsKinds.(*troubleshootloader.TroubleshootKinds)
+
+				// Should have 1 preflight
+				assert.Len(t, kinds.PreflightsV1Beta2, 1)
+				assert.Equal(t, "secret-preflight", kinds.PreflightsV1Beta2[0].Name)
+
+				// Should have no support bundles
+				assert.Empty(t, kinds.SupportBundlesV1Beta2)
+			},
+		},
+		{
+			name: "mixed manifests with multiple troubleshoot specs",
+			manifests: [][]byte{
+				[]byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: regular-config
+data:
+  key: value`),
+				[]byte(`apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: direct-preflight
+spec:
+  collectors:
+    - clusterInfo: {}
+  analyzers:
+    - clusterVersion:
+        checkName: "Kubernetes Version Check"
+        outcomes:
+          - pass:
+              message: "Version is supported"`),
+				[]byte(`apiVersion: troubleshoot.sh/v1beta2
+kind: SupportBundle
+metadata:
+  name: direct-supportbundle
+spec:
+  collectors:
+    - nodeResources: {}
+  analyzers:
+    - nodeResources:
+        checkName: "Node Resources Check"
+        outcomes:
+          - pass:
+              message: "Resources are sufficient"`),
+				[]byte(`apiVersion: v1
+kind: Secret
+metadata:
+  name: preflight-secret
+type: Opaque
+stringData:
+  preflight.yaml: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: Preflight
+    metadata:
+      name: secret-preflight
+    spec:
+      collectors:
+        - nodeResources: {}
+      analyzers:
+        - nodeResources:
+            checkName: "Node Resources Check"
+            outcomes:
+              - pass:
+                  message: "Resources are sufficient"`),
+				[]byte(`apiVersion: v1
+kind: Secret
+metadata:
+  name: supportbundle-secret
+type: Opaque
+stringData:
+  support-bundle-spec: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: SupportBundle
+    metadata:
+      name: secret-supportbundle
+    spec:
+      collectors:
+        - clusterResources: {}
+      analyzers:
+        - clusterVersion:
+            checkName: "Secret Support Bundle Analysis"
+            outcomes:
+              - pass:
+                  message: "Cluster version analysis complete"`),
+				[]byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: preflight-configmap
+data:
+  preflight.yaml: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: Preflight
+    metadata:
+      name: configmap-preflight
+    spec:
+      collectors:
+        - diskUsage:
+            collectorName: disk-usage
+            path: /tmp
+      analyzers:
+        - diskUsage:
+            checkName: "ConfigMap Disk Usage Check"
+            collectorName: disk-usage
+            outcomes:
+              - pass:
+                  message: "Disk usage is acceptable"`),
+				[]byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: supportbundle-configmap
+data:
+  support-bundle-spec: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: SupportBundle
+    metadata:
+      name: configmap-supportbundle
+    spec:
+      collectors:
+        - logs:
+            selector:
+              - app=test
+            namespace: default
+      analyzers:
+        - textAnalyze:
+            checkName: "ConfigMap Log Analysis"
+            fileName: logs/default/test-*/test-*.log
+            regex: 'warning'
+            outcomes:
+              - warn:
+                  when: "true"
+                  message: "Found warnings in logs"`),
+			},
+			expectError: false,
+			validateTroubleshoot: func(t *testing.T, tsKinds any) {
+				kinds := tsKinds.(*troubleshootloader.TroubleshootKinds)
+
+				// Should have 3 preflights
+				assert.Len(t, kinds.PreflightsV1Beta2, 3)
+				preflightNames := []string{kinds.PreflightsV1Beta2[0].Name, kinds.PreflightsV1Beta2[1].Name, kinds.PreflightsV1Beta2[2].Name}
+				assert.Contains(t, preflightNames, "direct-preflight")
+				assert.Contains(t, preflightNames, "secret-preflight")
+				assert.Contains(t, preflightNames, "configmap-preflight")
+
+				// Should have 3 support bundles
+				assert.Len(t, kinds.SupportBundlesV1Beta2, 3)
+				supportBundleNames := []string{kinds.SupportBundlesV1Beta2[0].Name, kinds.SupportBundlesV1Beta2[1].Name, kinds.SupportBundlesV1Beta2[2].Name}
+				assert.Contains(t, supportBundleNames, "direct-supportbundle")
+				assert.Contains(t, supportBundleNames, "secret-supportbundle")
+				assert.Contains(t, supportBundleNames, "configmap-supportbundle")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a basic config for the manager
+			config := createTestConfig()
+			manager, err := NewAppReleaseManager(config, WithReleaseData(&release.ReleaseData{}))
+			require.NoError(t, err)
+
+			// Execute the function
+			tsKinds, err := manager.ExtractTroubleshootKinds(ctx, tt.manifests)
+
+			// Check error expectation
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				assert.Nil(t, tsKinds)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, tsKinds)
+
+			// Run validation
+			if tt.validateTroubleshoot != nil {
+				tt.validateTroubleshoot(t, tsKinds)
+			}
 		})
 	}
 }
