@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -40,29 +39,14 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 		}
 	}
 
-	h.logger.Debugln("checking for semanage binary in $PATH")
-	if _, err := exec.LookPath("semanage"); err != nil {
-		h.logger.Debugln("semanage not found in $PATH")
-	} else {
-		// Set selinux fcontext for embedded-cluster binary directory to bin_t
-		out, err := exec.Command("semanage", "fcontext", "-a", "-s", "system_u", "-t", "bin_t", rc.EmbeddedClusterBinsSubDir()+"(/.*)?").CombinedOutput()
-		if err != nil {
-			h.logger.Debugf("unable to set contexts on binary directory: %v", err)
-			h.logger.Debugln(out)
-		}
-
+	h.logger.Debugf("configuring selinux fcontext")
+	if err := h.ConfigureSELinuxFcontext(rc); err != nil {
+		h.logger.Debugf("unable to configure selinux fcontext: %v", err)
 	}
 
-	h.logger.Debugln("checking for restorecon binary in $PATH")
-	if _, err := exec.LookPath("restorecon"); err != nil {
-		h.logger.Debugln("restorecon not found in $PATH")
-	} else {
-		// Relabel whole embedded-cluster data directory since it's created with unconfined_u
-		out, err := exec.Command("restorecon", "-RvF", rc.EmbeddedClusterHomeDirectory()).CombinedOutput()
-		if err != nil {
-			h.logger.Debugf("unable to run restorecon: %v", err)
-			h.logger.Debugln(out)
-		}
+	h.logger.Debugf("restoring selinux context")
+	if err := h.RestoreSELinuxContext(rc); err != nil {
+		h.logger.Debugf("unable to restore selinux context: %v", err)
 	}
 
 	h.logger.Debugf("configuring sysctl")
