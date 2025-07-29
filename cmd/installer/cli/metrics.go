@@ -38,11 +38,11 @@ func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err erro
 	r.reporter.ReportInstallationFailed(ctx, err)
 }
 
-func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
+func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
+func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	r.reporter.ReportPreflightsBypassed(ctx, output)
 }
 
@@ -74,11 +74,11 @@ func (r *JoinReporter) ReportJoinFailed(ctx context.Context, err error) {
 	r.reporter.ReportJoinFailed(ctx, err)
 }
 
-func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
+func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	r.reporter.ReportPreflightsFailed(ctx, output)
 }
 
-func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput) {
+func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	r.reporter.ReportPreflightsBypassed(ctx, output)
 }
 

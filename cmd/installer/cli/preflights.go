@@ -41,7 +41,12 @@ func runHostPreflights(
 
 	spinner.Infof("Running host preflights")
 
-	output, stderr, err := preflights.Run(ctx, hpf, rc)
+	opts := preflights.RunOptions{
+		PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		ProxySpec:           rc.ProxySpec(),
+		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
+	}
+	output, stderr, err := preflights.RunHostPreflights(ctx, hpf, opts)
 	if err != nil {
 		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)

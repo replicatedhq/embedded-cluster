@@ -12,7 +12,8 @@ type CIDRData struct {
 	Size int
 }
 
-type TemplateData struct {
+// HostPreflightTemplateData contains data for templating host preflight specs
+type HostPreflightTemplateData struct {
 	IsAirgap                bool
 	ReplicatedAppURL        string
 	ProxyRegistryURL        string
@@ -37,8 +38,9 @@ type TemplateData struct {
 	IsUI                    bool
 }
 
-// WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
-func (t TemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (TemplateData, error) {
+
+// WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings
+func (t HostPreflightTemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (HostPreflightTemplateData, error) {
 	if globalCIDR != nil && *globalCIDR != "" {
 		_, cidr, err := net.ParseCIDR(*globalCIDR)
 		if err != nil {

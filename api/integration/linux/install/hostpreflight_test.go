@@ -36,14 +36,14 @@ import (
 // Test the getHostPreflightsStatus endpoint returns host preflights status correctly
 func TestGetHostPreflightsStatus(t *testing.T) {
 	hpf := types.HostPreflights{
-		Output: &types.HostPreflightsOutput{
-			Pass: []types.HostPreflightsRecord{
+		Output: &types.PreflightsOutput{
+			Pass: []types.PreflightsRecord{
 				{
 					Title:   "Some Preflight",
 					Message: "All good",
 				},
 			},
-			Fail: []types.HostPreflightsRecord{
+			Fail: []types.PreflightsRecord{
 				{
 					Title:   "Another Preflight",
 					Message: "Oh no!",
@@ -136,7 +136,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		// Create a mock controller that returns an error
 		mockController := &linuxinstall.MockController{}
 		mockController.On("GetHostPreflightTitles", mock.Anything).Return([]string{}, nil)
-		mockController.On("GetHostPreflightOutput", mock.Anything).Return(&types.HostPreflightsOutput{}, nil)
+		mockController.On("GetHostPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{}, nil)
 		mockController.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{}, assert.AnError)
 
 		// Create the API with the mock controller
@@ -194,8 +194,8 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			hpf := types.HostPreflights{
-				Output: &types.HostPreflightsOutput{
-					Pass: []types.HostPreflightsRecord{
+				Output: &types.PreflightsOutput{
+					Pass: []types.PreflightsRecord{
 						{
 							Title:   "Some Preflight",
 							Message: "All good",
@@ -316,7 +316,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		hpfc := &troubleshootv1beta2.HostPreflightSpec{}
 
 		mock.InOrder(
-			runner.On("Prepare", mock.Anything, preflights.PrepareOptions{
+			runner.On("PrepareHostPreflights", mock.Anything, preflights.PrepareHostPreflightOptions{
 				DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 				K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 				OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
@@ -329,7 +329,11 @@ func TestPostRunHostPreflights(t *testing.T) {
 				IsUI:                    true,
 			}).Return(hpfc, nil),
 			// For a successful run, we expect the runner to return an output without any errors or warnings
-			runner.On("Run", mock.Anything, hpfc, rc).Return(&types.HostPreflightsOutput{}, "", nil),
+			runner.On("RunHostPreflights", mock.Anything, hpfc, preflights.RunOptions{
+				PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+				ProxySpec:           rc.ProxySpec(),
+				ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
+			}).Return(&types.PreflightsOutput{}, "", nil),
 			runner.On("SaveToDisk", mock.Anything, mock.Anything).Return(nil),
 			runner.On("CopyBundleTo", mock.Anything, mock.Anything).Return(nil),
 		)
@@ -437,7 +441,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 	t.Run("Controller error", func(t *testing.T) {
 		// Mock preflight runner that returns an error
 		runner := &preflights.MockPreflightRunner{}
-		runner.On("Prepare", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+		runner.On("PrepareHostPreflights", mock.Anything, mock.Anything).Return(nil, assert.AnError)
 
 		// Create a host preflights manager with the failing mock runner
 		manager := linuxpreflight.NewHostPreflightManager(
@@ -494,8 +498,8 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Mock preflight runner that returns an error
 		runner := &preflights.MockPreflightRunner{}
 		mock.InOrder(
-			runner.On("Prepare", mock.Anything, mock.Anything).Return(hpfc, nil),
-			runner.On("Run", mock.Anything, hpfc, mock.Anything).Return(nil, "this is an error", assert.AnError),
+			runner.On("PrepareHostPreflights", mock.Anything, mock.Anything).Return(hpfc, nil),
+			runner.On("RunHostPreflights", mock.Anything, hpfc, mock.Anything).Return(nil, "this is an error", assert.AnError),
 		)
 		// Create a host preflights manager with the failing mock runner
 		manager := linuxpreflight.NewHostPreflightManager(

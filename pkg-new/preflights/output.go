@@ -14,13 +14,13 @@ import (
 )
 
 // PrintTable prints the preflight output in a table format.
-func (p *PreflightsRunner) PrintTable(o *apitypes.HostPreflightsOutput) {
+func (p *PreflightsRunner) PrintTable(o *apitypes.PreflightsOutput) {
 	printTable(o)
 }
 
 // PrintTableWithoutInfo prints the preflight output in a table format without info results.
-func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.HostPreflightsOutput) {
-	withoutInfo := apitypes.HostPreflightsOutput{
+func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
+	withoutInfo := apitypes.PreflightsOutput{
 		Warn: o.Warn,
 		Fail: o.Fail,
 	}
@@ -28,7 +28,7 @@ func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.HostPreflightsOutpu
 	printTable(&withoutInfo)
 }
 
-func (p *PreflightsRunner) SaveToDisk(o *apitypes.HostPreflightsOutput, path string) error {
+func (p *PreflightsRunner) SaveToDisk(o *apitypes.PreflightsOutput, path string) error {
 	// Store results on disk of the host that ran the preflights
 	data, err := json.MarshalIndent(o, "", "  ")
 	if err != nil {
@@ -46,8 +46,8 @@ func (p *PreflightsRunner) SaveToDisk(o *apitypes.HostPreflightsOutput, path str
 
 // OutputFromReader reads the provided reader and returns a Output
 // object. Expects the reader to contain a valid JSON object.
-func (p *PreflightsRunner) OutputFromReader(from io.Reader) (*apitypes.HostPreflightsOutput, error) {
-	result := &apitypes.HostPreflightsOutput{}
+func (p *PreflightsRunner) OutputFromReader(from io.Reader) (*apitypes.PreflightsOutput, error) {
+	result := &apitypes.PreflightsOutput{}
 	if err := json.NewDecoder(from).Decode(result); err != nil {
 		return result, fmt.Errorf("unable to decode preflight output: %w", err)
 	}
@@ -90,7 +90,7 @@ func maxWidth() int {
 	return width
 }
 
-func printTable(o *apitypes.HostPreflightsOutput) {
+func printTable(o *apitypes.PreflightsOutput) {
 	tb := table.NewWriter()
 	tb.SetStyle(
 		table.Style{

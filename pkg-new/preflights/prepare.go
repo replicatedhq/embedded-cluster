@@ -15,8 +15,8 @@ import (
 // they contain failures. We use this to differentiate the way we provide user feedback.
 var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
-// PrepareOptions contains options for preparing preflights (shared across CLI and API)
-type PrepareOptions struct {
+// PrepareHostPreflightOptions contains options for preparing host preflights (shared across CLI and API)
+type PrepareHostPreflightOptions struct {
 	HostPreflightSpec       *v1beta2.HostPreflightSpec
 	ReplicatedAppURL        string
 	ProxyRegistryURL        string
@@ -36,14 +36,15 @@ type PrepareOptions struct {
 	IsUI                    bool
 }
 
-// Prepare prepares the host preflights spec by merging provided spec with cluster preflights
-func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v1beta2.HostPreflightSpec, error) {
+
+// PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
+func (p *PreflightsRunner) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*v1beta2.HostPreflightSpec, error) {
 	hpf := opts.HostPreflightSpec
 	if hpf == nil {
 		hpf = &v1beta2.HostPreflightSpec{}
 	}
 
-	data, err := types.TemplateData{
+	data, err := types.HostPreflightTemplateData{
 		ReplicatedAppURL:        opts.ReplicatedAppURL,
 		ProxyRegistryURL:        opts.ProxyRegistryURL,
 		IsAirgap:                opts.IsAirgap,
@@ -84,3 +85,4 @@ func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v
 
 	return hpf, nil
 }
+
