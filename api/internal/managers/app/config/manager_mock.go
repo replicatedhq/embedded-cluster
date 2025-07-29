@@ -26,7 +26,7 @@ func (m *MockAppConfigManager) PatchConfigValues(values types.AppConfigValues) e
 }
 
 // TemplateConfig mocks the TemplateConfig method
-func (m *MockAppConfigManager) TemplateConfig(configValues types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
+func (m *MockAppConfigManager) TemplateConfig(configValues types.AppConfigValues, maskPasswords bool, filterHiddenItems bool) (types.AppConfig, error) {
 	args := m.Called(configValues, maskPasswords)
 	return args.Get(0).(types.AppConfig), args.Error(1)
 }
