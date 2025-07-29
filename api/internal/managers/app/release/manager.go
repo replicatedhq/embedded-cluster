@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -9,13 +10,16 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
 	"github.com/sirupsen/logrus"
 )
 
 // AppReleaseManager provides methods for managing the release of an app
 type AppReleaseManager interface {
 	TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error)
+	DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error)
 	GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error)
+	ExtractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error)
 }
 
 type appReleaseManager struct {
@@ -53,13 +57,17 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 }
 
 // NewAppReleaseManager creates a new AppReleaseManager
-func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) AppReleaseManager {
+func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
 		rawConfig: config,
 	}
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.releaseData == nil {
+		return nil, fmt.Errorf("release data not found")
 	}
 
 	if manager.logger == nil {
@@ -74,5 +82,5 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 		)
 	}
 
-	return manager
+	return manager, nil
 }
