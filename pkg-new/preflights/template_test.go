@@ -670,12 +670,12 @@ func TestCalculateAirgapStorageSpace(t *testing.T) {
 			expected:           "2Gi",
 		},
 		{
-			name:               "zero uncompressed size",
+			name:               "zero uncompressed size gives embedded assets size",
 			uncompressedSize:   0,
 			embeddedAssetsSize: embeddedAssetsSize,
 			k0sImageSize:       1024 * 1024 * 1024,
 			isController:       true,
-			expected:           "",
+			expected:           "1Gi",
 		},
 	}
 
