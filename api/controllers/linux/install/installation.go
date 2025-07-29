@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -46,7 +47,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		}
 		defer lock.Release()
 
-		err = c.stateMachine.Transition(lock, StateHostConfiguring)
+		err = c.stateMachine.Transition(lock, states.StateHostConfiguring)
 		if err != nil {
 			c.logger.WithError(err).Error("failed to transition states")
 			return
@@ -56,12 +57,12 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 
 		if err != nil {
 			c.logger.WithError(err).Error("failed to configure host")
-			err = c.stateMachine.Transition(lock, StateHostConfigurationFailed)
+			err = c.stateMachine.Transition(lock, states.StateHostConfigurationFailed)
 			if err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
 		} else {
-			err = c.stateMachine.Transition(lock, StateHostConfigured)
+			err = c.stateMachine.Transition(lock, states.StateHostConfigured)
 			if err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
@@ -78,11 +79,11 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 	}
 	defer lock.Release()
 
-	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfiguring, StateInstallationConfigured); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, states.StateInstallationConfiguring, states.StateInstallationConfigured); err != nil {
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, StateInstallationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -102,7 +103,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 				c.logger.Errorf("failed to update status: %w", err)
 			}
 
-			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
 		}
@@ -146,7 +147,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, StateInstallationConfigured)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfigured)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}

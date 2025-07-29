@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -32,11 +33,11 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	}
 	defer lock.Release()
 
-	if err := c.stateMachine.ValidateTransition(lock, StateInstallationConfiguring, StateInstallationConfigured); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, states.StateInstallationConfiguring, states.StateInstallationConfigured); err != nil {
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, StateInstallationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -48,11 +49,11 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		if finalErr != nil {
 			c.logger.Error(finalErr)
 
-			if err := c.stateMachine.Transition(lock, StateInstallationConfigurationFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
 		} else {
-			if err := c.stateMachine.Transition(lock, StateInstallationConfigured); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured); err != nil {
 				c.logger.Errorf("failed to transition states: %w", err)
 			}
 		}

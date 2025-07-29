@@ -33,24 +33,52 @@ const MOCK_APP_CONFIG: AppConfig = {
   ]
 };
 
+const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
+  const config: AppConfig = JSON.parse(JSON.stringify(MOCK_APP_CONFIG));
+  config.groups.forEach((group) => {
+    group.items.forEach((item) => {
+      if (values[item.name]) {
+        item.value = values[item.name].value;
+      }
+    });
+  });
+  return config;
+};
+
+// Shared state for saved config values across tests
+let savedConfigValues: AppConfigValues = {};
+
 const createServer = (target: string) => setupServer(
-  // Mock app config endpoint
-  http.get(`*/api/${target}/install/app/config`, () => {
-    return HttpResponse.json(MOCK_APP_CONFIG);
+  // Mock template app config endpoint - applies saved values to config
+  http.post(`*/api/${target}/install/app/config/template`, async ({ request }) => {
+    const body = await request.json() as { values: AppConfigValues };
+    // Merge saved values with any new template values
+    const mergedValues = { ...savedConfigValues, ...body.values };
+    const templatedConfig = createMockConfigWithValues(mergedValues);
+    return HttpResponse.json(templatedConfig);
   }),
 
-  // Mock config values fetch endpoint
-  http.get(`*/api/${target}/install/app/config/values`, () => {
-    return HttpResponse.json({ values: {} });
-  }),
-
-  // Mock config values submission endpoint
+  // Mock config values submission endpoint - saves values
   http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
-    // Return the submitted values as saved values
-    return HttpResponse.json({ values: body.values });
+    savedConfigValues = body.values;
+    return HttpResponse.json(body);
   })
 );
+
+// Helper function to wait for configuration to fully load with config items
+const waitForForm = async () => {
+  // First wait for the configuration step container to appear
+  await waitFor(() => {
+    expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+  });
+
+  // Then wait for at least one config item to appear (indicates config has loaded)
+  await waitFor(() => {
+    const configItems = screen.queryAllByTestId(/^config-item-/);
+    expect(configItems.length).toBeGreaterThan(0);
+  });
+};
 
 describe.each([
   { target: "kubernetes" as const, displayName: "Kubernetes" },
@@ -64,8 +92,9 @@ describe.each([
   });
 
   beforeEach(() => {
-    // Reset any mocks
+    // Reset any mocks and saved state
     vi.clearAllMocks();
+    savedConfigValues = {};
   });
 
   afterEach(() => {
@@ -83,22 +112,6 @@ describe.each([
     // 3. User clicks Back (returns to configuration step)
     // 4. The value should show the saved value, not the original value
 
-    let savedConfigValues: AppConfigValues = {};
-
-    // Mock the server to track what gets saved
-    server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: AppConfigValues };
-        savedConfigValues = body.values;
-        return HttpResponse.json({ values: body.values });
-      }),
-
-      // When fetching config values, return the saved values
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: savedConfigValues });
-      })
-    );
-
     renderWithProviders(<InstallWizard />, {
       wrapperProps: {
         authenticated: true,
@@ -107,14 +120,7 @@ describe.each([
     });
 
     // Wait for configuration step to load
-    await waitFor(() => {
-      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for form to be ready
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    await waitForForm();
 
     // Change the app name from "Default App" to "My Custom App"
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -141,36 +147,15 @@ describe.each([
     const backButton = screen.getByTestId(`${target}-setup-button-back`);
     fireEvent.click(backButton);
 
-    // Wait for configuration step to load again
-    await waitFor(() => {
-      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for configuration step to load again with the saved values
+    await waitForForm();
 
-    // Wait for form to be ready
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
-
-    // The correct updated value should be present
+    // The correct updated value should be present (now showing in the templated config)
     const appNameInputAfterBack = screen.getByTestId("text-input-app_name");
     expect(appNameInputAfterBack).toHaveValue("My Custom App");
   });
 
   it("handles multiple field changes during navigation", async () => {
-    let savedConfigValues: AppConfigValues = {};
-
-    server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: AppConfigValues };
-        savedConfigValues = body.values;
-        return HttpResponse.json({ values: body.values });
-      }),
-
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: savedConfigValues });
-      })
-    );
-
     renderWithProviders(<InstallWizard />, {
       wrapperProps: {
         authenticated: true,
@@ -178,14 +163,8 @@ describe.each([
       },
     });
 
-    // Wait for configuration step
-    await waitFor(() => {
-      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    // Wait for configuration step to load
+    await waitForForm();
 
     // Change multiple fields
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -217,16 +196,10 @@ describe.each([
     const backButton = screen.getByTestId(`${target}-setup-button-back`);
     fireEvent.click(backButton);
 
-    // Wait for configuration step to reload
-    await waitFor(() => {
-      expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for configuration step to reload with saved values
+    await waitForForm();
 
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
-
-    // Verify both saved values are restored
+    // Verify both saved values are restored (now showing in the templated config)
     const appNameInputAfterBack = screen.getByTestId("text-input-app_name");
     const enableFeatureCheckboxAfterBack = screen.getByTestId("bool-input-enable_feature");
 

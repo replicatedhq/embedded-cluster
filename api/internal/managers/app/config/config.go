@@ -20,21 +20,26 @@ const (
 )
 
 var (
-	// ErrConfigItemRequired is returned when a required item is not set
-	ErrConfigItemRequired = errors.New("item is required")
 	// ErrValueNotBase64Encoded is returned when a file item value is not base64 encoded
 	ErrValueNotBase64Encoded = errors.New("value must be base64 encoded for file items")
 )
 
-func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
-	// Get current config values for template execution
-	configValues, err := m.appConfigStore.GetConfigValues()
+// TemplateConfig templates the config with provided values and returns the templated config
+func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
+	// Get current config values from the store
+	storedValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
-		return types.AppConfig{}, fmt.Errorf("get config values: %w", err)
+		return types.AppConfig{}, fmt.Errorf("get stored config values: %w", err)
 	}
 
-	// Execute the config template
-	processedYAML, err := m.executeConfigTemplate(configValues)
+	// Merge the provided values with the stored values
+	// The provided values take precedence
+	mergedValues := make(types.AppConfigValues)
+	maps.Copy(mergedValues, storedValues)
+	maps.Copy(mergedValues, newValues)
+
+	// Execute the config template with the merged values
+	processedYAML, err := m.executeConfigTemplate(mergedValues)
 	if err != nil {
 		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
 	}
@@ -45,33 +50,29 @@ func (m *appConfigManager) GetConfig() (types.AppConfig, error) {
 		return types.AppConfig{}, fmt.Errorf("unmarshal processed config: %w", err)
 	}
 
-	// Filter and return as AppConfig (which is an alias for ConfigSpec)
+	// Filter out disabled groups and items
 	filteredConfig, err := filterAppConfig(processedConfig)
 	if err != nil {
-		return types.AppConfig{}, fmt.Errorf("filter config: %w", err)
+		return types.AppConfig{}, fmt.Errorf("filter app config: %w", err)
 	}
 
-	return types.AppConfig(filteredConfig.Spec), nil
-}
-
-// TemplateConfig templates the config with provided values and returns the templated config
-func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (types.AppConfig, error) {
-	// Execute the config template with provided values
-	result, err := m.executeConfigTemplate(configValues)
-	if err != nil {
-		return types.AppConfig{}, fmt.Errorf("execute config template: %w", err)
-	}
-
-	// Parse to Config struct
-	var processedConfig kotsv1beta1.Config
-	if err := kyaml.Unmarshal([]byte(result), &processedConfig); err != nil {
-		return types.AppConfig{}, fmt.Errorf("unmarshal processed config: %w", err)
-	}
-
-	// Filter and return as AppConfig (which is an alias for ConfigSpec)
-	filteredConfig, err := filterAppConfig(processedConfig)
-	if err != nil {
-		return types.AppConfig{}, fmt.Errorf("filter config: %w", err)
+	// Mask password fields if requested
+	if maskPasswords {
+		for i, group := range filteredConfig.Spec.Groups {
+			for j, item := range group.Items {
+				if item.Type == "password" {
+					if filteredConfig.Spec.Groups[i].Items[j].Value.String() != "" {
+						filteredConfig.Spec.Groups[i].Items[j].Value = multitype.FromString(PasswordMask)
+					}
+					// also mask child items
+					for k := range item.Items {
+						if filteredConfig.Spec.Groups[i].Items[j].Items[k].Value.String() != "" {
+							filteredConfig.Spec.Groups[i].Items[j].Items[k].Value = multitype.FromString(PasswordMask)
+						}
+					}
+				}
+			}
+		}
 	}
 
 	return types.AppConfig(filteredConfig.Spec), nil
@@ -80,9 +81,9 @@ func (m *appConfigManager) TemplateConfig(configValues types.AppConfigValues) (t
 func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
 	var ve *types.APIError
 
-	processedConfig, err := m.GetConfig()
+	processedConfig, err := m.TemplateConfig(configValues, false)
 	if err != nil {
-		return fmt.Errorf("get config: %w", err)
+		return fmt.Errorf("template config: %w", err)
 	}
 
 	for _, group := range processedConfig.Groups {
@@ -90,7 +91,8 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 			configValue := getConfigValueFromItem(item, configValues)
 			// check required items
 			if isRequiredItem(item) && isUnsetItem(configValue) {
-				ve = types.AppendFieldError(ve, item.Name, ErrConfigItemRequired)
+				fieldError := createRequiredFieldError(item)
+				ve = types.AppendFieldError(ve, item.Name, fieldError)
 			}
 			// check value is base64 encoded for file items
 			if isFileType(item) && !isValueBase64Encoded(configValue) {
@@ -110,16 +112,16 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 		return fmt.Errorf("get config values: %w", err)
 	}
 
+	// Get processed config to determine enabled groups and items
+	processedConfig, err := m.TemplateConfig(newValues, false)
+	if err != nil {
+		return fmt.Errorf("template config: %w", err)
+	}
+
 	// Merge new values with existing ones
 	mergedValues := make(types.AppConfigValues)
 	maps.Copy(mergedValues, existingValues)
 	maps.Copy(mergedValues, newValues)
-
-	// Get processed config to determine enabled groups and items
-	processedConfig, err := m.GetConfig()
-	if err != nil {
-		return fmt.Errorf("get config: %w", err)
-	}
 
 	// only keep values for enabled groups and items
 	filteredValues := make(types.AppConfigValues)
@@ -149,55 +151,14 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 	return m.appConfigStore.SetConfigValues(filteredValues)
 }
 
-// GetConfigValues returns config values with optional password field masking
-func (m *appConfigManager) GetConfigValues(maskPasswords bool) (types.AppConfigValues, error) {
-	configValues, err := m.appConfigStore.GetConfigValues()
-	if err != nil {
-		return nil, err
-	}
-
-	// If masking is not requested, return the original values
-	if !maskPasswords {
-		return configValues, nil
-	}
-
-	// Get processed config to determine password fields
-	processedConfig, err := m.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("get config: %w", err)
-	}
-
-	// Create a copy of the config values to mask password fields
-	maskedValues := make(types.AppConfigValues)
-	maps.Copy(maskedValues, configValues)
-
-	// Mask password fields
-	for _, group := range processedConfig.Groups {
-		for _, item := range group.Items {
-			if item.Type == "password" {
-				// Mask item
-				if v, ok := maskedValues[item.Name]; ok && v.Value != "" {
-					v.Value = PasswordMask
-					maskedValues[item.Name] = v
-				}
-				// Mask child items
-				for _, child := range item.Items {
-					if v, ok := maskedValues[child.Name]; ok && v.Value != "" {
-						v.Value = PasswordMask
-						maskedValues[child.Name] = v
-					}
-				}
-			}
-		}
-	}
-
-	return maskedValues, nil
+func (m *appConfigManager) GetConfigValues() (types.AppConfigValues, error) {
+	return m.appConfigStore.GetConfigValues()
 }
 
 func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
-	processedConfig, err := m.GetConfig()
+	processedConfig, err := m.TemplateConfig(nil, false)
 	if err != nil {
-		return kotsv1beta1.ConfigValues{}, fmt.Errorf("get config: %w", err)
+		return kotsv1beta1.ConfigValues{}, fmt.Errorf("template config: %w", err)
 	}
 
 	storedValues, err := m.appConfigStore.GetConfigValues()
@@ -328,9 +289,6 @@ func isRequiredItem(item kotsv1beta1.ConfigItem) bool {
 	if !isItemEnabled(item.When) {
 		return false
 	}
-	if item.Hidden {
-		return false
-	}
 	return true
 }
 
@@ -342,6 +300,15 @@ func isUnsetItem(configValue kotsv1beta1.ConfigValue) bool {
 // isFileType checks if the item type is "file"
 func isFileType(item kotsv1beta1.ConfigItem) bool {
 	return item.Type == "file"
+}
+
+// createRequiredFieldError creates a user-friendly error message for required fields
+func createRequiredFieldError(item kotsv1beta1.ConfigItem) error {
+	fieldName := item.Title
+	if fieldName == "" {
+		fieldName = item.Name
+	}
+	return fmt.Errorf("%s is required", fieldName)
 }
 
 // isValueBase64Encoded checks if the value of a ConfigValue is base64 encoded, this is used for file items

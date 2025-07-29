@@ -53,15 +53,9 @@ func (m *MockController) GetInfra(ctx context.Context) (types.Infra, error) {
 	return args.Get(0).(types.Infra), args.Error(1)
 }
 
-// GetAppConfig mocks the GetAppConfig method
-func (m *MockController) GetAppConfig(ctx context.Context) (types.AppConfig, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(types.AppConfig), args.Error(1)
-}
-
 // TemplateAppConfig mocks the TemplateAppConfig method
-func (m *MockController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
-	args := m.Called(ctx, values)
+func (m *MockController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
+	args := m.Called(ctx, values, maskPasswords)
 	return args.Get(0).(types.AppConfig), args.Error(1)
 }
 
@@ -72,8 +66,8 @@ func (m *MockController) PatchAppConfigValues(ctx context.Context, values types.
 }
 
 // GetAppConfigValues mocks the GetAppConfigValues method
-func (m *MockController) GetAppConfigValues(ctx context.Context, maskPasswords bool) (types.AppConfigValues, error) {
-	args := m.Called(ctx, maskPasswords)
+func (m *MockController) GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
+	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

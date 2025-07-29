@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	linuxinstallationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -288,7 +289,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the mocked manager
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+				linuxinstall.WithCurrentState(states.StateHostConfigured),
 			)),
 			linuxinstall.WithHostPreflightManager(pfManager),
 			linuxinstall.WithInstallationManager(iManager),
@@ -389,7 +390,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+				linuxinstall.WithCurrentState(states.StateHostConfigured),
 			)),
 			linuxinstall.WithHostPreflightManager(manager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -446,7 +447,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+				linuxinstall.WithCurrentState(states.StateHostConfigured),
 			)),
 			linuxinstall.WithHostPreflightManager(manager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -504,7 +505,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(linuxinstall.StateHostConfigured),
+				linuxinstall.WithCurrentState(states.StateHostConfigured),
 			)),
 			linuxinstall.WithHostPreflightManager(manager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
@@ -575,7 +576,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(linuxinstall.StatePreflightsRunning),
+				linuxinstall.WithCurrentState(states.StatePreflightsRunning),
 			)),
 			linuxinstall.WithHostPreflightManager(manager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{

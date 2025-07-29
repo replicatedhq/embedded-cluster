@@ -6,6 +6,16 @@ import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
 
+// Mock the debounced fetch to remove timing issues in tests
+vi.mock("../../../utils/debouncedFetch", () => ({
+  useDebouncedFetch: () => ({
+    debouncedFetch: vi.fn().mockImplementation((url: string, options: RequestInit = {}) => {
+      return fetch(url, options);
+    }),
+    cleanup: vi.fn()
+  })
+}));
+
 const MOCK_APP_CONFIG: AppConfig = {
   groups: [
     {
@@ -112,23 +122,34 @@ const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
 };
 
 const createServer = (target: string) => setupServer(
-  // Mock app config endpoint
-  http.get(`*/api/${target}/install/app/config`, () => {
-    return HttpResponse.json(MOCK_APP_CONFIG);
-  }),
-
-  // Mock config values fetch endpoint
-  http.get(`*/api/${target}/install/app/config/values`, () => {
-    return HttpResponse.json({ values: {} });
+  // Mock template app config endpoint
+  http.post(`*/api/${target}/install/app/config/template`, async ({ request }) => {
+    const body = await request.json() as { values: AppConfigValues };
+    // Apply any user values to the mock config and return it
+    const templatedConfig = createMockConfigWithValues(body.values);
+    return HttpResponse.json(templatedConfig);
   }),
 
   // Mock config values submission endpoint
   http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
-    const updatedConfig = createMockConfigWithValues(body.values);
-    return HttpResponse.json(updatedConfig);
+    return HttpResponse.json(body);
   })
 );
+
+// Helper function to wait for configuration to fully load with config items
+const waitForForm = async () => {
+  // First wait for the configuration step container to appear
+  await waitFor(() => {
+    expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+  });
+
+  // Then wait for at least one config item to appear (indicates config has loaded)
+  await waitFor(() => {
+    const configItems = screen.queryAllByTestId(/^config-item-/);
+    expect(configItems.length).toBeGreaterThan(0);
+  });
+};
 
 describe.each([
   { target: "kubernetes" as const, displayName: "Kubernetes" },
@@ -166,10 +187,8 @@ describe.each([
     // Check initial loading state
     expect(screen.getByTestId("configuration-step-loading")).toBeInTheDocument();
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Check for title and description
     await screen.findByText("Configuration");
@@ -209,8 +228,8 @@ describe.each([
 
   it("handles config fetch error gracefully", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Failed to fetch config" }), { status: 500 });
+      http.post(`*/api/${target}/install/app/config/template`, () => {
+        return new HttpResponse(JSON.stringify({ message: "Failed to template configuration" }), { status: 500 });
       })
     );
 
@@ -226,13 +245,13 @@ describe.each([
       expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
     });
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch config")).toBeInTheDocument();
+    expect(screen.getByText("Failed to template configuration")).toBeInTheDocument();
   });
 
-  it("handles config values fetch error gracefully", async () => {
+  it("handles template config error gracefully", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Failed to fetch config values" }), { status: 500 });
+      http.post(`*/api/${target}/install/app/config/template`, () => {
+        return new HttpResponse(JSON.stringify({ message: "Template processing failed" }), { status: 500 });
       })
     );
 
@@ -248,14 +267,14 @@ describe.each([
       expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
     });
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch config values")).toBeInTheDocument();
+    expect(screen.getByText("Template processing failed")).toBeInTheDocument();
   });
 
 
   it("handles empty config gracefully", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
-        return HttpResponse.json({ spec: { groups: [] } });
+      http.post(`*/api/${target}/install/app/config/template`, () => {
+        return HttpResponse.json({ groups: [] });
       })
     );
 
@@ -281,17 +300,11 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Initially, Settings tab should be active
+    expect(screen.getByTestId("config-item-app_name")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-description")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-enable_feature")).toBeInTheDocument();
     expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
@@ -323,15 +336,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Find and update text input
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -349,10 +355,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Find and update textarea input
     const descriptionTextarea = screen.getByTestId("textarea-input-description");
@@ -370,10 +374,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Check textarea with value
     const descriptionTextarea = screen.getByTestId("textarea-input-description");
@@ -395,15 +397,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("bool-input-enable_feature")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Find and toggle checkbox
     const enableFeatureCheckbox = screen.getByTestId("bool-input-enable_feature");
@@ -430,10 +425,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Submit form
     const nextButton = screen.getByTestId("config-next-button");
@@ -458,8 +451,7 @@ describe.each([
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
-        const updatedConfig = createMockConfigWithValues(body.values);
-        return HttpResponse.json(updatedConfig);
+        return HttpResponse.json(body);
       })
     );
 
@@ -470,15 +462,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Make changes to form fields
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -519,7 +504,7 @@ describe.each([
 
     // Verify the submitted values
     expect(submittedValues).not.toBeNull();
-    expect(submittedValues!).toMatchObject({
+    expect(submittedValues!).toEqual({
       values: {
         app_name: { value: "Updated App Name" },
         description: { value: "Updated multi-line\ndescription text" },
@@ -539,24 +524,18 @@ describe.each([
       },
     });
 
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Verify help text is displayed for the app_name field with default value
+    expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
     expect(screen.getByText(/Enter the name of your application/)).toBeInTheDocument();
     expect(screen.getByText("Default App")).toBeInTheDocument();
   });
 
   it("handles unauthorized error correctly", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
+      http.post(`*/api/${target}/install/app/config/template`, () => {
         return new HttpResponse(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
       })
     );
@@ -583,8 +562,7 @@ describe.each([
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
-        const updatedConfig = createMockConfigWithValues(body.values);
-        return HttpResponse.json(updatedConfig);
+        return HttpResponse.json(body);
       })
     );
 
@@ -595,15 +573,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
-
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.getByTestId("text-input-app_name")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Change the app name
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -631,7 +602,7 @@ describe.each([
 
     // Verify only the changed values were submitted
     expect(submittedValues).not.toBeNull();
-    expect(submittedValues!).toMatchObject({
+    expect(submittedValues!).toEqual({
       values: {
         app_name: { value: "Only Changed Field" },
         description: { value: "Only changed description" },
@@ -672,11 +643,8 @@ describe.each([
     };
 
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
+      http.post(`*/api/${target}/install/app/config/template`, async () => {
         return HttpResponse.json(configWithEmptyValues);
-      }),
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: {} }); // No changed values
       })
     );
 
@@ -687,10 +655,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Check that text input shows empty value (not default)
     const emptyTextInput = screen.getByTestId("text-input-empty_text_field");
@@ -818,17 +784,8 @@ describe.each([
 
       // Override the server to return our comprehensive config
       server.use(
-        http.get(`*/api/${target}/install/app/config`, () => {
+        http.post(`*/api/${target}/install/app/config/template`, async () => {
           return HttpResponse.json(comprehensiveConfig);
-        }),
-        http.get(`*/api/${target}/install/app/config/values`, () => {
-          // Provide config values to test priority: configValues > item.value > item.default
-          return HttpResponse.json({
-            values: {
-              notification_method: { value: "notification_method_slack" }, // configValues overrides schema default "notification_method_email"
-              backup_schedule: { value: "backup_schedule_weekly" } // configValues overrides schema value "backup_schedule_daily"
-            }
-          });
         })
       );
 
@@ -839,18 +796,11 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
-
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        // Check that all radio groups are rendered
-        expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Check that all radio groups are rendered
+      expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-database_type")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-logging_level")).toBeInTheDocument();
       expect(screen.getByTestId("config-item-ssl_mode")).toBeInTheDocument();
@@ -886,14 +836,20 @@ describe.each([
       // Test scenario 5: Has default, but configValues overrides (configValues should be selected)
       const emailNotificationRadio = screen.getByTestId("radio-input-notification_method_email") as HTMLInputElement;
       const slackNotificationRadio = screen.getByTestId("radio-input-notification_method_slack") as HTMLInputElement;
+      expect(emailNotificationRadio).toBeChecked(); // this is the default
+      expect(slackNotificationRadio).not.toBeChecked();
+      fireEvent.click(slackNotificationRadio); // User changes notification_method from default email to slack
       expect(emailNotificationRadio).not.toBeChecked();
       expect(slackNotificationRadio).toBeChecked(); // configValues "notification_method_slack" overrides default "notification_method_email"
 
       // Test scenario 6: Has value, but configValues overrides (configValues should be selected)
       const dailyBackupRadio = screen.getByTestId("radio-input-backup_schedule_daily") as HTMLInputElement;
       const weeklyBackupRadio = screen.getByTestId("radio-input-backup_schedule_weekly") as HTMLInputElement;
+      expect(dailyBackupRadio).toBeChecked(); // this is the value in the config
+      expect(weeklyBackupRadio).not.toBeChecked();
+      fireEvent.click(weeklyBackupRadio); // User changes backup_schedule from daily to weekly
       expect(dailyBackupRadio).not.toBeChecked();
-      expect(weeklyBackupRadio).toBeChecked(); // configValues "backup_schedule_weekly" overrides value "backup_schedule_daily"
+      expect(weeklyBackupRadio).toBeChecked(); // User changed from daily to weekly
 
       // Test radio button selection behavior
       fireEvent.click(localAuthRadio);
@@ -911,7 +867,7 @@ describe.each([
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
-          return HttpResponse.json(comprehensiveConfig);
+          return HttpResponse.json(body);
         })
       );
 
@@ -930,11 +886,14 @@ describe.each([
         { timeout: 3000 }
       );
 
-      // Verify the radio button change was submitted
+      // Verify the radio button changes were submitted
       expect(submittedValues).not.toBeNull();
-      expect(submittedValues!).toMatchObject({
+      expect(submittedValues!).toEqual({
         values: {
-          database_type: { value: "database_type_mysql" }
+          authentication_method: { value: "authentication_method_ldap" }, // User interacted with this field (clicked local then ldap)
+          notification_method: { value: "notification_method_slack" }, // User changed from default email to slack
+          backup_schedule: { value: "backup_schedule_weekly" }, // User changed from daily to weekly
+          database_type: { value: "database_type_mysql" } // User changed from default postgresql to mysql
         }
       });
     });
@@ -947,17 +906,11 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
-
-      // Wait for radio buttons to appear
-      await waitFor(() => {
-        expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Get all radio buttons in the authentication group
+      expect(screen.getByTestId("config-item-auth_type")).toBeInTheDocument();
       const anonymousRadio = screen.getByTestId("radio-input-auth_type_anonymous") as HTMLInputElement;
       const passwordRadio = screen.getByTestId("radio-input-auth_type_password") as HTMLInputElement;
 
@@ -990,10 +943,8 @@ describe.each([
         },
       });
 
-      // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Check that label config items are rendered
       expect(screen.getByTestId("label-info_label")).toBeInTheDocument();
@@ -1008,10 +959,8 @@ describe.each([
         },
       });
 
-      // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Check that URL is converted to a clickable link
       const infoLabel = screen.getByTestId("label-info_label");
@@ -1032,15 +981,11 @@ describe.each([
         },
       });
 
-      // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
-      // Wait for label items to be rendered in the active tab
-      await waitFor(() => {
-        expect(screen.getByTestId("label-info_label")).toBeInTheDocument();
-      });
+      // Check that label items are rendered in the active tab
+      expect(screen.getByTestId("label-info_label")).toBeInTheDocument();
 
       // Check that markdown is rendered correctly
       const markdownLabel = screen.getByTestId("label-markdown_label");
@@ -1071,10 +1016,8 @@ describe.each([
         },
       });
 
-      // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Switch to database tab
       fireEvent.click(screen.getByTestId("config-tab-database"));
@@ -1102,8 +1045,7 @@ describe.each([
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
-          const updatedConfig = createMockConfigWithValues(body.values);
-          return HttpResponse.json(updatedConfig);
+          return HttpResponse.json(body);
         })
       );
 
@@ -1114,10 +1056,8 @@ describe.each([
         },
       });
 
-      // Wait for loading to complete
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step-loading")).not.toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Make a change to a non-label field
       const appNameInput = screen.getByTestId("text-input-app_name");
@@ -1137,7 +1077,7 @@ describe.each([
 
       // Verify only the changed input field was submitted (not labels)
       expect(submittedValues).not.toBeNull();
-      expect(submittedValues!).toMatchObject({
+      expect(submittedValues!).toEqual({
         values: {
           app_name: { value: "Test App" }
         }
@@ -1201,19 +1141,10 @@ describe.each([
         ]
       };
 
-      // Override the server to return our comprehensive config
+      // Override the server to return our comprehensive config as-is
       server.use(
-        http.get(`*/api/${target}/install/app/config`, () => {
+        http.post(`*/api/${target}/install/app/config/template`, async () => {
           return HttpResponse.json(comprehensiveConfig);
-        }),
-        http.get(`*/api/${target}/install/app/config/values`, () => {
-          // Provide config values to test priority: configValues > item.value > item.default
-          return HttpResponse.json({
-            values: {
-              notification_method: { value: "1" }, // configValues overrides schema default "0"
-              backup_schedule: { value: "1" } // configValues overrides schema value "0"
-            }
-          });
         })
       );
 
@@ -1224,10 +1155,8 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Check that all bool fields are rendered
       expect(screen.getByTestId("config-item-authentication_method")).toBeInTheDocument();
@@ -1255,10 +1184,14 @@ describe.each([
 
       // Test scenario 5: Has default, but configValues overrides (configValues should be used)
       const notificationMethodCheckbox = screen.getByTestId("bool-input-notification_method") as HTMLInputElement;
+      expect(notificationMethodCheckbox).not.toBeChecked(); // default is "0"
+      fireEvent.click(notificationMethodCheckbox); // User changes notification_method from default unchecked to checked
       expect(notificationMethodCheckbox).toBeChecked(); // configValues "1" overrides default "0"
 
       // Test scenario 6: Has value, but configValues overrides (configValues should be used)
       const backupScheduleCheckbox = screen.getByTestId("bool-input-backup_schedule") as HTMLInputElement;
+      expect(backupScheduleCheckbox).not.toBeChecked(); // value is "0"
+      fireEvent.click(backupScheduleCheckbox); // User changes backup_schedule from value "0" to checked
       expect(backupScheduleCheckbox).toBeChecked(); // configValues "1" overrides value "0"
 
       // Test checkbox toggling behavior
@@ -1274,7 +1207,7 @@ describe.each([
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
-          return HttpResponse.json(comprehensiveConfig);
+          return HttpResponse.json(body);
         })
       );
 
@@ -1293,34 +1226,27 @@ describe.each([
         { timeout: 3000 }
       );
 
-      // Verify the checkbox change was submitted
+      // Verify the checkbox changes were submitted
       expect(submittedValues).not.toBeNull();
-      expect(submittedValues!).toMatchObject({
+      expect(submittedValues!).toEqual({
         values: {
-          database_type: { value: "0" } // changed from checked to unchecked
+          authentication_method: { value: "1" }, // User interacted with this field (toggled from unchecked to checked)
+          notification_method: { value: "1" }, // User changed from default unchecked to checked
+          backup_schedule: { value: "1" }, // User changed from unchecked to checked
+          database_type: { value: "0" } // User changed from default checked to unchecked
         }
       });
     });
   });
 
-  it("initializes changed values from retrieved config values and only submits changed values (PATCH behavior)", async () => {
-    // Mock the config values endpoint to return only a subset of values
-    const retrievedConfigValues = {
-      app_name: { value: "Retrieved App Name" },
-      auth_type: { value: "auth_type_anonymous" }
-      // Note: enable_feature and db_host are NOT in retrieved values
-    };
-
+  it("only submits changed values (PATCH behavior)", async () => {
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: retrievedConfigValues });
-      }),
       http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
-        return HttpResponse.json(MOCK_APP_CONFIG);
+        return HttpResponse.json(body);
       })
     );
 
@@ -1331,10 +1257,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Make changes to form fields
     const appNameInput = screen.getByTestId("text-input-app_name");
@@ -1359,14 +1283,11 @@ describe.each([
 
     // Verify that only changed values are submitted (PATCH behavior)
     expect(submittedValues).not.toBeNull();
-    expect(submittedValues!).toMatchObject({
+    expect(submittedValues!).toEqual({
       values: {
-        // Retrieved values that were changed
-        app_name: { value: "" }, // cleared to empty string (should be submitted for deletion)
+        app_name: { value: "" }, // cleared to empty string (should be submitted)
         // New changes to fields not in retrieved values
         db_host: { value: "new-db-host" }
-        // auth_type should NOT be submitted since it wasn't changed
-        // enable_feature should NOT be submitted since it wasn't retrieved and wasn't changed
       }
     });
 
@@ -1387,7 +1308,7 @@ describe.each([
               name: "user_password",
               title: "User Password",
               type: "password",
-              value: "masked_value",
+              value: "••••••••",
               default: "default_password"
             }
           ]
@@ -1396,11 +1317,8 @@ describe.each([
     };
 
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
+      http.post(`*/api/${target}/install/app/config/template`, async () => {
         return HttpResponse.json(configWithPassword);
-      }),
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        return HttpResponse.json({ values: { user_password: { value: "••••••••" } } });
       })
     );
 
@@ -1411,10 +1329,8 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
     // Get the password input
     const passwordInput = screen.getByTestId("password-input-user_password") as HTMLInputElement;
@@ -1439,6 +1355,91 @@ describe.each([
     expect(passwordInput.value).toBe('abc');
   });
 
+  it("controls password visibility toggle based on user input for password fields", async () => {
+    // Create config with password field
+    const configWithPassword: AppConfig = {
+      groups: [
+        {
+          name: "auth",
+          title: "Authentication",
+          items: [
+            {
+              name: "user_password",
+              title: "User Password",
+              type: "password",
+              value: "••••••••",
+              default: "default_password"
+            }
+          ]
+        }
+      ]
+    };
+
+    server.use(
+      http.post(`*/api/${target}/install/app/config/template`, async () => {
+        return HttpResponse.json(configWithPassword);
+      })
+    );
+
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    // Wait for config to load
+    await waitForForm();
+
+    // Get the password input
+    const passwordInput = screen.getByTestId("password-input-user_password") as HTMLInputElement;
+
+    // Initially, the password visibility toggle should NOT be available
+    // because allowShowPassword returns false when no user value is set
+    expect(screen.queryByTestId("password-visibility-toggle-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput).toHaveValue("••••••••"); // API masked value
+
+    // Simulate user typing in the password field
+    fireEvent.keyDown(passwordInput, { key: 'a' }); // This clears the field
+    fireEvent.change(passwordInput, { target: { value: 'mypassword' } });
+
+    // Wait for the component to re-render and the visibility toggle to appear
+    await waitFor(() => {
+      expect(screen.getByTestId("password-visibility-toggle-password-input-user_password")).toBeInTheDocument();
+    });
+
+    // Verify the eye icon is shown (password is hidden by default)
+    const visibilityToggle = screen.getByTestId("password-visibility-toggle-password-input-user_password");
+    expect(screen.getByTestId("eye-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-off-icon-password-input-user_password")).not.toBeInTheDocument();
+
+    // Password input should be of type "password" (hidden)
+    expect(passwordInput.type).toBe("password");
+
+    // Click the visibility toggle to show password
+    fireEvent.click(visibilityToggle);
+
+    // Verify the eye-off icon is now shown and input type changed to text
+    expect(screen.getByTestId("eye-off-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-icon-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput.type).toBe("text");
+
+    // Click the visibility toggle again to hide password
+    fireEvent.click(visibilityToggle);
+
+    // Verify we're back to the eye icon and password type
+    expect(screen.getByTestId("eye-icon-password-input-user_password")).toBeInTheDocument();
+    expect(screen.queryByTestId("eye-off-icon-password-input-user_password")).not.toBeInTheDocument();
+    expect(passwordInput.type).toBe("password");
+
+    // Clear the password field to test that toggle disappears
+    fireEvent.change(passwordInput, { target: { value: '' } });
+
+    // Wait for the visibility toggle to disappear
+    await waitFor(() => {
+      expect(screen.queryByTestId("password-visibility-toggle-password-input-user_password")).not.toBeInTheDocument();
+    });
+  });
   it("handles empty string values vs undefined/null values correctly", async () => {
     // Create config with realistic field names
     const configWithDefaults: AppConfig = {
@@ -1479,12 +1480,8 @@ describe.each([
     };
 
     server.use(
-      http.get(`*/api/${target}/install/app/config`, () => {
+      http.post(`*/api/${target}/install/app/config/template`, async () => {
         return HttpResponse.json(configWithDefaults);
-      }),
-      http.get(`*/api/${target}/install/app/config/values`, () => {
-        // API returns empty string for db_name, nothing for db_password or db_port
-        return HttpResponse.json({ values: { db_name: { value: "" } } });
       })
     );
 
@@ -1495,13 +1492,12 @@ describe.each([
       },
     });
 
-    // Wait for the content to be rendered
-    await waitFor(() => {
-      expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-    });
+    // Wait for config to load
+    await waitForForm();
 
-    // Field with empty string in configValues should show empty string (not schema value or default)
+    // Field updated with empty string in configValues should show empty string (not schema value or default)
     const dbNameField = screen.getByTestId("text-input-db_name") as HTMLInputElement;
+    fireEvent.change(dbNameField, { target: { value: "" } });
     expect(dbNameField.value).toBe(""); // configValues empty string takes precedence
 
     // Field with no configValues entry should show schema value (current behavior with getDisplayValue)
@@ -1526,10 +1522,8 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       // Check that the file input is rendered
       expect(screen.getByTestId("config-item-ssl_certificate")).toBeInTheDocument();
@@ -1544,10 +1538,8 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       const fileInput = screen.getByTestId("file-input-ssl_certificate");
 
@@ -1606,8 +1598,7 @@ describe.each([
         http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
-          const updatedConfig = createMockConfigWithValues(body.values);
-          return HttpResponse.json(updatedConfig);
+          return HttpResponse.json(body);
         })
       );
 
@@ -1618,10 +1609,8 @@ describe.each([
         },
       });
 
-      // Wait for the content to be rendered
-      await waitFor(() => {
-        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
-      });
+      // Wait for config to load
+      await waitForForm();
 
       const fileInput = screen.getByTestId("file-input-ssl_certificate");
 
@@ -1683,6 +1672,495 @@ describe.each([
         value: 'Y2VydGlmaWNhdGUgY29udGVudA==', // base64 encoded "certificate content"
         filename: 'cert.pem'
       });
+    });
+  });
+
+  describe("Server-driven validation", () => {
+    it("shows server validation error for required field when submission fails", async () => {
+      // Create config with required field for this specific test
+      const configWithRequiredField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings",
+            description: "Configure application settings",
+            items: [
+              {
+                name: "required_field",
+                title: "Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This field is required"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        // Mock template endpoint to return config with required field
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithRequiredField);
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "required_field",
+                message: "Required Field is required"
+              }
+            ]
+          }), { status: 400 });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-required_field")).toBeInTheDocument();
+      });
+
+      // Ensure the required field is empty
+      const requiredInput = screen.getByTestId("text-input-required_field");
+      expect(requiredInput).toHaveValue("");
+
+      // Submit form without filling required field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for server validation error to appear (raw server message)
+      await waitFor(() => {
+        expect(screen.getByText("Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify the raw server error message at the bottom
+      await waitFor(() => {
+        expect(screen.getByText("required fields not completed")).toBeInTheDocument();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("autofocuses on first required field with validation error on submit", async () => {
+      // Create config with multiple required fields to test focus priority
+      const configWithMultipleRequiredFields: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "optional_field",
+                title: "Optional Field",
+                type: "text",
+                value: "",
+                required: false,
+                help_text: "This field is optional"
+              },
+              {
+                name: "first_required_field",
+                title: "First Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This is the first required field"
+              },
+              {
+                name: "second_required_field",
+                title: "Second Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This is the second required field"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        // Mock template endpoint to return config with multiple required fields
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithMultipleRequiredFields);
+        }),
+        // Mock server validation error response with multiple field errors
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "first_required_field",
+                message: "First Required Field is required"
+              },
+              {
+                field: "second_required_field", 
+                message: "Second Required Field is required"
+              }
+            ]
+          }), { status: 400 });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required fields to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-first_required_field")).toBeInTheDocument();
+      });
+
+      // Ensure both required fields are empty
+      const firstRequiredInput = screen.getByTestId("text-input-first_required_field");
+      const secondRequiredInput = screen.getByTestId("text-input-second_required_field");
+      expect(firstRequiredInput).toHaveValue("");
+      expect(secondRequiredInput).toHaveValue("");
+
+      // Submit form without filling required fields
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for server validation errors to appear (raw server message)
+      await waitFor(() => {
+        expect(screen.getByText("First Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify that the first required field (in DOM order) is focused
+      await waitFor(() => {
+        expect(firstRequiredInput).toHaveFocus();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("autofocus switches to correct tab when required field is in non-active tab", async () => {
+      // Create config with required fields in different tabs
+      const configWithMultipleTabsAndRequiredFields: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "optional_setting",
+                title: "Optional Setting",
+                type: "text",
+                value: "filled",
+                required: false,
+                help_text: "This field is optional"
+              }
+            ]
+          },
+          {
+            name: "database",
+            title: "Database",
+            description: "Configure database settings", 
+            items: [
+              {
+                name: "db_required_field",
+                title: "Database Required Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This database field is required"
+              },
+              {
+                name: "db_optional_field", 
+                title: "Database Optional Field",
+                type: "text",
+                value: "",
+                required: false,
+                help_text: "This database field is optional"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        // Mock template endpoint to return config with multiple tabs and required fields
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithMultipleTabsAndRequiredFields);
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "db_required_field",
+                message: "Database Required Field is required"
+              }
+            ]
+          }), { status: 400 });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for tabs and fields to be rendered - should default to first tab (settings)
+      await waitFor(() => {
+        expect(screen.getByTestId("config-tab-settings")).toBeInTheDocument();
+        expect(screen.getByTestId("config-tab-database")).toBeInTheDocument();
+      });
+
+      // Verify we're on the settings tab initially (first tab is active by default)
+      const settingsTab = screen.getByTestId("config-tab-settings");
+      const databaseTab = screen.getByTestId("config-tab-database");
+      
+      // Settings tab should be active (has the blue color styling)
+      expect(settingsTab).toHaveStyle("color: rgb(49, 109, 230)");
+      
+      // Database tab should be inactive (has gray color)
+      expect(databaseTab).toHaveStyle("color: rgb(107, 114, 128)");
+
+      // Verify settings tab field is visible, database tab field is not visible  
+      expect(screen.getByTestId("text-input-optional_setting")).toBeInTheDocument();
+      expect(screen.queryByTestId("text-input-db_required_field")).not.toBeInTheDocument();
+
+      // Submit form without filling required field (which is in database tab)
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for server validation errors to appear (raw server message)
+      await waitFor(() => {
+        expect(screen.getByText("Database Required Field is required")).toBeInTheDocument();
+      });
+
+      // Verify that the system switched to the database tab
+      await waitFor(() => {
+        expect(databaseTab).toHaveStyle("color: rgb(49, 109, 230)"); // Now active
+      });
+
+      // Verify that the database required field is now visible and focused
+      await waitFor(() => {
+        const dbRequiredInput = screen.getByTestId("text-input-db_required_field");
+        expect(dbRequiredInput).toBeInTheDocument();
+        expect(dbRequiredInput).toHaveFocus();
+      });
+
+      // Verify settings tab field is no longer visible (tab switched)
+      expect(screen.queryByTestId("text-input-optional_setting")).not.toBeInTheDocument();
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("shows red border for required text input when empty on submit", async () => {
+      // Create config with required text field
+      const configWithRequiredField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "required_text_field",
+                title: "Required Text Field",
+                type: "text",
+                value: "",
+                required: true,
+                help_text: "This field is required"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        // Mock template endpoint to return config with required field
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithRequiredField);
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "required_text_field",
+                message: "Required Text Field is required"
+              }
+            ]
+          }), { status: 400 });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the required field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("text-input-required_text_field")).toBeInTheDocument();
+      });
+
+      const requiredInput = screen.getByTestId("text-input-required_text_field");
+      
+      // Initially, field should have normal gray border
+      expect(requiredInput).toHaveClass("border-gray-300");
+      expect(requiredInput).not.toHaveClass("border-red-500");
+
+      // Submit form without filling required field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for server validation error to appear (raw server message)
+      await waitFor(() => {
+        expect(screen.getByText("Required Text Field is required")).toBeInTheDocument();
+      });
+
+      // Verify the input now has red border
+      await waitFor(() => {
+        expect(requiredInput).toHaveClass("border-red-500");
+        expect(requiredInput).not.toHaveClass("border-gray-300");
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("autofocuses on first radio button option when radio field is required and empty", async () => {
+      // Create config with required radio field
+      const configWithRequiredRadioField: AppConfig = {
+        groups: [
+          {
+            name: "settings",
+            title: "Settings", 
+            description: "Configure application settings",
+            items: [
+              {
+                name: "auth_method",
+                title: "Authentication Method",
+                type: "radio",
+                value: "", // Empty - no option selected
+                required: true,
+                help_text: "Choose your authentication method",
+                items: [
+                  {
+                    name: "auth_method_local",
+                    title: "Local Authentication"
+                  },
+                  {
+                    name: "auth_method_ldap", 
+                    title: "LDAP Authentication"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        // Mock template endpoint to return config with required radio field
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithRequiredRadioField);
+        }),
+        // Mock server validation error response
+        http.patch(`*/api/${target}/install/app/config/values`, () => {
+          return new HttpResponse(JSON.stringify({
+            message: "required fields not completed",
+            status_code: 400,
+            errors: [
+              {
+                field: "auth_method",
+                message: "Authentication Method is required"
+              }
+            ]
+          }), { status: 400 });
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for the content to be rendered
+      await waitFor(() => {
+        expect(screen.queryByTestId("configuration-step")).toBeInTheDocument();
+      });
+
+      // Wait for the radio field to be rendered
+      await waitFor(() => {
+        expect(screen.getByTestId("config-item-auth_method")).toBeInTheDocument();
+      });
+
+      // Ensure no radio button is selected initially
+      const localAuthRadio = screen.getByTestId("radio-input-auth_method_local");
+      const ldapAuthRadio = screen.getByTestId("radio-input-auth_method_ldap");
+      expect(localAuthRadio).not.toBeChecked();
+      expect(ldapAuthRadio).not.toBeChecked();
+
+      // Submit form without selecting required radio field
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for server validation error to appear (raw server message)
+      await waitFor(() => {
+        expect(screen.getByText("Authentication Method is required")).toBeInTheDocument();
+      });
+
+      // Verify that the first radio button option is focused
+      // Since radio buttons use individual option IDs, we focus the first option
+      await waitFor(() => {
+        expect(localAuthRadio).toHaveFocus();
+      });
+
+      // Verify onNext was not called due to validation error
+      expect(mockOnNext).not.toHaveBeenCalled();
     });
   });
 });

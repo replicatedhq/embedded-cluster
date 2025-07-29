@@ -26,10 +26,17 @@ jobs:
       run: |
         # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.
         export CURVERSION=$(make print-K0S_VERSION)
-        export VERSION=$(gh release list --repo k0sproject/k0s --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
+        export CURMAJMIN=$(echo $CURVERSION | awk -F'.' '{print $1 "." $2}')
+
+        # pin to the latest release for the current major.minor version
+        export VERSION=$(gh release list --repo k0sproject/k0s --exclude-pre-releases --json name,isLatest | \
+          jq -r "[.[] | select(.name | startswith(\"$CURMAJMIN\"))] | first | .name")
+
         if [ "$CURVERSION" != "$VERSION" ]; then
           sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
-          sed -i "/^K0S_BINARY_SOURCE_OVERRIDE/c\K0S_BINARY_SOURCE_OVERRIDE =" Makefile
+          sed -i "/^K0S_GO_VERSION/c\K0S_GO_VERSION = $VERSION" Makefile
+          # replace the first occurrence of K0S_BINARY_SOURCE_OVERRIDE
+          sed -i '0,/K0S_BINARY_SOURCE_OVERRIDE =.*/s/K0S_BINARY_SOURCE_OVERRIDE =.*/K0S_BINARY_SOURCE_OVERRIDE =/' Makefile
           make go.mod
         fi
     - name: Troubleshoot

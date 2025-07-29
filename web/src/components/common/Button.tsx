@@ -13,7 +13,7 @@ interface ButtonProps {
   dataTestId?: string;
 }
 
-const Button: React.FC<ButtonProps> = ({
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   children,
   onClick,
   type = 'button',
@@ -23,7 +23,7 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   icon,
   dataTestId
-}) => {
+}, ref) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
@@ -46,6 +46,7 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
+      ref={ref}
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -61,6 +62,8 @@ const Button: React.FC<ButtonProps> = ({
       {children}
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;
