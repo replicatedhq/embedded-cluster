@@ -71,4 +71,3 @@ func PrintTable(o *apitypes.PreflightsOutput) {
 func PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	p.PrintTableWithoutInfo(o)
 }
-

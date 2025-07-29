@@ -6,10 +6,10 @@ type PostInstallRunHostPreflightsRequest struct {
 
 // HostPreflights represents the host preflight checks state
 type HostPreflights struct {
-	Titles                    []string         `json:"titles"`
+	Titles                    []string          `json:"titles"`
 	Output                    *PreflightsOutput `json:"output"`
-	Status                    Status           `json:"status"`
-	AllowIgnoreHostPreflights bool             `json:"allowIgnoreHostPreflights"`
+	Status                    Status            `json:"status"`
+	AllowIgnoreHostPreflights bool              `json:"allowIgnoreHostPreflights"`
 }
 
 // PreflightsOutput represents the output from both host and app preflight checks
@@ -34,4 +34,3 @@ func (o PreflightsOutput) HasFail() bool {
 func (o PreflightsOutput) HasWarn() bool {
 	return len(o.Warn) > 0
 }
-

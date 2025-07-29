@@ -38,7 +38,6 @@ type HostPreflightTemplateData struct {
 	IsUI                    bool
 }
 
-
 // WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings
 func (t HostPreflightTemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (HostPreflightTemplateData, error) {
 	if globalCIDR != nil && *globalCIDR != "" {

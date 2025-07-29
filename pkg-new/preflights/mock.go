@@ -70,4 +70,3 @@ func (m *MockPreflightRunner) PrintTable(o *apitypes.PreflightsOutput) {
 func (m *MockPreflightRunner) PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	m.Called(o)
 }
-

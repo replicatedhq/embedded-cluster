@@ -36,7 +36,6 @@ type PrepareHostPreflightOptions struct {
 	IsUI                    bool
 }
 
-
 // PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
 func (p *PreflightsRunner) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*v1beta2.HostPreflightSpec, error) {
 	hpf := opts.HostPreflightSpec
@@ -85,4 +84,3 @@ func (p *PreflightsRunner) PrepareHostPreflights(ctx context.Context, opts Prepa
 
 	return hpf, nil
 }
-
