@@ -12,6 +12,13 @@ type HostPreflights struct {
 	AllowIgnoreHostPreflights bool              `json:"allowIgnoreHostPreflights"`
 }
 
+// AppPreflights represents the app preflight checks state
+type AppPreflights struct {
+	Titles []string          `json:"titles"`
+	Output *PreflightsOutput `json:"output"`
+	Status Status            `json:"status"`
+}
+
 // PreflightsOutput represents the output from both host and app preflight checks
 type PreflightsOutput struct {
 	Pass []PreflightsRecord `json:"pass"`
