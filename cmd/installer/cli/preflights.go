@@ -47,12 +47,12 @@ func runHostPreflights(
 		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
 	}
 	output, stderr, err := preflights.RunHostPreflights(ctx, hpf, opts)
+	if stderr != "" {
+		logrus.Debugf("preflight stderr: %s", stderr)
+	}
 	if err != nil {
 		spinner.ErrorClosef("Failed to run host preflights")
 		return fmt.Errorf("host preflights failed to run: %w", err)
-	}
-	if stderr != "" {
-		logrus.Debugf("preflight stderr: %s", stderr)
 	}
 
 	err = preflights.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json"))
