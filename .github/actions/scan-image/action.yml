@@ -51,17 +51,32 @@ runs:
       id: image_details
       shell: bash
       run: |
+        # Extract base image name and tag
         IMAGE_NAME=$(echo "${{ inputs.image-ref }}" | cut -d':' -f1)
         IMAGE_TAG=$(echo "${{ inputs.image-ref }}" | cut -d':' -f2 | cut -d'@' -f1)
-        [[ "$IMAGE_TAG" == "$IMAGE_NAME" ]] && IMAGE_TAG="latest"
-        SAFE_NAME=$(echo "${IMAGE_NAME}-${IMAGE_TAG}" | sed 's/[\/:]/-/g')
-        SAFE_IMAGE_NAME=$(echo "${IMAGE_NAME}" | sed 's/[\/:]/-/g')
-        {
-          echo "image_name=${IMAGE_NAME}"
-          echo "image_tag=${IMAGE_TAG}"
-          echo "safe_name=${SAFE_NAME}"
-          echo "safe_image_name=${SAFE_IMAGE_NAME}"
 
+        # Default to latest tag if none specified
+        [[ "$IMAGE_TAG" == "$IMAGE_NAME" ]] && IMAGE_TAG="latest"
+
+        # Extract digest if present
+        IMAGE_DIGEST=$(echo "${{ inputs.image-ref }}" | grep -o 'sha256:[a-f0-9]*' || true)
+
+        # Create safe names for file paths and identifiers
+        if [[ -n "$IMAGE_DIGEST" ]]; then
+            DIGEST_SHORT=$(echo "$IMAGE_DIGEST" | cut -c1-15)
+            SAFE_NAME="${IMAGE_NAME}-${IMAGE_TAG}-${DIGEST_SHORT}"
+        else
+            SAFE_NAME="${IMAGE_NAME}-${IMAGE_TAG}"
+        fi
+        SAFE_NAME=$(echo "$SAFE_NAME" | sed 's/[\/:]/-/g')
+        SAFE_IMAGE_NAME=$(echo "${IMAGE_NAME}" | sed 's/[\/:]/-/g')
+
+        # Output variables for use in subsequent steps
+        {
+            echo "image_name=${IMAGE_NAME}"
+            echo "image_tag=${IMAGE_TAG}"
+            echo "safe_name=${SAFE_NAME}"
+            echo "safe_image_name=${SAFE_IMAGE_NAME}"
         } >> "$GITHUB_OUTPUT"
 
     - name: Scan image with Grype
