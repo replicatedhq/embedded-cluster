@@ -1,0 +1,195 @@
+package release
+
+import (
+	"context"
+	"fmt"
+	"maps"
+	"os"
+	"strconv"
+
+	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
+	kyaml "sigs.k8s.io/yaml"
+)
+
+// TemplateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
+func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error) {
+	if m.templateEngine == nil {
+		return nil, fmt.Errorf("template engine not initialized")
+	}
+
+	// Get HelmChart CRs from release data
+	helmChartCRs := m.releaseData.HelmChartCRs
+	if len(helmChartCRs) == 0 {
+		return []*kotsv1beta2.HelmChart{}, nil
+	}
+
+	templatedCRs := make([]*kotsv1beta2.HelmChart, 0, len(helmChartCRs))
+
+	for _, helmChartCR := range helmChartCRs {
+		if helmChartCR == nil {
+			continue
+		}
+
+		// Marshal the HelmChart CR to YAML for templating
+		helmChartYAML, err := kyaml.Marshal(helmChartCR)
+		if err != nil {
+			return nil, fmt.Errorf("marshal helm chart CR: %w", err)
+		}
+
+		// Parse the YAML as a template
+		if err := m.templateEngine.Parse(string(helmChartYAML)); err != nil {
+			return nil, fmt.Errorf("parse helm chart template: %w", err)
+		}
+
+		// Execute the template with config values
+		templatedYAML, err := m.templateEngine.Execute(configValues)
+		if err != nil {
+			return nil, fmt.Errorf("execute helm chart template: %w", err)
+		}
+
+		// Unmarshal the templated YAML back to HelmChart CR
+		var templatedCR kotsv1beta2.HelmChart
+		if err := kyaml.Unmarshal([]byte(templatedYAML), &templatedCR); err != nil {
+			return nil, fmt.Errorf("unmarshal templated helm chart CR: %w", err)
+		}
+
+		templatedCRs = append(templatedCRs, &templatedCR)
+	}
+
+	return templatedCRs, nil
+}
+
+// DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart
+func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
+	if templatedCR == nil {
+		return nil, fmt.Errorf("templated CR is nil")
+	}
+
+	// Check if the chart should be excluded
+	if !templatedCR.Spec.Exclude.IsEmpty() {
+		exclude, err := templatedCR.Spec.Exclude.Boolean()
+		if err != nil {
+			return nil, fmt.Errorf("parse templated CR exclude: %w", err)
+		}
+		if exclude {
+			return nil, nil
+		}
+	}
+
+	// Find the corresponding chart archive for this HelmChart CR
+	chartArchive, err := findChartArchive(m.releaseData.HelmChartArchives, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("find chart archive for %s: %w", templatedCR.Name, err)
+	}
+
+	// Generate Helm values from the templated CR
+	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
+	if err != nil {
+		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
+	}
+
+	// Create a Helm client for dry run templating
+	helmClient, err := helm.NewClient(helm.HelmOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("create helm client: %w", err)
+	}
+	defer helmClient.Close()
+
+	// Write chart archive to a temporary file
+	chartPath, err := writeChartArchiveToTemp(chartArchive)
+	if err != nil {
+		return nil, fmt.Errorf("write chart archive to temp: %w", err)
+	}
+	defer os.Remove(chartPath)
+
+	// Fallback to admin console namespace if namespace is not set
+	namespace := templatedCR.GetNamespace()
+	if namespace == "" {
+		namespace = constants.KotsadmNamespace
+	}
+
+	// Prepare install options for dry run
+	installOpts := helm.InstallOptions{
+		ReleaseName:  templatedCR.GetReleaseName(),
+		ChartPath:    chartPath,
+		ChartVersion: templatedCR.GetChartVersion(),
+		Values:       helmValues,
+		Namespace:    namespace,
+	}
+
+	// Perform dry run rendering
+	manifests, err := helmClient.Render(ctx, installOpts)
+	if err != nil {
+		return nil, fmt.Errorf("render helm chart %s: %w", templatedCR.Name, err)
+	}
+
+	return manifests, nil
+}
+
+// GenerateHelmValues generates Helm values for a single templated HelmChart custom resource
+func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
+	if templatedCR == nil {
+		return nil, fmt.Errorf("templated CR is nil")
+	}
+
+	// Start with the base values
+	mergedValues := templatedCR.Spec.Values
+	if mergedValues == nil {
+		mergedValues = map[string]kotsv1beta2.MappedChartValue{}
+	}
+
+	// Process OptionalValues based on their conditions
+	for _, optionalValue := range templatedCR.Spec.OptionalValues {
+		if optionalValue == nil {
+			continue
+		}
+
+		// Check the "when" condition
+		shouldInclude, err := strconv.ParseBool(optionalValue.When)
+		if err != nil {
+			return nil, fmt.Errorf("parse when condition on optional value: %w", err)
+		}
+		if !shouldInclude {
+			continue
+		}
+
+		if optionalValue.RecursiveMerge {
+			// Use KOTS merge function for recursive merge
+			mergedValues = kotsv1beta2.MergeHelmChartValues(mergedValues, optionalValue.Values)
+		} else {
+			// Direct key replacement
+			maps.Copy(mergedValues, optionalValue.Values)
+		}
+	}
+
+	// Convert MappedChartValue to standard Go interface{} using GetHelmValues
+	helmValues, err := templatedCR.Spec.GetHelmValues(mergedValues)
+	if err != nil {
+		return nil, fmt.Errorf("get helm values for chart %s: %w", templatedCR.Name, err)
+	}
+
+	return helmValues, nil
+}
+
+// ExtractTroubleshootKinds extracts troubleshoot specifications from Helm chart manifests
+func (m *appReleaseManager) ExtractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error) {
+	// Convert [][]byte manifests to []string for troubleshootloader
+	rawSpecs := make([]string, len(manifests))
+	for i, manifest := range manifests {
+		rawSpecs[i] = string(manifest)
+	}
+
+	// Use troubleshootloader to parse all specs
+	tsKinds, err := troubleshootloader.LoadSpecs(ctx, troubleshootloader.LoadOptions{
+		RawSpecs: rawSpecs,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("load troubleshoot specs: %w", err)
+	}
+
+	return tsKinds, nil
+}

@@ -9,10 +9,13 @@ import (
 	"github.com/replicatedhq/kotskinds/multitype"
 )
 
-type ResolvedConfigItem struct {
+type resolvedConfigItem struct {
 	// Effective is the final resolved value following priority: user value > config value > config default
 	// This is what ConfigOption functions return and what gets used in templates
 	Effective string
+
+	// UserValue is the user-provided value for the config item (if it exists)
+	UserValue string
 
 	// Value is the templated result of the config item's "value" field (if it exists)
 	// This represents the config-defined value after template processing
@@ -41,7 +44,16 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 			if err != nil {
 				return nil, err
 			}
-			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(resolved.Value)
+
+			// Apply user value if it exists, otherwise use the templated config value (but not the default)
+			var value string
+			if resolved.UserValue != "" {
+				value = resolved.UserValue
+			} else if resolved.Value != "" {
+				value = resolved.Value
+			}
+
+			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(value)
 			cfg.Spec.Groups[i].Items[j].Default = multitype.FromString(resolved.Default)
 		}
 	}
@@ -110,7 +122,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 // 2. The templated value - the templated result of the item's "value" field
 // 3. The templated default - the templated result of the item's "default" field
 // 4. The filename - the filename of the "file" type config item (if it exists)
-func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
+func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	// Check if we have a cached value
 	if cacheVal, ok := e.getItemCacheValue(name); ok {
 		return cacheVal, nil
@@ -156,7 +168,8 @@ func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
-	if userVal, exists := e.configValues[name]; exists {
+	userVal, exists := e.configValues[name]
+	if exists {
 		effectiveValue = userVal.Value
 	} else if templatedValue != "" {
 		effectiveValue = templatedValue
@@ -165,8 +178,9 @@ func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
 	}
 
 	// Cache the result and mark as processed
-	resolved := ResolvedConfigItem{
+	resolved := resolvedConfigItem{
 		Effective: effectiveValue,
+		UserValue: userVal.Value,
 		Value:     templatedValue,
 		Default:   templatedDefault,
 		Filename:  e.getItemFilename(configItem),
@@ -177,7 +191,7 @@ func (e *Engine) resolveConfigItem(name string) (*ResolvedConfigItem, error) {
 	return &resolved, nil
 }
 
-func (e *Engine) getItemCacheValue(name string) (*ResolvedConfigItem, bool) {
+func (e *Engine) getItemCacheValue(name string) (*resolvedConfigItem, bool) {
 	// Check if we have a cached value
 	if cacheVal, exists := e.cache[name]; exists {
 		// If already processed in this execution, use it

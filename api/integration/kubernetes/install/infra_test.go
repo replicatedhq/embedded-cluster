@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/assets"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -122,7 +123,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Create an install controller with the mocked managers
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithInstallation(ki),
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateInstallationConfigured))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -302,7 +303,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Create an install controller with the mocked managers
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithInstallation(ki),
-			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateInstallationConfigured))),
+			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},

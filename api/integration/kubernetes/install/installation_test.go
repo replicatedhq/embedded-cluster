@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	kubernetesinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
+	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -134,7 +135,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			// Create an install controller with the mock installation
 			installController, err := kubernetesinstall.NewInstallController(
 				kubernetesinstall.WithInstallation(ki),
-				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 				kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 			)
 			require.NoError(t, err)
@@ -225,7 +226,7 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
@@ -283,7 +284,7 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 	// Create an install controller with the mock installation
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithInstallation(ki),
-		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(kubernetesinstall.StateApplicationConfigured))),
+		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)

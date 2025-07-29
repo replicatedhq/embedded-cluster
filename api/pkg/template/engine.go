@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -37,7 +38,7 @@ type Engine struct {
 	prevConfigValues types.AppConfigValues
 	tmpl             *template.Template
 	funcMap          template.FuncMap
-	cache            map[string]ResolvedConfigItem
+	cache            map[string]resolvedConfigItem
 	depsTree         map[string][]string
 	stack            []string
 	mtx              sync.Mutex
@@ -69,7 +70,7 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 		config:           config,
 		configValues:     make(types.AppConfigValues),
 		prevConfigValues: make(types.AppConfigValues),
-		cache:            make(map[string]ResolvedConfigItem),
+		cache:            make(map[string]resolvedConfigItem),
 		depsTree:         make(map[string][]string),
 		stack:            []string{},
 		mtx:              sync.Mutex{},
@@ -195,6 +196,34 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
 		"LicenseFieldValue": e.licenseFieldValue,
+		"LicenseDockerCfg":  e.licenseDockerCfg,
+
+		"HTTPProxy":  e.httpProxy,
+		"HTTPSProxy": e.httpsProxy,
+		"NoProxy":    e.noProxy,
+
+		"Now":          e.now,
+		"NowFmt":       e.nowFormat,
+		"ToLower":      strings.ToLower,
+		"ToUpper":      strings.ToUpper,
+		"TrimSpace":    strings.TrimSpace,
+		"Trim":         e.trim,
+		"UrlEncode":    url.QueryEscape,
+		"Base64Encode": e.base64Encode,
+		"Base64Decode": e.base64Decode,
+		"Split":        strings.Split,
+		"RandomBytes":  e.randomBytes,
+		"RandomString": e.randomString,
+		"Add":          e.add,
+		"Sub":          e.sub,
+		"Mult":         e.mult,
+		"Div":          e.div,
+		"ParseBool":    e.parseBool,
+		"ParseFloat":   e.parseFloat,
+		"ParseInt":     e.parseInt,
+		"ParseUint":    e.parseUint,
+		"HumanSize":    e.humanSize,
+		"YamlEscape":   e.yamlEscape,
 	}
 }
 

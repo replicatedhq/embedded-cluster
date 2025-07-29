@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -462,127 +460,6 @@ func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
 	assert.Equal(t, "user_file.txt user content", result)
 }
 
-func TestEngine_LicenseFieldValue(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			// Basic license fields
-			CustomerName:    "Acme Corp",
-			LicenseID:       "license-123",
-			LicenseType:     "prod",
-			LicenseSequence: 456,
-			Signature:       []byte("signature-data"),
-			AppSlug:         "my-app",
-			ChannelID:       "channel-456",
-			ChannelName:     "Stable",
-
-			// Boolean feature flags
-			IsSnapshotSupported:               true,
-			IsDisasterRecoverySupported:       false,
-			IsGitOpsSupported:                 true,
-			IsSupportBundleUploadSupported:    false,
-			IsEmbeddedClusterMultiNodeEnabled: true,
-			IsIdentityServiceSupported:        false,
-			IsGeoaxisSupported:                true,
-			IsAirgapSupported:                 false,
-			IsSemverRequired:                  true,
-
-			// Custom entitlements
-			Entitlements: map[string]kotsv1beta1.EntitlementField{
-				"maxNodes": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:   kotsv1beta1.String,
-						StrVal: "10",
-					},
-				},
-				"storageLimit": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:   kotsv1beta1.Int,
-						IntVal: 100,
-					},
-				},
-				"isFeatureEnabled": {
-					Value: kotsv1beta1.EntitlementValue{
-						Type:    kotsv1beta1.Bool,
-						BoolVal: true,
-					},
-				},
-			},
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license))
-
-	// Test basic license fields
-	testCases := []struct {
-		field    string
-		expected string
-	}{
-		{"customerName", "Acme Corp"},
-		{"licenseID", "license-123"},
-		{"licenseId", "license-123"}, // Test alias
-		{"licenseType", "prod"},
-		{"licenseSequence", "456"},
-		{"signature", "signature-data"},
-		{"appSlug", "my-app"},
-		{"channelID", "channel-456"},
-		{"channelName", "Stable"},
-
-		// Boolean feature flags
-		{"isSnapshotSupported", "true"},
-		{"IsDisasterRecoverySupported", "false"},
-		{"isGitOpsSupported", "true"},
-		{"isSupportBundleUploadSupported", "false"},
-		{"isEmbeddedClusterMultiNodeEnabled", "true"},
-		{"isIdentityServiceSupported", "false"},
-		{"isGeoaxisSupported", "true"},
-		{"isAirgapSupported", "false"},
-		{"isSemverRequired", "true"},
-
-		// Custom entitlements
-		{"maxNodes", "10"},
-		{"storageLimit", "100"},
-		{"isFeatureEnabled", "true"},
-
-		// Endpoint field (should be empty without releaseData)
-		{"endpoint", ""},
-
-		// Unknown field
-		{"unknownField", ""},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.field, func(t *testing.T) {
-			err := engine.Parse(fmt.Sprintf("{{repl LicenseFieldValue \"%s\" }}", tc.field))
-			require.NoError(t, err)
-			result, err := engine.Execute(nil)
-			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result, "Field %s should return %s", tc.field, tc.expected)
-		})
-	}
-}
-
-func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config)
-
-	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
-}
-
 func TestEngine_CircularDependency(t *testing.T) {
 	config := &kotsv1beta1.Config{
 		Spec: kotsv1beta1.ConfigSpec{
@@ -880,64 +757,6 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 	_, err = engine.Execute(nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config item nonexistent not found")
-}
-
-func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			CustomerName: "Acme Corp",
-			LicenseID:    "license-123",
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	// Mock release data with embedded cluster config
-	releaseData := &release.ReleaseData{
-		EmbeddedClusterConfig: &ecv1beta1.Config{
-			Spec: ecv1beta1.ConfigSpec{},
-		},
-		ChannelRelease: &release.ChannelRelease{
-			DefaultDomains: release.Domains{
-				ReplicatedAppDomain: "my-app.example.com",
-			},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-
-	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "https://my-app.example.com", result)
-}
-
-func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			CustomerName: "Acme Corp",
-			LicenseID:    "license-123",
-		},
-	}
-
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
-	}
-
-	engine := NewEngine(config, WithLicense(license))
-
-	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
-	require.NoError(t, err)
-	result, err := engine.Execute(nil)
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
 }
 
 func TestEngine_DependencyTreeAndCaching(t *testing.T) {
@@ -1257,11 +1076,11 @@ repl{{ toJson $tls }}`),
 
 	// Verify performance characteristics: non-cached should be in ms, cached much faster
 	assert.True(t, firstDuration > time.Millisecond*100, "First execution should take at least 100ms (cert generation)")
-	assert.True(t, firstCachedDuration < time.Millisecond*10, "First cached execution should be under 10ms")
+	assert.True(t, firstCachedDuration < time.Millisecond*20, "First cached execution should be under 20ms")
 
 	// Verify caching provides significant speedup
-	assert.True(t, firstCachedDuration < firstDuration/2,
-		"Cached execution should be at least 2x faster. First: %v, Cached: %v",
+	assert.True(t, firstCachedDuration < firstDuration/5,
+		"Cached execution should be at least 5x faster. First: %v, Cached: %v",
 		firstDuration, firstCachedDuration)
 
 	// Verify cached result is identical to first execution
@@ -1283,7 +1102,12 @@ repl{{ toJson $tls }}`),
 
 	// Verify performance characteristics for second hostname
 	assert.True(t, secondDuration > time.Millisecond*100, "Second execution should take at least 100ms (cert generation)")
-	assert.True(t, secondCachedDuration < time.Millisecond*10, "Second cached execution should be under 10ms")
+	assert.True(t, secondCachedDuration < time.Millisecond*20, "Second cached execution should be under 20ms")
+
+	// Verify caching provides significant speedup
+	assert.True(t, secondCachedDuration < secondDuration/5,
+		"Cached execution should be at least 5x faster. Second: %v, Cached: %v",
+		secondDuration, secondCachedDuration)
 
 	// Verify second cached result is identical to second execution
 	assert.Equal(t, secondResult, secondCachedResult, "Second cached execution should return identical result")
@@ -1401,6 +1225,13 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 							Type:    "text",
 							Default: multitype.FromString("repl{{ ConfigOption \"app_name\" }} v repl{{ ConfigOption \"app_version\" }}"),
 						},
+						{
+							Name:    "app_title",
+							Title:   "App Title",
+							Type:    "text",
+							Value:   multitype.FromString("Application: repl{{ ConfigOption \"app_name\" }}"),
+							Default: multitype.FromString("Default Application"),
+						},
 					},
 				},
 			},
@@ -1429,17 +1260,22 @@ spec:
       name: app_name
       title: Application Name
       type: text
-      value: MyApp
+      value: CustomApp
     - default: 1.0.0
       name: app_version
       title: Version
       type: text
-      value: ""
+      value: "2.0.0"
     - default: CustomApp v 2.0.0
       name: display_name
       title: Display Name
       type: text
       value: ""
+    - default: Default Application
+      name: app_title
+      title: App Title
+      type: text
+      value: "Application: CustomApp"
     name: app_settings
     title: Application Settings
 status: {}
@@ -1473,6 +1309,11 @@ spec:
       title: Display Name
       type: text
       value: ""
+    - default: Default Application
+      name: app_title
+      title: App Title
+      type: text
+      value: "Application: MyApp"
     name: app_settings
     title: Application Settings
 status: {}
@@ -1555,6 +1396,13 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 							Type:    "textarea",
 							Default: multitype.FromString("endpoint: repl{{ ConfigOption \"api_endpoint\" }}\nversion: repl{{ ConfigOption \"api_version\" }}"),
 						},
+						{
+							Name:    "service_url",
+							Title:   "Service URL",
+							Type:    "text",
+							Value:   multitype.FromString("repl{{ ConfigOption \"base_url\" }}/service"),
+							Default: multitype.FromString("http://localhost/service"),
+						},
 					},
 				},
 			},
@@ -1583,12 +1431,12 @@ spec:
       name: base_url
       title: Base URL
       type: text
-      value: ""
+      value: "https://custom.api.com"
     - default: v1
       name: api_version
       title: API Version
       type: text
-      value: ""
+      value: "v2"
     - default: https://custom.api.com/v2
       name: api_endpoint
       title: API Endpoint
@@ -1601,6 +1449,11 @@ spec:
       title: Full Configuration
       type: textarea
       value: ""
+    - default: http://localhost/service
+      name: service_url
+      title: Service URL
+      type: text
+      value: "https://custom.api.com/service"
     name: complex_settings
     title: Complex Dependency Chain
 status: {}

@@ -63,6 +63,127 @@ func TestGetAppTitle(t *testing.T) {
 	assert.Equal(t, "Embedded Cluster Smoke Test App", title)
 }
 
+func TestGetHelmChartCRs(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	helmCharts := release.HelmChartCRs
+	assert.NoError(t, err)
+	assert.NotNil(t, helmCharts)
+	assert.Len(t, helmCharts, 1) // One HelmChart CR in test data
+}
+
+func TestGetHelmChartArchives(t *testing.T) {
+	release, err := newReleaseDataFrom(testReleaseData)
+	assert.NoError(t, err)
+	archives := release.HelmChartArchives
+	assert.NoError(t, err)
+	assert.NotNil(t, archives)
+	assert.Len(t, archives, 1) // One .tgz file in test data
+}
+
+func TestParseHelmChartCR(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+		wantNil bool
+	}{
+		{
+			name:    "empty data",
+			data:    []byte{},
+			wantErr: false,
+			wantNil: true,
+		},
+		{
+			name: "valid helm chart CR",
+			data: []byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: test-chart
+spec:
+  chart:
+    chartVersion: "1.0.0"
+    name: test-chart`),
+			wantErr: false,
+			wantNil: false,
+		},
+		{
+			name:    "invalid yaml",
+			data:    []byte(`invalid: yaml: content`),
+			wantErr: true,
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseHelmChartCR(tt.data)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tt.wantNil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+			}
+		})
+	}
+}
+
+func TestParseWithHelmChartData(t *testing.T) {
+	// Create test data with HelmChart CR and .tgz file
+	helmChartYAML := `apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: test-chart
+spec:
+  chart:
+    chartVersion: "1.0.0"
+    name: test-chart`
+
+	chartArchive := []byte("fake-chart-archive-content")
+
+	testData := map[string][]byte{
+		"helmchart.yaml":       []byte(helmChartYAML),
+		"test-chart-1.0.0.tgz": chartArchive,
+	}
+
+	// Create tar.gz from test data
+	buf := bytes.NewBuffer([]byte{})
+	gw := gzip.NewWriter(buf)
+	tw := tar.NewWriter(gw)
+
+	for name, content := range testData {
+		err := tw.WriteHeader(&tar.Header{
+			Name: name,
+			Size: int64(len(content)),
+		})
+		assert.NoError(t, err)
+		_, err = tw.Write(content)
+		assert.NoError(t, err)
+	}
+
+	err := tw.Close()
+	assert.NoError(t, err)
+	err = gw.Close()
+	assert.NoError(t, err)
+
+	// Parse the test data
+	release, err := newReleaseDataFrom(buf.Bytes())
+	assert.NoError(t, err)
+	assert.NotNil(t, release)
+
+	// Verify HelmChart CRs
+	assert.Len(t, release.HelmChartCRs, 1)
+	assert.NotNil(t, release.HelmChartCRs[0])
+
+	// Verify chart archives
+	assert.Len(t, release.HelmChartArchives, 1)
+	assert.Equal(t, chartArchive, release.HelmChartArchives[0])
+}
+
 func generateReleaseTGZ() ([]byte, error) {
 	content, err := os.ReadFile("testdata/release.yaml")
 	if err != nil {

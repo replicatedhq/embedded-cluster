@@ -10,31 +10,81 @@ import (
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tiendc/go-deepcopy"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestAppConfigManager_GetConfig(t *testing.T) {
+func TestAppConfigManager_TemplateConfig(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   kotsv1beta1.Config
-		expected types.AppConfig
+		name          string
+		config        kotsv1beta1.Config
+		configValues  types.AppConfigValues
+		maskPasswords bool
+		expected      types.AppConfig
 	}{
 		{
-			name: "config with template processing",
+			name: "filtering: hardcoded and templated when, mixed delims, sprig and repl",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
-							Name:  "templated_group",
-							Title: "{{repl print \"HTTP Configuration\" }}",
+							Name:  "hardcoded_true",
+							Title: "Hardcoded True",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:  "templated_item",
-									Title: "repl{{ upper \"http enabled\" }}",
+									Name:  "item_true",
+									Title: "Visible Item",
 									Type:  "text",
-									Value: multitype.FromString("{{repl print \"8080\" }}"),
+									Value: multitype.FromString("visible"),
+									When:  "true",
+								},
+								{
+									Name:  "item_false",
+									Title: "Hidden Item",
+									Type:  "text",
+									Value: multitype.FromString("hidden"),
+									When:  "false",
+								},
+							},
+						},
+						{
+							Name:  "hardcoded_false",
+							Title: "Hardcoded False",
+							When:  "false",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "item_should_not_appear",
+									Title: "Should Not Appear",
+									Type:  "text",
+									Value: multitype.FromString("nope"),
+									When:  "true",
+								},
+							},
+						},
+						{
+							Name:  "templated_when",
+							Title: "{{repl print \"Templated Group\"}}",
+							When:  "{{repl eq \"yes\" (print \"yes\")}}",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "templated_true",
+									Title: "repl{{ upper \"templated true\" }}",
+									Type:  "text",
+									Value: multitype.FromString("{{repl print \"ok\"}}"),
+									When:  "{{repl eq \"yes\" \"yes\"}}",
+								},
+								{
+									Name:  "templated_false",
+									Title: "{{repl lower \"TEMPLATED FALSE\"}}",
+									Type:  "text",
+									Value: multitype.FromString("{{repl print \"no\"}}"),
+									When:  "{{repl eq \"yes\" \"no\"}}",
+								},
+								{
+									Name:  "sprig_item",
+									Title: "{{repl printf \"Sprig: %d\" (add 2 3)}}",
+									Type:  "text",
+									Value: multitype.FromString("{{repl add 2 3}}"),
 									When:  "true",
 								},
 							},
@@ -45,15 +95,36 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			expected: types.AppConfig{
 				Groups: []kotsv1beta1.ConfigGroup{
 					{
-						Name:  "templated_group",
-						Title: "HTTP Configuration",
+						Name:  "hardcoded_true",
+						Title: "Hardcoded True",
 						When:  "true",
 						Items: []kotsv1beta1.ConfigItem{
 							{
-								Name:  "templated_item",
-								Title: "HTTP ENABLED",
+								Name:  "item_true",
+								Title: "Visible Item",
 								Type:  "text",
-								Value: multitype.FromString("8080"),
+								Value: multitype.FromString("visible"),
+								When:  "true",
+							},
+						},
+					},
+					{
+						Name:  "templated_when",
+						Title: "Templated Group",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "templated_true",
+								Title: "TEMPLATED TRUE",
+								Type:  "text",
+								Value: multitype.FromString("ok"),
+								When:  "true",
+							},
+							{
+								Name:  "sprig_item",
+								Title: "Sprig: 5",
+								Type:  "text",
+								Value: multitype.FromString("5"),
 								When:  "true",
 							},
 						},
@@ -62,148 +133,112 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "config with template processing and filtering",
+			name: "ConfigOptionEquals in when fields",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
-							Name:  "templated_enabled_group",
-							Title: "repl{{ print \"Enabled Group\" }}",
-							When:  "true",
+							Name:  "database",
+							Title: "Database Configuration",
+							When:  "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
 							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:  "templated_enabled_item",
-									Title: "{{repl printf \"Port: %d\" 8080 }}",
-									Type:  "text",
-									Value: multitype.FromString("repl{{ print \"true\" }}"),
+									Name:  "db_enabled",
+									Title: "Enable Database",
+									Type:  "bool",
+									Value: multitype.FromString("true"),
 									When:  "true",
 								},
 								{
-									Name:  "templated_disabled_item",
-									Title: "{{repl print \"Disabled Item\" }}",
-									Type:  "text",
-									Value: multitype.FromString("{{repl print \"false\" }}"),
-									When:  "false",
+									Name:  "db_type",
+									Title: "Database Type",
+									Type:  "select_one",
+									Value: multitype.FromString("postgresql"),
+									When:  "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
 								},
-							},
-						},
-						{
-							Name:  "templated_disabled_group",
-							Title: "repl{{ print \"Disabled Group\" }}",
-							When:  "false",
-							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:  "item_in_disabled_group",
-									Title: "{{repl print \"Item in Disabled Group\" }}",
+									Name:  "db_host",
+									Title: "Database Host",
 									Type:  "text",
-									Value: multitype.FromString("repl{{ print \"disabled\" }}"),
-									When:  "true",
+									Value: multitype.FromString("localhost"),
+									When:  "{{repl ConfigOptionEquals \"db_type\" \"postgresql\" }}",
+								},
+								{
+									Name:  "db_port",
+									Title: "Database Port",
+									Type:  "text",
+									Value: multitype.FromString("5432"),
+									When:  "{{repl ConfigOptionEquals \"db_type\" \"mysql\" }}",
 								},
 							},
 						},
 					},
 				},
 			},
+			configValues: types.AppConfigValues{
+				"db_enabled": {Value: "true"},
+				"db_type":    {Value: "postgresql"},
+			},
 			expected: types.AppConfig{
 				Groups: []kotsv1beta1.ConfigGroup{
 					{
-						Name:  "templated_enabled_group",
-						Title: "Enabled Group",
+						Name:  "database",
+						Title: "Database Configuration",
 						When:  "true",
 						Items: []kotsv1beta1.ConfigItem{
 							{
-								Name:  "templated_enabled_item",
-								Title: "Port: 8080",
-								Type:  "text",
+								Name:  "db_enabled",
+								Title: "Enable Database",
+								Type:  "bool",
 								Value: multitype.FromString("true"),
 								When:  "true",
 							},
+							{
+								Name:  "db_type",
+								Title: "Database Type",
+								Type:  "select_one",
+								Value: multitype.FromString("postgresql"),
+								When:  "true",
+							},
+							{
+								Name:  "db_host",
+								Title: "Database Host",
+								Type:  "text",
+								Value: multitype.FromString("localhost"),
+								When:  "true",
+							},
 						},
 					},
 				},
 			},
 		},
 		{
-			name: "conditional filtering with when conditions",
+			name: "empty config with no groups",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			},
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{},
+			},
+		},
+		{
+			name: "config with empty groups",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
-							Name:  "visible_config_group",
-							Title: "Visible Config Group",
+							Name:  "empty_group",
+							Title: "Empty Group",
 							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "visible_config_group_visible_item_1",
-									Title: "Visible Item 1",
-									Type:  "text",
-									Value: multitype.FromString("visible_config_group_visible_item_1_value"),
-									When:  "true",
-								},
-								{
-									Name:  "visible_config_group_invisible_item_1",
-									Title: "Invisible Item 1",
-									Type:  "text",
-									Value: multitype.FromString("visible_config_group_invisible_item_1_value"),
-									When:  "false",
-								},
-							},
-						},
-						{
-							Name:  "invisible_config_group",
-							Title: "Invisible Config Group",
-							When:  "false",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "invisible_config_group_visible_item_1",
-									Title: "Visible Item 2",
-									Type:  "text",
-									Value: multitype.FromString("invisible_config_group_visible_item_1_value"),
-									When:  "true",
-								},
-								{
-									Name:  "invisible_config_group_invisible_item_2",
-									Title: "Invisible Item 2",
-									Type:  "text",
-									Value: multitype.FromString("invisible_config_group_invisible_item_2_value"),
-									When:  "false",
-								},
-							},
-						},
-						{
-							Name:  "no_visible_items_group",
-							Title: "No Visible Items Group",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "no_visible_items_group_item_1",
-									Title: "No Visible Items Group Item 1",
-									Type:  "text",
-									Value: multitype.FromString("no_visible_items_group_item_1_value"),
-									When:  "false",
-								},
-							},
+							Items: []kotsv1beta1.ConfigItem{},
 						},
 					},
 				},
 			},
 			expected: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "visible_config_group",
-						Title: "Visible Config Group",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:  "visible_config_group_visible_item_1",
-								Title: "Visible Item 1",
-								Type:  "text",
-								Value: multitype.FromString("visible_config_group_visible_item_1_value"),
-								When:  "true",
-							},
-						},
-					},
-				},
+				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
 		{
@@ -255,36 +290,147 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "empty config with no groups",
-			config: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{},
-				},
-			},
-			expected: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{},
-			},
-		},
-		{
-			name: "config with empty groups",
+			name: "password masking enabled",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
 						{
-							Name:  "empty_group",
-							Title: "Empty Group",
+							Name:  "security",
+							Title: "Security",
 							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{},
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "user",
+									Title: "User",
+									Type:  "text",
+									Value: multitype.FromString("admin"),
+									When:  "true",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+									Value: multitype.FromString("secret"),
+									When:  "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm",
+											Title: "Confirm",
+											Value: multitype.FromString("secret"),
+										},
+									},
+								},
+							},
 						},
 					},
 				},
 			},
+			maskPasswords: true,
 			expected: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{},
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "security",
+						Title: "Security",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "user",
+								Title: "User",
+								Type:  "text",
+								Value: multitype.FromString("admin"),
+								When:  "true",
+							},
+							{
+								Name:  "password",
+								Title: "Password",
+								Type:  "password",
+								Value: multitype.FromString(PasswordMask),
+								When:  "true",
+								Items: []kotsv1beta1.ConfigChildItem{
+									{
+										Name:  "confirm",
+										Title: "Confirm",
+										Value: multitype.FromString(PasswordMask),
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		{
-			name: "config with all disabled groups",
+			name: "password masking disabled",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "security",
+							Title: "Security",
+							When:  "true",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "user",
+									Title: "User",
+									Type:  "text",
+									Value: multitype.FromString("admin"),
+									When:  "true",
+								},
+								{
+									Name:  "password",
+									Title: "Password",
+									Type:  "password",
+									Value: multitype.FromString("secret"),
+									When:  "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "confirm",
+											Title: "Confirm",
+											Value: multitype.FromString("secret"),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			maskPasswords: false,
+			expected: types.AppConfig{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "security",
+						Title: "Security",
+						When:  "true",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:  "user",
+								Title: "User",
+								Type:  "text",
+								Value: multitype.FromString("admin"),
+								When:  "true",
+							},
+							{
+								Name:  "password",
+								Title: "Password",
+								Type:  "password",
+								Value: multitype.FromString("secret"),
+								When:  "true",
+								Items: []kotsv1beta1.ConfigChildItem{
+									{
+										Name:  "confirm",
+										Title: "Confirm",
+										Value: multitype.FromString("secret"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "all groups and items disabled",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -305,7 +451,7 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 						{
 							Name:  "disabled_group_2",
 							Title: "Disabled Group 2",
-							When:  "false",
+							When:  "{{repl eq \"true\" \"false\"}}",
 							Items: []kotsv1beta1.ConfigItem{
 								{
 									Name:  "another_item_in_disabled_group",
@@ -316,30 +462,11 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 								},
 							},
 						},
-					},
-				},
-			},
-			expected: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{},
-			},
-		},
-		{
-			name: "config with mixed enabled and disabled items in enabled group",
-			config: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
 						{
-							Name:  "mixed_group",
-							Title: "Mixed Group",
+							Name:  "enabled_group_with_all_disabled_items",
+							Title: "Enabled Group with All Disabled Items",
 							When:  "true",
 							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "enabled_item_1",
-									Title: "Enabled Item 1",
-									Type:  "text",
-									Value: multitype.FromString("enabled_item_1_value"),
-									When:  "true",
-								},
 								{
 									Name:  "disabled_item_1",
 									Title: "Disabled Item 1",
@@ -348,18 +475,11 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 									When:  "false",
 								},
 								{
-									Name:  "enabled_item_2",
-									Title: "Enabled Item 2",
-									Type:  "text",
-									Value: multitype.FromString("enabled_item_2_value"),
-									When:  "true",
-								},
-								{
 									Name:  "disabled_item_2",
 									Title: "Disabled Item 2",
 									Type:  "text",
 									Value: multitype.FromString("disabled_item_2_value"),
-									When:  "false",
+									When:  "{{repl eq \"true\" \"false\"}}",
 								},
 							},
 						},
@@ -367,499 +487,19 @@ func TestAppConfigManager_GetConfig(t *testing.T) {
 				},
 			},
 			expected: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "mixed_group",
-						Title: "Mixed Group",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:  "enabled_item_1",
-								Title: "Enabled Item 1",
-								Type:  "text",
-								Value: multitype.FromString("enabled_item_1_value"),
-								When:  "true",
-							},
-							{
-								Name:  "enabled_item_2",
-								Title: "Enabled Item 2",
-								Type:  "text",
-								Value: multitype.FromString("enabled_item_2_value"),
-								When:  "true",
-							},
-						},
-					},
-				},
+				Groups: []kotsv1beta1.ConfigGroup{},
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a deep copy of the original config before testing
-			var originalConfig kotsv1beta1.Config
-			err := deepcopy.Copy(&originalConfig, &tt.config)
-			require.NoError(t, err)
-
-			// Create a new app config manager
 			manager, err := NewAppConfigManager(tt.config)
-			assert.NoError(t, err)
-
-			// Apply values to config
-			result, err := manager.GetConfig()
-
-			// Verify no error occurred
 			require.NoError(t, err)
 
-			// Verify the result matches expected
+			result, err := manager.TemplateConfig(tt.configValues, tt.maskPasswords)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
-
-			// Verify the original config was not modified (deep copy worked)
-			assert.Equal(t, originalConfig, tt.config, "original config should not be modified")
-		})
-	}
-}
-
-func TestAppConfigManager_TemplateConfig(t *testing.T) {
-	tests := []struct {
-		name           string
-		config         kotsv1beta1.Config
-		configValues   types.AppConfigValues
-		expectedConfig types.AppConfig
-		expectError    bool
-	}{
-		{
-			name: "basic template processing with repl functions",
-			config: kotsv1beta1.Config{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "Config",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "template-config",
-				},
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "server",
-							Title: "{{repl upper \"server configuration\" }}",
-							When:  "{{repl ConfigOptionEquals \"server_enabled\" \"true\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "server_enabled",
-									Title:   "Enable Server",
-									Type:    "bool",
-									Default: multitype.FromString("true"),
-									Value:   multitype.FromString("true"),
-									When:    "repl{{ print \"true\" }}",
-								},
-								{
-									Name:    "port",
-									Title:   "repl{{ printf \"HTTP Port: %s\" (ConfigOption \"port_default\") }}",
-									Type:    "text",
-									Default: multitype.FromString("8080"),
-									Value:   multitype.FromString("{{repl ConfigOption \"port_default\" }}"),
-									When:    "{{repl ConfigOptionEquals \"server_enabled\" \"true\" }}",
-								},
-								{
-									Name:    "port_default",
-									Title:   "{{repl print \"Default Port\" }}",
-									Type:    "text",
-									Default: multitype.FromString("3000"),
-									Value:   multitype.FromString("repl{{ printf \"%s\" \"custom_port\" }}"),
-									When:    "repl{{ ConfigOptionEquals \"server_enabled\" \"true\" }}",
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"server_enabled": {Value: "true"},
-				"port":           {Value: "8080"},
-				"port_default":   {Value: "3000"},
-			},
-			expectedConfig: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "server",
-						Title: "SERVER CONFIGURATION",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:    "server_enabled",
-								Title:   "Enable Server",
-								Type:    "bool",
-								Default: multitype.FromString("true"),
-								Value:   multitype.FromString("true"),
-								When:    "true",
-							},
-							{
-								Name:    "port",
-								Title:   "HTTP Port: 3000",
-								Type:    "text",
-								Default: multitype.FromString("8080"),
-								Value:   multitype.FromString("3000"),
-								When:    "true",
-							},
-							{
-								Name:    "port_default",
-								Title:   "Default Port",
-								Type:    "text",
-								Default: multitype.FromString("3000"),
-								Value:   multitype.FromString("custom_port"),
-								When:    "true",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "conditional templates with ConfigOptionEquals",
-			config: kotsv1beta1.Config{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "Config",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "conditional-config",
-				},
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "database",
-							Title: "repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}PostgreSQL Configuration{{repl else }}Other Database Configuration{{repl end }}",
-							When:  "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "db_enabled",
-									Title:   "Enable Database",
-									Type:    "bool",
-									Default: multitype.FromString("true"),
-									Value:   multitype.FromString("true"),
-									When:    "repl{{ print \"true\" }}",
-								},
-								{
-									Name:    "db_type",
-									Title:   "{{repl print \"Database Type\" }}",
-									Type:    "select_one",
-									Default: multitype.FromString("mysql"),
-									Value:   multitype.FromString("postgresql"),
-									When:    "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
-								},
-								{
-									Name:    "db_host",
-									Title:   "repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}PostgreSQL Host{{repl else }}Database Host{{repl end }}",
-									Type:    "text",
-									Default: multitype.FromString("localhost"),
-									Value:   multitype.FromString("{{repl if ConfigOptionEquals \"db_type\" \"postgresql\" }}postgres.example.com{{repl else }}mysql.example.com{{repl end }}"),
-									When:    "repl{{ ConfigOptionEquals \"db_enabled\" \"true\" }}",
-								},
-								{
-									Name:    "db_port",
-									Title:   "Database Port",
-									Type:    "text",
-									Default: multitype.FromString("repl{{ if ConfigOptionEquals \"db_type\" \"postgresql\" }}5432{{repl else }}3306{{repl end }}"),
-									Value:   multitype.FromString("{{repl if ConfigOptionEquals \"db_type\" \"postgresql\" }}\"5432\"{{repl else }}\"3306\"{{repl end }}"),
-									When:    "{{repl ConfigOptionEquals \"db_enabled\" \"true\" }}",
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"db_enabled": {Value: "true"},
-				"db_type":    {Value: "postgresql"},
-			},
-			expectedConfig: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "database",
-						Title: "PostgreSQL Configuration",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:    "db_enabled",
-								Title:   "Enable Database",
-								Type:    "bool",
-								Default: multitype.FromString("true"),
-								Value:   multitype.FromString("true"),
-								When:    "true",
-							},
-							{
-								Name:    "db_type",
-								Title:   "Database Type",
-								Type:    "select_one",
-								Default: multitype.FromString("mysql"),
-								Value:   multitype.FromString("postgresql"),
-								When:    "true",
-							},
-							{
-								Name:    "db_host",
-								Title:   "PostgreSQL Host",
-								Type:    "text",
-								Default: multitype.FromString("localhost"),
-								Value:   multitype.FromString("postgres.example.com"),
-								When:    "true",
-							},
-							{
-								Name:    "db_port",
-								Title:   "Database Port",
-								Type:    "text",
-								Default: multitype.FromString("5432"),
-								Value:   multitype.FromString("\"5432\""),
-								When:    "true",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "sprig functions with mixed delimiters",
-			config: kotsv1beta1.Config{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "Config",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "sprig-config",
-				},
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "application",
-							Title: "{{repl title \"application settings\" }}",
-							When:  "repl{{ ConfigOptionEquals \"app_enabled\" \"true\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "app_enabled",
-									Title:   "Enable Application",
-									Type:    "bool",
-									Default: multitype.FromString("true"),
-									Value:   multitype.FromString("true"),
-									When:    "{{repl print \"true\" }}",
-								},
-								{
-									Name:    "app_name",
-									Title:   "repl{{ upper \"application name\" }}",
-									Type:    "text",
-									Default: multitype.FromString("{{repl lower \"MY-APP\" }}"),
-									Value:   multitype.FromString("repl{{ default \"my-custom-app\" \"\" }}"),
-									When:    "{{repl ConfigOptionEquals \"app_enabled\" \"true\" }}",
-								},
-								{
-									Name:    "app_version",
-									Title:   "{{repl print \"Version\" }}",
-									Type:    "text",
-									Default: multitype.FromString("repl{{ printf \"v%s\" \"1.0.0\" }}"),
-									Value:   multitype.FromString("{{repl printf \"v%s\" \"2.0.0\" }}"),
-									When:    "repl{{ ConfigOptionEquals \"app_enabled\" \"true\" }}",
-								},
-								{
-									Name:    "app_description",
-									Title:   "Description",
-									Type:    "textarea",
-									Default: multitype.FromString("{{repl quote \"Default description\" }}"),
-									Value:   multitype.FromString("repl{{ quote \"Custom application description\" }}"),
-									When:    "{{repl ConfigOptionEquals \"app_enabled\" \"true\" }}",
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"app_enabled": {Value: "true"},
-				"app_name":    {Value: "custom-app"},
-				"app_version": {Value: "v3.0.0"},
-			},
-			expectedConfig: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "application",
-						Title: "Application Settings",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:    "app_enabled",
-								Title:   "Enable Application",
-								Type:    "bool",
-								Default: multitype.FromString("true"),
-								Value:   multitype.FromString("true"),
-								When:    "true",
-							},
-							{
-								Name:    "app_name",
-								Title:   "APPLICATION NAME",
-								Type:    "text",
-								Default: multitype.FromString("my-app"),
-								Value:   multitype.FromString("my-custom-app"),
-								When:    "true",
-							},
-							{
-								Name:    "app_version",
-								Title:   "Version",
-								Type:    "text",
-								Default: multitype.FromString("v1.0.0"),
-								Value:   multitype.FromString("v2.0.0"),
-								When:    "true",
-							},
-							{
-								Name:    "app_description",
-								Title:   "Description",
-								Type:    "textarea",
-								Default: multitype.FromString("\"Default description\""),
-								Value:   multitype.FromString("\"Custom application description\""),
-								When:    "true",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "filtering disabled items and groups",
-			config: kotsv1beta1.Config{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "Config",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "filtering-config",
-				},
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "feature_toggle",
-							Title: "{{repl print \"Feature Toggle\" }}",
-							When:  "{{repl ConfigOptionEquals \"enable_features\" \"true\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "enable_features",
-									Title:   "Enable Features",
-									Type:    "bool",
-									Default: multitype.FromString("true"),
-									Value:   multitype.FromString("true"),
-									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
-								},
-								{
-									Name:    "global_enabled",
-									Title:   "Global Enabled",
-									Type:    "select_one",
-									Default: multitype.FromString("yes"),
-									Value:   multitype.FromString("yes"),
-									When:    "repl{{ print \"true\" }}",
-								},
-							},
-						},
-						{
-							Name:  "enabled_group",
-							Title: "{{repl print \"Enabled Group\" }}",
-							When:  "repl{{ ConfigOptionEquals \"enable_features\" \"true\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "enabled_item",
-									Title:   "repl{{ print \"Enabled Item\" }}",
-									Type:    "text",
-									Default: multitype.FromString("enabled"),
-									Value:   multitype.FromString("{{repl print \"enabled_value\" }}"),
-									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
-								},
-								{
-									Name:    "disabled_item",
-									Title:   "{{repl print \"Disabled Item\" }}",
-									Type:    "text",
-									Default: multitype.FromString("disabled"),
-									Value:   multitype.FromString("repl{{ print \"disabled_value\" }}"),
-									When:    "repl{{ ConfigOptionEquals \"global_enabled\" \"no\" }}",
-								},
-							},
-						},
-						{
-							Name:  "disabled_group",
-							Title: "repl{{ print \"Disabled Group\" }}",
-							When:  "{{repl ConfigOptionEquals \"enable_features\" \"false\" }}",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "item_in_disabled_group",
-									Title:   "{{repl print \"Item in Disabled Group\" }}",
-									Type:    "text",
-									Default: multitype.FromString("should_not_appear"),
-									Value:   multitype.FromString("repl{{ print \"should_not_appear\" }}"),
-									When:    "{{repl ConfigOptionEquals \"global_enabled\" \"yes\" }}",
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"enable_features": {Value: "true"},
-				"global_enabled":  {Value: "yes"},
-				"enabled_item":    {Value: "custom_enabled"},
-			},
-			expectedConfig: types.AppConfig{
-				Groups: []kotsv1beta1.ConfigGroup{
-					{
-						Name:  "feature_toggle",
-						Title: "Feature Toggle",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:    "enable_features",
-								Title:   "Enable Features",
-								Type:    "bool",
-								Default: multitype.FromString("true"),
-								Value:   multitype.FromString("true"),
-								When:    "true",
-							},
-							{
-								Name:    "global_enabled",
-								Title:   "Global Enabled",
-								Type:    "select_one",
-								Default: multitype.FromString("yes"),
-								Value:   multitype.FromString("yes"),
-								When:    "true",
-							},
-						},
-					},
-					{
-						Name:  "enabled_group",
-						Title: "Enabled Group",
-						When:  "true",
-						Items: []kotsv1beta1.ConfigItem{
-							{
-								Name:    "enabled_item",
-								Title:   "Enabled Item",
-								Type:    "text",
-								Default: multitype.FromString("enabled"),
-								Value:   multitype.FromString("enabled_value"),
-								When:    "true",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			manager, err := NewAppConfigManager(tt.config)
-			require.NoError(t, err)
-
-			result, err := manager.TemplateConfig(tt.configValues)
-
-			if tt.expectError {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			assert.Equal(t, tt.expectedConfig, result)
 		})
 	}
 }
@@ -1918,525 +1558,6 @@ func TestAppConfigManager_PatchConfigValues(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-			}
-
-			// Verify mock expectations
-			mockStore.AssertExpectations(t)
-		})
-	}
-}
-
-func TestAppConfigManager_GetConfigValues(t *testing.T) {
-	tests := []struct {
-		name           string
-		appConfig      kotsv1beta1.Config
-		maskPasswords  bool
-		storeValues    types.AppConfigValues
-		storeError     error
-		expectedValues types.AppConfigValues
-		wantErr        bool
-	}{
-		{
-			name: "get config values without masking",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "test-group",
-							Title: "Test Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "username",
-									Title: "Username",
-									Type:  "text",
-								},
-								{
-									Name:  "password",
-									Title: "Password",
-									Type:  "password",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "confirm-password",
-											Title: "Confirm Password",
-										},
-									},
-								},
-								{
-									Name:  "email",
-									Title: "Email Address",
-									Type:  "text",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "email-verification",
-											Title: "Email Verification",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: false,
-			storeValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: "secret123"},
-				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			expectedValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: "secret123"},
-				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "get config values with password masking",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "test-group",
-							Title: "Test Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "username",
-									Title: "Username",
-									Type:  "text",
-								},
-								{
-									Name:  "password",
-									Title: "Password",
-									Type:  "password",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "confirm-password",
-											Title: "Confirm Password",
-										},
-									},
-								},
-								{
-									Name:  "api-key",
-									Title: "API Key",
-									Type:  "password",
-								},
-								{
-									Name:  "email",
-									Title: "Email Address",
-									Type:  "text",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "email-verification",
-											Title: "Email Verification",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: true,
-			storeValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: "secret123"},
-				"confirm-password":   types.AppConfigValue{Value: "different-secret"},
-				"api-key":            types.AppConfigValue{Value: "key-abc123"},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			expectedValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: PasswordMask},
-				"confirm-password":   types.AppConfigValue{Value: PasswordMask},
-				"api-key":            types.AppConfigValue{Value: PasswordMask},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "password masking with empty password values",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "test-group",
-							Title: "Test Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "username",
-									Title: "Username",
-									Type:  "text",
-								},
-								{
-									Name:  "password",
-									Title: "Password",
-									Type:  "password",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "confirm-password",
-											Title: "Confirm Password",
-										},
-									},
-								},
-								{
-									Name:  "api-key",
-									Title: "API Key",
-									Type:  "password",
-								},
-								{
-									Name:  "secret-token",
-									Title: "Secret Token",
-									Type:  "password",
-								},
-								{
-									Name:  "email",
-									Title: "Email Address",
-									Type:  "text",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "email-verification",
-											Title: "Email Verification",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: true,
-			storeValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: ""}, // empty password should not be masked
-				"confirm-password":   types.AppConfigValue{Value: ""}, // empty child password should not be masked
-				"api-key":            types.AppConfigValue{Value: "key-abc123"},
-				"secret-token":       types.AppConfigValue{Value: ""}, // another empty password should not be masked
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			expectedValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"password":           types.AppConfigValue{Value: ""}, // empty password values are not masked
-				"confirm-password":   types.AppConfigValue{Value: ""}, // empty child password values are not masked
-				"api-key":            types.AppConfigValue{Value: PasswordMask},
-				"secret-token":       types.AppConfigValue{Value: ""}, // empty password values are not masked
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "password masking with missing password fields",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "test-group",
-							Title: "Test Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "username",
-									Title: "Username",
-									Type:  "text",
-								},
-								{
-									Name:  "password",
-									Title: "Password",
-									Type:  "password",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "confirm-password",
-											Title: "Confirm Password",
-										},
-									},
-								},
-								{
-									Name:  "email",
-									Title: "Email Address",
-									Type:  "text",
-									Items: []kotsv1beta1.ConfigChildItem{
-										{
-											Name:  "email-verification",
-											Title: "Email Verification",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: true,
-			storeValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-				// password and confirm-password not in store values
-			},
-			expectedValues: types.AppConfigValues{
-				"username":           types.AppConfigValue{Value: "admin"},
-				"email":              types.AppConfigValue{Value: "admin@example.com"},
-				"email-verification": types.AppConfigValue{Value: "verified"},
-				// password and confirm-password should not appear in result
-			},
-			wantErr: false,
-		},
-		{
-			name: "store error",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "test-group",
-							Title: "Test Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "username",
-									Title: "Username",
-									Type:  "text",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords:  false,
-			storeValues:    nil,
-			storeError:     errors.New("store connection error"),
-			expectedValues: nil,
-			wantErr:        true,
-		},
-		{
-			name: "config with template processing and password masking",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "templated-group",
-							Title: "{{repl title \"user configuration\" }}",
-							When:  "true",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "templated-text",
-									Title: "repl{{ upper \"text field\" }}",
-									Type:  "text",
-									When:  "true",
-								},
-								{
-									Name:  "templated-password",
-									Title: "{{repl printf \"Password for %s\" \"admin\" }}",
-									Type:  "password",
-									When:  "true",
-								},
-								{
-									Name:  "disabled-templated-item",
-									Title: "repl{{ lower \"DISABLED ITEM\" }}",
-									Type:  "text",
-									When:  "false",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: true,
-			storeValues: types.AppConfigValues{
-				"templated-text":          types.AppConfigValue{Value: "text-value"},
-				"templated-password":      types.AppConfigValue{Value: "secret-password"},
-				"disabled-templated-item": types.AppConfigValue{Value: "disabled-value"},
-			},
-			expectedValues: types.AppConfigValues{
-				"templated-text":          types.AppConfigValue{Value: "text-value"},
-				"templated-password":      types.AppConfigValue{Value: PasswordMask},
-				"disabled-templated-item": types.AppConfigValue{Value: "disabled-value"}, // store value is returned even if item is disabled
-			},
-			wantErr: false,
-		},
-		{
-			name: "file items with valid base64 values",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "file-group",
-							Title: "File Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "valid-file",
-									Title: "Valid File",
-									Type:  "file",
-								},
-								{
-									Name:  "another-valid-file",
-									Title: "Another Valid File",
-									Type:  "file",
-								},
-								{
-									Name:  "text-field",
-									Title: "Text Field",
-									Type:  "text",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: false,
-			storeValues: types.AppConfigValues{
-				"valid-file":         types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="},  // "Hello World" in base64
-				"another-valid-file": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},  // "Test Content" in base64
-				"text-field":         types.AppConfigValue{Value: "not-base64-but-ok"}, // text field doesn't need base64
-			},
-			expectedValues: types.AppConfigValues{
-				"valid-file":         types.AppConfigValue{Value: "SGVsbG8gV29ybGQ="},  // "Hello World" in base64
-				"another-valid-file": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},  // "Test Content" in base64
-				"text-field":         types.AppConfigValue{Value: "not-base64-but-ok"}, // text field doesn't need base64
-			},
-			wantErr: false,
-		},
-		{
-			name: "file items with empty values should be valid",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "file-group",
-							Title: "File Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:  "empty-file",
-									Title: "Empty File",
-									Type:  "file",
-								},
-								{
-									Name:  "missing-file",
-									Title: "Missing File",
-									Type:  "file",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: false,
-			storeValues: types.AppConfigValues{
-				"empty-file": types.AppConfigValue{Value: ""}, // empty value should be valid
-				// missing-file is not in store values, should be valid
-			},
-			expectedValues: types.AppConfigValues{
-				"empty-file": types.AppConfigValue{Value: ""}, // empty value should be valid
-				// missing-file is not in store values, should be valid
-			},
-			wantErr: false,
-		},
-		{
-			name: "file items with filename field",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "file-group",
-							Title: "File Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:     "file-with-filename",
-									Title:    "File with Filename",
-									Type:     "file",
-									Filename: "config.yaml",
-								},
-								{
-									Name:  "file-without-filename",
-									Title: "File without Filename",
-									Type:  "file",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: false,
-			storeValues: types.AppConfigValues{
-				"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
-				"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
-			},
-			expectedValues: types.AppConfigValues{
-				"file-with-filename":    types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "custom.yaml"},
-				"file-without-filename": types.AppConfigValue{Value: "VGVzdCBDb250ZW50"},
-			},
-			wantErr: false,
-		},
-		{
-			name: "file items with mixed base64 and filename handling",
-			appConfig: kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name:  "file-group",
-							Title: "File Group",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:     "valid-file-with-filename",
-									Title:    "Valid File with Filename",
-									Type:     "file",
-									Filename: "default.txt",
-								},
-								{
-									Name:     "empty-file-with-filename",
-									Title:    "Empty File with Filename",
-									Type:     "file",
-									Filename: "empty.txt",
-								},
-								{
-									Name:  "text-field",
-									Title: "Text Field",
-									Type:  "text",
-								},
-							},
-						},
-					},
-				},
-			},
-			maskPasswords: false,
-			storeValues: types.AppConfigValues{
-				"valid-file-with-filename": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "overridden.txt"},
-				"empty-file-with-filename": types.AppConfigValue{Value: "", Filename: "still-empty.txt"},
-				"text-field":               types.AppConfigValue{Value: "regular text"},
-			},
-			expectedValues: types.AppConfigValues{
-				"valid-file-with-filename": types.AppConfigValue{Value: "SGVsbG8gV29ybGQ=", Filename: "overridden.txt"},
-				"empty-file-with-filename": types.AppConfigValue{Value: "", Filename: "still-empty.txt"},
-				"text-field":               types.AppConfigValue{Value: "regular text"},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create mock store
-			mockStore := &config.MockStore{}
-			mockStore.On("GetConfigValues").Return(tt.storeValues, tt.storeError)
-
-			// Create manager with mock store
-			manager, err := NewAppConfigManager(tt.appConfig, WithAppConfigStore(mockStore))
-			assert.NoError(t, err)
-
-			// Call GetConfigValues
-			result, err := manager.GetConfigValues(tt.maskPasswords)
-
-			// Verify expectations
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Nil(t, result)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectedValues, result)
 			}
 
 			// Verify mock expectations
@@ -3692,7 +2813,7 @@ func TestValidateConfigValues(t *testing.T) {
 			errorFields: []string{"required_with_value"},
 		},
 		{
-			name: "hidden required item should not be required",
+			name: "hidden required item should be required",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -3718,7 +2839,8 @@ func TestValidateConfigValues(t *testing.T) {
 				},
 			},
 			configValues: types.AppConfigValues{},
-			wantErr:      false,
+			wantErr:      true,
+			errorFields:  []string{"hidden_required"},
 		},
 		{
 			name: "disabled required item should not be required",

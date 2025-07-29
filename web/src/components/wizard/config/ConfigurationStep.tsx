@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import Input from '../../common/Input';
@@ -13,85 +13,157 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
-import { AppConfig, AppConfigItem, AppConfigValues } from '../../../types';
+import { useDebouncedFetch } from '../../../utils/debouncedFetch';
+import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
+
 
 interface ConfigurationStepProps {
   onNext: () => void;
+}
+
+interface ConfigError extends Error {
+  errors?: { field: string; message: string }[];
 }
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
   const { token } = useAuth();
   const { settings } = useSettings();
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('');
-  const [configValues, setConfigValues] = useState<AppConfigValues>({});
-  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
+  const [changedValues, setChangedValues] = useState<AppConfigValues>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
+  
+  const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
+  const [itemToFocus, setItemToFocus] = useState<AppConfigItem | null>(null);
+  
+  // Holds refs to each item by name for focusing
+  const itemRefs = useRef<Record<string, HTMLElement | null>>({});
+  
+  // Helper function to assign refs dynamically
+  const setRef = (name: string) => (el: HTMLElement | null) => {
+    itemRefs.current[name] = el;
+  };
+  
   const themeColor = settings.themeColor;
 
-  // Fetch app config from API
-  const { data: appConfig, isLoading: isConfigLoading, error: getConfigError } = useQuery<AppConfig>({
-    queryKey: ['appConfig', target],
-    queryFn: async () => {
-      const response = await fetch(`/api/${target}/install/app/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error('Session expired. Please log in again.');
-        }
-        throw new Error(errorData.message || 'Failed to fetch app configuration');
-      }
-      const config = await response.json();
-      return config;
-    },
-  });
+  const templateConfig = useCallback(async (values: AppConfigValues) => {
+    try {
+      setGeneralError(null); // Clear any existing errors
 
-  // Fetch current config values
-  const { data: apiConfigValues, isLoading: isConfigValuesLoading, error: getConfigValuesError } = useQuery<AppConfigValues>({
-    queryKey: ['appConfigValues', target],
-    queryFn: async () => {
-      const response = await fetch(`/api/${target}/install/app/config/values`, {
+      const response = await debouncedFetch(`/api/${target}/install/app/config/template`, {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({ values }),
       });
+
+      // If no response, the request was cancelled/aborted - just return silently
+      if (!response) {
+        return;
+      }
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 401) {
           handleUnauthorized(errorData);
           throw new Error('Session expired. Please log in again.');
         }
-        throw new Error(errorData.message || 'Failed to fetch current config values');
+        throw new Error(errorData.message || 'Failed to template configuration');
       }
-      const data = await response.json();
-      return data.values || {};
-    },
-  });
+
+      const config = await response.json();
+      setAppConfig(config);
+    } catch (error) {
+      setGeneralError(error instanceof Error ? error.message : String(error));
+    }
+  }, [target, token, debouncedFetch]);
+
+  // Fetch initial config on mount
+  useEffect(() => {
+    const fetchInitialConfig = async () => {
+      setIsLoading(true);
+      await templateConfig({});
+      setIsLoading(false);
+    };
+    fetchInitialConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Helper function to find the first item with error in DOM order
+  const findFirstItemWithError = (itemErrors: Record<string, string>): AppConfigItem | null => {
+    if (!appConfig?.groups || Object.keys(itemErrors).length === 0) {
+      return null;
+    }
+    
+    // Iterate through groups and items in DOM order to find first item with error
+    for (const group of appConfig.groups) {
+      for (const item of group.items) {
+        if (itemErrors[item.name]) {
+          return item;
+        }
+      }
+    }
+    
+    return null;
+  };
+
+  // Helper function to find which group/tab contains a specific item
+  const findGroupForItem = (itemName: string): AppConfigGroup | null => {
+    if (!appConfig?.groups) return null;
+    
+    return appConfig.groups.find(group => 
+      group.items.some(item => item.name === itemName)
+    ) || null;
+  };
+
+  // Helper function to focus on an item with tab switching support
+  const focusItemWithTabSupport = (item: AppConfigItem): void => {
+    const targetGroup = findGroupForItem(item.name);
+    
+    if (!targetGroup) {
+      console.warn(`Could not find group for item: ${item.name}`);
+      return;
+    }
+    
+    // Switch to the correct tab if item is in a different tab
+    if (targetGroup.name !== activeTab) {
+      setActiveTab(targetGroup.name);
+    }
+    
+    // Set the item to focus - useEffect will handle the actual focusing
+    setItemToFocus(item);
+  };
+
+  // Helper function to parse server validation errors from API response
+  const parseServerErrors = (error: ConfigError): Record<string, string> => {
+    const itemErrors: Record<string, string> = {};
+    
+    // Check if error has structured item errors
+    if (error.errors) {
+      error.errors.forEach((itemError) => {
+        // Pass through server error message directly - no client-side enhancement
+        itemErrors[itemError.field] = itemError.message;
+      });
+    }
+    
+    return itemErrors;
+  };
 
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation<AppConfigValues>({
+  const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
     mutationFn: async () => {
-      // Build payload with only dirty fields
-      const dirtyValues: AppConfigValues = {};
-      dirtyFields.forEach(fieldName => {
-        if (configValues[fieldName] !== undefined) {
-          dirtyValues[fieldName] = configValues[fieldName];
-        }
-      });
-
       const response = await fetch(`/api/${target}/install/app/config/values`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ values: dirtyValues }),
+        body: JSON.stringify({ values: changedValues }),
       });
 
       if (!response.ok) {
@@ -100,59 +172,95 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           handleUnauthorized(errorData);
           throw new Error('Session expired. Please log in again.');
         }
-        throw new Error(errorData.message || 'Failed to save configuration');
+        // Re-throw with full error data for parsing in onError
+        const error = new Error(errorData.message || 'Failed to save configuration') as ConfigError;
+        error.errors = errorData.errors;
+        throw error;
       }
-
-      const data = await response.json();
-      return data.values || {};
     },
-    onSuccess: (appConfigValues) => {
-      setSubmitError(null);
-      // Clear dirty fields after successful submission
-      setDirtyFields(new Set());
-      // Update config values with the latest from the API
-      setConfigValues(appConfigValues);
-      queryClient.setQueryData(['appConfigValues', target], appConfigValues);
+    onSuccess: () => {
+      setGeneralError(null);
+      setItemErrors({}); // Clear item errors
+      setChangedValues({}); // Clear changed values after successful submission
       onNext();
     },
-    onError: (error: Error) => {
-      setSubmitError(error?.message || 'Failed to save configuration');
+    onError: (error: ConfigError) => {
+      const parsedItemErrors = parseServerErrors(error);
+      setItemErrors(parsedItemErrors);
+      setGeneralError(error?.message || 'Failed to save configuration');
+      
+      // Focus on the first item with validation error
+      const firstErrorItem = findFirstItemWithError(parsedItemErrors);
+      if (firstErrorItem) {
+        focusItemWithTabSupport(firstErrorItem);
+      }
     },
   });
 
-  // Set active tab to first group when config loads
+  // Set active tab when config loads
   useEffect(() => {
     if (appConfig?.groups && appConfig.groups.length > 0 && !activeTab) {
       setActiveTab(appConfig.groups[0].name);
     }
   }, [appConfig, activeTab]);
 
-  // Initialize configValues with initial values when they load
+  // Handle focusing on item after tab switches or validation errors
   useEffect(() => {
-    if (apiConfigValues && Object.keys(configValues).length === 0) {
-      setConfigValues(apiConfigValues);
+    if (!itemToFocus) return;
+
+    // Use refs to get the focusable element directly
+    let itemElement: HTMLElement | null = null;
+    
+    // For all inputs including radio, use the main item ref
+    // Radio component forwards ref to the first option automatically
+    itemElement = itemRefs.current[itemToFocus.name];
+    
+    if (itemElement) {
+      itemElement.focus();
+      // Scroll the element into view to ensure it's visible
+      if (itemElement.scrollIntoView) {
+        itemElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- configValues is not a dependency of this effect
-  }, [apiConfigValues]);
+
+    // Clear the focus request
+    setItemToFocus(null);
+  }, [itemToFocus]);
 
   // Helper function to get the display value for a config item (no defaults)
   const getDisplayValue = (item: AppConfigItem): string => {
     // First check user value, then config item value (use ?? to allow empty strings from the user)
-    return configValues?.[item.name]?.value ?? (item.value || '');
+    return changedValues?.[item.name]?.value ?? (item.value || '');
   };
 
   // Helper function to get the effective value for a config item (includes defaults)
   const getEffectiveValue = (item: AppConfigItem): string => {
     // First check user value, then config item value, then default (use ?? to allow empty strings from the user)
-    return configValues?.[item.name]?.value ?? (item.value || item.default || '');
+    return changedValues?.[item.name]?.value ?? (item.value || item.default || '');
+  };
+
+  // Helper function for password types to determine if the show password toggle should be enabled
+  const allowShowPassword = (item: AppConfigItem): boolean => {
+    // Only allow show password if the item is a password type and has a user value set
+    return Boolean(item.type === "password" && changedValues?.[item.name]?.value);
   };
 
   const updateConfigValue = (itemName: string, value: string, filename?: string) => {
     // Update the config values map
-    setConfigValues(prev => ({ ...prev, [itemName]: { value, filename } }));
+    const newChangedValues = { ...changedValues, [itemName]: { value, filename } };
+    setChangedValues(newChangedValues);
 
-    // Mark field as dirty
-    setDirtyFields(prev => new Set(prev).add(itemName));
+    // Clear item error for this item when user modifies it
+    if (itemErrors[itemName]) {
+      setItemErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[itemName];
+        return newErrors;
+      });
+    }
+
+    // Template the config with the new values
+    templateConfig(newChangedValues);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -161,14 +269,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const handlePasswordFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Auto-select entire text for password fields
     e.target.select();
   };
 
   const handlePasswordKeyDown = (itemName: string, e: React.KeyboardEvent<Element>) => {
-    // If field is not dirty and user types a character, clear the field first
-    if (!dirtyFields.has(itemName) && e.key.length === 1) {
-      // Clear the field before the character is added
+    if (!changedValues[itemName] && e.key.length === 1) {
       updateConfigValue(itemName, '');
     }
   };
@@ -189,12 +294,16 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   };
 
   const renderConfigItem = (item: AppConfigItem) => {
+    // Display item validation errors with priority over initial config errors  
+    const displayError = itemErrors[item.name] || item.error;
+    
     const sharedProps = {
       id: item.name,
       label: item.title,
       helpText: item.help_text,
-      error: item.error,
+      error: displayError,
       required: item.required,
+      ref: setRef(item.name),
     }
 
     switch (item.type) {
@@ -217,6 +326,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             defaultValue={item.default}
             type="password"
             value={getDisplayValue(item)}
+            allowShowPassword={allowShowPassword(item)}
             onChange={handleInputChange}
             onKeyDown={(e) => handlePasswordKeyDown(item.name, e)}
             onFocus={handlePasswordFocus}
@@ -265,7 +375,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <FileInput
             {...sharedProps}
             value={getDisplayValue(item)}
-            filename={configValues[item.name]?.filename}
+            filename={changedValues[item.name]?.filename}
             defaultValue={item.default}
             defaultFilename={item.name}
             onChange={(value: string, filename: string) => handleFileChange(item.name, value, filename)}
@@ -306,7 +416,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   };
 
-  if (isConfigLoading || isConfigValuesLoading) {
+  if (isLoading) {
     return (
       <div className="space-y-6" data-testid="configuration-step-loading">
         <Card>
@@ -319,14 +429,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     );
   }
 
-  if (getConfigError || getConfigValuesError) {
-    const error = getConfigError || getConfigValuesError;
+  if (generalError && !appConfig) {
     return (
       <div className="space-y-6" data-testid="configuration-step-error">
         <Card>
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-red-600 mb-4">Failed to load configuration</p>
-            <p className="text-gray-600 text-sm">{error?.message}</p>
+            <p className="text-gray-600 text-sm">{generalError}</p>
           </div>
         </Card>
       </div>
@@ -380,9 +489,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
         {renderActiveTab()}
 
-        {submitError && (
+        {generalError && (
           <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md" data-testid="config-submit-error">
-            {submitError}
+            {generalError}
           </div>
         )}
       </Card>
