@@ -16,7 +16,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	k8syaml "sigs.k8s.io/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 // RunHostPreflights runs the provided host preflight spec locally.
@@ -25,7 +25,7 @@ func (p *PreflightsRunner) RunHostPreflights(ctx context.Context, spec *troubles
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
 
-	specYAML, err := k8syaml.Marshal(spec)
+	specYAML, err := serializeHostSpec(spec)
 	if err != nil {
 		return nil, "", fmt.Errorf("marshal host preflight spec: %w", err)
 	}
@@ -39,7 +39,7 @@ func (p *PreflightsRunner) RunAppPreflights(ctx context.Context, spec *troublesh
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
 
-	specYAML, err := k8syaml.Marshal(spec)
+	specYAML, err := serializeAppSpec(spec)
 	if err != nil {
 		return nil, "", fmt.Errorf("marshal app preflight spec: %w", err)
 	}
@@ -81,6 +81,30 @@ func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opt
 
 	out, err := p.OutputFromReader(stdout)
 	return out, stderr.String(), err
+}
+
+// serializeHostSpec serialize the provided spec inside a HostPreflight object and
+// returns the byte slice.
+func serializeHostSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
+	hpf := map[string]interface{}{
+		"apiVersion": "troubleshoot.sh/v1beta2",
+		"kind":       "HostPreflight",
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
+		"spec":       spec,
+	}
+	return yaml.Marshal(hpf)
+}
+
+// serializeAppSpec serialize the provided spec inside a Preflight object and
+// returns the byte slice.
+func serializeAppSpec(spec *troubleshootv1beta2.PreflightSpec) ([]byte, error) {
+	pf := map[string]interface{}{
+		"apiVersion": "troubleshoot.sh/v1beta2",
+		"kind":       "Preflight",
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
+		"spec":       spec,
+	}
+	return yaml.Marshal(pf)
 }
 
 // saveSpecToTempFile saves the YAML spec to a temporary file and returns the file path
