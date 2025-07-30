@@ -343,8 +343,8 @@ func runCommandOnNode(node Node, line []string, envs ...map[string]string) (stri
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 
-	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 255 {
-		// check if this is a reset-installation command that resulted in exit code 255
+	if exitErr, ok := err.(*exec.ExitError); ok && (exitErr.ExitCode() == 255 || exitErr.ExitCode() == 143) {
+		// check if this is a reset-installation command that resulted in exit code 255 or 143
 		// as this is expected behavior when the node reboots and the ssh connection is lost
 		if strings.Contains(strings.Join(line, " "), "reset-installation") {
 			return stdout.String(), stderr.String(), nil

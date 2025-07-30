@@ -10,6 +10,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -23,6 +24,8 @@ type PrepareHostPreflightOptions struct {
 	IsAirgap               bool
 	IsJoin                 bool
 	IsUI                   bool
+	AirgapInfo             *kotsv1beta1.Airgap
+	EmbeddedAssetsSize     int64
 }
 
 type RunHostPreflightOptions struct {
@@ -36,24 +39,36 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
 
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if opts.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   opts.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: opts.EmbeddedAssetsSize,
+			K0sImageSize:       opts.AirgapInfo.Spec.UncompressedSize,
+			IsController:       true,
+		})
+	}
+
 	// Use the shared Prepare function to prepare host preflights
 	prepareOpts := preflights.PrepareHostPreflightOptions{
-		HostPreflightSpec:       opts.HostPreflightSpec,
-		ReplicatedAppURL:        opts.ReplicatedAppURL,
-		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 rc.PodCIDR(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-		NodeIP:                  nodeIP,
-		IsAirgap:                opts.IsAirgap,
-		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
-		IsJoin:                  opts.IsJoin,
-		IsUI:                    opts.IsUI,
+		HostPreflightSpec:            opts.HostPreflightSpec,
+		ReplicatedAppURL:             opts.ReplicatedAppURL,
+		ProxyRegistryURL:             opts.ProxyRegistryURL,
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      rc.PodCIDR(),
+		ServiceCIDR:                  rc.ServiceCIDR(),
+		NodeIP:                       nodeIP,
+		IsAirgap:                     opts.IsAirgap,
+		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
+		IsJoin:                       opts.IsJoin,
+		IsUI:                         opts.IsUI,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr

@@ -12,30 +12,31 @@ type CIDRData struct {
 	Size int
 }
 
-// HostPreflightTemplateData contains data for templating host preflight specs
 type HostPreflightTemplateData struct {
-	IsAirgap                bool
-	ReplicatedAppURL        string
-	ProxyRegistryURL        string
-	AdminConsolePort        int
-	LocalArtifactMirrorPort int
-	DataDir                 string
-	K0sDataDir              string
-	OpenEBSDataDir          string
-	SystemArchitecture      string
-	ServiceCIDR             CIDRData
-	PodCIDR                 CIDRData
-	GlobalCIDR              CIDRData
-	HTTPProxy               string
-	HTTPSProxy              string
-	ProvidedNoProxy         string
-	NoProxy                 string
-	FromCIDR                string
-	ToCIDR                  string
-	TCPConnectionsRequired  []string
-	NodeIP                  string
-	IsJoin                  bool
-	IsUI                    bool
+	IsAirgap                     bool
+	ReplicatedAppURL             string
+	ProxyRegistryURL             string
+	AdminConsolePort             int
+	LocalArtifactMirrorPort      int
+	DataDir                      string
+	K0sDataDir                   string
+	OpenEBSDataDir               string
+	SystemArchitecture           string
+	ServiceCIDR                  CIDRData
+	PodCIDR                      CIDRData
+	GlobalCIDR                   CIDRData
+	HTTPProxy                    string
+	HTTPSProxy                   string
+	ProvidedNoProxy              string
+	NoProxy                      string
+	FromCIDR                     string
+	ToCIDR                       string
+	TCPConnectionsRequired       []string
+	NodeIP                       string
+	IsJoin                       bool
+	IsUI                         bool
+	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
 // WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings

@@ -11,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -35,22 +36,24 @@ type KotsCLIInstaller interface {
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore    infrastore.Store
-	password      string
-	tlsConfig     types.TLSConfig
-	license       []byte
-	airgapBundle  string
-	releaseData   *release.ReleaseData
-	endUserConfig *ecv1beta1.Config
-	clusterID     string
-	logger        logrus.FieldLogger
-	k0scli        k0s.K0sInterface
-	kcli          client.Client
-	mcli          metadata.Interface
-	hcli          helm.Client
-	hostUtils     hostutils.HostUtilsInterface
-	kotsCLI       KotsCLIInstaller
-	mu            sync.RWMutex
+	infraStore         infrastore.Store
+	password           string
+	tlsConfig          types.TLSConfig
+	license            []byte
+	airgapBundle       string
+	airgapMetadata     *airgap.AirgapMetadata
+	embeddedAssetsSize int64
+	releaseData        *release.ReleaseData
+	endUserConfig      *ecv1beta1.Config
+	clusterID          string
+	logger             logrus.FieldLogger
+	k0scli             k0s.K0sInterface
+	kcli               client.Client
+	mcli               metadata.Interface
+	hcli               helm.Client
+	hostUtils          hostutils.HostUtilsInterface
+	kotsCLI            KotsCLIInstaller
+	mu                 sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -88,6 +91,18 @@ func WithLicense(license []byte) InfraManagerOption {
 func WithAirgapBundle(airgapBundle string) InfraManagerOption {
 	return func(c *infraManager) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithAirgapMetadata(airgapMetadata *airgap.AirgapMetadata) InfraManagerOption {
+	return func(c *infraManager) {
+		c.airgapMetadata = airgapMetadata
+	}
+}
+
+func WithEmbeddedAssetsSize(embeddedAssetsSize int64) InfraManagerOption {
+	return func(c *infraManager) {
+		c.embeddedAssetsSize = embeddedAssetsSize
 	}
 }
 
