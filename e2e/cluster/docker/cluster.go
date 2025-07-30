@@ -110,9 +110,8 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 		if strings.Contains(err.Error(), "143") && strings.Contains(strings.Join(line, " "), "reset-installation") {
 			return stdout, stderr, nil
 		}
-		return stdout, stderr, err
 	}
-	return stdout, stderr, nil
+	return stdout, stderr, err
 }
 
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
