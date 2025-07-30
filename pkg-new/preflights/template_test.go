@@ -312,7 +312,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := require.New(t)
-			tl, err := types.TemplateData{}.WithCIDRData(test.podCIDR, test.serviceCIDR, test.globalCIDR)
+			tl, err := types.HostPreflightTemplateData{}.WithCIDRData(test.podCIDR, test.serviceCIDR, test.globalCIDR)
 			if test.wantErr {
 				req.Error(err)
 			} else {
@@ -347,7 +347,7 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 
 	req := require.New(t)
 	// No TCP connections are provided
-	tl := types.TemplateData{}
+	tl := types.HostPreflightTemplateData{}
 	hpfc, err := GetClusterHostPreflights(context.Background(), tl)
 	req.NoError(err)
 
@@ -597,7 +597,7 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			req := require.New(t)
-			tl := types.TemplateData{TCPConnectionsRequired: test.tcpConnections}
+			tl := types.HostPreflightTemplateData{TCPConnectionsRequired: test.tcpConnections}
 			hpfc, err := GetClusterHostPreflights(context.Background(), tl)
 			req.NoError(err)
 

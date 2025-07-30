@@ -16,8 +16,8 @@ import (
 //go:embed host-preflight.yaml
 var clusterHostPreflightYAML string
 
-func GetClusterHostPreflights(ctx context.Context, data types.TemplateData) ([]v1beta2.HostPreflight, error) {
-	spec, err := renderTemplate(clusterHostPreflightYAML, data)
+func GetClusterHostPreflights(ctx context.Context, data types.HostPreflightTemplateData) ([]v1beta2.HostPreflight, error) {
+	spec, err := renderHostPreflightTemplate(clusterHostPreflightYAML, data)
 	if err != nil {
 		return nil, fmt.Errorf("render host preflight template: %w", err)
 	}
@@ -33,7 +33,7 @@ func GetClusterHostPreflights(ctx context.Context, data types.TemplateData) ([]v
 	return kinds.HostPreflightsV1Beta2, nil
 }
 
-func renderTemplate(spec string, data types.TemplateData) (string, error) {
+func renderHostPreflightTemplate(spec string, data types.HostPreflightTemplateData) (string, error) {
 	tmpl, err := template.New("preflight").Parse(spec)
 	if err != nil {
 		return "", fmt.Errorf("parse template: %w", err)

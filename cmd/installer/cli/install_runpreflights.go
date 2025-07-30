@@ -109,7 +109,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		})
 	}
 
-	opts := preflights.PrepareOptions{
+	opts := preflights.PrepareHostPreflightOptions{
 		HostPreflightSpec:            release.GetHostPreflights(),
 		ReplicatedAppURL:             replicatedAppURL,
 		ProxyRegistryURL:             proxyRegistryURL,
@@ -129,7 +129,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		opts.GlobalCIDR = &globalCIDR
 	}
 
-	hpf, err := preflights.Prepare(ctx, opts)
+	hpf, err := preflights.PrepareHostPreflights(ctx, opts)
 	if err != nil {
 		return err
 	}

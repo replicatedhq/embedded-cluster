@@ -64,7 +64,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("Prepare", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareOptions) bool {
+				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
 					return opts.AdminConsolePort == 30000 &&
 						opts.LocalArtifactMirrorPort == 50000 &&
 						opts.DataDir == "/var/lib/embedded-cluster" &&
@@ -107,7 +107,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("Prepare", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareOptions) bool {
+				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
 					return opts.Proxy == nil &&
 						opts.GlobalCIDR == nil &&
 						opts.IsAirgap &&
@@ -141,7 +141,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("Prepare", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareOptions) bool {
+				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
 					return opts.DataDir == "/custom/data" &&
 						opts.K0sDataDir == "/custom/k0s" &&
 						opts.OpenEBSDataDir == "/custom/openebs"
@@ -169,7 +169,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
 				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("Prepare", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("prepare failed"))
+				runner.On("PrepareHostPreflights", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("prepare failed"))
 			},
 			expectedError: "prepare host preflights: prepare failed",
 		},
@@ -263,8 +263,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
-				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				output := &types.PreflightsOutput{}
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations in order
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -284,14 +284,14 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock failed preflight execution
-				output := &types.HostPreflightsOutput{
-					Fail: []types.HostPreflightsRecord{{
+				output := &types.PreflightsOutput{
+					Fail: []types.PreflightsRecord{{
 						Title:   "Sample Failure",
 						Message: "This is a sample failure message.",
 					}},
 				}
 
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -311,13 +311,14 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock preflight execution with warnings
-				output := &types.HostPreflightsOutput{
-					Warn: []types.HostPreflightsRecord{{
+				output := &types.PreflightsOutput{
+					Warn: []types.PreflightsRecord{{
 						Title:   "Sample Warning",
 						Message: "This is a sample warning message.",
 					}},
 				}
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -337,17 +338,18 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock preflight execution with both failures and warnings
-				output := &types.HostPreflightsOutput{
-					Fail: []types.HostPreflightsRecord{{
+				output := &types.PreflightsOutput{
+					Fail: []types.PreflightsRecord{{
 						Title:   "Sample Failure",
 						Message: "This is a sample failure message.",
 					}},
-					Warn: []types.HostPreflightsRecord{{
+					Warn: []types.PreflightsRecord{{
 						Title:   "Sample Warning",
 						Message: "This is a sample warning message.",
 					}},
 				}
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -367,7 +369,7 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock runner failure
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(nil, "stderr output", assert.AnError)
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(nil, "stderr output", assert.AnError)
 			},
 			expectedFinalState: types.StateFailed,
 		},
@@ -383,8 +385,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
-				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				output := &types.PreflightsOutput{}
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations - SaveToDisk fails but execution continues
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(assert.AnError)
@@ -404,8 +406,8 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
 				// Mock successful preflight execution
-				output := &types.HostPreflightsOutput{}
-				runner.On("Run", mock.Anything, mock.Anything, rc).Return(output, "", nil)
+				output := &types.PreflightsOutput{}
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 
 				// Mock save operations - CopyBundleTo fails but execution continues
 				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
@@ -518,16 +520,16 @@ func TestHostPreflightManager_GetHostPreflightOutput(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMocks     func(*preflightstore.MockStore)
-		expectedOutput *types.HostPreflightsOutput
+		expectedOutput *types.PreflightsOutput
 		expectedError  string
 	}{
 		{
 			name: "success",
 			setupMocks: func(store *preflightstore.MockStore) {
-				output := &types.HostPreflightsOutput{}
+				output := &types.PreflightsOutput{}
 				store.On("GetOutput").Return(output, nil)
 			},
-			expectedOutput: &types.HostPreflightsOutput{},
+			expectedOutput: &types.PreflightsOutput{},
 		},
 		{
 			name: "error from store",
@@ -626,5 +628,13 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 			// Verify mocks
 			mockStore.AssertExpectations(t)
 		})
+	}
+}
+
+func preflightRunOptionsFromRC(rc runtimeconfig.RuntimeConfig) preflights.RunOptions {
+	return preflights.RunOptions{
+		PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		ProxySpec:           rc.ProxySpec(),
+		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
 	}
 }

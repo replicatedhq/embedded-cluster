@@ -105,7 +105,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
-	opts := preflights.PrepareOptions{
+	opts := preflights.PrepareHostPreflightOptions{
 		HostPreflightSpec:       release.GetHostPreflights(),
 		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
@@ -143,7 +143,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		}
 	}
 
-	hpf, err := preflights.Prepare(ctx, opts)
+	hpf, err := preflights.PrepareHostPreflights(ctx, opts)
 	if err != nil {
 		return err
 	}

@@ -26,8 +26,8 @@ import (
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
-var failedPreflightOutput = &types.HostPreflightsOutput{
-	Fail: []types.HostPreflightsRecord{
+var failedPreflightOutput = &types.PreflightsOutput{
+	Fail: []types.PreflightsRecord{
 		{
 			Title:   "Test Check",
 			Message: "Test check failed",
@@ -35,8 +35,8 @@ var failedPreflightOutput = &types.HostPreflightsOutput{
 	},
 }
 
-var successfulPreflightOutput = &types.HostPreflightsOutput{
-	Pass: []types.HostPreflightsRecord{
+var successfulPreflightOutput = &types.PreflightsOutput{
+	Pass: []types.PreflightsRecord{
 		{
 			Title:   "Test Check",
 			Message: "Test check passed",
@@ -44,8 +44,8 @@ var successfulPreflightOutput = &types.HostPreflightsOutput{
 	},
 }
 
-var warnPreflightOutput = &types.HostPreflightsOutput{
-	Warn: []types.HostPreflightsRecord{
+var warnPreflightOutput = &types.PreflightsOutput{
+	Warn: []types.PreflightsRecord{
 		{
 			Title:   "Test Check",
 			Message: "Test check warning",
@@ -874,7 +874,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 		name          string
 		setupMock     func(*preflight.MockHostPreflightManager)
 		expectedErr   bool
-		expectedValue *types.HostPreflightsOutput
+		expectedValue *types.PreflightsOutput
 	}{
 		{
 			name: "successful get output",

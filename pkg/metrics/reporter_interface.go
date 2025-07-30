@@ -28,10 +28,10 @@ type ReporterInterface interface {
 	ReportJoinFailed(ctx context.Context, err error)
 
 	// ReportPreflightsFailed reports that the preflights failed
-	ReportPreflightsFailed(ctx context.Context, output *apitypes.HostPreflightsOutput)
+	ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput)
 
 	// ReportPreflightsBypassed reports that the preflights failed but were bypassed
-	ReportPreflightsBypassed(ctx context.Context, output *apitypes.HostPreflightsOutput)
+	ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput)
 
 	// ReportSignalAborted reports that a process was terminated by a signal
 	ReportSignalAborted(ctx context.Context, signal os.Signal)

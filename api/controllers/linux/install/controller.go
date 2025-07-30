@@ -30,7 +30,7 @@ type Controller interface {
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
-	GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error)
+	GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)

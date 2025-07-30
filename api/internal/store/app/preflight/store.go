@@ -19,15 +19,15 @@ type Store interface {
 }
 
 type memoryStore struct {
-	mu            sync.RWMutex
-	hostPreflight types.HostPreflights
+	mu           sync.RWMutex
+	appPreflight types.AppPreflights
 }
 
 type StoreOption func(*memoryStore)
 
-func WithHostPreflight(hostPreflight types.HostPreflights) StoreOption {
+func WithAppPreflight(appPreflight types.AppPreflights) StoreOption {
 	return func(s *memoryStore) {
-		s.hostPreflight = hostPreflight
+		s.appPreflight = appPreflight
 	}
 }
 
@@ -46,7 +46,7 @@ func (s *memoryStore) GetTitles() ([]string, error) {
 	defer s.mu.RUnlock()
 
 	var titles []string
-	if err := deepcopy.Copy(&titles, &s.hostPreflight.Titles); err != nil {
+	if err := deepcopy.Copy(&titles, &s.appPreflight.Titles); err != nil {
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func (s *memoryStore) GetTitles() ([]string, error) {
 func (s *memoryStore) SetTitles(titles []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.hostPreflight.Titles = titles
+	s.appPreflight.Titles = titles
 
 	return nil
 }
@@ -65,12 +65,12 @@ func (s *memoryStore) GetOutput() (*types.PreflightsOutput, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.hostPreflight.Output == nil {
+	if s.appPreflight.Output == nil {
 		return nil, nil
 	}
 
 	var output *types.PreflightsOutput
-	if err := deepcopy.Copy(&output, &s.hostPreflight.Output); err != nil {
+	if err := deepcopy.Copy(&output, &s.appPreflight.Output); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (s *memoryStore) SetOutput(output *types.PreflightsOutput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.hostPreflight.Output = output
+	s.appPreflight.Output = output
 	return nil
 }
 
@@ -90,7 +90,7 @@ func (s *memoryStore) GetStatus() (types.Status, error) {
 	defer s.mu.RUnlock()
 
 	var status types.Status
-	if err := deepcopy.Copy(&status, &s.hostPreflight.Status); err != nil {
+	if err := deepcopy.Copy(&status, &s.appPreflight.Status); err != nil {
 		return types.Status{}, err
 	}
 
@@ -101,6 +101,6 @@ func (s *memoryStore) SetStatus(status types.Status) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.hostPreflight.Status = status
+	s.appPreflight.Status = status
 	return nil
 }

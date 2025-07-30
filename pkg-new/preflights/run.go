@@ -15,30 +15,53 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
 
-// Run runs the provided host preflight spec locally. This function is meant to be
-// used when upgrading a local node.
-func (p *PreflightsRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
+// RunHostPreflights runs the provided host preflight spec locally.
+func (p *PreflightsRunner) RunHostPreflights(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
 
-	fpath, err := saveHostPreflightFile(spec)
+	specYAML, err := serializeHostSpec(spec)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to save preflight locally: %w", err)
+		return nil, "", fmt.Errorf("marshal host preflight spec: %w", err)
+	}
+
+	return p.runPreflights(ctx, specYAML, opts)
+}
+
+// RunAppPreflights runs the provided app preflight spec locally.
+func (p *PreflightsRunner) RunAppPreflights(ctx context.Context, spec *troubleshootv1beta2.PreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+	// Deduplicate collectors and analyzers before running preflights
+	spec.Collectors = dedup(spec.Collectors)
+	spec.Analyzers = dedup(spec.Analyzers)
+
+	specYAML, err := serializeAppSpec(spec)
+	if err != nil {
+		return nil, "", fmt.Errorf("marshal app preflight spec: %w", err)
+	}
+
+	return p.runPreflights(ctx, specYAML, opts)
+}
+
+// runPreflights is the shared logic for running both host and app preflights
+func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+	// Write spec to temporary file
+	fpath, err := saveSpecToTempFile(specYAML)
+	if err != nil {
+		return nil, "", err
 	}
 	defer os.Remove(fpath)
 
-	binpath := rc.PathToEmbeddedClusterBinary("kubectl-preflight")
-	cmd := exec.Command(binpath, "--interactive=false", "--format=json", fpath)
+	// Execute preflight command
+	cmd := exec.Command(opts.PreflightBinaryPath, "--interactive=false", "--format=json", fpath)
 
 	cmdEnv := cmd.Environ()
-	cmdEnv = proxyEnv(cmdEnv, rc.ProxySpec())
-	cmdEnv = pathEnv(cmdEnv, rc)
+	cmdEnv = proxyEnv(cmdEnv, opts.ProxySpec)
+	cmdEnv = pathEnv(cmdEnv, opts.ExtraPaths)
 	cmd.Env = cmdEnv
 
 	stdout := bytes.NewBuffer(nil)
@@ -47,17 +70,57 @@ func (p *PreflightsRunner) Run(ctx context.Context, spec *troubleshootv1beta2.Ho
 
 	err = cmd.Run()
 	if err == nil {
-		out, err := OutputFromReader(stdout)
+		out, err := p.OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
 
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() < 2 {
-		return nil, stderr.String(), fmt.Errorf("error running host preflight: %w, stderr=%q", err, stderr.String())
+		return nil, stderr.String(), fmt.Errorf("error running preflight: %w, stderr=%q", err, stderr.String())
 	}
 
-	out, err := OutputFromReader(stdout)
+	out, err := p.OutputFromReader(stdout)
 	return out, stderr.String(), err
+}
+
+// serializeHostSpec serialize the provided spec inside a HostPreflight object and
+// returns the byte slice.
+func serializeHostSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
+	hpf := map[string]interface{}{
+		"apiVersion": "troubleshoot.sh/v1beta2",
+		"kind":       "HostPreflight",
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
+		"spec":       spec,
+	}
+	return yaml.Marshal(hpf)
+}
+
+// serializeAppSpec serialize the provided spec inside a Preflight object and
+// returns the byte slice.
+func serializeAppSpec(spec *troubleshootv1beta2.PreflightSpec) ([]byte, error) {
+	pf := map[string]interface{}{
+		"apiVersion": "troubleshoot.sh/v1beta2",
+		"kind":       "Preflight",
+		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
+		"spec":       spec,
+	}
+	return yaml.Marshal(pf)
+}
+
+// saveSpecToTempFile saves the YAML spec to a temporary file and returns the file path
+func saveSpecToTempFile(specYAML []byte) (string, error) {
+	tmpfile, err := os.CreateTemp("", "troubleshoot-*.yaml")
+	if err != nil {
+		return "", fmt.Errorf("unable to create temporary file: %w", err)
+	}
+	defer tmpfile.Close()
+
+	if _, err := tmpfile.Write(specYAML); err != nil {
+		os.Remove(tmpfile.Name()) // Clean up on write error
+		return "", fmt.Errorf("unable to write preflight spec: %w", err)
+	}
+
+	return tmpfile.Name(), nil
 }
 
 func (p *PreflightsRunner) CopyBundleTo(dst string) error {
@@ -79,35 +142,6 @@ func (p *PreflightsRunner) CopyBundleTo(dst string) error {
 		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
 	}
 	return nil
-}
-
-// serializeSpec serialize the provided spec inside a HostPreflight object and
-// returns the byte slice.
-func serializeSpec(spec *troubleshootv1beta2.HostPreflightSpec) ([]byte, error) {
-	hpf := map[string]interface{}{
-		"apiVersion": "troubleshoot.sh/v1beta2",
-		"kind":       "HostPreflight",
-		"metadata":   map[string]interface{}{"name": "embedded-cluster"},
-		"spec":       spec,
-	}
-	return yaml.Marshal(hpf)
-}
-
-// saveHostPreflightFile saves the provided spec to a temporary file and returns
-// the path to the file. The spec is wrapped in a HostPreflight object before being
-// encoded and saved.
-func saveHostPreflightFile(spec *troubleshootv1beta2.HostPreflightSpec) (string, error) {
-	tmpfile, err := os.CreateTemp("", "troubleshoot-*.yaml")
-	if err != nil {
-		return "", fmt.Errorf("unable to create temporary file: %w", err)
-	}
-	defer tmpfile.Close()
-	if data, err := serializeSpec(spec); err != nil {
-		return "", fmt.Errorf("unable to serialize host preflight spec: %w", err)
-	} else if _, err := tmpfile.Write(data); err != nil {
-		return "", fmt.Errorf("unable to write host preflight spec: %w", err)
-	}
-	return tmpfile.Name(), nil
 }
 
 func dedup[T any](objs []T) []T {
@@ -151,7 +185,7 @@ func proxyEnv(env []string, proxy *ecv1beta1.ProxySpec) []string {
 	return next
 }
 
-func pathEnv(env []string, rc runtimeconfig.RuntimeConfig) []string {
+func pathEnv(env []string, extraPaths []string) []string {
 	path := ""
 	next := []string{}
 	for _, e := range env {
@@ -164,9 +198,9 @@ func pathEnv(env []string, rc runtimeconfig.RuntimeConfig) []string {
 		}
 	}
 	if path != "" {
-		next = append(next, fmt.Sprintf("PATH=%s:%s", path, rc.EmbeddedClusterBinsSubDir()))
-	} else {
-		next = append(next, fmt.Sprintf("PATH=%s", rc.EmbeddedClusterBinsSubDir()))
+		next = append(next, fmt.Sprintf("PATH=%s:%s", path, strings.Join(extraPaths, ":")))
+	} else if len(extraPaths) > 0 {
+		next = append(next, fmt.Sprintf("PATH=%s", strings.Join(extraPaths, ":")))
 	}
 	return next
 }

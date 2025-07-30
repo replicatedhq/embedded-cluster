@@ -54,12 +54,12 @@ func (m *MockController) GetHostPreflightStatus(ctx context.Context) (types.Stat
 }
 
 // GetHostPreflightOutput mocks the GetHostPreflightOutput method
-func (m *MockController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+func (m *MockController) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*types.HostPreflightsOutput), args.Error(1)
+	return args.Get(0).(*types.PreflightsOutput), args.Error(1)
 }
 
 // GetHostPreflightTitles mocks the GetHostPreflightTitles method

@@ -11,31 +11,31 @@ import (
 )
 
 func TestNewMemoryStore(t *testing.T) {
-	hostPreflight := types.HostPreflights{}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	appPreflight := types.AppPreflights{}
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	assert.NotNil(t, store)
-	assert.Equal(t, hostPreflight, store.hostPreflight)
+	assert.Equal(t, appPreflight, store.appPreflight)
 }
 
 func TestMemoryStore_GetTitles(t *testing.T) {
-	hostPreflight := types.HostPreflights{
-		Titles: []string{"Memory Check", "Disk Space Check", "Network Check"},
+	appPreflight := types.AppPreflights{
+		Titles: []string{"RBAC Check", "Image Pull Check", "Connectivity Check"},
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	titles, err := store.GetTitles()
 
 	require.NoError(t, err)
 	assert.NotNil(t, titles)
-	assert.Equal(t, []string{"Memory Check", "Disk Space Check", "Network Check"}, titles)
+	assert.Equal(t, []string{"RBAC Check", "Image Pull Check", "Connectivity Check"}, titles)
 }
 
 func TestMemoryStore_GetTitles_Empty(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Titles: []string{},
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	titles, err := store.GetTitles()
 
@@ -45,11 +45,11 @@ func TestMemoryStore_GetTitles_Empty(t *testing.T) {
 }
 
 func TestMemoryStore_SetTitles(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Titles: []string{"Old Title"},
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
-	expectedTitles := []string{"CPU Check", "RAM Check", "Storage Check"}
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
+	expectedTitles := []string{"Cluster Access Check", "Pod Creation Check", "Service Check"}
 
 	err := store.SetTitles(expectedTitles)
 
@@ -63,10 +63,10 @@ func TestMemoryStore_SetTitles(t *testing.T) {
 
 func TestMemoryStore_GetOutput(t *testing.T) {
 	output := &types.PreflightsOutput{}
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Output: output,
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	result, err := store.GetOutput()
 
@@ -75,10 +75,10 @@ func TestMemoryStore_GetOutput(t *testing.T) {
 }
 
 func TestMemoryStore_GetOutput_Nil(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Output: nil,
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	result, err := store.GetOutput()
 
@@ -87,10 +87,10 @@ func TestMemoryStore_GetOutput_Nil(t *testing.T) {
 }
 
 func TestMemoryStore_SetOutput(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Output: nil,
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 	expectedOutput := &types.PreflightsOutput{}
 
 	err := store.SetOutput(expectedOutput)
@@ -104,10 +104,10 @@ func TestMemoryStore_SetOutput(t *testing.T) {
 }
 
 func TestMemoryStore_SetOutput_Nil(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Output: &types.PreflightsOutput{},
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	err := store.SetOutput(nil)
 
@@ -122,13 +122,13 @@ func TestMemoryStore_SetOutput_Nil(t *testing.T) {
 func TestMemoryStore_GetStatus(t *testing.T) {
 	status := types.Status{
 		State:       types.StateRunning,
-		Description: "Running host preflights",
+		Description: "Running app preflights",
 		LastUpdated: time.Now(),
 	}
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Status: status,
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 
 	result, err := store.GetStatus()
 
@@ -137,16 +137,16 @@ func TestMemoryStore_GetStatus(t *testing.T) {
 }
 
 func TestMemoryStore_SetStatus(t *testing.T) {
-	hostPreflight := types.HostPreflights{
+	appPreflight := types.AppPreflights{
 		Status: types.Status{
 			State:       types.StateFailed,
 			Description: "Failed",
 		},
 	}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 	expectedStatus := types.Status{
 		State:       types.StateSucceeded,
-		Description: "Host preflights passed",
+		Description: "App preflights passed",
 		LastUpdated: time.Now(),
 	}
 
@@ -162,8 +162,8 @@ func TestMemoryStore_SetStatus(t *testing.T) {
 
 // Useful to test concurrent access with -race flag
 func TestMemoryStore_ConcurrentAccess(t *testing.T) {
-	hostPreflight := types.HostPreflights{}
-	store := NewMemoryStore(WithHostPreflight(hostPreflight))
+	appPreflight := types.AppPreflights{}
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
 	var wg sync.WaitGroup
 
 	// Test concurrent reads and writes
@@ -177,7 +177,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
-				titles := []string{"Memory Check", "Disk Check", "Network Check"}
+				titles := []string{"RBAC Check", "Image Pull Check", "Connectivity Check"}
 				err := store.SetTitles(titles)
 				assert.NoError(t, err)
 			}

@@ -120,7 +120,7 @@ func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.S
 	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
 }
 
-func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	return c.hostPreflightManager.GetHostPreflightOutput(ctx)
 }
 

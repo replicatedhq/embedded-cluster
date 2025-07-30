@@ -51,7 +51,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 	}
 
 	// Use the shared Prepare function to prepare host preflights
-	prepareOpts := preflights.PrepareOptions{
+	prepareOpts := preflights.PrepareHostPreflightOptions{
 		HostPreflightSpec:            opts.HostPreflightSpec,
 		ReplicatedAppURL:             opts.ReplicatedAppURL,
 		ProxyRegistryURL:             opts.ProxyRegistryURL,
@@ -75,7 +75,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 	}
 
 	// Use the shared Prepare function to prepare host preflights
-	hpf, err := m.runner.Prepare(ctx, prepareOpts)
+	hpf, err := m.runner.PrepareHostPreflights(ctx, prepareOpts)
 	if err != nil {
 		return nil, fmt.Errorf("prepare host preflights: %w", err)
 	}
@@ -99,7 +99,12 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 	}
 
 	// Run the preflights using the shared core function
-	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, rc)
+	runOpts := preflights.RunOptions{
+		PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		ProxySpec:           rc.ProxySpec(),
+		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
+	}
+	output, stderr, err := m.runner.RunHostPreflights(ctx, opts.HostPreflightSpec, runOpts)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
@@ -139,7 +144,7 @@ func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (type
 	return m.hostPreflightStore.GetStatus()
 }
 
-func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	return m.hostPreflightStore.GetOutput()
 }
 
@@ -180,7 +185,7 @@ func (m *hostPreflightManager) setFailedStatus(description string) error {
 	})
 }
 
-func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.HostPreflightsOutput) error {
+func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.PreflightsOutput) error {
 	if err := m.hostPreflightStore.SetOutput(output); err != nil {
 		return fmt.Errorf("set output: %w", err)
 	}
