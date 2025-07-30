@@ -9,17 +9,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
-	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 )
 
 // AppReleaseManager provides methods for managing the release of an app
 type AppReleaseManager interface {
-	TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error)
-	DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error)
-	GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error)
-	ExtractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error)
+	ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues) (*troubleshootv1beta2.PreflightSpec, error)
 }
 
 type appReleaseManager struct {

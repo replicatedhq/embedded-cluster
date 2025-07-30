@@ -580,7 +580,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		// Create an install controller with the failing manager
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(states.StatePreflightsRunning),
+				linuxinstall.WithCurrentState(states.StateHostPreflightsRunning),
 			)),
 			linuxinstall.WithHostPreflightManager(manager),
 			linuxinstall.WithReleaseData(&release.ReleaseData{

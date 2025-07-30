@@ -34,3 +34,36 @@ func (m *MockController) GetAppConfigValues(ctx context.Context) (types.AppConfi
 	}
 	return args.Get(0).(types.AppConfigValues), args.Error(1)
 }
+
+// RunAppPreflights mocks the RunAppPreflights method
+func (m *MockController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) error {
+	args := m.Called(ctx, opts)
+	return args.Error(0)
+}
+
+// GetAppPreflightStatus mocks the GetAppPreflightStatus method
+func (m *MockController) GetAppPreflightStatus(ctx context.Context) (types.Status, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return types.Status{}, args.Error(1)
+	}
+	return args.Get(0).(types.Status), args.Error(1)
+}
+
+// GetAppPreflightOutput mocks the GetAppPreflightOutput method
+func (m *MockController) GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.PreflightsOutput), args.Error(1)
+}
+
+// GetAppPreflightTitles mocks the GetAppPreflightTitles method
+func (m *MockController) GetAppPreflightTitles(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}

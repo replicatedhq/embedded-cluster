@@ -29,7 +29,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		}
 	}()
 
-	if err := c.stateMachine.ValidateTransition(lock, states.StatePreflightsRunning); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, states.StateHostPreflightsRunning); err != nil {
 		return types.NewConflictError(err)
 	}
 
@@ -56,7 +56,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		return fmt.Errorf("prepare host preflights: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StatePreflightsRunning)
+	err = c.stateMachine.Transition(lock, states.StateHostPreflightsRunning)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -75,7 +75,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StatePreflightsExecutionFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateHostPreflightsExecutionFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 				return
@@ -107,13 +107,13 @@ func (c *InstallController) getStateFromPreflightsOutput(ctx context.Context) st
 	// If there was an error getting the state we assume preflight execution failed
 	if err != nil {
 		c.logger.WithError(err).Error("error getting preflight output")
-		return states.StatePreflightsExecutionFailed
+		return states.StateHostPreflightsExecutionFailed
 	}
 	// If there is no output, we assume preflights succeeded
 	if output == nil || !output.HasFail() {
-		return states.StatePreflightsSucceeded
+		return states.StateHostPreflightsSucceeded
 	}
-	return states.StatePreflightsFailed
+	return states.StateHostPreflightsFailed
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {

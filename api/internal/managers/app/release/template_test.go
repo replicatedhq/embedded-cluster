@@ -10,15 +10,272 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/replicatedhq/kotskinds/multitype"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	kyaml "sigs.k8s.io/yaml"
 )
 
-func TestAppReleaseManager_TemplateHelmChartCRs(t *testing.T) {
+func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 	ctx := context.Background()
 
+	tests := []struct {
+		name          string
+		helmChartCRs  []*kotsv1beta2.HelmChart
+		chartArchives [][]byte
+		configValues  types.AppConfigValues
+		expectedSpec  *troubleshootv1beta2.PreflightSpec
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:         "no helm charts returns nil",
+			helmChartCRs: []*kotsv1beta2.HelmChart{},
+			configValues: types.AppConfigValues{},
+			expectedSpec: nil,
+			expectError:  false,
+		},
+		{
+			name: "single chart with preflight spec and templating",
+			helmChartCRs: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: myapp-chart
+spec:
+  chart:
+    name: test-chart
+    chartVersion: "1.0.0"
+  values:
+    checkName: '{{repl ConfigOption "check_name"}}'`),
+			},
+			chartArchives: [][]byte{
+				createTarGzArchive(t, map[string]string{
+					"test-chart/Chart.yaml": `apiVersion: v2
+name: test-chart
+version: 1.0.0
+description: A test Helm chart with preflights`,
+					"test-chart/templates/preflight.yaml": `apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: preflight-check
+spec:
+  analyzers:
+  - clusterVersion:
+      checkName: "{{ .Values.checkName }}"
+      outcomes:
+      - pass:
+          when: ">= 1.16.0"
+          message: "Kubernetes version is supported"
+      - fail:
+          message: "Kubernetes version is not supported"
+  collectors:
+  - clusterInfo: {}`,
+				}),
+			},
+			configValues: types.AppConfigValues{
+				"check_name": {Value: "K8s Version Validation"},
+			},
+			expectedSpec: &troubleshootv1beta2.PreflightSpec{
+				Analyzers: []*troubleshootv1beta2.Analyze{
+					{
+						ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "K8s Version Validation",
+							},
+							Outcomes: []*troubleshootv1beta2.Outcome{
+								{
+									Pass: &troubleshootv1beta2.SingleOutcome{
+										When:    ">= 1.16.0",
+										Message: "Kubernetes version is supported",
+									},
+								},
+								{
+									Fail: &troubleshootv1beta2.SingleOutcome{
+										Message: "Kubernetes version is not supported",
+									},
+								},
+							},
+						},
+					},
+				},
+				Collectors: []*troubleshootv1beta2.Collect{
+					{
+						ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "multiple charts with merged preflight specs and templating",
+			helmChartCRs: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: frontend-chart
+spec:
+  chart:
+    name: chart1
+    chartVersion: "1.0.0"
+  values:
+    versionCheckName: '{{repl ConfigOption "version_check_name"}}'`),
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: backend-chart
+spec:
+  chart:
+    name: chart2
+    chartVersion: "1.0.0"
+  values:
+    resourceCheckName: '{{repl ConfigOption "resource_check_name"}}'`),
+			},
+			chartArchives: [][]byte{
+				createTarGzArchive(t, map[string]string{
+					"chart1/Chart.yaml": `apiVersion: v2
+name: chart1
+version: 1.0.0`,
+					"chart1/templates/preflight.yaml": `apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: preflight-check
+spec:
+  analyzers:
+  - clusterVersion:
+      checkName: "{{ .Values.versionCheckName }}"
+  collectors:
+  - clusterInfo: {}`,
+				}),
+				createTarGzArchive(t, map[string]string{
+					"chart2/Chart.yaml": `apiVersion: v2
+name: chart2
+version: 1.0.0`,
+					"chart2/templates/preflight.yaml": `apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: node-resources-check
+spec:
+  analyzers:
+  - nodeResources:
+      checkName: "{{ .Values.resourceCheckName }}"
+      outcomes:
+      - fail:
+          when: "count() < 3"
+          message: "At least 3 nodes are required"
+      - pass:
+          message: "Sufficient nodes available"
+  collectors:
+  - clusterResources: {}`,
+				}),
+			},
+			configValues: types.AppConfigValues{
+				"version_check_name":  {Value: "Custom K8s Version Check"},
+				"resource_check_name": {Value: "Custom Node Resource Check"},
+			},
+			expectedSpec: &troubleshootv1beta2.PreflightSpec{
+				Analyzers: []*troubleshootv1beta2.Analyze{
+					{
+						ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "Custom K8s Version Check",
+							},
+						},
+					},
+					{
+						NodeResources: &troubleshootv1beta2.NodeResources{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "Custom Node Resource Check",
+							},
+							Outcomes: []*troubleshootv1beta2.Outcome{
+								{
+									Fail: &troubleshootv1beta2.SingleOutcome{
+										When:    "count() < 3",
+										Message: "At least 3 nodes are required",
+									},
+								},
+								{
+									Pass: &troubleshootv1beta2.SingleOutcome{
+										Message: "Sufficient nodes available",
+									},
+								},
+							},
+						},
+					},
+				},
+				Collectors: []*troubleshootv1beta2.Collect{
+					{
+						ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+					},
+					{
+						ClusterResources: &troubleshootv1beta2.ClusterResources{},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "chart with no preflights returns empty spec",
+			helmChartCRs: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: simple-chart
+spec:
+  chart:
+    name: simple-chart
+    chartVersion: "1.0.0"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "simple-chart", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			expectedSpec: nil,
+			expectError:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create release data
+			releaseData := &release.ReleaseData{
+				HelmChartCRs:      tt.helmChartCRs,
+				HelmChartArchives: tt.chartArchives,
+			}
+
+			// Create manager
+			config := createTestConfig()
+			manager, err := NewAppReleaseManager(
+				config,
+				WithReleaseData(releaseData),
+			)
+			require.NoError(t, err)
+
+			// Execute the function
+			result, err := manager.ExtractAppPreflightSpec(ctx, tt.configValues)
+
+			// Check error expectation
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedSpec, result)
+		})
+	}
+}
+
+func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 	tests := []struct {
 		name         string
 		helmChartCRs []*kotsv1beta2.HelmChart
@@ -257,7 +514,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.TemplateHelmChartCRs(ctx, tt.configValues)
+			result, err := manager.(*appReleaseManager).templateHelmChartCRs(tt.configValues)
 
 			// Check error expectation
 			if tt.expectError {
@@ -271,7 +528,7 @@ spec:
 	}
 }
 
-func TestAppReleaseManager_DryRunHelmChart(t *testing.T) {
+func TestAppReleaseManager_dryRunHelmChart(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
@@ -532,7 +789,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.DryRunHelmChart(ctx, tt.templatedCR)
+			result, err := manager.(*appReleaseManager).dryRunHelmChart(ctx, tt.templatedCR)
 
 			// Check error expectation
 			if tt.expectError {
@@ -554,9 +811,7 @@ spec:
 	}
 }
 
-func TestAppReleaseManager_GenerateHelmValues(t *testing.T) {
-	ctx := context.Background()
-
+func TestAppReleaseManager_generateHelmValues(t *testing.T) {
 	tests := []struct {
 		name        string
 		templatedCR *kotsv1beta2.HelmChart
@@ -902,11 +1157,7 @@ spec:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := createTestConfig()
-			manager, err := NewAppReleaseManager(config, WithReleaseData(&release.ReleaseData{}))
-			require.NoError(t, err)
-
-			result, err := manager.GenerateHelmValues(ctx, tt.templatedCR)
+			result, err := generateHelmValues(tt.templatedCR)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -919,7 +1170,7 @@ spec:
 	}
 }
 
-func TestAppReleaseManager_ExtractTroubleshootKinds(t *testing.T) {
+func TestAppReleaseManager_extractTroubleshootKinds(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
@@ -1179,13 +1430,8 @@ data:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a basic config for the manager
-			config := createTestConfig()
-			manager, err := NewAppReleaseManager(config, WithReleaseData(&release.ReleaseData{}))
-			require.NoError(t, err)
-
 			// Execute the function
-			tsKinds, err := manager.ExtractTroubleshootKinds(ctx, tt.manifests)
+			tsKinds, err := extractTroubleshootKinds(ctx, tt.manifests)
 
 			// Check error expectation
 			if tt.expectError {
@@ -1347,6 +1593,13 @@ func createTestConfig() kotsv1beta1.Config {
 						{Name: "redis_persistence", Type: "text", Value: multitype.FromString("true")},
 						{Name: "enable_persistence", Type: "text", Value: multitype.FromString("true")},
 						{Name: "disable_monitoring", Type: "text", Value: multitype.FromString("false")},
+						// Additional items for ExtractAppPreflightSpec test
+						{Name: "replica_count", Type: "text", Value: multitype.FromString("3")},
+						{Name: "check_name", Type: "text", Value: multitype.FromString("K8s Version Validation")},
+						{Name: "chart1_enabled", Type: "text", Value: multitype.FromString("true")},
+						{Name: "node_count", Type: "text", Value: multitype.FromString("3")},
+						{Name: "version_check_name", Type: "text", Value: multitype.FromString("Custom K8s Version Check")},
+						{Name: "resource_check_name", Type: "text", Value: multitype.FromString("Custom Node Resource Check")},
 					},
 				},
 			},

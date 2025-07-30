@@ -30,11 +30,11 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 	}()
 
 	// Check if preflights have failed and if we should ignore them
-	if c.stateMachine.CurrentState() == states.StatePreflightsFailed {
+	if c.stateMachine.CurrentState() == states.StateHostPreflightsFailed {
 		if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
 			return types.NewBadRequestError(ErrPreflightChecksFailed)
 		}
-		err = c.stateMachine.Transition(lock, states.StatePreflightsFailedBypassed)
+		err = c.stateMachine.Transition(lock, states.StateHostPreflightsFailedBypassed)
 		if err != nil {
 			return fmt.Errorf("failed to transition states: %w", err)
 		}
