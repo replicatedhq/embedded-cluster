@@ -569,6 +569,7 @@ jobs:
         test:
           - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
+          - TestSingleNodeAirgapUpgradeSelinux
           - TestSingleNodeAirgapUpgradeConfigValues
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestMultiNodeAirgapUpgrade

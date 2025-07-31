@@ -205,7 +205,15 @@ func copyScriptsToNode(node Node) error {
 }
 
 func getSSHEndpoint(nodeID string) (string, error) {
-	output, err := exec.Command("replicated", "vm", "ssh-endpoint", nodeID).CombinedOutput()
+	args := []string{
+		"vm",
+		"ssh-endpoint",
+		nodeID,
+	}
+	if user := os.Getenv("CMX_SSH_USERNAME"); user != "" {
+		args = append(args, "--username", user)
+	}
+	output, err := exec.Command("replicated", args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%v: %s", err, string(output))
 	}
@@ -335,7 +343,7 @@ func runCommandOnNode(node Node, line []string, envs ...map[string]string) (stri
 			line = append([]string{fmt.Sprintf("%s=%s", k, v)}, line...)
 		}
 	}
-	line = append([]string{"sudo"}, line...)
+	line = append([]string{"sudo", "PATH=$PATH:/usr/local/bin"}, line...)
 
 	cmd := exec.Command("ssh", append(sshArgs(), node.sshEndpoint, strings.Join(line, " "))...)
 	var stdout, stderr bytes.Buffer
@@ -363,7 +371,7 @@ func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (st
 
 func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
-	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
+	_, stderr, err := c.RunCommandOnNode(0, []string{"/usr/local/bin/bypass-kurl-proxy.sh"}, envs...)
 	if err != nil {
 		return fmt.Errorf("bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
@@ -401,7 +409,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		go func(i int, wg *sync.WaitGroup) {
 			defer wg.Done()
 			c.t.Logf("%s: generating host support bundle from node %d", time.Now().Format(time.RFC3339), i)
-			if stdout, stderr, err := c.RunCommandOnNode(i, []string{"collect-support-bundle-host.sh"}, envs...); err != nil {
+			if stdout, stderr, err := c.RunCommandOnNode(i, []string{"/usr/local/bin/collect-support-bundle-host.sh"}, envs...); err != nil {
 				c.t.Logf("stdout: %s", stdout)
 				c.t.Logf("stderr: %s", stderr)
 				c.t.Logf("fail to generate support bundle from node %d: %v", i, err)
@@ -419,7 +427,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 	}
 
 	c.t.Logf("%s: generating cluster support bundle from node %d", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
-	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, []string{"collect-support-bundle-cluster.sh"}, envs...); err != nil {
+	if stdout, stderr, err := c.RunCommandOnNode(c.supportBundleNodeIndex, []string{"/usr/local/bin/collect-support-bundle-cluster.sh"}, envs...); err != nil {
 		c.t.Logf("stdout: %s", stdout)
 		c.t.Logf("stderr: %s", stderr)
 		c.t.Logf("fail to generate cluster support bundle from node %d: %v", c.supportBundleNodeIndex, err)
