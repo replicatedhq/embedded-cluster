@@ -319,8 +319,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		appcontroller.WithAppConfigManager(controller.appConfigManager),
 		appcontroller.WithStateMachine(controller.stateMachine),
 		appcontroller.WithLogger(controller.logger),
-		appcontroller.WithAppPreflightManager(appPreflightManager),
-		appcontroller.WithAppReleaseManager(appReleaseManager),
+		appcontroller.WithAppPreflightManager(controller.appPreflightManager),
+		appcontroller.WithAppReleaseManager(controller.appReleaseManager),
 	)
 
 	if err != nil {
