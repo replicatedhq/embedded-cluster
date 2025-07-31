@@ -308,12 +308,14 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 	// TODO: move creation of the KotsInstaller to the AppConfigManager, rename to AppInstallManager
 	opts.KotsInstaller = func() error {
 		installOpts := kotscli.InstallOptions{
-			RuntimeConfig:         rc,
-			AppSlug:               license.Spec.AppSlug,
-			License:               m.license,
-			Namespace:             constants.KotsadmNamespace,
-			ClusterID:             m.clusterID,
-			AirgapBundle:          m.airgapBundle,
+			RuntimeConfig: rc,
+			AppSlug:       license.Spec.AppSlug,
+			License:       m.license,
+			Namespace:     constants.KotsadmNamespace,
+			ClusterID:     m.clusterID,
+			AirgapBundle:  m.airgapBundle,
+			// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
+			SkipPreflights:        os.Getenv("ENABLE_V3") == "1",
 			ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 			// TODO (@salah): capture kots install logs
 			// Stdout:                stdout,

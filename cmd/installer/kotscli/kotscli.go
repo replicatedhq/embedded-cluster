@@ -30,6 +30,7 @@ type InstallOptions struct {
 	AirgapBundle          string
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
+	SkipPreflights        bool
 	Stdout                io.Writer
 }
 
@@ -82,6 +83,10 @@ func Install(opts InstallOptions) error {
 
 	if opts.ConfigValuesFile != "" {
 		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
+	}
+
+	if opts.SkipPreflights {
+		installArgs = append(installArgs, "--skip-preflights")
 	}
 
 	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
