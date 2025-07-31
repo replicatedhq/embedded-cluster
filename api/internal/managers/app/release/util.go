@@ -6,6 +6,7 @@ import (
 	"os"
 
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
 
@@ -66,4 +67,28 @@ func writeChartArchiveToTemp(chartArchive []byte) (string, error) {
 	}
 
 	return tmpFile.Name(), nil
+}
+
+// mergePreflightSpecs merges multiple preflight specs into a single spec
+func mergePreflightSpecs(specs []troubleshootv1beta2.PreflightSpec) *troubleshootv1beta2.PreflightSpec {
+	if len(specs) == 0 {
+		return nil
+	}
+
+	merged := &troubleshootv1beta2.PreflightSpec{
+		Analyzers:  []*troubleshootv1beta2.Analyze{},
+		Collectors: []*troubleshootv1beta2.Collect{},
+	}
+
+	// Merge all analyzers and collectors from all specs
+	for _, spec := range specs {
+		if spec.Analyzers != nil {
+			merged.Analyzers = append(merged.Analyzers, spec.Analyzers...)
+		}
+		if spec.Collectors != nil {
+			merged.Collectors = append(merged.Collectors, spec.Collectors...)
+		}
+	}
+
+	return merged
 }

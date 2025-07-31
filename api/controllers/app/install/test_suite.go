@@ -6,6 +6,8 @@ import (
 	"time"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
+	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -37,10 +39,10 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateNew,
 			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -52,10 +54,10 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateApplicationConfigurationFailed,
 			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -67,10 +69,10 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateApplicationConfigured,
 			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -82,9 +84,9 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateNew,
 			expectedState: states.StateApplicationConfigurationFailed,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
+					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -96,10 +98,10 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateNew,
 			expectedState: states.StateApplicationConfigurationFailed,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					am.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(errors.New("set config error")),
+					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(errors.New("set config error")),
 				)
 			},
 			expectedErr: true,
@@ -111,7 +113,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			},
 			currentState:  states.StateInfrastructureInstalling,
 			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(am *appconfig.MockAppConfigManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager) {
 			},
 			expectedErr: true,
 		},
@@ -120,15 +122,19 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 
-			manager := &appconfig.MockAppConfigManager{}
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			sm := s.CreateStateMachine(tt.currentState)
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
-				WithAppConfigManager(manager),
+				WithAppConfigManager(appConfigManager),
+				WithAppPreflightManager(appPreflightManager),
+				WithAppReleaseManager(appReleaseManager),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
-			tt.setupMocks(manager)
+			tt.setupMocks(appConfigManager)
 			err = controller.PatchAppConfigValues(t.Context(), tt.values)
 
 			if tt.expectedErr {
@@ -141,7 +147,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after setting app config values")
-			manager.AssertExpectations(s.T())
+			appConfigManager.AssertExpectations(s.T())
 
 		})
 	}
