@@ -15,8 +15,8 @@ func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateHostConfigurationFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateInstallationConfigurationFailed, c.reportInstallFailed)
-	c.stateMachine.RegisterEventHandler(states.StatePreflightsFailed, c.reportPreflightsFailed)
-	c.stateMachine.RegisterEventHandler(states.StatePreflightsFailedBypassed, c.reportPreflightsBypassed)
+	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailed, c.reportPreflightsFailed)
+	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailedBypassed, c.reportPreflightsBypassed)
 }
 
 func (c *InstallController) reportInstallSucceeded(ctx context.Context, _, _ statemachine.State) {

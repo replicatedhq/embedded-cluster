@@ -62,7 +62,7 @@ func TestMemoryStore_SetTitles(t *testing.T) {
 }
 
 func TestMemoryStore_GetOutput(t *testing.T) {
-	output := &types.HostPreflightsOutput{}
+	output := &types.PreflightsOutput{}
 	hostPreflight := types.HostPreflights{
 		Output: output,
 	}
@@ -91,7 +91,7 @@ func TestMemoryStore_SetOutput(t *testing.T) {
 		Output: nil,
 	}
 	store := NewMemoryStore(WithHostPreflight(hostPreflight))
-	expectedOutput := &types.HostPreflightsOutput{}
+	expectedOutput := &types.PreflightsOutput{}
 
 	err := store.SetOutput(expectedOutput)
 
@@ -105,7 +105,7 @@ func TestMemoryStore_SetOutput(t *testing.T) {
 
 func TestMemoryStore_SetOutput_Nil(t *testing.T) {
 	hostPreflight := types.HostPreflights{
-		Output: &types.HostPreflightsOutput{},
+		Output: &types.PreflightsOutput{},
 	}
 	store := NewMemoryStore(WithHostPreflight(hostPreflight))
 
@@ -200,7 +200,7 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < numOperations; j++ {
-				output := &types.HostPreflightsOutput{}
+				output := &types.PreflightsOutput{}
 				err := store.SetOutput(output)
 				assert.NoError(t, err)
 			}

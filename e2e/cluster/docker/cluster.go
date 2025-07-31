@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -102,7 +103,15 @@ func (c *Cluster) Destroy() {
 }
 
 func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]string) (string, string, error) {
-	return c.Nodes[node].Exec(line, envs...)
+	stdout, stderr, err := c.Nodes[node].Exec(line, envs...)
+	if err != nil {
+		// check if this is a reset-installation command that resulted in exit code 143
+		// as this is expected behavior when the node reboots and the connection is lost
+		if strings.Contains(err.Error(), "143") && strings.Contains(strings.Join(line, " "), "reset-installation") {
+			return stdout, stderr, nil
+		}
+	}
+	return stdout, stderr, err
 }
 
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {

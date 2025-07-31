@@ -157,6 +157,10 @@ type InstallationSpec struct {
 	HighAvailability bool `json:"highAvailability,omitempty"`
 	// AirGap indicates if the installation is airgapped.
 	AirGap bool `json:"airGap,omitempty"`
+	// AirgapUncompressedSize holds the size of the uncompressed airgap bundle in bytes.
+	AirgapUncompressedSize int64 `json:"airgapUncompressedSize,omitempty"`
+	// K0sImageSize holds the size of the k0s image in bytes.
+	K0sImageSize int64 `json:"k0sImageSize,omitempty"`
 	// EndUserK0sConfigOverrides holds the end user k0s config overrides
 	// used at installation time.
 	EndUserK0sConfigOverrides string `json:"endUserK0sConfigOverrides,omitempty"`

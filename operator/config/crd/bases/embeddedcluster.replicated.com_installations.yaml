@@ -67,6 +67,11 @@ spec:
               airGap:
                 description: AirGap indicates if the installation is airgapped.
                 type: boolean
+              airgapUncompressedSize:
+                description: AirgapUncompressedSize holds the size of the uncompressed
+                  airgap bundle in bytes.
+                format: int64
+                type: integer
               artifacts:
                 description: Artifacts holds the location of the airgap bundle.
                 properties:
@@ -324,6 +329,10 @@ spec:
                 description: HighAvailability indicates if the installation is high
                   availability.
                 type: boolean
+              k0sImageSize:
+                description: K0sImageSize holds the size of the k0s image in bytes.
+                format: int64
+                type: integer
               licenseInfo:
                 description: LicenseInfo holds information about the license used
                   to install the cluster.

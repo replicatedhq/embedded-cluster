@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
@@ -60,6 +61,8 @@ type InstallCmdFlags struct {
 	adminConsolePassword string
 	adminConsolePort     int
 	airgapBundle         string
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
 	isAirgap             bool
 	licenseFile          string
 	assumeYes            bool
@@ -426,6 +429,19 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 	}
 
 	flags.isAirgap = flags.airgapBundle != ""
+	if flags.airgapBundle != "" {
+		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+		flags.airgapMetadata = metadata
+	}
+
+	var err error
+	flags.embeddedAssetsSize, err = goods.SizeOfEmbeddedAssets()
+	if err != nil {
+		return fmt.Errorf("failed to get size of embedded files: %w", err)
+	}
 
 	if flags.managerPort != 0 && flags.adminConsolePort != 0 {
 		if flags.managerPort == flags.adminConsolePort {
@@ -658,12 +674,14 @@ func runManagerExperienceInstall(
 				KeyBytes:  flags.tlsKeyBytes,
 				Hostname:  flags.hostname,
 			},
-			License:       flags.licenseBytes,
-			AirgapBundle:  flags.airgapBundle,
-			ConfigValues:  configValues,
-			ReleaseData:   release.GetReleaseData(),
-			EndUserConfig: eucfg,
-			ClusterID:     flags.clusterID,
+			License:            flags.licenseBytes,
+			AirgapBundle:       flags.airgapBundle,
+			AirgapMetadata:     flags.airgapMetadata,
+			EmbeddedAssetsSize: flags.embeddedAssetsSize,
+			ConfigValues:       configValues,
+			ReleaseData:        release.GetReleaseData(),
+			EndUserConfig:      eucfg,
+			ClusterID:          flags.clusterID,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig:             rc,
@@ -857,9 +875,9 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	if err != nil {
 		return err
 	}
-	if flags.isAirgap {
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapBundle); err != nil {
+		if err := checkAirgapMatches(flags.airgapMetadata.AirgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
@@ -1175,23 +1193,19 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 	return nil
 }
 
-func checkAirgapMatches(airgapBundle string) error {
+func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
+	if airgapInfo == nil {
+		return fmt.Errorf("airgap info is required")
+	}
+
 	rel := release.GetChannelRelease()
 	if rel == nil {
 		return fmt.Errorf("airgap bundle provided but no release was found in binary, please rerun without the airgap-bundle flag")
 	}
 
-	// read file from path
-	rawfile, err := os.Open(airgapBundle)
-	if err != nil {
-		return fmt.Errorf("failed to open airgap file: %w", err)
-	}
-	defer rawfile.Close()
-
-	appSlug, channelID, airgapVersion, err := airgap.ChannelReleaseMetadata(rawfile)
-	if err != nil {
-		return fmt.Errorf("failed to get airgap bundle versions: %w", err)
-	}
+	appSlug := airgapInfo.Spec.AppSlug
+	channelID := airgapInfo.Spec.ChannelID
+	airgapVersion := airgapInfo.Spec.VersionLabel
 
 	// Check if the airgap bundle matches the application version data
 	if rel.AppSlug != appSlug {
@@ -1344,15 +1358,22 @@ func recordInstallation(
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+		airgapUncompressedSize = flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		ClusterID:      flags.clusterID,
-		IsAirgap:       flags.isAirgap,
-		License:        flags.license,
-		ConfigSpec:     cfgspec,
-		MetricsBaseURL: replicatedAppURL(),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  eucfg,
+		ClusterID:              flags.clusterID,
+		IsAirgap:               flags.isAirgap,
+		License:                flags.license,
+		ConfigSpec:             cfgspec,
+		MetricsBaseURL:         replicatedAppURL(),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          eucfg,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

@@ -16,49 +16,53 @@ import (
 var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight failures detected"))
 
 // PrepareOptions contains options for preparing preflights (shared across CLI and API)
-type PrepareOptions struct {
-	HostPreflightSpec       *v1beta2.HostPreflightSpec
-	ReplicatedAppURL        string
-	ProxyRegistryURL        string
-	AdminConsolePort        int
-	LocalArtifactMirrorPort int
-	DataDir                 string
-	K0sDataDir              string
-	OpenEBSDataDir          string
-	Proxy                   *ecv1beta1.ProxySpec
-	PodCIDR                 string
-	ServiceCIDR             string
-	GlobalCIDR              *string
-	NodeIP                  string
-	IsAirgap                bool
-	TCPConnectionsRequired  []string
-	IsJoin                  bool
-	IsUI                    bool
+type PrepareHostPreflightOptions struct {
+	HostPreflightSpec            *v1beta2.HostPreflightSpec
+	ReplicatedAppURL             string
+	ProxyRegistryURL             string
+	AdminConsolePort             int
+	LocalArtifactMirrorPort      int
+	DataDir                      string
+	K0sDataDir                   string
+	OpenEBSDataDir               string
+	Proxy                        *ecv1beta1.ProxySpec
+	PodCIDR                      string
+	ServiceCIDR                  string
+	GlobalCIDR                   *string
+	NodeIP                       string
+	IsAirgap                     bool
+	TCPConnectionsRequired       []string
+	IsJoin                       bool
+	IsUI                         bool
+	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
-// Prepare prepares the host preflights spec by merging provided spec with cluster preflights
-func (p *PreflightsRunner) Prepare(ctx context.Context, opts PrepareOptions) (*v1beta2.HostPreflightSpec, error) {
+// PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
+func (p *PreflightsRunner) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*v1beta2.HostPreflightSpec, error) {
 	hpf := opts.HostPreflightSpec
 	if hpf == nil {
 		hpf = &v1beta2.HostPreflightSpec{}
 	}
 
-	data, err := types.TemplateData{
-		ReplicatedAppURL:        opts.ReplicatedAppURL,
-		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		IsAirgap:                opts.IsAirgap,
-		AdminConsolePort:        opts.AdminConsolePort,
-		LocalArtifactMirrorPort: opts.LocalArtifactMirrorPort,
-		DataDir:                 opts.DataDir,
-		K0sDataDir:              opts.K0sDataDir,
-		OpenEBSDataDir:          opts.OpenEBSDataDir,
-		SystemArchitecture:      helpers.ClusterArch(),
-		FromCIDR:                opts.PodCIDR,
-		ToCIDR:                  opts.ServiceCIDR,
-		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
-		NodeIP:                  opts.NodeIP,
-		IsJoin:                  opts.IsJoin,
-		IsUI:                    opts.IsUI,
+	data, err := types.HostPreflightTemplateData{
+		ReplicatedAppURL:             opts.ReplicatedAppURL,
+		ProxyRegistryURL:             opts.ProxyRegistryURL,
+		IsAirgap:                     opts.IsAirgap,
+		AdminConsolePort:             opts.AdminConsolePort,
+		LocalArtifactMirrorPort:      opts.LocalArtifactMirrorPort,
+		DataDir:                      opts.DataDir,
+		K0sDataDir:                   opts.K0sDataDir,
+		OpenEBSDataDir:               opts.OpenEBSDataDir,
+		SystemArchitecture:           helpers.ClusterArch(),
+		FromCIDR:                     opts.PodCIDR,
+		ToCIDR:                       opts.ServiceCIDR,
+		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
+		NodeIP:                       opts.NodeIP,
+		IsJoin:                       opts.IsJoin,
+		IsUI:                         opts.IsUI,
+		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

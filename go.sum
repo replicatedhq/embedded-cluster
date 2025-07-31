@@ -856,8 +856,8 @@ github.com/docker/cli v28.3.2+incompatible h1:mOt9fcLE7zaACbxW1GeS65RI67wIJrTnqS
 github.com/docker/cli v28.3.2+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/distribution v2.8.3+incompatible h1:AtKxIZ36LoNK51+Z6RpzLpddBirtxJnzDrHLEKxTAYk=
 github.com/docker/distribution v2.8.3+incompatible/go.mod h1:J2gT2udsDAN96Uj4KfcMRqY0/ypR+oyYUYmja8H+y+w=
-github.com/docker/docker v28.3.2+incompatible h1:wn66NJ6pWB1vBZIilP8G3qQPqHy5XymfYn5vsqeA5oA=
-github.com/docker/docker v28.3.2+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
+github.com/docker/docker v28.3.3+incompatible h1:Dypm25kh4rmk49v1eiVbsAtpAsYURjYkaKubwuBdxEI=
+github.com/docker/docker v28.3.3+incompatible/go.mod h1:eEKB0N0r5NX/I1kEveEz05bcu8tLC/8azJZsviup8Sk=
 github.com/docker/docker-credential-helpers v0.9.3 h1:gAm/VtF9wgqJMoxzT3Gj5p4AqIjCBS4wrsOh9yRqcz8=
 github.com/docker/docker-credential-helpers v0.9.3/go.mod h1:x+4Gbw9aGmChi3qTLZj8Dfn0TD20M/fuWy0E5+WDeCo=
 github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj1Br63c=
@@ -1451,8 +1451,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.0.5/go.mod h1:WZjPDy7VNzn77AAfnA
 github.com/redis/go-redis/v9 v9.7.3 h1:YpPyAayJV+XErNsatSElgRZZVCwXX9QzkKYNvO7x0wM=
 github.com/redis/go-redis/v9 v9.7.3/go.mod h1:bGUrSggJ9X9GUmZpZNEOQKaANxSGgOEBRltRTZHSvrA=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a h1:aNZ7qcuEmPGIUIIfxF7c0sdKR2+zL2vc5r2V8j8a49I=
-github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
+github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c h1:lnCL/wYi2BFTnxOP/lmo9WJwVPG3fk/plgJ/9NrMFw4=
+github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
 github.com/replicatedhq/troubleshoot v0.121.2 h1:B1FMuPS4opyYmtht1e544tUGe7gu4EbsotDp9AGPvrs=
 github.com/replicatedhq/troubleshoot v0.121.2/go.mod h1:bqtzIYtqavduEnwmJsVV74ds5mOrjyInKJDAQ9vcU6k=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

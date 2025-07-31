@@ -10,6 +10,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -23,6 +24,8 @@ type PrepareHostPreflightOptions struct {
 	IsAirgap               bool
 	IsJoin                 bool
 	IsUI                   bool
+	AirgapInfo             *kotsv1beta1.Airgap
+	EmbeddedAssetsSize     int64
 }
 
 type RunHostPreflightOptions struct {
@@ -36,31 +39,43 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
 
+	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
+	var controllerAirgapStorageSpace string
+	if opts.AirgapInfo != nil {
+		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
+			UncompressedSize:   opts.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: opts.EmbeddedAssetsSize,
+			K0sImageSize:       opts.AirgapInfo.Spec.UncompressedSize,
+			IsController:       true,
+		})
+	}
+
 	// Use the shared Prepare function to prepare host preflights
-	prepareOpts := preflights.PrepareOptions{
-		HostPreflightSpec:       opts.HostPreflightSpec,
-		ReplicatedAppURL:        opts.ReplicatedAppURL,
-		ProxyRegistryURL:        opts.ProxyRegistryURL,
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 rc.PodCIDR(),
-		ServiceCIDR:             rc.ServiceCIDR(),
-		NodeIP:                  nodeIP,
-		IsAirgap:                opts.IsAirgap,
-		TCPConnectionsRequired:  opts.TCPConnectionsRequired,
-		IsJoin:                  opts.IsJoin,
-		IsUI:                    opts.IsUI,
+	prepareOpts := preflights.PrepareHostPreflightOptions{
+		HostPreflightSpec:            opts.HostPreflightSpec,
+		ReplicatedAppURL:             opts.ReplicatedAppURL,
+		ProxyRegistryURL:             opts.ProxyRegistryURL,
+		AdminConsolePort:             rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
+		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                        rc.ProxySpec(),
+		PodCIDR:                      rc.PodCIDR(),
+		ServiceCIDR:                  rc.ServiceCIDR(),
+		NodeIP:                       nodeIP,
+		IsAirgap:                     opts.IsAirgap,
+		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
+		IsJoin:                       opts.IsJoin,
+		IsUI:                         opts.IsUI,
+		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr
 	}
 
 	// Use the shared Prepare function to prepare host preflights
-	hpf, err := m.runner.Prepare(ctx, prepareOpts)
+	hpf, err := m.runner.PrepareHostPreflights(ctx, prepareOpts)
 	if err != nil {
 		return nil, fmt.Errorf("prepare host preflights: %w", err)
 	}
@@ -84,7 +99,12 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 	}
 
 	// Run the preflights using the shared core function
-	output, stderr, err := m.runner.Run(ctx, opts.HostPreflightSpec, rc)
+	runOpts := preflights.RunOptions{
+		PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		ProxySpec:           rc.ProxySpec(),
+		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
+	}
+	output, stderr, err := m.runner.RunHostPreflights(ctx, opts.HostPreflightSpec, runOpts)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
@@ -124,7 +144,7 @@ func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (type
 	return m.hostPreflightStore.GetStatus()
 }
 
-func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+func (m *hostPreflightManager) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	return m.hostPreflightStore.GetOutput()
 }
 
@@ -165,7 +185,7 @@ func (m *hostPreflightManager) setFailedStatus(description string) error {
 	})
 }
 
-func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.HostPreflightsOutput) error {
+func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.PreflightsOutput) error {
 	if err := m.hostPreflightStore.SetOutput(output); err != nil {
 		return fmt.Errorf("set output: %w", err)
 	}

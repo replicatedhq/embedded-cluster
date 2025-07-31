@@ -5,7 +5,6 @@ import (
 	"io"
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,8 +16,8 @@ type MockPreflightRunner struct {
 	mock.Mock
 }
 
-// Prepare mocks the Prepare method
-func (m *MockPreflightRunner) Prepare(ctx context.Context, opts PrepareOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
+// PrepareHostPreflights mocks the PrepareHostPreflights method
+func (m *MockPreflightRunner) PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -26,13 +25,22 @@ func (m *MockPreflightRunner) Prepare(ctx context.Context, opts PrepareOptions) 
 	return args.Get(0).(*troubleshootv1beta2.HostPreflightSpec), args.Error(1)
 }
 
-// Run mocks the Run method
-func (m *MockPreflightRunner) Run(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, rc runtimeconfig.RuntimeConfig) (*apitypes.HostPreflightsOutput, string, error) {
-	args := m.Called(ctx, spec, rc)
+// RunHostPreflights mocks the RunHostPreflights method
+func (m *MockPreflightRunner) RunHostPreflights(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+	args := m.Called(ctx, spec, opts)
 	if args.Get(0) == nil {
 		return nil, args.String(1), args.Error(2)
 	}
-	return args.Get(0).(*apitypes.HostPreflightsOutput), args.String(1), args.Error(2)
+	return args.Get(0).(*apitypes.PreflightsOutput), args.String(1), args.Error(2)
+}
+
+// RunAppPreflights mocks the RunAppPreflights method
+func (m *MockPreflightRunner) RunAppPreflights(ctx context.Context, spec *troubleshootv1beta2.PreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+	args := m.Called(ctx, spec, opts)
+	if args.Get(0) == nil {
+		return nil, args.String(1), args.Error(2)
+	}
+	return args.Get(0).(*apitypes.PreflightsOutput), args.String(1), args.Error(2)
 }
 
 // CopyBundleTo mocks the CopyBundleTo method
@@ -42,23 +50,23 @@ func (m *MockPreflightRunner) CopyBundleTo(dst string) error {
 }
 
 // SaveToDisk mocks the SaveToDisk method
-func (m *MockPreflightRunner) SaveToDisk(output *apitypes.HostPreflightsOutput, path string) error {
+func (m *MockPreflightRunner) SaveToDisk(output *apitypes.PreflightsOutput, path string) error {
 	args := m.Called(output, path)
 	return args.Error(0)
 }
 
 // OutputFromReader mocks the OutputFromReader method
-func (m *MockPreflightRunner) OutputFromReader(reader io.Reader) (*apitypes.HostPreflightsOutput, error) {
+func (m *MockPreflightRunner) OutputFromReader(reader io.Reader) (*apitypes.PreflightsOutput, error) {
 	args := m.Called(reader)
-	return args.Get(0).(*apitypes.HostPreflightsOutput), args.Error(1)
+	return args.Get(0).(*apitypes.PreflightsOutput), args.Error(1)
 }
 
 // PrintTable mocks the PrintTable method
-func (m *MockPreflightRunner) PrintTable(o *apitypes.HostPreflightsOutput) {
+func (m *MockPreflightRunner) PrintTable(o *apitypes.PreflightsOutput) {
 	m.Called(o)
 }
 
 // PrintTableWithoutInfo mocks the PrintTableWithoutInfo method
-func (m *MockPreflightRunner) PrintTableWithoutInfo(o *apitypes.HostPreflightsOutput) {
+func (m *MockPreflightRunner) PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	m.Called(o)
 }

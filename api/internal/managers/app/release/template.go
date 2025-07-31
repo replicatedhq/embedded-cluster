@@ -11,12 +11,51 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
 	kyaml "sigs.k8s.io/yaml"
 )
 
-// TemplateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
-func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error) {
+// ExtractAppPreflightSpec extracts and merges preflight specifications from app releases
+func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues) (*troubleshootv1beta2.PreflightSpec, error) {
+	// Template Helm chart CRs with config values
+	templatedCRs, err := m.templateHelmChartCRs(configValues)
+	if err != nil {
+		return nil, fmt.Errorf("template helm chart CRs: %w", err)
+	}
+
+	var allPreflightSpecs []troubleshootv1beta2.PreflightSpec
+
+	// Iterate over each templated CR and extract preflights from its Helm chart archive
+	for _, cr := range templatedCRs {
+		// Dry run the Helm chart archive to get manifests
+		manifests, err := m.dryRunHelmChart(ctx, cr)
+		if err != nil {
+			return nil, fmt.Errorf("dry run helm chart %s: %w", cr.Name, err)
+		}
+
+		// Extract troubleshoot kinds from manifests
+		tsKinds, err := extractTroubleshootKinds(ctx, manifests)
+		if err != nil {
+			return nil, fmt.Errorf("extract troubleshoot kinds from chart %s: %w", cr.Name, err)
+		}
+
+		// Extract preflight specs from troubleshoot kinds
+		if tsKinds != nil && len(tsKinds.PreflightsV1Beta2) > 0 {
+			for _, preflight := range tsKinds.PreflightsV1Beta2 {
+				allPreflightSpecs = append(allPreflightSpecs, preflight.Spec)
+			}
+		}
+	}
+
+	// Merge all preflight specs into a single spec
+	mergedSpec := mergePreflightSpecs(allPreflightSpecs)
+
+	return mergedSpec, nil
+}
+
+// templateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
+func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error) {
 	if m.templateEngine == nil {
 		return nil, fmt.Errorf("template engine not initialized")
 	}
@@ -63,8 +102,8 @@ func (m *appReleaseManager) TemplateHelmChartCRs(ctx context.Context, configValu
 	return templatedCRs, nil
 }
 
-// DryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart
-func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
+// dryRunHelmChart finds the corresponding chart archive and performs a dry run templating of a Helm chart
+func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) ([][]byte, error) {
 	if templatedCR == nil {
 		return nil, fmt.Errorf("templated CR is nil")
 	}
@@ -87,7 +126,7 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	// Generate Helm values from the templated CR
-	helmValues, err := m.GenerateHelmValues(ctx, templatedCR)
+	helmValues, err := generateHelmValues(templatedCR)
 	if err != nil {
 		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
 	}
@@ -130,8 +169,8 @@ func (m *appReleaseManager) DryRunHelmChart(ctx context.Context, templatedCR *ko
 	return manifests, nil
 }
 
-// GenerateHelmValues generates Helm values for a single templated HelmChart custom resource
-func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
+// generateHelmValues generates Helm values for a single templated HelmChart custom resource
+func generateHelmValues(templatedCR *kotsv1beta2.HelmChart) (map[string]any, error) {
 	if templatedCR == nil {
 		return nil, fmt.Errorf("templated CR is nil")
 	}
@@ -175,8 +214,8 @@ func (m *appReleaseManager) GenerateHelmValues(ctx context.Context, templatedCR 
 	return helmValues, nil
 }
 
-// ExtractTroubleshootKinds extracts troubleshoot specifications from Helm chart manifests
-func (m *appReleaseManager) ExtractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error) {
+// extractTroubleshootKinds extracts troubleshoot specifications from Helm chart manifests
+func extractTroubleshootKinds(ctx context.Context, manifests [][]byte) (*troubleshootloader.TroubleshootKinds, error) {
 	// Convert [][]byte manifests to []string for troubleshootloader
 	rawSpecs := make([]string, len(manifests))
 	for i, manifest := range manifests {

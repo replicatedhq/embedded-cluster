@@ -19,7 +19,7 @@ type AppConfigManager interface {
 	// PatchConfigValues patches the current config values
 	PatchConfigValues(values types.AppConfigValues) error
 	// TemplateConfig templates the config with provided values and returns the templated config
-	TemplateConfig(configValues types.AppConfigValues, maskPasswords bool) (types.AppConfig, error)
+	TemplateConfig(configValues types.AppConfigValues, maskPasswords bool, filterHiddenItems bool) (types.AppConfig, error)
 	// GetConfigValues gets the current config values
 	GetConfigValues() (types.AppConfigValues, error)
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
