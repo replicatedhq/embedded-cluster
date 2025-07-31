@@ -165,12 +165,12 @@ spec:
     - name: config-items
       title: Config Items
       items:
-        - name: label
+        - name: label_intro
           type: label
           title: |
             The values set in the config items below will populate the `configitems` ConfigMap in the app (nginx-app).
 
-        - name: label
+        - name: label_text
           type: label
           title: |
             ## Text Items
@@ -193,7 +193,7 @@ spec:
           required: true
           help_text: "Help text of a **_Text_** config item type **_marked required_**"
 
-        - name: label
+        - name: label_password
           type: label
           title: |
             ## Password Items
@@ -216,7 +216,7 @@ spec:
           required: true
           help_text: "Help text of a **_Password_** config item type **_marked required_**"
 
-        - name: label
+        - name: label_textarea
           type: label
           title: |
             ## Textarea Items
@@ -239,7 +239,7 @@ spec:
           required: true
           help_text: "Help text of a **_Textarea_** config item type **_marked required_**"
 
-        - name: label
+        - name: label_checkbox
           type: label
           title: |
             ## Checkbox/Bool Items
@@ -263,7 +263,7 @@ spec:
           help_text: "Help text of a **_Checkbox_** config item type **_marked required_**"
 
         # TODO: uncomment when we support dropdowns in the UI
-        # - name: label
+        # - name: label_dropdown
         #   type: label
         #   title: |
         #     ## Dropdown Items
@@ -302,7 +302,7 @@ spec:
               title: Option 2
           default: opt1 # temporarily set a default to get past the required validation until we support dropdowns in the UI
 
-        - name: label
+        - name: label_radio
           type: label
           title: |
             ## Radio Items
@@ -340,7 +340,7 @@ spec:
             - name: opt2
               title: Option 2
 
-        - name: label
+        - name: label_file
           type: label
           title: |
             ## File Items
@@ -379,7 +379,7 @@ spec:
           help_text: "Help text of a **_Checkbox_** config item type"
           default: "1"
 
-        - name: label
+        - name: label_markdown
           type: label
           when: '{{repl ConfigOptionEquals "markdown_toggle" "1" }}'
           title: |
