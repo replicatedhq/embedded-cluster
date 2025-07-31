@@ -350,6 +350,151 @@ func (s *AppInstallTestSuite) TestPatchAppConfigValues() {
 		assert.Equal(t, apiError.Errors[1].Field, "required-password")
 		assert.Equal(t, apiError.Errors[1].Message, "Required Password is required")
 	})
+
+	// Test required hidden item should produce error
+	s.T().Run("Required hidden item should produce error", func(t *testing.T) {
+		// Create app config with required hidden item
+		configWithHiddenRequired := kotsv1beta1.Config{
+			Spec: kotsv1beta1.ConfigSpec{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "security-group",
+						Title: "Security Settings",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:     "api-key",
+								Type:     "password",
+								Title:    "API Key",
+								Required: true,
+								Hidden:   true, // This item is hidden but required
+							},
+							{
+								Name:     "visible-setting",
+								Type:     "text",
+								Title:    "Visible Setting",
+								Required: false,
+								Hidden:   false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create an install controller with the app config
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
+			AppConfig: &configWithHiddenRequired,
+		}, nil)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to patch config values without the required hidden item
+		patchRequest := types.PatchAppConfigValuesRequest{
+			Values: types.AppConfigValues{
+				"visible-setting": types.AppConfigValue{Value: "some-value"},
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(patchRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPatch, s.baseURL+"/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should return 400 Bad Request due to missing required hidden item
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+
+		// Verify the error mentions the required hidden field
+		require.Len(t, apiError.Errors, 1)
+		assert.Equal(t, apiError.Errors[0].Field, "api-key")
+		assert.Equal(t, apiError.Errors[0].Message, "API Key is required")
+	})
+
+	// Test required hidden item with predefined value should not produce error
+	s.T().Run("Required hidden item with value should not produce error", func(t *testing.T) {
+		// Create app config with required hidden item wtih a value
+		configWithHiddenRequired := kotsv1beta1.Config{
+			Spec: kotsv1beta1.ConfigSpec{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "security-group",
+						Title: "Security Settings",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:     "api-key",
+								Type:     "password",
+								Title:    "API Key",
+								Value:    multitype.FromString("hidden-key-value"),
+								Required: true,
+								Hidden:   true, // This item is hidden but required
+							},
+							{
+								Name:     "visible-setting",
+								Type:     "text",
+								Title:    "Visible Setting",
+								Required: false,
+								Hidden:   false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create an install controller with the app config
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
+			AppConfig: &configWithHiddenRequired,
+		}, nil)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to patch config values without the required hidden item
+		patchRequest := types.PatchAppConfigValuesRequest{
+			Values: types.AppConfigValues{
+				"visible-setting": types.AppConfigValue{Value: "some-value"},
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(patchRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPatch, s.baseURL+"/app/config/values", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+"TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		// Parse the response body
+		var response types.AppConfigValuesResponse
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+		require.NotNil(t, response.Values, "response values should not be nil")
+
+		// Verify the app config values are returned from the store
+		assert.Equal(t, "some-value", response.Values["visible-setting"].Value, "visible-setting should be updated")
+	})
 }
 
 func (s *AppInstallTestSuite) TestTemplateAppConfig() {
@@ -677,6 +822,132 @@ func (s *AppInstallTestSuite) TestTemplateAppConfig() {
 		err := json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+	})
+
+	// Test hidden items should not be returned
+	s.T().Run("Hidden items should not be returned", func(t *testing.T) {
+		// Create app config with hidden items
+		configWithHidden := kotsv1beta1.Config{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "kots.io/v1beta1",
+				Kind:       "Config",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "config-with-hidden",
+			},
+			Spec: kotsv1beta1.ConfigSpec{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "mixed-visibility",
+						Title: "Mixed Visibility Group",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "visible-item",
+								Type:    "text",
+								Title:   "Visible Item",
+								Default: multitype.FromString("visible-default"),
+								Value:   multitype.FromString("visible-value"),
+								Hidden:  false,
+							},
+							{
+								Name:    "hidden-item",
+								Type:    "text",
+								Title:   "Hidden Item",
+								Default: multitype.FromString("hidden-default"),
+								Value:   multitype.FromString("hidden-value"),
+								Hidden:  true, // This item should not appear in the response
+							},
+							{
+								Name:    "hidden-password",
+								Type:    "password",
+								Title:   "Hidden Password",
+								Default: multitype.FromString("hidden-password-default"),
+								Value:   multitype.FromString("hidden-password-value"),
+								Hidden:  true, // This item should not appear in the response
+							},
+							{
+								Name:    "another-visible-item",
+								Type:    "text",
+								Title:   "Another Visible Item",
+								Default: multitype.FromString("another-visible-default"),
+								Value:   multitype.FromString("another-visible-value"),
+								Hidden:  false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Create an install controller with the app config
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
+			AppConfig: &configWithHidden,
+		}, nil)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create template request
+		templateRequest := types.TemplateAppConfigRequest{
+			Values: types.AppConfigValues{
+				"visible-item":         {Value: "user-visible-value"},
+				"hidden-item":          {Value: "user-hidden-value"}, // Even if user provides this, it shouldn't appear
+				"another-visible-item": {Value: "user-another-visible-value"},
+			},
+		}
+
+		reqBodyBytes, err := json.Marshal(templateRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, s.baseURL+"/app/config/template", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response types.AppConfig
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify hidden items are filtered out
+		require.Len(t, response.Groups, 1, "group should be present")
+		group := response.Groups[0]
+		assert.Equal(t, "Mixed Visibility Group", group.Title)
+
+		// Should only have the visible items (hidden items should be filtered out)
+		require.Len(t, group.Items, 2, "only visible items should be present")
+
+		// Check that only visible items are present
+		visibleItemNames := make([]string, len(group.Items))
+		for i, item := range group.Items {
+			visibleItemNames[i] = item.Name
+		}
+
+		assert.Contains(t, visibleItemNames, "visible-item", "visible-item should be present")
+		assert.Contains(t, visibleItemNames, "another-visible-item", "another-visible-item should be present")
+		assert.NotContains(t, visibleItemNames, "hidden-item", "hidden-item should not be present")
+		assert.NotContains(t, visibleItemNames, "hidden-password", "hidden-password should not be present")
+
+		// Verify the visible items have correct values
+		for _, item := range group.Items {
+			switch item.Name {
+			case "visible-item":
+				assert.Equal(t, "user-visible-value", item.Value.String(), "visible-item should have user-provided value")
+				assert.False(t, item.Hidden, "visible-item should not be hidden")
+			case "another-visible-item":
+				assert.Equal(t, "user-another-visible-value", item.Value.String(), "another-visible-item should have user-provided value")
+				assert.False(t, item.Hidden, "another-visible-item should not be hidden")
+			}
+		}
 	})
 }
 

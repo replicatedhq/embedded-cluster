@@ -14,6 +14,7 @@ import (
 )
 
 const K0sImagePath = "images/ec-images-amd64.tar"
+const ECAiragapImagePath = "embedded-cluster/images-amd64.tar"
 
 // MaterializeAirgap places the airgap image bundle for k0s and the embedded cluster charts on disk.
 // - image bundle should be located at 'images-amd64.tar' within the embedded-cluster directory within the airgap bundle.
@@ -39,7 +40,7 @@ func MaterializeAirgap(rc runtimeconfig.RuntimeConfig, airgapReader io.Reader) e
 			return fmt.Errorf("failed to read airgap file: %w", err)
 		}
 
-		if nextFile.Name == "embedded-cluster/images-amd64.tar" {
+		if nextFile.Name == ECAiragapImagePath {
 			err = writeOneFile(tarreader, filepath.Join(rc.EmbeddedClusterK0sSubDir(), K0sImagePath), nextFile.Mode)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)

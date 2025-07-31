@@ -209,16 +209,23 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	// get the configured custom domains
 	ecDomains := utils.GetDomains(m.releaseData)
 
+	// extract airgap uncompressed size if airgap info is provided
+	var airgapUncompressedSize int64
+	if m.airgapMetadata != nil && m.airgapMetadata.AirgapInfo != nil {
+		airgapUncompressedSize = m.airgapMetadata.AirgapInfo.Spec.UncompressedSize
+	}
+
 	// record the installation
 	logFn("recording installation")
 	in, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		ClusterID:      m.clusterID,
-		IsAirgap:       m.airgapBundle != "",
-		License:        license,
-		ConfigSpec:     m.getECConfigSpec(),
-		MetricsBaseURL: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		RuntimeConfig:  rc.Get(),
-		EndUserConfig:  m.endUserConfig,
+		ClusterID:              m.clusterID,
+		IsAirgap:               m.airgapBundle != "",
+		License:                license,
+		ConfigSpec:             m.getECConfigSpec(),
+		MetricsBaseURL:         netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		RuntimeConfig:          rc.Get(),
+		EndUserConfig:          m.endUserConfig,
+		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record installation: %w", err)

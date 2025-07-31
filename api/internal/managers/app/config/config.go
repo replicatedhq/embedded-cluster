@@ -25,7 +25,7 @@ var (
 )
 
 // TemplateConfig templates the config with provided values and returns the templated config
-func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
+func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskPasswords bool, filterHiddenItems bool) (types.AppConfig, error) {
 	// Get current config values from the store
 	storedValues, err := m.appConfigStore.GetConfigValues()
 	if err != nil {
@@ -51,7 +51,7 @@ func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskP
 	}
 
 	// Filter out disabled groups and items
-	filteredConfig, err := filterAppConfig(processedConfig)
+	filteredConfig, err := filterAppConfig(processedConfig, filterHiddenItems)
 	if err != nil {
 		return types.AppConfig{}, fmt.Errorf("filter app config: %w", err)
 	}
@@ -81,7 +81,8 @@ func (m *appConfigManager) TemplateConfig(newValues types.AppConfigValues, maskP
 func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValues) error {
 	var ve *types.APIError
 
-	processedConfig, err := m.TemplateConfig(configValues, false)
+	// Don't filter hidden items here since we want to validate hidden required items
+	processedConfig, err := m.TemplateConfig(configValues, false, false)
 	if err != nil {
 		return fmt.Errorf("template config: %w", err)
 	}
@@ -113,7 +114,7 @@ func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) er
 	}
 
 	// Get processed config to determine enabled groups and items
-	processedConfig, err := m.TemplateConfig(newValues, false)
+	processedConfig, err := m.TemplateConfig(newValues, false, true)
 	if err != nil {
 		return fmt.Errorf("template config: %w", err)
 	}
@@ -156,7 +157,7 @@ func (m *appConfigManager) GetConfigValues() (types.AppConfigValues, error) {
 }
 
 func (m *appConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error) {
-	processedConfig, err := m.TemplateConfig(nil, false)
+	processedConfig, err := m.TemplateConfig(nil, false, true)
 	if err != nil {
 		return kotsv1beta1.ConfigValues{}, fmt.Errorf("template config: %w", err)
 	}
@@ -245,8 +246,8 @@ func getConfigValueFromChildItem(item kotsv1beta1.ConfigItem, childItem kotsv1be
 	return configValue
 }
 
-// filterAppConfig filters out disabled groups and items based on their 'when' condition
-func filterAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
+// filterAppConfig filters out disabled groups, items based on their 'when' condition and hidden items
+func filterAppConfig(config kotsv1beta1.Config, filterHiddenItems bool) (kotsv1beta1.Config, error) {
 	// deepcopy the config to avoid mutating the original config
 	var updatedConfig kotsv1beta1.Config
 	if err := deepcopy.Copy(&updatedConfig, &config); err != nil {
@@ -262,6 +263,9 @@ func filterAppConfig(config kotsv1beta1.Config) (kotsv1beta1.Config, error) {
 		filteredItems := make([]kotsv1beta1.ConfigItem, 0)
 		for _, item := range group.Items {
 			if !isItemEnabled(item.When) {
+				continue
+			}
+			if filterHiddenItems && item.Hidden {
 				continue
 			}
 			filteredItems = append(filteredItems, item)

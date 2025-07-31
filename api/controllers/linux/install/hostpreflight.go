@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) (finalErr error) {
@@ -28,12 +29,17 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		}
 	}()
 
-	if err := c.stateMachine.ValidateTransition(lock, states.StatePreflightsRunning); err != nil {
+	if err := c.stateMachine.ValidateTransition(lock, states.StateHostPreflightsRunning); err != nil {
 		return types.NewConflictError(err)
 	}
 
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
+
+	var airgapInfo *kotsv1beta1.Airgap
+	if c.airgapMetadata != nil {
+		airgapInfo = c.airgapMetadata.AirgapInfo
+	}
 
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
@@ -43,12 +49,14 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
 		IsAirgap:              c.airgapBundle != "",
 		IsUI:                  opts.IsUI,
+		AirgapInfo:            airgapInfo,
+		EmbeddedAssetsSize:    c.embeddedAssetsSize,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StatePreflightsRunning)
+	err = c.stateMachine.Transition(lock, states.StateHostPreflightsRunning)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -67,7 +75,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StatePreflightsExecutionFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateHostPreflightsExecutionFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 				return
@@ -99,20 +107,20 @@ func (c *InstallController) getStateFromPreflightsOutput(ctx context.Context) st
 	// If there was an error getting the state we assume preflight execution failed
 	if err != nil {
 		c.logger.WithError(err).Error("error getting preflight output")
-		return states.StatePreflightsExecutionFailed
+		return states.StateHostPreflightsExecutionFailed
 	}
 	// If there is no output, we assume preflights succeeded
 	if output == nil || !output.HasFail() {
-		return states.StatePreflightsSucceeded
+		return states.StateHostPreflightsSucceeded
 	}
-	return states.StatePreflightsFailed
+	return states.StateHostPreflightsFailed
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
 	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
 }
 
-func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.HostPreflightsOutput, error) {
+func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	return c.hostPreflightManager.GetHostPreflightOutput(ctx)
 }
 

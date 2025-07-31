@@ -28,6 +28,8 @@ type HostUtilsInterface interface {
 	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 	AddInsecureRegistry(registry string) error
+	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
+	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
 }
 
 // Convenience functions
@@ -71,4 +73,12 @@ func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 
 func AddInsecureRegistry(registry string) error {
 	return h.AddInsecureRegistry(registry)
+}
+
+func ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
+	return h.ConfigureSELinuxFcontext(rc)
+}
+
+func RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
+	return h.RestoreSELinuxContext(rc)
 }

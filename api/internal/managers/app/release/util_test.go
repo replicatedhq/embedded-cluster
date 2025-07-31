@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -361,4 +362,131 @@ func createTarGzArchive(t *testing.T, files map[string]string) []byte {
 	require.NoError(t, gw.Close())
 
 	return buf.Bytes()
+}
+
+func TestAppReleaseManager_mergePreflightSpecs(t *testing.T) {
+	tests := []struct {
+		name         string
+		specs        []troubleshootv1beta2.PreflightSpec
+		expectedSpec *troubleshootv1beta2.PreflightSpec
+	}{
+		{
+			name:         "empty specs returns nil",
+			specs:        []troubleshootv1beta2.PreflightSpec{},
+			expectedSpec: nil,
+		},
+		{
+			name: "single spec returns same spec",
+			specs: []troubleshootv1beta2.PreflightSpec{
+				{
+					Analyzers: []*troubleshootv1beta2.Analyze{
+						{
+							ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Kubernetes Version Check",
+								},
+							},
+						},
+					},
+					Collectors: []*troubleshootv1beta2.Collect{
+						{
+							ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+						},
+					},
+				},
+			},
+			expectedSpec: &troubleshootv1beta2.PreflightSpec{
+				Analyzers: []*troubleshootv1beta2.Analyze{
+					{
+						ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "Kubernetes Version Check",
+							},
+						},
+					},
+				},
+				Collectors: []*troubleshootv1beta2.Collect{
+					{
+						ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+					},
+				},
+			},
+		},
+		{
+			name: "multiple specs merge correctly",
+			specs: []troubleshootv1beta2.PreflightSpec{
+				{
+					Analyzers: []*troubleshootv1beta2.Analyze{
+						{
+							ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "K8s Version Check",
+								},
+							},
+						},
+					},
+					Collectors: []*troubleshootv1beta2.Collect{
+						{
+							ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+						},
+					},
+				},
+				{
+					Analyzers: []*troubleshootv1beta2.Analyze{
+						{
+							NodeResources: &troubleshootv1beta2.NodeResources{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Node Resources Check",
+								},
+							},
+						},
+					},
+					Collectors: []*troubleshootv1beta2.Collect{
+						{
+							ClusterResources: &troubleshootv1beta2.ClusterResources{},
+						},
+					},
+				},
+			},
+			expectedSpec: &troubleshootv1beta2.PreflightSpec{
+				Analyzers: []*troubleshootv1beta2.Analyze{
+					{
+						ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "K8s Version Check",
+							},
+						},
+					},
+					{
+						NodeResources: &troubleshootv1beta2.NodeResources{
+							AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+								CheckName: "Node Resources Check",
+							},
+						},
+					},
+				},
+				Collectors: []*troubleshootv1beta2.Collect{
+					{
+						ClusterInfo: &troubleshootv1beta2.ClusterInfo{},
+					},
+					{
+						ClusterResources: &troubleshootv1beta2.ClusterResources{},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := mergePreflightSpecs(tt.specs)
+
+			if tt.expectedSpec == nil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.expectedSpec, result)
+			}
+		})
+	}
 }

@@ -23,20 +23,30 @@ const (
 	StateHostConfigurationFailed statemachine.State = "HostConfigurationFailed"
 	// StateHostConfigured is the state of the install process when the host is configured
 	StateHostConfigured statemachine.State = "HostConfigured"
-	// StatePreflightsRunning is the state of the install process when the preflights are running
-	StatePreflightsRunning statemachine.State = "PreflightsRunning"
-	// StatePreflightsExecutionFailed is the state of the install process when the preflights failed to execute due to an underlying system error
-	StatePreflightsExecutionFailed statemachine.State = "PreflightsExecutionFailed"
-	// StatePreflightsSucceeded is the state of the install process when the preflights have succeeded
-	StatePreflightsSucceeded statemachine.State = "PreflightsSucceeded"
-	// StatePreflightsFailed is the state of the install process when the preflights execution succeeded but the preflights detected issues on the host
-	StatePreflightsFailed statemachine.State = "PreflightsFailed"
-	// StatePreflightsFailedBypassed is the state of the install process when, despite preflights failing, the user has chosen to bypass the preflights and continue with the installation
-	StatePreflightsFailedBypassed statemachine.State = "PreflightsFailedBypassed"
+	// StateHostPreflightsRunning is the state of the install process when the preflights are running
+	StateHostPreflightsRunning statemachine.State = "HostPreflightsRunning"
+	// StateHostPreflightsExecutionFailed is the state of the install process when the preflights failed to execute due to an underlying system error
+	StateHostPreflightsExecutionFailed statemachine.State = "HostPreflightsExecutionFailed"
+	// StateHostPreflightsSucceeded is the state of the install process when the preflights have succeeded
+	StateHostPreflightsSucceeded statemachine.State = "HostPreflightsSucceeded"
+	// StateHostPreflightsFailed is the state of the install process when the preflights execution succeeded but the preflights detected issues on the host
+	StateHostPreflightsFailed statemachine.State = "HostPreflightsFailed"
+	// StateHostPreflightsFailedBypassed is the state of the install process when, despite preflights failing, the user has chosen to bypass the preflights and continue with the installation
+	StateHostPreflightsFailedBypassed statemachine.State = "HostPreflightsFailedBypassed"
 	// StateInfrastructureInstalling is the state of the install process when the infrastructure is being installed
 	StateInfrastructureInstalling statemachine.State = "InfrastructureInstalling"
 	// StateInfrastructureInstallFailed is a final state of the install process when the infrastructure failed to isntall
 	StateInfrastructureInstallFailed statemachine.State = "InfrastructureInstallFailed"
+	// StateAppPreflightsRunning is the state of the install process when the preflights are running
+	StateAppPreflightsRunning statemachine.State = "AppPreflightsRunning"
+	// StateAppPreflightsExecutionFailed is the state of the install process when the preflights failed to execute due to an underlying system error
+	StateAppPreflightsExecutionFailed statemachine.State = "AppPreflightsExecutionFailed"
+	// StateAppPreflightsSucceeded is the state of the install process when the preflights have succeeded
+	StateAppPreflightsSucceeded statemachine.State = "AppPreflightsSucceeded"
+	// StateAppPreflightsFailed is the state of the install process when the preflights execution succeeded but the preflights detected issues on the host
+	StateAppPreflightsFailed statemachine.State = "AppPreflightsFailed"
+	// StateAppPreflightsFailedBypassed is the state of the install process when, despite preflights failing, the user has chosen to bypass the preflights and continue with the installation
+	StateAppPreflightsFailedBypassed statemachine.State = "AppPreflightsFailedBypassed"
 	// StateSucceeded is the final state of the install process when the install has succeeded
 	StateSucceeded statemachine.State = "Succeeded"
 )

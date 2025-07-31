@@ -12,8 +12,8 @@ var _ Store = &memoryStore{}
 type Store interface {
 	GetTitles() ([]string, error)
 	SetTitles(titles []string) error
-	GetOutput() (*types.HostPreflightsOutput, error)
-	SetOutput(output *types.HostPreflightsOutput) error
+	GetOutput() (*types.PreflightsOutput, error)
+	SetOutput(output *types.PreflightsOutput) error
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 }
@@ -61,7 +61,7 @@ func (s *memoryStore) SetTitles(titles []string) error {
 	return nil
 }
 
-func (s *memoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
+func (s *memoryStore) GetOutput() (*types.PreflightsOutput, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -69,7 +69,7 @@ func (s *memoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
 		return nil, nil
 	}
 
-	var output *types.HostPreflightsOutput
+	var output *types.PreflightsOutput
 	if err := deepcopy.Copy(&output, &s.hostPreflight.Output); err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (s *memoryStore) GetOutput() (*types.HostPreflightsOutput, error) {
 	return output, nil
 }
 
-func (s *memoryStore) SetOutput(output *types.HostPreflightsOutput) error {
+func (s *memoryStore) SetOutput(output *types.PreflightsOutput) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

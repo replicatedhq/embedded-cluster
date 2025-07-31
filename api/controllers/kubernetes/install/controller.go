@@ -7,6 +7,8 @@ import (
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
+	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -38,6 +40,8 @@ type InstallController struct {
 	installationManager installation.InstallationManager
 	infraManager        infra.InfraManager
 	appConfigManager    appconfig.AppConfigManager
+	appPreflightManager apppreflightmanager.AppPreflightManager
+	appReleaseManager   appreleasemanager.AppReleaseManager
 	metricsReporter     metrics.ReporterInterface
 	restClientGetter    genericclioptions.RESTClientGetter
 	releaseData         *release.ReleaseData
@@ -224,9 +228,29 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		}
 	}
 
+	if controller.appPreflightManager == nil {
+		controller.appPreflightManager = apppreflightmanager.NewAppPreflightManager(
+			apppreflightmanager.WithLogger(controller.logger),
+		)
+	}
+
+	if controller.appReleaseManager == nil {
+		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
+			*controller.releaseData.AppConfig,
+			appreleasemanager.WithLogger(controller.logger),
+			appreleasemanager.WithReleaseData(controller.releaseData),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app release manager: %w", err)
+		}
+		controller.appReleaseManager = appReleaseManager
+	}
+
 	// Initialize the app controller with the app config manager and state machine
 	appInstallController, err := appcontroller.NewInstallController(
 		appcontroller.WithAppConfigManager(controller.appConfigManager),
+		appcontroller.WithAppPreflightManager(controller.appPreflightManager),
+		appcontroller.WithAppReleaseManager(controller.appReleaseManager),
 		appcontroller.WithStateMachine(controller.stateMachine),
 		appcontroller.WithLogger(controller.logger),
 	)

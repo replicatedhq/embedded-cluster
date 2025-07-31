@@ -12,33 +12,35 @@ type CIDRData struct {
 	Size int
 }
 
-type TemplateData struct {
-	IsAirgap                bool
-	ReplicatedAppURL        string
-	ProxyRegistryURL        string
-	AdminConsolePort        int
-	LocalArtifactMirrorPort int
-	DataDir                 string
-	K0sDataDir              string
-	OpenEBSDataDir          string
-	SystemArchitecture      string
-	ServiceCIDR             CIDRData
-	PodCIDR                 CIDRData
-	GlobalCIDR              CIDRData
-	HTTPProxy               string
-	HTTPSProxy              string
-	ProvidedNoProxy         string
-	NoProxy                 string
-	FromCIDR                string
-	ToCIDR                  string
-	TCPConnectionsRequired  []string
-	NodeIP                  string
-	IsJoin                  bool
-	IsUI                    bool
+type HostPreflightTemplateData struct {
+	IsAirgap                     bool
+	ReplicatedAppURL             string
+	ProxyRegistryURL             string
+	AdminConsolePort             int
+	LocalArtifactMirrorPort      int
+	DataDir                      string
+	K0sDataDir                   string
+	OpenEBSDataDir               string
+	SystemArchitecture           string
+	ServiceCIDR                  CIDRData
+	PodCIDR                      CIDRData
+	GlobalCIDR                   CIDRData
+	HTTPProxy                    string
+	HTTPSProxy                   string
+	ProvidedNoProxy              string
+	NoProxy                      string
+	FromCIDR                     string
+	ToCIDR                       string
+	TCPConnectionsRequired       []string
+	NodeIP                       string
+	IsJoin                       bool
+	IsUI                         bool
+	ControllerAirgapStorageSpace string
+	WorkerAirgapStorageSpace     string
 }
 
-// WithCIDRData sets the respective CIDR properties in the TemplateData struct based on the provided CIDR strings
-func (t TemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (TemplateData, error) {
+// WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings
+func (t HostPreflightTemplateData) WithCIDRData(podCIDR string, serviceCIDR string, globalCIDR *string) (HostPreflightTemplateData, error) {
 	if globalCIDR != nil && *globalCIDR != "" {
 		_, cidr, err := net.ParseCIDR(*globalCIDR)
 		if err != nil {

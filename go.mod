@@ -34,7 +34,7 @@ require (
 	github.com/onsi/gomega v1.38.0
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
-	github.com/replicatedhq/kotskinds v0.0.0-20250411153224-089dbeb7ba2a
+	github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c
 	github.com/replicatedhq/troubleshoot v0.121.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
@@ -137,7 +137,7 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0 // indirect
 	github.com/docker/cli v28.3.2+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
-	github.com/docker/docker v28.3.2+incompatible // indirect
+	github.com/docker/docker v28.3.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect

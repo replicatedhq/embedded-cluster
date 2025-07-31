@@ -694,6 +694,95 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "almalinux",
+		Version:      "8",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		}, func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+	)
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+
+	t.Logf("%s: creating /.autorelabel file for SELinux relabeling", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"touch", "/.autorelabel"}); err != nil {
+		t.Fatalf("fail to create /.autorelabel file on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: rebooting VM for SELinux relabeling", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"reboot"}); err != nil {
+		t.Fatalf("fail to reboot node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: waiting for node to reboot", time.Now().Format(time.RFC3339))
+	tc.WaitForReboot()
+
+	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
+		t.Fatalf("fail to set selinux to Enforcing mode %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"/usr/local/bin/airgap-prepare.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap:                true,
+		version:                 initialVersion,
+		localArtifactMirrorPort: "50001", // choose an alternate lam port
+	})
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"/usr/local/bin/check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v", err)
+	}
+
+	checkNodeJoinCommand(t, tc, 0)
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"/usr/local/bin/airgap-update.sh"}
+	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v", err)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	checkPostUpgradeState(t, tc)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	t.Parallel()
 
