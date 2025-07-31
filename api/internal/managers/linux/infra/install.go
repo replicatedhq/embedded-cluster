@@ -29,7 +29,12 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-const K0sComponentName = "Runtime"
+const (
+	// Skip running the KOTS app preflights in the Admin Console; we run them in the manager experience installer when ENABLE_V3 is enabled
+	SkipPreflights = true
+
+	K0sComponentName = "Runtime"
+)
 
 func AlreadyInstalledError() error {
 	//nolint:staticcheck // ST1005 TODO: use a constant here and print a better error message
@@ -314,6 +319,7 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, rc runt
 			Namespace:             constants.KotsadmNamespace,
 			ClusterID:             m.clusterID,
 			AirgapBundle:          m.airgapBundle,
+			SkipPreflights:        SkipPreflights,
 			ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 			// TODO (@salah): capture kots install logs
 			// Stdout:                stdout,
