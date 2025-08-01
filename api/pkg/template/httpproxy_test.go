@@ -8,15 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockInstallation implements the Installation interface for testing
-type MockInstallation struct {
-	proxySpec *ecv1beta1.ProxySpec
-}
-
-func (m *MockInstallation) ProxySpec() *ecv1beta1.ProxySpec {
-	return m.proxySpec
-}
-
 func TestEngine_HTTPProxy(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -46,13 +37,9 @@ func TestEngine_HTTPProxy(t *testing.T) {
 			err := engine.Parse("{{repl HTTPProxy }}")
 			require.NoError(t, err)
 
-			mockInstall := &MockInstallation{
-				proxySpec: &ecv1beta1.ProxySpec{
-					HTTPProxy: tt.httpProxy,
-				},
-			}
-
-			result, err := engine.Execute(nil, WithInstallation(mockInstall))
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+				HTTPProxy: tt.httpProxy,
+			}))
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, result)
 		})
@@ -88,13 +75,9 @@ func TestEngine_HTTPSProxy(t *testing.T) {
 			err := engine.Parse("{{repl HTTPSProxy }}")
 			require.NoError(t, err)
 
-			mockInstall := &MockInstallation{
-				proxySpec: &ecv1beta1.ProxySpec{
-					HTTPSProxy: tt.httpsProxy,
-				},
-			}
-
-			result, err := engine.Execute(nil, WithInstallation(mockInstall))
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+				HTTPSProxy: tt.httpsProxy,
+			}))
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, result)
 		})
@@ -135,13 +118,9 @@ func TestEngine_NoProxy(t *testing.T) {
 			err := engine.Parse("{{repl NoProxy }}")
 			require.NoError(t, err)
 
-			mockInstall := &MockInstallation{
-				proxySpec: &ecv1beta1.ProxySpec{
-					NoProxy: tt.noProxy,
-				},
-			}
-
-			result, err := engine.Execute(nil, WithInstallation(mockInstall))
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+				NoProxy: tt.noProxy,
+			}))
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, result)
 		})
@@ -155,50 +134,37 @@ func TestEngine_ProxyState_MultipleExecuteCalls(t *testing.T) {
 	require.NoError(t, err)
 
 	// First execution with initial proxy options
-	mockInstall := &MockInstallation{
-		proxySpec: &ecv1beta1.ProxySpec{
-			HTTPProxy:  "http://proxy1.example.com:8080",
-			HTTPSProxy: "https://proxy1.example.com:8443",
-			NoProxy:    "localhost,127.0.0.1",
-		},
-	}
-
-	result1, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result1, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+		HTTPProxy:  "http://proxy1.example.com:8080",
+		HTTPSProxy: "https://proxy1.example.com:8443",
+		NoProxy:    "localhost,127.0.0.1",
+	}))
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP:http://proxy1.example.com:8080 HTTPS:https://proxy1.example.com:8443 NO:localhost,127.0.0.1", result1)
 
 	// Second execution with no options - should clear previous state
-	mockInstall = &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
-
-	result2, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result2, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP: HTTPS: NO:", result2)
 
 	// Third execution with different proxy options - should update state
-	mockInstall = &MockInstallation{
-		proxySpec: &ecv1beta1.ProxySpec{
-			HTTPProxy:  "http://proxy2.example.com:3128",
-			HTTPSProxy: "https://proxy2.example.com:3129",
-			NoProxy:    ".internal,.local",
-		},
-	}
-	result3, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result3, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+		HTTPProxy:  "http://proxy2.example.com:3128",
+		HTTPSProxy: "https://proxy2.example.com:3129",
+		NoProxy:    ".internal,.local",
+	}))
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP:http://proxy2.example.com:3128 HTTPS:https://proxy2.example.com:3129 NO:.internal,.local", result3)
 
 	// Fourth execution with partial options - should only set provided options, others should be empty
-	mockInstall = &MockInstallation{
-		proxySpec: &ecv1beta1.ProxySpec{
-			HTTPProxy: "http://proxy3.example.com:8080",
-		},
-	}
-	result4, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result4, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{
+		HTTPProxy: "http://proxy3.example.com:8080",
+	}))
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP:http://proxy3.example.com:8080 HTTPS: NO:", result4)
 
 	// Fifth execution with no options again - should clear all state
-	mockInstall = &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
-	result5, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result5, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "HTTP: HTTPS: NO:", result5)
 }

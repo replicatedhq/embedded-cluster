@@ -22,15 +22,10 @@ type execOptions struct {
 // ExecOption is a function that sets configuration for the engine at execution time.
 type ExecOption func(*execOptions)
 
-// Installation is an interface that provides installation-specific configuration needed for the engine in a target agnostic way.
-type Installation interface {
-	ProxySpec() *ecv1beta1.ProxySpec
-}
-
-// WithInstallation is an ExecOption that sets the proxy spec for the engine based on the provided Installation.
-func WithInstallation(installation Installation) ExecOption {
+// WithProxySpec is an ExecOption that sets the proxy spec for the engine.
+func WithProxySpec(proxySpec *ecv1beta1.ProxySpec) ExecOption {
 	return func(opts *execOptions) {
-		opts.proxySpec = installation.ProxySpec()
+		opts.proxySpec = proxySpec
 	}
 }
 

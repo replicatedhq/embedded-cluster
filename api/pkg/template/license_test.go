@@ -68,7 +68,6 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 	}
 
 	engine := NewEngine(config, WithLicense(license))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	// Test basic license fields
 	testCases := []struct {
@@ -112,7 +111,7 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 		t.Run(tc.field, func(t *testing.T) {
 			err := engine.Parse(fmt.Sprintf("{{repl LicenseFieldValue \"%s\" }}", tc.field))
 			require.NoError(t, err)
-			result, err := engine.Execute(nil, WithInstallation(mockInstall))
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result, "Field %s should return %s", tc.field, tc.expected)
 		})
@@ -127,11 +126,10 @@ func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
 	}
 
 	engine := NewEngine(config)
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
@@ -163,11 +161,10 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 	}
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "https://my-app.example.com", result)
 }
@@ -187,11 +184,10 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 	}
 
 	engine := NewEngine(config, WithLicense(license))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
@@ -223,11 +219,10 @@ func TestEngine_LicenseDockerCfg(t *testing.T) {
 	}
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	// Decode the base64 result to verify the JSON structure
@@ -266,11 +261,10 @@ func TestEngine_LicenseDockerCfgWithoutLicense(t *testing.T) {
 	}
 
 	engine := NewEngine(config)
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil, WithInstallation(mockInstall))
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "license is nil")
 }
@@ -283,11 +277,10 @@ func TestEngine_LicenseDockerCfgWithoutReleaseData(t *testing.T) {
 	}
 
 	engine := NewEngine(nil, WithLicense(license))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil, WithInstallation(mockInstall))
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "release data is nil")
 }
@@ -310,11 +303,10 @@ func TestEngine_LicenseDockerCfgStagingEndpoint(t *testing.T) {
 	releaseData := &release.ReleaseData{}
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	// Decode the base64 result to verify the JSON structure
@@ -377,11 +369,10 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 	}
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
-	mockInstall := &MockInstallation{proxySpec: &ecv1beta1.ProxySpec{}}
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithInstallation(mockInstall))
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	// Decode the base64 result to verify the JSON structure
