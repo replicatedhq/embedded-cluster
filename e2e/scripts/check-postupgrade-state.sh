@@ -48,8 +48,9 @@ main() {
 
     # ensure that new app pods exist
     # wait for new app pods to be running
-    # NOTE: we cannot use grep -q here because it will exit with 141 if multiple lines are found as
-    # grep -q will exit immediately and kubectl will still be writing to the pipe
+    # NOTE: we cannot use grep -q here as a SIGPIPE will cause the script to exit with 141 if
+    # multiple lines are found, as grep -q will exit immediately and kubectl will still be writing
+    # to the pipe
     if ! retry 5 eval "kubectl get pods -n $APP_NAMESPACE -l app=second | grep Running >/dev/null" ; then
         echo "no pods found for second app version"
         kubectl get pods -n "$APP_NAMESPACE"
