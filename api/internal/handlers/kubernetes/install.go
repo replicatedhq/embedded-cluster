@@ -87,7 +87,7 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200		{object}	types.InstallAppPreflightsStatusResponse
+//	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
 //	@Router			/kubernetes/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 	preflightBinary, err := h.cfg.KubernetesConfig.Installation.PathToEmbeddedBinary("kubectl-preflight")

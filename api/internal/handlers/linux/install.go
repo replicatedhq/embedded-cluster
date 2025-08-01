@@ -159,7 +159,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200		{object}	types.InstallAppPreflightsStatusResponse
+//	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 	err := h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
