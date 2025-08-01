@@ -108,34 +108,17 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:       `State "AppPreflightsSucceeded" can transition to "AppPreflightsRunning" or "AppInstalling"`,
+			name:       `State "AppPreflightsSucceeded" can transition to "AppPreflightsRunning"`,
 			startState: states.StateAppPreflightsSucceeded,
 			validTransitions: []statemachine.State{
 				states.StateAppPreflightsRunning,
-				states.StateAppInstalling,
 			},
 		},
 		{
-			name:       `State "AppPreflightsFailedBypassed" can transition to "AppPreflightsRunning" or "AppInstalling"`,
+			name:       `State "AppPreflightsFailedBypassed" can transition to "AppPreflightsRunning"`,
 			startState: states.StateAppPreflightsFailedBypassed,
 			validTransitions: []statemachine.State{
 				states.StateAppPreflightsRunning,
-				states.StateAppInstalling,
-			},
-		},
-		{
-			name:       `State "AppInstalling" can transition to "Succeeded" or "AppInstallFailed"`,
-			startState: states.StateAppInstalling,
-			validTransitions: []statemachine.State{
-				states.StateSucceeded,
-				states.StateAppInstallFailed,
-			},
-		},
-		{
-			name:       `State "AppInstallFailed" can transition to "AppInstalling"`,
-			startState: states.StateAppInstallFailed,
-			validTransitions: []statemachine.State{
-				states.StateAppInstalling,
 			},
 		},
 		{
@@ -174,6 +157,8 @@ func TestStateMachineTransitions(t *testing.T) {
 
 func TestIsFinalState(t *testing.T) {
 	finalStates := []statemachine.State{
+		// TODO: uncomment once app installation is decoupled from infra installation
+		// states.StateSucceeded,
 		states.StateInfrastructureInstallFailed,
 	}
 
