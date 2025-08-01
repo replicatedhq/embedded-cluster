@@ -30,10 +30,6 @@ func NewMaterializer(rc runtimeconfig.RuntimeConfig) *Materializer {
 	}
 }
 
-func (m *Materializer) InternalBinary(name string) (string, error) {
-	return InternalBinary(name)
-}
-
 // InternalBinary materializes an internal binary from inside internal/bins directory
 // and writes it to a tmp file. It returns the path to the materialized binary.
 // The binary should be deleted after it is used.

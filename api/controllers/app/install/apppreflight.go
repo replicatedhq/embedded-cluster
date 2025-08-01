@@ -44,6 +44,9 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 	if err != nil {
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}
+	if appPreflightSpec == nil {
+		return fmt.Errorf("no app preflight spec found")
+	}
 
 	err = c.stateMachine.Transition(lock, states.StateAppPreflightsRunning)
 	if err != nil {
