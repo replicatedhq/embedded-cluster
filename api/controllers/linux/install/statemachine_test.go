@@ -163,9 +163,66 @@ func TestStateMachineTransitions(t *testing.T) {
 			validTransitions: []statemachine.State{},
 		},
 		{
-			name:             `State "Succeeded" can not transition to any other state`,
-			startState:       states.StateSucceeded,
-			validTransitions: []statemachine.State{},
+			name:       `State "AppPreflightsRunning" can transition to "AppPreflightsSucceeded", "AppPreflightsFailed", or "AppPreflightsExecutionFailed"`,
+			startState: states.StateAppPreflightsRunning,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsSucceeded,
+				states.StateAppPreflightsFailed,
+				states.StateAppPreflightsExecutionFailed,
+			},
+		},
+		{
+			name:       `State "AppPreflightsExecutionFailed" can transition to "AppPreflightsRunning"`,
+			startState: states.StateAppPreflightsExecutionFailed,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
+			},
+		},
+		{
+			name:       `State "AppPreflightsFailed" can transition to "AppPreflightsRunning" or "AppPreflightsFailedBypassed"`,
+			startState: states.StateAppPreflightsFailed,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
+				states.StateAppPreflightsFailedBypassed,
+			},
+		},
+		{
+			name:       `State "AppPreflightsSucceeded" can transition to "AppPreflightsRunning" or "AppInstalling"`,
+			startState: states.StateAppPreflightsSucceeded,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
+				states.StateAppInstalling,
+			},
+		},
+		{
+			name:       `State "AppPreflightsFailedBypassed" can transition to "AppPreflightsRunning" or "AppInstalling"`,
+			startState: states.StateAppPreflightsFailedBypassed,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
+				states.StateAppInstalling,
+			},
+		},
+		{
+			name:       `State "AppInstalling" can transition to "Succeeded" or "AppInstallFailed"`,
+			startState: states.StateAppInstalling,
+			validTransitions: []statemachine.State{
+				states.StateSucceeded,
+				states.StateAppInstallFailed,
+			},
+		},
+		{
+			name:       `State "AppInstallFailed" can transition to "AppInstalling"`,
+			startState: states.StateAppInstallFailed,
+			validTransitions: []statemachine.State{
+				states.StateAppInstalling,
+			},
+		},
+		{
+			name:       `State "Succeeded" can transition to "AppPreflightsRunning"`,
+			startState: states.StateSucceeded,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
+			},
 		},
 	}
 
@@ -196,7 +253,6 @@ func TestStateMachineTransitions(t *testing.T) {
 
 func TestIsFinalState(t *testing.T) {
 	finalStates := []statemachine.State{
-		states.StateSucceeded,
 		states.StateInfrastructureInstallFailed,
 	}
 

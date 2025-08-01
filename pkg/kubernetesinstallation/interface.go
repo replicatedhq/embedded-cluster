@@ -22,4 +22,6 @@ type Installation interface {
 	SetAdminConsolePort(port int)
 	SetManagerPort(port int)
 	SetProxySpec(proxySpec *ecv1beta1.ProxySpec)
+
+	PathToEmbeddedBinary(binaryName string) (string, error)
 }

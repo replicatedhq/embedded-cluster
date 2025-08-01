@@ -958,3 +958,259 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 	assert.Equal(t, "APPLICATION NAME", config.Groups[0].Items[0].Title)
 	assert.Equal(t, "myapp", config.Groups[0].Items[0].Value.StrVal)
 }
+
+func TestRunLinuxAppPreflights(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/linux/install/app-preflights/run", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.InstallAppPreflightsStatusResponse{
+			Status: types.Status{
+				State:       types.StateRunning,
+				Description: "App preflights running",
+			},
+			Output: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{
+					{
+						Title:   "App Dependencies",
+						Message: "All dependencies available",
+					},
+				},
+			},
+			Titles: []string{"App Dependencies"},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful run
+	c := New(server.URL, WithToken("test-token"))
+	status, err := c.RunLinuxAppPreflights()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateRunning, status.Status.State)
+	assert.Equal(t, "App preflights running", status.Status.Description)
+	assert.Equal(t, "App Dependencies", status.Output.Pass[0].Title)
+	assert.Equal(t, "All dependencies available", status.Output.Pass[0].Message)
+	assert.Equal(t, []string{"App Dependencies"}, status.Titles)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusConflict,
+			Message:    "App preflights already running",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	status, err = c.RunLinuxAppPreflights()
+	assert.Error(t, err)
+	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusConflict, apiErr.StatusCode)
+	assert.Equal(t, "App preflights already running", apiErr.Message)
+}
+
+func TestGetLinuxAppPreflightsStatus(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/app-preflights/status", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.InstallAppPreflightsStatusResponse{
+			Status: types.Status{
+				State:       types.StateSucceeded,
+				Description: "App preflights succeeded",
+			},
+			Output: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{
+					{
+						Title:   "Storage Check",
+						Message: "Sufficient storage available",
+					},
+				},
+				Fail: []types.PreflightsRecord{
+					{
+						Title:   "Network Check",
+						Message: "Network connectivity issues",
+					},
+				},
+			},
+			Titles: []string{"Storage Check", "Network Check"},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	status, err := c.GetLinuxAppPreflightsStatus()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateSucceeded, status.Status.State)
+	assert.Equal(t, "App preflights succeeded", status.Status.Description)
+	assert.Equal(t, "Storage Check", status.Output.Pass[0].Title)
+	assert.Equal(t, "Sufficient storage available", status.Output.Pass[0].Message)
+	assert.Equal(t, "Network Check", status.Output.Fail[0].Title)
+	assert.Equal(t, "Network connectivity issues", status.Output.Fail[0].Message)
+	assert.Equal(t, []string{"Storage Check", "Network Check"}, status.Titles)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	status, err = c.GetLinuxAppPreflightsStatus()
+	assert.Error(t, err)
+	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestRunKubernetesAppPreflights(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app-preflights/run", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.InstallAppPreflightsStatusResponse{
+			Status: types.Status{
+				State:       types.StateRunning,
+				Description: "App preflights running on Kubernetes",
+			},
+			Output: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{
+					{
+						Title:   "Cluster Resources",
+						Message: "Sufficient cluster resources",
+					},
+				},
+			},
+			Titles: []string{"Cluster Resources"},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful run
+	c := New(server.URL, WithToken("test-token"))
+	status, err := c.RunKubernetesAppPreflights()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateRunning, status.Status.State)
+	assert.Equal(t, "App preflights running on Kubernetes", status.Status.Description)
+	assert.Equal(t, "Cluster Resources", status.Output.Pass[0].Title)
+	assert.Equal(t, "Sufficient cluster resources", status.Output.Pass[0].Message)
+	assert.Equal(t, []string{"Cluster Resources"}, status.Titles)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusConflict,
+			Message:    "App preflights already running",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	status, err = c.RunKubernetesAppPreflights()
+	assert.Error(t, err)
+	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusConflict, apiErr.StatusCode)
+	assert.Equal(t, "App preflights already running", apiErr.Message)
+}
+
+func TestGetKubernetesAppPreflightsStatus(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/install/app-preflights/status", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.InstallAppPreflightsStatusResponse{
+			Status: types.Status{
+				State:       types.StateFailed,
+				Description: "App preflights failed on Kubernetes",
+			},
+			Output: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{
+					{
+						Title:   "RBAC Check",
+						Message: "Sufficient permissions",
+					},
+				},
+				Fail: []types.PreflightsRecord{
+					{
+						Title:   "Storage Class",
+						Message: "No default storage class found",
+					},
+				},
+			},
+			Titles: []string{"RBAC Check", "Storage Class"},
+		})
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	status, err := c.GetKubernetesAppPreflightsStatus()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateFailed, status.Status.State)
+	assert.Equal(t, "App preflights failed on Kubernetes", status.Status.Description)
+	assert.Equal(t, "RBAC Check", status.Output.Pass[0].Title)
+	assert.Equal(t, "Sufficient permissions", status.Output.Pass[0].Message)
+	assert.Equal(t, "Storage Class", status.Output.Fail[0].Title)
+	assert.Equal(t, "No default storage class found", status.Output.Fail[0].Message)
+	assert.Equal(t, []string{"RBAC Check", "Storage Class"}, status.Titles)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	status, err = c.GetKubernetesAppPreflightsStatus()
+	assert.Error(t, err)
+	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}

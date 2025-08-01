@@ -2,7 +2,9 @@ package kubernetes
 
 import (
 	"net/http"
+	"os"
 
+	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
@@ -75,6 +77,79 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 	}
 
 	utils.JSON(w, r, http.StatusOK, status, h.logger)
+}
+
+// PostRunAppPreflights handler to run install app preflight checks
+//
+//	@ID				postKubernetesInstallRunAppPreflights
+//	@Summary		Run install app preflight checks
+//	@Description	Run install app preflight checks using current app configuration
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200		{object}	types.InstallAppPreflightsStatusResponse
+//	@Router			/kubernetes/install/app-preflights/run [post]
+func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
+	preflightBinary, err := h.cfg.KubernetesConfig.Installation.PathToEmbeddedBinary("kubectl-preflight")
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to materialize preflight binary")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+	defer os.Remove(preflightBinary)
+
+	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
+		PreflightBinaryPath: preflightBinary,
+		ProxySpec:           h.cfg.KubernetesConfig.Installation.ProxySpec(),
+	})
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to run app preflights")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppPreflightsStatus(w, r)
+}
+
+// GetAppPreflightsStatus handler to get app preflight status for install
+//
+//	@ID				getKubernetesInstallAppPreflightsStatus
+//	@Summary		Get app preflight status for install
+//	@Description	Get the current status and results of app preflight checks for install
+//	@Tags			kubernetes-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
+//	@Router			/kubernetes/install/app-preflights/status [get]
+func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
+	titles, err := h.installController.GetAppPreflightTitles(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight titles")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	output, err := h.installController.GetAppPreflightOutput(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight output")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	status, err := h.installController.GetAppPreflightStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.InstallAppPreflightsStatusResponse{
+		Titles: titles,
+		Output: output,
+		Status: status,
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
 
 // PostSetupInfra handler to setup infra components
