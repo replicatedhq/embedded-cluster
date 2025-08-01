@@ -181,6 +181,23 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
+	// Initialize the app controller with the state machine
+	if controller.InstallController == nil {
+		appInstallController, err := appcontroller.NewInstallController(
+			appcontroller.WithStateMachine(controller.stateMachine),
+			appcontroller.WithLogger(controller.logger),
+			appcontroller.WithStore(controller.store),
+			appcontroller.WithLicense(controller.license),
+			appcontroller.WithReleaseData(controller.releaseData),
+			appcontroller.WithConfigValues(controller.configValues),
+			appcontroller.WithAirgapBundle(controller.airgapBundle),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app install controller: %w", err)
+		}
+		controller.InstallController = appInstallController
+	}
+
 	if controller.infraManager == nil {
 		infraManager, err := infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
@@ -197,22 +214,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			return nil, fmt.Errorf("create infra manager: %w", err)
 		}
 		controller.infraManager = infraManager
-	}
-
-	// Initialize the app controller with the state machine
-	if controller.InstallController == nil {
-		appInstallController, err := appcontroller.NewInstallController(
-			appcontroller.WithStateMachine(controller.stateMachine),
-			appcontroller.WithLogger(controller.logger),
-			appcontroller.WithStore(controller.store),
-			appcontroller.WithLicense(controller.license),
-			appcontroller.WithReleaseData(controller.releaseData),
-			appcontroller.WithConfigValues(controller.configValues),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create app install controller: %w", err)
-		}
-		controller.InstallController = appInstallController
 	}
 
 	return controller, nil

@@ -260,6 +260,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithLicense(controller.license),
 			appcontroller.WithReleaseData(controller.releaseData),
 			appcontroller.WithConfigValues(controller.configValues),
+			appcontroller.WithClusterID(controller.clusterID),
+			appcontroller.WithAirgapBundle(controller.airgapBundle),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)

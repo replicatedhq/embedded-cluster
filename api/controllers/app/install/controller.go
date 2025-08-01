@@ -41,6 +41,8 @@ type InstallController struct {
 	releaseData         *release.ReleaseData
 	store               store.Store
 	configValues        types.AppConfigValues
+	clusterID           string
+	airgapBundle        string
 }
 
 type InstallControllerOption func(*InstallController)
@@ -105,6 +107,18 @@ func WithConfigValues(configValues types.AppConfigValues) InstallControllerOptio
 	}
 }
 
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.airgapBundle = airgapBundle
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -163,6 +177,9 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		appInstallManager, err := appinstallmanager.NewAppInstallManager(
 			appinstallmanager.WithLogger(controller.logger),
 			appinstallmanager.WithLicense(controller.license),
+			appinstallmanager.WithReleaseData(controller.releaseData),
+			appinstallmanager.WithClusterID(controller.clusterID),
+			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
