@@ -7,7 +7,9 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
@@ -17,9 +19,9 @@ import (
 )
 
 // ExtractAppPreflightSpec extracts and merges preflight specifications from app releases
-func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues) (*troubleshootv1beta2.PreflightSpec, error) {
+func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) (*troubleshootv1beta2.PreflightSpec, error) {
 	// Template Helm chart CRs with config values
-	templatedCRs, err := m.templateHelmChartCRs(configValues)
+	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec)
 	if err != nil {
 		return nil, fmt.Errorf("template helm chart CRs: %w", err)
 	}
@@ -55,7 +57,7 @@ func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configV
 }
 
 // templateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
-func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigValues) ([]*kotsv1beta2.HelmChart, error) {
+func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) ([]*kotsv1beta2.HelmChart, error) {
 	if m.templateEngine == nil {
 		return nil, fmt.Errorf("template engine not initialized")
 	}
@@ -85,7 +87,7 @@ func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigVal
 		}
 
 		// Execute the template with config values
-		templatedYAML, err := m.templateEngine.Execute(configValues)
+		templatedYAML, err := m.templateEngine.Execute(configValues, template.WithProxySpec(proxySpec))
 		if err != nil {
 			return nil, fmt.Errorf("execute helm chart template: %w", err)
 		}

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func TestEngine_Now(t *testing.T) {
 
 	err := engine.Parse("{{repl Now }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	// Verify the result is a valid RFC3339 timestamp
@@ -83,7 +84,7 @@ func TestEngine_NowFmt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.True(t, tc.validate(result), "Result should match expected format")
 		})
@@ -140,7 +141,7 @@ func TestEngine_Trim(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -187,7 +188,7 @@ func TestEngine_Base64Encode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -239,7 +240,7 @@ func TestEngine_Base64Decode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -301,7 +302,7 @@ func TestEngine_RandomString(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.True(t, tc.validate(result), "Result should match expected pattern")
 		})
@@ -352,7 +353,7 @@ func TestEngine_RandomBytes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.True(t, tc.validate(result), "Result should be valid base64 with correct length")
 		})
@@ -409,7 +410,7 @@ func TestEngine_Add(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -461,7 +462,7 @@ func TestEngine_Sub(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -513,7 +514,7 @@ func TestEngine_Mult(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -561,7 +562,7 @@ func TestEngine_Div(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -618,7 +619,7 @@ func TestEngine_ParseBool(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -670,7 +671,7 @@ func TestEngine_ParseFloat(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -727,7 +728,7 @@ func TestEngine_ParseInt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -779,7 +780,7 @@ func TestEngine_ParseUint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -831,7 +832,7 @@ func TestEngine_HumanSize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -886,7 +887,7 @@ func TestEngine_YamlEscape(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := engine.Parse(tc.template)
 			require.NoError(t, err)
-			result, err := engine.Execute(nil)
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 			require.NoError(t, err)
 			assert.True(t, tc.validate(result), "Result should be properly indented YAML")
 		})
