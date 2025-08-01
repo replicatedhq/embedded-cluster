@@ -17,7 +17,7 @@ type MockAppReleaseManager struct {
 }
 
 // ExtractAppPreflightSpec mocks the ExtractAppPreflightSpec method
-func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec ecv1beta1.ProxySpec) (*troubleshootv1beta2.PreflightSpec, error) {
+func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) (*troubleshootv1beta2.PreflightSpec, error) {
 	args := m.Called(ctx, configValues, proxySpec)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

@@ -40,7 +40,7 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 	}
 
 	// Extract app preflight spec from Helm charts
-	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, opts.ConfigValues, *opts.ProxySpec)
+	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, opts.ConfigValues, opts.ProxySpec)
 	if err != nil {
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}

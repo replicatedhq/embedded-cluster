@@ -25,7 +25,7 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 		helmChartCRs  []*kotsv1beta2.HelmChart
 		chartArchives [][]byte
 		configValues  types.AppConfigValues
-		proxySpec     ecv1beta1.ProxySpec
+		proxySpec     *ecv1beta1.ProxySpec
 		expectedSpec  *troubleshootv1beta2.PreflightSpec
 		expectError   bool
 		errorContains string
@@ -34,7 +34,7 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 			name:         "no helm charts returns nil",
 			helmChartCRs: []*kotsv1beta2.HelmChart{},
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -80,7 +80,7 @@ spec:
 			configValues: types.AppConfigValues{
 				"check_name": {Value: "K8s Version Validation"},
 			},
-			proxySpec: ecv1beta1.ProxySpec{},
+			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -180,7 +180,7 @@ spec:
 				"version_check_name":  {Value: "Custom K8s Version Check"},
 				"resource_check_name": {Value: "Custom Node Resource Check"},
 			},
-			proxySpec: ecv1beta1.ProxySpec{},
+			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -239,7 +239,7 @@ spec:
 				createTestChartArchive(t, "simple-chart", "1.0.0"),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -288,7 +288,7 @@ spec:
 				}),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec: ecv1beta1.ProxySpec{
+			proxySpec: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://proxy.example.com:8080",
 				HTTPSProxy: "https://proxy.example.com:8443",
 				NoProxy:    "localhost,127.0.0.1,.cluster.local",
@@ -371,7 +371,7 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 		name         string
 		helmChartCRs []*kotsv1beta2.HelmChart
 		configValues types.AppConfigValues
-		proxySpec    ecv1beta1.ProxySpec
+		proxySpec    *ecv1beta1.ProxySpec
 		expected     []*kotsv1beta2.HelmChart
 		expectError  bool
 	}{
@@ -379,7 +379,7 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 			name:         "empty helm chart CRs",
 			helmChartCRs: []*kotsv1beta2.HelmChart{},
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected:     []*kotsv1beta2.HelmChart{},
 			expectError:  false,
 		},
@@ -419,7 +419,7 @@ spec:
 				"enable_persistence": {Value: "true"},
 				"disable_monitoring": {Value: "false"},
 			},
-			proxySpec: ecv1beta1.ProxySpec{},
+			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -504,7 +504,7 @@ spec:
 				"enable_resources":  {Value: "false"},
 				"redis_persistence": {Value: "true"},
 			},
-			proxySpec: ecv1beta1.ProxySpec{},
+			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -567,7 +567,7 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -587,7 +587,7 @@ spec:
 			name:         "nil helm chart CRs",
 			helmChartCRs: nil,
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected:     []*kotsv1beta2.HelmChart{},
 			expectError:  false,
 		},
@@ -620,7 +620,7 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec: ecv1beta1.ProxySpec{
+			proxySpec: &ecv1beta1.ProxySpec{
 				HTTPProxy:  "http://corporate-proxy.example.com:8080",
 				HTTPSProxy: "https://corporate-proxy.example.com:8443",
 				NoProxy:    "localhost,127.0.0.1,.internal,10.0.0.0/8",
@@ -681,7 +681,7 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    ecv1beta1.ProxySpec{}, // Empty proxy spec
+			proxySpec:    &ecv1beta1.ProxySpec{}, // Empty proxy spec
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
