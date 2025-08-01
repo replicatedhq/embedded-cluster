@@ -1,0 +1,87 @@
+package install
+
+import (
+	"context"
+
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
+)
+
+var _ AppInstallManager = &appInstallManager{}
+
+// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
+type KotsCLIInstaller interface {
+	Install(opts kotscli.InstallOptions) error
+}
+
+// AppInstallManager provides methods for managing app installation
+type AppInstallManager interface {
+	// Install installs the app with the provided config values
+	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
+}
+
+// appInstallManager is an implementation of the AppInstallManager interface
+type appInstallManager struct {
+	releaseData  *release.ReleaseData
+	license      []byte
+	clusterID    string
+	airgapBundle string
+	kotsCLI      KotsCLIInstaller
+	logger       logrus.FieldLogger
+}
+
+type AppInstallManagerOption func(*appInstallManager)
+
+func WithLogger(logger logrus.FieldLogger) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.logger = logger
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.releaseData = releaseData
+	}
+}
+
+func WithLicense(license []byte) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.license = license
+	}
+}
+
+func WithClusterID(clusterID string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.clusterID = clusterID
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.airgapBundle = airgapBundle
+	}
+}
+
+func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.kotsCLI = kotsCLI
+	}
+}
+
+// NewAppInstallManager creates a new AppInstallManager with the provided options
+func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, error) {
+	manager := &appInstallManager{}
+
+	for _, opt := range opts {
+		opt(manager)
+	}
+
+	if manager.logger == nil {
+		manager.logger = logger.NewDiscardLogger()
+	}
+
+	return manager, nil
+}

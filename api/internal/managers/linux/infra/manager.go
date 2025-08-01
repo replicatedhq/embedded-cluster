@@ -7,7 +7,6 @@ import (
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
@@ -15,7 +14,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,12 +24,7 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig, configValues kotsv1beta1.ConfigValues) error
-}
-
-// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
-type KotsCLIInstaller interface {
-	Install(opts kotscli.InstallOptions) error
+	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 }
 
 // infraManager is an implementation of the InfraManager interface
@@ -52,7 +45,7 @@ type infraManager struct {
 	mcli               metadata.Interface
 	hcli               helm.Client
 	hostUtils          hostutils.HostUtilsInterface
-	kotsCLI            KotsCLIInstaller
+	appInstaller       func(ctx context.Context) error
 	mu                 sync.RWMutex
 }
 
@@ -154,9 +147,9 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 	}
 }
 
-func WithKotsCLIInstaller(kotsCLI KotsCLIInstaller) InfraManagerOption {
+func WithAppInstaller(appInstaller func(ctx context.Context) error) InfraManagerOption {
 	return func(c *infraManager) {
-		c.kotsCLI = kotsCLI
+		c.appInstaller = appInstaller
 	}
 }
 

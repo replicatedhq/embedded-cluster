@@ -6,11 +6,14 @@ import (
 	"time"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -125,12 +128,17 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			sm := s.CreateStateMachine(tt.currentState)
+
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
 				WithAppConfigManager(appConfigManager),
 				WithAppPreflightManager(appPreflightManager),
 				WithAppReleaseManager(appReleaseManager),
+				WithAppInstallManager(appInstallManager),
+				WithStore(&store.MockStore{}),
+				WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 

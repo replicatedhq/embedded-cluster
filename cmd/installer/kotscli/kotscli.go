@@ -22,7 +22,6 @@ var (
 )
 
 type InstallOptions struct {
-	RuntimeConfig         runtimeconfig.RuntimeConfig
 	AppSlug               string
 	License               []byte
 	Namespace             string
@@ -35,8 +34,7 @@ type InstallOptions struct {
 }
 
 func Install(opts InstallOptions) error {
-	materializer := goods.NewMaterializer(opts.RuntimeConfig)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -115,8 +113,7 @@ func Install(opts InstallOptions) error {
 }
 
 func ResetPassword(rc runtimeconfig.RuntimeConfig, password string) error {
-	materializer := goods.NewMaterializer(rc)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -136,16 +133,14 @@ func ResetPassword(rc runtimeconfig.RuntimeConfig, password string) error {
 }
 
 type AirgapUpdateOptions struct {
-	RuntimeConfig runtimeconfig.RuntimeConfig
-	AppSlug       string
-	Namespace     string
-	AirgapBundle  string
-	ClusterID     string
+	AppSlug      string
+	Namespace    string
+	AirgapBundle string
+	ClusterID    string
 }
 
 func AirgapUpdate(opts AirgapUpdateOptions) error {
-	materializer := goods.NewMaterializer(opts.RuntimeConfig)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -186,7 +181,6 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 }
 
 type VeleroConfigureOtherS3Options struct {
-	RuntimeConfig   runtimeconfig.RuntimeConfig
 	Endpoint        string
 	Region          string
 	Bucket          string
@@ -197,8 +191,7 @@ type VeleroConfigureOtherS3Options struct {
 }
 
 func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
-	materializer := goods.NewMaterializer(opts.RuntimeConfig)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
@@ -270,8 +263,7 @@ func MaskKotsOutputForAirgap() spinner.MaskFn {
 }
 
 func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string, error) {
-	materializer := goods.NewMaterializer(rc)
-	kotsBinPath, err := materializer.InternalBinary("kubectl-kots")
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return "", fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}

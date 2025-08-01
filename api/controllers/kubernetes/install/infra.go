@@ -24,11 +24,6 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 		}
 	}()
 
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
-	if err != nil {
-		return fmt.Errorf("failed to get kotsadm config values: %w", err)
-	}
-
 	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling)
 	if err != nil {
 		return types.NewConflictError(err)
@@ -51,13 +46,14 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			} else {
+				// TODO: change to StateInfrastructureInstallSucceeded once app installation is decoupled from infra installation
 				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			}
 		}()
 
-		if err := c.infraManager.Install(ctx, c.ki, configValues); err != nil {
+		if err := c.infraManager.Install(ctx, c.ki); err != nil {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 

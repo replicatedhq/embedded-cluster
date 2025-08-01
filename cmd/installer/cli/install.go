@@ -842,7 +842,6 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
 				Namespace:             constants.KotsadmNamespace,

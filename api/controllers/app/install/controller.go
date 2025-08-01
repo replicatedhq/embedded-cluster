@@ -3,13 +3,17 @@ package install
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,16 +25,24 @@ type Controller interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
+	InstallApp(ctx context.Context) error
 }
 
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
 	appConfigManager    appconfig.AppConfigManager
+	appInstallManager   appinstallmanager.AppInstallManager
 	appPreflightManager apppreflightmanager.AppPreflightManager
 	appReleaseManager   appreleasemanager.AppReleaseManager
 	stateMachine        statemachine.Interface
 	logger              logrus.FieldLogger
+	license             []byte
+	releaseData         *release.ReleaseData
+	store               store.Store
+	configValues        types.AppConfigValues
+	clusterID           string
+	airgapBundle        string
 }
 
 type InstallControllerOption func(*InstallController)
@@ -44,6 +56,12 @@ func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) InstallControllerOption {
 	return func(c *InstallController) {
 		c.appConfigManager = appConfigManager
+	}
+}
+
+func WithAppInstallManager(appInstallManager appinstallmanager.AppInstallManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.appInstallManager = appInstallManager
 	}
 }
 
@@ -65,6 +83,42 @@ func WithAppReleaseManager(appReleaseManager appreleasemanager.AppReleaseManager
 	}
 }
 
+func WithStore(store store.Store) InstallControllerOption {
+	return func(c *InstallController) {
+		c.store = store
+	}
+}
+
+func WithLicense(license []byte) InstallControllerOption {
+	return func(c *InstallController) {
+		c.license = license
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
+	return func(c *InstallController) {
+		c.releaseData = releaseData
+	}
+}
+
+func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
+	return func(c *InstallController) {
+		c.configValues = configValues
+	}
+}
+
+func WithClusterID(clusterID string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.clusterID = clusterID
+	}
+}
+
+func WithAirgapBundle(airgapBundle string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.airgapBundle = airgapBundle
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -78,21 +132,73 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		return nil, err
 	}
 
+	if controller.appConfigManager == nil {
+		appConfigManager, err := appconfig.NewAppConfigManager(
+			*controller.releaseData.AppConfig,
+			appconfig.WithLogger(controller.logger),
+			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create app config manager: %w", err)
+		}
+		controller.appConfigManager = appConfigManager
+	}
+
+	if controller.configValues != nil {
+		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("validate app config values: %w", err)
+		}
+		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("patch app config values: %w", err)
+		}
+	}
+
+	if controller.appPreflightManager == nil {
+		controller.appPreflightManager = apppreflightmanager.NewAppPreflightManager(
+			apppreflightmanager.WithLogger(controller.logger),
+		)
+	}
+
+	if controller.appReleaseManager == nil {
+		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
+			*controller.releaseData.AppConfig,
+			appreleasemanager.WithLogger(controller.logger),
+			appreleasemanager.WithReleaseData(controller.releaseData),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app release manager: %w", err)
+		}
+		controller.appReleaseManager = appReleaseManager
+	}
+
+	if controller.appInstallManager == nil {
+		appInstallManager, err := appinstallmanager.NewAppInstallManager(
+			appinstallmanager.WithLogger(controller.logger),
+			appinstallmanager.WithLicense(controller.license),
+			appinstallmanager.WithReleaseData(controller.releaseData),
+			appinstallmanager.WithClusterID(controller.clusterID),
+			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app install manager: %w", err)
+		}
+		controller.appInstallManager = appInstallManager
+	}
+
 	return controller, nil
 }
 
 func (c *InstallController) validateInit() error {
-	if c.appConfigManager == nil {
-		return errors.New("appConfigManager is required for App Install Controller")
-	}
 	if c.stateMachine == nil {
 		return errors.New("stateMachine is required for App Install Controller")
 	}
-	if c.appPreflightManager == nil {
-		return errors.New("appPreflightManager is required for App Install Controller")
+	if c.store == nil {
+		return errors.New("store is required for App Install Controller")
 	}
-	if c.appReleaseManager == nil {
-		return errors.New("appReleaseManager is required for App Install Controller")
+	if c.releaseData == nil {
+		return errors.New("releaseData is required for App Install Controller")
 	}
 	return nil
 }
