@@ -11,7 +11,9 @@ import (
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -135,6 +137,8 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 				WithAppPreflightManager(appPreflightManager),
 				WithAppReleaseManager(appReleaseManager),
 				WithAppInstallManager(appInstallManager),
+				WithStore(&store.MockStore{}),
+				WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 

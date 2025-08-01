@@ -194,5 +194,11 @@ func (c *InstallController) validateInit() error {
 	if c.stateMachine == nil {
 		return errors.New("stateMachine is required for App Install Controller")
 	}
+	if c.store == nil {
+		return errors.New("store is required for App Install Controller")
+	}
+	if c.releaseData == nil {
+		return errors.New("releaseData is required for App Install Controller")
+	}
 	return nil
 }
