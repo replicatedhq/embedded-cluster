@@ -61,7 +61,7 @@ func (m *appInstallManager) createConfigValuesFile(configValues kotsv1beta1.Conf
 	defer configValuesFile.Close()
 
 	if _, err := configValuesFile.Write(data); err != nil {
-		os.Remove(configValuesFile.Name())
+		_ = os.Remove(configValuesFile.Name())
 		return "", fmt.Errorf("write config values to temp file: %w", err)
 	}
 
