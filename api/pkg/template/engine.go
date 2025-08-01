@@ -7,6 +7,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -35,7 +36,7 @@ type Engine struct {
 	cache            map[string]resolvedConfigItem
 	depsTree         map[string][]string
 	stack            []string
-	execOptions      execOptions // Configuration provided at execution time
+	proxySpec        *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
 	mtx              sync.Mutex
 }
 
@@ -68,7 +69,6 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 		cache:            make(map[string]resolvedConfigItem),
 		depsTree:         make(map[string][]string),
 		stack:            []string{},
-		execOptions:      execOptions{}, // initialize with empty execOptions
 		mtx:              sync.Mutex{},
 	}
 

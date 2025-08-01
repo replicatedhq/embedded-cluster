@@ -2,6 +2,7 @@ package template
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -9,37 +10,27 @@ import (
 	"text/template"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
 )
 
 // execOptions holds options passed to the template engine at execution time.
 type execOptions struct {
-	httpProxy  string
-	httpsProxy string
-	noProxy    string
+	proxySpec *ecv1beta1.ProxySpec // Proxy spec for the engine, if applicable
 }
 
 // ExecOption is a function that sets configuration for the engine at execution time.
 type ExecOption func(*execOptions)
 
-// WithHTTPProxy sets the HTTP proxy configuration for the template engine.
-func WithHTTPProxy(proxy string) ExecOption {
-	return func(opts *execOptions) {
-		opts.httpProxy = proxy
-	}
+// Installation is an interface that provides installation-specific configuration needed for the engine in a target agnostic way.
+type Installation interface {
+	ProxySpec() *ecv1beta1.ProxySpec
 }
 
-// WithHTTPSProxy sets the HTTPS proxy configuration for the template engine.
-func WithHTTPSProxy(proxy string) ExecOption {
+// WithInstallation is an ExecOption that sets the proxy spec for the engine based on the provided Installation.
+func WithInstallation(installation Installation) ExecOption {
 	return func(opts *execOptions) {
-		opts.httpsProxy = proxy
-	}
-}
-
-// WithNoProxy sets the no-proxy configuration for the template engine.
-func WithNoProxy(proxy string) ExecOption {
-	return func(opts *execOptions) {
-		opts.noProxy = proxy
+		opts.proxySpec = installation.ProxySpec()
 	}
 }
 
@@ -55,7 +46,10 @@ func (e *Engine) Execute(configValues types.AppConfigValues, opts ...ExecOption)
 	for _, opt := range opts {
 		opt(&execOptions)
 	}
-	e.execOptions = execOptions
+	if err := e.validateExecOptions(execOptions); err != nil {
+		return "", fmt.Errorf("validate execution options: %w", err)
+	}
+	e.proxySpec = execOptions.proxySpec
 
 	// Store previous config values
 	e.prevConfigValues = e.configValues
@@ -114,6 +108,16 @@ func (e *Engine) Parse(templateStr string) error {
 	}
 
 	e.tmpl = tmpl
+	return nil
+}
+
+func (e *Engine) validateExecOptions(opts execOptions) error {
+	if e.mode == ModeGeneric && opts.proxySpec == nil {
+		return errors.New("installation with proxy spec must be provided in generic mode. This is required to process the proxy-related template functions")
+	}
+	if e.mode == ModeConfig && opts.proxySpec != nil {
+		return errors.New("installation with proxy spec should not be provided in config mode. Proxy-related template functions are not available in this mode")
+	}
 	return nil
 }
 

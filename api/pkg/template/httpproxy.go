@@ -1,13 +1,24 @@
 package template
 
+// These methods require a valid proxy spec to be set in the engine and that will only happen in generic mode. We add guardrails to prevent misuse in the `Execute` method.
+
 func (e *Engine) httpProxy() string {
-	return e.execOptions.httpProxy
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.HTTPProxy
 }
 
 func (e *Engine) httpsProxy() string {
-	return e.execOptions.httpsProxy
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.HTTPSProxy
 }
 
 func (e *Engine) noProxy() string {
-	return e.execOptions.noProxy
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.NoProxy
 }
