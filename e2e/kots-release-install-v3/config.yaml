@@ -274,9 +274,9 @@ spec:
           type: dropdown
           help_text: "Help text of a simple **_Dropdown_** config item type"
           items:
-            - name: opt1
+            - name: dropdown_simple_opt1
               title: Option 1
-            - name: opt2
+            - name: dropdown_simple_opt2
               title: Option 2
 
         - name: dropdown_with_default
@@ -284,11 +284,11 @@ spec:
           type: dropdown
           help_text: "Help text of a **_Dropdown_** config item type **_with default value_**"
           items:
-            - name: opt1
+            - name: dropdown_with_default_opt1
               title: Option 1
-            - name: opt2
+            - name: dropdown_with_default_opt2
               title: Option 2
-          default: opt1
+          default: dropdown_with_default_opt1
 
         - name: dropdown_required
           title: Dropdown marked required
@@ -296,11 +296,11 @@ spec:
           required: true
           help_text: "Help text of a **_Dropdown_** config item type **_marked required_**"
           items:
-            - name: opt1
+            - name: dropdown_required_opt1
               title: Option 1
-            - name: opt2
+            - name: dropdown_required_opt2
               title: Option 2
-          default: opt1 # temporarily set a default to get past the required validation until we support dropdowns in the UI
+          default: dropdown_required_opt1 # temporarily set a default to get past the required validation until we support dropdowns in the UI
 
         - name: label_radio
           type: label
@@ -313,9 +313,9 @@ spec:
           type: radio
           help_text: "Help text of a simple **_Radio_** config item type"
           items:
-            - name: opt1
+            - name: radio_simple_opt1
               title: Option 1
-            - name: opt2
+            - name: radio_simple_opt2
               title: Option 2
 
         - name: radio_with_default
@@ -323,11 +323,11 @@ spec:
           type: radio
           help_text: "Help text of a **_Radio_** config item type **_with default value_**"
           items:
-            - name: opt1
+            - name: radio_with_default_opt1
               title: Option 1
-            - name: opt2
+            - name: radio_with_default_opt2
               title: Option 2
-          default: opt1
+          default: radio_with_default_opt1
 
         - name: radio_required
           title: Radio marked required
@@ -335,9 +335,9 @@ spec:
           required: true
           help_text: "Help text of a **_Radio_** config item type **_marked required_**"
           items:
-            - name: opt1
+            - name: radio_required_opt1
               title: Option 1
-            - name: opt2
+            - name: radio_required_opt2
               title: Option 2
 
         - name: label_file
