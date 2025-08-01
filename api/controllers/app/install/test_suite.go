@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
+	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -125,12 +126,15 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			sm := s.CreateStateMachine(tt.currentState)
+
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
 				WithAppConfigManager(appConfigManager),
 				WithAppPreflightManager(appPreflightManager),
 				WithAppReleaseManager(appReleaseManager),
+				WithAppInstallManager(appInstallManager),
 			)
 			require.NoError(t, err, "failed to create install controller")
 

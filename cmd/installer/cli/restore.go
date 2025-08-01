@@ -426,7 +426,6 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 
 	logrus.Debugf("configuring velero backup storage location")
 	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
-		RuntimeConfig:   rc,
 		Endpoint:        s3Store.endpoint,
 		Region:          s3Store.region,
 		Bucket:          s3Store.bucket,

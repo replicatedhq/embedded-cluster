@@ -37,6 +37,8 @@ const (
 	StateInfrastructureInstalling statemachine.State = "InfrastructureInstalling"
 	// StateInfrastructureInstallFailed is a final state of the install process when the infrastructure failed to isntall
 	StateInfrastructureInstallFailed statemachine.State = "InfrastructureInstallFailed"
+	// StateInfrastructureInstallSucceeded is the state of the install process when the infrastructure install has succeeded
+	StateInfrastructureInstallSucceeded statemachine.State = "InfrastructureInstallSucceeded"
 	// StateAppPreflightsRunning is the state of the install process when the preflights are running
 	StateAppPreflightsRunning statemachine.State = "AppPreflightsRunning"
 	// StateAppPreflightsExecutionFailed is the state of the install process when the preflights failed to execute due to an underlying system error
@@ -47,6 +49,10 @@ const (
 	StateAppPreflightsFailed statemachine.State = "AppPreflightsFailed"
 	// StateAppPreflightsFailedBypassed is the state of the install process when, despite preflights failing, the user has chosen to bypass the preflights and continue with the installation
 	StateAppPreflightsFailedBypassed statemachine.State = "AppPreflightsFailedBypassed"
+	// StateAppInstalling is the state of the install process when the app is being installed
+	StateAppInstalling statemachine.State = "AppInstalling"
+	// StateAppInstallFailed is a final state of the install process when the app failed to install
+	StateAppInstallFailed statemachine.State = "AppInstallFailed"
 	// StateSucceeded is the final state of the install process when the install has succeeded
 	StateSucceeded statemachine.State = "Succeeded"
 )
