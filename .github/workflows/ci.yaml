@@ -926,6 +926,7 @@ jobs:
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestSingleNodeNetworkReport
         include:
           - test: TestVersion
             is-lxd: true
