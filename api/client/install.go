@@ -491,3 +491,111 @@ func (c *client) TemplateKubernetesAppConfig(values types.AppConfigValues) (type
 
 	return config, nil
 }
+
+func (c *client) RunLinuxAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app-preflights/run", nil)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallAppPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallAppPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) GetLinuxAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app-preflights/status", nil)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallAppPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallAppPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) RunKubernetesAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app-preflights/run", nil)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallAppPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallAppPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) GetKubernetesAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app-preflights/status", nil)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallAppPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallAppPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallAppPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
