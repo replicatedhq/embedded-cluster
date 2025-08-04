@@ -14,3 +14,9 @@ type AppConfigValue struct {
 
 // AppConfigValues represents a map of configuration values for the App.
 type AppConfigValues map[string]AppConfigValue
+
+// AppInstall represents the current state of app installation
+type AppInstall struct {
+	Status Status `json:"status"`
+	Logs   string `json:"logs"`
+}

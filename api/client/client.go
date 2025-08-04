@@ -21,6 +21,8 @@ type Client interface {
 	TemplateLinuxAppConfig(values types.AppConfigValues) (types.AppConfig, error)
 	RunLinuxAppPreflights() (types.InstallAppPreflightsStatusResponse, error)
 	GetLinuxAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error)
+	InstallLinuxApp() (types.AppInstall, error)
+	GetLinuxAppInstallStatus() (types.AppInstall, error)
 
 	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
@@ -32,6 +34,8 @@ type Client interface {
 	TemplateKubernetesAppConfig(values types.AppConfigValues) (types.AppConfig, error)
 	RunKubernetesAppPreflights() (types.InstallAppPreflightsStatusResponse, error)
 	GetKubernetesAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error)
+	InstallKubernetesApp() (types.AppInstall, error)
+	GetKubernetesAppInstallStatus() (types.AppInstall, error)
 }
 
 type client struct {

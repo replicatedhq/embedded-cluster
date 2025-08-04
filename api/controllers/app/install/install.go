@@ -6,13 +6,14 @@ import (
 	"runtime/debug"
 
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 // InstallApp triggers app installation with proper state transitions and panic handling
 func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
-		return fmt.Errorf("acquire state machine lock for app install: %w", err)
+		return types.NewConflictError(err)
 	}
 
 	defer func() {
@@ -20,21 +21,12 @@ func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 		}
 		if finalErr != nil {
-			c.logger.Error(finalErr)
-			if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
-				c.logger.Errorf("failed to transition to app install failed state: %w", err)
-			}
-		} else {
-			if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-				c.logger.Errorf("failed to transition to succeeded state: %w", err)
-			}
+			lock.Release()
 		}
-		lock.Release()
 	}()
 
-	// Transition to app installing state
-	if err := c.stateMachine.Transition(lock, states.StateAppInstalling); err != nil {
-		return fmt.Errorf("transition to app installing state: %w", err)
+	if err := c.stateMachine.ValidateTransition(lock, states.StateAppInstalling); err != nil {
+		return types.NewConflictError(err)
 	}
 
 	// Get config values for app installation
@@ -43,10 +35,45 @@ func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 		return fmt.Errorf("get kotsadm config values for app install: %w", err)
 	}
 
-	// Install the app using the app install manager
-	if err := c.appInstallManager.Install(ctx, configValues); err != nil {
-		return fmt.Errorf("install app: %w", err)
+	err = c.stateMachine.Transition(lock, states.StateAppInstalling)
+	if err != nil {
+		return fmt.Errorf("transition states: %w", err)
 	}
+
+	go func() (finalErr error) {
+		// Background context is used to avoid canceling the operation if the context is canceled
+		ctx := context.Background()
+
+		defer lock.Release()
+
+		defer func() {
+			if r := recover(); r != nil {
+				finalErr = fmt.Errorf("panic installing app: %v: %s", r, string(debug.Stack()))
+			}
+			// Handle errors from app installation
+			if finalErr != nil {
+				c.logger.Error(finalErr)
+
+				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
+					c.logger.Errorf("failed to transition states: %w", err)
+				}
+				return
+			}
+
+			// Transition to succeeded state on successful app installation
+			if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+				c.logger.Errorf("failed to transition states: %w", err)
+			}
+		}()
+
+		// Install the app
+		err := c.appInstallManager.Install(ctx, configValues)
+		if err != nil {
+			return fmt.Errorf("install app: %w", err)
+		}
+
+		return nil
+	}()
 
 	return nil
 }
@@ -66,4 +93,8 @@ func (c *InstallController) InstallAppNoState(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (c *InstallController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
+	return c.appInstallManager.GetStatus()
 }

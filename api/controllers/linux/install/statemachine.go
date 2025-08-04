@@ -28,10 +28,12 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateAppPreflightsRunning:         {states.StateAppPreflightsSucceeded, states.StateAppPreflightsFailed, states.StateAppPreflightsExecutionFailed},
 	states.StateAppPreflightsExecutionFailed: {states.StateAppPreflightsRunning},
 	states.StateAppPreflightsFailed:          {states.StateAppPreflightsRunning, states.StateAppPreflightsFailedBypassed},
-	states.StateAppPreflightsSucceeded:       {states.StateAppPreflightsRunning},
-	states.StateAppPreflightsFailedBypassed:  {states.StateAppPreflightsRunning},
+	states.StateAppPreflightsSucceeded:       {states.StateAppPreflightsRunning, states.StateAppInstalling},
+	states.StateAppPreflightsFailedBypassed:  {states.StateAppPreflightsRunning, states.StateAppInstalling},
+	states.StateAppInstalling:                {states.StateSucceeded, states.StateAppInstallFailed},
 	// final states
 	states.StateInfrastructureInstallFailed: {},
+	states.StateAppInstallFailed:            {},
 	// TODO: remove StateAppPreflightsRunning once app installation is decoupled from infra installation
 	states.StateSucceeded: {states.StateAppPreflightsRunning},
 }

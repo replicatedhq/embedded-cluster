@@ -26,6 +26,7 @@ type Controller interface {
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
 	InstallApp(ctx context.Context) error
+	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
 }
 
 var _ Controller = (*InstallController)(nil)
