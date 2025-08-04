@@ -599,3 +599,111 @@ func (c *client) GetKubernetesAppPreflightsStatus() (types.InstallAppPreflightsS
 
 	return status, nil
 }
+
+func (c *client) InstallLinuxApp() (types.AppInstall, error) {
+	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app/install", nil)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppInstall{}, errorFromResponse(resp)
+	}
+
+	var appInstall types.AppInstall
+	err = json.NewDecoder(resp.Body).Decode(&appInstall)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	return appInstall, nil
+}
+
+func (c *client) GetLinuxAppInstallStatus() (types.AppInstall, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/status", nil)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppInstall{}, errorFromResponse(resp)
+	}
+
+	var appInstall types.AppInstall
+	err = json.NewDecoder(resp.Body).Decode(&appInstall)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	return appInstall, nil
+}
+
+func (c *client) InstallKubernetesApp() (types.AppInstall, error) {
+	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app/install", nil)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppInstall{}, errorFromResponse(resp)
+	}
+
+	var appInstall types.AppInstall
+	err = json.NewDecoder(resp.Body).Decode(&appInstall)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	return appInstall, nil
+}
+
+func (c *client) GetKubernetesAppInstallStatus() (types.AppInstall, error) {
+	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/status", nil)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppInstall{}, errorFromResponse(resp)
+	}
+
+	var appInstall types.AppInstall
+	err = json.NewDecoder(resp.Body).Decode(&appInstall)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	return appInstall, nil
+}

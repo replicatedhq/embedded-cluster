@@ -3,7 +3,9 @@ package install
 import (
 	"context"
 
+	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -21,16 +23,19 @@ type KotsCLIInstaller interface {
 type AppInstallManager interface {
 	// Install installs the app with the provided config values
 	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
+	// GetStatus returns the current app installation status
+	GetStatus() (types.AppInstall, error)
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	releaseData  *release.ReleaseData
-	license      []byte
-	clusterID    string
-	airgapBundle string
-	kotsCLI      KotsCLIInstaller
-	logger       logrus.FieldLogger
+	appInstallStore appinstallstore.Store
+	releaseData     *release.ReleaseData
+	license         []byte
+	clusterID       string
+	airgapBundle    string
+	kotsCLI         KotsCLIInstaller
+	logger          logrus.FieldLogger
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -38,6 +43,12 @@ type AppInstallManagerOption func(*appInstallManager)
 func WithLogger(logger logrus.FieldLogger) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.logger = logger
+	}
+}
+
+func WithAppInstallStore(store appinstallstore.Store) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.appInstallStore = store
 	}
 }
 
@@ -81,6 +92,10 @@ func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, 
 
 	if manager.logger == nil {
 		manager.logger = logger.NewDiscardLogger()
+	}
+
+	if manager.appInstallStore == nil {
+		manager.appInstallStore = appinstallstore.NewMemoryStore()
 	}
 
 	return manager, nil
