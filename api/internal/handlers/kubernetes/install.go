@@ -90,7 +90,7 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 //	@Failure		400	{object}	types.APIError
 //	@Router			/kubernetes/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	preflightBinary, err := h.cfg.KubernetesConfig.Installation.PathToEmbeddedBinary("kubectl-preflight")
+	preflightBinary, err := h.cfg.Installation.PathToEmbeddedBinary("kubectl-preflight")
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to materialize preflight binary")
 		utils.JSONError(w, r, err, h.logger)
@@ -99,7 +99,7 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 
 	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: preflightBinary,
-		ProxySpec:           h.cfg.KubernetesConfig.Installation.ProxySpec(),
+		ProxySpec:           h.cfg.Installation.ProxySpec(),
 		CleanupBinary:       true,
 	})
 	if err != nil {
