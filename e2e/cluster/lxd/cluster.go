@@ -1143,11 +1143,11 @@ func (c *Cluster) waitForClockSync(node int) {
 	for {
 		select {
 		case <-timeout:
-			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl", "show", "-p", "CanNTP", "-p", "NTPSynchronized"})
+			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl", "show", "-p", "NTP", "-p", "CanNTP", "-p", "NTPSynchronized"})
 			c.T.Fatalf("timeout waiting for clock sync on node %d: %v: %s: %s", node, err, stdout, stderr)
 		case <-tick:
-			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl", "show", "-p", "CanNTP", "-p", "NTPSynchronized"})
-			if strings.Contains(status, "CanNTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
+			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl", "show", "-p", "NTPSynchronized"})
+			if strings.Contains(status, "NTPSynchronized=yes") {
 				return
 			}
 		}
