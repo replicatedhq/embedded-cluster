@@ -82,6 +82,18 @@ components:
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
+    types.InstallAppPreflightsStatusResponse:
+      properties:
+        output:
+          $ref: '#/components/schemas/types.PreflightsOutput'
+        status:
+          $ref: '#/components/schemas/types.Status'
+        titles:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         allowIgnoreHostPreflights:
@@ -394,6 +406,51 @@ paths:
       summary: Get the health of the API
       tags:
       - health
+  /kubernetes/install/app-preflights/run:
+    post:
+      description: Run install app preflight checks using current app configuration
+      operationId: postKubernetesInstallRunAppPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Run install app preflight checks
+      tags:
+      - kubernetes-install
+  /kubernetes/install/app-preflights/status:
+    get:
+      description: Get the current status and results of app preflight checks for
+        install
+      operationId: getKubernetesInstallAppPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app preflight status for install
+      tags:
+      - kubernetes-install
   /kubernetes/install/app/config/template:
     post:
       description: Template the app config with provided values and return the templated
@@ -425,6 +482,27 @@ paths:
       tags:
       - kubernetes-install
   /kubernetes/install/app/config/values:
+    get:
+      description: Get the current app config values
+      operationId: getKubernetesInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - kubernetes-install
     patch:
       description: Set the app config values with partial updates
       operationId: patchKubernetesInstallAppConfigValues
@@ -551,6 +629,51 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /linux/install/app-preflights/run:
+    post:
+      description: Run install app preflight checks using current app configuration
+      operationId: postLinuxInstallRunAppPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Run install app preflight checks
+      tags:
+      - linux-install
+  /linux/install/app-preflights/status:
+    get:
+      description: Get the current status and results of app preflight checks for
+        install
+      operationId: getLinuxInstallAppPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.InstallAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app preflight status for install
+      tags:
+      - linux-install
   /linux/install/app/config/template:
     post:
       description: Template the app config with provided values and return the templated

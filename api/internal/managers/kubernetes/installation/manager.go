@@ -6,7 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/sirupsen/logrus"
 )
 

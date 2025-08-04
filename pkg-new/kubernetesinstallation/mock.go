@@ -80,3 +80,9 @@ func (m *MockInstallation) SetManagerPort(port int) {
 func (m *MockInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
 	m.Called(proxySpec)
 }
+
+// PathToEmbeddedBinary mocks the PathToEmbeddedBinary method
+func (m *MockInstallation) PathToEmbeddedBinary(binaryName string) (string, error) {
+	args := m.Called(binaryName)
+	return args.String(0), args.Error(1)
+}

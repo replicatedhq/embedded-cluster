@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime/debug"
 
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
@@ -14,10 +15,10 @@ import (
 )
 
 type RunAppPreflightOptions struct {
-	ConfigValues        types.AppConfigValues
 	PreflightBinaryPath string
 	ProxySpec           *ecv1beta1.ProxySpec
 	ExtraPaths          []string
+	CleanupBinary       bool
 }
 
 func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
@@ -39,8 +40,14 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 		return types.NewConflictError(err)
 	}
 
+	// Get the app config values
+	configValues, err := c.GetAppConfigValues(ctx)
+	if err != nil {
+		return fmt.Errorf("get app config values: %w", err)
+	}
+
 	// Extract app preflight spec from Helm charts
-	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, opts.ConfigValues, opts.ProxySpec)
+	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, configValues, opts.ProxySpec)
 	if err != nil {
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}
@@ -60,6 +67,11 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 		defer lock.Release()
 
 		defer func() {
+			// Clean up binary if requested
+			if opts.CleanupBinary {
+				_ = os.Remove(opts.PreflightBinaryPath)
+			}
+
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic running app preflights: %v: %s", r, string(debug.Stack()))
 			}

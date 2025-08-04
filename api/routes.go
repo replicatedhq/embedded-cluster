@@ -43,6 +43,9 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/host-preflights/run", a.handlers.linux.PostRunHostPreflights).Methods("POST")
 	installRouter.HandleFunc("/host-preflights/status", a.handlers.linux.GetHostPreflightsStatus).Methods("GET")
 
+	installRouter.HandleFunc("/app-preflights/run", a.handlers.linux.PostRunAppPreflights).Methods("POST")
+	installRouter.HandleFunc("/app-preflights/status", a.handlers.linux.GetAppPreflightsStatus).Methods("GET")
+
 	installRouter.HandleFunc("/infra/setup", a.handlers.linux.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.linux.GetInfraStatus).Methods("GET")
 
@@ -58,6 +61,9 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	installRouter.HandleFunc("/installation/config", a.handlers.kubernetes.GetInstallationConfig).Methods("GET")
 	installRouter.HandleFunc("/installation/configure", a.handlers.kubernetes.PostConfigureInstallation).Methods("POST")
 	installRouter.HandleFunc("/installation/status", a.handlers.kubernetes.GetInstallationStatus).Methods("GET")
+
+	installRouter.HandleFunc("/app-preflights/run", a.handlers.kubernetes.PostRunAppPreflights).Methods("POST")
+	installRouter.HandleFunc("/app-preflights/status", a.handlers.kubernetes.GetAppPreflightsStatus).Methods("GET")
 
 	installRouter.HandleFunc("/infra/setup", a.handlers.kubernetes.PostSetupInfra).Methods("POST")
 	installRouter.HandleFunc("/infra/status", a.handlers.kubernetes.GetInfraStatus).Methods("GET")
