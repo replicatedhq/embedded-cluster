@@ -13,10 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -364,7 +364,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 
 	if !skipStoreValidation {
 		logrus.Debugf("validating backup store configuration")
-		if err := validateS3BackupStore(s3Store); err != nil {
+		if err := validateS3BackupStore(ctx, s3Store); err != nil {
 			return fmt.Errorf("unable to validate backup store: %w", err)
 		}
 	}
@@ -988,30 +988,35 @@ func promptForS3BackupStore(store *s3BackupStore) error {
 
 // validateS3BackupStore validates the S3 backup store configuration.
 // It tries to list objects in the bucket and prefix to ensure that the bucket exists and has backups.
-func validateS3BackupStore(s *s3BackupStore) error {
+func validateS3BackupStore(ctx context.Context, s *s3BackupStore) error {
 	u, err := url.Parse(s.endpoint)
 	if err != nil {
 		return fmt.Errorf("parse endpoint: %v", err)
 	}
 
 	isAWS := strings.HasSuffix(u.Hostname(), ".amazonaws.com")
-	sess, err := session.NewSession(&aws.Config{
-		Region:           aws.String(s.region),
-		Endpoint:         aws.String(s.endpoint),
-		Credentials:      credentials.NewStaticCredentials(s.accessKeyID, s.secretAccessKey, ""),
-		S3ForcePathStyle: aws.Bool(!isAWS),
-	})
+	creds := credentials.NewStaticCredentialsProvider(s.accessKeyID, s.secretAccessKey, "")
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(s.region),
+		config.WithCredentialsProvider(creds),
+	)
 	if err != nil {
-		return fmt.Errorf("create s3 session: %v", err)
+		return fmt.Errorf("load aws config: %v", err)
 	}
+
+	svc := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(s.endpoint)
+		o.UsePathStyle = !isAWS
+	})
 
 	input := &s3.ListObjectsV2Input{
 		Bucket:    aws.String(s.bucket),
 		Delimiter: aws.String("/"),
 		Prefix:    aws.String(fmt.Sprintf("%s/", filepath.Join(s.prefix, "backups"))),
 	}
-	svc := s3.New(sess)
-	result, err := svc.ListObjectsV2(input)
+
+	result, err := svc.ListObjectsV2(ctx, input)
 	if err != nil {
 		return fmt.Errorf("list objects: %v", err)
 	}
