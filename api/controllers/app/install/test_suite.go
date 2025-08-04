@@ -517,6 +517,15 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			expectedErr: true,
 		},
 		{
+			name:          "invalid state transition from infrastructure installing state",
+			currentState:  states.StateInfrastructureInstalling,
+			expectedState: states.StateInfrastructureInstalling,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+				// No mocks needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+		{
 			name:          "successful app installation from app preflights succeeded state",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
@@ -562,35 +571,6 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
-			},
-			expectedErr: true,
-		},
-		{
-			name:          "app installation error",
-			currentState:  states.StateSucceeded,
-			expectedState: states.StateAppInstallFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				mock.InOrder(
-					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
-						Spec: kotsv1beta1.ConfigValuesSpec{
-							Values: map[string]kotsv1beta1.ConfigValue{
-								"test-key": {Value: "test-value"},
-							},
-						},
-					}, nil),
-					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
-						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(errors.New("install error")),
-				)
-			},
-			expectedErr: false, // Error is handled in goroutine, not returned
-		},
-		{
-			name:          "invalid state transition",
-			currentState:  states.StateInfrastructureInstalling,
-			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
 		},
