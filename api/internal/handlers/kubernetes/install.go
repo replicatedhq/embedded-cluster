@@ -256,15 +256,15 @@ func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
 
 // GetAppConfigValues handler to get the app config values
 //
-//	@ID				getLinuxInstallAppConfigValues
+//	@ID				getKubernetesInstallAppConfigValues
 //	@Summary		Get the app config values
 //	@Description	Get the current app config values
-//	@Tags			linux-install
+//	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.AppConfigValuesResponse
 //	@Failure		400	{object}	types.APIError
-//	@Router			/linux/install/app/config/values [get]
+//	@Router			/kubernetes/install/app/config/values [get]
 func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	values, err := h.installController.GetAppConfigValues(r.Context())
 	if err != nil {

@@ -482,6 +482,27 @@ paths:
       tags:
       - kubernetes-install
   /kubernetes/install/app/config/values:
+    get:
+      description: Get the current app config values
+      operationId: getKubernetesInstallAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values
+      tags:
+      - kubernetes-install
     patch:
       description: Set the app config values with partial updates
       operationId: patchKubernetesInstallAppConfigValues
