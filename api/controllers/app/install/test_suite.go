@@ -567,8 +567,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 		},
 		{
 			name:          "get config values error",
-			currentState:  states.StateSucceeded,
-			expectedState: states.StateSucceeded,
+			currentState:  states.StateAppPreflightsSucceeded,
+			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
