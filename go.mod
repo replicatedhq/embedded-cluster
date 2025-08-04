@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/apparentlymart/go-cidr v1.1.0
-	github.com/aws/aws-sdk-go v1.55.7
+	github.com/aws/aws-sdk-go v1.55.8
 	github.com/aws/aws-sdk-go-v2 v1.37.1
 	github.com/aws/aws-sdk-go-v2/config v1.30.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.2
@@ -27,7 +27,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
-	github.com/jedib0t/go-pretty/v6 v6.6.7
+	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/k0sproject/k0s v1.31.12-0.20250721135121-4b887bc48ed8
 	github.com/ohler55/ojg v1.26.8
 	github.com/onsi/ginkgo/v2 v2.23.4
@@ -44,7 +44,7 @@ require (
 	github.com/swaggo/swag/v2 v2.0.0-rc4
 	github.com/tiendc/go-deepcopy v1.6.1
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/vmware-tanzu/velero v1.16.1
+	github.com/vmware-tanzu/velero v1.16.2
 	go.uber.org/multierr v1.11.0
 	golang.org/x/crypto v0.40.0
 	golang.org/x/term v0.33.0
