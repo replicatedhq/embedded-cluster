@@ -236,7 +236,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 	wg := sync.WaitGroup{}
 	wg.Add(len(out.Nodes))
 	for i, node := range out.Nodes {
-		go func(node string) {
+		go func(i int, node string) {
 			defer wg.Done()
 			CopyFilesToNode(in, node)
 			CopyDirsToNode(in, node)
@@ -244,7 +244,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 				CreateRegularUser(in, node)
 			}
 			out.waitForClockSync(i)
-		}(node)
+		}(i, node)
 	}
 	wg.Wait()
 
