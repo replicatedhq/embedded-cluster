@@ -1,3 +1,4 @@
+# TODO (screspod): uncomment required fields
 apiVersion: kots.io/v1beta1
 kind: Config
 metadata:
@@ -190,7 +191,7 @@ spec:
         - name: text_required
           title: Text marked required
           type: text
-          required: true
+          # required: true
           help_text: "Help text of a **_Text_** config item type **_marked required_**"
 
         - name: label_password
@@ -213,7 +214,7 @@ spec:
         - name: password_required
           title: Password marked required
           type: password
-          required: true
+          # required: true
           help_text: "Help text of a **_Password_** config item type **_marked required_**"
 
         - name: label_textarea
@@ -236,7 +237,7 @@ spec:
         - name: textarea_required
           title: Textarea marked required
           type: textarea
-          required: true
+          # required: true
           help_text: "Help text of a **_Textarea_** config item type **_marked required_**"
 
         - name: label_checkbox
@@ -259,7 +260,7 @@ spec:
         - name: checkbox_required
           title: Checkbox marked required
           type: bool
-          required: true
+          # required: true
           help_text: "Help text of a **_Checkbox_** config item type **_marked required_**"
 
         # TODO: uncomment when we support dropdowns in the UI
@@ -293,7 +294,7 @@ spec:
         - name: dropdown_required
           title: Dropdown marked required
           type: dropdown
-          required: true
+          # required: true
           help_text: "Help text of a **_Dropdown_** config item type **_marked required_**"
           items:
             - name: dropdown_required_opt1
@@ -332,7 +333,7 @@ spec:
         - name: radio_required
           title: Radio marked required
           type: radio
-          required: true
+          # required: true
           help_text: "Help text of a **_Radio_** config item type **_marked required_**"
           items:
             - name: radio_required_opt1
@@ -360,14 +361,14 @@ spec:
         - name: file_required
           title: File marked required
           type: file
-          required: true
+          # required: true
           help_text: "Help text of a **_File_** config item type **_marked required_**"
 
         - name: hidden_required
           title: Hidden required
           type: text
           hidden: true
-          required: true
+          # required: true
           value: '{{repl ConfigOption "text_required" }}'
 
     - name: markdown-items
