@@ -13,7 +13,7 @@ import (
 func TestLogWriter_Write(t *testing.T) {
 	// Create store
 	store := appinstallstore.NewMemoryStore()
-	
+
 	// Create concrete manager directly for testing utilities
 	concreteManager := &appInstallManager{
 		appInstallStore: store,
@@ -63,7 +63,7 @@ func TestLogWriter_Write(t *testing.T) {
 			// Reset the store by creating a new one for each test
 			newStore := appinstallstore.NewMemoryStore()
 			concreteManager.appInstallStore = newStore
-			
+
 			// Create new writer for the test
 			testWriter := concreteManager.newLogWriter()
 

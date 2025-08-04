@@ -249,4 +249,3 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 	// Clean up
 	os.Remove(filename)
 }
-
