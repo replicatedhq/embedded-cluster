@@ -235,7 +235,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(out.Nodes))
-	for _, node := range out.Nodes {
+	for i, node := range out.Nodes {
 		go func(node string) {
 			defer wg.Done()
 			CopyFilesToNode(in, node)
@@ -243,6 +243,7 @@ func NewCluster(in *ClusterInput) *Cluster {
 			if in.CreateRegularUser {
 				CreateRegularUser(in, node)
 			}
+			out.waitForClockSync(i)
 		}(node)
 	}
 	wg.Wait()
@@ -1134,6 +1135,23 @@ func (c *Cluster) InstallTestDependenciesDebian(t *testing.T, node int, withProx
 func (c *Cluster) Cleanup(envs ...map[string]string) {
 	c.generateSupportBundle(envs...)
 	c.copyPlaywrightReport()
+}
+
+func (c *Cluster) waitForClockSync(node int) {
+	timeout := time.After(5 * time.Minute)
+	tick := time.Tick(time.Second)
+	for {
+		select {
+		case <-timeout:
+			stdout, stderr, err := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
+			c.t.Fatalf("timeout waiting for clock sync on node %d: %v: %s: %s", node, err, stdout, stderr)
+		case <-tick:
+			status, _, _ := c.RunCommandOnNode(node, []string{"timedatectl show -p NTP -p NTPSynchronized"})
+			if strings.Contains(status, "NTP=yes") && strings.Contains(status, "NTPSynchronized=yes") {
+				return
+			}
+		}
+	}
 }
 
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
