@@ -266,6 +266,10 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	appInstall1.Status.Description = "Modified description"
 	appInstall1.Logs = "Modified logs"
 
+	// Verify the modifications took effect on the first copy
+	assert.Equal(t, "Modified description", appInstall1.Status.Description)
+	assert.Equal(t, "Modified logs", appInstall1.Logs)
+
 	// Verify the other copy wasn't affected (deep copy working)
 	assert.Equal(t, "Original description", appInstall2.Status.Description)
 	assert.Equal(t, "Original log\n", appInstall2.Logs)
