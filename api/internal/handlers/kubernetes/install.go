@@ -87,7 +87,7 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
-//	@Failure		400		{object}	types.APIError
+//	@Failure		400	{object}	types.APIError
 //	@Router			/kubernetes/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 	preflightBinary, err := h.cfg.KubernetesConfig.Installation.PathToEmbeddedBinary("kubectl-preflight")
@@ -120,7 +120,7 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
-//	@Failure		400		{object}	types.APIError
+//	@Failure		400	{object}	types.APIError
 //	@Router			/kubernetes/install/app-preflights/status [get]
 func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
 	titles, err := h.installController.GetAppPreflightTitles(r.Context())

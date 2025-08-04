@@ -160,7 +160,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
-//	@Failure		400		{object}	types.APIError
+//	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 	err := h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
@@ -186,7 +186,7 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
-//	@Failure		400		{object}	types.APIError
+//	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/status [get]
 func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
 	titles, err := h.installController.GetAppPreflightTitles(r.Context())
