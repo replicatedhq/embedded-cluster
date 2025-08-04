@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime/debug"
 
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
@@ -17,6 +18,7 @@ type RunAppPreflightOptions struct {
 	PreflightBinaryPath string
 	ProxySpec           *ecv1beta1.ProxySpec
 	ExtraPaths          []string
+	CleanupBinary       bool
 }
 
 func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
@@ -65,6 +67,11 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 		defer lock.Release()
 
 		defer func() {
+			// Clean up binary if requested
+			if opts.CleanupBinary {
+				_ = os.Remove(opts.PreflightBinaryPath)
+			}
+
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic running app preflights: %v: %s", r, string(debug.Stack()))
 			}

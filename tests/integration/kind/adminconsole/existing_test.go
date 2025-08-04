@@ -6,9 +6,9 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

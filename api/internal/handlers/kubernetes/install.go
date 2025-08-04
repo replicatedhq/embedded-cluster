@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"net/http"
-	"os"
 
 	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
@@ -88,6 +87,7 @@ func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
+//	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 	preflightBinary, err := h.cfg.KubernetesConfig.Installation.PathToEmbeddedBinary("kubectl-preflight")
@@ -96,11 +96,11 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
-	defer os.Remove(preflightBinary)
 
 	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: preflightBinary,
 		ProxySpec:           h.cfg.KubernetesConfig.Installation.ProxySpec(),
+		CleanupBinary:       true,
 	})
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to run app preflights")
@@ -120,6 +120,7 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
+//	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app-preflights/status [get]
 func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
 	titles, err := h.installController.GetAppPreflightTitles(r.Context())

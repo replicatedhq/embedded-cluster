@@ -4,11 +4,6 @@ type PostInstallRunHostPreflightsRequest struct {
 	IsUI bool `json:"isUi"`
 }
 
-type PostInstallRunAppPreflightsRequest struct {
-	ConfigValues        AppConfigValues `json:"configValues"`
-	PreflightBinaryPath string          `json:"preflightBinaryPath,omitempty"`
-}
-
 // HostPreflights represents the host preflight checks state
 type HostPreflights struct {
 	Titles                    []string          `json:"titles"`
