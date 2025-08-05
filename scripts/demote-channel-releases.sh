@@ -196,4 +196,4 @@ function main() {
     demote_old_releases
 }
 
-main "$@" 
+main "$@"
