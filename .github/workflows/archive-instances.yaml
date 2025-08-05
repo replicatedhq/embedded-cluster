@@ -1,0 +1,32 @@
+name: Archive Instances
+
+on:
+  schedule:
+    # Run every 3 hours
+    - cron: '0 */3 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  archive-instances:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up environment
+        run: |
+          # Set default values for the script
+          echo "COUNT=200" >> $GITHUB_ENV
+          echo "DRY_RUN=true" >> $GITHUB_ENV
+
+      - name: Run archive instances script
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com"
+          COUNT: ${{ env.COUNT }}
+          DRY_RUN: ${{ env.DRY_RUN }}
+        run: |
+          # Run the script
+          ./scripts/archive-instances.sh
