@@ -28,7 +28,7 @@ function get_app_id() {
     app_id=$(echo "$apps_response" | jq -r --arg slug "$REPLICATED_APP" '.apps[] | select(.slug == $slug) | .id')
 
     if [[ -z "$app_id" || "$app_id" == "null" ]]; then
-        echo "Error: Could not find app with slug '$REPLICATED_APP'"
+        echo "Error: Could not find app with slug '$REPLICATED_APP'" >&2
         exit 1
     fi
 
