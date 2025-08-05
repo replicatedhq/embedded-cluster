@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-COUNT=${COUNT:-500}
+START_PAGE=${START_PAGE:-1}
+PAGE_SIZE=${PAGE_SIZE:-100}
 DRY_RUN=${DRY_RUN:-true}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-"https://api.staging.replicated.com"}
 REPLICATED_APP=${REPLICATED_APP:-"embedded-cluster-smoke-test-staging-app"}
@@ -10,84 +11,111 @@ REPLICATED_APP=${REPLICATED_APP:-"embedded-cluster-smoke-test-staging-app"}
 # Trim /vendor suffix if present
 REPLICATED_API_ORIGIN="${REPLICATED_API_ORIGIN%/vendor}"
 
-# Calculate timestamp for 1 hour ago (in seconds since epoch)
+# Calculate timestamp for 1 day ago (in seconds since epoch)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS (darwin) syntax
-    ONE_HOUR_AGO=$(date -v-1H +%s)
+    ONE_DAY_AGO=$(date -v-1d +%s)
 else
     # Linux syntax
-    ONE_HOUR_AGO=$(date -d '1 hour ago' +%s)
+    ONE_DAY_AGO=$(date -d '1 day ago' +%s)
 fi
 
 function archive_instances() {
-    echo "Fetching instances with lastCheckinAt greater than 1 hour ago..."
+    echo "Fetching instances with lastCheckinAt greater than 1 day ago..."
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo "Timestamp for 1 hour ago: $(date -v-1H)"
+        echo "Timestamp for 1 day ago: $(date -v-1d)"
     else
-        echo "Timestamp for 1 hour ago: $(date -d '1 hour ago')"
+        echo "Timestamp for 1 day ago: $(date -d '1 day ago')"
     fi
     echo "---"
 
-    # Get the JSON response and extract instances
-    RESPONSE=$(curl -fsSL -H "Authorization: $REPLICATED_API_TOKEN" "$REPLICATED_API_ORIGIN/v1/instances?appSelector=$REPLICATED_APP&pageSize=$COUNT&currentPage=1")
+    local current_page=$START_PAGE
 
-    # Loop through each instance using jq to extract the array
-    echo "$RESPONSE" | jq -c '.instances[]' | while read -r instance; do
-        # Extract fields from each instance
-        ID=$(echo "$instance" | jq -r '.id')
-        LAST_CHECKIN=$(echo "$instance" | jq -r '.lastCheckinAt // empty')
-        VERSION=$(echo "$instance" | jq -r '.versionLabel // "N/A"')
-        CHANNEL=$(echo "$instance" | jq -r '._embedded.channel.name // "N/A"')
+    while true; do
+        echo "Processing page $current_page..."
 
-        # Skip if lastCheckinAt is null
-        if [[ -z "$LAST_CHECKIN" ]]; then
-            continue
+        local response
+
+        # Get the JSON response and extract instances for current page
+        response=$(curl -fsSL -H "Authorization: $REPLICATED_API_TOKEN" "$REPLICATED_API_ORIGIN/v1/instances?appSelector=$REPLICATED_APP&pageSize=$PAGE_SIZE&currentPage=$current_page")
+
+        # Check if we have instances on this page
+        instance_count=$(echo "$response" | jq -r '.instances | length')
+        if [[ "$instance_count" -eq 0 ]]; then
+            echo "No instances found on page $current_page, stopping."
+            break
         fi
 
-        maybe_archive_instance "$ID" "$LAST_CHECKIN" "$VERSION" "$CHANNEL"
+        echo "Found $instance_count instances on page $current_page"
+
+        # Loop through each instance using jq to extract the array
+        echo "$response" | jq -c '.instances[]' | while read -r instance; do
+            local last_checkin timestamp instance_time id version channel
+
+            last_checkin=$(echo "$instance" | jq -r '.lastCheckinAt // empty')
+
+            # Skip if lastCheckinAt is null
+            if [[ -z "$last_checkin" ]]; then
+                continue
+            fi
+
+            # Parse the timestamp and compare
+            # Remove milliseconds and ensure proper UTC format
+            timestamp=$(echo "$last_checkin" | sed 's/\.[0-9]*//' | sed 's/Z$//' | sed 's/$/Z/')
+
+            # Validate timestamp format before parsing
+            if [[ ! "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+                echo "Warning: Invalid timestamp format for instance $id: $last_checkin"
+                return
+            fi
+
+            instance_time=$(parse_date "$timestamp" +%s)
+
+            # Check if instance hasn't checked in for more than 1 day
+            if [[ "$instance_time" -lt "$ONE_DAY_AGO" ]]; then
+                # Extract fields from each instance
+                id=$(echo "$instance" | jq -r '.id')
+                version=$(echo "$instance" | jq -r '.versionLabel // "N/A"')
+                channel=$(echo "$instance" | jq -r '._embedded.channel.name // "N/A"')
+
+                archive_instance "$id" "$timestamp" "$version" "$channel"
+            fi
+        done
+
+        current_page=$((current_page + 1))
     done
+
+    echo "Finished processing all pages."
 }
 
-function maybe_archive_instance() {
-    local ID="$1"
-    local LAST_CHECKIN="$2"
-    local VERSION="$3"
-    local CHANNEL="$4"
+function archive_instance() {
+    local id="$1"
+    local timestamp="$2"
+    local version="$3"
+    local channel="$4"
 
-    # Parse the timestamp and compare
-    # Remove milliseconds and ensure proper UTC format
-    TIMESTAMP=$(echo "$LAST_CHECKIN" | sed 's/\.[0-9]*//' | sed 's/Z$//' | sed 's/$/Z/')
+    local local_time
 
-    # Validate timestamp format before parsing
-    if [[ ! "$TIMESTAMP" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
-        echo "Warning: Invalid timestamp format for instance $ID: $LAST_CHECKIN"
-        return
-    fi
-
-    INSTANCE_TIME=$(parse_date "$TIMESTAMP" +%s)
     # Convert UTC timestamp to local time
-    LOCAL_TIME=$(parse_date "$TIMESTAMP")
+    local_time=$(parse_date "$timestamp")
 
-    # Check if instance hasn't checked in for more than 1 hour
-    if [[ "$INSTANCE_TIME" -lt "$ONE_HOUR_AGO" ]]; then
-        echo "Archiving instance: ID: $ID, LastCheckin: $LOCAL_TIME, Version: $VERSION, Channel: $CHANNEL"
+    echo "Archiving instance: ID: $id, LastCheckin: $local_time, Version: $version, Channel: $channel"
 
-        if [[ "$DRY_RUN" == "true" ]]; then
-            echo "  ✓ DRY RUN"
-        else
-            # Archive the instance
-            ARCHIVE_RESPONSE=$(curl -sSL -w "%{http_code}" -X POST -H "Authorization: $REPLICATED_API_TOKEN" -H "Content-Type: application/json" "$REPLICATED_API_ORIGIN/vendor/v3/instance/$ID/archive" -d '{}')
-            HTTP_CODE="${ARCHIVE_RESPONSE: -3}"
-            RESPONSE_BODY="${ARCHIVE_RESPONSE%???}"
-
-            if [[ "$HTTP_CODE" -eq 200 ]]; then
-                echo "  ✓ Successfully archived instance $ID"
-            else
-                echo "  ✗ Failed to archive instance $ID (HTTP $HTTP_CODE): $RESPONSE_BODY"
-            fi
-        fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+        echo "  ✓ DRY RUN"
     else
-        echo "Instance $ID has checked in within the last hour ($LOCAL_TIME), skipping..."
+        local archive_response http_code response_body
+
+        # Archive the instance
+        archive_response=$(curl -sSL -w "%{http_code}" -X POST -H "Authorization: $REPLICATED_API_TOKEN" -H "Content-Type: application/json" "$REPLICATED_API_ORIGIN/vendor/v3/instance/$id/archive" -d '{}')
+        http_code="${archive_response: -3}"
+        response_body="${archive_response%???}"
+
+        if [[ "$http_code" -eq 200 ]]; then
+            echo "  ✓ Successfully archived instance $id"
+        else
+            echo "  ✗ Failed to archive instance $id (HTTP $http_code): $response_body"
+        fi
     fi
 }
 
