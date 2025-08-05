@@ -16,8 +16,12 @@ interface WizardText {
   kubernetesSetupDescription: string;
   validationTitle: string;
   validationDescription: string;
+  appValidationTitle: string;
+  appValidationDescription: string;
   installationTitle: string;
   installationDescription: string;
+  appInstallationTitle: string;
+  appInstallationDescription: string;
   welcomeButtonText: string;
   nextButtonText: string;
 }

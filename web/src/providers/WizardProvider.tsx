@@ -17,8 +17,12 @@ interface WizardText {
   kubernetesSetupDescription: string;
   validationTitle: string;
   validationDescription: string;
+  appValidationTitle: string;
+  appValidationDescription: string;
   installationTitle: string;
   installationDescription: string;
+  appInstallationTitle: string;
+  appInstallationDescription: string;
   welcomeButtonText: string;
   nextButtonText: string;
 }
@@ -38,8 +42,12 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     kubernetesSetupDescription: "Configure the settings for this installation.",
     validationTitle: "Validation",
     validationDescription: "Validate the host requirements before proceeding with installation.",
+    appValidationTitle: "App Validation",
+    appValidationDescription: "Validate the application requirements before installation.",
     installationTitle: `Installing ${title}`,
     installationDescription: "",
+    appInstallationTitle: "App Installation",
+    appInstallationDescription: "Installing your application...",
     welcomeButtonText: "Start",
     nextButtonText: "Next: Start Installation",
   },
@@ -57,8 +65,12 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     kubernetesSetupDescription: "Set up the cluster to use for this upgrade.",
     validationTitle: "Validation",
     validationDescription: "Validate the host requirements before proceeding with the upgrade.",
+    appValidationTitle: "App Validation",
+    appValidationDescription: "Validate the application requirements before upgrade.",
     installationTitle: `Upgrading ${title}`,
     installationDescription: "",
+    appInstallationTitle: "App Upgrade",
+    appInstallationDescription: "Upgrading your application...",
     welcomeButtonText: "Start Upgrade",
     nextButtonText: "Next: Start Upgrade",
   },

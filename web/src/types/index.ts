@@ -23,7 +23,7 @@ export interface InfraStatus {
   lastUpdated: string;
 }
 
-export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'linux-completion' | 'kubernetes-completion';
+export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'app-validation' | 'app-installation' | 'linux-completion' | 'kubernetes-completion';
 
 // App Configuration Types
 export interface AppConfig {
@@ -62,3 +62,44 @@ export interface AppConfigValue {
 }
 
 export type AppConfigValues = Record<string, AppConfigValue>;
+
+// Preflight Types
+export interface PreflightResult {
+  title: string;
+  message: string;
+}
+
+export interface PreflightOutput {
+  pass: PreflightResult[];
+  warn: PreflightResult[];
+  fail: PreflightResult[];
+}
+
+export interface PreflightStatus {
+  state: string;
+  description: string;
+  lastUpdated: string;
+}
+
+export interface HostPreflightResponse {
+  titles: string[];
+  output?: PreflightOutput;
+  status?: PreflightStatus;
+  allowIgnoreHostPreflights?: boolean;
+}
+
+export interface AppPreflightResponse {
+  titles: string[];
+  output?: PreflightOutput;
+  status?: PreflightStatus;
+  allowIgnoreAppPreflights?: boolean;
+}
+
+export interface AppInstallStatus {
+  status: {
+    state: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+    description: string;
+    lastUpdated: string;
+  };
+  logs: string;
+}
