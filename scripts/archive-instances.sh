@@ -50,13 +50,14 @@ function archive_instances() {
 
         # Loop through each instance using jq to extract the array
         echo "$response" | jq -c '.instances[]' | while read -r instance; do
-            local last_checkin timestamp instance_time id version channel
+            local id last_checkin timestamp instance_time id version channel
 
+            id=$(echo "$instance" | jq -r '.id')
             last_checkin=$(echo "$instance" | jq -r '.lastCheckinAt // empty')
 
             # Skip if lastCheckinAt is null
             if [[ -z "$last_checkin" ]]; then
-                echo "Warning: lastCheckinAt is empty for instance"
+                echo "Warning: lastCheckinAt is empty for instance $id"
                 continue
             fi
 
@@ -67,7 +68,7 @@ function archive_instances() {
             # Validate timestamp format before parsing
             if [[ ! "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
                 echo "Warning: Invalid timestamp format for instance $id: $last_checkin"
-                return
+                continue
             fi
 
             instance_time=$(parse_date "$timestamp" +%s)
@@ -75,7 +76,6 @@ function archive_instances() {
             # Check if instance hasn't checked in for more than 1 day
             if [[ "$instance_time" -lt "$ONE_DAY_AGO" ]]; then
                 # Extract fields from each instance
-                id=$(echo "$instance" | jq -r '.id')
                 version=$(echo "$instance" | jq -r '.versionLabel // "N/A"')
                 channel=$(echo "$instance" | jq -r '._embedded.channel.name // "N/A"')
 

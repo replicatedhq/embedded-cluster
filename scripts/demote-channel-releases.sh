@@ -93,11 +93,12 @@ function process_channel_releases() {
         while IFS= read -r release; do
             local created_at timestamp release_time sequence version
 
+            version=$(echo "$release" | jq -r '.semver // "N/A"')
             created_at=$(echo "$release" | jq -r '.created // empty')
 
             # Skip if createdAt is null
             if [[ -z "$created_at" ]]; then
-                echo "  Warning: created is empty for release"
+                echo "  Warning: created is empty for release $version"
                 continue
             fi
 
@@ -107,7 +108,7 @@ function process_channel_releases() {
 
             # Validate timestamp format before parsing
             if [[ ! "$timestamp" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
-                echo "  Warning: Invalid timestamp format for release: $created_at"
+                echo "  Warning: Invalid timestamp format for release $version: $created_at"
                 continue
             fi
 
@@ -117,7 +118,6 @@ function process_channel_releases() {
             if [[ "$release_time" -lt "$SEVEN_DAYS_AGO" ]]; then
                 # Extract fields from each release
                 sequence=$(echo "$release" | jq -r '.channelSequence')
-                version=$(echo "$release" | jq -r '.semver // "N/A"')
 
                 demote_release "$channel_id" "$channel_name" "$sequence" "$timestamp" "$version" "$app_id"
             fi
