@@ -1,4 +1,4 @@
-name: Archive Instances
+name: Cleanup Resources
 
 on:
   schedule:
@@ -17,8 +17,8 @@ jobs:
       - name: Set up environment
         run: |
           # Set default values for the script
-          echo "COUNT=200" >> $GITHUB_ENV
-          echo "DRY_RUN=true" >> $GITHUB_ENV
+          echo "COUNT=500" >> $GITHUB_ENV
+          echo "DRY_RUN=false" >> $GITHUB_ENV
 
       - name: Run archive instances script
         env:
