@@ -56,6 +56,7 @@ function archive_instances() {
 
             # Skip if lastCheckinAt is null
             if [[ -z "$last_checkin" ]]; then
+                echo "Warning: lastCheckinAt is empty for instance"
                 continue
             fi
 
