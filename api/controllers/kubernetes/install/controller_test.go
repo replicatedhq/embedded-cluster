@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
@@ -17,7 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -284,13 +285,6 @@ func TestSetupInfra(t *testing.T) {
 			},
 		},
 	}
-	configValues := kotsv1beta1.ConfigValues{
-		Spec: kotsv1beta1.ConfigValuesSpec{
-			Values: map[string]kotsv1beta1.ConfigValue{
-				"test-item": {Default: "default", Value: "value"},
-			},
-		},
-	}
 
 	tests := []struct {
 		name          string
@@ -305,8 +299,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateSucceeded,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues").Return(configValues, nil),
-					fm.On("Install", mock.Anything, ki, configValues).Return(nil),
+					fm.On("Install", mock.Anything, ki).Return(nil),
 					// TODO: we are not yet reporting
 					// mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
@@ -319,8 +312,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues").Return(configValues, nil),
-					fm.On("Install", mock.Anything, ki, configValues).Return(errors.New("install error")),
+					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
 					// TODO: we are not yet reporting
 					// mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
@@ -334,8 +326,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues").Return(configValues, nil),
-					fm.On("Install", mock.Anything, ki, configValues).Return(errors.New("install error")),
+					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
 				)
 			},
@@ -347,8 +338,7 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
-					am.On("GetKotsadmConfigValues").Return(configValues, nil),
-					fm.On("Install", mock.Anything, ki, configValues).Panic("this is a panic"),
+					fm.On("Install", mock.Anything, ki).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
 					// TODO: we are not yet reporting
 					// mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
@@ -363,17 +353,6 @@ func TestSetupInfra(t *testing.T) {
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 			},
 			expectedErr: assert.AnError, // Just check that an error occurs, don't care about exact message
-		},
-		{
-			name:          "config values error",
-			currentState:  states.StateInstallationConfigured,
-			expectedState: states.StateInstallationConfigured,
-			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					am.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, assert.AnError),
-				)
-			},
-			expectedErr: assert.AnError,
 		},
 	}
 
@@ -391,12 +370,20 @@ func TestSetupInfra(t *testing.T) {
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 			tt.setupMocks(ki, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore, mockAppConfigManager)
 
+			appInstallController, err := appcontroller.NewInstallController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithStore(mockStore),
+				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
+				appcontroller.WithAppConfigManager(mockAppConfigManager),
+			)
+			require.NoError(t, err)
+
 			controller, err := NewInstallController(
 				WithInstallation(ki),
 				WithStateMachine(sm),
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
-				WithAppConfigManager(mockAppConfigManager),
+				WithAppInstallController(appInstallController),
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),

@@ -1,19 +1,24 @@
 package template
 
+// These methods require a valid proxy spec to be set in the engine and that will only happen in generic mode. We add guardrails to prevent misuse in the `Execute` method.
+
 func (e *Engine) httpProxy() string {
-	// TODO: this is a stub for now as it is not relevant for the config template.
-	// It will be needed later when rendering the app manifests.
-	return ""
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.HTTPProxy
 }
 
 func (e *Engine) httpsProxy() string {
-	// TODO: this is a stub for now as it is not relevant for the config template.
-	// It will be needed later when rendering the app manifests.
-	return ""
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.HTTPSProxy
 }
 
 func (e *Engine) noProxy() string {
-	// TODO: this is a stub for now as it is not relevant for the config template.
-	// It will be needed later when rendering the app manifests.
-	return ""
+	if e.proxySpec == nil {
+		return ""
+	}
+	return e.proxySpec.NoProxy
 }

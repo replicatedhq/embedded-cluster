@@ -3,6 +3,7 @@ package kubernetesinstallation
 import (
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 )
 
@@ -125,4 +126,9 @@ func (ki *kubernetesInstallation) SetManagerPort(port int) {
 // SetProxySpec sets the proxy spec for the kubernetes installation.
 func (ki *kubernetesInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
 	ki.installation.Spec.Proxy = proxySpec
+}
+
+// PathToEmbeddedBinary returns the path to an embedded binary by materializing it from the embedded assets.
+func (ki *kubernetesInstallation) PathToEmbeddedBinary(binaryName string) (string, error) {
+	return goods.InternalBinary(binaryName)
 }
