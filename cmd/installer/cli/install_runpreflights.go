@@ -7,8 +7,8 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"

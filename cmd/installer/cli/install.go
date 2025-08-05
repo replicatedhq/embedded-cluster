@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
@@ -37,7 +38,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -842,7 +842,6 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
-				RuntimeConfig:         rc,
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
 				Namespace:             constants.KotsadmNamespace,

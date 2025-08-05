@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/mock"
 )
@@ -16,8 +17,8 @@ type MockAppReleaseManager struct {
 }
 
 // ExtractAppPreflightSpec mocks the ExtractAppPreflightSpec method
-func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues) (*troubleshootv1beta2.PreflightSpec, error) {
-	args := m.Called(ctx, configValues)
+func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) (*troubleshootv1beta2.PreflightSpec, error) {
+	args := m.Called(ctx, configValues, proxySpec)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

@@ -34,7 +34,7 @@ func NewMaterializer(rc runtimeconfig.RuntimeConfig) *Materializer {
 // and writes it to a tmp file. It returns the path to the materialized binary.
 // The binary should be deleted after it is used.
 // This is used for binaries that are not meant to be exposed to the user.
-func (m *Materializer) InternalBinary(name string) (string, error) {
+func InternalBinary(name string) (string, error) {
 	srcpath := fmt.Sprintf("internal/bins/%s", name)
 	srcfile, err := internalBinfs.ReadFile(srcpath)
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 )
 
 func (m *installationManager) GetConfig() (types.KubernetesInstallationConfig, error) {

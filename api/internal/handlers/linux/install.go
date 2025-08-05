@@ -3,6 +3,7 @@ package linux
 import (
 	"net/http"
 
+	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -150,6 +151,74 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
 
+// PostRunAppPreflights handler to run install app preflight checks
+//
+//	@ID				postLinuxInstallRunAppPreflights
+//	@Summary		Run install app preflight checks
+//	@Description	Run install app preflight checks using current app configuration
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app-preflights/run [post]
+func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
+	err := h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
+		PreflightBinaryPath: h.cfg.RuntimeConfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
+		ProxySpec:           h.cfg.RuntimeConfig.ProxySpec(),
+		ExtraPaths:          []string{h.cfg.RuntimeConfig.EmbeddedClusterBinsSubDir()},
+	})
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to run app preflights")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppPreflightsStatus(w, r)
+}
+
+// GetAppPreflightsStatus handler to get app preflight status for install
+//
+//	@ID				getLinuxInstallAppPreflightsStatus
+//	@Summary		Get app preflight status for install
+//	@Description	Get the current status and results of app preflight checks for install
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.InstallAppPreflightsStatusResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app-preflights/status [get]
+func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
+	titles, err := h.installController.GetAppPreflightTitles(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight titles")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	output, err := h.installController.GetAppPreflightOutput(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight output")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	status, err := h.installController.GetAppPreflightStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get install app preflight status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.InstallAppPreflightsStatusResponse{
+		Titles: titles,
+		Output: output,
+		Status: status,
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
+}
+
 // PostSetupInfra handler to setup infra components
 //
 //	@ID				postLinuxInstallSetupInfra
@@ -281,4 +350,48 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
+}
+
+// PostInstallApp handler to install the app
+//
+//	@ID				postLinuxInstallApp
+//	@Summary		Install the app
+//	@Description	Install the app using current configuration
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppInstall
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app/install [post]
+func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
+	err := h.installController.InstallApp(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to install app")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppInstallStatus(w, r)
+}
+
+// GetAppInstallStatus handler to get app install status
+//
+//	@ID				getLinuxInstallAppStatus
+//	@Summary		Get app install status
+//	@Description	Get the current status of app installation
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.AppInstall
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/app/status [get]
+func (h *Handler) GetAppInstallStatus(w http.ResponseWriter, r *http.Request) {
+	appInstall, err := h.installController.GetAppInstallStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get app install status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, appInstall, h.logger)
 }

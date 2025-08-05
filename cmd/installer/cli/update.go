@@ -69,11 +69,10 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			}
 
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
-				RuntimeConfig: rc,
-				AppSlug:       appSlug,
-				Namespace:     constants.KotsadmNamespace,
-				AirgapBundle:  airgapBundle,
-				ClusterID:     in.Spec.ClusterID,
+				AppSlug:      appSlug,
+				Namespace:    constants.KotsadmNamespace,
+				AirgapBundle: airgapBundle,
+				ClusterID:    in.Spec.ClusterID,
 			}); err != nil {
 				return err
 			}

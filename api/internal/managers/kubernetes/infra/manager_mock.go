@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -16,8 +15,8 @@ type MockInfraManager struct {
 	mock.Mock
 }
 
-func (m *MockInfraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error {
-	args := m.Called(ctx, ki, configValues)
+func (m *MockInfraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) error {
+	args := m.Called(ctx, ki)
 	return args.Error(0)
 }
 

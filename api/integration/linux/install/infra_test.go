@@ -2,6 +2,7 @@ package install
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -25,7 +26,6 @@ import (
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -132,7 +132,9 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinfra.WithHelmClient(helmMock),
 			linuxinfra.WithLicense(assets.LicenseData),
 			linuxinfra.WithHostUtils(hostutilsMock),
-			linuxinfra.WithKotsCLIInstaller(&MockKotsCLIInstaller{}),
+			linuxinfra.WithAppInstaller(func(ctx context.Context) error {
+				return nil
+			}),
 			linuxinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -748,11 +750,4 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		k0sMock.AssertExpectations(t)
 		hostutilsMock.AssertExpectations(t)
 	})
-}
-
-type MockKotsCLIInstaller struct {
-}
-
-func (m *MockKotsCLIInstaller) Install(opts kotscli.InstallOptions) error {
-	return nil
 }

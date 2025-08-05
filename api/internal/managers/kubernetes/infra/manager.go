@@ -11,10 +11,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/metadata"
@@ -26,7 +25,7 @@ var _ InfraManager = &infraManager{}
 // InfraManager provides methods for managing infrastructure setup
 type InfraManager interface {
 	Get() (types.Infra, error)
-	Install(ctx context.Context, ki kubernetesinstallation.Installation, configValues kotsv1beta1.ConfigValues) error
+	Install(ctx context.Context, ki kubernetesinstallation.Installation) error
 }
 
 // KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
@@ -48,7 +47,7 @@ type infraManager struct {
 	mcli             metadata.Interface
 	hcli             helm.Client
 	restClientGetter genericclioptions.RESTClientGetter
-	kotsCLI          KotsCLIInstaller
+	appInstaller     func(ctx context.Context) error
 	mu               sync.RWMutex
 }
 
@@ -126,9 +125,9 @@ func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) I
 	}
 }
 
-func WithKotsCLIInstaller(kotsCLI KotsCLIInstaller) InfraManagerOption {
+func WithAppInstaller(appInstaller func(ctx context.Context) error) InfraManagerOption {
 	return func(c *infraManager) {
-		c.kotsCLI = kotsCLI
+		c.appInstaller = appInstaller
 	}
 }
 

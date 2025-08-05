@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
@@ -40,21 +41,21 @@ func TestEngine_BasicTemplating(t *testing.T) {
 	// Test basic sprig function with {{repl format
 	err := engine.Parse("{{repl upper \"hello world\"  }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "HELLO WORLD", result)
 
 	// Test ConfigOption with default values using repl{{ format
 	err = engine.Parse("repl{{ ConfigOption \"database_host\"  }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "localhost", result)
 
 	// Test mixing both delimiter formats in one template
 	err = engine.Parse("Host: repl{{ ConfigOption \"database_host\" }} Port: {{repl ConfigOption \"database_port\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Host: localhost Port: 5432", result)
 }
@@ -108,7 +109,7 @@ func TestEngine_ValuePriority(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db.example.com:5433/app", result)
 
@@ -119,21 +120,21 @@ func TestEngine_ValuePriority(t *testing.T) {
 
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(partialConfigValues)
+	result, err = engine.Execute(partialConfigValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5433/app", result)
 
 	// Test with no user values (should use config value for database_host, default for database_port)
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://db-internal.company.com:5432/app", result)
 
 	// Test item with only default value (redis_host) - should use default
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis.company.com", result)
 
@@ -143,14 +144,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis.production.com", result)
 
 	// Test item with no value and no default - should return empty string
 	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 
@@ -160,14 +161,14 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"metrics_endpoint\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "https://metrics.company.com", result)
 
 	// Test item with template value that evaluates to empty - should fall back to default
 	err = engine.Parse("{{repl ConfigOption \"empty_template_value\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "fallback_default", result)
 
@@ -178,7 +179,7 @@ func TestEngine_ValuePriority(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(emptyConfigValues)
+	result, err = engine.Execute(emptyConfigValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "postgres://:5433/app", result) // Empty host should result in empty string, not config fallback
 }
@@ -218,28 +219,28 @@ func TestEngine_ConfigOptionEquals(t *testing.T) {
 
 	err := engine.Parse("repl{{ if ConfigOptionEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "S3 Storage", result)
 
 	// Test with no user value - should use config value "filesystem"
 	err = engine.Parse("{{repl if ConfigOptionEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Filesystem Storage", result)
 
 	// Test with item that has only default value - should use default "snapshot"
 	err = engine.Parse("repl{{ if ConfigOptionEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Snapshot Backup", result)
 
 	// Test with an unknown item - an error is returned and false is returned
 	err = engine.Parse("{{repl if ConfigOptionEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
@@ -279,28 +280,28 @@ func TestEngine_ConfigOptionNotEquals(t *testing.T) {
 
 	err := engine.Parse("repl{{ if ConfigOptionNotEquals \"storage_type\" \"s3\" }}S3 Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Other Storage", result)
 
 	// Test with no user value - should use config value "filesystem"
 	err = engine.Parse("{{repl if ConfigOptionNotEquals \"storage_type\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Other Storage", result)
 
 	// Test with item that has only default value - should use default "snapshot"
 	err = engine.Parse("repl{{ if ConfigOptionNotEquals \"backup_type\" \"snapshot\" }}Snapshot Backup{{repl else }}Other Backup{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Other Backup", result)
 
 	// Test with an unknown item - an error is returned and false is returned
 	err = engine.Parse("{{repl if ConfigOptionNotEquals \"notfound\" \"filesystem\" }}Filesystem Storage{{repl else }}Other Storage{{repl end }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
@@ -342,7 +343,7 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 	// Test with no user value - should use config value
 	err := engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, configCertContent, result)
 
@@ -355,14 +356,14 @@ func TestEngine_ConfigOptionData(t *testing.T) {
 
 	err = engine.Parse("{{repl ConfigOptionData \"ssl_cert\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, userCertContent, result)
 
 	// Test with item that has only default value - should use default
 	err = engine.Parse("{{repl ConfigOptionData \"ca_cert\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, defaultCertContent, result)
 }
@@ -398,21 +399,21 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test with no user value - should be empty
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 
 	// Test with user value - should be user value
 	result, err = engine.Execute(types.AppConfigValues{
 		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
-	})
+	}, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt", result)
 
 	// Test with an unknown item - an error is returned and empty string is returned
 	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Equal(t, "", result)
 }
@@ -448,14 +449,14 @@ func TestEngine_ConfigOptionFilenameAndDataAndValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test with no user value - should be default value but not use the config's filename
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, " default content", result)
 
 	// Test with user value - should be user value
 	result, err = engine.Execute(types.AppConfigValues{
 		"a_file": {Value: userContentEncoded, Filename: "user_file.txt"},
-	})
+	}, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt user content", result)
 }
@@ -485,7 +486,7 @@ func TestEngine_CircularDependency(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"item_a\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "circular dependency detected for item_a")
 }
@@ -531,14 +532,14 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	// Test with no user values - should use config values and resolve deep dependency chain
 	err := engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "staging-us-west-2.rds.amazonaws.com", result)
 
 	// Test another item with config value that depends on the chain
 	err = engine.Parse("{{repl ConfigOption \"redis_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "staging-us-west-2.elasticache.amazonaws.com", result)
 
@@ -548,7 +549,7 @@ func TestEngine_DeepDependencyChain(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_host\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "production-us-east-1.rds.amazonaws.com", result)
 }
@@ -631,7 +632,7 @@ license:
 
 	err := engine.Parse(template)
 	require.NoError(t, err)
-	result, err := engine.Execute(configValues)
+	result, err := engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	expected := `database:
@@ -653,7 +654,7 @@ license:
 	// Test with no user values - should use config values
 	err = engine.Parse(template)
 	require.NoError(t, err)
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 
 	expectedWithConfigValues := `database:
@@ -700,19 +701,19 @@ func TestEngine_ParseAndExecuteSeparately(t *testing.T) {
 	configValues1 := types.AppConfigValues{
 		"database_host": {Value: "db1.production.com"},
 	}
-	result1, err := engine.Execute(configValues1)
+	result1, err := engine.Execute(configValues1, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db1.production.com", result1)
 
 	configValues2 := types.AppConfigValues{
 		"database_host": {Value: "db2.staging.com"},
 	}
-	result2, err := engine.Execute(configValues2)
+	result2, err := engine.Execute(configValues2, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db2.staging.com", result2)
 
 	// Execute with no user values - should use config value
-	result3, err := engine.Execute(nil)
+	result3, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "Host: db-internal.company.com", result3)
 }
@@ -731,14 +732,14 @@ func TestEngine_EmptyTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, engine.tmpl)
 
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "", result)
 }
 
 func TestEngine_ExecuteWithoutParsing(t *testing.T) {
 	engine := NewEngine(nil)
-	_, err := engine.Execute(nil)
+	_, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "template not parsed")
 }
@@ -754,7 +755,7 @@ func TestEngine_UnknownConfigItem(t *testing.T) {
 
 	err := engine.Parse("{{repl ConfigOption \"nonexistent\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config item nonexistent not found")
 }
@@ -804,7 +805,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	// Test 1: First execution - build dependency tree
 	err := engine.Parse("{{repl ConfigOption \"redis_url\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -816,7 +817,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 2: Second execution with no changes - should use cache
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -825,7 +826,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues := types.AppConfigValues{
 		"environment": {Value: "production"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -837,7 +838,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 4: Execute again with same user values - should use cache
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://production:production-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -846,7 +847,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"environment": {Value: "development"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://development:development-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -858,7 +859,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://development:development-region/app/0", engine.cache["redis_url"].Effective)
 
 	// Test 6: Remove user value (go back to config value) - should invalidate
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -875,7 +876,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	}
 	err = engine.Parse("{{repl ConfigOption \"redis_url\" }}")
 	require.NoError(t, err)
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://custom-url/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -887,7 +888,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "postgres://staging:staging-region/app", engine.cache["database_url"].Effective) // unchanged
 
 	// Test 8: Remove redis_url user value (go back to config value) - should invalidate
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -902,7 +903,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"region": {Value: "custom-region"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -914,7 +915,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	assert.Equal(t, "redis://postgres://staging:custom-region/app/0", engine.cache["redis_url"].Effective) // changed (dependent)
 
 	// Test 10: Reset to no user values, then change middle item (database_url) directly - should only affect itself and dependents
-	result, err = engine.Execute(nil)
+	result, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://staging:staging-region/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -922,7 +923,7 @@ func TestEngine_DependencyTreeAndCaching(t *testing.T) {
 	configValues = types.AppConfigValues{
 		"database_url": {Value: "postgres://direct-override/app"},
 	}
-	result, err = engine.Execute(configValues)
+	result, err = engine.Execute(configValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "redis://postgres://direct-override/app/0", result)
 	assert.Equal(t, expectedDepsTree, engine.depsTree)
@@ -1460,4 +1461,72 @@ status: {}
 `
 
 	assert.YAMLEq(t, expectedYAML, result)
+}
+
+func TestEngine_ExecuteValidation(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		mode          Mode
+		withInstall   bool
+		expectedError string
+	}{
+		{
+			name:          "generic mode requires installation",
+			mode:          ModeGeneric,
+			withInstall:   false,
+			expectedError: "installation with proxy spec must be provided in generic mode",
+		},
+		{
+			name:          "generic mode with installation succeeds",
+			mode:          ModeGeneric,
+			withInstall:   true,
+			expectedError: "",
+		},
+		{
+			name:          "config mode should not have installation",
+			mode:          ModeConfig,
+			withInstall:   true,
+			expectedError: "installation with proxy spec should not be provided in config mode",
+		},
+		{
+			name:          "config mode without installation succeeds",
+			mode:          ModeConfig,
+			withInstall:   false,
+			expectedError: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engine := NewEngine(config, WithMode(tt.mode))
+
+			var execOpts []ExecOption
+			if tt.withInstall {
+				execOpts = append(execOpts, WithProxySpec(&ecv1beta1.ProxySpec{
+					HTTPProxy: "some-proxy",
+				}))
+			}
+
+			// For generic mode, we need to parse a template
+			if tt.mode == ModeGeneric {
+				err := engine.Parse("{{repl HTTPProxy }}")
+				require.NoError(t, err)
+			}
+
+			_, err := engine.Execute(nil, execOpts...)
+
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
