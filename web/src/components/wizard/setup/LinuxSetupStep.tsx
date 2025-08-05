@@ -324,7 +324,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
           Back
         </Button>
         <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
-          Next: Validate Host
+          Next: Start Installation
         </Button>
       </div>
     </div>

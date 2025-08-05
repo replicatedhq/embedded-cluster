@@ -35,8 +35,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
         { id: 'configuration', name: 'Configuration', icon: Server },
         { id: 'linux-setup', name: 'Setup', icon: Settings },
-        { id: 'linux-validation', name: 'Validation', icon: Shield },
-        { id: 'linux-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
+        { id: 'linux-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download }, // todo (screspod): update this with new installation step
         { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
       ];
     }

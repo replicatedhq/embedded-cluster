@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, waitFor, within, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxInstallationStep from "../installation/LinuxInstallationStep.tsx";
+import LinuxInfraInstallation from "../installation/steps/LinuxInfraInstallation.tsx";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 
@@ -19,7 +19,7 @@ const server = setupServer(
   })
 );
 
-describe("LinuxInstallationStep", () => {
+describe("LinuxInfraInstallation", () => {
   beforeAll(() => {
     server.listen();
   });
@@ -35,7 +35,7 @@ describe("LinuxInstallationStep", () => {
 
   it("shows initial installation UI", async () => {
     const mockOnNext = vi.fn();
-    renderWithProviders(<LinuxInstallationStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxInfraInstallation onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
       },
@@ -85,7 +85,7 @@ describe("LinuxInstallationStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxInstallationStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxInfraInstallation onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
       },
@@ -127,7 +127,7 @@ describe("LinuxInstallationStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxInstallationStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxInfraInstallation onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
       },
@@ -172,7 +172,7 @@ describe("LinuxInstallationStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxInstallationStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxInfraInstallation onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
       },
@@ -216,7 +216,7 @@ describe("LinuxInstallationStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxInstallationStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxInfraInstallation onNext={mockOnNext} />, {
       wrapperProps: {
         authenticated: true,
       },

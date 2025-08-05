@@ -1,6 +1,6 @@
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxPreflightCheck from "../validation/LinuxPreflightCheck.tsx";
+import LinuxHostPreflightCheck from "../installation/steps/LinuxHostPreflightCheck.tsx";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
