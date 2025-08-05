@@ -11,6 +11,7 @@ COPY common.mk common.mk
 COPY operator/ operator/
 COPY pkg/ pkg/
 COPY pkg-new/ pkg-new/
+COPY cmd/ cmd/
 COPY api/ api/
 COPY kinds/ kinds/
 COPY utils/ utils/
