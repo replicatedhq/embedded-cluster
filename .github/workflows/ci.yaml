@@ -350,6 +350,7 @@ jobs:
       - should-run-e2e
     if: needs.should-run-e2e.outputs.run == 'true'
     strategy:
+      fail-fast: false
       matrix:
         k0s_major_minor: ['current', '1.30', '1.29']
         type: ['install', 'upgrade']

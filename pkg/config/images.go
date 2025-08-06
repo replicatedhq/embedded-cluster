@@ -5,24 +5,56 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v2"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"gopkg.in/yaml.v3"
 )
 
 var (
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
 	Metadata release.K0sMetadata
+
+	//go:embed static/metadata-1_31.yaml
+	rawmetadata1_31 []byte
+	//go:embed static/metadata-1_30.yaml
+	rawmetadata1_30 []byte
+	//go:embed static/metadata-1_29.yaml
+	rawmetadata1_29 []byte
+
+	metadata1_31 release.K0sMetadata
+	metadata1_30 release.K0sMetadata
+	metadata1_29 release.K0sMetadata
 )
 
 func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
+	if err := yaml.Unmarshal(rawmetadata1_31, &metadata1_31); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata1_31: %v", err))
+	}
+	if err := yaml.Unmarshal(rawmetadata1_30, &metadata1_30); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata1_30: %v", err))
+	}
+	if err := yaml.Unmarshal(rawmetadata1_29, &metadata1_29); err != nil {
+		panic(fmt.Sprintf("unable to unmarshal metadata1_29: %v", err))
+	}
+
+	sv, err := semver.NewVersion(versions.K0sVersion)
+	if err != nil {
+		panic(fmt.Sprintf("unable to parse k0s version %s: %v", versions.K0sVersion, err))
+	}
+
+	switch fmt.Sprintf("%d.%d", sv.Major(), sv.Minor()) {
+	case "1.31":
+		Metadata = metadata1_31
+	case "1.30":
+		Metadata = metadata1_30
+	case "1.29":
+		Metadata = metadata1_29
+	default:
+		panic(fmt.Sprintf("no metadata found for k0s version: %s", versions.K0sVersion))
 	}
 }
 

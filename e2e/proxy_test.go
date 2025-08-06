@@ -294,7 +294,6 @@ func TestProxiedCustomCIDR(t *testing.T) {
 	}
 
 	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
-	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
@@ -423,7 +422,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", os.Getenv("APP_UPGRADE_VERSION")); err != nil {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
