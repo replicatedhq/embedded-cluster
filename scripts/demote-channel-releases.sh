@@ -91,10 +91,16 @@ function process_channel_releases() {
 
         # Loop through each release
         while IFS= read -r release; do
-            local created_at timestamp release_time sequence version
+            local created_at timestamp release_time sequence version is_demoted
 
             version=$(echo "$release" | jq -r '.semver // "N/A"')
             created_at=$(echo "$release" | jq -r '.created // empty')
+            is_demoted=$(echo "$release" | jq -r '.isDemoted // false')
+
+            # Skip if release is already demoted
+            if [[ "$is_demoted" == "true" ]]; then
+                continue
+            fi
 
             # Skip if createdAt is null
             if [[ -z "$created_at" ]]; then
