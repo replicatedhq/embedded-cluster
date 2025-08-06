@@ -1,0 +1,53 @@
+{{- if .Values.preflight.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nginx-app.fullname" . }}-preflight
+  labels:
+    {{- include "nginx-app.labels" . | nindent 4 }}
+data:
+  preflight.yaml: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: Preflight
+    metadata:
+      name: nginx-app-preflight
+    spec:
+      collectors:
+        - nodeResources: {}
+      analyzers:
+        - nodeResources:
+            checkName: Node status check
+            outcomes:
+              - fail:
+                  when: "nodeCondition(Ready) == False"
+                  message: "Not all nodes are online."
+              - fail:
+                  when: "nodeCondition(Ready) == Unknown"
+                  message: "Not all nodes are online."
+              - pass:
+                  message: "All nodes are online."
+        - nodeResources:
+            checkName: "CPU Resources Check"
+            outcomes:
+              - fail:
+                  when: "sum(cpuCapacity) < 1"
+                  message: "Insufficient CPU resources - nginx-app requires at least 1 CPU core total"
+              - warn:
+                  when: "sum(cpuCapacity) < 2"
+                  message: "Limited CPU resources detected - consider adding more CPU capacity"
+              - pass:
+                  when: "sum(cpuCapacity) >= 2"
+                  message: "CPU resources are sufficient for nginx-app"
+        - nodeResources:
+            checkName: "Memory Resources Check"
+            outcomes:
+              - fail:
+                  when: "sum(memoryCapacity) < 1Gi"
+                  message: "Insufficient memory - nginx-app requires at least 1GB RAM total"
+              - warn:
+                  when: "sum(memoryCapacity) < 2Gi"
+                  message: "Limited memory detected - consider adding more memory for optimal performance"
+              - pass:
+                  when: "sum(memoryCapacity) >= 2Gi"
+                  message: "Memory resources are sufficient for nginx-app"
+{{- end }}
