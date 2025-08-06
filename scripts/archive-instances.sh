@@ -73,6 +73,12 @@ function archive_instances() {
 
             instance_time=$(parse_date "$timestamp" +%s)
 
+            # Skip if parsing failed (returns -1)
+            if [[ "$instance_time" -eq -1 ]]; then
+                echo "Warning: Failed to parse timestamp $timestamp for instance $id: $last_checkin"
+                continue
+            fi
+
             # Check if instance hasn't checked in for more than 1 day
             if [[ "$instance_time" -lt "$ONE_DAY_AGO" ]]; then
                 # Extract fields from each instance
@@ -138,7 +144,7 @@ function parse_date() {
             fi
         else
             # Specific format - treat as UTC
-            date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$date_string" "$format" 2>/dev/null || echo "0"
+            date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$date_string" "$format" 2>/dev/null || echo "-1"
         fi
     else
         # Linux syntax
@@ -147,7 +153,7 @@ function parse_date() {
             date -d "$date_string" 2>/dev/null || echo "$date_string"
         else
             # Specific format
-            date -d "$date_string" "$format" 2>/dev/null || echo "0"
+            date -d "$date_string" "$format" 2>/dev/null || echo "-1"
         fi
     fi
 }

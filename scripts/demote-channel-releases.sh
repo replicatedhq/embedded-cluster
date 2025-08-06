@@ -114,6 +114,12 @@ function process_channel_releases() {
 
             release_time=$(parse_date "$timestamp" +%s)
 
+            # Skip if parsing failed (returns -1)
+            if [[ "$release_time" -eq -1 ]]; then
+                echo "  Warning: Failed to parse timestamp $timestamp for release $version: $created_at"
+                continue
+            fi
+
             # Check if release is older than 7 days
             if [[ "$release_time" -lt "$SEVEN_DAYS_AGO" ]]; then
                 # Extract fields from each release
@@ -178,7 +184,7 @@ function parse_date() {
             fi
         else
             # Specific format - treat as UTC
-            date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$date_string" "$format" 2>/dev/null || echo "0"
+            date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$date_string" "$format" 2>/dev/null || echo "-1"
         fi
     else
         # Linux syntax
@@ -187,7 +193,7 @@ function parse_date() {
             date -d "$date_string" 2>/dev/null || echo "$date_string"
         else
             # Specific format
-            date -d "$date_string" "$format" 2>/dev/null || echo "0"
+            date -d "$date_string" "$format" 2>/dev/null || echo "-1"
         fi
     fi
 }
