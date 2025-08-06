@@ -2,6 +2,8 @@ package store
 
 import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
+	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
+	apppreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
@@ -29,6 +31,12 @@ type Store interface {
 
 	// AppConfigStore provides access to app config operations
 	AppConfigStore() appconfig.Store
+
+	// AppPreflightStore provides access to app preflight operations
+	AppPreflightStore() apppreflight.Store
+
+	// AppInstallStore provides access to app installation operations
+	AppInstallStore() appinstall.Store
 }
 
 // StoreOption is a function that configures a store
@@ -69,6 +77,20 @@ func WithAppConfigStore(store appconfig.Store) StoreOption {
 	}
 }
 
+// WithAppPreflightStore sets the app preflight store
+func WithAppPreflightStore(store apppreflight.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.appPreflightStore = store
+	}
+}
+
+// WithAppInstallStore sets the app install store
+func WithAppInstallStore(store appinstall.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.appInstallStore = store
+	}
+}
+
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
@@ -78,7 +100,9 @@ type memoryStore struct {
 	kubernetesInstallationStore kubernetesinstallation.Store
 	kubernetesInfraStore        infra.Store
 
-	appConfigStore appconfig.Store
+	appConfigStore    appconfig.Store
+	appPreflightStore apppreflight.Store
+	appInstallStore   appinstall.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -113,6 +137,14 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.appConfigStore = appconfig.NewMemoryStore()
 	}
 
+	if s.appPreflightStore == nil {
+		s.appPreflightStore = apppreflight.NewMemoryStore()
+	}
+
+	if s.appInstallStore == nil {
+		s.appInstallStore = appinstall.NewMemoryStore()
+	}
+
 	return s
 }
 
@@ -138,4 +170,12 @@ func (s *memoryStore) KubernetesInfraStore() infra.Store {
 
 func (s *memoryStore) AppConfigStore() appconfig.Store {
 	return s.appConfigStore
+}
+
+func (s *memoryStore) AppPreflightStore() apppreflight.Store {
+	return s.appPreflightStore
+}
+
+func (s *memoryStore) AppInstallStore() appinstall.Store {
+	return s.appInstallStore
 }

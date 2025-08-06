@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 )
 
@@ -67,6 +68,8 @@ func Test_lessThanECVersion115(t *testing.T) {
 }
 
 func TestEnsureInstallationCRD(t *testing.T) {
+	ctrllog.SetLogger(testr.New(t))
+
 	// Setup the test scheme
 	s := runtime.NewScheme()
 	require.NoError(t, apiextensionsv1.AddToScheme(s))
@@ -187,6 +190,8 @@ func TestEnsureInstallationCRD(t *testing.T) {
 }
 
 func TestRecordInstallation(t *testing.T) {
+	ctrllog.SetLogger(testr.New(t))
+
 	// Setup the test scheme
 	s := runtime.NewScheme()
 	require.NoError(t, apiextensionsv1.AddToScheme(s))

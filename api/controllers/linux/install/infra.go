@@ -62,8 +62,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			} else {
-				// TODO: change to StateInfrastructureInstallSucceeded once app installation is decoupled from infra installation
-				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallSucceeded); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
 			}

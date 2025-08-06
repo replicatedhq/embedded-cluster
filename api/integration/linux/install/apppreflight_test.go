@@ -219,7 +219,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithAppPreflightManager(appPreflightManager),
 			appinstall.WithAppReleaseManager(mockAppReleaseManager),
 			appinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(states.StateSucceeded), // App preflights can run from StateSucceeded
+				linuxinstall.WithCurrentState(states.StateInfrastructureInstallSucceeded), // App preflights can run from InfrastructureInstallSucceeded
 			)),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -229,7 +229,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create Linux install controller with runtime config
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(states.StateSucceeded),
+				linuxinstall.WithCurrentState(states.StateInfrastructureInstallSucceeded),
 			)),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(&release.ReleaseData{

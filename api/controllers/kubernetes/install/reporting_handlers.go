@@ -11,7 +11,6 @@ import (
 )
 
 func (c *InstallController) registerReportingHandlers() {
-	c.stateMachine.RegisterEventHandler(states.StateHostConfigurationFailed, c.reportInfrastructureInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateInstallationConfigurationFailed, c.reportInfrastructureInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallFailed, c.reportInfrastructureInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallSucceeded, c.reportInfraInstallSucceeded)
@@ -20,9 +19,6 @@ func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(states.StateSucceeded, c.reportAppInstallSucceeded)
 
 	// report preflight failures and bypassed
-	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailed, c.reportHostPreflightsFailed)
-	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailedBypassed, c.reportHostPreflightsBypassed)
-	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsSucceeded, c.reportHostPreflightsSucceeded)
 	c.stateMachine.RegisterEventHandler(states.StateAppPreflightsFailed, c.reportAppPreflightsFailed)
 	c.stateMachine.RegisterEventHandler(states.StateAppPreflightsFailedBypassed, c.reportAppPreflightsBypassed)
 	c.stateMachine.RegisterEventHandler(states.StateAppPreflightsSucceeded, c.reportAppPreflightsSucceeded)
@@ -38,13 +34,13 @@ func (c *InstallController) reportInfrastructureInstallFailed(ctx context.Contex
 	var err error
 
 	switch toState {
-	case states.StateInstallationConfigurationFailed, states.StateHostConfigurationFailed:
-		status, err = c.store.LinuxInstallationStore().GetStatus()
+	case states.StateInstallationConfigurationFailed:
+		status, err = c.store.KubernetesInstallationStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("get status from installation store: %w", err)
 		}
 	case states.StateInfrastructureInstallFailed:
-		status, err = c.store.LinuxInfraStore().GetStatus()
+		status, err = c.store.KubernetesInfraStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("get status from infra store: %w", err)
 		}
@@ -71,31 +67,6 @@ func (c *InstallController) reportAppInstallFailed(ctx context.Context, _, _ sta
 	}
 	c.logger.Debug("reporting metrics event app install failed")
 	c.metricsReporter.ReportAppInstallationFailed(ctx, errors.New(status.Description))
-}
-
-func (c *InstallController) reportHostPreflightsFailed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.LinuxPreflightStore().GetOutput()
-	if err != nil {
-		c.logger.WithError(fmt.Errorf("get output from linux preflight store: %w", err)).Error("failed to report host preflights failed")
-		return
-	}
-	c.logger.Debug("reporting metrics event host preflights failed")
-	c.metricsReporter.ReportHostPreflightsFailed(ctx, output)
-}
-
-func (c *InstallController) reportHostPreflightsBypassed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.LinuxPreflightStore().GetOutput()
-	if err != nil {
-		c.logger.WithError(fmt.Errorf("get output from linux preflight store: %w", err)).Error("failed to report host preflights bypassed")
-		return
-	}
-	c.logger.Debug("reporting metrics event host preflights bypassed")
-	c.metricsReporter.ReportHostPreflightsBypassed(ctx, output)
-}
-
-func (c *InstallController) reportHostPreflightsSucceeded(ctx context.Context, _, _ statemachine.State) {
-	c.logger.Debug("reporting metrics event host preflights succeeded")
-	c.metricsReporter.ReportHostPreflightsSucceeded(ctx)
 }
 
 func (c *InstallController) reportAppPreflightsFailed(ctx context.Context, _, _ statemachine.State) {

@@ -219,7 +219,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithAppPreflightManager(appPreflightManager),
 			appinstall.WithAppReleaseManager(mockAppReleaseManager),
 			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine(
-				kubernetesinstall.WithCurrentState(states.StateSucceeded), // App preflights can run from StateSucceeded
+				kubernetesinstall.WithCurrentState(states.StateInfrastructureInstallSucceeded), // App preflights can run from InfrastructureInstallSucceeded
 			)),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -229,7 +229,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(
-				kubernetesinstall.WithCurrentState(states.StateSucceeded),
+				kubernetesinstall.WithCurrentState(states.StateInfrastructureInstallSucceeded),
 			)),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),

@@ -185,7 +185,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -263,7 +263,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -289,7 +289,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsExecutionFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -308,7 +308,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -327,7 +327,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -353,8 +353,8 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
-			expectedState: states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
+			expectedState: states.StateInfrastructureInstallSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
@@ -368,7 +368,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			opts: RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
-			currentState:  states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
 			expectedState: states.StateAppPreflightsExecutionFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
@@ -509,8 +509,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
-			currentState:  states.StateSucceeded,
-			expectedState: states.StateSucceeded,
+			currentState:  states.StateInfrastructureInstallSucceeded,
+			expectedState: states.StateInfrastructureInstallSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
 				// No mocks needed for invalid state transition
 			},

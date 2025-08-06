@@ -3,11 +3,9 @@ package metrics
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
@@ -16,8 +14,10 @@ import (
 
 func TestSend(t *testing.T) {
 	for _, tt := range []struct {
-		name  string
-		event types.Event
+		name          string
+		event         types.Event
+		wantURLPath   string
+		wantEventType string
 	}{
 		{
 			name: "InstallationStarted",
@@ -28,11 +28,14 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
+					EventType:    "InstallationStarted",
 				},
 				BinaryName: "bar",
-				Type:       "baz",
+				LegacyType: "baz",
 				LicenseID:  "qux",
 			},
+			wantURLPath:   "/embedded_cluster_metrics/InstallationStarted",
+			wantEventType: "InstallationStarted",
 		},
 		{
 			name: "InstallationSucceeded",
@@ -43,8 +46,11 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
+					EventType:    "InstallationSucceeded",
 				},
 			},
+			wantURLPath:   "/embedded_cluster_metrics/GenericEvent",
+			wantEventType: "InstallationSucceeded",
 		},
 		{
 			name: "InstallationFailed",
@@ -56,8 +62,11 @@ func TestSend(t *testing.T) {
 					EntryCommand: "install",
 					Flags:        "--foo --bar --baz",
 					Reason:       "foo",
+					EventType:    "InstallationFailed",
 				},
 			},
+			wantURLPath:   "/embedded_cluster_metrics/GenericEvent",
+			wantEventType: "InstallationFailed",
 		},
 		{
 			name: "JoinStarted",
@@ -68,9 +77,12 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
+					EventType:    "JoinStarted",
 				},
 				NodeName: "foo",
 			},
+			wantURLPath:   "/embedded_cluster_metrics/JoinStarted",
+			wantEventType: "JoinStarted",
 		},
 		{
 			name: "JoinSucceeded",
@@ -81,9 +93,12 @@ func TestSend(t *testing.T) {
 					Version:      "1.2.3",
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
+					EventType:    "JoinSucceeded",
 				},
 				NodeName: "foo",
 			},
+			wantURLPath:   "/embedded_cluster_metrics/JoinSucceeded",
+			wantEventType: "JoinSucceeded",
 		},
 		{
 			name: "JoinFailed",
@@ -95,9 +110,12 @@ func TestSend(t *testing.T) {
 					EntryCommand: "join",
 					Flags:        "--foo --bar --baz",
 					Reason:       "bar",
+					EventType:    "JoinFailed",
 				},
 				NodeName: "foo",
 			},
+			wantURLPath:   "/embedded_cluster_metrics/JoinFailed",
+			wantEventType: "JoinFailed",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -107,9 +125,7 @@ func TestSend(t *testing.T) {
 			server := httptest.NewServer(
 				http.HandlerFunc(
 					func(rw http.ResponseWriter, req *http.Request) {
-						evname := reflect.TypeOf(tt.event).Name()
-						path := fmt.Sprintf("/embedded_cluster_metrics/%s", evname)
-						assert.Equal(t, req.URL.Path, path)
+						assert.Equal(t, tt.wantURLPath, req.URL.Path)
 						assert.Equal(t, "POST", req.Method)
 						received, err := io.ReadAll(req.Body)
 						assert.NoError(t, err)
@@ -118,6 +134,7 @@ func TestSend(t *testing.T) {
 						err = json.Unmarshal(received, &decoded)
 						assert.NoError(t, err)
 						assert.Contains(t, decoded, "event")
+						assert.Equal(t, tt.wantEventType, decoded["event"].(map[string]interface{})["eventType"])
 						rw.Write([]byte(`OK`))
 					},
 				),
