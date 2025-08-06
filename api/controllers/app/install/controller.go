@@ -181,6 +181,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithReleaseData(controller.releaseData),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
+			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)

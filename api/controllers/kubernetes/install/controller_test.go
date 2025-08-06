@@ -296,7 +296,7 @@ func TestSetupInfra(t *testing.T) {
 		{
 			name:          "successful setup",
 			currentState:  states.StateInstallationConfigured,
-			expectedState: states.StateSucceeded,
+			expectedState: states.StateInfrastructureInstalled,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, ki).Return(nil),
