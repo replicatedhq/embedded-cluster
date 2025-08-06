@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
+// TODO NOW: fix these
 func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(states.StateSucceeded, c.reportInstallSucceeded)
 	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallFailed, c.reportInstallFailed)
