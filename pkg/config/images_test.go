@@ -41,7 +41,7 @@ func TestListK0sImages(t *testing.T) {
 	}
 
 	// make sure the list includes all images from the metadata
-	for _, i := range Metadata.Images {
+	for _, i := range _metadata1_31.Images {
 		found := false
 		for _, f := range filtered {
 			if f == i.String() {

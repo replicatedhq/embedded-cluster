@@ -56,26 +56,6 @@ func (c *Container) GetECBinaryPath() string {
 	return "/usr/local/bin/embedded-cluster"
 }
 
-func (c *Container) WithECReleaseBuilder(path string) *Container {
-	path, err := filepath.Abs(path)
-	if err != nil {
-		c.t.Fatalf("failed to get absolute path to embedded-cluster release builder: %v", err)
-	}
-	_, err = os.Stat(path)
-	if err != nil {
-		c.t.Fatalf("failed to find embedded-cluster release builder: %v", err)
-	}
-	err = os.Chmod(path, 0755)
-	if err != nil {
-		c.t.Fatalf("failed to chmod embedded-cluster binary: %v", err)
-	}
-	return c.WithVolume(fmt.Sprintf("%s:%s", path, c.GetECReleaseBuilderPath()))
-}
-
-func (c *Container) GetECReleaseBuilderPath() string {
-	return "/usr/local/bin/embedded-cluster-release-builder"
-}
-
 func (c *Container) WithLicense(path string) *Container {
 	path, err := filepath.Abs(path)
 	if err != nil {

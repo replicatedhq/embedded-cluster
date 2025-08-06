@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,12 +15,17 @@ import (
 
 func TestVersion(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{
+		"EC_BINARY_PATH",
+	})
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		CreateRegularUser:   true,
-		Image:               "debian/12",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:                 t,
+		Nodes:             1,
+		CreateRegularUser: true,
+		Image:             "debian/12",
+		ECBinaryPath:      os.Getenv("EC_BINARY_PATH"),
 		AdditionalFiles: []lxd.File{
 			{
 				SourcePath: "../output/bin/embedded-cluster-original",
@@ -29,12 +35,14 @@ func TestVersion(t *testing.T) {
 		},
 	})
 	defer tc.Cleanup()
+
 	t.Logf("%s: validating 'embedded-cluster version' in node 0", time.Now().Format(time.RFC3339))
 	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, line)
 	if err != nil {
 		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
 	}
+
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)
 	expected := []string{"Installer", "Kubernetes", "OpenEBS", "AdminConsole", "EmbeddedClusterOperator", "ingress-nginx", "embedded-cluster"}

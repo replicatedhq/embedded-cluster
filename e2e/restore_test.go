@@ -17,18 +17,28 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	tc := docker.NewCluster(&docker.ClusterInput{
@@ -36,17 +46,22 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/snapshot-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
-	installSingleNode(t, tc)
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: os.Getenv("APP_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
@@ -69,7 +84,10 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -85,7 +103,7 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
@@ -93,7 +111,10 @@ func TestSingleNodeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeState(t, tc)
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -102,6 +123,8 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"K0S_INSTALL_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
@@ -111,9 +134,13 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	tc := docker.NewCluster(&docker.ClusterInput{
@@ -123,14 +150,14 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
-
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version:   appVersion,
+		version:   os.Getenv("APP_INSTALL_VERSION"),
 		licenseID: SnapshotLicenseID,
 	})
 
-	installSingleNode(t, tc)
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: os.Getenv("APP_INSTALL_VERSION"),
+	})
 
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -140,7 +167,8 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
-		version: appVersion,
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
 	})
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
@@ -165,7 +193,8 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	}
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
-		version: appVersion,
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
 	})
 
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
@@ -187,27 +216,34 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	}
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"K0S_INSTALL_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "debian/12",
-		WithProxy:           true,
-		LicensePath:         "licenses/snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:            t,
+		Nodes:        1,
+		Image:        "debian/12",
+		WithProxy:    true,
+		LicensePath:  "licenses/snapshot-license.yaml",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
@@ -231,6 +267,7 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 	})
 
 	installSingleNodeWithOptions(t, tc, installOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
 		httpProxy:  lxd.HTTPProxy,
 		httpsProxy: lxd.HTTPProxy,
 		noProxy:    strings.Join(tc.IPs, ","),
@@ -241,7 +278,10 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
@@ -261,7 +301,10 @@ func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v", err)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -284,18 +327,25 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"K0S_INSTALL_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	tc := docker.NewCluster(&docker.ClusterInput{
@@ -303,17 +353,22 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		Nodes:        1,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/snapshot-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
-	installSingleNode(t, tc)
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: os.Getenv("APP_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
@@ -330,7 +385,10 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to restore the installation: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkInstallationState(t, tc)
+	checkInstallationStateWithOptions(t, tc, installationStateOptions{
+		version:    os.Getenv("APP_INSTALL_VERSION"),
+		k8sVersion: os.Getenv("K0S_INSTALL_VERSION"),
+	})
 
 	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
 	line = []string{"check-post-restore.sh"}
@@ -352,7 +410,13 @@ func TestSingleNodeResumeDisasterRecovery(t *testing.T) {
 func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA"})
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
+	})
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
@@ -370,14 +434,12 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
-	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
+			return downloadAirgapBundleOnNode(t, tc, 0, os.Getenv("APP_INSTALL_VERSION"), AirgapInstallBundlePath, AirgapSnapshotLicenseID)
 		},
 		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+			return downloadAirgapBundleOnNode(t, tc, 0, os.Getenv("APP_UPGRADE_VERSION"), AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
@@ -400,6 +462,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap:    true,
+		version:     os.Getenv("APP_INSTALL_VERSION"),
 		podCidr:     "10.128.0.0/20",
 		serviceCidr: "10.129.0.0/20",
 	})
@@ -423,7 +486,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -454,7 +517,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -479,7 +542,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
@@ -487,7 +550,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeState(t, tc)
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -496,18 +562,28 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	requiredEnvVars := []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
 		"DR_S3_ENDPOINT",
 		"DR_S3_REGION",
 		"DR_S3_BUCKET",
 		"DR_S3_PREFIX",
 		"DR_ACCESS_KEY_ID",
 		"DR_SECRET_ACCESS_KEY",
+		"EC_BINARY_PATH",
 	}
 	RequireEnvVars(t, requiredEnvVars)
 
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
+	testArgs := []string{
+		os.Getenv("DR_S3_ENDPOINT"),
+		os.Getenv("DR_S3_REGION"),
+		os.Getenv("DR_S3_BUCKET"),
+		os.Getenv("DR_S3_PREFIX"),
+		os.Getenv("DR_ACCESS_KEY_ID"),
+		os.Getenv("DR_SECRET_ACCESS_KEY"),
 	}
 
 	tc := docker.NewCluster(&docker.ClusterInput{
@@ -515,11 +591,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		Nodes:        3,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/snapshot-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
+		ECBinaryPath: os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
 
-	installSingleNode(t, tc)
+	installSingleNodeWithOptions(t, tc, installOptions{
+		version: os.Getenv("APP_INSTALL_VERSION"),
+	})
 
 	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
@@ -535,7 +613,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	waitForNodes(t, tc, 3, nil)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line := []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line := []string{"check-post-ha-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -595,7 +673,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
+	line = []string{"check-post-ha-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION"), "true"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -614,7 +692,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
 	testArgs = []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
@@ -622,7 +700,10 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	checkPostUpgradeState(t, tc)
+	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -630,7 +711,13 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"SHORT_SHA"})
+	RequireEnvVars(t, []string{
+		"APP_INSTALL_VERSION",
+		"APP_UPGRADE_VERSION",
+		"K0S_INSTALL_VERSION",
+		"K0S_UPGRADE_VERSION",
+		"EC_UPGRADE_VERSION",
+	})
 
 	// Use an alternate data directory
 	withEnv := map[string]string{
@@ -653,14 +740,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
-	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
+			return downloadAirgapBundleOnNode(t, tc, 0, os.Getenv("APP_INSTALL_VERSION"), AirgapInstallBundlePath, AirgapSnapshotLicenseID)
 		},
 		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+			return downloadAirgapBundleOnNode(t, tc, 0, os.Getenv("APP_UPGRADE_VERSION"), AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
 		},
 	)
 
@@ -688,6 +773,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap: true,
+		version:  os.Getenv("APP_INSTALL_VERSION"),
 		dataDir:  "/var/lib/ec",
 		withEnv:  withEnv,
 	})
@@ -714,7 +800,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	waitForNodes(t, tc, 3, withEnv)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION")}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -824,7 +910,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
+	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("APP_INSTALL_VERSION"), os.Getenv("K0S_INSTALL_VERSION"), "true"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -849,7 +935,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	appUpgradeVersion := os.Getenv("APP_UPGRADE_VERSION")
 	testArgs := []string{appUpgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
@@ -858,7 +944,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: withEnv,
+		ecVersion:  os.Getenv("EC_UPGRADE_VERSION"),
+		k8sVersion: os.Getenv("K0S_UPGRADE_VERSION"),
+		withEnv:    withEnv,
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

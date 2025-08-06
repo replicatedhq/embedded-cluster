@@ -56,22 +56,21 @@ func (n *NoopCloser) Close() error {
 // ClusterInput are the options passed in to the cluster creation plus some data
 // for internal consumption only.
 type ClusterInput struct {
-	Nodes                             int
-	CreateRegularUser                 bool
-	LicensePath                       string
-	EmbeddedClusterPath               string
-	EmbeddedClusterReleaseBuilderPath string // used to replace the release in the binary
-	AirgapInstallBundlePath           string
-	AirgapUpgradeBundlePath           string
-	AirgapUpgrade2BundlePath          string
-	Image                             string
-	network                           string
-	T                                 *testing.T
-	WithProxy                         bool
-	id                                string
-	AdditionalFiles                   []File
-	SupportBundleNodeIndex            int
-	LowercaseNodeNames                bool
+	Nodes                    int
+	CreateRegularUser        bool
+	LicensePath              string
+	ECBinaryPath             string
+	AirgapInstallBundlePath  string
+	AirgapUpgradeBundlePath  string
+	AirgapUpgrade2BundlePath string
+	Image                    string
+	network                  string
+	T                        *testing.T
+	WithProxy                bool
+	id                       string
+	AdditionalFiles          []File
+	SupportBundleNodeIndex   int
+	LowercaseNodeNames       bool
 }
 
 // File holds information about a file that must be uploaded to a node.
@@ -476,13 +475,8 @@ func CopyFilesToNode(in *ClusterInput, node string) {
 			Mode:       0644,
 		},
 		{
-			SourcePath: in.EmbeddedClusterPath,
+			SourcePath: in.ECBinaryPath,
 			DestPath:   "/usr/local/bin/embedded-cluster",
-			Mode:       0755,
-		},
-		{
-			SourcePath: in.EmbeddedClusterReleaseBuilderPath,
-			DestPath:   "/usr/local/bin/embedded-cluster-release-builder",
 			Mode:       0755,
 		},
 		{

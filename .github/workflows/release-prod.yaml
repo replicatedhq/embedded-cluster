@@ -12,12 +12,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag-name: ${{ steps.get-tag.outputs.tag-name }}
-      k0s_version: ${{ steps.export.outputs.k0s_version }}
+      k0s_version: ${{ steps.export-k0s-version.outputs.k0s_version }}
+      k0s_major_minor: ${{ steps.export-k0s-major-minor.outputs.k0s_major_minor }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Export k0s major.minor version
+        id: export-k0s-major-minor
+        run: |
+          K0S_MAJOR_MINOR=$(echo "${{ github.ref_name }}" | sed -E 's/.*k8s-([0-9]+\.[0-9]+).*/\1/')
+          echo "K0S_MAJOR_MINOR=\"$K0S_MAJOR_MINOR\""
+          echo "k0s_major_minor=$K0S_MAJOR_MINOR" >> "$GITHUB_OUTPUT"
+
+      # TODO NOW: don't do this for latest k0s version?
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ steps.export-k0s-major-minor.outputs.k0s_major_minor }}
 
       - name: Extract tag name
         id: get-tag
@@ -30,7 +43,7 @@ jobs:
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
 
       - name: Export k0s version
-        id: export
+        id: export-k0s-version
         run: |
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
@@ -67,6 +80,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
+
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -92,6 +109,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
+
       - name: Build and push operator chart
         id: operator-chart
         env:
@@ -111,6 +132,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
 
       - name: Install dagger
         run: |
@@ -134,6 +159,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -238,6 +267,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
+
       - name: Export k0s version
         id: export
         env:
@@ -276,6 +310,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Apply git patches
+        run: |
+          ./scripts/apply-k0s-patches.sh ${{ needs.get-tag.outputs.k0s_major_minor }}
+
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -292,26 +330,10 @@ jobs:
           APP_CHANNEL: CI
           USES_DEV_BUCKET: "0"
         run: |
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${{ github.ref_name }}-pre-minio-removal"
-          replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          
-          # re-promote a release containing an old version of embedded-cluster to test upgrades
-          export APP_VERSION="appver-${{ github.ref_name }}-1.8.0-k8s-1.28"
-          replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          replicated release promote 11615 2eAqMYG1IEtX8cwpaO1kgNV6EB3 --version "${APP_VERSION}"
-
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${{ github.ref_name }}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
-          ./scripts/ci-release-app.sh
-
-          # install the previous k0s version to ensure an upgrade occurs
-          # we do not actually run k0s upgrade tests on prerelease at present (as we don't build a previous k0s binary)
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-previous-k0s"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # install the current k0s version	
@@ -364,12 +386,6 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
 
-          # promote a release with the current k0s version, but call it the previous version to test noop upgrades
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-previous-k0s"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
           # promote a release with the current k0s version
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}"
@@ -402,42 +418,13 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-  embedded-cluster-release-builder:
-    name: Build embedded-cluster-release-builder
-    runs-on: ubuntu-latest
-    needs:
-      - get-tag
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Compile embedded-cluster-release-builder
-        run: |
-          make output/bin/embedded-cluster-release-builder
-      - name: Upload embedded-cluster-release-builder artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: embedded-cluster-release-builder
-          path: |
-            output/bin/embedded-cluster-release-builder
-
   download-current:
     name: Download the current release binary
     runs-on: ubuntu-latest
     needs:
       - release-app
       - get-tag
-      - embedded-cluster-release-builder
     steps:
-      - name: Download embedded-cluster-release-builder
-        uses: actions/download-artifact@v4
-        with:
-          name: embedded-cluster-release-builder
-          path: output/bin
       - name: Download current binary
         env:
           # staging ci license id
@@ -462,7 +449,6 @@ jobs:
           path: |
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-release-builder
 
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
@@ -474,6 +460,15 @@ jobs:
       - get-tag
       - download-current
       - find-previous-stable
+    env:
+      # default environment variables
+      APP_INSTALL_VERSION: appver-${{ github.ref_name }}
+      APP_NOOP_VERSION: appver-${{ github.ref_name }}-noop
+      APP_UPGRADE_VERSION: appver-${{ github.ref_name }}-upgrade
+      K0S_INSTALL_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      K0S_NOOP_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      K0S_UPGRADE_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      EC_UPGRADE_VERSION: ${{ github.ref_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -481,14 +476,12 @@ jobs:
           - TestPreflights
           - TestPreflightsNoexec
           - TestMaterialize
-          - TestHostPreflightCustomSpec
           - TestHostPreflightInBuiltSpec
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
-          - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedApp
           - TestResetAndReinstall
@@ -506,6 +499,18 @@ jobs:
           - TestUnsupportedOverrides
           - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
+        include:
+          - test: TestHostPreflightCustomSpec
+            env:
+              APP_FAILING_PREFLIGHTS_VERSION: appver-${{ github.ref_name }}-failing-preflights
+              APP_WARNING_PREFLIGHTS_VERSION: appver-${{ github.ref_name }}-warning-preflights
+          - test: TestSingleNodeUpgradePreviousStable
+            env:
+              APP_INSTALL_VERSION: appver-${{ github.ref_name }}-previous-stable
+              K0S_INSTALL_VERSION: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          - test: TestUnsupportedOverrides
+            env:
+              APP_INSTALL_VERSION: appver-${{ github.ref_name }}-unsupported-overrides
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -533,20 +538,23 @@ jobs:
           sudo modprobe br_netfilter
           sudo modprobe nf_conntrack
       - name: Run test
-        env:
-          SHORT_SHA: ${{ github.ref_name }}
-          DR_S3_ENDPOINT: https://s3.amazonaws.com
-          DR_S3_REGION: us-east-1
-          DR_S3_BUCKET: kots-testim-snapshots
-          DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
-          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
-          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
-          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          EXPECT_K0S_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
-          EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.get-tag.outputs.k0s_version }}
-          EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
-          EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION: ${{ github.ref_name }}
         run: |
+          export APP_FAILING_PREFLIGHTS_VERSION=${{ matrix.env.APP_FAILING_PREFLIGHTS_VERSION }}
+          export APP_WARNING_PREFLIGHTS_VERSION=${{ matrix.env.APP_WARNING_PREFLIGHTS_VERSION }}
+          export APP_INSTALL_VERSION=${{ matrix.env.APP_INSTALL_VERSION || env.APP_INSTALL_VERSION }}
+          export APP_NOOP_VERSION=${{ matrix.env.APP_NOOP_VERSION || env.APP_NOOP_VERSION }}
+          export APP_UPGRADE_VERSION=${{ matrix.env.APP_UPGRADE_VERSION || env.APP_UPGRADE_VERSION }}
+          export K0S_INSTALL_VERSION=${{ matrix.env.K0S_INSTALL_VERSION || env.K0S_INSTALL_VERSION }}
+          export K0S_NOOP_VERSION=${{ matrix.env.K0S_NOOP_VERSION || env.K0S_NOOP_VERSION }}
+          export K0S_UPGRADE_VERSION=${{ matrix.env.K0S_UPGRADE_VERSION || env.K0S_UPGRADE_VERSION }}
+          export EC_UPGRADE_VERSION=${{ env.EC_UPGRADE_VERSION }}
+          export EC_BINARY_PATH="../output/bin/embedded-cluster"
+          export DR_S3_ENDPOINT=https://s3.amazonaws.com
+          export DR_S3_REGION=us-east-1
+          export DR_S3_BUCKET=kots-testim-snapshots
+          export DR_S3_PREFIX=${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
+          export DR_ACCESS_KEY_ID=${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          export DR_SECRET_ACCESS_KEY=${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           make e2e-test TEST_NAME=${{ matrix.test }}
       - name: Troubleshoot
         if: ${{ !cancelled() }}
@@ -556,13 +564,22 @@ jobs:
 
   e2e:
     name: E2E
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ubuntu-22.04
     needs:
       - release
       - release-app
       - get-tag
       - download-current
       - find-previous-stable
+    env:
+      # default environment variables
+      APP_INSTALL_VERSION: appver-${{ github.ref_name }}
+      APP_NOOP_VERSION: appver-${{ github.ref_name }}-noop
+      APP_UPGRADE_VERSION: appver-${{ github.ref_name }}-upgrade
+      K0S_INSTALL_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      K0S_NOOP_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      K0S_UPGRADE_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+      EC_UPGRADE_VERSION: ${{ github.ref_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -574,11 +591,14 @@ jobs:
           - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
-          - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
+          - test: TestMultiNodeAirgapUpgradePreviousStable
+            env:
+              APP_INSTALL_VERSION: appver-${{ github.ref_name }}-previous-stable
+              K0S_INSTALL_VERSION: ${{ needs.find-previous-stable.outputs.k0s_version }}
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo

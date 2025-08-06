@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,15 +11,21 @@ import (
 
 func TestCommandsRequireSudo(t *testing.T) {
 	t.Parallel()
+
+	RequireEnvVars(t, []string{
+		"EC_BINARY_PATH",
+	})
+
 	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		CreateRegularUser:   true,
-		Image:               "debian/12",
-		LicensePath:         "licenses/license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
+		T:                 t,
+		Nodes:             1,
+		CreateRegularUser: true,
+		Image:             "debian/12",
+		LicensePath:       "licenses/license.yaml",
+		ECBinaryPath:      os.Getenv("EC_BINARY_PATH"),
 	})
 	defer tc.Cleanup()
+
 	t.Logf(`%s: running "embedded-cluster version" as regular user`, time.Now().Format(time.RFC3339))
 	command := []string{"embedded-cluster", "version"}
 	stdout, _, err := tc.RunRegularUserCommandOnNode(t, 0, command)
