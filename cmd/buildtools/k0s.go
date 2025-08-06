@@ -100,7 +100,12 @@ var updateK0sImagesCommand = &cli.Command{
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
-		metaImages, err := UpdateImages(c.Context, k0sImageComponents, config.Metadata.Images, k0sImages)
+		k0sVersion, err := getK0sVersion()
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
+
+		metaImages, err := UpdateImages(c.Context, k0sImageComponents, config.Metadata(k0sVersion.Original()).Images, k0sImages)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
 		}
