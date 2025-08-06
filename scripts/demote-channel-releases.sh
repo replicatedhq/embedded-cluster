@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-START_PAGE=${START_PAGE:-1}
+# Start on page 2, allow 100+ releases to stay promoted
+START_PAGE=${START_PAGE:-2}
 PAGE_SIZE=${PAGE_SIZE:-100}
 DRY_RUN=${DRY_RUN:-true}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-"https://api.staging.replicated.com"}
