@@ -89,6 +89,8 @@ function process_channel_releases() {
 
         echo "  Found $release_count releases on page $current_page for channel $channel_name"
 
+        local did_demote=false
+
         # Loop through each release
         while IFS= read -r release; do
             local created_at timestamp release_time sequence version is_demoted
@@ -131,11 +133,16 @@ function process_channel_releases() {
                 # Extract fields from each release
                 sequence=$(echo "$release" | jq -r '.channelSequence')
 
-                demote_release "$channel_id" "$channel_name" "$sequence" "$timestamp" "$version" "$app_id"
+                if demote_release "$channel_id" "$channel_name" "$sequence" "$timestamp" "$version" "$app_id"; then
+                    did_demote=true
+                fi
             fi
         done < <(echo "$response" | jq -c '.releases[]')
 
-        current_page=$((current_page + 1))
+        # only increment page if we didn't demote a release since we filter out releases that are already demoted
+        if [[ "$did_demote" != "true" ]]; then
+            current_page=$((current_page + 1))
+        fi
     done
 }
 
@@ -156,6 +163,7 @@ function demote_release() {
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "    ✓ DRY RUN"
+        return 0
     else
         local demote_response http_code response_body
 
@@ -166,8 +174,10 @@ function demote_release() {
 
         if [[ "$http_code" -eq 200 ]]; then
             echo "    ✓ Successfully demoted release $sequence in channel $channel_name"
+            return 0
         else
             echo "    ✗ Failed to demote release $sequence in channel $channel_name (HTTP $http_code): $response_body"
+            return 1
         fi
     fi
 }
@@ -183,10 +193,8 @@ function parse_date() {
             # Human readable format - treat as UTC and convert to local
             # First convert UTC to epoch, then epoch to local time
             epoch=$(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$date_string" +%s 2>/dev/null)
-            if [[ -n "$epoch" && "$epoch" != "0" ]]; then
+            if [[ -n "$epoch" ]]; then
                 date -r "$epoch" 2>/dev/null || echo "$date_string"
-            else
-                echo "$date_string"
             fi
         else
             # Specific format - treat as UTC

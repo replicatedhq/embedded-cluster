@@ -48,6 +48,8 @@ function archive_instances() {
 
         echo "Found $instance_count instances on page $current_page"
 
+        local did_archive=false
+
         # Loop through each instance using jq to extract the array
         echo "$response" | jq -c '.instances[]' | while read -r instance; do
             local id last_checkin timestamp instance_time id version channel
@@ -85,11 +87,16 @@ function archive_instances() {
                 version=$(echo "$instance" | jq -r '.versionLabel // "N/A"')
                 channel=$(echo "$instance" | jq -r '._embedded.channel.name // "N/A"')
 
-                archive_instance "$id" "$timestamp" "$version" "$channel"
+                if archive_instance "$id" "$timestamp" "$version" "$channel"; then
+                    did_archive=true
+                fi
             fi
         done
 
-        current_page=$((current_page + 1))
+        # only increment page if we didn't archive an instance since we filter out instances that are archived
+        if [[ "$did_archive" != "true" ]]; then
+            current_page=$((current_page + 1))
+        fi
     done
 
     echo "Finished processing all pages."
@@ -110,6 +117,7 @@ function archive_instance() {
 
     if [[ "$DRY_RUN" == "true" ]]; then
         echo "  ✓ DRY RUN"
+        return 0
     else
         local archive_response http_code response_body
 
@@ -120,8 +128,10 @@ function archive_instance() {
 
         if [[ "$http_code" -eq 200 ]]; then
             echo "  ✓ Successfully archived instance $id"
+            return 0
         else
             echo "  ✗ Failed to archive instance $id (HTTP $http_code): $response_body"
+            return 1
         fi
     fi
 }
