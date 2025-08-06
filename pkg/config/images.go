@@ -27,7 +27,7 @@ var (
 	_metadata1_30 release.K0sMetadata
 	_metadata1_29 release.K0sMetadata
 
-	_metadata release.K0sMetadata
+	_metadata *release.K0sMetadata
 )
 
 func init() {
@@ -42,7 +42,8 @@ func init() {
 	}
 
 	if versions.K0sVersion != "0.0.0" {
-		_metadata = Metadata(versions.K0sVersion)
+		m := Metadata(versions.K0sVersion)
+		_metadata = &m
 	}
 }
 
@@ -89,6 +90,10 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 }
 
 func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string) {
+	if _metadata == nil {
+		panic("k0s version is not set")
+	}
+
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
