@@ -197,6 +197,12 @@ components:
           type: string
       type: object
     types.State:
+      enum:
+      - Pending
+      - Running
+      - Succeeded
+      - Failed
+      example: Succeeded
       type: string
       x-enum-varnames:
       - StatePending
