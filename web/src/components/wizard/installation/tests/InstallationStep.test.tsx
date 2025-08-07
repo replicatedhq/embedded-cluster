@@ -12,23 +12,40 @@ type PhaseProps = {
   onStateChange: (state: string) => void;
 };
 
-// Create configurable mock behaviors
-const mockBehaviors = {
-  linuxPreflight: 'success' as 'success' | 'failure',
-  linuxInstallation: 'success' as 'success' | 'failure',
-  kubernetesBehavior: 'success' as 'success' | 'failure',
-  appPreflight: 'success' as 'success' | 'failure',
-  appInstallation: 'success' as 'success' | 'failure'
+type PhaseOutcome = 'success' | 'failure';
+
+// Mock configuration for each phase
+const phaseMockConfig = {
+  linuxPreflight: { 
+    outcome: 'success' as PhaseOutcome, 
+    buttonDisabled: false 
+  },
+  linuxInstallation: { 
+    outcome: 'success' as PhaseOutcome, 
+    buttonDisabled: false 
+  },
+  kubernetesInstallation: { 
+    outcome: 'success' as PhaseOutcome, 
+    buttonDisabled: false 
+  },
+  appPreflight: { 
+    outcome: 'success' as PhaseOutcome, 
+    buttonDisabled: false 
+  },
+  appInstallation: { 
+    outcome: 'success' as PhaseOutcome, 
+    buttonDisabled: false 
+  }
 };
 
-const createPhaseMock = (phaseName: string, behaviorKey: keyof typeof mockBehaviors) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
+const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
   React.useEffect(() => {
     onStateChange('Running');
+    const config = phaseMockConfig[phaseKey];
     setNextButtonConfig({
-      disabled: false,
+      disabled: config.buttonDisabled,
       onClick: () => {
-        const behavior = mockBehaviors[behaviorKey];
-        if (behavior === 'failure') {
+        if (config.outcome === 'failure') {
           onStateChange('Failed');
           // Don't call onNext() when failed - stay on same phase
         } else {
@@ -39,7 +56,8 @@ const createPhaseMock = (phaseName: string, behaviorKey: keyof typeof mockBehavi
     });
   }, []);
   
-  const suffix = mockBehaviors[behaviorKey] === 'failure' ? ' Failed' : '';
+  const config = phaseMockConfig[phaseKey];
+  const suffix = config.outcome === 'failure' ? ' Failed' : '';
   const testId = phaseName.toLowerCase().replace(/\s+/g, '-');
   return <div data-testid={testId}>{phaseName}{suffix}</div>;
 };
@@ -54,7 +72,7 @@ vi.mock('../phases/LinuxInstallationPhase', () => ({
 }));
 
 vi.mock('../phases/KubernetesInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesBehavior')(props)
+  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesInstallation')(props)
 }));
 
 vi.mock('../phases/AppPreflightPhase', () => ({
@@ -77,6 +95,12 @@ describe('InstallationStep', () => {
   afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
+    // Reset all phases to success with enabled buttons
+    phaseMockConfig.linuxPreflight = { outcome: 'success', buttonDisabled: false };
+    phaseMockConfig.linuxInstallation = { outcome: 'success', buttonDisabled: false };
+    phaseMockConfig.kubernetesInstallation = { outcome: 'success', buttonDisabled: false };
+    phaseMockConfig.appPreflight = { outcome: 'success', buttonDisabled: false };
+    phaseMockConfig.appInstallation = { outcome: 'success', buttonDisabled: false };
   });
 
   afterAll(() => {
@@ -113,15 +137,19 @@ describe('InstallationStep', () => {
     it('progresses through all Linux phases in correct order', async () => {
       renderInstallationStep('linux');
 
-      // Start with Linux preflight
+      // Start with Linux preflight - button should be enabled by default
       expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
-      expect(screen.getByTestId('installation-next-button')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
 
       // Click next to go to Linux installation
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
         expect(screen.getByText('Linux Installation Phase')).toBeInTheDocument();
+        // Button should still be enabled for this phase
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
       // Click next to go to App preflight
@@ -129,6 +157,7 @@ describe('InstallationStep', () => {
 
       await waitFor(() => {
         expect(screen.getByText('App Preflight Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
       // Click next to go to App installation
@@ -136,6 +165,7 @@ describe('InstallationStep', () => {
 
       await waitFor(() => {
         expect(screen.getByText('App Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
       // Click finish
@@ -242,25 +272,17 @@ describe('InstallationStep', () => {
   });
 
   describe('Failure State Handling', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-      // Reset all behaviors to success
-      mockBehaviors.linuxPreflight = 'success';
-      mockBehaviors.linuxInstallation = 'success';
-      mockBehaviors.kubernetesBehavior = 'success';
-      mockBehaviors.appPreflight = 'success';
-      mockBehaviors.appInstallation = 'success';
-    });
 
     it('displays failure state in timeline when a phase fails', async () => {
       // Configure Linux preflight to fail
-      mockBehaviors.linuxPreflight = 'failure';
+      phaseMockConfig.linuxPreflight.outcome = 'failure';
       
       renderInstallationStep('linux');
 
-      // Should show running state initially
+      // Should show running state initially and button should be enabled
       await waitFor(() => {
         expect(screen.getByTestId('icon-running')).toBeInTheDocument();
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
       // Click next button - this will trigger failure
@@ -278,7 +300,7 @@ describe('InstallationStep', () => {
 
     it('allows clicking on failed phases to view them', async () => {
       // Configure second phase to fail
-      mockBehaviors.linuxInstallation = 'failure';
+      phaseMockConfig.linuxInstallation.outcome = 'failure';
       
       renderInstallationStep('linux');
 
@@ -319,7 +341,7 @@ describe('InstallationStep', () => {
 
     it('shows mixed success and failure states in timeline', async () => {
       // Configure: first succeeds, second fails, rest pending
-      mockBehaviors.linuxInstallation = 'failure';
+      phaseMockConfig.linuxInstallation.outcome = 'failure';
       
       renderInstallationStep('linux');
 
@@ -364,5 +386,47 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('icon-running')).toBeInTheDocument();
       });
     });
+
+    it('handles disabled button states from phases', async () => {
+      // Configure first phase to disable the button
+      phaseMockConfig.linuxPreflight.buttonDisabled = true;
+      
+      renderInstallationStep('linux');
+
+      // Button should be disabled
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).toBeDisabled();
+      });
+
+      // Clicking disabled button should not progress (button won't respond)
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Should still be on first phase
+      expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+      expect(screen.queryByText('Linux Installation Phase')).not.toBeInTheDocument();
+    });
+
+    it('enables button when phase configuration changes', async () => {
+      // Test that different phases can have different button states
+      phaseMockConfig.linuxPreflight.buttonDisabled = false;  // enabled
+      phaseMockConfig.linuxInstallation.buttonDisabled = true; // disabled
+      
+      renderInstallationStep('linux');
+
+      // First phase button should be enabled
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Progress to second phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Second phase button should be disabled
+      await waitFor(() => {
+        expect(screen.getByText('Linux Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('installation-next-button')).toBeDisabled();
+      });
+    });
   });
+
 });
