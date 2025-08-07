@@ -20,13 +20,23 @@
  * </ReactMarkdown>
  * ```
  */
-export function truncate(maxTextLength: number): (tree: any) => void {
-  const truncateNode = (node: any, textLength: number): number => {
+
+interface ASTNode {
+  type: string;
+  value?: string;
+  children?: ASTNode[];
+  length?: number;
+}
+
+export function truncate(maxTextLength: number): (tree: ASTNode) => void {
+  const truncateNode = (node: ASTNode, textLength: number): number => {
     if (node.type === "text") {
-      const newLength = textLength + node.value.length;
-      if (newLength >= maxTextLength) {
+      const newLength = textLength + (node.value?.length || 0);
+      if (newLength > maxTextLength) {
         const excess = newLength - maxTextLength;
-        node.value = node.value.slice(0, -excess) + '...';
+        if (node.value) {
+          node.value = node.value.slice(0, -excess) + '...';
+        }
         return maxTextLength;
       }
       return newLength;
@@ -46,7 +56,7 @@ export function truncate(maxTextLength: number): (tree: any) => void {
     return textLength;
   };
 
-  return (tree: any) => {
+  return (tree: ASTNode) => {
     truncateNode(tree, 0);
   };
 }
