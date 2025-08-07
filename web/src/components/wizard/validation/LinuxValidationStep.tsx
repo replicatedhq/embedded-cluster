@@ -3,17 +3,16 @@ import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { Modal } from "../../common/Modal";
 import { useWizard } from "../../../contexts/WizardModeContext";
-import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronRight, AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface LinuxValidationStepProps {
   onNext: () => void;
-  onBack: () => void;
 }
 
-const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext, onBack }) => {
+const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => {
   const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -84,33 +83,28 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext, onBac
     if (!preflightComplete) {
       return false;
     }
-    
+
     // If preflights passed, always allow proceeding
     if (preflightSuccess) {
       return true;
     }
-    
+
     // If preflights failed, only allow proceeding if CLI flag was used
     return allowIgnoreHostPreflights;
   };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{text.validationTitle}</h2>
-          <p className="text-gray-600 mt-1">{text.validationDescription}</p>
-        </div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">{text.linuxValidationTitle}</h2>
+        <p className="text-gray-600 mt-1">{text.linuxValidationDescription}</p>
+      </div>
 
-        <LinuxPreflightCheck onComplete={handlePreflightComplete} />
+      <LinuxPreflightCheck onComplete={handlePreflightComplete} />
 
-        {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
-      </Card>
+      {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
-          Back
-        </Button>
+      <div className="flex justify-end">
         <Button
           onClick={handleNextClick}
           disabled={!canProceed()}

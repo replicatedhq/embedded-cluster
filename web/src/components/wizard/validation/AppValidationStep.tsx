@@ -3,17 +3,16 @@ import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { Modal } from "../../common/Modal";
 import { useWizard } from "../../../contexts/WizardModeContext";
-import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronRight, AlertTriangle } from "lucide-react";
 import AppPreflightCheck from "./AppPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 
 interface AppValidationStepProps {
   onNext: () => void;
-  onBack: () => void;
 }
 
-const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext, onBack }) => {
+const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext }) => {
   const { text, target } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -107,10 +106,7 @@ const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext, onBack })
         {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
       </Card>
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} icon={<ChevronLeft className="w-5 h-5" />}>
-          Back
-        </Button>
+      <div className="flex justify-end">
         <Button
           onClick={handleNextClick}
           disabled={!canProceed()}

@@ -6,6 +6,8 @@ export interface InitialState {
   installTarget: InstallationTarget;
 }
 
+export type State = 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+
 export interface InfraStatusResponse {
   components: InfraComponent[];
   status: InfraStatus;
@@ -18,12 +20,12 @@ export interface InfraComponent {
 }
 
 export interface InfraStatus {
-  state: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+  state: State;
   description: string;
   lastUpdated: string;
 }
 
-export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'linux-validation' | 'linux-installation' | 'kubernetes-installation' | 'app-validation' | 'app-installation' | 'linux-completion' | 'kubernetes-completion';
+export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'installation' | 'linux-completion' | 'kubernetes-completion';
 
 // App Configuration Types
 export interface AppConfig {
@@ -97,9 +99,15 @@ export interface AppPreflightResponse {
 
 export interface AppInstallStatus {
   status: {
-    state: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+    state: State;
     description: string;
     lastUpdated: string;
   };
   logs: string;
+}
+
+export interface InstallationStatusResponse {
+  description: string;
+  lastUpdated: string;
+  state: State;
 }

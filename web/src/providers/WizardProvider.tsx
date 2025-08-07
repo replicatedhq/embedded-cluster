@@ -4,7 +4,7 @@ import { WizardContext } from "../contexts/WizardModeContext";
 
 export type WizardMode = "install" | "upgrade";
 
-interface WizardText {
+export interface WizardText {
   title: string;
   subtitle: string;
   welcomeTitle: string;
@@ -15,12 +15,14 @@ interface WizardText {
   linuxSetupDescription: string;
   kubernetesSetupTitle: string;
   kubernetesSetupDescription: string;
-  validationTitle: string;
-  validationDescription: string;
+  kubernetesInstallationTitle: string;
+  kubernetesInstallationDescription: string;
+  linuxValidationTitle: string;
+  linuxValidationDescription: string;
+  linuxInstallationTitle: string;
+  linuxInstallationDescription: string;
   appValidationTitle: string;
   appValidationDescription: string;
-  installationTitle: string;
-  installationDescription: string;
   appInstallationTitle: string;
   appInstallationDescription: string;
   welcomeButtonText: string;
@@ -40,14 +42,16 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     linuxSetupDescription: "Configure the host settings for this installation.",
     kubernetesSetupTitle: "Setup",
     kubernetesSetupDescription: "Configure the settings for this installation.",
-    validationTitle: "Validation",
-    validationDescription: "Validate the host requirements before proceeding with installation.",
+    kubernetesInstallationTitle: "Installation",
+    kubernetesInstallationDescription: "Installing infrastructure components",
+    linuxValidationTitle: "Validation",
+    linuxValidationDescription: "Validate the host requirements before proceeding with installation.",
+    linuxInstallationTitle: "Installation",
+    linuxInstallationDescription: "Installing infrastructure components",
     appValidationTitle: "App Validation",
     appValidationDescription: "Validate the application requirements before installation.",
-    installationTitle: `Installing ${title}`,
-    installationDescription: "",
-    appInstallationTitle: "App Installation",
-    appInstallationDescription: "Installing your application...",
+    appInstallationTitle: `Installing ${title}`,
+    appInstallationDescription: "",
     welcomeButtonText: "Start",
     nextButtonText: "Next: Start Installation",
   },
@@ -63,14 +67,16 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     linuxSetupDescription: "Set up the hosts to use for this upgrade.",
     kubernetesSetupTitle: "Setup",
     kubernetesSetupDescription: "Set up the cluster to use for this upgrade.",
-    validationTitle: "Validation",
-    validationDescription: "Validate the host requirements before proceeding with the upgrade.",
+    kubernetesInstallationTitle: "Installation",
+    kubernetesInstallationDescription: "Upgrading infrastructure components",
+    linuxValidationTitle: "Validation",
+    linuxValidationDescription: "Validate the host requirements before proceeding with the upgrade.",
+    linuxInstallationTitle: "Installation",
+    linuxInstallationDescription: "Upgrading infrastructure components",
     appValidationTitle: "App Validation",
     appValidationDescription: "Validate the application requirements before upgrade.",
-    installationTitle: `Upgrading ${title}`,
-    installationDescription: "",
-    appInstallationTitle: "App Upgrade",
-    appInstallationDescription: "Upgrading your application...",
+    appInstallationTitle: `Upgrading ${title}`,
+    appInstallationDescription: "",
     welcomeButtonText: "Start Upgrade",
     nextButtonText: "Next: Start Upgrade",
   },

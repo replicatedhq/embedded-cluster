@@ -1,6 +1,6 @@
 import React from 'react';
 import { WizardStep } from '../../types';
-import { ClipboardList, Settings, Shield, Download, CheckCircle, Server, FileCheck } from 'lucide-react';
+import { ClipboardList, Settings, Download, CheckCircle, Server } from 'lucide-react';
 import { useWizard } from '../../contexts/WizardModeContext';
 import { useSettings } from '../../contexts/SettingsContext';
 
@@ -27,9 +27,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
         { id: 'configuration', name: 'Configuration', icon: Server },
         { id: 'kubernetes-setup', name: 'Setup', icon: Settings },
-        { id: 'kubernetes-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'app-validation', name: 'App Validation', icon: FileCheck },
-        { id: 'app-installation', name: 'App Installation', icon: FileCheck },
+        { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
         { id: 'kubernetes-completion', name: 'Completion', icon: CheckCircle },
       ];
     } else {
@@ -37,10 +35,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
         { id: 'welcome', name: 'Welcome', icon: ClipboardList },
         { id: 'configuration', name: 'Configuration', icon: Server },
         { id: 'linux-setup', name: 'Setup', icon: Settings },
-        { id: 'linux-validation', name: 'Validation', icon: Shield, hidden: true, parentId: 'linux-setup' },
-        { id: 'linux-installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'app-validation', name: 'App Validation', icon: FileCheck },
-        { id: 'app-installation', name: 'App Installation', icon: FileCheck },
+        { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
         { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
       ];
     }
