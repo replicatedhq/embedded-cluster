@@ -5,6 +5,13 @@ import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import InstallationStep from '../InstallationStep.tsx';
 
+// Type for phase component props
+type PhaseProps = {
+  onNext: () => void;
+  setNextButtonConfig: (config: { disabled: boolean; onClick: () => void }) => void;
+  onStateChange: (state: string) => void;
+};
+
 // Create configurable mock behaviors
 const mockBehaviors = {
   linuxPreflight: 'success' as 'success' | 'failure',
@@ -14,7 +21,7 @@ const mockBehaviors = {
   appInstallation: 'success' as 'success' | 'failure'
 };
 
-const createPhaseMock = (phaseName: string, behaviorKey: keyof typeof mockBehaviors) => ({ onNext, setNextButtonConfig, onStateChange }: any) => {
+const createPhaseMock = (phaseName: string, behaviorKey: keyof typeof mockBehaviors) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
   React.useEffect(() => {
     onStateChange('Running');
     setNextButtonConfig({
@@ -39,23 +46,23 @@ const createPhaseMock = (phaseName: string, behaviorKey: keyof typeof mockBehavi
 
 // Mock all the phase components
 vi.mock('../phases/LinuxPreflightPhase', () => ({
-  default: (props: any) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight')(props)
 }));
 
 vi.mock('../phases/LinuxInstallationPhase', () => ({
-  default: (props: any) => createPhaseMock('Linux Installation Phase', 'linuxInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Installation Phase', 'linuxInstallation')(props)
 }));
 
 vi.mock('../phases/KubernetesInstallationPhase', () => ({
-  default: (props: any) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesBehavior')(props)
+  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesBehavior')(props)
 }));
 
 vi.mock('../phases/AppPreflightPhase', () => ({
-  default: (props: any) => createPhaseMock('App Preflight Phase', 'appPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Preflight Phase', 'appPreflight')(props)
 }));
 
 vi.mock('../phases/AppInstallationPhase', () => ({
-  default: (props: any) => createPhaseMock('App Installation Phase', 'appInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation')(props)
 }));
 
 const server = setupServer();

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../../common/Card';
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
