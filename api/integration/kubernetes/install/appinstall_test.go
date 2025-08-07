@@ -2,6 +2,7 @@ package install
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -296,6 +297,75 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Check the response - should fail with conflict
 		require.Equal(t, http.StatusConflict, rec.Code)
+	})
+
+	t.Run("App installation failure", func(t *testing.T) {
+		// Create mock app install manager that fails
+		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(errors.New("installation failed"))
+		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
+			Status: types.Status{
+				State:       types.StateFailed,
+				Description: "Failed to install application",
+			},
+		}, nil)
+
+		// Create mock store
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
+		// Create state machine starting from AppPreflightsSucceeded (valid state for app install)
+		stateMachine := kubernetesinstall.NewStateMachine(
+			kubernetesinstall.WithCurrentState(states.StateAppPreflightsSucceeded),
+		)
+
+		// Create real app install controller with mock manager
+		appInstallController, err := appinstall.NewInstallController(
+			appinstall.WithAppInstallManager(mockAppInstallManager),
+			appinstall.WithStateMachine(stateMachine),
+			appinstall.WithStore(mockStore),
+			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create Kubernetes install controller with embedded app controller (no metrics reporter in k8s)
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithStateMachine(stateMachine),
+			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create the API
+		apiInstance := integration.NewAPIWithReleaseData(t,
+			api.WithKubernetesInstallController(installController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+
+		// Create a new router and register API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/install", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
+
+		// Wait for the state machine to transition to AppInstallFailed
+		assert.Eventually(t, func() bool {
+			return stateMachine.CurrentState() == states.StateAppInstallFailed
+		}, 10*time.Second, 100*time.Millisecond, "state should transition to AppInstallFailed")
+
+		// Verify that the app install manager was called (no metrics reporting in k8s controller)
+		mockAppInstallManager.AssertExpectations(t)
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {

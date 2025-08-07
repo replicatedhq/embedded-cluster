@@ -1,28 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "../../../contexts/SettingsContext";
-import { useWizard } from "../../../contexts/WizardModeContext";
+import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import Button from "../../common/Button";
-import { useAuth } from "../../../contexts/AuthContext";
-import { PreflightOutput, AppPreflightResponse } from "../../../types";
+import Button from "../../../common/Button";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { PreflightOutput, HostPreflightResponse, State } from "../../../../types";
 
-interface AppPreflightCheckProps {
-  onComplete: (success: boolean, allowIgnoreAppPreflights: boolean) => void;
+interface LinuxPreflightCheckProps {
+  onRun: () => void;
+  onComplete: (success: boolean, allowIgnoreHostPreflights: boolean) => void;
 }
 
-const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => {
+interface InstallationStatusResponse {
+  description: string;
+  lastUpdated: string;
+  state: State;
+}
+
+const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
+  const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { settings } = useSettings();
-  const { target } = useWizard();
   const themeColor = settings.themeColor;
   const { token } = useAuth();
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
-  const isSuccessful = (response?: AppPreflightResponse) => response?.status?.state === "Succeeded";
+  const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
+    if (installationStatus?.state === "Failed") {
+      return installationStatus?.description;
+    }
     if (preflightsRunError) {
       return preflightsRunError.message;
     }
@@ -35,7 +44,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
   // Mutation to run preflight checks
   const { mutate: runPreflights, error: preflightsRunError } = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/${target}/install/app-preflights/run`, {
+      const response = await fetch("/api/linux/install/host-preflights/run", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -44,24 +53,24 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to run application preflight checks");
+        throw new Error(errorData.message || "Failed to run preflight checks");
       }
-      return response.json() as Promise<AppPreflightResponse>;
+      return response.json() as Promise<HostPreflightResponse>;
     },
     onSuccess: () => {
       setIsPreflightsPolling(true);
+      onRun();
     },
     onError: () => {
       setIsPreflightsPolling(false);
     },
   });
 
-
-  // Query to poll preflight status
-  const { data: preflightResponse } = useQuery<AppPreflightResponse, Error>({
-    queryKey: ["appPreflightStatus"],
+  // Query to poll installation status
+  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
+    queryKey: ["installationStatus"],
     queryFn: async () => {
-      const response = await fetch(`/api/${target}/install/app-preflights/status`, {
+      const response = await fetch("/api/linux/install/installation/status", {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
@@ -70,9 +79,30 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get application preflight status");
+        throw new Error(errorData.message || "Failed to get installation status");
       }
-      return response.json() as Promise<AppPreflightResponse>;
+      return response.json() as Promise<InstallationStatusResponse>;
+    },
+    enabled: isInstallationStatusPolling,
+    refetchInterval: 1000,
+  });
+
+  // Query to poll preflight status
+  const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
+    queryKey: ["preflightStatus"],
+    queryFn: async () => {
+      const response = await fetch("/api/linux/install/host-preflights/status", {
+        headers: {
+          ...(localStorage.getItem("auth") && {
+            Authorization: `Bearer ${localStorage.getItem("auth")}`,
+          }),
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to get preflight status");
+      }
+      return response.json() as Promise<HostPreflightResponse>;
     },
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
@@ -82,21 +112,38 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
   useEffect(() => {
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
-      onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreAppPreflights ?? false);
+      onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreHostPreflights ?? false);
     }
-  }, [preflightResponse, onComplete]);
+  }, [preflightResponse]);
 
-  // Start app preflights immediately when component mounts
   useEffect(() => {
-    runPreflights();
-  }, [runPreflights]);
+    if (installationStatus?.state === "Failed") {
+      setIsInstallationStatusPolling(false);
+      return; // Prevent running preflights if failed
+    }
+    if (installationStatus?.state === "Succeeded") {
+      setIsPreflightsPolling(true);
+      setIsInstallationStatusPolling(false);
+      runPreflights();
+    }
+  }, [installationStatus]);
+
+  if (isInstallationStatusPolling) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
+        <p className="text-lg font-medium text-gray-900">Initializing...</p>
+        <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
+      </div>
+    );
+  }
 
   if (isPreflightsPolling) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
-        <p className="text-lg font-medium text-gray-900">Validating application requirements...</p>
-        <p className="text-sm text-gray-500 mt-2">Please wait while we check your application.</p>
+        <p className="text-lg font-medium text-gray-900">Validating host requirements...</p>
+        <p className="text-sm text-gray-500 mt-2">Please wait while we check your system.</p>
       </div>
     );
   }
@@ -111,7 +158,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
         >
           <CheckCircle className="w-6 h-6" style={{ color: themeColor }} />
         </div>
-        <p className="text-lg font-medium text-gray-900">Application validation successful!</p>
+        <p className="text-lg font-medium text-gray-900">Host validation successful!</p>
       </div>
     );
   }
@@ -123,7 +170,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
         <div className="flex items-start">
           <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div className="ml-3">
-            <h4 className="text-sm font-medium text-gray-900">Unable to complete application requirement checks</h4>
+            <h4 className="text-sm font-medium text-gray-900">Unable to complete system requirement checks</h4>
             <p className="mt-1 text-sm text-red-600">{getErrorMessage()}</p>
           </div>
         </div>
@@ -140,9 +187,9 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
             <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
               <XCircle className="w-6 h-6 text-red-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Application Requirements Not Met</h3>
+            <h3 className="text-lg font-medium text-gray-900">Host Requirements Not Met</h3>
             <p className="text-sm text-gray-600 mt-1 max-w-lg">
-              We found some issues that need to be resolved before proceeding with the application installation.
+              We found some issues that need to be resolved before proceeding with the installation.
             </p>
           </>
         ) : (
@@ -150,9 +197,9 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
             <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center mb-4">
               <AlertTriangle className="w-6 h-6 text-yellow-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900">Application Requirements Review</h3>
+            <h3 className="text-lg font-medium text-gray-900">Host Requirements Review</h3>
             <p className="text-sm text-gray-600 mt-1 max-w-lg">
-              Please review the following warnings before proceeding with the application installation.
+              Please review the following warnings before proceeding with the installation.
             </p>
           </>
         )}
@@ -219,4 +266,4 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onComplete }) => 
   );
 };
 
-export default AppPreflightCheck;
+export default LinuxPreflightCheck;

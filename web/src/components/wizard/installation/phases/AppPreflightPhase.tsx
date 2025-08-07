@@ -1,18 +1,21 @@
-import React from "react";
-import Card from "../../common/Card";
-import Button from "../../common/Button";
-import { Modal } from "../../common/Modal";
-import { useWizard } from "../../../contexts/WizardModeContext";
-import { ChevronRight, AlertTriangle } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import Button from "../../../common/Button";
+import { Modal } from "../../../common/Modal";
+import { useWizard } from "../../../../contexts/WizardModeContext";
+import { AlertTriangle } from "lucide-react";
 import AppPreflightCheck from "./AppPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { NextButtonConfig } from "../types";
+import { State } from "../../../../types";
 
-interface AppValidationStepProps {
+interface AppPreflightPhaseProps {
   onNext: () => void;
+  setNextButtonConfig: (config: NextButtonConfig) => void;
+  onStateChange: (status: State) => void;
 }
 
-const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext }) => {
+const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { text, target } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -21,10 +24,18 @@ const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext }) => {
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
 
-  const handlePreflightComplete = (success: boolean, allowIgnore: boolean) => {
+  const onRun = () => {
+    setPreflightComplete(false);
+    setPreflightSuccess(false);
+    setAllowIgnoreAppPreflights(false);
+    onStateChange('Running');
+  };
+
+  const onComplete = (success: boolean, allowIgnore: boolean) => {
     setPreflightComplete(true);
     setPreflightSuccess(success);
     setAllowIgnoreAppPreflights(allowIgnore);
+    onStateChange(success ? 'Succeeded' : 'Failed');
   };
 
   const { mutate: startAppInstallation } = useMutation({
@@ -78,43 +89,44 @@ const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext }) => {
     startAppInstallation({ ignoreAppPreflights: true }); // User confirmed they want to ignore preflight failures
   };
 
-  const canProceed = () => {
+  const canProceed = useMemo(() => {
     // If preflights haven't completed yet, disable button
     if (!preflightComplete) {
       return false;
     }
-    
+
     // If preflights passed, always allow proceeding
     if (preflightSuccess) {
       return true;
     }
-    
+
     // If preflights failed, only allow proceeding if CLI flag was used
     return allowIgnoreAppPreflights;
-  };
+  }, [preflightComplete, preflightSuccess, allowIgnoreAppPreflights]);
+
+  // Report that step is running when component mounts
+  useEffect(() => {
+    onStateChange('Running');
+  }, []);
+
+  // Update next button configuration
+  useEffect(() => {
+    setNextButtonConfig({
+      disabled: !canProceed,
+      onClick: handleNextClick,
+    });
+  }, [canProceed]);
 
   return (
     <div className="space-y-6">
-      <Card>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">{text.appValidationTitle}</h2>
-          <p className="text-gray-600 mt-1">{text.appValidationDescription}</p>
-        </div>
-
-        <AppPreflightCheck onComplete={handlePreflightComplete} />
-
-        {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
-      </Card>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={handleNextClick}
-          disabled={!canProceed()}
-          icon={<ChevronRight className="w-5 h-5" />}
-        >
-          Next: Install Application
-        </Button>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">{text.appValidationTitle}</h2>
+        <p className="text-gray-600 mt-1">{text.appValidationDescription}</p>
       </div>
+
+      <AppPreflightCheck onRun={onRun} onComplete={onComplete} />
+
+      {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
 
       {showPreflightModal && (
         <Modal
@@ -153,4 +165,4 @@ const AppValidationStep: React.FC<AppValidationStepProps> = ({ onNext }) => {
   );
 };
 
-export default AppValidationStep;
+export default AppPreflightPhase;

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "../../../contexts/SettingsContext";
-import { useWizard } from "../../../contexts/WizardModeContext";
+import { useSettings } from "../../../../contexts/SettingsContext";
+import { useWizard } from "../../../../contexts/WizardModeContext";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
-import { AppInstallStatus } from "../../../types";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { AppInstallStatus } from "../../../../types";
 
 interface AppInstallationStatusProps {
   onComplete: (success: boolean) => void;
@@ -46,7 +46,7 @@ const AppInstallationStatus: React.FC<AppInstallationStatusProps> = ({ onComplet
       setIsPolling(false);
       onComplete(false);
     }
-  }, [appInstallStatus, onComplete]);
+  }, [appInstallStatus]);
 
   // Loading state
   if (isPolling) {

@@ -1,18 +1,21 @@
-import React from "react";
-import Card from "../../common/Card";
-import Button from "../../common/Button";
-import { Modal } from "../../common/Modal";
-import { useWizard } from "../../../contexts/WizardModeContext";
-import { ChevronRight, AlertTriangle } from "lucide-react";
+import React, { useEffect, useMemo } from "react";
+import Button from "../../../common/Button";
+import { Modal } from "../../../common/Modal";
+import { useWizard } from "../../../../contexts/WizardModeContext";
+import { AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { NextButtonConfig } from "../types";
+import { State } from "../../../../types";
 
-interface LinuxValidationStepProps {
+interface LinuxPreflightPhaseProps {
   onNext: () => void;
+  setNextButtonConfig: (config: NextButtonConfig) => void;
+  onStateChange: (status: State) => void;
 }
 
-const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => {
+const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -21,10 +24,18 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => 
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
 
-  const handlePreflightComplete = (success: boolean, allowIgnore: boolean) => {
+  const onRun = () => {
+    setPreflightComplete(false);
+    setPreflightSuccess(false);
+    setAllowIgnoreHostPreflights(false);
+    onStateChange('Running');
+  };
+
+  const onComplete = (success: boolean, allowIgnore: boolean) => {
     setPreflightComplete(true);
     setPreflightSuccess(success);
     setAllowIgnoreHostPreflights(allowIgnore);
+    onStateChange(success ? 'Succeeded' : 'Failed');
   };
 
   const { mutate: startInstallation } = useMutation({
@@ -78,7 +89,7 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => 
     startInstallation({ ignoreHostPreflights: true }); // User confirmed they want to ignore preflight failures
   };
 
-  const canProceed = () => {
+  const canProceed = useMemo(() => {
     // If preflights haven't completed yet, disable button
     if (!preflightComplete) {
       return false;
@@ -91,7 +102,20 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => 
 
     // If preflights failed, only allow proceeding if CLI flag was used
     return allowIgnoreHostPreflights;
-  };
+  }, [preflightComplete, preflightSuccess, allowIgnoreHostPreflights]);
+
+  // Report that step is running when component mounts
+  useEffect(() => {
+    onStateChange('Running');
+  }, []);
+
+  // Update next button configuration
+  useEffect(() => {
+    setNextButtonConfig({
+      disabled: !canProceed,
+      onClick: handleNextClick,
+    });
+  }, [canProceed]);
 
   return (
     <div className="space-y-6">
@@ -100,19 +124,9 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => 
         <p className="text-gray-600 mt-1">{text.linuxValidationDescription}</p>
       </div>
 
-      <LinuxPreflightCheck onComplete={handlePreflightComplete} />
+      <LinuxPreflightCheck onRun={onRun} onComplete={onComplete} />
 
       {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
-
-      <div className="flex justify-end">
-        <Button
-          onClick={handleNextClick}
-          disabled={!canProceed()}
-          icon={<ChevronRight className="w-5 h-5" />}
-        >
-          Next: Start Installation
-        </Button>
-      </div>
 
       {showPreflightModal && (
         <Modal
@@ -151,4 +165,4 @@ const LinuxValidationStep: React.FC<LinuxValidationStepProps> = ({ onNext }) => 
   );
 };
 
-export default LinuxValidationStep;
+export default LinuxPreflightPhase;

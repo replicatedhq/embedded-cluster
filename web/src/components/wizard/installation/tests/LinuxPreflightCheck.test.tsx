@@ -1,6 +1,6 @@
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxPreflightCheck from "../validation/LinuxPreflightCheck.tsx";
+import { renderWithProviders } from "../../../../test/setup.tsx";
+import LinuxPreflightCheck from "../phases/LinuxPreflightCheck";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
@@ -47,11 +47,13 @@ const server = setupServer(
 
 describe("LinuxPreflightCheck", () => {
   const mockOnComplete = vi.fn();
+  const mockOnRun = vi.fn();
 
   beforeAll(() => server.listen());
   afterEach(() => {
     server.resetHandlers();
     mockOnComplete.mockClear();
+    mockOnRun.mockClear();
     vi.clearAllMocks();
   });
   afterAll(() => server.close());
@@ -67,7 +69,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -88,7 +90,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -101,7 +103,7 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("displays preflight results correctly", async () => {
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -131,7 +133,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -167,7 +169,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -190,7 +192,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -203,7 +205,7 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("allows re-running validation when there are failures", async () => {
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -214,12 +216,20 @@ describe("LinuxPreflightCheck", () => {
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
 
+    // Clear the mock to isolate the button click action
+    mockOnRun.mockClear();
+
     const runValidationButton = screen.getByRole("button", { name: "Run Validation Again" });
     expect(runValidationButton).toBeInTheDocument();
     fireEvent.click(runValidationButton);
 
     await waitFor(() => {
       expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
+    });
+
+    // Verify that onRun is called exactly once when preflight run succeeds
+    await waitFor(() => {
+      expect(mockOnRun).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -244,7 +254,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },
@@ -280,7 +290,7 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
         authToken: TEST_TOKEN,
       },

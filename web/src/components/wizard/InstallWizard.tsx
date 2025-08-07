@@ -4,7 +4,7 @@ import WelcomeStep from "./WelcomeStep";
 import ConfigurationStep from "./config/ConfigurationStep";
 import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
-import TimelineInstallationStep from "./installation/TimelineInstallationStep";
+import InstallationStep from "./installation/InstallationStep";
 import LinuxCompletionStep from "./completion/LinuxCompletionStep";
 import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
@@ -50,7 +50,7 @@ const InstallWizard: React.FC = () => {
       case "kubernetes-setup":
         return <KubernetesSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "installation":
-        return <TimelineInstallationStep onNext={goToNextStep} />;
+        return <InstallationStep onNext={goToNextStep} />;
       case "linux-completion":
         return <LinuxCompletionStep />;
       case "kubernetes-completion":

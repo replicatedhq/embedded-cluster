@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../common/Card';
-import Button from '../../common/Button';
+import Card from '../../../common/Card';
 import { useQuery } from "@tanstack/react-query";
-import { useSettings } from '../../../contexts/SettingsContext';
-import { useAuth } from "../../../contexts/AuthContext";
-import { InfraStatusResponse } from '../../../types';
-import { ChevronRight } from 'lucide-react';
-import InstallationProgress from './shared/InstallationProgress';
-import LogViewer from './shared/LogViewer';
-import StatusIndicator from './shared/StatusIndicator';
-import ErrorMessage from './shared/ErrorMessage';
+import { useSettings } from '../../../../contexts/SettingsContext';
+import { useAuth } from "../../../../contexts/AuthContext";
+import { InfraStatusResponse } from '../../../../types';
+import InstallationProgress from '../shared/InstallationProgress';
+import LogViewer from '../shared/LogViewer';
+import StatusIndicator from '../shared/StatusIndicator';
+import ErrorMessage from '../shared/ErrorMessage';
+import { NextButtonConfig } from '../types';
+import { State } from '../../../../types';
 
-interface KubernetesInstallationStepProps {
+interface KubernetesInstallationPhaseProps {
   onNext: () => void;
+  setNextButtonConfig: (config: NextButtonConfig) => void;
+  onStateChange: (status: State) => void;
 }
 
-const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({ onNext }) => {
+const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
@@ -43,15 +45,22 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
     refetchInterval: 2000,
   });
 
+  // Report that step is running when component mounts
+  useEffect(() => {
+    onStateChange('Running');
+  }, []);
+
   // Handle infra status changes
   useEffect(() => {
     if (infraStatusResponse?.status?.state === "Failed") {
       setIsInfraPolling(false);
+      onStateChange('Failed');
       return;
     }
     if (infraStatusResponse?.status?.state === "Succeeded") {
       setIsInfraPolling(false);
       setInstallComplete(true);
+      onStateChange('Succeeded');
     }
   }, [infraStatusResponse]);
 
@@ -96,6 +105,14 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
     </div>
   );
 
+  // Update next button configuration
+  useEffect(() => {
+    setNextButtonConfig({
+      disabled: !installComplete,
+      onClick: onNext,
+    });
+  }, [installComplete]);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -106,18 +123,8 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
 
         {renderInfrastructurePhase()}
       </Card>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={onNext}
-          disabled={!installComplete}
-          icon={<ChevronRight className="w-5 h-5" />}
-        >
-          Next: Finish
-        </Button>
-      </div>
     </div>
   );
 };
 
-export default KubernetesInstallationStep;
+export default KubernetesInstallationPhase;
