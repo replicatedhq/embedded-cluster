@@ -7,9 +7,9 @@ import { http, HttpResponse } from "msw";
 
 const TEST_TOKEN = "test-auth-token";
 
-const server = setupServer(
-  // Mock preflight status endpoint - matches both linux and kubernetes targets
-  http.get("*/api/*/install/app-preflights/status", ({ request }) => {
+const createServer = (target: 'linux' | 'kubernetes') => setupServer(
+  // Mock preflight status endpoint
+  http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new HttpResponse(null, { status: 401 });
@@ -26,8 +26,8 @@ const server = setupServer(
     });
   }),
 
-  // Mock preflight run endpoint - matches both linux and kubernetes targets
-  http.post("*/api/*/install/app-preflights/run", ({ request }) => {
+  // Mock preflight run endpoint
+  http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new HttpResponse(null, { status: 401 });
@@ -36,22 +36,31 @@ const server = setupServer(
   })
 );
 
-describe("AppPreflightCheck", () => {
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])("AppPreflightCheck - $displayName", ({ target }) => {
   const mockOnComplete = vi.fn();
   const mockOnRun = vi.fn();
+  let server: ReturnType<typeof createServer>;
 
-  beforeAll(() => server.listen());
+  beforeAll(() => {
+    server = createServer(target);
+    server.listen();
+  });
+  
   afterEach(() => {
     server.resetHandlers();
     mockOnComplete.mockClear();
     mockOnRun.mockClear();
     vi.clearAllMocks();
   });
+  
   afterAll(() => server.close());
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
-      http.get("*/api/*/install/app-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -62,6 +71,7 @@ describe("AppPreflightCheck", () => {
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -75,6 +85,7 @@ describe("AppPreflightCheck", () => {
   it("displays preflight results correctly", async () => {
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -89,7 +100,7 @@ describe("AppPreflightCheck", () => {
 
   it("shows success state when all preflights pass", async () => {
     server.use(
-      http.get("*/api/*/install/app-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -105,6 +116,7 @@ describe("AppPreflightCheck", () => {
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -117,7 +129,7 @@ describe("AppPreflightCheck", () => {
 
   it("handles preflight run error", async () => {
     server.use(
-      http.post("*/api/*/install/app-preflights/run", ({ request }) => {
+      http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -128,6 +140,7 @@ describe("AppPreflightCheck", () => {
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -141,6 +154,7 @@ describe("AppPreflightCheck", () => {
   it("allows re-running validation when there are failures", async () => {
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -170,7 +184,7 @@ describe("AppPreflightCheck", () => {
   it("receives allowIgnoreAppPreflights field in preflight response", async () => {
     // Mock preflight status endpoint with allowIgnoreAppPreflights: true
     server.use(
-      http.get("*/api/*/install/app-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -190,6 +204,7 @@ describe("AppPreflightCheck", () => {
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
@@ -206,7 +221,7 @@ describe("AppPreflightCheck", () => {
   it("passes allowIgnoreAppPreflights false to onComplete callback", async () => {
     // Mock preflight status endpoint with allowIgnoreAppPreflights: false
     server.use(
-      http.get("*/api/*/install/app-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -226,6 +241,7 @@ describe("AppPreflightCheck", () => {
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });

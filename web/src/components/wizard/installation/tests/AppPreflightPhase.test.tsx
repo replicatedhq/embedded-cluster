@@ -9,22 +9,27 @@ import { withTestButton } from './TestWrapper.tsx';
 
 const TestAppPreflightPhase = withTestButton(AppPreflightPhase);
 
-const server = setupServer(
+const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   // Mock start app installation endpoint
-  http.post('*/api/*/install/app/install', () => {
+  http.post(`*/api/${target}/install/app/install`, () => {
     return HttpResponse.json({ success: true });
   }),
   // Mock app preflight run endpoint
-  http.post('*/api/*/install/app-preflights/run', () => {
+  http.post(`*/api/${target}/install/app-preflights/run`, () => {
     return HttpResponse.json({ success: true });
   })
 );
 
-describe('AppPreflightPhase', () => {
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])('AppPreflightPhase - $displayName', ({ target }) => {
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  let server: ReturnType<typeof createServer>;
 
   beforeAll(() => {
+    server = createServer(target);
     server.listen();
   });
 
@@ -40,7 +45,7 @@ describe('AppPreflightPhase', () => {
   it('enables Start Installation button when allowIgnoreAppPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -63,6 +68,7 @@ describe('AppPreflightPhase', () => {
       />,
       {
         wrapperProps: {
+          target,
           authenticated: true
         }
       }
@@ -83,7 +89,7 @@ describe('AppPreflightPhase', () => {
   it('disables Start Installation button when allowIgnoreAppPreflights is false and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: false
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -106,6 +112,7 @@ describe('AppPreflightPhase', () => {
       />,
       {
         wrapperProps: {
+          target,
           authenticated: true
         }
       }
@@ -132,7 +139,7 @@ describe('AppPreflightPhase', () => {
   it('shows modal when Start Installation clicked and allowIgnoreAppPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -155,6 +162,7 @@ describe('AppPreflightPhase', () => {
       />,
       {
         wrapperProps: {
+          target,
           authenticated: true
         }
       }
@@ -196,7 +204,7 @@ describe('AppPreflightPhase', () => {
   it('proceeds automatically when allowIgnoreAppPreflights is true and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreAppPreflights: true
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -219,6 +227,7 @@ describe('AppPreflightPhase', () => {
       />,
       {
         wrapperProps: {
+          target,
           authenticated: true
         }
       }
@@ -254,7 +263,7 @@ describe('AppPreflightPhase', () => {
   it('proceeds normally when allowIgnoreAppPreflights is false and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreAppPreflights: false
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -277,6 +286,7 @@ describe('AppPreflightPhase', () => {
       />,
       {
         wrapperProps: {
+          target,
           authenticated: true
         }
       }
@@ -313,7 +323,7 @@ describe('AppPreflightPhase', () => {
   it('sends ignoreAppPreflights parameter when starting installation with failed preflights', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -326,7 +336,7 @@ describe('AppPreflightPhase', () => {
         });
       }),
       // Mock app install endpoint to capture request body
-      http.post('*/api/*/install/app/install', async ({ request }) => {
+      http.post(`*/api/${target}/install/app/install`, async ({ request }) => {
         const body = await request.json();
 
         // Verify the request includes ignoreAppPreflights parameter
@@ -341,7 +351,7 @@ describe('AppPreflightPhase', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Wait for preflights to complete and show failures
@@ -373,7 +383,7 @@ describe('AppPreflightPhase', () => {
   it('sends ignoreAppPreflights false when starting installation with passed preflights', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -386,7 +396,7 @@ describe('AppPreflightPhase', () => {
         });
       }),
       // Mock app install endpoint to capture request body
-      http.post('*/api/*/install/app/install', async ({ request }) => {
+      http.post(`*/api/${target}/install/app/install`, async ({ request }) => {
         const body = await request.json();
 
         // Verify the request includes ignoreAppPreflights parameter as false
@@ -401,7 +411,7 @@ describe('AppPreflightPhase', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Wait for preflights to complete and show success
@@ -424,8 +434,17 @@ describe('AppPreflightPhase', () => {
 });
 
 // Additional robust frontend tests for error handling and edge cases
-describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
-  beforeAll(() => server.listen());
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])('AppPreflightPhase - Error Handling & Edge Cases - $displayName', ({ target }) => {
+  let server: ReturnType<typeof createServer>;
+  
+  beforeAll(() => {
+    server = createServer(target);
+    server.listen();
+  });
+  
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
@@ -439,7 +458,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
   it('handles API error responses gracefully when starting installation', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -448,7 +467,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
         });
       }),
       // Mock app install endpoint to return API error
-      http.post('*/api/*/install/app/install', () => {
+      http.post(`*/api/${target}/install/app/install`, () => {
         return HttpResponse.json(
           {
             statusCode: 400,
@@ -464,7 +483,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Wait for success state
@@ -491,7 +510,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
   it('handles network failure during installation start', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -500,7 +519,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
         });
       }),
       // Mock app install endpoint to return network error
-      http.post('*/api/*/install/app/install', () => {
+      http.post(`*/api/${target}/install/app/install`, () => {
         return HttpResponse.error();
       })
     );
@@ -510,7 +529,7 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Wait for success state
@@ -536,8 +555,17 @@ describe('AppPreflightPhase - Error Handling & Edge Cases', () => {
 });
 
 // Tests specifically for onStateChange callback
-describe('AppPreflightPhase - onStateChange Tests', () => {
-  beforeAll(() => server.listen());
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])('AppPreflightPhase - onStateChange Tests - $displayName', ({ target }) => {
+  let server: ReturnType<typeof createServer>;
+  
+  beforeAll(() => {
+    server = createServer(target);
+    server.listen();
+  });
+  
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
@@ -551,7 +579,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Running" immediately when component mounts', async () => {
     // Mock preflight status endpoint - returns running state initially
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Running' },
@@ -566,7 +594,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Should call onStateChange with "Running" immediately on mount
@@ -577,7 +605,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Succeeded" when preflights complete successfully', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Succeeded' },
@@ -598,7 +626,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Should call onStateChange with "Running" immediately on mount
@@ -621,7 +649,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
     // Mock preflight status endpoint - returns failures
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -642,7 +670,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Should call onStateChange with "Running" immediately on mount
@@ -665,7 +693,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
     // Mock preflight status to show failures initially
     server.use(
-      http.get('*/api/*/install/app-preflights/status', () => {
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
         return HttpResponse.json({
           titles: ['App Check'],
           status: { state: 'Failed' },
@@ -678,7 +706,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
         });
       }),
       // Mock preflight run endpoint
-      http.post('*/api/*/install/app-preflights/run', () => {
+      http.post(`*/api/${target}/install/app-preflights/run`, () => {
         return HttpResponse.json({ success: true });
       })
     );
@@ -688,7 +716,7 @@ describe('AppPreflightPhase - onStateChange Tests', () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
       />,
-      { wrapperProps: { authenticated: true } }
+      { wrapperProps: { target, authenticated: true } }
     );
 
     // Wait for initial failures to load

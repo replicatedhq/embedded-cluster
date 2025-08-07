@@ -84,9 +84,9 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
 
       <div className="space-y-2 divide-y divide-gray-200">
         {(infraStatusResponse?.components || []).map((component, index) => (
-          <StatusIndicator 
+          <StatusIndicator
             key={index}
-            title={component.name} 
+            title={component.name}
             status={component.status?.state}
             themeColor={themeColor}
           />
@@ -99,7 +99,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
         isExpanded={showLogs}
         onToggle={() => setShowLogs(!showLogs)}
       />
-      
+
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>
@@ -115,14 +115,12 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
 
   return (
     <div className="space-y-6">
-      <Card>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
-          <p className="text-gray-600 mt-1">Installing infrastructure components</p>
-        </div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
+        <p className="text-gray-600 mt-1">Installing infrastructure components</p>
+      </div>
 
-        {renderInfrastructurePhase()}
-      </Card>
+      {renderInfrastructurePhase()}
     </div>
   );
 };

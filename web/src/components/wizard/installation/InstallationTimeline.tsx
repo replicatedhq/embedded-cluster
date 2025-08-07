@@ -30,20 +30,20 @@ const InstallationTimeline: React.FC<InstallationTimelineProps> = ({
   const getStatusIcon = (status: State) => {
     switch (status) {
       case 'Succeeded':
-        return <CheckCircle className="w-6 h-6 text-green-500" />;
+        return <CheckCircle className="w-6 h-6 text-green-500" data-testid="icon-succeeded" />;
       case 'Failed':
-        return <XCircle className="w-6 h-6 text-red-500" />;
+        return <XCircle className="w-6 h-6 text-red-500" data-testid="icon-failed" />;
       case 'Running':
-        return <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />;
+        return <Loader2 className="w-6 h-6 text-blue-500 animate-spin" data-testid="icon-running" />;
       case 'Pending':
       default:
-        return <Clock className="w-6 h-6 text-gray-400" />;
+        return <Clock className="w-6 h-6 text-gray-400" data-testid="icon-pending" />;
     }
   };
 
   return (
     <div className="w-80 bg-gray-50 border-r border-gray-200 p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-6">Installation Progress</h3>
+      <h3 className="text-lg font-medium text-gray-900 mb-6" data-testid="timeline-title">Installation Progress</h3>
       
       <div className="space-y-6">
         {phaseOrder.map((phaseKey) => {
@@ -61,6 +61,7 @@ const InstallationTimeline: React.FC<InstallationTimelineProps> = ({
                 } ${isSelected ? 'bg-blue-50 border border-blue-200' : ''}`}
                 onClick={() => isClickable && onPhaseClick(phaseKey)}
                 disabled={!isClickable}
+                data-testid={`timeline-${phaseKey}`}
               >
                 <div className="flex-shrink-0 mt-0.5">
                   {getStatusIcon(phase.status)}

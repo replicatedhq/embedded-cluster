@@ -195,6 +195,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
             onClick={nextButtonConfig.onClick}
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}
+            dataTestId="installation-next-button"
           >
             {getNextButtonText()}
           </Button>
