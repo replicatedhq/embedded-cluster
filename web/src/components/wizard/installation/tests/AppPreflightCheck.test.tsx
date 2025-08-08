@@ -1,24 +1,15 @@
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxPreflightCheck from "../validation/LinuxPreflightCheck.tsx";
+import { renderWithProviders } from "../../../../test/setup.tsx";
+import AppPreflightCheck from "../phases/AppPreflightCheck";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
 
 const TEST_TOKEN = "test-auth-token";
 
-const server = setupServer(
-  // Mock installation status endpoint
-  http.get("*/api/linux/install/installation/status", ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({ state: "Succeeded" });
-  }),
-
+const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   // Mock preflight status endpoint
-  http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+  http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new HttpResponse(null, { status: 401 });
@@ -31,12 +22,12 @@ const server = setupServer(
         fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
       },
       status: { state: "Failed" },
-      allowIgnoreHostPreflights: false,
+      allowIgnoreAppPreflights: false,
     });
   }),
 
   // Mock preflight run endpoint
-  http.post("*/api/linux/install/host-preflights/run", ({ request }) => {
+  http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new HttpResponse(null, { status: 401 });
@@ -45,41 +36,31 @@ const server = setupServer(
   })
 );
 
-describe("LinuxPreflightCheck", () => {
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])("AppPreflightCheck - $displayName", ({ target }) => {
   const mockOnComplete = vi.fn();
+  const mockOnRun = vi.fn();
+  let server: ReturnType<typeof createServer>;
 
-  beforeAll(() => server.listen());
+  beforeAll(() => {
+    server = createServer(target);
+    server.listen();
+  });
+  
   afterEach(() => {
     server.resetHandlers();
     mockOnComplete.mockClear();
+    mockOnRun.mockClear();
     vi.clearAllMocks();
   });
+  
   afterAll(() => server.close());
-
-  it("shows initializing state when installation status is polling", async () => {
-    server.use(
-      http.get("*/api/linux/install/installation/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ state: "Running" });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    expect(screen.getByText("Initializing...")).toBeInTheDocument();
-    expect(screen.getByText("Preparing the host.")).toBeInTheDocument();
-  });
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -88,28 +69,30 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
-      expect(screen.getByText("Please wait while we check your system.")).toBeInTheDocument();
+      expect(screen.getByText("Validating application requirements...")).toBeInTheDocument();
+      expect(screen.getByText("Please wait while we check your application.")).toBeInTheDocument();
     });
   });
 
   it("displays preflight results correctly", async () => {
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
       // passed preflights are not displayed
-      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
       expect(screen.getByText("Memory Warning")).toBeInTheDocument();
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
@@ -117,7 +100,7 @@ describe("LinuxPreflightCheck", () => {
 
   it("shows success state when all preflights pass", async () => {
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -131,102 +114,77 @@ describe("LinuxPreflightCheck", () => {
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Host validation successful!")).toBeInTheDocument();
+      expect(screen.getByText("Application validation successful!")).toBeInTheDocument();
     });
     expect(mockOnComplete).toHaveBeenCalledWith(true, false); // success: true, allowIgnore: false (default)
   });
 
-  it("handles installation status error", async () => {
-    server.use(
-      http.get("*/api/linux/install/installation/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          state: "Failed",
-          description: "Failed to configure the host",
-        });
-      }),
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          output: {},
-          status: { state: "Failed" },
-        });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks"));
-      expect(screen.getByText("Failed to configure the host")).toBeInTheDocument();
-    });
-  });
-
   it("handles preflight run error", async () => {
     server.use(
-      http.post("*/api/linux/install/host-preflights/run", ({ request }) => {
+      http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
         }
-        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
+        return HttpResponse.json({ message: "Failed to run application preflight checks" }, { status: 500 });
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks")).toBeInTheDocument();
-      expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
+      expect(screen.getByText("Unable to complete application requirement checks")).toBeInTheDocument();
+      expect(screen.getByText("Failed to run application preflight checks")).toBeInTheDocument();
     });
   });
 
   it("allows re-running validation when there are failures", async () => {
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
+
+    // Clear the mock to isolate the button click action
+    mockOnRun.mockClear();
 
     const runValidationButton = screen.getByRole("button", { name: "Run Validation Again" });
     expect(runValidationButton).toBeInTheDocument();
     fireEvent.click(runValidationButton);
 
     await waitFor(() => {
-      expect(screen.getByText("Validating host requirements...")).toBeInTheDocument();
+      expect(screen.getByText("Validating application requirements...")).toBeInTheDocument();
+    });
+
+    // Verify that onRun is called exactly once when preflight run succeeds
+    await waitFor(() => {
+      expect(mockOnRun).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("receives allowIgnoreHostPreflights field in preflight response", async () => {
-    // Mock preflight status endpoint with allowIgnoreHostPreflights: true
+  it("receives allowIgnoreAppPreflights field in preflight response", async () => {
+    // Mock preflight status endpoint with allowIgnoreAppPreflights: true
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -239,30 +197,31 @@ describe("LinuxPreflightCheck", () => {
             fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
           },
           status: { state: "Failed" },
-          allowIgnoreHostPreflights: true, // Test that this field is properly received
+          allowIgnoreAppPreflights: true, // Test that this field is properly received
         });
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
 
-    // The component should call onComplete with BOTH success status AND allowIgnoreHostPreflights flag
+    // The component should call onComplete with BOTH success status AND allowIgnoreAppPreflights flag
     expect(mockOnComplete).toHaveBeenCalledWith(false, true); // success: false, allowIgnore: true
   });
 
-  it("passes allowIgnoreHostPreflights false to onComplete callback", async () => {
-    // Mock preflight status endpoint with allowIgnoreHostPreflights: false
+  it("passes allowIgnoreAppPreflights false to onComplete callback", async () => {
+    // Mock preflight status endpoint with allowIgnoreAppPreflights: false
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
         const authHeader = request.headers.get("Authorization");
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
           return new HttpResponse(null, { status: 401 });
@@ -275,19 +234,20 @@ describe("LinuxPreflightCheck", () => {
             fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
           },
           status: { state: "Failed" },
-          allowIgnoreHostPreflights: false, // Test that this field is properly received
+          allowIgnoreAppPreflights: false, // Test that this field is properly received
         });
       })
     );
 
-    renderWithProviders(<LinuxPreflightCheck onComplete={mockOnComplete} />, {
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
+        target,
         authToken: TEST_TOKEN,
       },
     });
 
     await waitFor(() => {
-      expect(screen.getByText("Host Requirements Not Met")).toBeInTheDocument();
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
 

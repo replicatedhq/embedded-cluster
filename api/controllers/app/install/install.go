@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -9,8 +10,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
+var (
+	ErrAppPreflightChecksFailed = errors.New("app preflight checks failed")
+)
+
 // InstallApp triggers app installation with proper state transitions and panic handling
-func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
+func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -24,6 +29,18 @@ func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 			lock.Release()
 		}
 	}()
+
+	// Check if app preflights have failed and if we should ignore them
+	if c.stateMachine.CurrentState() == states.StateAppPreflightsFailed {
+		allowIgnoreAppPreflights := true // TODO: implement once we check for strict app preflights
+		if !ignoreAppPreflights || !allowIgnoreAppPreflights {
+			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
+		}
+		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
+		if err != nil {
+			return fmt.Errorf("failed to transition states: %w", err)
+		}
+	}
 
 	if err := c.stateMachine.ValidateTransition(lock, states.StateAppInstalling); err != nil {
 		return types.NewConflictError(err)
@@ -48,21 +65,18 @@ func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 
 		defer func() {
 			if r := recover(); r != nil {
-				finalErr = fmt.Errorf("panic installing app: %v: %s", r, string(debug.Stack()))
+				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
-			// Handle errors from app installation
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
-				return
-			}
-
-			// Transition to succeeded state on successful app installation
-			if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+			} else {
+				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+					c.logger.Errorf("failed to transition states: %w", err)
+				}
 			}
 		}()
 
@@ -74,23 +88,6 @@ func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 
 		return nil
 	}()
-
-	return nil
-}
-
-// TODO: remove this once we have endpoints to trigger app installation and report status
-// and the app installation is decoupled from the infra installation
-func (c *InstallController) InstallAppNoState(ctx context.Context) error {
-	// Get config values for app installation
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
-	if err != nil {
-		return fmt.Errorf("get kotsadm config values for app install: %w", err)
-	}
-
-	// Install the app using the app install manager
-	if err := c.appInstallManager.Install(ctx, configValues); err != nil {
-		return fmt.Errorf("install app: %w", err)
-	}
 
 	return nil
 }

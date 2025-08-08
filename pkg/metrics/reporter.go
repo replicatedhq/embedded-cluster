@@ -96,7 +96,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 	Send(ctx, r.baseURL, types.InstallationStarted{
 		GenericEvent: r.newGenericEvent(types.EventTypeInstallationStarted, "", false),
 		BinaryName:   appSlug,
-		Type:         "centralized",
+		LegacyType:   "centralized",
 		LicenseID:    licenseID,
 		AppChannelID: appChannel,
 		AppVersion:   appVersion,
@@ -147,8 +147,8 @@ func (r *Reporter) ReportJoinFailed(ctx context.Context, err error) {
 	})
 }
 
-// ReportPreflightsFailed reports that the preflights failed.
-func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+// ReportHostPreflightsFailed reports that the host preflights failed.
+func (r *Reporter) ReportHostPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)
@@ -156,15 +156,15 @@ func (r *Reporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.
 	}
 
 	ev := types.PreflightsFailed{
-		GenericEvent:    r.newGenericEvent(types.EventTypePreflightsFailed, "", true),
+		GenericEvent:    r.newGenericEvent(types.EventTypeHostPreflightsFailed, "", true),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
 	Send(ctx, r.baseURL, ev)
 }
 
-// ReportPreflightsBypassed reports that the preflights failed but were bypassed.
-func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+// ReportHostPreflightsBypassed reports that the host preflights failed but were bypassed.
+func (r *Reporter) ReportHostPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	outputJSON, err := json.Marshal(output)
 	if err != nil {
 		logrus.Warnf("unable to marshal preflight output: %s", err)
@@ -172,9 +172,61 @@ func (r *Reporter) ReportPreflightsBypassed(ctx context.Context, output *apitype
 	}
 
 	ev := types.PreflightsBypassed{
-		GenericEvent:    r.newGenericEvent(types.EventTypePreflightsBypassed, "", false),
+		GenericEvent:    r.newGenericEvent(types.EventTypeHostPreflightsBypassed, "", false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
+	}
+	Send(ctx, r.baseURL, ev)
+}
+
+// ReportHostPreflightsSucceeded reports that the host preflights succeeded.
+
+// ReportHostPreflightsSucceeded reports that the host preflights succeeded.
+func (r *Reporter) ReportHostPreflightsSucceeded(ctx context.Context) {
+	ev := types.PreflightsSucceeded{
+		GenericEvent: r.newGenericEvent(types.EventTypeHostPreflightsSucceeded, "", true),
+		NodeName:     getHostname(),
+	}
+	Send(ctx, r.baseURL, ev)
+}
+
+// ReportAppPreflightsFailed reports that the app preflights failed.
+func (r *Reporter) ReportAppPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsFailed{
+		GenericEvent:    r.newGenericEvent(types.EventTypeAppPreflightsFailed, "", true),
+		NodeName:        getHostname(),
+		PreflightOutput: string(outputJSON),
+	}
+	Send(ctx, r.baseURL, ev)
+}
+
+// ReportAppPreflightsBypassed reports that the app preflights failed but were bypassed.
+func (r *Reporter) ReportAppPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	outputJSON, err := json.Marshal(output)
+	if err != nil {
+		logrus.Warnf("unable to marshal preflight output: %s", err)
+		return
+	}
+
+	ev := types.PreflightsBypassed{
+		GenericEvent:    r.newGenericEvent(types.EventTypeAppPreflightsBypassed, "", false),
+		NodeName:        getHostname(),
+		PreflightOutput: string(outputJSON),
+	}
+	Send(ctx, r.baseURL, ev)
+}
+
+// ReportAppPreflightsSucceeded reports that the app preflights succeeded.
+func (r *Reporter) ReportAppPreflightsSucceeded(ctx context.Context) {
+	ev := types.PreflightsSucceeded{
+		GenericEvent: r.newGenericEvent(types.EventTypeAppPreflightsSucceeded, "", true),
+		NodeName:     getHostname(),
 	}
 	Send(ctx, r.baseURL, ev)
 }

@@ -1,0 +1,44 @@
+name: Cleanup Resources
+
+on:
+  schedule:
+    # Run every 12 hours
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  archive-instances:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run archive instances script
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com"
+          DRY_RUN: "false"
+        run: |
+          # Make script executable and run it
+          chmod +x ./scripts/archive-instances.sh
+          ./scripts/archive-instances.sh
+
+  demote-channel-releases:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run demote channel releases script
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com"
+          DRY_RUN: "false"
+        run: |
+          # Make script executable and run it
+          chmod +x ./scripts/demote-channel-releases.sh
+          ./scripts/demote-channel-releases.sh

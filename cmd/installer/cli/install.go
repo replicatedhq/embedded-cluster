@@ -39,6 +39,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -134,33 +135,33 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
-			installReporter := newInstallReporter(
+			metricsReporter := newInstallReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				flags.license.Spec.LicenseID, flags.clusterID, flags.license.Spec.AppSlug,
 			)
-			installReporter.ReportInstallationStarted(ctx)
+			metricsReporter.ReportInstallationStarted(ctx)
 
 			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, installReporter, appTitle)
+				return runManagerExperienceInstall(ctx, flags, rc, ki, metricsReporter.reporter, appTitle)
 			}
 
 			_ = rc.SetEnv()
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				installReporter.ReportSignalAborted(ctx, sig)
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, installReporter); err != nil {
+			if err := runInstall(cmd.Context(), flags, rc, metricsReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					installReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					installReporter.ReportInstallationFailed(ctx, err)
+					metricsReporter.ReportInstallationFailed(ctx, err)
 				}
 				return err
 			}
-			installReporter.ReportInstallationSucceeded(ctx)
+			metricsReporter.ReportInstallationSucceeded(ctx)
 
 			return nil
 		},
@@ -595,7 +596,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 
 func runManagerExperienceInstall(
 	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
-	installReporter *InstallReporter, appTitle string,
+	metricsReporter metrics.ReporterInterface, appTitle string,
 ) (finalErr error) {
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
@@ -695,7 +696,7 @@ func runManagerExperienceInstall(
 
 		ManagerPort:     flags.managerPort,
 		InstallTarget:   flags.target,
-		MetricsReporter: installReporter.reporter,
+		MetricsReporter: metricsReporter,
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -713,7 +714,7 @@ func runManagerExperienceInstall(
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, installReporter *InstallReporter) (finalErr error) {
+func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {
 	if flags.enableManagerExperience {
 		return nil
 	}
@@ -724,7 +725,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, installReporter.reporter); err != nil {
+	if err := runInstallPreflights(ctx, flags, rc, metricsReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}

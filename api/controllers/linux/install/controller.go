@@ -282,8 +282,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
-			// TODO: remove this one app installation is decoupled from infra installation
-			infra.WithAppInstaller(controller.InstallAppNoState),
 		)
 	}
 

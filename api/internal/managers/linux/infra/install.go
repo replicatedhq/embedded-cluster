@@ -300,10 +300,6 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
-	opts.KotsInstaller = func() error {
-		return m.appInstaller(ctx)
-	}
-
 	return opts
 }
 

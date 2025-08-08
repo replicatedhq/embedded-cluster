@@ -137,3 +137,5 @@ configItemsConfigMapData:
   file_with_default: ""
   file_required: ""
 
+preflight:
+  enabled: false

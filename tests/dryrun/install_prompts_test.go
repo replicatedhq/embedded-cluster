@@ -95,20 +95,8 @@ defaultDomains:
 	// Verify that the airgap warning appears in the output
 	assert.Contains(t, dr.LogOutput, "You downloaded an air gap bundle but didn't provide it with --airgap-bundle")
 
-	// Verify that the installation proceeded
-	foundInstallStart := false
-	foundInstallSuccess := false
-	for _, metric := range dr.Metrics {
-		if metric.Title == "InstallationStarted" {
-			foundInstallStart = true
-		}
-		if metric.Title == "InstallationSucceeded" {
-			foundInstallSuccess = true
-		}
-	}
-
-	assert.True(t, foundInstallStart, "InstallationStarted metric should be present")
-	assert.True(t, foundInstallSuccess, "InstallationSucceeded metric should be present")
+	// Verify that the installation metrics are present (indicating normal flow)
+	verifyInstallationSucceeded(t, dr)
 
 	// Verify that the prompt was called
 	mockPrompt.AssertExpectations(t)
@@ -165,18 +153,23 @@ defaultDomains:
 // verifyInstallationSucceeded verifies that the installation succeeded by checking for the
 // InstallationStarted and InstallationSucceeded metrics
 func verifyInstallationSucceeded(t *testing.T, dr dryruntypes.DryRun) {
-	foundInstallStart := false
-	foundInstallSuccess := false
-	for _, metric := range dr.Metrics {
-		if metric.Title == "InstallationStarted" {
-			foundInstallStart = true
-		}
-		if metric.Title == "InstallationSucceeded" {
-			foundInstallSuccess = true
-		}
-	}
-	assert.True(t, foundInstallStart, "InstallationStarted metric should be present")
-	assert.True(t, foundInstallSuccess, "InstallationSucceeded metric should be present")
+	// --- validate metrics --- //
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title:    "InstallationStarted",
+			validate: func(payload string) {},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
+		},
+	})
 }
 
 // dryrunInstallWithCustomReleaseData is a helper function that allows custom release data

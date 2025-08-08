@@ -91,7 +91,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setIsLoading(false);
     };
     fetchInitialConfig();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Helper function to find the first item with error in DOM order
