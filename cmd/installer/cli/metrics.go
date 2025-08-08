@@ -30,12 +30,12 @@ func (r *installReporter) ReportInstallationStarted(ctx context.Context) {
 	r.reporter.ReportInstallationStarted(ctx, r.licenseID, r.appSlug)
 }
 
-func (r *installReporter) ReportInfraInstallationSucceeded(ctx context.Context) {
-	r.reporter.ReportInfraInstallationSucceeded(ctx)
+func (r *installReporter) ReportInstallationSucceeded(ctx context.Context) {
+	r.reporter.ReportInstallationSucceeded(ctx)
 }
 
-func (r *installReporter) ReportInfraInstallationFailed(ctx context.Context, err error) {
-	r.reporter.ReportInfraInstallationFailed(ctx, err)
+func (r *installReporter) ReportInstallationFailed(ctx context.Context, err error) {
+	r.reporter.ReportInstallationFailed(ctx, err)
 }
 
 func (r *installReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {

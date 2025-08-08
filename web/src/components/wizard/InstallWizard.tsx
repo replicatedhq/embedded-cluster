@@ -4,9 +4,7 @@ import WelcomeStep from "./WelcomeStep";
 import ConfigurationStep from "./config/ConfigurationStep";
 import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
-import LinuxValidationStep from "./validation/LinuxValidationStep";
-import LinuxInstallationStep from "./installation/LinuxInstallationStep";
-import KubernetesInstallationStep from "./installation/KubernetesInstallationStep";
+import InstallationStep from "./installation/InstallationStep";
 import LinuxCompletionStep from "./completion/LinuxCompletionStep";
 import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
@@ -19,9 +17,9 @@ const InstallWizard: React.FC = () => {
 
   const getSteps = (): WizardStep[] => {
     if (target === "kubernetes") {
-      return ["welcome", "configuration", "kubernetes-setup", "kubernetes-installation", "kubernetes-completion"];
+      return ["welcome", "configuration", "kubernetes-setup", "installation", "kubernetes-completion"];
     } else {
-      return ["welcome", "configuration", "linux-setup", "linux-validation", "linux-installation", "linux-completion"];
+      return ["welcome", "configuration", "linux-setup", "installation", "linux-completion"];
     }
   }
 
@@ -51,12 +49,8 @@ const InstallWizard: React.FC = () => {
         return <LinuxSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "kubernetes-setup":
         return <KubernetesSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
-      case "linux-validation":
-        return <LinuxValidationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
-      case "linux-installation":
-        return <LinuxInstallationStep onNext={goToNextStep} />;
-      case "kubernetes-installation":
-        return <KubernetesInstallationStep onNext={goToNextStep} />;
+      case "installation":
+        return <InstallationStep onNext={goToNextStep} />;
       case "linux-completion":
         return <LinuxCompletionStep />;
       case "kubernetes-completion":

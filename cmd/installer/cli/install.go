@@ -157,11 +157,11 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportInfraInstallationFailed(ctx, err)
+					metricsReporter.ReportInstallationFailed(ctx, err)
 				}
 				return err
 			}
-			metricsReporter.ReportInfraInstallationSucceeded(ctx)
+			metricsReporter.ReportInstallationSucceeded(ctx)
 
 			return nil
 		},

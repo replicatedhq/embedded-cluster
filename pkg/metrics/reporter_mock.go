@@ -22,24 +22,14 @@ func (m *MockReporter) ReportInstallationStarted(ctx context.Context, licenseID 
 	m.Called(mock.Anything, licenseID, appSlug)
 }
 
-// ReportInfraInstallationSucceeded mocks the ReportInfraInstallationSucceeded method
-func (m *MockReporter) ReportInfraInstallationSucceeded(ctx context.Context) {
+// ReportInstallationSucceeded mocks the ReportInstallationSucceeded method
+func (m *MockReporter) ReportInstallationSucceeded(ctx context.Context) {
 	m.Called(mock.Anything)
 }
 
-// ReportInfraInstallationFailed mocks the ReportInfraInstallationFailed method
-func (m *MockReporter) ReportInfraInstallationFailed(ctx context.Context, err error) {
+// ReportInstallationFailed mocks the ReportInstallationFailed method
+func (m *MockReporter) ReportInstallationFailed(ctx context.Context, err error) {
 	m.Called(mock.Anything, err)
-}
-
-// ReportAppInstallationFailed mocks the ReportAppInstallationFailed method
-func (m *MockReporter) ReportAppInstallationFailed(ctx context.Context, err error) {
-	m.Called(mock.Anything, err)
-}
-
-// ReportAppInstallationSucceeded mocks the ReportAppInstallationSucceeded method
-func (m *MockReporter) ReportAppInstallationSucceeded(ctx context.Context) {
-	m.Called(mock.Anything)
 }
 
 // ReportJoinStarted mocks the ReportJoinStarted method

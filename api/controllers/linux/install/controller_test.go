@@ -211,7 +211,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -229,7 +229,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -247,7 +247,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validate: validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -266,7 +266,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("write: set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -285,7 +285,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("write: set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -304,7 +304,7 @@ func TestConfigureInstallation(t *testing.T) {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("write: set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -323,7 +323,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -342,7 +342,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -361,7 +361,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("SetConfig", config).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
 					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
 			expectedErr: false,
@@ -1067,11 +1067,10 @@ func TestSetupInfra(t *testing.T) {
 			clientIgnoreHostPreflights:      false,
 			serverAllowIgnoreHostPreflights: true,
 			currentState:                    states.StateHostPreflightsSucceeded,
-			expectedState:                   states.StateInfrastructureInstallSucceeded,
+			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(nil),
-					mr.On("ReportInfraInstallationSucceeded", mock.Anything),
 				)
 			},
 			expectedErr: nil,
@@ -1081,13 +1080,12 @@ func TestSetupInfra(t *testing.T) {
 			clientIgnoreHostPreflights:      true,
 			serverAllowIgnoreHostPreflights: true,
 			currentState:                    states.StateHostPreflightsFailed,
-			expectedState:                   states.StateInfrastructureInstallSucceeded,
+			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsBypassed", mock.Anything, failedPreflightOutput),
 					fm.On("Install", mock.Anything, rc).Return(nil),
-					mr.On("ReportInfraInstallationSucceeded", mock.Anything),
 				)
 			},
 			expectedErr: nil,
@@ -1112,7 +1110,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("install error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
 				)
 			},
 			expectedErr: nil,
@@ -1141,7 +1139,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Panic("this is a panic"),
 					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("this is a panic")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
 				)
 			},
 			expectedErr: nil,

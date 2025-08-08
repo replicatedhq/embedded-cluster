@@ -103,37 +103,20 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 	})
 }
 
-// ReportInfraInstallationSucceeded reports that the infrastructure installation has succeeded.
-func (r *Reporter) ReportInfraInstallationSucceeded(ctx context.Context) {
+// ReportInstallationSucceeded reports that the installation has succeeded.
+func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.InstallationSucceeded{
 		GenericEvent: r.newGenericEvent(types.EventTypeInfraInstallationSucceeded, "", true),
 	})
 }
 
-// ReportInfraInstallationFailed reports that the infrastructure installation has failed.
-func (r *Reporter) ReportInfraInstallationFailed(ctx context.Context, err error) {
+// ReportInstallationFailed reports that the installation has failed.
+func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 	if errors.As(err, &ErrorNoFail{}) {
 		return
 	}
 	Send(ctx, r.baseURL, types.InstallationFailed{
 		GenericEvent: r.newGenericEvent(types.EventTypeInfraInstallationFailed, err.Error(), true),
-	})
-}
-
-// ReportAppInstallationSucceeded reports that the app installation has succeeded.
-func (r *Reporter) ReportAppInstallationSucceeded(ctx context.Context) {
-	Send(ctx, r.baseURL, types.InstallationSucceeded{
-		GenericEvent: r.newGenericEvent(types.EventTypeAppInstallationSucceeded, "", true),
-	})
-}
-
-// ReportAppInstallationFailed reports that the app installation has failed.
-func (r *Reporter) ReportAppInstallationFailed(ctx context.Context, err error) {
-	if errors.As(err, &ErrorNoFail{}) {
-		return
-	}
-	Send(ctx, r.baseURL, types.InstallationFailed{
-		GenericEvent: r.newGenericEvent(types.EventTypeAppInstallationFailed, err.Error(), true),
 	})
 }
 

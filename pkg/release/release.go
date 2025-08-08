@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -378,6 +379,11 @@ func (r *ReleaseData) parse() error {
 			}
 
 		case strings.HasSuffix(header.Name, ".tgz"):
+			// Skip system files (like macOS ._* files)
+			if isSystemFile(header.Name) {
+				break
+			}
+
 			// This is a chart archive (.tgz file)
 			if r.HelmChartArchives == nil {
 				r.HelmChartArchives = [][]byte{}
@@ -385,6 +391,28 @@ func (r *ReleaseData) parse() error {
 			r.HelmChartArchives = append(r.HelmChartArchives, content.Bytes())
 		}
 	}
+}
+
+// isSystemFile returns true if the filename represents a system file that should be ignored
+func isSystemFile(filename string) bool {
+	basename := filepath.Base(filename)
+
+	// macOS AppleDouble files (resource forks and extended attributes)
+	if strings.HasPrefix(basename, "._") {
+		return true
+	}
+
+	// macOS Finder metadata
+	if basename == ".DS_Store" {
+		return true
+	}
+
+	// Windows Thumbs.db
+	if basename == "Thumbs.db" {
+		return true
+	}
+
+	return false
 }
 
 // SetReleaseDataForTests should only be called from tests. It sets the release information based on the supplied data.

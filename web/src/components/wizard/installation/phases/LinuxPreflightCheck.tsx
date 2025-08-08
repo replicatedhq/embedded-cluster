@@ -1,45 +1,23 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "../../../contexts/SettingsContext";
+import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import Button from "../../common/Button";
-import { useAuth } from "../../../contexts/AuthContext";
+import Button from "../../../common/Button";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { PreflightOutput, HostPreflightResponse, State } from "../../../../types";
 
 interface LinuxPreflightCheckProps {
+  onRun: () => void;
   onComplete: (success: boolean, allowIgnoreHostPreflights: boolean) => void;
-}
-
-interface PreflightResult {
-  title: string;
-  message: string;
-}
-
-interface PreflightOutput {
-  pass: PreflightResult[];
-  warn: PreflightResult[];
-  fail: PreflightResult[];
-}
-
-interface PreflightStatus {
-  state: string;
-  description: string;
-  lastUpdated: string;
-}
-
-interface PreflightResponse {
-  titles: string[];
-  output?: PreflightOutput;
-  status?: PreflightStatus;
-  allowIgnoreHostPreflights?: boolean;
 }
 
 interface InstallationStatusResponse {
   description: string;
   lastUpdated: string;
-  state: "Failed" | "Succeeded" | "Running";
+  state: State;
 }
 
-const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete }) => {
+const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { settings } = useSettings();
@@ -48,7 +26,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
-  const isSuccessful = (response?: PreflightResponse) => response?.status?.state === "Succeeded";
+  const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
     if (installationStatus?.state === "Failed") {
@@ -77,10 +55,11 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to run preflight checks");
       }
-      return response.json() as Promise<PreflightResponse>;
+      return response.json() as Promise<HostPreflightResponse>;
     },
     onSuccess: () => {
       setIsPreflightsPolling(true);
+      onRun();
     },
     onError: () => {
       setIsPreflightsPolling(false);
@@ -109,7 +88,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
   });
 
   // Query to poll preflight status
-  const { data: preflightResponse } = useQuery<PreflightResponse, Error>({
+  const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
     queryKey: ["preflightStatus"],
     queryFn: async () => {
       const response = await fetch("/api/linux/install/host-preflights/status", {
@@ -123,7 +102,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to get preflight status");
       }
-      return response.json() as Promise<PreflightResponse>;
+      return response.json() as Promise<HostPreflightResponse>;
     },
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
@@ -135,7 +114,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       setIsPreflightsPolling(false);
       onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreHostPreflights ?? false);
     }
-  }, [preflightResponse, onComplete]);
+  }, [preflightResponse]);
 
   useEffect(() => {
     if (installationStatus?.state === "Failed") {
@@ -147,7 +126,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onComplete })
       setIsInstallationStatusPolling(false);
       runPreflights();
     }
-  }, [installationStatus, runPreflights]);
+  }, [installationStatus]);
 
   if (isInstallationStatusPolling) {
     return (

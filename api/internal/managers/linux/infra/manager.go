@@ -45,7 +45,6 @@ type infraManager struct {
 	mcli               metadata.Interface
 	hcli               helm.Client
 	hostUtils          hostutils.HostUtilsInterface
-	appInstaller       func(ctx context.Context) error
 	mu                 sync.RWMutex
 }
 
@@ -144,12 +143,6 @@ func WithHelmClient(hcli helm.Client) InfraManagerOption {
 func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 	return func(c *infraManager) {
 		c.hostUtils = hostUtils
-	}
-}
-
-func WithAppInstaller(appInstaller func(ctx context.Context) error) InfraManagerOption {
-	return func(c *infraManager) {
-		c.appInstaller = appInstaller
 	}
 }
 

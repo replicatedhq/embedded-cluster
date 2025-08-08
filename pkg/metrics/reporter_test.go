@@ -54,7 +54,7 @@ func TestReportInstallationStarted(t *testing.T) {
 	}
 }
 
-func TestReportInfraInstallationSucceeded(t *testing.T) {
+func TestReportInstallationSucceeded(t *testing.T) {
 	for _, test := range []struct {
 		name            string
 		validateRequest func(*testing.T, *http.Request)
@@ -95,7 +95,7 @@ func TestReportInfraInstallationSucceeded(t *testing.T) {
 			defer server.Close()
 
 			reporter := NewReporter("test-execution-id", server.URL, "123", "install", []string{"--foo", "--bar"})
-			reporter.ReportInfraInstallationSucceeded(context.Background())
+			reporter.ReportInstallationSucceeded(context.Background())
 		})
 	}
 }

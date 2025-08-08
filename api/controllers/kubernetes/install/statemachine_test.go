@@ -71,11 +71,18 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:       `State "InfrastructureInstalling" can transition to "InfrastructureInstallSucceeded" or "InfrastructureInstallFailed"`,
+			name:       `State "InfrastructureInstalling" can transition to "InfrastructureInstalled" or "InfrastructureInstallFailed"`,
 			startState: states.StateInfrastructureInstalling,
 			validTransitions: []statemachine.State{
-				states.StateInfrastructureInstallSucceeded,
+				states.StateInfrastructureInstalled,
 				states.StateInfrastructureInstallFailed,
+			},
+		},
+		{
+			name:       `State "InfrastructureInstalled" can transition to "AppPreflightsRunning"`,
+			startState: states.StateInfrastructureInstalled,
+			validTransitions: []statemachine.State{
+				states.StateAppPreflightsRunning,
 			},
 		},
 		{
@@ -135,13 +142,6 @@ func TestStateMachineTransitions(t *testing.T) {
 			name:             `State "AppInstallFailed" can not transition to any other state`,
 			startState:       states.StateAppInstallFailed,
 			validTransitions: []statemachine.State{},
-		},
-		{
-			name:       `State "InfrastructureInstallSucceeded" can transition to "AppPreflightsRunning"`,
-			startState: states.StateInfrastructureInstallSucceeded,
-			validTransitions: []statemachine.State{
-				states.StateAppPreflightsRunning,
-			},
 		},
 		{
 			name:             `State "Succeeded" can not transition to any other state`,

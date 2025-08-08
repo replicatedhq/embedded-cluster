@@ -156,7 +156,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -170,7 +170,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -184,7 +184,7 @@ func TestConfigureInstallation(t *testing.T) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
 				)
 			},
 			expectedErr: true,
@@ -332,11 +332,11 @@ func TestSetupInfra(t *testing.T) {
 		{
 			name:          "successful setup",
 			currentState:  states.StateInstallationConfigured,
-			expectedState: states.StateInfrastructureInstallSucceeded,
+			expectedState: states.StateInfrastructureInstalled,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, ki).Return(nil),
-					mr.On("ReportInfraInstallationSucceeded", mock.Anything),
+					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
 			},
 			expectedErr: nil,
@@ -349,7 +349,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
 					st.KubernetesInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("install error")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
 				)
 			},
 			expectedErr: nil,
@@ -374,7 +374,7 @@ func TestSetupInfra(t *testing.T) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, ki).Panic("this is a panic"),
 					st.KubernetesInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
-					mr.On("ReportInfraInstallationFailed", mock.Anything, errors.New("this is a panic")),
+					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
 				)
 			},
 			expectedErr: nil,

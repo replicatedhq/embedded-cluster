@@ -178,11 +178,11 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.appInstallManager == nil {
 		appInstallManager, err := appinstallmanager.NewAppInstallManager(
 			appinstallmanager.WithLogger(controller.logger),
-			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithReleaseData(controller.releaseData),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
+			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)

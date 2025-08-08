@@ -35,7 +35,7 @@ type Store interface {
 	// AppPreflightStore provides access to app preflight operations
 	AppPreflightStore() apppreflight.Store
 
-	// AppInstallStore provides access to app installation operations
+	// AppInstallStore provides access to app install operations
 	AppInstallStore() appinstall.Store
 }
 
