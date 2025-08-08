@@ -211,9 +211,10 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := types.InstallAppPreflightsStatusResponse{
-		Titles: titles,
-		Output: output,
-		Status: status,
+		Titles:                   titles,
+		Output:                   output,
+		Status:                   status,
+		AllowIgnoreAppPreflights: true, // TODO: update once we check for strict app preflights
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)

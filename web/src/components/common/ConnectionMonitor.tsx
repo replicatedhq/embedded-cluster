@@ -117,7 +117,6 @@ const useConnectionMonitor = () => {
         clearInterval(interval);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent infinite loops
 
   // Cleanup interval when it changes

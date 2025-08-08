@@ -91,6 +91,8 @@ components:
       type: object
     types.InstallAppPreflightsStatusResponse:
       properties:
+        allowIgnoreAppPreflights:
+          type: boolean
         output:
           $ref: '#/components/schemas/types.PreflightsOutput'
         status:
