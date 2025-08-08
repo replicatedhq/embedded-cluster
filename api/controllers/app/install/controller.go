@@ -159,6 +159,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.appPreflightManager == nil {
 		controller.appPreflightManager = apppreflightmanager.NewAppPreflightManager(
 			apppreflightmanager.WithLogger(controller.logger),
+			apppreflightmanager.WithAppPreflightStore(controller.store.AppPreflightStore()),
 		)
 	}
 

@@ -38,5 +38,6 @@ func Send(ctx context.Context, baseURL string, ev types.Event) {
 		logrus.Debugf("Metrics base URL empty, not sending event %s", ev.Title())
 		return
 	}
+	logrus.Debugf("Sending metrics event %s", ev.Type())
 	s.Send(ctx, baseURL, ev)
 }

@@ -167,7 +167,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 			},
 		},
 		{
-			title: "InstallationSucceeded",
+			title: "GenericEvent",
 			validate: func(payload string) {
 				assert.Contains(t, payload, `"isExitEvent":true`)
 				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
@@ -362,8 +362,11 @@ func TestCustomPortsInstallation(t *testing.T) {
 			},
 		},
 		{
-			title:    "InstallationSucceeded",
-			validate: func(payload string) {},
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
 		},
 	})
 
@@ -421,8 +424,11 @@ func TestConfigValuesInstallation(t *testing.T) {
 			},
 		},
 		{
-			title:    "InstallationSucceeded",
-			validate: func(payload string) {},
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
 		},
 	})
 

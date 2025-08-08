@@ -206,8 +206,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 		// Create manager with test store
 		manager, err := NewAppInstallManager(
-			WithAppInstallStore(store),
 			WithLogger(logger.NewDiscardLogger()),
+			WithAppInstallStore(store),
 		)
 		require.NoError(t, err)
 
