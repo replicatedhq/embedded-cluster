@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import AppInstallationStatus from "./AppInstallationStatus";
 import { NextButtonConfig } from "../types";
@@ -15,11 +15,11 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const [installationComplete, setInstallationComplete] = useState(false);
   const [installationSuccess, setInstallationSuccess] = useState(false);
 
-  const handleInstallationComplete = (success: boolean) => {
+  const handleInstallationComplete = useCallback((success: boolean) => {
     setInstallationComplete(true);
     setInstallationSuccess(success);
     onStateChange(success ? 'Succeeded' : 'Failed');
-  };
+  }, []);
 
   // Report that step is running when component mounts
   useEffect(() => {

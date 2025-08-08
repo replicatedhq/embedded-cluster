@@ -4,6 +4,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import InstallationStep from '../InstallationStep.tsx';
+import { State } from '../../../../types/index.ts';
 
 // Type for phase component props
 type PhaseProps = {
@@ -18,27 +19,32 @@ type PhaseOutcome = 'success' | 'failure';
 const phaseMockConfig = {
   linuxPreflight: { 
     outcome: 'success' as PhaseOutcome, 
-    buttonDisabled: false 
+    buttonDisabled: false,
+    autoStateChange: null as { delay: number, state: State } | null
   },
   linuxInstallation: { 
     outcome: 'success' as PhaseOutcome, 
-    buttonDisabled: false 
+    buttonDisabled: false,
+    autoStateChange: null as { delay: number, state: State } | null
   },
   kubernetesInstallation: { 
     outcome: 'success' as PhaseOutcome, 
-    buttonDisabled: false 
+    buttonDisabled: false,
+    autoStateChange: null as { delay: number, state: State } | null
   },
   appPreflight: { 
     outcome: 'success' as PhaseOutcome, 
-    buttonDisabled: false 
+    buttonDisabled: false,
+    autoStateChange: null as { delay: number, state: State } | null
   },
   appInstallation: { 
     outcome: 'success' as PhaseOutcome, 
-    buttonDisabled: false 
+    buttonDisabled: false,
+    autoStateChange: null as { delay: number, state: State } | null
   }
 };
 
-const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
+const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig, phaseTestId: string) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
   React.useEffect(() => {
     onStateChange('Running');
     const config = phaseMockConfig[phaseKey];
@@ -54,33 +60,43 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
         }
       }
     });
+
+    // Set up auto state change if configured
+    if (config.autoStateChange) {
+      const timeout = setTimeout(() => {
+        onStateChange(config.autoStateChange!.state);
+      }, config.autoStateChange.delay);
+      
+      return () => {
+        clearTimeout(timeout);
+      };
+    }
   }, []);
   
   const config = phaseMockConfig[phaseKey];
   const suffix = config.outcome === 'failure' ? ' Failed' : '';
-  const testId = phaseName.toLowerCase().replace(/\s+/g, '-');
-  return <div data-testid={testId}>{phaseName}{suffix}</div>;
+  return <div data-testid={phaseTestId}>{phaseName}{suffix}</div>;
 };
 
 // Mock all the phase components
 vi.mock('../phases/LinuxPreflightPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight', 'linux-preflight-phase')(props)
 }));
 
 vi.mock('../phases/LinuxInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Linux Installation Phase', 'linuxInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Installation Phase', 'linuxInstallation', 'linux-installation-phase')(props)
 }));
 
 vi.mock('../phases/KubernetesInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesInstallation', 'kubernetes-installation-phase')(props)
 }));
 
 vi.mock('../phases/AppPreflightPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('App Preflight Phase', 'appPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Preflight Phase', 'appPreflight', 'app-preflight-phase')(props)
 }));
 
 vi.mock('../phases/AppInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation', 'app-installation-phase')(props)
 }));
 
 const server = setupServer();
@@ -95,12 +111,13 @@ describe('InstallationStep', () => {
   afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
-    // Reset all phases to success with enabled buttons
-    phaseMockConfig.linuxPreflight = { outcome: 'success', buttonDisabled: false };
-    phaseMockConfig.linuxInstallation = { outcome: 'success', buttonDisabled: false };
-    phaseMockConfig.kubernetesInstallation = { outcome: 'success', buttonDisabled: false };
-    phaseMockConfig.appPreflight = { outcome: 'success', buttonDisabled: false };
-    phaseMockConfig.appInstallation = { outcome: 'success', buttonDisabled: false };
+
+    // Reset all phases
+    phaseMockConfig.linuxPreflight = { outcome: 'success', buttonDisabled: false, autoStateChange: null };
+    phaseMockConfig.linuxInstallation = { outcome: 'success', buttonDisabled: false, autoStateChange: null };
+    phaseMockConfig.kubernetesInstallation = { outcome: 'success', buttonDisabled: false, autoStateChange: null };
+    phaseMockConfig.appPreflight = { outcome: 'success', buttonDisabled: false, autoStateChange: null };
+    phaseMockConfig.appInstallation = { outcome: 'success', buttonDisabled: false, autoStateChange: null };
   });
 
   afterAll(() => {
@@ -131,14 +148,14 @@ describe('InstallationStep', () => {
       expect(screen.getByTestId('timeline-app-installation')).toBeInTheDocument();
 
       // Should start with Linux preflight phase
-      expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
     });
 
     it('progresses through all Linux phases in correct order', async () => {
       renderInstallationStep('linux');
 
       // Start with Linux preflight - button should be enabled by default
-      expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
       await waitFor(() => {
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
@@ -147,7 +164,7 @@ describe('InstallationStep', () => {
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('Linux Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
         // Button should still be enabled for this phase
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
@@ -156,7 +173,7 @@ describe('InstallationStep', () => {
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('App Preflight Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
@@ -164,7 +181,7 @@ describe('InstallationStep', () => {
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('App Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
@@ -190,27 +207,27 @@ describe('InstallationStep', () => {
       expect(screen.getByTestId('timeline-app-installation')).toBeInTheDocument();
 
       // Should start with Kubernetes installation phase
-      expect(screen.getByText('Kubernetes Installation Phase')).toBeInTheDocument();
+      expect(screen.getByTestId('kubernetes-installation-phase')).toBeInTheDocument();
     });
 
     it('progresses through all Kubernetes phases in correct order', async () => {
       renderInstallationStep('kubernetes');
 
       // Start with Kubernetes installation
-      expect(screen.getByText('Kubernetes Installation Phase')).toBeInTheDocument();
+      expect(screen.getByTestId('kubernetes-installation-phase')).toBeInTheDocument();
 
       // Click next to go to App preflight
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('App Preflight Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
       });
 
       // Click next to go to App installation
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('App Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
       });
 
       // Click finish
@@ -240,17 +257,117 @@ describe('InstallationStep', () => {
       });
     });
 
+    it('keeps completed and current phases mounted when switching between phases', async () => {
+      renderInstallationStep('linux');
+
+      // Start with Linux preflight - should be visible
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+      expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+
+      // Move to second phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      await waitFor(() => {
+        // Second phase should now be visible
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('hidden');
+        
+        // First phase should now be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+
+        // Third phase should not be mounted at all
+        expect(screen.queryByTestId('app-preflight-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-preflight-container')).not.toBeInTheDocument();
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Move to third phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      await waitFor(() => {
+        // Third phase should now be visible
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('block');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('hidden');
+        
+        // First two phases should be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+        
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('block');
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Click back on first completed phase in timeline
+      fireEvent.click(screen.getByTestId('timeline-linux-preflight'));
+
+      await waitFor(() => {
+        // First phase container should be visible
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+        
+        // Second phase should still exist in DOM but hidden
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('block');
+        
+        // Third phase should still exist in DOM but hidden
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('block');
+        
+        // Future phases should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Click on second completed phase
+      fireEvent.click(screen.getByTestId('timeline-linux-installation'));
+
+      await waitFor(() => {
+        // Second phase container should now be visible
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('hidden');
+        
+        // First and third phases should be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+        
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('block');
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+    });
+
     it('allows clicking on completed phases to view them', async () => {
       renderInstallationStep('linux');
 
       // Start with Linux preflight
-      expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
 
       // Complete first phase
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        expect(screen.getByText('Linux Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
       // Now click back on the completed Linux preflight phase in timeline
@@ -258,7 +375,7 @@ describe('InstallationStep', () => {
       
       await waitFor(() => {
         // Should show the previous phase content 
-        expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
       });
     });
 
@@ -294,8 +411,8 @@ describe('InstallationStep', () => {
       });
 
       // Should not progress to next phase
-      expect(screen.getByText('Linux Preflight Phase Failed')).toBeInTheDocument();
-      expect(screen.queryByText('Linux Installation Phase')).not.toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.queryByTestId('linux-installation-phase')).not.toBeInTheDocument();
     });
 
     it('allows clicking on failed phases to view them', async () => {
@@ -309,7 +426,7 @@ describe('InstallationStep', () => {
 
       await waitFor(() => {
         // Should now be on the second phase (which is configured to fail)
-        expect(screen.getByText('Linux Installation Phase Failed')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
       // Try to complete the second phase - should fail and stay on same phase
@@ -319,7 +436,7 @@ describe('InstallationStep', () => {
         // Should show failure icon in timeline
         expect(screen.getByTestId('icon-failed')).toBeInTheDocument();
         // Should still be showing the failed phase
-        expect(screen.getByText('Linux Installation Phase Failed')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
       // Should be able to click on the failed phase button in timeline
@@ -329,13 +446,13 @@ describe('InstallationStep', () => {
       // Click on completed phase first
       fireEvent.click(screen.getByTestId('timeline-linux-preflight'));
       await waitFor(() => {
-        expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
       });
       
       // Then click back to failed phase
       fireEvent.click(failedPhaseButton);
       await waitFor(() => {
-        expect(screen.getByText('Linux Installation Phase Failed')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
     });
 
@@ -349,8 +466,8 @@ describe('InstallationStep', () => {
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       await waitFor(() => {
-        // Use a more flexible text matcher since the component may render "Linux Installation Phase Failed"
-        expect(screen.getByText(/Linux Installation Phase/)).toBeInTheDocument();
+        // Should be on the second phase
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
       // Fail second phase
@@ -402,8 +519,8 @@ describe('InstallationStep', () => {
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
       // Should still be on first phase
-      expect(screen.getByText('Linux Preflight Phase')).toBeInTheDocument();
-      expect(screen.queryByText('Linux Installation Phase')).not.toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.queryByTestId('linux-installation-phase')).not.toBeInTheDocument();
     });
 
     it('enables button when phase configuration changes', async () => {
@@ -423,10 +540,88 @@ describe('InstallationStep', () => {
 
       // Second phase button should be disabled
       await waitFor(() => {
-        expect(screen.getByText('Linux Installation Phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
         expect(screen.getByTestId('installation-next-button')).toBeDisabled();
       });
     });
   });
 
+  describe('Auto-advance functionality', () => {
+    it('automatically advances when phase succeeds via auto state change', async () => {
+      // Configure first phase to automatically succeed after 100ms
+      phaseMockConfig.linuxPreflight.autoStateChange = { delay: 100, state: 'Succeeded' };
+  
+      renderInstallationStep('linux');
+ 
+      // Should start with Linux preflight
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+      expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+   
+      // Wait for the phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+   
+      // Should automatically advance to Linux Installation Phase
+      await waitFor(() => {
+        // Second phase should now be visible
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('hidden');
+
+        // First phase should now be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+ 
+        // Third phase should not be mounted at all
+        expect(screen.queryByTestId('app-preflight-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-preflight-container')).not.toBeInTheDocument();
+ 
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+    });
+
+    it('does not auto-advance when phase fails', async () => {
+      // Configure first phase to automatically fail after 100ms
+      phaseMockConfig.linuxPreflight.autoStateChange = { delay: 100, state: 'Failed' };
+
+      renderInstallationStep('linux');
+
+      // Should start with Linux preflight
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+      expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+
+      // Wait for the phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Wait for the phase to auto-fail (this should happen)
+      await waitFor(() => {
+        expect(screen.getByTestId('icon-failed')).toBeInTheDocument();
+      });
+      
+      // Should still be on the same phase, not advance
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+      expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+
+      // Second phase should not be mounted at all
+      expect(screen.queryByTestId('linux-installation-phase')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('linux-installation-container')).not.toBeInTheDocument();
+
+      // Third phase should not be mounted at all
+      expect(screen.queryByTestId('app-preflight-phase')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('app-preflight-container')).not.toBeInTheDocument();
+
+      // Fourth phase should not be mounted at all
+      expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+    });
+  });
 });
