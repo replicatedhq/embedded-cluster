@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
@@ -437,56 +437,4 @@ describe.each([
     });
   });
 
-  it('verify log viewer functionality', async () => {
-    server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
-        return HttpResponse.json({
-          status: { 
-            state: 'Running', 
-            description: 'Installing application components...' 
-          },
-          logs: 'Installing helm charts...\nConfiguring application settings...\nStarting application pods...'
-        });
-      })
-    );
-
-    renderWithProviders(
-      <TestAppInstallationPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      {
-        wrapperProps: {
-          target,
-          authenticated: true
-        }
-      }
-    );
-
-    // Wait for log viewer to be available
-    await waitFor(() => {
-      expect(screen.getByTestId('log-viewer')).toBeInTheDocument();
-    });
-
-    // Initially logs should be collapsed and not visible
-    expect(screen.queryByTestId('log-viewer-content')).not.toBeInTheDocument();
-
-    // Expand and verify logs
-    const toggleButton = screen.getByTestId('log-viewer-toggle');
-    expect(toggleButton).toBeInTheDocument();
-    fireEvent.click(toggleButton);
-    
-    await waitFor(() => {
-      const logContent = screen.getByTestId('log-viewer-content');
-      expect(logContent).toHaveTextContent('Installing helm charts...');
-      expect(logContent).toHaveTextContent('Configuring application settings...');
-      expect(logContent).toHaveTextContent('Starting application pods...');
-    });
-
-    // Click to collapse logs
-    fireEvent.click(toggleButton);
-    await waitFor(() => {
-      expect(screen.queryByTestId('log-viewer-content')).not.toBeInTheDocument();
-    });
-  });
 });

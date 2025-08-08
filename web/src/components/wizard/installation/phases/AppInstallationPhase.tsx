@@ -7,7 +7,6 @@ import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { NextButtonConfig } from "../types";
 import { State, AppInstallStatus } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
-import LogViewer from "../shared/LogViewer";
 
 interface AppInstallationPhaseProps {
   onNext: () => void;
@@ -22,7 +21,6 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const [isPolling, setIsPolling] = useState(true);
   const [installationComplete, setInstallationComplete] = useState(false);
   const [installationSuccess, setInstallationSuccess] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
 
   // Query to poll app installation status
@@ -136,14 +134,6 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
       </div>
 
       {renderInstallationStatus()}
-      
-      <LogViewer
-        title="Application Installation Logs"
-        logs={appInstallStatus?.logs ? [appInstallStatus.logs] : []}
-        isExpanded={showLogs}
-        onToggle={() => setShowLogs(!showLogs)}
-      />
-      
       {appStatusError && <ErrorMessage error={appStatusError?.message} />}
     </div>
   );
