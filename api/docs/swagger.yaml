@@ -103,6 +103,11 @@ components:
           type: array
           uniqueItems: false
       type: object
+    types.InstallAppRequest:
+      properties:
+        ignoreAppPreflights:
+          type: boolean
+      type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
         allowIgnoreHostPreflights:
@@ -544,6 +549,13 @@ paths:
     post:
       description: Install the app using current configuration
       operationId: postKubernetesInstallApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InstallAppRequest'
+        description: Install App Request
+        required: true
       responses:
         "200":
           content:
@@ -811,6 +823,13 @@ paths:
     post:
       description: Install the app using current configuration
       operationId: postLinuxInstallApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.InstallAppRequest'
+        description: Install App Request
+        required: true
       responses:
         "200":
           content:

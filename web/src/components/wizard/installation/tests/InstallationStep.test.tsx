@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
-import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import InstallationStep from '../InstallationStep.tsx';
