@@ -78,7 +78,7 @@ func TestReportInstallationSucceeded(t *testing.T) {
 				req.Equal("123", event.ClusterID)
 				req.Equal("install", event.EntryCommand)
 				req.Equal("--foo --bar", event.Flags)
-				req.Equal(types.EventTypeInfraInstallationSucceeded, event.EventType)
+				req.Equal(types.EventTypeInstallationSucceeded, event.EventType)
 				req.True(event.IsExitEvent)
 			},
 		},

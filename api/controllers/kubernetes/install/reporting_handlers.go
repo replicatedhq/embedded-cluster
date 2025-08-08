@@ -24,7 +24,7 @@ func (c *InstallController) registerReportingHandlers() {
 }
 
 func (c *InstallController) reportInstallSucceeded(ctx context.Context, _, _ statemachine.State) {
-	c.logger.Debug("reporting metrics event install succeeded")
+	c.logger.Info("Reporting metrics event install succeeded")
 	c.metricsReporter.ReportInstallationSucceeded(ctx)
 }
 
@@ -50,11 +50,11 @@ func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState 
 		}
 	}
 	if err != nil {
-		c.logger.WithError(err).Error("failed to report failed infrastructure install")
+		c.logger.WithError(err).Error("failed to report failed install")
 		return
 	}
 
-	c.logger.Debug("reporting metrics event install failed")
+	c.logger.Info("Reporting metrics event install failed")
 	c.metricsReporter.ReportInstallationFailed(ctx, errors.New(status.Description))
 }
 
@@ -65,7 +65,7 @@ func (c *InstallController) reportAppPreflightsFailed(ctx context.Context, _, _ 
 		c.logger.WithError(err).Error("failed to report app preflights failed")
 		return
 	}
-	c.logger.Debug("reporting metrics event app preflights failed")
+	c.logger.Info("Reporting metrics event app preflights failed")
 	c.metricsReporter.ReportAppPreflightsFailed(ctx, output)
 }
 
@@ -76,11 +76,11 @@ func (c *InstallController) reportAppPreflightsBypassed(ctx context.Context, _, 
 		c.logger.WithError(err).Error("failed to report app preflights bypassed")
 		return
 	}
-	c.logger.Debug("reporting metrics event app preflights bypassed")
+	c.logger.Info("Reporting metrics event app preflights bypassed")
 	c.metricsReporter.ReportAppPreflightsBypassed(ctx, output)
 }
 
 func (c *InstallController) reportAppPreflightsSucceeded(ctx context.Context, _, _ statemachine.State) {
-	c.logger.Debug("reporting metrics event app preflights succeeded")
+	c.logger.Info("Reporting metrics event app preflights succeeded")
 	c.metricsReporter.ReportAppPreflightsSucceeded(ctx)
 }

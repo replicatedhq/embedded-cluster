@@ -12,10 +12,10 @@ type ReporterInterface interface {
 	// ReportInstallationStarted reports that the installation has started
 	ReportInstallationStarted(ctx context.Context, licenseID string, appSlug string)
 
-	// ReportInstallationSucceeded reports that the infrastructure installation has succeeded
+	// ReportInstallationSucceeded reports that the installation has succeeded
 	ReportInstallationSucceeded(ctx context.Context)
 
-	// ReportInstallationFailed reports that the infrastructure installation has failed
+	// ReportInstallationFailed reports that the installation has failed
 	ReportInstallationFailed(ctx context.Context, err error)
 
 	// ReportJoinStarted reports that a join has started

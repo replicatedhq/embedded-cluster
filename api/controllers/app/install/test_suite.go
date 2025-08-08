@@ -510,8 +510,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
-			currentState:  states.StateInfrastructureInstalled,
-			expectedState: states.StateInfrastructureInstalled,
+			currentState:  states.StateSucceeded,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
 				// No mocks needed for invalid state transition
 			},

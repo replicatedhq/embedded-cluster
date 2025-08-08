@@ -2,21 +2,19 @@ package types
 
 // Event type constants
 const (
-	EventTypeInstallationStarted        = "InstallationStarted"
-	EventTypeInfraInstallationSucceeded = "InstallationSucceeded" // event name remains the same for backwards compatibility
-	EventTypeInfraInstallationFailed    = "InstallationFailed"    // event name remains the same for backwards compatibility
-	EventTypeJoinStarted                = "JoinStarted"
-	EventTypeJoinSucceeded              = "JoinSucceeded"
-	EventTypeJoinFailed                 = "JoinFailed"
-	EventTypeHostPreflightsFailed       = "PreflightsFailed"    // event name remains the same for backwards compatibility
-	EventTypeHostPreflightsBypassed     = "PreflightsBypassed"  // event name remains the same for backwards compatibility
-	EventTypeHostPreflightsSucceeded    = "PreflightsSucceeded" // event name remains the same for backwards compatibility
-	EventTypeSignalAborted              = "SignalAborted"
-	EventTypeAppPreflightsFailed        = "AppPreflightsFailed"
-	EventTypeAppPreflightsBypassed      = "AppPreflightsBypassed"
-	EventTypeAppPreflightsSucceeded     = "AppPreflightsSucceeded"
-	EventTypeAppInstallationFailed      = "AppInstallationFailed"
-	EventTypeAppInstallationSucceeded   = "AppInstallationSucceeded"
+	EventTypeInstallationStarted     = "InstallationStarted"
+	EventTypeInstallationSucceeded   = "InstallationSucceeded"
+	EventTypeInstallationFailed      = "InstallationFailed"
+	EventTypeJoinStarted             = "JoinStarted"
+	EventTypeJoinSucceeded           = "JoinSucceeded"
+	EventTypeJoinFailed              = "JoinFailed"
+	EventTypeHostPreflightsFailed    = "PreflightsFailed"    // event name remains the same for backwards compatibility
+	EventTypeHostPreflightsBypassed  = "PreflightsBypassed"  // event name remains the same for backwards compatibility
+	EventTypeHostPreflightsSucceeded = "PreflightsSucceeded" // event name remains the same for backwards compatibility
+	EventTypeAppPreflightsFailed     = "AppPreflightsFailed"
+	EventTypeAppPreflightsBypassed   = "AppPreflightsBypassed"
+	EventTypeAppPreflightsSucceeded  = "AppPreflightsSucceeded"
+	EventTypeSignalAborted           = "SignalAborted"
 )
 
 // Event is implemented by all events. Title returns a string that identifies the
