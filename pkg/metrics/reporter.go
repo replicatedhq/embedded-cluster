@@ -106,7 +106,7 @@ func (r *Reporter) ReportInstallationStarted(ctx context.Context, licenseID stri
 // ReportInstallationSucceeded reports that the installation has succeeded.
 func (r *Reporter) ReportInstallationSucceeded(ctx context.Context) {
 	Send(ctx, r.baseURL, types.InstallationSucceeded{
-		GenericEvent: r.newGenericEvent(types.EventTypeInfraInstallationSucceeded, "", true),
+		GenericEvent: r.newGenericEvent(types.EventTypeInstallationSucceeded, "", true),
 	})
 }
 
@@ -116,7 +116,7 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 		return
 	}
 	Send(ctx, r.baseURL, types.InstallationFailed{
-		GenericEvent: r.newGenericEvent(types.EventTypeInfraInstallationFailed, err.Error(), true),
+		GenericEvent: r.newGenericEvent(types.EventTypeInstallationFailed, err.Error(), true),
 	})
 }
 
