@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
@@ -34,6 +34,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
   const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
     'linux-preflight': {
@@ -68,7 +69,14 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       ...prev,
       [phase]: { ...prev[phase], status }
     }));
-  }, []);
+    
+    // Auto-advance to next phase when current phase succeeds
+    if (phase === currentPhase && status === 'Succeeded') {
+      setTimeout(() => {
+        nextButtonRef.current?.click();
+      }, 500);
+    }
+  }, [currentPhase]);
 
   const goToNextPhase = () => {
     // Mark current phase as completed
@@ -182,6 +190,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       {nextButtonConfig && (
         <div className="flex justify-end">
           <Button
+            ref={nextButtonRef}
             onClick={nextButtonConfig.onClick}
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}
