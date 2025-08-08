@@ -57,7 +57,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 			AirGap:         isAirgap,
 			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
 				Network: ecv1beta1.NetworkSpec{
-					NetworkInterface: "eth0",
+					NetworkInterface: "ens1",
 					PodCIDR:          "10.2.0.0/17",
 					ServiceCIDR:      "10.2.128.0/17",
 				},
@@ -77,7 +77,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 	ifaceProvider := &dryrun.NetworkInterfaceProvider{
 		Ifaces: []netutils.NetworkInterface{
 			&dryrun.NetworkInterface{
-				MockName:  "ens1",
+				MockName:  "eth0",
 				MockFlags: net.FlagUp,
 				MockAddrs: []net.Addr{
 					&net.IPNet{IP: ip, Mask: net.CIDRMask(24, 32)},

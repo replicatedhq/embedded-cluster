@@ -80,6 +80,7 @@ func Init(outputFile string, client *Client) {
 	}
 	if client.NetworkInterfaceProvider != nil {
 		config.NetworkInterfaceProvider = client.NetworkInterfaceProvider
+		netutils.DefaultNetworkInterfaceProvider = client.NetworkInterfaceProvider
 		config.ChooseHostInterface = client.ChooseHostInterfaceImpl.ChooseHostInterface
 	}
 	kubeutils.Set(client.KubeUtils)
