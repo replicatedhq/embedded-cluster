@@ -247,7 +247,7 @@ func TestPostInstallApp(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", nil)
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", bytes.NewReader([]byte(`{}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -302,7 +302,7 @@ func TestPostInstallApp(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", nil)
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", bytes.NewReader([]byte(`{}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -380,7 +380,7 @@ func TestPostInstallApp(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", nil)
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", bytes.NewReader([]byte(`{}`)))
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -420,7 +420,7 @@ func TestPostInstallApp(t *testing.T) {
 		apiInstance.RegisterRoutes(router)
 
 		// Create a request without authorization
-		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", nil)
+		req := httptest.NewRequest(http.MethodPost, "/linux/install/app/install", bytes.NewReader([]byte(`{}`)))
 		rec := httptest.NewRecorder()
 
 		// Serve the request
