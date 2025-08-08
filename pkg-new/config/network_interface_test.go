@@ -41,10 +41,10 @@ func (m *mockNetworkInterfaceProvider) Interfaces() ([]netutils.NetworkInterface
 func TestDetermineBestNetworkInterface(t *testing.T) {
 	// Save original variables
 	originalChooseHostInterface := chooseHostInterface
-	originalNetworkInterfaceProvider := networkInterfaceProvider
+	originalNetworkInterfaceProvider := NetworkInterfaceProvider
 	defer func() {
 		chooseHostInterface = originalChooseHostInterface
-		networkInterfaceProvider = originalNetworkInterfaceProvider
+		NetworkInterfaceProvider = originalNetworkInterfaceProvider
 	}()
 
 	tests := []struct {
@@ -128,7 +128,7 @@ func TestDetermineBestNetworkInterface(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chooseHostInterface = tt.mockChooseHostInterface
-			networkInterfaceProvider = tt.mockNetworkInterfaceProvider
+			NetworkInterfaceProvider = tt.mockNetworkInterfaceProvider
 
 			result, err := DetermineBestNetworkInterface()
 
@@ -140,9 +140,9 @@ func TestDetermineBestNetworkInterface(t *testing.T) {
 
 func TestFindInterfaceNameByIP(t *testing.T) {
 	// Save original variable
-	originalNetworkInterfaceProvider := networkInterfaceProvider
+	originalNetworkInterfaceProvider := NetworkInterfaceProvider
 	defer func() {
-		networkInterfaceProvider = originalNetworkInterfaceProvider
+		NetworkInterfaceProvider = originalNetworkInterfaceProvider
 	}()
 
 	tests := []struct {
@@ -253,7 +253,7 @@ func TestFindInterfaceNameByIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			networkInterfaceProvider = tt.mockNetworkInterfaceProvider
+			NetworkInterfaceProvider = tt.mockNetworkInterfaceProvider
 
 			result, err := findInterfaceNameByIP(tt.ip)
 

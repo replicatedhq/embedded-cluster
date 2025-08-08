@@ -10,8 +10,8 @@ import (
 
 // Dependency injection variables for testing
 var (
-	chooseHostInterface      = apimachinerynet.ChooseHostInterface
-	networkInterfaceProvider = netutils.DefaultNetworkInterfaceProvider
+	ChooseHostInterface      = apimachinerynet.ChooseHostInterface
+	NetworkInterfaceProvider = netutils.DefaultNetworkInterfaceProvider
 )
 
 var (
@@ -22,7 +22,7 @@ var (
 
 // DetermineBestNetworkInterface attempts to determine the best network interface to use for the cluster.
 func DetermineBestNetworkInterface() (string, error) {
-	iface, err := chooseHostInterface()
+	iface, err := ChooseHostInterface()
 
 	if err != nil || iface == nil {
 		return "", ErrNoAutoInterface
@@ -41,7 +41,7 @@ func DetermineBestNetworkInterface() (string, error) {
 }
 
 func findInterfaceNameByIP(ip net.IP) (string, error) {
-	interfaces, err := networkInterfaceProvider.Interfaces()
+	interfaces, err := NetworkInterfaceProvider.Interfaces()
 	if err != nil {
 		return "", fmt.Errorf("failed to list interfaces: %v", err)
 	}

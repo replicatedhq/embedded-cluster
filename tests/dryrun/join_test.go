@@ -2,6 +2,7 @@ package dryrun
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -55,8 +57,9 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 			AirGap:         isAirgap,
 			RuntimeConfig: &ecv1beta1.RuntimeConfigSpec{
 				Network: ecv1beta1.NetworkSpec{
-					PodCIDR:     "10.2.0.0/17",
-					ServiceCIDR: "10.2.128.0/17",
+					NetworkInterface: "eth0",
+					PodCIDR:          "10.2.0.0/17",
+					ServiceCIDR:      "10.2.128.0/17",
 				},
 			},
 		},
@@ -69,11 +72,28 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 	hcli := &helm.MockClient{}
 	hcli.On("Close").Once().Return(nil)
 
+	// Validate join against from a node with a different network interface from the first node
+	ip := net.ParseIP("192.168.1.60")
+	ifaceProvider := &dryrun.NetworkInterfaceProvider{
+		Ifaces: []netutils.NetworkInterface{
+			&dryrun.NetworkInterface{
+				MockName:  "ens1",
+				MockFlags: net.FlagUp,
+				MockAddrs: []net.Addr{
+					&net.IPNet{IP: ip, Mask: net.CIDRMask(24, 32)},
+				},
+			},
+		},
+	}
+	chooseIface := &dryrun.ChooseInterfaceImpl{IP: ip}
+
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
 	dryrun.Init(drFile, &dryrun.Client{
-		Kotsadm:    kotsadm,
-		KubeUtils:  kubeUtils,
-		HelmClient: hcli,
+		Kotsadm:                  kotsadm,
+		KubeUtils:                kubeUtils,
+		HelmClient:               hcli,
+		NetworkInterfaceProvider: ifaceProvider,
+		ChooseHostInterfaceImpl:  chooseIface,
 	})
 
 	kotsadm.SetGetJoinTokenResponse("10.0.0.1", "some-token", jcmd, nil)
@@ -330,6 +350,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 
 	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+	assert.Equal(t, "192.168.1.60", k0sConfig.Spec.API.Address) // Ip should be the one associated with the inferface we defined above
 
 	// --- validate metrics --- //
 	assertMetrics(t, dr.Metrics, []struct {
