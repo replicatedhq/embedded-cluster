@@ -83,7 +83,7 @@ func runHostPreflights(
 		if ignoreHostPreflights {
 			if assumeYes {
 				if metricsReporter != nil {
-					metricsReporter.ReportPreflightsBypassed(ctx, output)
+					metricsReporter.ReportHostPreflightsBypassed(ctx, output)
 				}
 				return nil
 			}
@@ -93,7 +93,7 @@ func runHostPreflights(
 			}
 			if confirmed {
 				if metricsReporter != nil {
-					metricsReporter.ReportPreflightsBypassed(ctx, output)
+					metricsReporter.ReportHostPreflightsBypassed(ctx, output)
 				}
 				return nil // user continued after host preflights failed
 			}
@@ -106,7 +106,7 @@ func runHostPreflights(
 		}
 
 		if metricsReporter != nil {
-			metricsReporter.ReportPreflightsFailed(ctx, output)
+			metricsReporter.ReportHostPreflightsFailed(ctx, output)
 		}
 		return ErrPreflightsHaveFail
 	}
@@ -125,7 +125,7 @@ func runHostPreflights(
 			// so we just print the warnings and continue
 			preflights.PrintTableWithoutInfo(output)
 			if metricsReporter != nil {
-				metricsReporter.ReportPreflightsBypassed(ctx, output)
+				metricsReporter.ReportHostPreflightsBypassed(ctx, output)
 			}
 			return nil
 		}
@@ -138,13 +138,13 @@ func runHostPreflights(
 		}
 		if !confirmed {
 			if metricsReporter != nil {
-				metricsReporter.ReportPreflightsFailed(ctx, output)
+				metricsReporter.ReportHostPreflightsFailed(ctx, output)
 			}
 			return ErrPreflightsHaveFail
 		}
 
 		if metricsReporter != nil {
-			metricsReporter.ReportPreflightsBypassed(ctx, output)
+			metricsReporter.ReportHostPreflightsBypassed(ctx, output)
 		}
 		return nil
 	}

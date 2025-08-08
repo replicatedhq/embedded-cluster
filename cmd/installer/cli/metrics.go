@@ -10,79 +10,79 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type InstallReporter struct {
+type installReporter struct {
 	reporter  metrics.ReporterInterface
 	licenseID string
 	appSlug   string
 }
 
-func newInstallReporter(baseURL string, cmd string, args []string, licenseID string, clusterID string, appSlug string) *InstallReporter {
+func newInstallReporter(baseURL string, cmd string, args []string, licenseID string, clusterID string, appSlug string) *installReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, args)
-	return &InstallReporter{
+	return &installReporter{
 		licenseID: licenseID,
 		appSlug:   appSlug,
 		reporter:  reporter,
 	}
 }
 
-func (r *InstallReporter) ReportInstallationStarted(ctx context.Context) {
+func (r *installReporter) ReportInstallationStarted(ctx context.Context) {
 	r.reporter.ReportInstallationStarted(ctx, r.licenseID, r.appSlug)
 }
 
-func (r *InstallReporter) ReportInstallationSucceeded(ctx context.Context) {
+func (r *installReporter) ReportInstallationSucceeded(ctx context.Context) {
 	r.reporter.ReportInstallationSucceeded(ctx)
 }
 
-func (r *InstallReporter) ReportInstallationFailed(ctx context.Context, err error) {
+func (r *installReporter) ReportInstallationFailed(ctx context.Context, err error) {
 	r.reporter.ReportInstallationFailed(ctx, err)
 }
 
-func (r *InstallReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
-	r.reporter.ReportPreflightsFailed(ctx, output)
+func (r *installReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	r.reporter.ReportHostPreflightsFailed(ctx, output)
 }
 
-func (r *InstallReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
-	r.reporter.ReportPreflightsBypassed(ctx, output)
+func (r *installReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	r.reporter.ReportHostPreflightsBypassed(ctx, output)
 }
 
-func (r *InstallReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
+func (r *installReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
 	r.reporter.ReportSignalAborted(ctx, sig)
 }
 
-type JoinReporter struct {
+type joinReporter struct {
 	reporter metrics.ReporterInterface
 }
 
-func newJoinReporter(baseURL string, clusterID string, cmd string, flags []string) *JoinReporter {
+func newJoinReporter(baseURL string, clusterID string, cmd string, flags []string) *joinReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
-	return &JoinReporter{
+	return &joinReporter{
 		reporter: reporter,
 	}
 }
 
-func (r *JoinReporter) ReportJoinStarted(ctx context.Context) {
+func (r *joinReporter) ReportJoinStarted(ctx context.Context) {
 	r.reporter.ReportJoinStarted(ctx)
 }
 
-func (r *JoinReporter) ReportJoinSucceeded(ctx context.Context) {
+func (r *joinReporter) ReportJoinSucceeded(ctx context.Context) {
 	r.reporter.ReportJoinSucceeded(ctx)
 }
 
-func (r *JoinReporter) ReportJoinFailed(ctx context.Context, err error) {
+func (r *joinReporter) ReportJoinFailed(ctx context.Context, err error) {
 	r.reporter.ReportJoinFailed(ctx, err)
 }
 
-func (r *JoinReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
-	r.reporter.ReportPreflightsFailed(ctx, output)
+func (r *joinReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	r.reporter.ReportHostPreflightsFailed(ctx, output)
 }
 
-func (r *JoinReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
-	r.reporter.ReportPreflightsBypassed(ctx, output)
+func (r *joinReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	r.reporter.ReportHostPreflightsBypassed(ctx, output)
 }
 
-func (r *JoinReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
+func (r *joinReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
 	r.reporter.ReportSignalAborted(ctx, sig)
 }
 

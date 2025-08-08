@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
@@ -34,7 +34,6 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
   const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
-  const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
     'linux-preflight': {
@@ -69,14 +68,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       ...prev,
       [phase]: { ...prev[phase], status }
     }));
-    
-    // Auto-advance to next phase when current phase succeeds
-    if (phase === currentPhase && status === 'Succeeded') {
-      setTimeout(() => {
-        nextButtonRef.current?.click();
-      }, 500);
-    }
-  }, [currentPhase]);
+  }, []);
 
   const goToNextPhase = () => {
     // Mark current phase as completed
@@ -98,19 +90,15 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
     const currentIndex = phaseOrder.indexOf(currentPhase);
     if (currentIndex < phaseOrder.length - 1) {
       const nextPhase = phaseOrder[currentIndex + 1];
-      return `Next: ${phases[nextPhase]?.title}`;
+      return `Next: ${phases[nextPhase]?.title || 'Continue'}`;
     } else {
       return 'Next: Finish';
     }
   };
 
-  const canSelectPhase = (phase: InstallationPhase) => {
-    // Only allow clicking on completed phases or current phase
-    return completedPhases.has(phase) || phase === currentPhase;
-  };
-
   const handlePhaseClick = (phase: InstallationPhase) => {
-    if (canSelectPhase(phase)) {
+    // Only allow clicking on completed phases or current phase
+    if (completedPhases.has(phase) || phase === currentPhase) {
       setSelectedPhase(phase);
     }
   };
@@ -118,54 +106,68 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   // No-op function for non-current steps
   const noOp = useCallback(() => {}, []);
 
-  const renderPhase = (phase: InstallationPhase) => {
-    const commonProps = {
-      onNext: goToNextPhase,
-      // Only pass the real setNextButtonConfig to the current phase
-      setNextButtonConfig: phase === currentPhase ? setNextButtonConfig : noOp,
-      onStateChange: handleStateChange(phase)
-    };
-
-    switch (phase) {
+  const renderPhaseContent = () => {
+    // Only pass the real setNextButtonConfig to the currently selected phase that matches current phase
+    const setBtnConfig = selectedPhase === currentPhase ? setNextButtonConfig : noOp;
+    
+    switch (selectedPhase) {
       case 'linux-preflight':
-        return <LinuxPreflightPhase {...commonProps} />;
+        return (
+          <div className="h-full flex flex-col">
+            <LinuxPreflightPhase 
+              onNext={goToNextPhase} 
+              setNextButtonConfig={setBtnConfig}
+              onStateChange={handleStateChange('linux-preflight')}
+            />
+          </div>
+        );
       case 'linux-installation':
-        return <LinuxInstallationPhase {...commonProps} />;
+        return (
+          <div className="h-full flex flex-col">
+            <LinuxInstallationPhase 
+              onNext={goToNextPhase}
+              setNextButtonConfig={setBtnConfig}
+              onStateChange={handleStateChange('linux-installation')}
+            />
+          </div>
+        );
       case 'kubernetes-installation':
-        return <KubernetesInstallationPhase {...commonProps} />;
+        return (
+          <div className="h-full flex flex-col">
+            <KubernetesInstallationPhase 
+              onNext={goToNextPhase}
+              setNextButtonConfig={setBtnConfig}
+              onStateChange={handleStateChange('kubernetes-installation')}
+            />
+          </div>
+        );
       case 'app-preflight':
-        return <AppPreflightPhase {...commonProps} />;
+        return (
+          <div className="h-full flex flex-col">
+            <AppPreflightPhase 
+              onNext={goToNextPhase}
+              setNextButtonConfig={setBtnConfig}
+              onStateChange={handleStateChange('app-preflight')}
+            />
+          </div>
+        );
       case 'app-installation':
-        return <AppInstallationPhase {...commonProps} />;
+        return (
+          <div className="h-full flex flex-col">
+            <AppInstallationPhase 
+              onNext={goToNextPhase}
+              setNextButtonConfig={setBtnConfig}
+              onStateChange={handleStateChange('app-installation')}
+            />
+          </div>
+        );
       default:
         return (
           <div className="text-gray-600">
-            Loading {phase} content...
+            Loading {selectedPhase} content...
           </div>
         );
     }
-  };
-
-  const renderPhases = () => {
-    // Render all completed and current phases to preserve component state and polling logic.
-    // This prevents unmounting when users switch between phases, which would stop React Query
-    // polling intervals and lose component state. Non-selected phases are simply hidden.
-    // Future phases are excluded to avoid triggering mutations on mount for phases that haven't started yet.
-    return phaseOrder.map(phase => {
-      if (!canSelectPhase(phase)) {
-        return null;
-      };
-
-      return (
-        <div 
-          key={phase} 
-          data-testid={`${phase}-container`}
-          className={`h-full flex flex-col ${phase === selectedPhase ? 'block' : 'hidden'}`}
-        >
-          {renderPhase(phase)}
-        </div>
-      );
-    });
   };
 
   return (
@@ -182,7 +184,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
           />
 
           <div className="flex-1 p-8">
-            {renderPhases()}
+            {renderPhaseContent()}
           </div>
         </div>
       </Card>
@@ -190,7 +192,6 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       {nextButtonConfig && (
         <div className="flex justify-end">
           <Button
-            ref={nextButtonRef}
             onClick={nextButtonConfig.onClick}
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}

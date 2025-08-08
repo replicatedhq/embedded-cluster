@@ -25,7 +25,7 @@ type Controller interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
-	InstallApp(ctx context.Context, ignoreAppPreflights bool) error
+	InstallApp(ctx context.Context) error
 	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
 }
 
@@ -159,6 +159,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.appPreflightManager == nil {
 		controller.appPreflightManager = apppreflightmanager.NewAppPreflightManager(
 			apppreflightmanager.WithLogger(controller.logger),
+			apppreflightmanager.WithAppPreflightStore(controller.store.AppPreflightStore()),
 		)
 	}
 

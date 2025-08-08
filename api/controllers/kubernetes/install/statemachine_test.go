@@ -143,6 +143,11 @@ func TestStateMachineTransitions(t *testing.T) {
 			startState:       states.StateAppInstallFailed,
 			validTransitions: []statemachine.State{},
 		},
+		{
+			name:             `State "Succeeded" can not transition to any other state`,
+			startState:       states.StateSucceeded,
+			validTransitions: []statemachine.State{},
+		},
 	}
 
 	for _, tt := range tests {

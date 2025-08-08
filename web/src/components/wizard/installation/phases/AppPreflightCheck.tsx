@@ -58,6 +58,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     },
   });
 
+
   // Query to poll preflight status
   const { data: preflightResponse } = useQuery<AppPreflightResponse, Error>({
     queryKey: ["appPreflightStatus"],

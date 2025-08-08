@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback } from "react";
+import React, { useEffect, useMemo } from "react";
 import Button from "../../../common/Button";
 import { Modal } from "../../../common/Modal";
 import { useWizard } from "../../../../contexts/WizardModeContext";
@@ -24,19 +24,19 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
 
-  const onRun = useCallback(() => {
+  const onRun = () => {
     setPreflightComplete(false);
     setPreflightSuccess(false);
     setAllowIgnoreAppPreflights(false);
     onStateChange('Running');
-  }, []);
+  };
 
-  const onComplete = useCallback((success: boolean, allowIgnore: boolean) => {
+  const onComplete = (success: boolean, allowIgnore: boolean) => {
     setPreflightComplete(true);
     setPreflightSuccess(success);
     setAllowIgnoreAppPreflights(allowIgnore);
     onStateChange(success ? 'Succeeded' : 'Failed');
-  }, []);
+  };
 
   const { mutate: startAppInstallation } = useMutation({
     mutationFn: async ({ ignoreAppPreflights }: { ignoreAppPreflights: boolean }) => {

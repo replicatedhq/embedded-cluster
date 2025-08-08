@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 
@@ -10,12 +9,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-var (
-	ErrAppPreflightChecksFailed = errors.New("app preflight checks failed")
-)
-
 // InstallApp triggers app installation with proper state transitions and panic handling
-func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+func (c *InstallController) InstallApp(ctx context.Context) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -29,18 +24,6 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 			lock.Release()
 		}
 	}()
-
-	// Check if app preflights have failed and if we should ignore them
-	if c.stateMachine.CurrentState() == states.StateAppPreflightsFailed {
-		allowIgnoreAppPreflights := true // TODO: implement once we check for strict app preflights
-		if !ignoreAppPreflights || !allowIgnoreAppPreflights {
-			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
-		}
-		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
-		if err != nil {
-			return fmt.Errorf("failed to transition states: %w", err)
-		}
-	}
 
 	if err := c.stateMachine.ValidateTransition(lock, states.StateAppInstalling); err != nil {
 		return types.NewConflictError(err)

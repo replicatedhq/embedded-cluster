@@ -1,5 +1,10 @@
 package types
 
+// LinuxInfraSetupRequest represents a request to set up infrastructure
+type LinuxInfraSetupRequest struct {
+	IgnoreHostPreflights bool `json:"ignoreHostPreflights"`
+}
+
 type Infra struct {
 	Components []InfraComponent `json:"components"`
 	Logs       string           `json:"logs"`

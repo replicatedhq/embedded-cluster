@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -19,15 +19,10 @@ const server = setupServer(
     });
   }),
 
-  // Mock preflight run endpoint
-  http.post('*/api/linux/install/host-preflights/run', () => {
-    return HttpResponse.json({ success: true });
-  }),
-
   // Mock start installation endpoint
   http.post('*/api/linux/install/infra/setup', () => {
     return HttpResponse.json({ success: true });
-  }),
+  })
 );
 
 describe('LinuxPreflightPhase', () => {
@@ -855,10 +850,9 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
     });
 
-    // Expect sequence: Running (mount), Running (preflights started), Succeeded (complete)
-    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
-    expect(calls).toEqual(['Running', 'Running', 'Succeeded']);
-    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
+    // Should also call onStateChange with "Succeeded" when preflights complete
+    expect(mockOnStateChange).toHaveBeenCalledWith('Succeeded');
+    expect(mockOnStateChange).toHaveBeenCalledTimes(2);
   });
 
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
@@ -896,10 +890,9 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Expect sequence: Running (mount), Running (preflights started), Failed (complete)
-    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
-    expect(calls).toEqual(['Running', 'Running', 'Failed']);
-    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
+    // Should also call onStateChange with "Failed" when preflights complete
+    expect(mockOnStateChange).toHaveBeenCalledWith('Failed');
+    expect(mockOnStateChange).toHaveBeenCalledTimes(2);
   });
 
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
@@ -916,6 +909,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
           },
           allowIgnoreHostPreflights: false
         });
+      }),
+      // Mock preflight run endpoint
+      http.post('*/api/linux/install/host-preflights/run', () => {
+        return HttpResponse.json({ success: true });
       })
     );
 

@@ -10,10 +10,9 @@ type InstallHostPreflightsStatusResponse struct {
 
 // InstallAppPreflightsStatusResponse represents the response when polling install app preflights status
 type InstallAppPreflightsStatusResponse struct {
-	Titles                   []string          `json:"titles"`
-	Output                   *PreflightsOutput `json:"output,omitempty"`
-	Status                   Status            `json:"status,omitempty"`
-	AllowIgnoreAppPreflights bool              `json:"allowIgnoreAppPreflights"`
+	Titles []string          `json:"titles"`
+	Output *PreflightsOutput `json:"output,omitempty"`
+	Status Status            `json:"status,omitempty"`
 }
 
 // GetListAvailableNetworkInterfacesResponse represents the response when listing available network interfaces
