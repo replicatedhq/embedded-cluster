@@ -134,6 +134,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
       </div>
 
       {renderInstallationStatus()}
+
       {appStatusError && <ErrorMessage error={appStatusError?.message} />}
     </div>
   );
