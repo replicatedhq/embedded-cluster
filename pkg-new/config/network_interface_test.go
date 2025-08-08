@@ -40,10 +40,10 @@ func (m *mockNetworkInterfaceProvider) Interfaces() ([]netutils.NetworkInterface
 
 func TestDetermineBestNetworkInterface(t *testing.T) {
 	// Save original variables
-	originalChooseHostInterface := chooseHostInterface
+	originalChooseHostInterface := ChooseHostInterface
 	originalNetworkInterfaceProvider := NetworkInterfaceProvider
 	defer func() {
-		chooseHostInterface = originalChooseHostInterface
+		ChooseHostInterface = originalChooseHostInterface
 		NetworkInterfaceProvider = originalNetworkInterfaceProvider
 	}()
 
@@ -127,7 +127,7 @@ func TestDetermineBestNetworkInterface(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			chooseHostInterface = tt.mockChooseHostInterface
+			ChooseHostInterface = tt.mockChooseHostInterface
 			NetworkInterfaceProvider = tt.mockNetworkInterfaceProvider
 
 			result, err := DetermineBestNetworkInterface()
