@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
 import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
@@ -914,10 +914,6 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
           },
           allowIgnoreHostPreflights: false
         });
-      }),
-      // Mock preflight run endpoint
-      http.post('*/api/linux/install/host-preflights/run', () => {
-        return HttpResponse.json({ success: true });
       })
     );
 
