@@ -145,9 +145,10 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := types.InstallAppPreflightsStatusResponse{
-		Titles: titles,
-		Output: output,
-		Status: status,
+		Titles:                   titles,
+		Output:                   output,
+		Status:                   status,
+		AllowIgnoreAppPreflights: true, // TODO: implement once we check for strict app preflights
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
@@ -287,12 +288,19 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 //	@Description	Install the app using current configuration
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
+//	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	types.AppInstall
-//	@Failure		400	{object}	types.APIError
+//	@Param			request	body		types.InstallAppRequest	true	"Install App Request"
+//	@Success		200		{object}	types.AppInstall
+//	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/install/app/install [post]
 func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
-	err := h.installController.InstallApp(r.Context())
+	var req types.InstallAppRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.InstallApp(r.Context(), req.IgnoreAppPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)

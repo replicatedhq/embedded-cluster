@@ -1068,11 +1068,10 @@ func TestSetupInfra(t *testing.T) {
 			clientIgnoreHostPreflights:      false,
 			serverAllowIgnoreHostPreflights: true,
 			currentState:                    states.StateHostPreflightsSucceeded,
-			expectedState:                   states.StateSucceeded,
+			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					fm.On("Install", mock.Anything, rc).Return(nil),
-					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
 			},
 			expectedErr: nil,
@@ -1082,13 +1081,12 @@ func TestSetupInfra(t *testing.T) {
 			clientIgnoreHostPreflights:      true,
 			serverAllowIgnoreHostPreflights: true,
 			currentState:                    states.StateHostPreflightsFailed,
-			expectedState:                   states.StateSucceeded,
+			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportPreflightsBypassed", mock.Anything, failedPreflightOutput),
 					fm.On("Install", mock.Anything, rc).Return(nil),
-					mr.On("ReportInstallationSucceeded", mock.Anything),
 				)
 			},
 			expectedErr: nil,

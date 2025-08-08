@@ -2,7 +2,6 @@ package install
 
 import (
 	"bytes"
-	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -132,9 +131,6 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinfra.WithHelmClient(helmMock),
 			linuxinfra.WithLicense(assets.LicenseData),
 			linuxinfra.WithHostUtils(hostutilsMock),
-			linuxinfra.WithAppInstaller(func(ctx context.Context) error {
-				return nil
-			}),
 			linuxinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{

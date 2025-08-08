@@ -15,6 +15,7 @@ func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(states.StateInfrastructureInstallFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateHostConfigurationFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateInstallationConfigurationFailed, c.reportInstallFailed)
+	c.stateMachine.RegisterEventHandler(states.StateAppInstallFailed, c.reportInstallFailed)
 	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailed, c.reportPreflightsFailed)
 	c.stateMachine.RegisterEventHandler(states.StateHostPreflightsFailedBypassed, c.reportPreflightsBypassed)
 }
@@ -42,6 +43,11 @@ func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState 
 		status, err = c.store.LinuxInfraStore().GetStatus()
 		if err != nil {
 			err = fmt.Errorf("failed to get status from infra store: %w", err)
+		}
+	case states.StateAppInstallFailed:
+		status, err = c.store.AppInstallStore().GetStatus()
+		if err != nil {
+			err = fmt.Errorf("failed to get status from app install store: %w", err)
 		}
 	}
 	if err != nil {

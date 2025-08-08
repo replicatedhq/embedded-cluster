@@ -1,7 +1,6 @@
 package install
 
 import (
-	"context"
 	_ "embed"
 	"encoding/json"
 	"net/http"
@@ -102,9 +101,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithAppInstaller(func(ctx context.Context) error {
-				return nil
-			}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -284,9 +280,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
-			kubernetesinfra.WithAppInstaller(func(ctx context.Context) error {
-				return nil
-			}),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{

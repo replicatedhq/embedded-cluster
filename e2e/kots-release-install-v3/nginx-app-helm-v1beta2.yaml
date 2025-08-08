@@ -8,6 +8,8 @@ spec:
     chartVersion: 0.1.0
   namespace: nginx-app
   values:
+    preflight:
+      enabled: true
     server:
       image:
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}/repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "proxy/embedded-cluster-smoke-test-staging-app/us-east4-docker.pkg.dev/replicated-qa/ec-smoke-test" }}/nginx

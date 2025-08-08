@@ -1,10 +1,13 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
 import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { renderWithProviders } from '../../../test/setup.tsx';
-import LinuxValidationStep from '../validation/LinuxValidationStep.tsx';
+import { renderWithProviders } from '../../../../test/setup.tsx';
+import LinuxPreflightPhase from '../phases/LinuxPreflightPhase.tsx';
+import { withTestButton } from './TestWrapper.tsx';
+
+const TestLinuxPreflightPhase = withTestButton(LinuxPreflightPhase);
 
 const server = setupServer(
   // Mock installation status endpoint
@@ -27,9 +30,9 @@ const server = setupServer(
   }),
 );
 
-describe('LinuxValidationStep', () => {
+describe('LinuxPreflightPhase', () => {
   const mockOnNext = vi.fn();
-  const mockOnBack = vi.fn();
+  const mockOnStateChange = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -64,7 +67,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       {
         wrapperProps: {
           authenticated: true
@@ -78,8 +84,10 @@ describe('LinuxValidationStep', () => {
     }, { timeout: 2000 });
 
     // Button should be enabled when CLI flag allows ignoring failures
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).not.toBeDisabled();
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+    }, { timeout: 2000 });
   });
 
   it('disables Start Installation button when allowIgnoreHostPreflights is false and preflights fail', async () => {
@@ -102,7 +110,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       {
         wrapperProps: {
           authenticated: true
@@ -116,11 +127,12 @@ describe('LinuxValidationStep', () => {
     });
 
     // Button should be disabled when CLI flag doesn't allow ignoring failures
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).toBeDisabled();
-
-    // Try to click disabled button - nothing should happen
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).toBeDisabled();
+      // Try to click disabled button - nothing should happen
+      fireEvent.click(nextButton);
+    });
 
     // No modal should appear and onNext should not be called
     expect(screen.queryByText('Proceed with Failed Checks?')).not.toBeInTheDocument();
@@ -147,7 +159,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       {
         wrapperProps: {
           authenticated: true
@@ -161,11 +176,17 @@ describe('LinuxValidationStep', () => {
     });
 
     // Button should be enabled
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).not.toBeDisabled();
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+    }, { timeout: 2000 });
 
     // Click Next button - should show modal with warning
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Modal SHOULD appear when allowIgnoreHostPreflights is true and preflights fail
     await waitFor(() => {
@@ -202,7 +223,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       {
         wrapperProps: {
           authenticated: true
@@ -216,11 +240,17 @@ describe('LinuxValidationStep', () => {
     });
 
     // Button should be enabled
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).not.toBeDisabled();
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+    });
 
     // Click Next button - should proceed directly without modal (normal success case)
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // No modal should appear when preflights pass
     expect(screen.queryByText('Proceed with Failed Checks?')).not.toBeInTheDocument();
@@ -251,7 +281,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       {
         wrapperProps: {
           authenticated: true
@@ -265,11 +298,17 @@ describe('LinuxValidationStep', () => {
     });
 
     // Button should be enabled
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).not.toBeDisabled();
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+    });
 
-    // Click Next button - should proceed directly without modal (normal success case)
-    fireEvent.click(nextButton);
+    // Wait for button to be enabled and click it
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // No modal should appear when preflights pass
     expect(screen.queryByText('Proceed with Failed Checks?')).not.toBeInTheDocument();
@@ -308,7 +347,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -317,9 +359,12 @@ describe('LinuxValidationStep', () => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Click Start Installation button
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    // Wait for button to be enabled and click it
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Confirm in modal
     await waitFor(() => {
@@ -362,7 +407,10 @@ describe('LinuxValidationStep', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -371,9 +419,12 @@ describe('LinuxValidationStep', () => {
       expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
     });
 
-    // Click Start Installation button
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    // Wait for button to be enabled and click it
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Should proceed to next step
     await waitFor(() => {
@@ -383,13 +434,13 @@ describe('LinuxValidationStep', () => {
 });
 
 // Additional robust frontend tests for error handling and edge cases
-describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
+describe('LinuxPreflightPhase - Error Handling & Edge Cases', () => {
   beforeAll(() => server.listen());
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
   const mockOnNext = vi.fn();
-  const mockOnBack = vi.fn();
+  const mockOnStateChange = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -419,7 +470,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -429,8 +483,11 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     });
 
     // Click Start Installation
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Should show error message instead of proceeding
     await waitFor(() => {
@@ -459,7 +516,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -469,8 +529,11 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     });
 
     // Click Start Installation
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Should show network error message (matches actual fetch error)
     await waitFor(() => {
@@ -499,7 +562,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -509,11 +575,17 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     });
 
     // Button should be enabled initially
-    const nextButton = screen.getByText('Next: Start Installation');
-    expect(nextButton).not.toBeDisabled();
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+    });
 
     // Click Start Installation - should succeed
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Should proceed to next step
     await waitFor(() => {
@@ -549,7 +621,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -558,9 +633,12 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Click Start Installation button (should show modal)
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    // Wait for button to be enabled and click it (should show modal)
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Confirm in modal
     await waitFor(() => {
@@ -606,7 +684,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -616,15 +697,22 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     });
 
     // First attempt - should fail
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/Internal server error/)).toBeInTheDocument();
     });
 
     // Second attempt - should succeed and clear error
-    fireEvent.click(nextButton);
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     await waitFor(() => {
       expect(mockOnNext).toHaveBeenCalledTimes(1);
@@ -652,7 +740,10 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     );
 
     renderWithProviders(
-      <LinuxValidationStep onNext={mockOnNext} onBack={mockOnBack} />,
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
       { wrapperProps: { authenticated: true } }
     );
 
@@ -661,9 +752,12 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Click Start Installation button (should show modal)
-    const nextButton = screen.getByText('Next: Start Installation');
-    fireEvent.click(nextButton);
+    // Wait for button to be enabled and click it (should show modal)
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).not.toBeDisabled();
+      fireEvent.click(nextButton);
+    });
 
     // Modal should appear
     await waitFor(() => {
@@ -683,6 +777,172 @@ describe('LinuxValidationStep - Error Handling & Edge Cases', () => {
     expect(mockOnNext).not.toHaveBeenCalled();
 
     // Button should still be available for another attempt
-    expect(screen.getByText('Next: Start Installation')).toBeInTheDocument();
+    expect(screen.getByTestId('next-button')).toBeInTheDocument();
   });
-}); 
+});
+
+// Tests specifically for onStateChange callback
+describe('LinuxPreflightPhase - onStateChange Tests', () => {
+  beforeAll(() => server.listen());
+  afterEach(() => server.resetHandlers());
+  afterAll(() => server.close());
+
+  const mockOnNext = vi.fn();
+  const mockOnStateChange = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('calls onStateChange with "Running" immediately when component mounts', async () => {
+    // Mock preflight status endpoint - returns running state initially
+    server.use(
+      http.get('*/api/linux/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Running' },
+          output: { fail: [], warn: [], pass: [] },
+          allowIgnoreHostPreflights: false
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Should call onStateChange with "Running" immediately on mount
+    expect(mockOnStateChange).toHaveBeenCalledWith('Running');
+    expect(mockOnStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onStateChange with "Succeeded" when preflights complete successfully', async () => {
+    // Mock preflight status endpoint - returns success
+    server.use(
+      http.get('*/api/linux/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Succeeded' },
+          output: {
+            fail: [],
+            warn: [],
+            pass: [
+              { title: 'Disk Space', message: 'Sufficient disk space available' }
+            ]
+          },
+          allowIgnoreHostPreflights: false
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Should call onStateChange with "Running" immediately
+    expect(mockOnStateChange).toHaveBeenCalledWith('Running');
+
+    // Wait for preflights to complete and show success
+    await waitFor(() => {
+      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
+    });
+
+    // Expect sequence: Running (mount), Running (preflights started), Succeeded (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Running', 'Succeeded']);
+    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
+  });
+
+  it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
+    // Mock preflight status endpoint - returns failures
+    server.use(
+      http.get('*/api/linux/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Failed' },
+          output: {
+            fail: [
+              { title: 'Disk Space', message: 'Not enough disk space available' }
+            ],
+            warn: [],
+            pass: []
+          },
+          allowIgnoreHostPreflights: false
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Should call onStateChange with "Running" immediately
+    expect(mockOnStateChange).toHaveBeenCalledWith('Running');
+
+    // Wait for preflights to complete and show failures
+    await waitFor(() => {
+      expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
+    });
+
+    // Expect sequence: Running (mount), Running (preflights started), Failed (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Running', 'Failed']);
+    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
+  });
+
+  it('calls onStateChange("Running") when rerun button is clicked', async () => {
+    // Mock preflight status to show failures initially
+    server.use(
+      http.get('*/api/linux/install/host-preflights/status', () => {
+        return HttpResponse.json({
+          titles: ['Host Check'],
+          status: { state: 'Failed' },
+          output: {
+            fail: [{ title: 'Disk Space', message: 'Not enough disk space' }],
+            warn: [],
+            pass: []
+          },
+          allowIgnoreHostPreflights: false
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestLinuxPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      { wrapperProps: { authenticated: true } }
+    );
+
+    // Wait for initial failures to load
+    await waitFor(() => {
+      expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
+    });
+
+    // Clear the initial onStateChange calls
+    mockOnStateChange.mockClear();
+
+    // Find and click the "Run Validation Again" button
+    const runValidationButton = screen.getByRole('button', { name: 'Run Validation Again' });
+    fireEvent.click(runValidationButton);
+
+    // Should call onStateChange('Running') when onRun is triggered
+    await waitFor(() => {
+      expect(mockOnStateChange).toHaveBeenCalledWith('Running');
+    });
+  });
+});
+

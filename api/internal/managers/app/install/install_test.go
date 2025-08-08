@@ -156,7 +156,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		appInstall, err = manager.GetStatus()
 		require.NoError(t, err)
 		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
-		assert.Equal(t, "App installation completed successfully", appInstall.Status.Description)
+		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
 		mockInstaller.AssertExpectations(t)
 	})
@@ -188,7 +188,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		appInstall, err := manager.GetStatus()
 		require.NoError(t, err)
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
-		assert.Equal(t, "App installation failed", appInstall.Status.Description)
+		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
 
 		mockInstaller.AssertExpectations(t)
 	})

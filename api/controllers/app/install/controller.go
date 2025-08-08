@@ -25,7 +25,7 @@ type Controller interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
-	InstallApp(ctx context.Context) error
+	InstallApp(ctx context.Context, ignoreAppPreflights bool) error
 	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
 }
 
@@ -181,6 +181,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithReleaseData(controller.releaseData),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
+			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)

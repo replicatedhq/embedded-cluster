@@ -47,7 +47,6 @@ type infraManager struct {
 	mcli             metadata.Interface
 	hcli             helm.Client
 	restClientGetter genericclioptions.RESTClientGetter
-	appInstaller     func(ctx context.Context) error
 	mu               sync.RWMutex
 }
 
@@ -122,12 +121,6 @@ func WithHelmClient(hcli helm.Client) InfraManagerOption {
 func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InfraManagerOption {
 	return func(c *infraManager) {
 		c.restClientGetter = restClientGetter
-	}
-}
-
-func WithAppInstaller(appInstaller func(ctx context.Context) error) InfraManagerOption {
-	return func(c *infraManager) {
-		c.appInstaller = appInstaller
 	}
 }
 
