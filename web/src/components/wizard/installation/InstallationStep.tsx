@@ -90,15 +90,19 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
     const currentIndex = phaseOrder.indexOf(currentPhase);
     if (currentIndex < phaseOrder.length - 1) {
       const nextPhase = phaseOrder[currentIndex + 1];
-      return `Next: ${phases[nextPhase]?.title || 'Continue'}`;
+      return `Next: ${phases[nextPhase]?.title}`;
     } else {
       return 'Next: Finish';
     }
   };
 
-  const handlePhaseClick = (phase: InstallationPhase) => {
+  const canSelectPhase = (phase: InstallationPhase) => {
     // Only allow clicking on completed phases or current phase
-    if (completedPhases.has(phase) || phase === currentPhase) {
+    return completedPhases.has(phase) || phase === currentPhase;
+  };
+
+  const handlePhaseClick = (phase: InstallationPhase) => {
+    if (canSelectPhase(phase)) {
       setSelectedPhase(phase);
     }
   };
@@ -106,68 +110,54 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   // No-op function for non-current steps
   const noOp = useCallback(() => {}, []);
 
-  const renderPhaseContent = () => {
-    // Only pass the real setNextButtonConfig to the currently selected phase that matches current phase
-    const setBtnConfig = selectedPhase === currentPhase ? setNextButtonConfig : noOp;
-    
-    switch (selectedPhase) {
+  const renderPhase = (phase: InstallationPhase) => {
+    const commonProps = {
+      onNext: goToNextPhase,
+      // Only pass the real setNextButtonConfig to the current phase
+      setNextButtonConfig: phase === currentPhase ? setNextButtonConfig : noOp,
+      onStateChange: handleStateChange(phase)
+    };
+
+    switch (phase) {
       case 'linux-preflight':
-        return (
-          <div className="h-full flex flex-col">
-            <LinuxPreflightPhase 
-              onNext={goToNextPhase} 
-              setNextButtonConfig={setBtnConfig}
-              onStateChange={handleStateChange('linux-preflight')}
-            />
-          </div>
-        );
+        return <LinuxPreflightPhase {...commonProps} />;
       case 'linux-installation':
-        return (
-          <div className="h-full flex flex-col">
-            <LinuxInstallationPhase 
-              onNext={goToNextPhase}
-              setNextButtonConfig={setBtnConfig}
-              onStateChange={handleStateChange('linux-installation')}
-            />
-          </div>
-        );
+        return <LinuxInstallationPhase {...commonProps} />;
       case 'kubernetes-installation':
-        return (
-          <div className="h-full flex flex-col">
-            <KubernetesInstallationPhase 
-              onNext={goToNextPhase}
-              setNextButtonConfig={setBtnConfig}
-              onStateChange={handleStateChange('kubernetes-installation')}
-            />
-          </div>
-        );
+        return <KubernetesInstallationPhase {...commonProps} />;
       case 'app-preflight':
-        return (
-          <div className="h-full flex flex-col">
-            <AppPreflightPhase 
-              onNext={goToNextPhase}
-              setNextButtonConfig={setBtnConfig}
-              onStateChange={handleStateChange('app-preflight')}
-            />
-          </div>
-        );
+        return <AppPreflightPhase {...commonProps} />;
       case 'app-installation':
-        return (
-          <div className="h-full flex flex-col">
-            <AppInstallationPhase 
-              onNext={goToNextPhase}
-              setNextButtonConfig={setBtnConfig}
-              onStateChange={handleStateChange('app-installation')}
-            />
-          </div>
-        );
+        return <AppInstallationPhase {...commonProps} />;
       default:
         return (
           <div className="text-gray-600">
-            Loading {selectedPhase} content...
+            Loading {phase} content...
           </div>
         );
     }
+  };
+
+  const renderPhases = () => {
+    // Render all completed and current phases to preserve component state and polling logic.
+    // This prevents unmounting when users switch between phases, which would stop React Query
+    // polling intervals and lose component state. Non-selected phases are simply hidden.
+    // Future phases are excluded to avoid triggering mutations on mount for phases that haven't started yet.
+    return phaseOrder.map(phase => {
+      if (!canSelectPhase(phase)) {
+        return null;
+      };
+
+      return (
+        <div 
+          key={phase} 
+          data-testid={`${phase}-container`}
+          className={`h-full flex flex-col ${phase === selectedPhase ? 'block' : 'hidden'}`}
+        >
+          {renderPhase(phase)}
+        </div>
+      );
+    });
   };
 
   return (
@@ -184,7 +174,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
           />
 
           <div className="flex-1 p-8">
-            {renderPhaseContent()}
+            {renderPhases()}
           </div>
         </div>
       </Card>

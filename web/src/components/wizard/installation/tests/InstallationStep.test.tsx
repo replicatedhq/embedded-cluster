@@ -38,7 +38,7 @@ const phaseMockConfig = {
   }
 };
 
-const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
+const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig, phaseTestId: string) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
   React.useEffect(() => {
     onStateChange('Running');
     const config = phaseMockConfig[phaseKey];
@@ -58,29 +58,28 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
   
   const config = phaseMockConfig[phaseKey];
   const suffix = config.outcome === 'failure' ? ' Failed' : '';
-  const testId = phaseName.toLowerCase().replace(/\s+/g, '-');
-  return <div data-testid={testId}>{phaseName}{suffix}</div>;
+  return <div data-testid={phaseTestId}>{phaseName}{suffix}</div>;
 };
 
 // Mock all the phase components
 vi.mock('../phases/LinuxPreflightPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Preflight Phase', 'linuxPreflight', 'linux-preflight-phase')(props)
 }));
 
 vi.mock('../phases/LinuxInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Linux Installation Phase', 'linuxInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('Linux Installation Phase', 'linuxInstallation', 'linux-installation-phase')(props)
 }));
 
 vi.mock('../phases/KubernetesInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('Kubernetes Installation Phase', 'kubernetesInstallation', 'kubernetes-installation-phase')(props)
 }));
 
 vi.mock('../phases/AppPreflightPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('App Preflight Phase', 'appPreflight')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Preflight Phase', 'appPreflight', 'app-preflight-phase')(props)
 }));
 
 vi.mock('../phases/AppInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation')(props)
+  default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation', 'app-installation-phase')(props)
 }));
 
 const server = setupServer();
@@ -237,6 +236,106 @@ describe('InstallationStep', () => {
       // Timeline should show success icon for completed phase
       await waitFor(() => {
         expect(screen.getByTestId('icon-succeeded')).toBeInTheDocument();
+      });
+    });
+
+    it('keeps completed and current phases mounted when switching between phases', async () => {
+      renderInstallationStep('linux');
+
+      // Start with Linux preflight - should be visible
+      expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+      expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+
+      // Move to second phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      await waitFor(() => {
+        // Second phase should now be visible
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('hidden');
+        
+        // First phase should now be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+
+        // Third phase should not be mounted at all
+        expect(screen.queryByTestId('app-preflight-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-preflight-container')).not.toBeInTheDocument();
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Move to third phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      await waitFor(() => {
+        // Third phase should now be visible
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('block');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('hidden');
+        
+        // First two phases should be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+        
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('block');
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Click back on first completed phase in timeline
+      fireEvent.click(screen.getByTestId('timeline-linux-preflight'));
+
+      await waitFor(() => {
+        // First phase container should be visible
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('hidden');
+        
+        // Second phase should still exist in DOM but hidden
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('block');
+        
+        // Third phase should still exist in DOM but hidden
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('block');
+        
+        // Future phases should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+      });
+
+      // Click on second completed phase
+      fireEvent.click(screen.getByTestId('timeline-linux-installation'));
+
+      await waitFor(() => {
+        // Second phase container should now be visible
+        expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
+        expect(screen.getByTestId('linux-installation-container')).not.toHaveClass('hidden');
+        
+        // First and third phases should be hidden but still mounted
+        expect(screen.getByTestId('linux-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('linux-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('linux-preflight-container')).not.toHaveClass('block');
+        
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+        expect(screen.getByTestId('app-preflight-container')).toHaveClass('hidden');
+        expect(screen.getByTestId('app-preflight-container')).not.toHaveClass('block');
+
+        // Fourth phase should not be mounted at all
+        expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
       });
     });
 
