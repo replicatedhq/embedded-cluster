@@ -855,9 +855,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
     });
 
-    // Should also call onStateChange with "Succeeded" when preflights complete
-    expect(mockOnStateChange).toHaveBeenCalledWith('Succeeded');
-    expect(mockOnStateChange).toHaveBeenCalledTimes(2);
+    // Expect sequence: Running (mount), Running (preflights started), Succeeded (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Running', 'Succeeded']);
+    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
   });
 
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
@@ -895,9 +896,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Should also call onStateChange with "Failed" when preflights complete
-    expect(mockOnStateChange).toHaveBeenCalledWith('Failed');
-    expect(mockOnStateChange).toHaveBeenCalledTimes(2);
+    // Expect sequence: Running (mount), Running (preflights started), Failed (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Running', 'Failed']);
+    expect(mockOnStateChange).toHaveBeenCalledTimes(3);
   });
 
   it('calls onStateChange("Running") when rerun button is clicked', async () => {

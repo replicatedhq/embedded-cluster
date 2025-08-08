@@ -214,7 +214,7 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 		Titles:                   titles,
 		Output:                   output,
 		Status:                   status,
-		AllowIgnoreAppPreflights: true, // TODO: update once we check for strict app preflights
+		AllowIgnoreAppPreflights: true, // TODO: implement once we check for strict app preflights
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
@@ -360,12 +360,19 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 //	@Description	Install the app using current configuration
 //	@Tags			linux-install
 //	@Security		bearerauth
+//	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	types.AppInstall
-//	@Failure		400	{object}	types.APIError
+//	@Param			request	body		types.InstallAppRequest	true	"Install App Request"
+//	@Success		200		{object}	types.AppInstall
+//	@Failure		400		{object}	types.APIError
 //	@Router			/linux/install/app/install [post]
 func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
-	err := h.installController.InstallApp(r.Context())
+	var req types.InstallAppRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.installController.InstallApp(r.Context(), req.IgnoreAppPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)
