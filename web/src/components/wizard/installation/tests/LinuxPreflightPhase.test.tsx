@@ -19,10 +19,15 @@ const server = setupServer(
     });
   }),
 
+  // Mock preflight run endpoint
+  http.post('*/api/linux/install/host-preflights/run', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
   // Mock start installation endpoint
   http.post('*/api/linux/install/infra/setup', () => {
     return HttpResponse.json({ success: true });
-  })
+  }),
 );
 
 describe('LinuxPreflightPhase', () => {
