@@ -28,7 +28,7 @@ const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue,
   }
 
   const exceedsMaxLength = combinedText.length > maxTextLength;
-  const withinThreshold = exceedsMaxLength && (combinedText.length - maxTextLength) <= truncationThreshold;
+  const withinThreshold = (combinedText.length - maxTextLength) <= truncationThreshold;
   const shouldTruncate = exceedsMaxLength && !withinThreshold;
 
   return (
