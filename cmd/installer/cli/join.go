@@ -412,7 +412,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("overriding network configuration")
-	if err := applyNetworkConfiguration(rc, jcmd); err != nil {
+	if err := applyNetworkConfiguration(flags.networkInterface, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
@@ -460,11 +460,11 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 	return nil
 }
 
-func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
-	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
+	address, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}

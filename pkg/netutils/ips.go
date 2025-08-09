@@ -8,11 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 )
 
-// Dependency injection variables for testing
-var (
-	networkInterfaceProvider = DefaultNetworkInterfaceProvider
-)
-
 // adapted from https://github.com/k0sproject/k0s/blob/v1.30.4%2Bk0s.0/internal/pkg/iface/iface.go#L61
 func FirstValidAddress(networkInterface string) (string, error) {
 	ipnet, err := FirstValidIPNet(networkInterface)
@@ -68,7 +63,7 @@ func ListValidNetworkInterfaces() ([]NetworkInterface, error) {
 
 // listValidInterfaces returns a list of valid network interfaces for the node.
 func listValidInterfaces() ([]NetworkInterface, error) {
-	ifs, err := networkInterfaceProvider.Interfaces()
+	ifs, err := DefaultNetworkInterfaceProvider.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("list network interfaces: %w", err)
 	}

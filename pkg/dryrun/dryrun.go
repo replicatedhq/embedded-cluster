@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -16,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -32,14 +34,16 @@ var (
 )
 
 type Client struct {
-	KubeUtils     *KubeUtils
-	Helpers       *Helpers
-	Systemd       *Systemd
-	FirewalldUtil *FirewalldUtil
-	Metrics       *Sender
-	K0sClient     *K0s
-	HelmClient    helm.Client
-	Kotsadm       *Kotsadm
+	KubeUtils                *KubeUtils
+	Helpers                  *Helpers
+	Systemd                  *Systemd
+	FirewalldUtil            *FirewalldUtil
+	Metrics                  *Sender
+	K0sClient                *K0s
+	HelmClient               helm.Client
+	Kotsadm                  *Kotsadm
+	NetworkInterfaceProvider netutils.NetworkInterfaceProvider
+	ChooseHostInterfaceImpl  *ChooseInterfaceImpl
 }
 
 func Init(outputFile string, client *Client) {
@@ -73,6 +77,11 @@ func Init(outputFile string, client *Client) {
 		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
 			return client.HelmClient, nil
 		})
+	}
+	if client.NetworkInterfaceProvider != nil {
+		config.NetworkInterfaceProvider = client.NetworkInterfaceProvider
+		netutils.DefaultNetworkInterfaceProvider = client.NetworkInterfaceProvider
+		config.ChooseHostInterface = client.ChooseHostInterfaceImpl.ChooseHostInterface
 	}
 	kubeutils.Set(client.KubeUtils)
 	helpers.Set(client.Helpers)
