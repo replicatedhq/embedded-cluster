@@ -3,15 +3,21 @@ import react from '@vitejs/plugin-react';
 import netlify from '@netlify/vite-plugin';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import path from 'path';
+import { env } from 'process';
 import { InitialState } from './src/types';
 
+
+
+
 // https://vitejs.dev/config/
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
   return {
     plugins: [
       {
         name: 'gomplate-html-transform',
         transformIndexHtml(html) {
+          // We only want to transform the index.html file in dev mode/netlify.
+          if (isDev(mode)) return
           return templateHTML(html);
 
         },
@@ -36,6 +42,11 @@ export default defineConfig(() => {
     },
   }
 });
+
+// isDev checks if the current mode is development or if the NETLIFY environment variable is set to true, which we currently see as dev environment.
+function isDev(mode: string) {
+  return mode === 'development' || env.NETLFIY === 'true';
+}
 
 
 // templateHTML templated fields in our `index.html` file which is production is handled by our go server with JSON.stringify(values.key).
