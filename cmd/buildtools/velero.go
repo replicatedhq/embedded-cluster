@@ -156,7 +156,7 @@ var updateVeleroImagesCommand = &cli.Command{
 		awsPluginVersion = strings.TrimSuffix(awsPluginVersion, "-amd64")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
-		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion, c.StringSlice("images"))
+		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
