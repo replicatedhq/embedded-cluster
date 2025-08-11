@@ -1,6 +1,16 @@
-[build]
+[context.production]
   publish = "dist"
   command = "npm run build"
+  base = "/web"
+
+[context.deploy-preview]
+  publish = "dist"
+  command = "npm run build"
+  base = "/web"
+
+[contetxt.dev]
+  base = "/"
+  publish = "dist"
 
 [functions]
   node_bundler = "esbuild"
