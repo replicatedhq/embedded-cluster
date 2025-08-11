@@ -290,3 +290,56 @@ make ssh-node0
     ```bash
     make kurl-proxy-down-ec
     ```
+
+## Upgrading K0s Minor Version
+
+To upgrade the K0s minor version in Embedded Cluster, you can use the provided update script ./scripts/update-k0s-dep-version.sh.
+This script will update the K0s dependency version across the project and regenerate necessary files.
+
+### Using the Update Script
+
+The update script automates the process of upgrading K0s to a new minor version:
+
+```bash
+./scripts/update-k0s-dep-version.sh [TARGET_MINOR]
+```
+
+**Parameters:**
+- `[TARGET_MINOR]` - The target K0s minor version (e.g., `1.28`, `1.29`, `1.30`)
+
+**Examples:**
+```bash
+# Upgrade to K0s 1.29.x
+./scripts/update-k0s-dep-version.sh 1.29
+
+# Upgrade to K0s 1.30.x
+./scripts/update-k0s-dep-version.sh 1.30
+```
+
+### What the Script Does
+
+The update script performs the following operations:
+
+1. **Updates Go module dependencies** - Modifies `go.mod` files to use the new K0s version
+2. **Regenerates CRDs** - Updates Custom Resource Definitions for the new K0s version
+3. **Updates build configurations** - Modifies build scripts and Dockerfiles as needed
+4. **Regenerates manifests** - Updates Kubernetes manifests and deployment files
+
+### After Running the Script
+
+1. **Review changes** - The script will show you what files were modified
+2. **Test the build** - Verify that the project builds successfully:
+   ```bash
+   make build
+   ```
+3. **Run tests** - Ensure all tests pass with the new version:
+   ```bash
+   make unit-tests
+   make test-integration
+   ```
+4. **Test installation** - Verify that installation works with the new K0s version:
+   ```bash
+   make initial-release
+   make create-node0
+   # Test installation process
+   ```
