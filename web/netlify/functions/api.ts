@@ -1,4 +1,4 @@
-import { Handler } from '@netlify/functions';
+import { Handler, HandlerEvent, HandlerResponse } from '@netlify/functions';
 import { OpenAPIBackend } from 'openapi-backend';
 import { join } from 'path';
 
@@ -18,8 +18,8 @@ const api = new OpenAPIBackend({
 });
 
 api.register({
-  // Use default mock handler for all operations
   notFound: () => new Response('Not Found', { status: 404 }),
+  // This handler is called when the request does not match any operation in the OpenAPI spec
   validationFail: (c) => new Response(JSON.stringify({
     message: 'Validation failed',
     errors: c.validation.errors
@@ -40,8 +40,7 @@ api.register({
 // Initialize the API
 api.init();
 
-export const handler: Handler = async (event, context) => {
-  const { path, httpMethod, headers, body } = event;
+export const handler: Handler = async ({ queryStringParameters, path, httpMethod, headers, body }: HandlerEvent): Promise<HandlerResponse> => {
 
   // Extract the API path (remove /.netlify/functions/api prefix)
   const apiPath = path.replace(/^\/api/, '') || '/';
@@ -51,6 +50,7 @@ export const handler: Handler = async (event, context) => {
     return {
       statusCode: 200,
       headers: {
+        'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -65,9 +65,12 @@ export const handler: Handler = async (event, context) => {
       {
         method: httpMethod,
         path: apiPath,
-        query: event.queryStringParameters || {},
+        query: queryStringParameters as { [key: string]: string | string[] } || {},
         body: body,
-        headers: headers || {}
+        // handle type mismatch for headers
+        headers: Object.fromEntries(
+          Object.entries(headers || {}).filter(([_, value]) => value !== undefined)
+        ) as { [key: string]: string | string[] }
       }
     );
 
