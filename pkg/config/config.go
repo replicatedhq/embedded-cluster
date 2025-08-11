@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -26,8 +26,8 @@ const (
 var k0sConfigPathOverride string
 
 // RenderK0sConfig renders a k0s cluster configuration.
-func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
-	cfg := k0sconfig.DefaultClusterConfig()
+func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
+	cfg := k0sv1beta1.DefaultClusterConfig()
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
@@ -46,7 +46,7 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sconfig.ClusterConfig {
 	cfg.Spec.API.ExtraArgs["service-node-port-range"] = embeddedclusterv1beta1.DefaultNetworkNodePortRange
 	cfg.Spec.API.SANs = append(cfg.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 	cfg.Spec.Network.NodeLocalLoadBalancing.Enabled = true
-	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sconfig.NllbTypeEnvoyProxy
+	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sv1beta1.NllbTypeEnvoyProxy
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
 }
@@ -75,7 +75,7 @@ func extractK0sConfigPatch(raw string, respectImmutableFields bool) (string, err
 // PatchK0sConfig patches a K0s config with the provided patch. Returns the patched config,
 // patch is expected to be a YAML encoded k0s configuration. We marshal the original config
 // and the patch into JSON and apply the latter as a merge patch to the former.
-func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmutableFields bool) (*k0sconfig.ClusterConfig, error) {
+func PatchK0sConfig(config *k0sv1beta1.ClusterConfig, patch string, respectImmutableFields bool) (*k0sv1beta1.ClusterConfig, error) {
 	if patch == "" {
 		return config, nil
 	}
@@ -103,7 +103,7 @@ func PatchK0sConfig(config *k0sconfig.ClusterConfig, patch string, respectImmuta
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert patched config to json: %w", err)
 	}
-	var patched k0sconfig.ClusterConfig
+	var patched k0sv1beta1.ClusterConfig
 	if err := k8syaml.Unmarshal(resultYAML, &patched); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal patched config: %w", err)
 	}
@@ -220,7 +220,7 @@ func controllerWorkerProfile() (string, error) {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
 
-	var cfg k0sconfig.ClusterConfig
+	var cfg k0sv1beta1.ClusterConfig
 	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
 		return "", fmt.Errorf("unable to unmarshal k0s config: %w", err)
 	}
@@ -248,14 +248,14 @@ func AdditionalCharts() []embeddedclusterv1beta1.Chart {
 	return []embeddedclusterv1beta1.Chart{}
 }
 
-func AdditionalRepositories() []k0sconfig.Repository {
+func AdditionalRepositories() []k0sv1beta1.Repository {
 	clusterConfig := release.GetEmbeddedClusterConfig()
 	if clusterConfig != nil {
 		if clusterConfig.Spec.Extensions.Helm != nil {
 			return clusterConfig.Spec.Extensions.Helm.Repositories
 		}
 	}
-	return []k0sconfig.Repository{}
+	return []k0sv1beta1.Repository{}
 }
 
 // removeImmutableFields removes the immutable fields from the patch.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -57,14 +57,14 @@ func TestPatchK0sConfig(t *testing.T) {
 		t.Run(tname, func(t *testing.T) {
 			req := require.New(t)
 
-			var config k0sconfig.ClusterConfig
+			var config k0sv1beta1.ClusterConfig
 			err := k8syaml.Unmarshal([]byte(tt.Config), &config)
 			req.NoError(err)
 
 			result, err := PatchK0sConfig(&config, tt.Override, tt.RespectImmutableFields)
 			req.NoError(err)
 
-			var expected k0sconfig.ClusterConfig
+			var expected k0sv1beta1.ClusterConfig
 			err = k8syaml.Unmarshal([]byte(tt.Expected), &expected)
 			req.NoError(err)
 
@@ -114,7 +114,7 @@ func TestRenderK0sConfig(t *testing.T) {
 
 func TestInstallFlags(t *testing.T) {
 	// Create a pair of temporary k0s config files
-	k0sCfg := k0sconfig.DefaultClusterConfig()
+	k0sCfg := k0sv1beta1.DefaultClusterConfig()
 	k0sDefaultConfigBytes, err := k8syaml.Marshal(k0sCfg)
 	require.NoError(t, err)
 
@@ -125,7 +125,7 @@ func TestInstallFlags(t *testing.T) {
 	err = os.WriteFile(defaultTmpFile.Name(), k0sDefaultConfigBytes, 0644)
 	require.NoError(t, err)
 
-	k0sCfg.Spec.WorkerProfiles = []k0sconfig.WorkerProfile{
+	k0sCfg.Spec.WorkerProfiles = []k0sv1beta1.WorkerProfile{
 		{
 			Name: "test-profile",
 		},
