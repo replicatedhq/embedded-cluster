@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => {
             src: path.resolve(__dirname, './README.md'),
             dest: './',
           },
+          {
+            src: path.resolve(__dirname, '../api/docs/swagger.yaml'),
+            dest: './api/docs',
+          },
         ],
       }),
     ],

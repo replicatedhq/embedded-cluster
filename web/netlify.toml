@@ -3,9 +3,12 @@
   command = "npm run build"
   base = "/web"
 
+[context.dev]
+  base = "/"
+
 [functions]
   node_bundler = "esbuild"
-  included_files = ["../api/docs/**"]
+  included_files = ["../api/docs/swagger.yaml"]
 
 [[redirects]]
   from = "/api/*"

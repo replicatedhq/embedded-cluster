@@ -2,8 +2,15 @@ import { Handler } from '@netlify/functions';
 import { OpenAPIBackend } from 'openapi-backend';
 import { join } from 'path';
 
-// Load OpenAPI spec directly from source
-const specPath = join(process.cwd(), '../api/docs/swagger.yaml');
+let specPath: string;
+
+if (process.env.NETLIFY_LOCAL) {
+  // Running in netlify dev (source files available)
+  specPath = join(process.cwd(), '../api/docs/swagger.yaml');
+} else {
+  // Running in production (packaged functions dir)
+  specPath = './api/docs/swagger.yaml'
+}
 
 // Initialize OpenAPI Backend with automatic mock generation
 const api = new OpenAPIBackend({
