@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
         name: 'gomplate-html-transform',
         transformIndexHtml(html) {
           // We only want to transform the index.html file in dev mode/netlify.
-          if (isDev(mode)) return
+          if (!isDev(mode)) return
           return templateHTML(html);
 
         },

@@ -8,7 +8,7 @@ if (process.env.NETLIFY_LOCAL) {
   // Running in netlify dev (source files available)
   specPath = join(process.cwd(), '../api/docs/swagger.yaml');
 } else {
-  // Running in production (packaged functions dir)
+  // Running in netlify production (packaged functions dir)
   specPath = './api/docs/swagger.yaml'
 }
 
