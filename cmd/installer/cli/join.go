@@ -547,13 +547,25 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	return nil
 }
 
-func getFirstDefinedProfile() (string, error) {
-	k0scfg, err := os.Open(runtimeconfig.K0sConfigPath)
+func K0sConfigFromBytes(yml []byte) (*k0sv1beta1.ClusterConfig, error) {
+	c := k0sv1beta1.DefaultClusterConfig()
+	merged := c.DeepCopy()
+	err := helpers.YamlUnmarshalStrictIgnoringFields(yml, merged, "interval", "podSecurityPolicy")
 	if err != nil {
-		return "", fmt.Errorf("unable to open k0s config: %w", err)
+		return nil, err
 	}
-	defer k0scfg.Close()
-	cfg, err := k0sv1beta1.ConfigFromReader(k0scfg)
+	if merged.Spec == nil {
+		merged.Spec = c.Spec
+	}
+	return merged, nil
+}
+
+func getFirstDefinedProfile() (string, error) {
+	k0scfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read k0s config: %w", err)
+	}
+	cfg, err := k0sv1beta1.ConfigFromBytes(k0scfgBytes)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
