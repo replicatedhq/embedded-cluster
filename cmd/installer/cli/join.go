@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
@@ -547,27 +546,12 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	return nil
 }
 
-// This code was copied from the k0s project to maintain backwards compatibility with versions < 1.33
-// https://github.com/k0sproject/k0s/blob/4615902bc8c4fbbb8f150371f8f60818458479c9/pkg/apis/k0s/v1beta1/clusterconfig_types.go#L264-L278
-func k0sConfigFromBytes(yml []byte) (*k0sv1beta1.ClusterConfig, error) {
-	c := k0sv1beta1.DefaultClusterConfig()
-	merged := c.DeepCopy()
-	err := helpers.YamlUnmarshalStrictIgnoringFields(yml, merged, "interval", "podSecurityPolicy")
-	if err != nil {
-		return nil, err
-	}
-	if merged.Spec == nil {
-		merged.Spec = c.Spec
-	}
-	return merged, nil
-}
-
 func getFirstDefinedProfile() (string, error) {
 	k0scfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
-	cfg, err := k0sConfigFromBytes(k0scfgBytes)
+	cfg, err := helpers.K0sConfigFromBytes(k0scfgBytes)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
