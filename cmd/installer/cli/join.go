@@ -565,7 +565,7 @@ func getFirstDefinedProfile() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
-	cfg, err := k0sv1beta1.ConfigFromBytes(k0scfgBytes)
+	cfg, err := K0sConfigFromBytes(k0scfgBytes)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
