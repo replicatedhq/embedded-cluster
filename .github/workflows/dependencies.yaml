@@ -3,7 +3,11 @@ on:
   schedule:
   # everyday at midnight.
   - cron: '0 0 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      k0s_minor_version:
+        description: 'The minor version of k0s to update the dependencies for'
+        required: false
 
 jobs:
   update-dependencies:
@@ -20,8 +24,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cur_version=$(make print-K0S_VERSION)
-        cur_minor=$(echo $cur_version | awk -F'.' '{print $2}')
+        cur_minor="$INPUT_K0S_MINOR_VERSION"
+        if [ -z "$cur_minor" ]; then
+          cur_minor=$(make print-K0S_VERSION | awk -F'.' '{print $2}')
+        fi
 
         ./scripts/update-k0s-dep-version.sh "$cur_minor"
     - name: Troubleshoot

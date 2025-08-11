@@ -170,7 +170,7 @@ func getCalicoVersion(opts addonComponentOptions) *semver.Version {
 	return opts.upstreamVersion
 }
 
-func getLatestPauseImageTag(ctx context.Context, major, minor uint64) (string, error) {
+func getLatestPauseImageTag(_ context.Context, major, minor uint64) (string, error) {
 	// Query the registry for available pause image tags
 	resp, err := http.Get("https://us-west2-docker.pkg.dev/v2/k8s-artifacts-prod/images/pause/tags/list")
 	if err != nil {
