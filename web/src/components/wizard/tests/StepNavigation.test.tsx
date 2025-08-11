@@ -15,24 +15,6 @@ describe("StepNavigation", () => {
   };
 
   describe("Linux Target", () => {
-    it("renders all navigation steps except linux-validation", () => {
-      renderWithProviders(<StepNavigation currentStep="welcome" />, {
-        wrapperProps: {
-          authenticated: true,
-          contextValues: defaultContextValues,
-        },
-      });
-
-      // Should show 4 steps (welcome, setup, installation, completion)
-      expect(screen.getByText("Welcome")).toBeInTheDocument();
-      expect(screen.getByText("Setup")).toBeInTheDocument();
-      expect(screen.getByText("Installation")).toBeInTheDocument();
-      expect(screen.getByText("Completion")).toBeInTheDocument();
-
-      // Should NOT show validation step
-      expect(screen.queryByText("Validation")).not.toBeInTheDocument();
-    });
-
     it("shows 'current' status for the current step", () => {
       renderWithProviders(<StepNavigation currentStep="linux-setup" />, {
         wrapperProps: {
@@ -44,28 +26,6 @@ describe("StepNavigation", () => {
       const setupStep = screen.getByText("Setup").closest("div");
       expect(setupStep).toHaveStyle({
         border: "1px solid #316DE6",
-      });
-    });
-
-    it("treats validation step as part of setup for navigation", () => {
-      renderWithProviders(<StepNavigation currentStep="linux-validation" />, {
-        wrapperProps: {
-          authenticated: true,
-          contextValues: defaultContextValues,
-        },
-      });
-
-      // When currentStep is 'linux-validation', linux-setup should show as current
-      const setupStep = screen.getByText("Setup").closest("div");
-      expect(setupStep).toHaveStyle({
-        border: "1px solid #316DE6",
-      });
-
-      // Welcome should be complete
-      const welcomeStep = screen.getByText("Welcome").closest("div");
-      expect(welcomeStep).toHaveStyle({
-        backgroundColor: "#316DE61A",
-        color: "#316DE6",
       });
     });
 
@@ -116,8 +76,7 @@ describe("StepNavigation", () => {
       const testCases = [
         { currentStep: "welcome", setupStatus: "upcoming", installStatus: "upcoming" },
         { currentStep: "linux-setup", setupStatus: "current", installStatus: "upcoming" },
-        { currentStep: "linux-validation", setupStatus: "current", installStatus: "upcoming" },
-        { currentStep: "linux-installation", setupStatus: "complete", installStatus: "current" },
+        { currentStep: "installation", setupStatus: "complete", installStatus: "current" },
       ];
 
       testCases.forEach(({ currentStep, setupStatus, installStatus }) => {
@@ -238,7 +197,7 @@ describe("StepNavigation", () => {
       const testCases = [
         { currentStep: "welcome", setupStatus: "upcoming", installStatus: "upcoming" },
         { currentStep: "kubernetes-setup", setupStatus: "current", installStatus: "upcoming" },
-        { currentStep: "kubernetes-installation", setupStatus: "complete", installStatus: "current" },
+        { currentStep: "installation", setupStatus: "complete", installStatus: "current" },
       ];
 
       testCases.forEach(({ currentStep, setupStatus, installStatus }) => {

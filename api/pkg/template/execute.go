@@ -2,7 +2,6 @@ package template
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -14,18 +13,13 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-// execOptions holds options passed to the template engine at execution time.
-type execOptions struct {
-	proxySpec *ecv1beta1.ProxySpec // Proxy spec for the engine, if applicable
-}
-
 // ExecOption is a function that sets configuration for the engine at execution time.
-type ExecOption func(*execOptions)
+type ExecOption func(*Engine)
 
 // WithProxySpec is an ExecOption that sets the proxy spec for the engine.
 func WithProxySpec(proxySpec *ecv1beta1.ProxySpec) ExecOption {
-	return func(opts *execOptions) {
-		opts.proxySpec = proxySpec
+	return func(e *Engine) {
+		e.proxySpec = proxySpec
 	}
 }
 
@@ -37,14 +31,9 @@ func (e *Engine) Execute(configValues types.AppConfigValues, opts ...ExecOption)
 	defer e.mtx.Unlock()
 
 	// Set execution options
-	execOptions := execOptions{}
 	for _, opt := range opts {
-		opt(&execOptions)
+		opt(e)
 	}
-	if err := e.validateExecOptions(execOptions); err != nil {
-		return "", fmt.Errorf("validate execution options: %w", err)
-	}
-	e.proxySpec = execOptions.proxySpec
 
 	// Store previous config values
 	e.prevConfigValues = e.configValues
@@ -103,16 +92,6 @@ func (e *Engine) Parse(templateStr string) error {
 	}
 
 	e.tmpl = tmpl
-	return nil
-}
-
-func (e *Engine) validateExecOptions(opts execOptions) error {
-	if e.mode == ModeGeneric && opts.proxySpec == nil {
-		return errors.New("installation with proxy spec must be provided in generic mode. This is required to process the proxy-related template functions")
-	}
-	if e.mode == ModeConfig && opts.proxySpec != nil {
-		return errors.New("installation with proxy spec should not be provided in config mode. Proxy-related template functions are not available in this mode")
-	}
 	return nil
 }
 
@@ -186,6 +165,13 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ParseUint":    e.parseUint,
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
+
+		// TODO: implement
+		"HasLocalRegistry":       func() bool { return false },
+		"LocalRegistryHost":      func() string { return "" },
+		"LocalRegistryNamespace": func() string { return "" },
+		"LocalImageName":         func() string { return "" },
+		"ImagePullSecretName":    func() string { return "" },
 	}
 }
 

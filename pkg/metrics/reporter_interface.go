@@ -27,11 +27,23 @@ type ReporterInterface interface {
 	// ReportJoinFailed reports that a join has failed
 	ReportJoinFailed(ctx context.Context, err error)
 
-	// ReportPreflightsFailed reports that the preflights failed
-	ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput)
+	// ReportHostPreflightsFailed reports that the host preflights failed
+	ReportHostPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput)
 
-	// ReportPreflightsBypassed reports that the preflights failed but were bypassed
-	ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput)
+	// ReportHostPreflightsBypassed reports that the host preflights failed but were bypassed
+	ReportHostPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput)
+
+	// ReportHostPreflightsSucceeded reports that the host preflights succeeded
+	ReportHostPreflightsSucceeded(ctx context.Context)
+
+	// ReportAppPreflightsFailed reports that the app preflights failed
+	ReportAppPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput)
+
+	// ReportAppPreflightsBypassed reports that the app preflights failed but were bypassed
+	ReportAppPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput)
+
+	// ReportAppPreflightsSucceeded reports that the app preflights succeeded
+	ReportAppPreflightsSucceeded(ctx context.Context)
 
 	// ReportSignalAborted reports that a process was terminated by a signal
 	ReportSignalAborted(ctx context.Context, signal os.Signal)

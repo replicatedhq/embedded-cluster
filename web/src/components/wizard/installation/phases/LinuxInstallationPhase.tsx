@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import Card from '../../common/Card';
-import Button from '../../common/Button';
 import { useQuery } from "@tanstack/react-query";
-import { useSettings } from '../../../contexts/SettingsContext';
-import { useAuth } from "../../../contexts/AuthContext";
-import { InfraStatusResponse } from '../../../types';
-import { ChevronRight } from 'lucide-react';
-import InstallationProgress from './shared/InstallationProgress';
-import LogViewer from './shared/LogViewer';
-import StatusIndicator from './shared/StatusIndicator';
-import ErrorMessage from './shared/ErrorMessage';
+import { useSettings } from '../../../../contexts/SettingsContext';
+import { useAuth } from "../../../../contexts/AuthContext";
+import { InfraStatusResponse } from '../../../../types';
+import InstallationProgress from '../shared/InstallationProgress';
+import LogViewer from '../shared/LogViewer';
+import StatusIndicator from '../shared/StatusIndicator';
+import ErrorMessage from '../shared/ErrorMessage';
+import { NextButtonConfig } from '../types';
+import { State } from '../../../../types';
 
-interface KubernetesInstallationStepProps {
+interface LinuxInstallationPhaseProps {
   onNext: () => void;
+  setNextButtonConfig: (config: NextButtonConfig) => void;
+  onStateChange: (status: State) => void;
 }
 
-const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({ onNext }) => {
+const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
@@ -27,7 +28,7 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
   const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
     queryKey: ["infraStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/kubernetes/install/infra/status", {
+      const response = await fetch("/api/linux/install/infra/status", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -43,15 +44,22 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
     refetchInterval: 2000,
   });
 
+  // Report that step is running when component mounts
+  useEffect(() => {
+    onStateChange('Running');
+  }, []);
+
   // Handle infra status changes
   useEffect(() => {
     if (infraStatusResponse?.status?.state === "Failed") {
       setIsInfraPolling(false);
+      onStateChange('Failed');
       return;
     }
     if (infraStatusResponse?.status?.state === "Succeeded") {
       setIsInfraPolling(false);
       setInstallComplete(true);
+      onStateChange('Succeeded');
     }
   }, [infraStatusResponse]);
 
@@ -75,9 +83,9 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
 
       <div className="space-y-2 divide-y divide-gray-200">
         {(infraStatusResponse?.components || []).map((component, index) => (
-          <StatusIndicator 
+          <StatusIndicator
             key={index}
-            title={component.name} 
+            title={component.name}
             status={component.status?.state}
             themeColor={themeColor}
           />
@@ -90,34 +98,30 @@ const KubernetesInstallationStep: React.FC<KubernetesInstallationStepProps> = ({
         isExpanded={showLogs}
         onToggle={() => setShowLogs(!showLogs)}
       />
-      
+
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>
   );
 
+  // Update next button configuration
+  useEffect(() => {
+    setNextButtonConfig({
+      disabled: !installComplete,
+      onClick: onNext,
+    });
+  }, [installComplete]);
+
   return (
     <div className="space-y-6">
-      <Card>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
-          <p className="text-gray-600 mt-1">Installing infrastructure components</p>
-        </div>
-
-        {renderInfrastructurePhase()}
-      </Card>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={onNext}
-          disabled={!installComplete}
-          icon={<ChevronRight className="w-5 h-5" />}
-        >
-          Next: Finish
-        </Button>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
+        <p className="text-gray-600 mt-1">Installing infrastructure components</p>
       </div>
+
+      {renderInfrastructurePhase()}
     </div>
   );
 };
 
-export default KubernetesInstallationStep;
+export default LinuxInstallationPhase;

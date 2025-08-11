@@ -214,13 +214,16 @@ func TestPostRunAppPreflights(t *testing.T) {
 			},
 		}, nil)
 
+		// Create a state machine
+		stateMachine := linuxinstall.NewStateMachine(
+			linuxinstall.WithCurrentState(states.StateInfrastructureInstalled),
+		)
+
 		// Create real app install controller with proper state machine
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithAppPreflightManager(appPreflightManager),
 			appinstall.WithAppReleaseManager(mockAppReleaseManager),
-			appinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(states.StateSucceeded), // App preflights can run from StateSucceeded
-			)),
+			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
@@ -228,9 +231,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create Linux install controller with runtime config
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
-				linuxinstall.WithCurrentState(states.StateSucceeded),
-			)),
+			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},

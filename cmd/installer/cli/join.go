@@ -78,27 +78,27 @@ func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to get join token: %w", err)
 			}
-			joinReporter := newJoinReporter(
+			metricsReporter := newJoinReporter(
 				jcmd.InstallationSpec.MetricsBaseURL, jcmd.ClusterID.String(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 			)
-			joinReporter.ReportJoinStarted(ctx)
+			metricsReporter.ReportJoinStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				joinReporter.ReportSignalAborted(ctx, sig)
+				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runJoin(cmd.Context(), appSlug, flags, rc, jcmd, args[0], joinReporter); err != nil {
+			if err := runJoin(cmd.Context(), appSlug, flags, rc, jcmd, args[0], metricsReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
-					joinReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					joinReporter.ReportJoinFailed(ctx, err)
+					metricsReporter.ReportJoinFailed(ctx, err)
 				}
 				return err
 			}
 
-			joinReporter.ReportJoinSucceeded(ctx)
+			metricsReporter.ReportJoinSucceeded(ctx)
 			return nil
 		},
 	}
@@ -160,7 +160,7 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	return nil
 }
 
-func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, joinReporter *JoinReporter) error {
+func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, kotsAPIAddress string, metricsReporter *joinReporter) error {
 	// both controller and worker nodes will have 'worker' in the join command
 	isWorker := !strings.Contains(jcmd.K0sJoinCommand, "controller")
 	if !isWorker {
@@ -177,7 +177,7 @@ func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtime
 	}
 
 	logrus.Debugf("running join preflights")
-	if err := runJoinPreflights(ctx, jcmd, flags, rc, cidrCfg, joinReporter.reporter); err != nil {
+	if err := runJoinPreflights(ctx, jcmd, flags, rc, cidrCfg, metricsReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -412,7 +412,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("overriding network configuration")
-	if err := applyNetworkConfiguration(rc, jcmd); err != nil {
+	if err := applyNetworkConfiguration(flags.networkInterface, rc, jcmd); err != nil {
 		return fmt.Errorf("unable to apply network configuration: %w", err)
 	}
 
@@ -460,11 +460,11 @@ func installK0sBinary(rc runtimeconfig.RuntimeConfig) error {
 	return nil
 }
 
-func applyNetworkConfiguration(rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
+func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse) error {
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 	clusterSpec := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 
-	address, err := netutils.FirstValidAddress(rc.NetworkInterface())
+	address, err := netutils.FirstValidAddress(networkInterface)
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}

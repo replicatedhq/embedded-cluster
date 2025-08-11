@@ -26,11 +26,11 @@ func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 		}
 		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, "App installation failed"); err != nil {
+			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
 				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
-			if err := m.setStatus(types.StateSucceeded, "App installation completed successfully"); err != nil {
+			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
 				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}

@@ -47,14 +47,34 @@ func (m *MockReporter) ReportJoinFailed(ctx context.Context, err error) {
 	m.Called(mock.Anything, err)
 }
 
-// ReportPreflightsFailed mocks the ReportPreflightsFailed method
-func (m *MockReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+// ReportHostPreflightsFailed mocks the ReportHostPreflightsFailed method
+func (m *MockReporter) ReportHostPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	m.Called(mock.Anything, output)
 }
 
-// ReportPreflightsBypassed mocks the ReportPreflightsBypassed method
-func (m *MockReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+// ReportHostPreflightsBypassed mocks the ReportHostPreflightsBypassed method
+func (m *MockReporter) ReportHostPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
 	m.Called(mock.Anything, output)
+}
+
+// ReportHostPreflightsSucceeded mocks the ReportHostPreflightsSucceeded method
+func (m *MockReporter) ReportHostPreflightsSucceeded(ctx context.Context) {
+	m.Called(mock.Anything)
+}
+
+// ReportAppPreflightsFailed mocks the ReportAppPreflightsFailed method
+func (m *MockReporter) ReportAppPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	m.Called(mock.Anything, output)
+}
+
+// ReportAppPreflightsBypassed mocks the ReportAppPreflightsBypassed method
+func (m *MockReporter) ReportAppPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	m.Called(mock.Anything, output)
+}
+
+// ReportAppPreflightsSucceeded mocks the ReportAppPreflightsSucceeded method
+func (m *MockReporter) ReportAppPreflightsSucceeded(ctx context.Context) {
+	m.Called(mock.Anything)
 }
 
 // ReportSignalAborted mocks the ReportSignalAborted method

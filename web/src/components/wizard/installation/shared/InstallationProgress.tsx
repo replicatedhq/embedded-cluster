@@ -1,10 +1,11 @@
 import React from 'react';
+import { State } from '../../../../types';
 
 interface InstallationProgressProps {
   progress: number;
   currentMessage: string;
   themeColor: string;
-  status?: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+  status?: State;
 }
 
 const InstallationProgress: React.FC<InstallationProgressProps> = ({

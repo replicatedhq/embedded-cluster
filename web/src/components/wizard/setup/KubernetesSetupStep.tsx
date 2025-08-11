@@ -38,7 +38,6 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
-// TODO NOW: add tests for this component
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
   const { config, updateConfig } = useKubernetesConfig();
   const { text } = useWizard();

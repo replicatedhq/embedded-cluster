@@ -1,9 +1,10 @@
 import React from 'react';
 import { Server, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { State } from '../../../../types';
 
 interface StatusIndicatorProps {
   title: string;
-  status: 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+  status: State;
   themeColor: string;
 }
 

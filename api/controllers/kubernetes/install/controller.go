@@ -201,7 +201,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.infraManager == nil {
 		infraManager, err := infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
-			infra.WithInfraStore(controller.store.LinuxInfraStore()),
+			infra.WithInfraStore(controller.store.KubernetesInfraStore()),
 			infra.WithRESTClientGetter(controller.restClientGetter),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
@@ -215,6 +215,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		}
 		controller.infraManager = infraManager
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }
