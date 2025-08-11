@@ -41,9 +41,9 @@ func (m *mockNetworkInterfaceProvider) Interfaces() ([]NetworkInterface, error) 
 
 func TestFirstValidAddress(t *testing.T) {
 	// Save original provider
-	originalProvider := networkInterfaceProvider
+	originalProvider := DefaultNetworkInterfaceProvider
 	defer func() {
-		networkInterfaceProvider = originalProvider
+		DefaultNetworkInterfaceProvider = originalProvider
 	}()
 
 	tests := []struct {
@@ -155,7 +155,7 @@ func TestFirstValidAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			networkInterfaceProvider = tt.mockProvider
+			DefaultNetworkInterfaceProvider = tt.mockProvider
 
 			result, err := FirstValidAddress(tt.networkInterface)
 
@@ -173,9 +173,9 @@ func TestFirstValidAddress(t *testing.T) {
 
 func TestFirstValidIPNet(t *testing.T) {
 	// Save original provider
-	originalProvider := networkInterfaceProvider
+	originalProvider := DefaultNetworkInterfaceProvider
 	defer func() {
-		networkInterfaceProvider = originalProvider
+		DefaultNetworkInterfaceProvider = originalProvider
 	}()
 
 	tests := []struct {
@@ -277,7 +277,7 @@ func TestFirstValidIPNet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			networkInterfaceProvider = tt.mockProvider
+			DefaultNetworkInterfaceProvider = tt.mockProvider
 
 			result, err := FirstValidIPNet(tt.networkInterface)
 
@@ -297,9 +297,9 @@ func TestFirstValidIPNet(t *testing.T) {
 
 func TestListValidNetworkInterfaces(t *testing.T) {
 	// Save original provider
-	originalProvider := networkInterfaceProvider
+	originalProvider := DefaultNetworkInterfaceProvider
 	defer func() {
-		networkInterfaceProvider = originalProvider
+		DefaultNetworkInterfaceProvider = originalProvider
 	}()
 
 	tests := []struct {
@@ -444,7 +444,7 @@ func TestListValidNetworkInterfaces(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			networkInterfaceProvider = tt.mockProvider
+			DefaultNetworkInterfaceProvider = tt.mockProvider
 
 			result, err := ListValidNetworkInterfaces()
 
@@ -468,9 +468,9 @@ func TestListValidNetworkInterfaces(t *testing.T) {
 
 func TestListAllValidIPAddresses(t *testing.T) {
 	// Save original provider
-	originalProvider := networkInterfaceProvider
+	originalProvider := DefaultNetworkInterfaceProvider
 	defer func() {
-		networkInterfaceProvider = originalProvider
+		DefaultNetworkInterfaceProvider = originalProvider
 		cloudutils.Set(cloudutils.New())
 	}()
 
@@ -599,7 +599,7 @@ func TestListAllValidIPAddresses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			networkInterfaceProvider = tt.mockProvider
+			DefaultNetworkInterfaceProvider = tt.mockProvider
 
 			mockCloudUtils := &cloudutils.MockCloudUtils{}
 			cloudutils.Set(mockCloudUtils)
