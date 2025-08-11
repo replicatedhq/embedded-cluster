@@ -547,7 +547,9 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 	return nil
 }
 
-func K0sConfigFromBytes(yml []byte) (*k0sv1beta1.ClusterConfig, error) {
+// This code was copied from the k0s project to maintain backwards compatibility with versions < 1.33
+// https://github.com/k0sproject/k0s/blob/4615902bc8c4fbbb8f150371f8f60818458479c9/pkg/apis/k0s/v1beta1/clusterconfig_types.go#L264-L278
+func k0sConfigFromBytes(yml []byte) (*k0sv1beta1.ClusterConfig, error) {
 	c := k0sv1beta1.DefaultClusterConfig()
 	merged := c.DeepCopy()
 	err := helpers.YamlUnmarshalStrictIgnoringFields(yml, merged, "interval", "podSecurityPolicy")
@@ -565,7 +567,7 @@ func getFirstDefinedProfile() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
-	cfg, err := K0sConfigFromBytes(k0scfgBytes)
+	cfg, err := k0sConfigFromBytes(k0scfgBytes)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
