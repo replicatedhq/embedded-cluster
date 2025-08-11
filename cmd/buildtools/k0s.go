@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -100,7 +102,9 @@ var updateK0sImagesCommand = &cli.Command{
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
-		metaImages, err := UpdateImages(c.Context, k0sImageComponents, config.Metadata.Images, k0sImages)
+		metaImages, err := UpdateImages(
+			c.Context, k0sImageComponents, config.Metadata.Images, k0sImages, c.StringSlice("image"),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
 		}
@@ -120,11 +124,11 @@ func getK0sVersion() (*semver.Version, error) {
 		logrus.Infof("using input override from INPUT_K0S_VERSION: %s", v)
 		return semver.MustParse(v), nil
 	}
-	v, err := GetMakefileVariable("K0S_VERSION")
+	v, err := exec.Command("make", "print-K0S_VERSION").Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k0s version: %w", err)
 	}
-	return semver.MustParse(v), nil
+	return semver.MustParse(strings.TrimSpace(string(v))), nil
 }
 
 func getCalicoTag(opts addonComponentOptions) (string, error) {

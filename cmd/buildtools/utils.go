@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -75,13 +75,23 @@ func ApkoBuildAndPublish(componentName, packageName, packageVersion string, arch
 	return nil
 }
 
-func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent, metaImages map[string]release.AddonImage, images []string) (map[string]release.AddonImage, error) {
+func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent, metaImages map[string]release.AddonImage, images []string, filteredImages []string) (map[string]release.AddonImage, error) {
 	nextImages := map[string]release.AddonImage{}
 
 	for _, image := range images {
 		component, ok := imageComponents[RemoveTagFromImage(image)]
 		if !ok {
 			return nil, fmt.Errorf("no component found for image %s", image)
+		}
+
+		// if we have a filtered list of images, and the current image is not in the list, skip it
+		// and use the image from the metadata if it exists
+		if len(filteredImages) > 0 && !slices.Contains(filteredImages, component.name) {
+			logrus.Infof("skipping image %s as it is not in the filtered list", image)
+			if image, ok := metaImages[component.name]; ok {
+				nextImages[component.name] = image
+			}
+			continue
 		}
 
 		newimage := metaImages[component.name]
@@ -290,71 +300,6 @@ func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *s
 		return "", fmt.Errorf("no tags found matching constraints")
 	}
 	return bestStr, nil
-}
-
-func GetMakefileVariable(name string) (string, error) {
-	f, err := os.Open("./Makefile")
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		re := regexp.MustCompile(fmt.Sprintf("^%s ?= ?", regexp.QuoteMeta(name)))
-		if !re.MatchString(line) {
-			continue
-		}
-		slices := strings.Split(line, "=")
-		if len(slices) != 2 {
-			return "", nil
-		}
-		return strings.TrimSpace(slices[1]), nil
-	}
-	return "", fmt.Errorf("variable %s not found in ./Makefile", name)
-}
-
-func SetMakefileVariable(name, value string) error {
-	file, err := os.OpenFile("./Makefile", os.O_RDWR, 0644)
-	if err != nil {
-		return fmt.Errorf("open ./Makefile: %w", err)
-	}
-	defer file.Close()
-
-	var found int
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		text := scanner.Text()
-		re := regexp.MustCompile(fmt.Sprintf("^%s ?= ?", regexp.QuoteMeta(name)))
-		if !re.MatchString(text) {
-			lines = append(lines, text)
-			continue
-		}
-		line := fmt.Sprintf("%s = %s", name, value)
-		lines = append(lines, line)
-		found++
-	}
-
-	if found != 1 {
-		if found == 0 {
-			return fmt.Errorf("variable %s not found in ./Makefile", name)
-		}
-		return fmt.Errorf("variable %s found %d times in ./Makefile", name, found)
-	}
-
-	wfile, err := os.OpenFile("./Makefile", os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("open ./Makefile: %w", err)
-	}
-	defer wfile.Close()
-
-	for _, line := range lines {
-		if _, err := fmt.Fprintln(wfile, line); err != nil {
-			return fmt.Errorf("write ./Makefile: %w", err)
-		}
-	}
-	return nil
 }
 
 func LatestChartVersion(hcli helm.Client, repo *repo.Entry, name string) (string, error) {

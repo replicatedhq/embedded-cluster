@@ -72,7 +72,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating seaweedfs images")
 
-		err = updateSeaweedFSAddonImages(c.Context, hcli, withproto, nextChartVersion)
+		err = updateSeaweedFSAddonImages(c.Context, hcli, withproto, nextChartVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update seaweedfs images: %w", err)
 		}
@@ -98,7 +98,7 @@ var updateSeaweedFSImagesCommand = &cli.Command{
 
 		current := seaweedfs.Metadata
 
-		err = updateSeaweedFSAddonImages(c.Context, hcli, current.Location, current.Version)
+		err = updateSeaweedFSAddonImages(c.Context, hcli, current.Location, current.Version, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update seaweedfs images: %w", err)
 		}
@@ -109,7 +109,7 @@ var updateSeaweedFSImagesCommand = &cli.Command{
 	},
 }
 
-func updateSeaweedFSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) error {
+func updateSeaweedFSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, filteredImages []string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -127,7 +127,7 @@ func updateSeaweedFSAddonImages(ctx context.Context, hcli helm.Client, chartURL 
 		return fmt.Errorf("failed to get images from seaweedfs chart: %w", err)
 	}
 
-	metaImages, err := UpdateImages(ctx, seaweedfsImageComponents, seaweedfs.Metadata.Images, images)
+	metaImages, err := UpdateImages(ctx, seaweedfsImageComponents, seaweedfs.Metadata.Images, images, filteredImages)
 	if err != nil {
 		return fmt.Errorf("failed to update images: %w", err)
 	}
