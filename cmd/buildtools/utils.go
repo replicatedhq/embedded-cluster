@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	"helm.sh/helm/v3/pkg/repo"
+	"oras.land/oras-go/v2/registry/remote"
 )
 
 var (
@@ -267,7 +268,7 @@ func GetLatestKotsHelmTag(ctx context.Context) (string, error) {
 
 // GetGreatestGitHubTag returns the greatest non-prerelease semver tag from a GitHub repository
 // that matches the provided constraints.
-func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *semver.Constraints) (string, error) {
+func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constraints *semver.Constraints) (string, error) {
 	client := github.NewClient(nil)
 	if token := os.Getenv("GH_TOKEN"); token != "" {
 		client = client.WithAuthToken(token)
@@ -288,7 +289,7 @@ func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *s
 		if sv.Prerelease() != "" {
 			continue
 		}
-		if !constrants.Check(sv) {
+		if !constraints.Check(sv) {
 			continue
 		}
 		if best == nil || sv.GreaterThan(best) {
@@ -299,6 +300,45 @@ func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constrants *s
 	if best == nil {
 		return "", fmt.Errorf("no tags found matching constraints")
 	}
+	return bestStr, nil
+}
+
+func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *semver.Constraints) (string, error) {
+	repo, err := remote.NewRepository(ref)
+	if err != nil {
+		return "", fmt.Errorf("new repository: %w", err)
+	}
+
+	var best *semver.Version
+	var bestStr string
+	err = repo.Tags(ctx, "", func(tags []string) error {
+		for _, tag := range tags {
+			ver := tag
+			ver = strings.TrimPrefix(ver, "v")
+			sv, err := semver.NewVersion(ver)
+			if err != nil {
+				continue
+			}
+			if sv.Prerelease() != "" {
+				continue
+			}
+			if !constraints.Check(sv) {
+				continue
+			}
+			if best == nil || sv.GreaterThan(best) {
+				best = sv
+				bestStr = tag
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+	if best == nil {
+		return "", fmt.Errorf("no tags found matching constraints")
+	}
+
 	return bestStr, nil
 }
 
