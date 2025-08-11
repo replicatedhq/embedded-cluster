@@ -15,6 +15,8 @@ if (process.env.NETLIFY_LOCAL) {
 // Initialize OpenAPI Backend with automatic mock generation
 const api = new OpenAPIBackend({
   definition: specPath,
+  quick: true,
+  apiRoot: '/api',
 });
 
 api.register({
@@ -42,9 +44,6 @@ api.init();
 
 export const handler: Handler = async ({ queryStringParameters, path, httpMethod, headers, body }: HandlerEvent): Promise<HandlerResponse> => {
 
-  // Extract the API path (remove /.netlify/functions/api prefix)
-  const apiPath = path.replace(/^\/api/, '') || '/';
-
   // Handle CORS preflight requests
   if (httpMethod === 'OPTIONS') {
     return {
@@ -59,12 +58,13 @@ export const handler: Handler = async ({ queryStringParameters, path, httpMethod
     };
   }
 
+
   try {
     // Handle the request with OpenAPI Backend
     const response = await api.handleRequest(
       {
         method: httpMethod,
-        path: apiPath,
+        path,
         query: queryStringParameters as { [key: string]: string | string[] } || {},
         body: body,
         // handle type mismatch for headers
