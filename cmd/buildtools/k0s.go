@@ -79,30 +79,33 @@ var k0sImageComponents = map[string]addonComponent{
 			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
 		},
 	},
-	"registry.k8s.io/pause": {
-		name: "pause",
-		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			k0sConfig := k0sv1beta1.DefaultClusterConfig()
-			pauseVersion := k0sConfig.Spec.Images.Pause.Version
-			sv, err := semver.NewVersion(pauseVersion)
-			if err != nil {
-				return "", fmt.Errorf("failed to parse pause version: %w", err)
-			}
-
-			// Search the registry for the latest patch version for this major.minor
-			latestTag, err := getLatestPauseImageTag(opts.ctx, sv.Major(), sv.Minor())
-			if err != nil {
-				return "", fmt.Errorf("failed to get latest pause image tag: %w", err)
-			}
-
-			return fmt.Sprintf("registry.k8s.io/pause:%s", latestTag), nil
-		},
-	},
+	"registry.k8s.io/pause":    pauseComponent,
+	"quay.io/k0sproject/pause": pauseComponent,
 	"quay.io/k0sproject/envoy-distroless": {
 		name: "envoy-distroless",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
+	},
+}
+
+var pauseComponent = addonComponent{
+	name: "pause",
+	getCustomImageName: func(opts addonComponentOptions) (string, error) {
+		k0sConfig := k0sv1beta1.DefaultClusterConfig()
+		pauseVersion := k0sConfig.Spec.Images.Pause.Version
+		sv, err := semver.NewVersion(pauseVersion)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse pause version: %w", err)
+		}
+
+		// Search the registry for the latest patch version for this major.minor
+		latestTag, err := getLatestPauseImageTag(opts.ctx, sv.Major(), sv.Minor())
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest pause image tag: %w", err)
+		}
+
+		return fmt.Sprintf("registry.k8s.io/pause:%s", latestTag), nil
 	},
 }
 
