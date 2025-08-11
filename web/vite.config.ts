@@ -45,7 +45,7 @@ export default defineConfig(({ mode }) => {
 
 // isDev checks if the current mode is development or if the NETLIFY environment variable is set to true, which we currently see as dev environment.
 function isDev(mode: string) {
-  return mode === 'development' || env.NETLFIY === 'true';
+  return mode === 'development' || env.NETLIFY === 'true';
 }
 
 
