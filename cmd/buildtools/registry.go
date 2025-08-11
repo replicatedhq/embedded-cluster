@@ -77,7 +77,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			return fmt.Errorf("failed to get images from chart: %w", err)
 		}
 
-		metaImages, err := UpdateImages(c.Context, registryImageComponents, registry.Metadata.Images, images)
+		metaImages, err := UpdateImages(c.Context, registryImageComponents, registry.Metadata.Images, images, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
 		}

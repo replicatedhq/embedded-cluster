@@ -3,7 +3,11 @@ on:
   schedule:
   # everyday at midnight.
   - cron: '0 0 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      k0s_minor_version:
+        description: 'The minor version of k0s to update the dependencies for'
+        required: false
 
 jobs:
   update-dependencies:
@@ -16,29 +20,16 @@ jobs:
       with:
         go-version-file: go.mod
         cache-dependency-path: "**/*.sum"
-    - name: Kubectl
-      run: |
-        export VERSION=`curl -L -s https://dl.k8s.io/release/stable.txt`
-        sed -i "/^KUBECTL_VERSION/c\KUBECTL_VERSION = $VERSION" Makefile
     - name: K0s
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Remove the '-ec.X' suffix and only update if the prefix (upstream k0s release) has changed.
-        export CURVERSION=$(make print-K0S_VERSION)
-        export CURMAJMIN=$(echo $CURVERSION | awk -F'.' '{print $1 "." $2}')
-
-        # pin to the latest release for the current major.minor version
-        export VERSION=$(gh release list --repo k0sproject/k0s --exclude-pre-releases --json name,isLatest | \
-          jq -r "[.[] | select(.name | startswith(\"$CURMAJMIN\"))] | first | .name")
-
-        if [ "$CURVERSION" != "$VERSION" ]; then
-          sed -i "/^K0S_VERSION/c\K0S_VERSION = $VERSION" Makefile
-          sed -i "/^K0S_GO_VERSION/c\K0S_GO_VERSION = $VERSION" Makefile
-          # replace the first occurrence of K0S_BINARY_SOURCE_OVERRIDE
-          sed -i '0,/K0S_BINARY_SOURCE_OVERRIDE =.*/s/K0S_BINARY_SOURCE_OVERRIDE =.*/K0S_BINARY_SOURCE_OVERRIDE =/' Makefile
-          make go.mod
+        cur_minor="$INPUT_K0S_MINOR_VERSION"
+        if [ -z "$cur_minor" ]; then
+          cur_minor=$(make print-K0S_VERSION | awk -F'.' '{print $2}')
         fi
+
+        ./scripts/update-k0s-dep-version.sh "$cur_minor"
     - name: Troubleshoot
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

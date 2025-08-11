@@ -114,7 +114,7 @@ var updateVeleroAddonCommand = &cli.Command{
 
 		logrus.Infof("updating velero images")
 
-		err = updateVeleroAddonImages(c.Context, hcli, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion)
+		err = updateVeleroAddonImages(c.Context, hcli, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -156,7 +156,7 @@ var updateVeleroImagesCommand = &cli.Command{
 		awsPluginVersion = strings.TrimSuffix(awsPluginVersion, "-amd64")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
-		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion)
+		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -204,7 +204,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	return strings.TrimPrefix(awsPluginVersion, "v"), nil
 }
 
-func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string) error {
+func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string, filteredImages []string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -226,7 +226,7 @@ func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL str
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", restoreHelperVersion))
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
 
-	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images)
+	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images, filteredImages)
 	if err != nil {
 		return fmt.Errorf("failed to update images: %w", err)
 	}
