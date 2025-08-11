@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+# Detect OS and use appropriate sed syntax
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    SED_ARGS=(-i '')
+else
+    SED_ARGS=(-i)
+fi
+
 function main() {
     local minor_version=$1
     local previous_minor_version=$((minor_version - 1))
@@ -13,11 +20,11 @@ function main() {
     previous_k0s_version=$(gh release list --repo k0sproject/k0s --exclude-pre-releases --json name | \
         jq -r "[.[] | select(.name | startswith(\"v1.$previous_minor_version\"))] | first | .name")
 
-    sed -i '' "/^K0S_VERSION/s/=.*/= $k0s_version/" Makefile
-    sed -i '' "/^K0S_GO_VERSION/s/=.*/= $k0s_version/" Makefile
+    sed "${SED_ARGS[@]}" "/^K0S_VERSION/s/=.*/= $k0s_version/" Makefile
+    sed "${SED_ARGS[@]}" "/^K0S_GO_VERSION/s/=.*/= $k0s_version/" Makefile
 
-    sed -i '' "/^PREVIOUS_K0S_VERSION/s/=.*/= $previous_k0s_version/" Makefile
-    sed -i '' "/^PREVIOUS_K0S_GO_VERSION/s/=.*/= $previous_k0s_version/" Makefile
+    sed "${SED_ARGS[@]}" "/^PREVIOUS_K0S_VERSION/s/=.*/= $previous_k0s_version/" Makefile
+    sed "${SED_ARGS[@]}" "/^PREVIOUS_K0S_GO_VERSION/s/=.*/= $previous_k0s_version/" Makefile
 
     echo "Preparing K0S $(make print-K0S_VERSION) for release"
 
