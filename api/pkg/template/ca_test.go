@@ -3,8 +3,8 @@ package template
 import (
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
