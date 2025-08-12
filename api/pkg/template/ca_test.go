@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,23 +12,51 @@ import (
 func TestEngine_PrivateCACert(t *testing.T) {
 	tests := []struct {
 		name           string
+		configMapName  string
 		template       string
 		expectedResult string
 	}{
 		{
-			name:           "basic template function returns constant configmap name",
+			name:           "Linux installation - basic template function returns configmap name",
+			configMapName:  "kotsadm-private-cas",
 			template:       "{{repl PrivateCACert }}",
-			expectedResult: adminconsole.PrivateCASConfigMapName,
+			expectedResult: "kotsadm-private-cas",
 		},
 		{
-			name:           "template function in yaml context",
+			name:           "Linux installation - template function in yaml context",
+			configMapName:  "kotsadm-private-cas",
 			template:       "configMapName: {{repl PrivateCACert }}",
-			expectedResult: "configMapName: " + adminconsole.PrivateCASConfigMapName,
+			expectedResult: "configMapName: kotsadm-private-cas",
 		},
 		{
-			name:           "template function in volume definition context",
+			name:           "Linux installation - template function in volume definition context",
+			configMapName:  "kotsadm-private-cas",
 			template:       "volumes:\n- name: ca-certs\n  configMap:\n    name: {{repl PrivateCACert }}",
-			expectedResult: "volumes:\n- name: ca-certs\n  configMap:\n    name: " + adminconsole.PrivateCASConfigMapName,
+			expectedResult: "volumes:\n- name: ca-certs\n  configMap:\n    name: kotsadm-private-cas",
+		},
+		{
+			name:           "Kubernetes installation - template function returns empty string",
+			configMapName:  "",
+			template:       "{{repl PrivateCACert }}",
+			expectedResult: "",
+		},
+		{
+			name:           "Kubernetes installation - template function in yaml context",
+			configMapName:  "",
+			template:       "configMapName: {{repl PrivateCACert }}",
+			expectedResult: "configMapName: ",
+		},
+		{
+			name:           "Kubernetes installation - conditional usage with if statement",
+			configMapName:  "",
+			template:       "{{repl if PrivateCACert }}configMapName: {{repl PrivateCACert }}{{repl end }}",
+			expectedResult: "",
+		},
+		{
+			name:           "Linux installation - conditional usage with if statement",
+			configMapName:  "kotsadm-private-cas",
+			template:       "{{repl if PrivateCACert }}configMapName: {{repl PrivateCACert }}{{repl end }}",
+			expectedResult: "configMapName: kotsadm-private-cas",
 		},
 	}
 
@@ -41,7 +68,9 @@ func TestEngine_PrivateCACert(t *testing.T) {
 				},
 			}
 
-			engine := NewEngine(config, WithMode(ModeGeneric))
+			engine := NewEngine(config, 
+				WithMode(ModeGeneric), 
+				WithPrivateCACertConfigMapName(tt.configMapName))
 
 			err := engine.Parse(tt.template)
 			require.NoError(t, err)
@@ -50,8 +79,6 @@ func TestEngine_PrivateCACert(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.expectedResult, result)
-			// Verify the result contains the expected constant value
-			assert.Contains(t, result, adminconsole.PrivateCASConfigMapName)
 		})
 	}
 }

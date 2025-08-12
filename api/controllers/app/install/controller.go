@@ -32,18 +32,19 @@ type Controller interface {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	appConfigManager    appconfig.AppConfigManager
-	appInstallManager   appinstallmanager.AppInstallManager
-	appPreflightManager apppreflightmanager.AppPreflightManager
-	appReleaseManager   appreleasemanager.AppReleaseManager
-	stateMachine        statemachine.Interface
-	logger              logrus.FieldLogger
-	license             []byte
-	releaseData         *release.ReleaseData
-	store               store.Store
-	configValues        types.AppConfigValues
-	clusterID           string
-	airgapBundle        string
+	appConfigManager           appconfig.AppConfigManager
+	appInstallManager          appinstallmanager.AppInstallManager
+	appPreflightManager        apppreflightmanager.AppPreflightManager
+	appReleaseManager          appreleasemanager.AppReleaseManager
+	stateMachine               statemachine.Interface
+	logger                     logrus.FieldLogger
+	license                    []byte
+	releaseData                *release.ReleaseData
+	store                      store.Store
+	configValues               types.AppConfigValues
+	clusterID                  string
+	airgapBundle               string
+	privateCACertConfigMapName string
 }
 
 type InstallControllerOption func(*InstallController)
@@ -120,6 +121,12 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
+func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.privateCACertConfigMapName = configMapName
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -138,6 +145,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			*controller.releaseData.AppConfig,
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app config manager: %w", err)
