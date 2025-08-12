@@ -143,6 +143,8 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HTTPSProxy": e.httpsProxy,
 		"NoProxy":    e.noProxy,
 
+		"PrivateCACert": e.privateCACert,
+
 		"Now":          e.now,
 		"NowFmt":       e.nowFormat,
 		"ToLower":      strings.ToLower,

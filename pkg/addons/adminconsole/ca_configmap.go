@@ -20,8 +20,11 @@ import (
 )
 
 const (
-	privateCASConfigMapName = "kotsadm-private-cas"
+	PrivateCASConfigMapName = "kotsadm-private-cas"
 )
+
+// privateCASConfigMapName is an alias for backward compatibility
+const privateCASConfigMapName = PrivateCASConfigMapName
 
 func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, caPath string) error {
 	if caPath == "" {

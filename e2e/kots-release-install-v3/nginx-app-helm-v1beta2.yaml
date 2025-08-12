@@ -19,6 +19,19 @@ spec:
       replicaCount: 1
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
+      env:
+        - name: PRIVATE_CA_CONFIGMAP
+          value: 'repl{{ PrivateCACert }}'
+        - name: SSL_CERT_DIR
+          value: "/etc/ssl/certs"
+      volumeMounts:
+        - name: ca-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+      volumes:
+        - name: ca-certs
+          configMap:
+            name: 'repl{{ PrivateCACert }}'
     client:
       enabled: true
       image:
