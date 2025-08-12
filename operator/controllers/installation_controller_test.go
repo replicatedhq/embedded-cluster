@@ -70,7 +70,6 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	err := os.WriteFile(testCAPath, []byte("new CA content"), 0644)
 	require.NoError(t, err)
 
-	// Use the exported constant from adminconsole package
 	namespace := "kotsadm"
 
 	metascheme := metadatafake.NewTestScheme()
