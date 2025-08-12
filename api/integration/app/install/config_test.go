@@ -21,7 +21,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -1049,14 +1048,13 @@ func TestAppInstallSuite(t *testing.T) {
 					linuxinstall.WithReleaseData(rd),
 					linuxinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					linuxinstall.WithConfigValues(configValues),
-					linuxinstall.WithLogger(logrus.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
 				return integration.NewAPIWithReleaseData(t,
 					api.WithLinuxInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-					api.WithLogger(logrus.New()),
+					api.WithLogger(logger.NewDiscardLogger()),
 				)
 			},
 			baseURL: "/linux/install",
@@ -1070,7 +1068,6 @@ func TestAppInstallSuite(t *testing.T) {
 					kubernetesinstall.WithReleaseData(rd),
 					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
-					kubernetesinstall.WithLogger(logrus.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
