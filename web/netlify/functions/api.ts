@@ -1,0 +1,97 @@
+import { Handler, HandlerEvent, HandlerResponse } from '@netlify/functions';
+import { OpenAPIBackend } from 'openapi-backend';
+import { join } from 'path';
+
+let specPath: string;
+
+if (process.env.NETLIFY_LOCAL) {
+  // Running in netlify dev (source files available)
+  specPath = join(process.cwd(), '../api/docs/swagger.yaml');
+} else {
+  // Running in netlify production (packaged functions dir)
+  specPath = './api/docs/swagger.yaml'
+}
+
+// Initialize OpenAPI Backend with automatic mock generation
+const api = new OpenAPIBackend({
+  definition: specPath,
+  quick: true,
+  apiRoot: '/api',
+});
+
+api.register({
+  notFound: () => new Response('Not Found', { status: 404 }),
+  // This handler is called when the request does not match any operation in the OpenAPI spec
+  validationFail: (c) => new Response(JSON.stringify({
+    message: 'Validation failed',
+    errors: c.validation.errors
+  }), {
+    status: 400,
+    headers: { 'Content-Type': 'application/json' }
+  }),
+  // Default handler that generates mocks from OpenAPI examples
+  notImplemented: (c) => {
+    const { status, mock } = c.api.mockResponseForOperation(c.operation.operationId!);
+    return new Response(JSON.stringify(mock), {
+      status: status || 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+})
+
+// Initialize the API
+api.init();
+
+export const handler: Handler = async ({ queryStringParameters, path, httpMethod, headers, body }: HandlerEvent): Promise<HandlerResponse> => {
+
+  // Handle CORS preflight requests
+  if (httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400'
+      }
+    };
+  }
+
+
+  try {
+    // Handle the request with OpenAPI Backend
+    const response = await api.handleRequest(
+      {
+        method: httpMethod,
+        path,
+        query: queryStringParameters as { [key: string]: string | string[] } || {},
+        body: body,
+        // handle type mismatch for headers
+        headers: Object.fromEntries(
+          Object.entries(headers || {}).filter(([_, value]) => value !== undefined)
+        ) as { [key: string]: string | string[] }
+      }
+    );
+
+    return {
+      statusCode: response.status,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        ...Object.fromEntries(response.headers.entries())
+      },
+      body: await response.text()
+    };
+  } catch (error) {
+    console.error('API Error:', error);
+    return {
+      statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ message: 'Internal Server Error' })
+    };
+  }
+};

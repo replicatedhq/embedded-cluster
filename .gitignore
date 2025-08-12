@@ -38,3 +38,6 @@ cover.out
 # e2e test runs locally
 e2e/playwright*.tar.gz
 e2e/support-bundle*.tar.gz
+
+# Local Netlify folder
+.netlify
