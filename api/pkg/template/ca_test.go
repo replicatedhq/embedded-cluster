@@ -35,19 +35,19 @@ func TestEngine_PrivateCACert(t *testing.T) {
 			expectedResult: "volumes:\n- name: ca-certs\n  configMap:\n    name: kotsadm-private-cas",
 		},
 		{
-			name:           "Kubernetes installation - template function returns empty string",
+			name:           "Kubernetes installation - template function returns empty string (not yet implemented)",
 			configMapName:  "",
 			template:       "{{repl PrivateCACert }}",
 			expectedResult: "",
 		},
 		{
-			name:           "Kubernetes installation - template function in yaml context",
+			name:           "Kubernetes installation - template function in yaml context (not yet implemented)",
 			configMapName:  "",
 			template:       "configMapName: {{repl PrivateCACert }}",
 			expectedResult: "configMapName: ",
 		},
 		{
-			name:           "Kubernetes installation - conditional usage with if statement",
+			name:           "Kubernetes installation - conditional usage with if statement (not yet implemented)",
 			configMapName:  "",
 			template:       "{{repl if PrivateCACert }}configMapName: {{repl PrivateCACert }}{{repl end }}",
 			expectedResult: "",
