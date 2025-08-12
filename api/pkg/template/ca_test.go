@@ -11,40 +11,47 @@ import (
 )
 
 func TestEngine_PrivateCACert(t *testing.T) {
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
+	tests := []struct {
+		name           string
+		template       string
+		expectedResult string
+	}{
+		{
+			name:           "basic template function returns constant configmap name",
+			template:       "{{repl PrivateCACert }}",
+			expectedResult: adminconsole.PrivateCASConfigMapName,
+		},
+		{
+			name:           "template function in yaml context",
+			template:       "configMapName: {{repl PrivateCACert }}",
+			expectedResult: "configMapName: " + adminconsole.PrivateCASConfigMapName,
+		},
+		{
+			name:           "template function in volume definition context",
+			template:       "volumes:\n- name: ca-certs\n  configMap:\n    name: {{repl PrivateCACert }}",
+			expectedResult: "volumes:\n- name: ca-certs\n  configMap:\n    name: " + adminconsole.PrivateCASConfigMapName,
 		},
 	}
 
-	engine := NewEngine(config)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{},
+				},
+			}
 
-	err := engine.Parse("{{repl PrivateCACert }}")
-	require.NoError(t, err)
+			engine := NewEngine(config, WithMode(ModeGeneric))
 
-	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.NoError(t, err)
+			err := engine.Parse(tt.template)
+			require.NoError(t, err)
 
-	// Should always return the constant ConfigMap name
-	assert.Equal(t, adminconsole.PrivateCASConfigMapName, result)
-	assert.Equal(t, "kotsadm-private-cas", result)
-}
+			result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+			require.NoError(t, err)
 
-func TestEngine_PrivateCACertInTemplate(t *testing.T) {
-	config := &kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{},
-		},
+			assert.Equal(t, tt.expectedResult, result)
+			// Verify the result contains the expected constant value
+			assert.Contains(t, result, adminconsole.PrivateCASConfigMapName)
+		})
 	}
-
-	engine := NewEngine(config)
-
-	// Test within a more realistic template context
-	err := engine.Parse("configmap-name: {{repl PrivateCACert }}")
-	require.NoError(t, err)
-
-	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.NoError(t, err)
-
-	assert.Equal(t, "configmap-name: kotsadm-private-cas", result)
 }

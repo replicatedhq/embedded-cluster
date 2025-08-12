@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/go-logr/logr/testr"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +70,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	err := os.WriteFile(testCAPath, []byte("new CA content"), 0644)
 	require.NoError(t, err)
 
-	privateCASConfigMapName := "kotsadm-private-cas"
+	// Use the exported constant from adminconsole package
 	namespace := "kotsadm"
 
 	metascheme := metadatafake.NewTestScheme()
@@ -94,7 +95,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      privateCASConfigMapName,
+				Name:      adminconsole.PrivateCASConfigMapName,
 				Namespace: namespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,

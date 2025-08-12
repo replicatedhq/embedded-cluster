@@ -72,7 +72,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 			},
 			map[string]interface{}{
 				"name":  "SSL_CERT_CONFIGMAP",
-				"value": privateCASConfigMapName,
+				"value": PrivateCASConfigMapName,
 			},
 		)
 	}
