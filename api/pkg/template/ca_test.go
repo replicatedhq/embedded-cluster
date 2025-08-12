@@ -68,8 +68,8 @@ func TestEngine_PrivateCACert(t *testing.T) {
 				},
 			}
 
-			engine := NewEngine(config, 
-				WithMode(ModeGeneric), 
+			engine := NewEngine(config,
+				WithMode(ModeGeneric),
 				WithPrivateCACertConfigMapName(tt.configMapName))
 
 			err := engine.Parse(tt.template)
