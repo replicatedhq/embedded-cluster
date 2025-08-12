@@ -52,7 +52,7 @@ type NetworkEvent struct {
 	PID           int       `json:"pid"`
 	SrcIP         string    `json:"srcIp"`
 	SrcPort       int       `json:"srcPort"`
-	DstIP         int       `json:"dstIp"`
+	DstIP         string    `json:"dstIp"`
 	DstPort       int       `json:"dstPort"`
 	DNSQueryName  string    `json:"dnsQueryName"`
 	LikelyService string    `json:"likelyService"`
