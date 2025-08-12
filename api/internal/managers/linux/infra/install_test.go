@@ -66,7 +66,7 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			// Create infra manager
 			manager := NewInfraManager(
 				WithClusterID("test-cluster"),
-				WithLicense([]byte("test-license")),
+				WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 			)
 
 			// Test the getAddonInstallOpts method with configValues passed as parameter

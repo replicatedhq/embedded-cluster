@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -951,6 +953,85 @@ func (s *AppInstallTestSuite) TestTemplateAppConfig() {
 	})
 }
 
+func (s *AppInstallTestSuite) TestTemplateAppConfig_AdditionalTemplateFunctions() {
+	appConfigWithTemplates := kotsv1beta1.Config{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kots.io/v1beta1",
+			Kind:       "Config",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "template-config",
+		},
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "additional_template_functions",
+					Title: "Additional Template Function",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:  "license_docker_cfg",
+							Type:  "text",
+							Title: "License Docker Config",
+							Value: multitype.FromString("{{repl LicenseDockerCfg }}"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test successful template processing with default values
+	s.T().Run("Success with default values", func(t *testing.T) {
+		// Create an install controller with the app config
+		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
+			AppConfig: &appConfigWithTemplates,
+		}, nil)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create template request with default values (empty user values)
+		templateRequest := types.TemplateAppConfigRequest{
+			Values: types.AppConfigValues{},
+		}
+
+		reqBodyBytes, err := json.Marshal(templateRequest)
+		require.NoError(t, err)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, s.baseURL+"/app/config/template", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		require.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var response types.AppConfig
+		err = json.NewDecoder(rec.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify the templates were processed with default values
+		require.Len(t, response.Groups, 1, "only one group should be present")
+
+		group := response.Groups[0]
+		require.Len(t, group.Items, 1)
+
+		item := group.Items[0]
+		assert.Equal(t, "license_docker_cfg", item.Name)
+		basicEncoded := base64.StdEncoding.EncodeToString([]byte("test-license:test-license"))
+		authDecoded, err := base64.StdEncoding.DecodeString(item.Value.String())
+		require.NoError(t, err)
+		assert.Contains(t, string(authDecoded), basicEncoded, "license_docker_cfg should contain the basic auth")
+	})
+}
+
 // Runner function that executes the suite for both install types
 func TestAppInstallSuite(t *testing.T) {
 	installTypes := []struct {
@@ -962,18 +1043,20 @@ func TestAppInstallSuite(t *testing.T) {
 		{
 			name:        "linux install",
 			installType: "linux",
-			createAPI: func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
+			createAPI: func(t *testing.T, initialState statemachine.State, rd *release.ReleaseData, configValues types.AppConfigValues) *api.API {
 				controller, err := linuxinstall.NewInstallController(
 					linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(initialState))),
-					linuxinstall.WithReleaseData(rc),
+					linuxinstall.WithReleaseData(rd),
+					linuxinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					linuxinstall.WithConfigValues(configValues),
+					linuxinstall.WithLogger(logrus.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
 				return integration.NewAPIWithReleaseData(t,
 					api.WithLinuxInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithLogger(logrus.New()),
 				)
 			},
 			baseURL: "/linux/install",
@@ -981,11 +1064,13 @@ func TestAppInstallSuite(t *testing.T) {
 		{
 			name:        "kubernetes install",
 			installType: "kubernetes",
-			createAPI: func(t *testing.T, initialState statemachine.State, rc *release.ReleaseData, configValues types.AppConfigValues) *api.API {
+			createAPI: func(t *testing.T, initialState statemachine.State, rd *release.ReleaseData, configValues types.AppConfigValues) *api.API {
 				controller, err := kubernetesinstall.NewInstallController(
 					kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(initialState))),
-					kubernetesinstall.WithReleaseData(rc),
+					kubernetesinstall.WithReleaseData(rd),
+					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
+					kubernetesinstall.WithLogger(logrus.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
