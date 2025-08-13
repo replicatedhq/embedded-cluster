@@ -14,7 +14,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 type Controller interface {
@@ -140,11 +142,21 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		return nil, err
 	}
 
+	var license *kotsv1beta1.License
+	if len(controller.license) > 0 {
+		license = &kotsv1beta1.License{}
+		if err := kyaml.Unmarshal(controller.license, license); err != nil {
+			return nil, fmt.Errorf("parse license: %w", err)
+		}
+	}
+
 	if controller.appConfigManager == nil {
 		appConfigManager, err := appconfig.NewAppConfigManager(
 			*controller.releaseData.AppConfig,
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+			appconfig.WithReleaseData(controller.releaseData),
+			appconfig.WithLicense(license),
 			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
@@ -176,6 +188,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			*controller.releaseData.AppConfig,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
+			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
@@ -187,8 +200,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.appInstallManager == nil {
 		appInstallManager, err := appinstallmanager.NewAppInstallManager(
 			appinstallmanager.WithLogger(controller.logger),
-			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithReleaseData(controller.releaseData),
+			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
