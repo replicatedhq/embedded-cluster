@@ -2015,10 +2015,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 
 	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
-	isMultiNodeEnabled := "false"
-	testArgs := []string{isMultiNodeEnabled}
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
@@ -2034,7 +2031,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 
 	networkEvents, err := tc.CollectNetworkReport()
 	if err != nil {
-		t.Fatalf("failed to collect network report")
+		t.Fatalf("failed to collect network report: %v", err)
 	}
 
 	// TODO: these are the production domains, need to be environment specific
