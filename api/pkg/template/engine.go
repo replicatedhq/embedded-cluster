@@ -29,16 +29,16 @@ type Engine struct {
 	releaseData *release.ReleaseData
 
 	// Internal state
-	configValues             types.AppConfigValues
-	prevConfigValues         types.AppConfigValues
-	tmpl                     *template.Template
-	funcMap                  template.FuncMap
-	cache                    map[string]resolvedConfigItem
-	depsTree                 map[string][]string
-	stack                    []string
-	proxySpec                *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
-	privateCACertConfigMapName string              // ConfigMap name for private CA certificates, empty string if not available
-	mtx                      sync.Mutex
+	configValues               types.AppConfigValues
+	prevConfigValues           types.AppConfigValues
+	tmpl                       *template.Template
+	funcMap                    template.FuncMap
+	cache                      map[string]resolvedConfigItem
+	depsTree                   map[string][]string
+	stack                      []string
+	proxySpec                  *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
+	privateCACertConfigMapName string               // ConfigMap name for private CA certificates, empty string if not available
+	mtx                        sync.Mutex
 }
 
 type EngineOption func(*Engine)

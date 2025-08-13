@@ -20,11 +20,12 @@ type AppReleaseManager interface {
 }
 
 type appReleaseManager struct {
-	rawConfig      kotsv1beta1.Config
-	releaseData    *release.ReleaseData
-	templateEngine *template.Engine
-	license        *kotsv1beta1.License
-	logger         logrus.FieldLogger
+	rawConfig                  kotsv1beta1.Config
+	releaseData                *release.ReleaseData
+	templateEngine             *template.Engine
+	license                    *kotsv1beta1.License
+	logger                     logrus.FieldLogger
+	privateCACertConfigMapName string
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -53,6 +54,12 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 	}
 }
 
+func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.privateCACertConfigMapName = configMapName
+	}
+}
+
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -76,6 +83,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 			&manager.rawConfig,
 			template.WithLicense(manager.license),
 			template.WithReleaseData(manager.releaseData),
+			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 	}
 

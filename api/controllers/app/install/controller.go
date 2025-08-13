@@ -176,6 +176,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			*controller.releaseData.AppConfig,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
+			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)
