@@ -47,6 +47,14 @@ type Network struct {
 	ID string `json:"id"`
 }
 
+type NetworkReport struct {
+	Events []EventWrapper `json:"events"`
+}
+
+type EventWrapper struct {
+	EventData string `json:"event_data"`
+}
+
 type NetworkEvent struct {
 	Timestamp     time.Time `json:"timestamp"`
 	PID           int       `json:"pid"`
@@ -575,8 +583,9 @@ func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
 	}
 
 	// TODO: investigate CLI changes to make event_data a json object instead of a string
-	type eventWrapper struct {
-		EventData string `json:"event_data"`
+
+	type networkReport struct {
+		Events []eventWrapper `json:"events"`
 	}
 
 	events := []eventWrapper{}
