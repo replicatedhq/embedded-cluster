@@ -449,8 +449,11 @@ jobs:
           MANGLE_METADATA: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          export K0S_VERSION=$(make print-PREVIOUS_K0S_VERSION)
-          export K0S_GO_VERSION=$(make print-PREVIOUS_K0S_GO_VERSION)
+          k0s_minor_version=$(make print-PREVIOUS_K0S_VERSION | sed 's/v[0-9]*\.\([0-9]*\).*/\1/')
+
+          # update k0s dep version to previous k0s version
+          ./scripts/update-k0s-dep-version.sh "$k0s_minor_version"
+
           export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
           export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
           # avoid rate limiting
@@ -469,7 +472,8 @@ jobs:
       - name: Export k0s version
         id: export
         run: |
-          K0S_VERSION="$(make print-PREVIOUS_K0S_VERSION)"
+          # K0S_VERSION is now the previous k0s version
+          K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
 
