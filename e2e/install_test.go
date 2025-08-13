@@ -2012,6 +2012,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to enable network reporting: %v", err)
 	}
 
+	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
 	isMultiNodeEnabled := "false"
 	testArgs := []string{isMultiNodeEnabled}
