@@ -527,7 +527,7 @@ func (c *Cluster) SetNetworkReport(enabled bool) error {
 
 	// Wait until the nodes are all back in running
 	for nodeNum, node := range c.Nodes {
-		if err := c.waitUntilRunning(node, 30*time.Second); err != nil {
+		if err := c.waitUntilRunning(node, nodeNum, 30*time.Second); err != nil {
 			return fmt.Errorf("wait until node %d is airgapped: %v", nodeNum, err)
 		}
 	}
@@ -535,7 +535,7 @@ func (c *Cluster) SetNetworkReport(enabled bool) error {
 	return nil
 }
 
-func (c *Cluster) waitUntilRunning(node Node, timeoutDuration time.Duration) error {
+func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.Duration) error {
 	timeout := time.After(timeoutDuration)
 	tick := time.Tick(2 * time.Second)
 	for {
@@ -553,7 +553,7 @@ func (c *Cluster) waitUntilRunning(node Node, timeoutDuration time.Duration) err
 				return fmt.Errorf("unmarshal node info: %v", err)
 			}
 
-			for nodeNum, checkNode := range nodes {
+			for _, checkNode := range nodes {
 				if checkNode.ID != node.ID {
 					continue
 				}
