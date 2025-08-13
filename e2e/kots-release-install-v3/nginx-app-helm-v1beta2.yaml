@@ -24,14 +24,6 @@ spec:
           value: 'repl{{ PrivateCACert }}'
         - name: SSL_CERT_DIR
           value: "/etc/ssl/certs"
-      volumeMounts:
-        - name: ca-certs
-          mountPath: /etc/ssl/certs
-          readOnly: true
-      volumes:
-        - name: ca-certs
-          configMap:
-            name: 'repl{{ PrivateCACert }}'
     client:
       enabled: true
       image:
@@ -82,6 +74,20 @@ spec:
       file_simple: repl{{ ConfigOptionFilename "file_simple" }}
       file_with_default: repl{{ ConfigOptionFilename "file_with_default" }}
       file_required: repl{{ ConfigOptionFilename "file_required" }}
+
+  optionalValues:
+    - when: '{{repl ne PrivateCACert "" }}'
+      recursiveMerge: true
+      values:
+        server:
+          volumeMounts:
+            - name: ca-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+          volumes:
+            - name: ca-certs
+              configMap:
+                name: 'repl{{ PrivateCACert }}'
 
   builder:
     replicated:
