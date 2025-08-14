@@ -26,6 +26,13 @@ type appReleaseManager struct {
 	license         *kotsv1beta1.License
 	logger          logrus.FieldLogger
 	registrySettings *types.RegistrySettings
+	rawConfig                  kotsv1beta1.Config
+	releaseData                *release.ReleaseData
+	templateEngine             *template.Engine
+	license                    *kotsv1beta1.License
+	logger                     logrus.FieldLogger
+	privateCACertConfigMapName string
+  registrySettings *types.RegistrySettings
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -54,10 +61,15 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 	}
 }
 
-
 func WithRegistrySettings(registrySettings *types.RegistrySettings) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.registrySettings = registrySettings
+	}
+}
+
+func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.privateCACertConfigMapName = configMapName
 	}
 }
 
@@ -84,6 +96,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 		templateOpts = append(templateOpts, 
 			template.WithLicense(manager.license),
 			template.WithReleaseData(manager.releaseData),
+			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 
 		// Add registry settings if available

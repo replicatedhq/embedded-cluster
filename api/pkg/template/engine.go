@@ -32,15 +32,16 @@ type Engine struct {
 	registrySettings *types.RegistrySettings
 
 	// Internal state
-	configValues     types.AppConfigValues
-	prevConfigValues types.AppConfigValues
-	tmpl             *template.Template
-	funcMap          template.FuncMap
-	cache            map[string]resolvedConfigItem
-	depsTree         map[string][]string
-	stack            []string
-	proxySpec        *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
-	mtx              sync.Mutex
+	configValues               types.AppConfigValues
+	prevConfigValues           types.AppConfigValues
+	tmpl                       *template.Template
+	funcMap                    template.FuncMap
+	cache                      map[string]resolvedConfigItem
+	depsTree                   map[string][]string
+	stack                      []string
+	proxySpec                  *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
+	privateCACertConfigMapName string               // ConfigMap name for private CA certificates, empty string if not available
+	mtx                        sync.Mutex
 }
 
 type EngineOption func(*Engine)
@@ -63,10 +64,15 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 	}
 }
 
-// WithRegistrySettings sets the registry settings for template functions
 func WithRegistrySettings(registrySettings *types.RegistrySettings) EngineOption {
 	return func(e *Engine) {
 		e.registrySettings = registrySettings
+	}
+}
+
+func WithPrivateCACertConfigMapName(configMapName string) EngineOption {
+	return func(e *Engine) {
+		e.privateCACertConfigMapName = configMapName
 	}
 }
 

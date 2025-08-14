@@ -14,7 +14,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 type Controller interface {
@@ -32,18 +34,19 @@ type Controller interface {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	appConfigManager    appconfig.AppConfigManager
-	appInstallManager   appinstallmanager.AppInstallManager
-	appPreflightManager apppreflightmanager.AppPreflightManager
-	appReleaseManager   appreleasemanager.AppReleaseManager
-	stateMachine        statemachine.Interface
-	logger              logrus.FieldLogger
-	license             []byte
-	releaseData         *release.ReleaseData
-	store               store.Store
-	configValues        types.AppConfigValues
-	clusterID           string
-	airgapBundle        string
+	appConfigManager           appconfig.AppConfigManager
+	appInstallManager          appinstallmanager.AppInstallManager
+	appPreflightManager        apppreflightmanager.AppPreflightManager
+	appReleaseManager          appreleasemanager.AppReleaseManager
+	stateMachine               statemachine.Interface
+	logger                     logrus.FieldLogger
+	license                    []byte
+	releaseData                *release.ReleaseData
+	store                      store.Store
+	configValues               types.AppConfigValues
+	clusterID                  string
+	airgapBundle               string
+	privateCACertConfigMapName string
 	registrySettings    *types.RegistrySettings
 }
 
@@ -127,6 +130,12 @@ func WithRegistrySettings(registrySettings *types.RegistrySettings) InstallContr
 	}
 }
 
+func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.privateCACertConfigMapName = configMapName
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -140,11 +149,22 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		return nil, err
 	}
 
+	var license *kotsv1beta1.License
+	if len(controller.license) > 0 {
+		license = &kotsv1beta1.License{}
+		if err := kyaml.Unmarshal(controller.license, license); err != nil {
+			return nil, fmt.Errorf("parse license: %w", err)
+		}
+	}
+
 	if controller.appConfigManager == nil {
 		appConfigManager, err := appconfig.NewAppConfigManager(
 			*controller.releaseData.AppConfig,
 			appconfig.WithLogger(controller.logger),
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
+			appconfig.WithReleaseData(controller.releaseData),
+			appconfig.WithLicense(license),
+			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app config manager: %w", err)
@@ -175,6 +195,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		appReleaseManagerOpts = append(appReleaseManagerOpts,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
+			appreleasemanager.WithLicense(license),
+			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 
 		// Add registry settings if available
@@ -193,8 +215,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	if controller.appInstallManager == nil {
 		appInstallManager, err := appinstallmanager.NewAppInstallManager(
 			appinstallmanager.WithLogger(controller.logger),
-			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithReleaseData(controller.releaseData),
+			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),

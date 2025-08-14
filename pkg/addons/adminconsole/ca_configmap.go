@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	privateCASConfigMapName = "kotsadm-private-cas"
+	PrivateCASConfigMapName = "kotsadm-private-cas"
 )
 
 func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, caPath string) error {
@@ -37,7 +37,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		Group:    "",
 		Version:  "v1",
 		Resource: "configmaps",
-	}).Namespace(_namespace).Get(ctx, privateCASConfigMapName, metav1.GetOptions{})
+	}).Namespace(_namespace).Get(ctx, PrivateCASConfigMapName, metav1.GetOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("get configmap metadata: %w", err)
 	}
@@ -58,7 +58,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 
 	err = kcli.Create(ctx, new)
 	if err == nil {
-		logf("Created %s ConfigMap", privateCASConfigMapName)
+		logf("Created %s ConfigMap", PrivateCASConfigMapName)
 		return nil
 	} else if !k8serrors.IsAlreadyExists(err) {
 		return fmt.Errorf("create configmap: %w", err)
@@ -75,7 +75,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 	if err != nil {
 		return fmt.Errorf("patch configmap: %w", err)
 	}
-	logf("Updated %s ConfigMap", privateCASConfigMapName)
+	logf("Updated %s ConfigMap", PrivateCASConfigMapName)
 
 	return nil
 }
@@ -117,7 +117,7 @@ func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      privateCASConfigMapName,
+			Name:      PrivateCASConfigMapName,
 			Namespace: _namespace,
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",

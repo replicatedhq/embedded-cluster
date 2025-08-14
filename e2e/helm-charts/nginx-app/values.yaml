@@ -22,6 +22,8 @@ server:
       cpu: 50m
       memory: 64Mi
   imagePullSecrets: []
+  volumes: []
+  volumeMounts: []
     # - name: server-regcred
 
 # Client configuration
