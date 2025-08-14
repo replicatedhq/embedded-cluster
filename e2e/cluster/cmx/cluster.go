@@ -47,14 +47,6 @@ type Network struct {
 	ID string `json:"id"`
 }
 
-type NetworkReport struct {
-	Events []EventWrapper `json:"events"`
-}
-
-type EventWrapper struct {
-	EventData string `json:"event_data"`
-}
-
 type NetworkEvent struct {
 	Timestamp     time.Time `json:"timestamp"`
 	PID           int       `json:"pid"`
@@ -583,18 +575,21 @@ func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
 	}
 
 	// TODO: investigate CLI changes to make event_data a json object instead of a string
+	type eventWrapper struct {
+		EventData string `json:"event_data"`
+	}
 
 	type networkReport struct {
 		Events []eventWrapper `json:"events"`
 	}
 
-	events := []eventWrapper{}
-	if err := json.Unmarshal(output, &events); err != nil {
+	report := networkReport{}
+	if err := json.Unmarshal(output, &report); err != nil {
 		return nil, fmt.Errorf("unmarshal network events: %v", err)
 	}
 
-	networkEvents := make([]NetworkEvent, 0, len(events))
-	for _, e := range events {
+	networkEvents := make([]NetworkEvent, 0, len(report.Events))
+	for _, e := range report.Events {
 		ne := NetworkEvent{}
 		if err := json.Unmarshal([]byte(e.EventData), &ne); err != nil {
 			return nil, fmt.Errorf("unmarshal network event data: %v", err)
