@@ -47,7 +47,7 @@ type InstallController struct {
 	clusterID                  string
 	airgapBundle               string
 	privateCACertConfigMapName string
-	registrySettings    *types.RegistrySettings
+	registrySettings           *types.RegistrySettings
 }
 
 type InstallControllerOption func(*InstallController)

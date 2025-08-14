@@ -87,7 +87,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 
 	if manager.templateEngine == nil {
 		var templateOpts []template.EngineOption
-		templateOpts = append(templateOpts, 
+		templateOpts = append(templateOpts,
 			template.WithLicense(manager.license),
 			template.WithReleaseData(manager.releaseData),
 			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),

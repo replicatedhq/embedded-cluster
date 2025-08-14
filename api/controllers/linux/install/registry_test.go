@@ -96,7 +96,7 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			}
 
 			result, err := controller.detectRegistrySettings(tt.license)
-			
+
 			if tt.wantSettings == nil {
 				// Expecting an error
 				require.Error(t, err)

@@ -1521,7 +1521,7 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 			name: "registry settings with empty host should return empty string",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Host:            "",
+				Host:             "",
 			},
 			wantResult: "",
 		},
@@ -1529,7 +1529,7 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 			name: "registry settings with host should return host",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Host:            "10.96.0.10:5000",
+				Host:             "10.96.0.10:5000",
 			},
 			wantResult: "10.96.0.10:5000",
 		},
@@ -1564,7 +1564,7 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 			name: "registry settings with empty namespace should return empty string",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Namespace:       "",
+				Namespace:        "",
 			},
 			wantResult: "",
 		},
@@ -1572,7 +1572,7 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 			name: "registry settings with namespace should return namespace",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Namespace:       "my-app",
+				Namespace:        "my-app",
 			},
 			wantResult: "my-app",
 		},
@@ -1607,7 +1607,7 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 			name: "registry settings with empty address should return empty string",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Address:         "",
+				Address:          "",
 			},
 			wantResult: "",
 		},
@@ -1615,7 +1615,7 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 			name: "registry settings with address should return address",
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
-				Address:         "10.96.0.10:5000/my-app",
+				Address:          "10.96.0.10:5000/my-app",
 			},
 			wantResult: "10.96.0.10:5000/my-app",
 		},
