@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
@@ -44,6 +45,7 @@ type InstallController struct {
 	configValues        types.AppConfigValues
 	clusterID           string
 	airgapBundle        string
+	runtimeConfig       runtimeconfig.RuntimeConfig
 }
 
 type InstallControllerOption func(*InstallController)
@@ -120,6 +122,12 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
+func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) InstallControllerOption {
+	return func(c *InstallController) {
+		c.runtimeConfig = runtimeConfig
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -168,6 +176,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			*controller.releaseData.AppConfig,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
+			appreleasemanager.WithRuntimeConfig(controller.runtimeConfig),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)

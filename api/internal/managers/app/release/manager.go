@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -25,6 +27,7 @@ type appReleaseManager struct {
 	templateEngine *template.Engine
 	license        *kotsv1beta1.License
 	logger         logrus.FieldLogger
+	runtimeConfig  runtimeconfig.RuntimeConfig
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -53,6 +56,12 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 	}
 }
 
+func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.runtimeConfig = runtimeConfig
+	}
+}
+
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -72,11 +81,26 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 	}
 
 	if manager.templateEngine == nil {
-		manager.templateEngine = template.NewEngine(
-			&manager.rawConfig,
+		ctx := context.Background()
+
+		var templateOpts []template.EngineOption
+		templateOpts = append(templateOpts, 
 			template.WithLicense(manager.license),
 			template.WithReleaseData(manager.releaseData),
 		)
+
+		// Add Kubernetes client if runtime config is available
+		if manager.runtimeConfig != nil {
+			kubeClient, err := clients.NewKubeClient(clients.KubeClientOptions{
+				KubeConfigPath: manager.runtimeConfig.PathToKubeConfig(),
+			})
+			if err == nil {
+				templateOpts = append(templateOpts, template.WithKubeClient(ctx, kubeClient))
+			}
+			// If kubeClient creation fails, template functions will gracefully return empty strings
+		}
+
+		manager.templateEngine = template.NewEngine(&manager.rawConfig, templateOpts...)
 	}
 
 	return manager, nil

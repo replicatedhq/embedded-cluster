@@ -1,6 +1,7 @@
 package template
 
 import (
+	"context"
 	"maps"
 	"sync"
 	"text/template"
@@ -10,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Mode defines the operating mode of the template engine
@@ -27,6 +29,10 @@ type Engine struct {
 	config      *kotsv1beta1.Config
 	license     *kotsv1beta1.License
 	releaseData *release.ReleaseData
+
+	// Kubernetes client for runtime queries
+	kubeClient client.Client
+	ctx        context.Context
 
 	// Internal state
 	configValues     types.AppConfigValues
@@ -57,6 +63,14 @@ func WithLicense(license *kotsv1beta1.License) EngineOption {
 func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 	return func(e *Engine) {
 		e.releaseData = releaseData
+	}
+}
+
+// WithKubeClient sets the Kubernetes client and context for runtime queries
+func WithKubeClient(ctx context.Context, kubeClient client.Client) EngineOption {
+	return func(e *Engine) {
+		e.ctx = ctx
+		e.kubeClient = kubeClient
 	}
 }
 

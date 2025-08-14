@@ -1,18 +1,25 @@
 package template
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestEngine_BasicTemplating(t *testing.T) {
@@ -1461,4 +1468,363 @@ status: {}
 `
 
 	assert.YAMLEq(t, expectedYAML, result)
+}
+
+// Registry function tests
+
+func TestEngine_HasLocalRegistry(t *testing.T) {
+	tests := []struct {
+		name       string
+		objects    []client.Object
+		kubeClient client.Client // nil means no kube client
+		wantResult bool
+	}{
+		{
+			name:       "no kubernetes client should return false",
+			objects:    nil,
+			kubeClient: nil,
+			wantResult: false,
+		},
+		{
+			name:    "deployment not found should return false",
+			objects: []client.Object{},
+			wantResult: false,
+		},
+		{
+			name: "deployment exists should return true",
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+					Status: appsv1.DeploymentStatus{
+						ReadyReplicas: 1, // This shouldn't matter based on your change
+					},
+				},
+			},
+			wantResult: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var engine *Engine
+			
+			if tt.kubeClient == nil && tt.name == "no kubernetes client should return false" {
+				engine = NewEngine(&kotsv1beta1.Config{})
+			} else {
+				// Create fake client with objects
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(scheme.Scheme).
+					WithObjects(tt.objects...).
+					Build()
+				engine = NewEngine(&kotsv1beta1.Config{}, WithKubeClient(context.Background(), fakeClient))
+			}
+
+			result := engine.hasLocalRegistry()
+			assert.Equal(t, tt.wantResult, result)
+		})
+	}
+}
+
+func TestEngine_LocalRegistryHost(t *testing.T) {
+	tests := []struct {
+		name       string
+		objects    []client.Object
+		kubeClient client.Client // nil means no kube client
+		wantResult string
+	}{
+		{
+			name:       "no kubernetes client should return empty string",
+			objects:    nil,
+			kubeClient: nil,
+			wantResult: "",
+		},
+		{
+			name:    "deployment not found should return empty string",
+			objects: []client.Object{},
+			wantResult: "",
+		},
+		{
+			name: "deployment exists but service not found should return empty string",
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+			},
+			wantResult: "",
+		},
+		{
+			name: "registry exists with valid service should return host with port",
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: "10.96.0.10",
+					},
+				},
+			},
+			wantResult: "10.96.0.10:5000",
+		},
+		{
+			name: "service with empty clusterIP should return empty string",
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: "", // Empty ClusterIP
+					},
+				},
+			},
+			wantResult: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var engine *Engine
+			
+			if tt.kubeClient == nil && tt.name == "no kubernetes client should return empty string" {
+				engine = NewEngine(&kotsv1beta1.Config{})
+			} else {
+				// Create fake client with objects
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(scheme.Scheme).
+					WithObjects(tt.objects...).
+					Build()
+				engine = NewEngine(&kotsv1beta1.Config{}, WithKubeClient(context.Background(), fakeClient))
+			}
+
+			result := engine.localRegistryHost()
+			assert.Equal(t, tt.wantResult, result)
+		})
+	}
+}
+
+func TestEngine_LocalRegistryNamespace(t *testing.T) {
+	tests := []struct {
+		name       string
+		license    *kotsv1beta1.License
+		objects    []client.Object
+		wantResult string
+	}{
+		{
+			name:    "no local registry should return empty string",
+			license: &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
+			objects: []client.Object{}, // No deployment
+			wantResult: "",
+		},
+		{
+			name:    "no license should return empty string",
+			license: nil,
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+			},
+			wantResult: "",
+		},
+		{
+			name: "license with empty app slug should return empty string",
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{AppSlug: ""},
+			},
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+			},
+			wantResult: "",
+		},
+		{
+			name: "license with app slug should return app slug",
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"},
+			},
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+			},
+			wantResult: "my-app",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake client with objects
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme.Scheme).
+				WithObjects(tt.objects...).
+				Build()
+
+			var opts []EngineOption
+			if tt.license != nil {
+				opts = append(opts, WithLicense(tt.license))
+			}
+			opts = append(opts, WithKubeClient(context.Background(), fakeClient))
+
+			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
+			result := engine.localRegistryNamespace()
+			assert.Equal(t, tt.wantResult, result)
+		})
+	}
+}
+
+func TestEngine_LocalRegistryAddress(t *testing.T) {
+	tests := []struct {
+		name       string
+		license    *kotsv1beta1.License
+		objects    []client.Object
+		wantResult string
+	}{
+		{
+			name:    "no local registry should return empty string",
+			license: nil,
+			objects: []client.Object{}, // No deployment
+			wantResult: "",
+		},
+		{
+			name:    "registry without namespace should return host only",
+			license: nil, // No license means no namespace
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: "10.96.0.10",
+					},
+				},
+			},
+			wantResult: "10.96.0.10:5000",
+		},
+		{
+			name: "registry with namespace should return host with namespace",
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"},
+			},
+			objects: []client.Object{
+				&appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry",
+						Namespace: constants.RegistryNamespace,
+					},
+					Spec: corev1.ServiceSpec{
+						ClusterIP: "10.96.0.10",
+					},
+				},
+			},
+			wantResult: "10.96.0.10:5000/my-app",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create fake client with objects
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme.Scheme).
+				WithObjects(tt.objects...).
+				Build()
+
+			var opts []EngineOption
+			if tt.license != nil {
+				opts = append(opts, WithLicense(tt.license))
+			}
+			opts = append(opts, WithKubeClient(context.Background(), fakeClient))
+
+			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
+			result := engine.localRegistryAddress()
+			assert.Equal(t, tt.wantResult, result)
+		})
+	}
+}
+
+func TestEngine_ImagePullSecretName(t *testing.T) {
+	tests := []struct {
+		name       string
+		license    *kotsv1beta1.License
+		wantResult string
+	}{
+		{
+			name:       "no license should return empty string",
+			license:    nil,
+			wantResult: "",
+		},
+		{
+			name: "license with empty app slug should return empty string",
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					AppSlug: "",
+				},
+			},
+			wantResult: "",
+		},
+		{
+			name: "license with app slug should return app-registry format",
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					AppSlug: "my-app",
+				},
+			},
+			wantResult: "my-app-registry",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var opts []EngineOption
+			if tt.license != nil {
+				opts = append(opts, WithLicense(tt.license))
+			}
+
+			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
+			result := engine.imagePullSecretName()
+			assert.Equal(t, tt.wantResult, result)
+		})
+	}
 }

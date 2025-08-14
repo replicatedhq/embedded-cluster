@@ -35,6 +35,13 @@ spec:
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
     configItemsConfigMapData:
+      # Registry template functions verification
+      has_local_registry: repl{{ HasLocalRegistry }}
+      local_registry_host: repl{{ HasLocalRegistry | ternary LocalRegistryHost "fallback-host" }}
+      local_registry_namespace: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "fallback-namespace" }}
+      local_registry_address: repl{{ HasLocalRegistry | ternary LocalRegistryAddress "fallback-address" }}
+      image_pull_secret_name: repl{{ HasLocalRegistry | ternary ImagePullSecretName "fallback-secret" }}
+
       # Text items
       text_simple: repl{{ ConfigOption "text_simple" }}
       text_with_default: repl{{ ConfigOption "text_with_default" }}
