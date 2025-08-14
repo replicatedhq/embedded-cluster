@@ -178,9 +178,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 
 		// Add registry settings if available
-		if controller.registrySettings != nil {
-			appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistrySettings(controller.registrySettings))
-		}
+		appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistrySettings(controller.registrySettings))
 
 		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
 			*controller.releaseData.AppConfig,

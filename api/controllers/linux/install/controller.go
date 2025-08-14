@@ -272,11 +272,15 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		if controller.license != nil {
 			// Parse license from bytes
 			var parsedLicense kotsv1beta1.License
-			if err := yaml.Unmarshal(controller.license, &parsedLicense); err == nil {
-				license = &parsedLicense
+			if err := yaml.Unmarshal(controller.license, &parsedLicense); err != nil {
+				return nil, fmt.Errorf("failed to parse license data: %w", err)
 			}
+			license = &parsedLicense
 		}
-		registrySettings := controller.detectRegistrySettings(license)
+		registrySettings, err := controller.detectRegistrySettings(license)
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect registry settings: %w", err)
+		}
 		appControllerOpts = append(appControllerOpts, appcontroller.WithRegistrySettings(registrySettings))
 
 		appInstallController, err := appcontroller.NewInstallController(appControllerOpts...)

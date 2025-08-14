@@ -87,9 +87,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 		)
 
 		// Add registry settings if available
-		if manager.registrySettings != nil {
-			templateOpts = append(templateOpts, template.WithRegistrySettings(manager.registrySettings))
-		}
+		templateOpts = append(templateOpts, template.WithRegistrySettings(manager.registrySettings))
 
 		manager.templateEngine = template.NewEngine(&manager.rawConfig, templateOpts...)
 	}

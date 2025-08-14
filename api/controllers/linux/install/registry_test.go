@@ -72,17 +72,11 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			},
 		},
 		{
-			name:         "airgap install without runtime config should return partial settings",
+			name:         "airgap install without runtime config should return error",
 			airgapBundle: "/path/to/bundle.airgap",
-			serviceCIDR:  "", // No runtime config
+			serviceCIDR:  "", // No runtime config will be set
 			license:      &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
-			wantSettings: &types.RegistrySettings{
-				HasLocalRegistry:    true,
-				Host:                "", // No host because no runtime config
-				Namespace:           "my-app",
-				Address:             "/my-app", // Address will be "/namespace" when host is empty
-				ImagePullSecretName: "my-app-registry",
-			},
+			wantSettings: nil, // Should error, no settings expected
 		},
 	}
 
@@ -107,9 +101,18 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 				controller.rc = mockRC
 			}
 
-			result := controller.detectRegistrySettings(tt.license)
-			require.NotNil(t, result)
-			assert.Equal(t, tt.wantSettings, result)
+			result, err := controller.detectRegistrySettings(tt.license)
+			
+			if tt.wantSettings == nil {
+				// Expecting an error
+				require.Error(t, err)
+				require.Nil(t, result)
+			} else {
+				// Expecting success
+				require.NoError(t, err)
+				require.NotNil(t, result)
+				assert.Equal(t, tt.wantSettings, result)
+			}
 		})
 	}
 }
