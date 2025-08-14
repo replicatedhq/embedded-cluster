@@ -26,9 +26,9 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			license:      &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
 			wantSettings: &types.RegistrySettings{
 				HasLocalRegistry:    false,
-				Host:               "",
-				Namespace:          "",
-				Address:            "",
+				Host:                "",
+				Namespace:           "",
+				Address:             "",
 				ImagePullSecretName: "",
 			},
 		},
@@ -39,9 +39,9 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			license:      nil,
 			wantSettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
-				Host:               "10.96.0.11:5000", // GetRegistryClusterIP should return this
-				Namespace:          "",
-				Address:            "10.96.0.11:5000",
+				Host:                "10.96.0.11:5000", // GetRegistryClusterIP should return this
+				Namespace:           "",
+				Address:             "10.96.0.11:5000",
 				ImagePullSecretName: "",
 			},
 		},
@@ -52,9 +52,9 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			license:      &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
 			wantSettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
-				Host:               "10.96.0.11:5000", // GetRegistryClusterIP should return this
-				Namespace:          "my-app",
-				Address:            "10.96.0.11:5000/my-app",
+				Host:                "10.96.0.11:5000", // GetRegistryClusterIP should return this
+				Namespace:           "my-app",
+				Address:             "10.96.0.11:5000/my-app",
 				ImagePullSecretName: "my-app-registry",
 			},
 		},
@@ -65,9 +65,9 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			license:      &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: ""}},
 			wantSettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
-				Host:               "10.96.0.11:5000",
-				Namespace:          "",
-				Address:            "10.96.0.11:5000",
+				Host:                "10.96.0.11:5000",
+				Namespace:           "",
+				Address:             "10.96.0.11:5000",
 				ImagePullSecretName: "",
 			},
 		},
@@ -78,9 +78,9 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			license:      &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
 			wantSettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
-				Host:               "", // No host because no runtime config
-				Namespace:          "my-app",
-				Address:            "/my-app", // Address will be "/namespace" when host is empty
+				Host:                "", // No host because no runtime config
+				Namespace:           "my-app",
+				Address:             "/my-app", // Address will be "/namespace" when host is empty
 				ImagePullSecretName: "my-app-registry",
 			},
 		},
@@ -101,7 +101,7 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 				// Mock the SetNetworkSpec call
 				mockRC.On("SetNetworkSpec", networkSpec).Return()
 				mockRC.SetNetworkSpec(networkSpec)
-				
+
 				// Mock the ServiceCIDR() call to return the expected value
 				mockRC.On("ServiceCIDR").Return(tt.serviceCIDR)
 				controller.rc = mockRC
