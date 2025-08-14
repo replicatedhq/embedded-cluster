@@ -20,19 +20,13 @@ type AppReleaseManager interface {
 }
 
 type appReleaseManager struct {
-	rawConfig       kotsv1beta1.Config
-	releaseData     *release.ReleaseData
-	templateEngine  *template.Engine
-	license         *kotsv1beta1.License
-	logger          logrus.FieldLogger
-	registrySettings *types.RegistrySettings
 	rawConfig                  kotsv1beta1.Config
 	releaseData                *release.ReleaseData
 	templateEngine             *template.Engine
 	license                    *kotsv1beta1.License
 	logger                     logrus.FieldLogger
 	privateCACertConfigMapName string
-  registrySettings *types.RegistrySettings
+	registrySettings           *types.RegistrySettings
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)

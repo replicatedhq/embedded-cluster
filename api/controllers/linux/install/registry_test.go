@@ -33,17 +33,11 @@ func TestInstallController_detectRegistrySettings(t *testing.T) {
 			},
 		},
 		{
-			name:         "airgap install without license should return settings without namespace",
+			name:         "airgap install without license should return error",
 			airgapBundle: "/path/to/bundle.airgap",
 			serviceCIDR:  "10.96.0.0/12",
 			license:      nil,
-			wantSettings: &types.RegistrySettings{
-				HasLocalRegistry:    true,
-				Host:                "10.96.0.11:5000", // GetRegistryClusterIP should return this
-				Namespace:           "",
-				Address:             "10.96.0.11:5000",
-				ImagePullSecretName: "",
-			},
+			wantSettings: nil, // Should error, no settings expected
 		},
 		{
 			name:         "airgap install with license should return full settings",

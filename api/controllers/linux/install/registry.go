@@ -34,8 +34,15 @@ func (c *InstallController) detectRegistrySettings(license *kotsv1beta1.License)
 	}
 	settings.Host = fmt.Sprintf("%s:5000", registryIP)
 
-	settings.Namespace = license.Spec.AppSlug
-	settings.ImagePullSecretName = fmt.Sprintf("%s-registry", license.Spec.AppSlug)
+	if license == nil {
+		return nil, errors.New("license is required for airgap registry configuration")
+	}
+
+	// Set namespace and other fields based on license
+	if license.Spec.AppSlug != "" {
+		settings.Namespace = license.Spec.AppSlug
+		settings.ImagePullSecretName = fmt.Sprintf("%s-registry", license.Spec.AppSlug)
+	}
 
 	// Set full address
 	if settings.Namespace != "" {
