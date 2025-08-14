@@ -101,7 +101,7 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		// NOTE: returns false when config item cannot be resolved
+		// NOTE: this is parity from KOTS but I would expect this to return true
 		return false, fmt.Errorf("resolve config item: %w", err)
 	}
 	return resolved.Effective != expected, nil
@@ -249,7 +249,7 @@ func (e *Engine) getItemFilename(configItem *kotsv1beta1.ConfigItem) string {
 		return userVal.Filename
 	}
 
-	// Config item filename is not used for template processing
+	// Do not use the config item's filename for KOTS parity
 
 	// If still empty, return empty string
 	return ""
