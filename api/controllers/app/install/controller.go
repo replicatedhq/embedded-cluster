@@ -15,7 +15,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
@@ -46,7 +45,6 @@ type InstallController struct {
 	configValues        types.AppConfigValues
 	clusterID           string
 	airgapBundle        string
-	runtimeConfig       runtimeconfig.RuntimeConfig
 	registryDetector    template.RegistryDetector
 }
 
@@ -124,12 +122,6 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) InstallControllerOption {
-	return func(c *InstallController) {
-		c.runtimeConfig = runtimeConfig
-	}
-}
-
 func WithRegistryDetector(registryDetector template.RegistryDetector) InstallControllerOption {
 	return func(c *InstallController) {
 		c.registryDetector = registryDetector
@@ -184,7 +176,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		appReleaseManagerOpts = append(appReleaseManagerOpts,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
-			appreleasemanager.WithRuntimeConfig(controller.runtimeConfig),
 		)
 
 		// Add registry detector if available

@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
@@ -26,7 +25,6 @@ type appReleaseManager struct {
 	templateEngine   *template.Engine
 	license          *kotsv1beta1.License
 	logger           logrus.FieldLogger
-	runtimeConfig    runtimeconfig.RuntimeConfig
 	registryDetector template.RegistryDetector
 }
 
@@ -56,11 +54,6 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 	}
 }
 
-func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) AppReleaseManagerOption {
-	return func(m *appReleaseManager) {
-		m.runtimeConfig = runtimeConfig
-	}
-}
 
 func WithRegistryDetector(registryDetector template.RegistryDetector) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {

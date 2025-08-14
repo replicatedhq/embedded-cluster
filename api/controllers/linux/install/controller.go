@@ -265,7 +265,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithClusterID(controller.clusterID),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
-			appcontroller.WithRuntimeConfig(controller.rc),
 		)
 
 		// Create registry detector if runtime config is available
