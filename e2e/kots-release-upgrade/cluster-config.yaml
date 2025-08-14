@@ -87,19 +87,14 @@ spec:
           values: |
             image:
               repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
-        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/bitnamicharts/memcached
-          name: memcached
-          namespace: memcached
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/gitea/gitea
+          name: gitea
+          namespace: gitea
           values: |
             global:
               imageRegistry: ec-e2e-proxy.testcluster.net/anonymous
-            volumePermissions:
-             resources:
-               requests:
-                 cpu: 25m
-                 memory: 128Mi
-               limits:
-                 cpu: 25m
-                 memory: 256Mi
+            gitea:
+              config:
+                APP_NAME: "Custom Gitea: With a cup of tea."
           order: 4
-          version: 6.6.4
+          version: 12.1.3

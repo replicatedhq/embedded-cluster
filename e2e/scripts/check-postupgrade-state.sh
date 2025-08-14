@@ -32,17 +32,17 @@ main() {
     echo "installations"
     kubectl get installations
 
-    # ensure that memcached exists
-    if ! kubectl get ns memcached; then
-        echo "no memcached ns found"
+    # ensure that gitea exists
+    if ! kubectl get ns gitea; then
+        echo "no gitea ns found"
         kubectl get ns
         exit 1
     fi
 
-    # ensure that memcached pods exist
-    if ! kubectl get pods -n memcached | grep -q Running ; then
-        echo "no pods found for memcached deployment"
-        kubectl get pods -n memcached
+    # ensure that gitea pods exist
+    if ! kubectl get pods -n gitea | grep -q Running ; then
+        echo "no pods found for gitea deployment"
+        kubectl get pods -n gitea
         exit 1
     fi
 
