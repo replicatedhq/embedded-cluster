@@ -32,17 +32,17 @@ main() {
     echo "installations"
     kubectl get installations
 
-    # ensure that gitea exists
-    if ! kubectl get ns gitea; then
-        echo "no gitea ns found"
+    # ensure that kube-state-metrics exists
+    if ! kubectl get ns kube-state-metrics; then
+        echo "no kube-state-metrics ns found"
         kubectl get ns
         exit 1
     fi
 
-    # ensure that gitea pods exist
-    if ! kubectl get pods -n gitea | grep -q Running ; then
-        echo "no pods found for gitea deployment"
-        kubectl get pods -n gitea
+    # ensure that kube-state-metrics pods exist
+    if ! kubectl get pods -n kube-state-metrics | grep -q Running ; then
+        echo "no pods found for kube-state-metrics deployment"
+        kubectl get pods -n kube-state-metrics
         exit 1
     fi
 

@@ -203,8 +203,8 @@ ensure_app_deployed_airgap() {
 }
 
 ensure_app_not_upgraded() {
-    if kubectl get ns | grep -q gitea ; then
-        echo "found gitea ns"
+    if kubectl get ns | grep -q kube-state-metrics ; then
+        echo "found kube-state-metrics ns"
         return 1
     fi
     if kubectl get pods -n "$APP_NAMESPACE" -l app=second | grep -q second ; then

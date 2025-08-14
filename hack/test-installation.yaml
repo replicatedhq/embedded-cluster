@@ -41,17 +41,14 @@ spec:
             image:
               repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
           version: 6.1.2
-        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/giteacharts/gitea
-          name: gitea
-          namespace: gitea
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/ghcr.io/prometheus-community/charts/kube-state-metrics
+          name: kube-state-metrics
+          namespace: kube-state-metrics
           order: 4
           values: |
             global:
-              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous
-            gitea:
-              config:
-                APP_NAME: "Custom Gitea: With a cup of tea."
-          version: 12.1.3
+              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
+          version: 6.1.4
         concurrencyLevel: 0
         repositories:
         - name: ingress-nginx
