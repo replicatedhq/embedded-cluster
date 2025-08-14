@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -46,6 +47,7 @@ type InstallController struct {
 	clusterID           string
 	airgapBundle        string
 	runtimeConfig       runtimeconfig.RuntimeConfig
+	registryDetector    template.RegistryDetector
 }
 
 type InstallControllerOption func(*InstallController)
@@ -128,6 +130,12 @@ func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) InstallControl
 	}
 }
 
+func WithRegistryDetector(registryDetector template.RegistryDetector) InstallControllerOption {
+	return func(c *InstallController) {
+		c.registryDetector = registryDetector
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -172,11 +180,21 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.appReleaseManager == nil {
-		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
-			*controller.releaseData.AppConfig,
+		var appReleaseManagerOpts []appreleasemanager.AppReleaseManagerOption
+		appReleaseManagerOpts = append(appReleaseManagerOpts,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithRuntimeConfig(controller.runtimeConfig),
+		)
+
+		// Add registry detector if available
+		if controller.registryDetector != nil {
+			appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistryDetector(controller.registryDetector))
+		}
+
+		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
+			*controller.releaseData.AppConfig,
+			appReleaseManagerOpts...,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)

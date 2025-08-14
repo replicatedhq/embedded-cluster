@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -22,12 +21,13 @@ type AppReleaseManager interface {
 }
 
 type appReleaseManager struct {
-	rawConfig      kotsv1beta1.Config
-	releaseData    *release.ReleaseData
-	templateEngine *template.Engine
-	license        *kotsv1beta1.License
-	logger         logrus.FieldLogger
-	runtimeConfig  runtimeconfig.RuntimeConfig
+	rawConfig        kotsv1beta1.Config
+	releaseData      *release.ReleaseData
+	templateEngine   *template.Engine
+	license          *kotsv1beta1.License
+	logger           logrus.FieldLogger
+	runtimeConfig    runtimeconfig.RuntimeConfig
+	registryDetector template.RegistryDetector
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -62,6 +62,12 @@ func WithRuntimeConfig(runtimeConfig runtimeconfig.RuntimeConfig) AppReleaseMana
 	}
 }
 
+func WithRegistryDetector(registryDetector template.RegistryDetector) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.registryDetector = registryDetector
+	}
+}
+
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -89,15 +95,15 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 			template.WithReleaseData(manager.releaseData),
 		)
 
-		// Add Kubernetes client if runtime config is available
-		if manager.runtimeConfig != nil {
-			kubeClient, err := clients.NewKubeClient(clients.KubeClientOptions{
-				KubeConfigPath: manager.runtimeConfig.PathToKubeConfig(),
-			})
-			if err == nil {
-				templateOpts = append(templateOpts, template.WithKubeClient(ctx, kubeClient))
+		// Detect registry settings if detector is available
+		if manager.registryDetector != nil {
+			registrySettings, err := manager.registryDetector.DetectRegistrySettings(ctx, manager.license)
+			if err != nil {
+				manager.logger.WithError(err).Warn("Failed to detect registry settings, template functions will return empty values")
+				// Continue with empty registry settings rather than failing
+				registrySettings = &template.RegistrySettings{}
 			}
-			// If kubeClient creation fails, template functions will gracefully return empty strings
+			templateOpts = append(templateOpts, template.WithRegistrySettings(registrySettings))
 		}
 
 		manager.templateEngine = template.NewEngine(&manager.rawConfig, templateOpts...)

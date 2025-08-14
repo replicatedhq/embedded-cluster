@@ -10,10 +10,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -195,78 +191,42 @@ func (e *Engine) recordDependency(dependency string) {
 
 // Registry template functions
 
-// hasLocalRegistry returns true when local registry deployment exists and is ready
+// hasLocalRegistry returns true when local registry is available
 func (e *Engine) hasLocalRegistry() bool {
-	if e.kubeClient == nil || e.ctx == nil {
+	if e.registrySettings == nil {
 		return false
 	}
-
-	deploy := &appsv1.Deployment{}
-	err := e.kubeClient.Get(e.ctx, client.ObjectKey{
-		Namespace: constants.RegistryNamespace,
-		Name:      "registry",
-	}, deploy)
-
-	return err == nil
+	return e.registrySettings.HasLocalRegistry
 }
 
-// localRegistryHost returns the registry service ClusterIP with port when available
+// localRegistryHost returns the registry host with port
 func (e *Engine) localRegistryHost() string {
-	if !e.hasLocalRegistry() || e.kubeClient == nil || e.ctx == nil {
+	if e.registrySettings == nil {
 		return ""
 	}
-
-	svc := &corev1.Service{}
-	err := e.kubeClient.Get(e.ctx, client.ObjectKey{
-		Namespace: constants.RegistryNamespace,
-		Name:      "registry",
-	}, svc)
-
-	if err != nil || svc.Spec.ClusterIP == "" {
-		return ""
-	}
-
-	return fmt.Sprintf("%s:5000", svc.Spec.ClusterIP)
+	return e.registrySettings.Host
 }
 
 // localRegistryNamespace returns the namespace for the local registry
-// Returns the app slug for multi-tenancy isolation
 func (e *Engine) localRegistryNamespace() string {
-	if !e.hasLocalRegistry() {
+	if e.registrySettings == nil {
 		return ""
 	}
-
-	// Return app slug for namespace isolation
-	if e.license != nil && e.license.Spec.AppSlug != "" {
-		return e.license.Spec.AppSlug
-	}
-
-	return ""
+	return e.registrySettings.Namespace
 }
 
 // localRegistryAddress returns the full registry address with namespace prefix
 func (e *Engine) localRegistryAddress() string {
-	host := e.localRegistryHost()
-	namespace := e.localRegistryNamespace()
-
-	if namespace == "" {
-		return host
+	if e.registrySettings == nil {
+		return ""
 	}
-
-	return fmt.Sprintf("%s/%s", host, namespace)
+	return e.registrySettings.Address
 }
 
 // imagePullSecretName returns standardized secret name pattern
-// Returns app-registry format or empty string when no app slug available
 func (e *Engine) imagePullSecretName() string {
-	// Get appSlug from license
-	var appSlug string
-	if e.license != nil {
-		appSlug = e.license.Spec.AppSlug
+	if e.registrySettings == nil {
+		return ""
 	}
-
-	if appSlug == "" {
-		return "" // Return empty string when no app slug available
-	}
-	return fmt.Sprintf("%s-registry", appSlug)
+	return e.registrySettings.ImagePullSecretName
 }

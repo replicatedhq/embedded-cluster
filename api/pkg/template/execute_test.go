@@ -1,25 +1,18 @@
 package template
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/scheme"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestEngine_BasicTemplating(t *testing.T) {
@@ -1474,34 +1467,26 @@ status: {}
 
 func TestEngine_HasLocalRegistry(t *testing.T) {
 	tests := []struct {
-		name       string
-		objects    []client.Object
-		kubeClient client.Client // nil means no kube client
-		wantResult bool
+		name             string
+		registrySettings *RegistrySettings
+		wantResult       bool
 	}{
 		{
-			name:       "no kubernetes client should return false",
-			objects:    nil,
-			kubeClient: nil,
+			name:             "no registry settings should return false",
+			registrySettings: nil,
+			wantResult:       false,
+		},
+		{
+			name: "registry settings with HasLocalRegistry false should return false",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: false,
+			},
 			wantResult: false,
 		},
 		{
-			name:    "deployment not found should return false",
-			objects: []client.Object{},
-			wantResult: false,
-		},
-		{
-			name: "deployment exists should return true",
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-					Status: appsv1.DeploymentStatus{
-						ReadyReplicas: 1, // This shouldn't matter based on your change
-					},
-				},
+			name: "registry settings with HasLocalRegistry true should return true",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
 			},
 			wantResult: true,
 		},
@@ -1509,19 +1494,12 @@ func TestEngine_HasLocalRegistry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var engine *Engine
-			
-			if tt.kubeClient == nil && tt.name == "no kubernetes client should return false" {
-				engine = NewEngine(&kotsv1beta1.Config{})
-			} else {
-				// Create fake client with objects
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme.Scheme).
-					WithObjects(tt.objects...).
-					Build()
-				engine = NewEngine(&kotsv1beta1.Config{}, WithKubeClient(context.Background(), fakeClient))
+			var opts []EngineOption
+			if tt.registrySettings != nil {
+				opts = append(opts, WithRegistrySettings(tt.registrySettings))
 			}
 
+			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
 			result := engine.hasLocalRegistry()
 			assert.Equal(t, tt.wantResult, result)
 		})
@@ -1530,93 +1508,41 @@ func TestEngine_HasLocalRegistry(t *testing.T) {
 
 func TestEngine_LocalRegistryHost(t *testing.T) {
 	tests := []struct {
-		name       string
-		objects    []client.Object
-		kubeClient client.Client // nil means no kube client
-		wantResult string
+		name             string
+		registrySettings *RegistrySettings
+		wantResult       string
 	}{
 		{
-			name:       "no kubernetes client should return empty string",
-			objects:    nil,
-			kubeClient: nil,
-			wantResult: "",
+			name:             "no registry settings should return empty string",
+			registrySettings: nil,
+			wantResult:       "",
 		},
 		{
-			name:    "deployment not found should return empty string",
-			objects: []client.Object{},
-			wantResult: "",
-		},
-		{
-			name: "deployment exists but service not found should return empty string",
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
+			name: "registry settings with empty host should return empty string",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Host:            "",
 			},
 			wantResult: "",
 		},
 		{
-			name: "registry exists with valid service should return host with port",
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: "10.96.0.10",
-					},
-				},
+			name: "registry settings with host should return host",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Host:            "10.96.0.10:5000",
 			},
 			wantResult: "10.96.0.10:5000",
-		},
-		{
-			name: "service with empty clusterIP should return empty string",
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: "", // Empty ClusterIP
-					},
-				},
-			},
-			wantResult: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var engine *Engine
-			
-			if tt.kubeClient == nil && tt.name == "no kubernetes client should return empty string" {
-				engine = NewEngine(&kotsv1beta1.Config{})
-			} else {
-				// Create fake client with objects
-				fakeClient := fake.NewClientBuilder().
-					WithScheme(scheme.Scheme).
-					WithObjects(tt.objects...).
-					Build()
-				engine = NewEngine(&kotsv1beta1.Config{}, WithKubeClient(context.Background(), fakeClient))
+			var opts []EngineOption
+			if tt.registrySettings != nil {
+				opts = append(opts, WithRegistrySettings(tt.registrySettings))
 			}
 
+			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
 			result := engine.localRegistryHost()
 			assert.Equal(t, tt.wantResult, result)
 		})
@@ -1625,57 +1551,28 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 
 func TestEngine_LocalRegistryNamespace(t *testing.T) {
 	tests := []struct {
-		name       string
-		license    *kotsv1beta1.License
-		objects    []client.Object
-		wantResult string
+		name             string
+		registrySettings *RegistrySettings
+		wantResult       string
 	}{
 		{
-			name:    "no local registry should return empty string",
-			license: &kotsv1beta1.License{Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"}},
-			objects: []client.Object{}, // No deployment
-			wantResult: "",
+			name:             "no registry settings should return empty string",
+			registrySettings: nil,
+			wantResult:       "",
 		},
 		{
-			name:    "no license should return empty string",
-			license: nil,
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
+			name: "registry settings with empty namespace should return empty string",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Namespace:       "",
 			},
 			wantResult: "",
 		},
 		{
-			name: "license with empty app slug should return empty string",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{AppSlug: ""},
-			},
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
-			},
-			wantResult: "",
-		},
-		{
-			name: "license with app slug should return app slug",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"},
-			},
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
+			name: "registry settings with namespace should return namespace",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Namespace:       "my-app",
 			},
 			wantResult: "my-app",
 		},
@@ -1683,17 +1580,10 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake client with objects
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(scheme.Scheme).
-				WithObjects(tt.objects...).
-				Build()
-
 			var opts []EngineOption
-			if tt.license != nil {
-				opts = append(opts, WithLicense(tt.license))
+			if tt.registrySettings != nil {
+				opts = append(opts, WithRegistrySettings(tt.registrySettings))
 			}
-			opts = append(opts, WithKubeClient(context.Background(), fakeClient))
 
 			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
 			result := engine.localRegistryNamespace()
@@ -1704,60 +1594,28 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 
 func TestEngine_LocalRegistryAddress(t *testing.T) {
 	tests := []struct {
-		name       string
-		license    *kotsv1beta1.License
-		objects    []client.Object
-		wantResult string
+		name             string
+		registrySettings *RegistrySettings
+		wantResult       string
 	}{
 		{
-			name:    "no local registry should return empty string",
-			license: nil,
-			objects: []client.Object{}, // No deployment
+			name:             "no registry settings should return empty string",
+			registrySettings: nil,
+			wantResult:       "",
+		},
+		{
+			name: "registry settings with empty address should return empty string",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Address:         "",
+			},
 			wantResult: "",
 		},
 		{
-			name:    "registry without namespace should return host only",
-			license: nil, // No license means no namespace
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: "10.96.0.10",
-					},
-				},
-			},
-			wantResult: "10.96.0.10:5000",
-		},
-		{
-			name: "registry with namespace should return host with namespace",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{AppSlug: "my-app"},
-			},
-			objects: []client.Object{
-				&appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-				},
-				&corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "registry",
-						Namespace: constants.RegistryNamespace,
-					},
-					Spec: corev1.ServiceSpec{
-						ClusterIP: "10.96.0.10",
-					},
-				},
+			name: "registry settings with address should return address",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry: true,
+				Address:         "10.96.0.10:5000/my-app",
 			},
 			wantResult: "10.96.0.10:5000/my-app",
 		},
@@ -1765,17 +1623,10 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create fake client with objects
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(scheme.Scheme).
-				WithObjects(tt.objects...).
-				Build()
-
 			var opts []EngineOption
-			if tt.license != nil {
-				opts = append(opts, WithLicense(tt.license))
+			if tt.registrySettings != nil {
+				opts = append(opts, WithRegistrySettings(tt.registrySettings))
 			}
-			opts = append(opts, WithKubeClient(context.Background(), fakeClient))
 
 			engine := NewEngine(&kotsv1beta1.Config{}, opts...)
 			result := engine.localRegistryAddress()
@@ -1786,30 +1637,28 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 
 func TestEngine_ImagePullSecretName(t *testing.T) {
 	tests := []struct {
-		name       string
-		license    *kotsv1beta1.License
-		wantResult string
+		name             string
+		registrySettings *RegistrySettings
+		wantResult       string
 	}{
 		{
-			name:       "no license should return empty string",
-			license:    nil,
-			wantResult: "",
+			name:             "no registry settings should return empty string",
+			registrySettings: nil,
+			wantResult:       "",
 		},
 		{
-			name: "license with empty app slug should return empty string",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug: "",
-				},
+			name: "registry settings with empty secret name should return empty string",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry:    true,
+				ImagePullSecretName: "",
 			},
 			wantResult: "",
 		},
 		{
-			name: "license with app slug should return app-registry format",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug: "my-app",
-				},
+			name: "registry settings with secret name should return secret name",
+			registrySettings: &RegistrySettings{
+				HasLocalRegistry:    true,
+				ImagePullSecretName: "my-app-registry",
 			},
 			wantResult: "my-app-registry",
 		},
@@ -1818,8 +1667,8 @@ func TestEngine_ImagePullSecretName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var opts []EngineOption
-			if tt.license != nil {
-				opts = append(opts, WithLicense(tt.license))
+			if tt.registrySettings != nil {
+				opts = append(opts, WithRegistrySettings(tt.registrySettings))
 			}
 
 			engine := NewEngine(&kotsv1beta1.Config{}, opts...)

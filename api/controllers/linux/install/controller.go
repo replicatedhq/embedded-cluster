@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -13,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -253,7 +255,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	// Initialize the app controller with the state machine first
 	if controller.InstallController == nil {
-		appInstallController, err := appcontroller.NewInstallController(
+		var appControllerOpts []appcontroller.InstallControllerOption
+		appControllerOpts = append(appControllerOpts,
 			appcontroller.WithStateMachine(controller.stateMachine),
 			appcontroller.WithLogger(controller.logger),
 			appcontroller.WithStore(controller.store),
@@ -264,6 +267,21 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithRuntimeConfig(controller.rc),
 		)
+
+		// Create registry detector if runtime config is available
+		if controller.rc != nil {
+			kubeClient, err := clients.NewKubeClient(clients.KubeClientOptions{
+				KubeConfigPath: controller.rc.PathToKubeConfig(),
+			})
+			if err == nil {
+				registryDetector := template.NewKubernetesRegistryDetector(kubeClient, controller.logger)
+				appControllerOpts = append(appControllerOpts, appcontroller.WithRegistryDetector(registryDetector))
+			} else {
+				controller.logger.WithError(err).Warn("Failed to create kube client for registry detection")
+			}
+		}
+
+		appInstallController, err := appcontroller.NewInstallController(appControllerOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
 		}
