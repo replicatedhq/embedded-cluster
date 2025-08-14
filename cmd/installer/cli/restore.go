@@ -1156,7 +1156,7 @@ func waitForBackups(ctx context.Context, out io.Writer, kcli client.Client, k0sC
 		return nil, fmt.Errorf("no release found in binary")
 	}
 
-	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli, 30, 5*time.Second)
+	replicatedBackups, err := listBackupsWithTimeout(ctx, kcli, 60, 5*time.Second)
 	if err != nil {
 		return nil, err
 	}
