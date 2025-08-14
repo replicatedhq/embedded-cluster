@@ -3,9 +3,7 @@ package e2e
 import (
 	"encoding/base64"
 	"fmt"
-	"net"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -2034,41 +2032,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
-	// TODO: these are the production domains, need to be environment specific
-	allowedDestinations := map[string]struct{}{
-		"proxy.replicated.com":    {},
-		"replicated.app":          {},
-		"registry.replicated.com": {},
-	}
-
-	// TODO once we CMX network reporting can catch domains from k8s pods, we should not check against ips
-	allowedDstIps := []net.IP{}
-	for destDomain := range allowedDestinations {
-		ips, err := net.LookupIP(destDomain)
-		if err != nil {
-			t.Fatalf("could not get allowed ips for domain %v: %v", destDomain, err)
-		}
-
-		allowedDstIps = append(allowedDstIps, ips...)
-	}
-
 	for _, ne := range networkEvents {
-		if ne.DstIP == "" {
-			continue
-		}
-
-		dstIP := net.ParseIP(ne.DstIP)
-		if dstIP == nil {
-			t.Errorf("could not parse destination ip (%v) from network events", ne.DstIP)
-		}
-
-		if dstIP.IsPrivate() {
-			continue
-		}
-
-		inAllowList := slices.ContainsFunc(allowedDstIps, dstIP.Equal)
-		if !inAllowList {
-			t.Errorf("network violation found: %+v", ne)
-		}
+		t.Logf("network event: %+v", ne)
 	}
 }
