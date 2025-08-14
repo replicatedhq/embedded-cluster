@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
-	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -14,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -22,7 +20,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 type Controller interface {
@@ -267,18 +267,17 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 		)
 
-		// Create registry detector if runtime config is available
-		if controller.rc != nil {
-			kubeClient, err := clients.NewKubeClient(clients.KubeClientOptions{
-				KubeConfigPath: controller.rc.PathToKubeConfig(),
-			})
-			if err == nil {
-				registryDetector := template.NewKubernetesRegistryDetector(kubeClient, controller.logger)
-				appControllerOpts = append(appControllerOpts, appcontroller.WithRegistryDetector(registryDetector))
-			} else {
-				controller.logger.WithError(err).Warn("Failed to create kube client for registry detection")
+		// Detect registry settings and pass to app controller
+		var license *kotsv1beta1.License
+		if controller.license != nil {
+			// Parse license from bytes
+			var parsedLicense kotsv1beta1.License
+			if err := yaml.Unmarshal(controller.license, &parsedLicense); err == nil {
+				license = &parsedLicense
 			}
 		}
+		registrySettings := controller.detectRegistrySettings(license)
+		appControllerOpts = append(appControllerOpts, appcontroller.WithRegistrySettings(registrySettings))
 
 		appInstallController, err := appcontroller.NewInstallController(appControllerOpts...)
 		if err != nil {

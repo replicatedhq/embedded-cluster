@@ -1468,7 +1468,7 @@ status: {}
 func TestEngine_HasLocalRegistry(t *testing.T) {
 	tests := []struct {
 		name             string
-		registrySettings *RegistrySettings
+		registrySettings *types.RegistrySettings
 		wantResult       bool
 	}{
 		{
@@ -1478,14 +1478,14 @@ func TestEngine_HasLocalRegistry(t *testing.T) {
 		},
 		{
 			name: "registry settings with HasLocalRegistry false should return false",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: false,
 			},
 			wantResult: false,
 		},
 		{
 			name: "registry settings with HasLocalRegistry true should return true",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 			},
 			wantResult: true,
@@ -1509,7 +1509,7 @@ func TestEngine_HasLocalRegistry(t *testing.T) {
 func TestEngine_LocalRegistryHost(t *testing.T) {
 	tests := []struct {
 		name             string
-		registrySettings *RegistrySettings
+		registrySettings *types.RegistrySettings
 		wantResult       string
 	}{
 		{
@@ -1519,7 +1519,7 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 		},
 		{
 			name: "registry settings with empty host should return empty string",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Host:            "",
 			},
@@ -1527,7 +1527,7 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 		},
 		{
 			name: "registry settings with host should return host",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Host:            "10.96.0.10:5000",
 			},
@@ -1552,7 +1552,7 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 func TestEngine_LocalRegistryNamespace(t *testing.T) {
 	tests := []struct {
 		name             string
-		registrySettings *RegistrySettings
+		registrySettings *types.RegistrySettings
 		wantResult       string
 	}{
 		{
@@ -1562,7 +1562,7 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 		},
 		{
 			name: "registry settings with empty namespace should return empty string",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Namespace:       "",
 			},
@@ -1570,7 +1570,7 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 		},
 		{
 			name: "registry settings with namespace should return namespace",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Namespace:       "my-app",
 			},
@@ -1595,7 +1595,7 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 func TestEngine_LocalRegistryAddress(t *testing.T) {
 	tests := []struct {
 		name             string
-		registrySettings *RegistrySettings
+		registrySettings *types.RegistrySettings
 		wantResult       string
 	}{
 		{
@@ -1605,7 +1605,7 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 		},
 		{
 			name: "registry settings with empty address should return empty string",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Address:         "",
 			},
@@ -1613,7 +1613,7 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 		},
 		{
 			name: "registry settings with address should return address",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: true,
 				Address:         "10.96.0.10:5000/my-app",
 			},
@@ -1638,7 +1638,7 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 func TestEngine_ImagePullSecretName(t *testing.T) {
 	tests := []struct {
 		name             string
-		registrySettings *RegistrySettings
+		registrySettings *types.RegistrySettings
 		wantResult       string
 	}{
 		{
@@ -1648,7 +1648,7 @@ func TestEngine_ImagePullSecretName(t *testing.T) {
 		},
 		{
 			name: "registry settings with empty secret name should return empty string",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
 				ImagePullSecretName: "",
 			},
@@ -1656,7 +1656,7 @@ func TestEngine_ImagePullSecretName(t *testing.T) {
 		},
 		{
 			name: "registry settings with secret name should return secret name",
-			registrySettings: &RegistrySettings{
+			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry:    true,
 				ImagePullSecretName: "my-app-registry",
 			},

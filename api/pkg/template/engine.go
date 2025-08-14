@@ -29,7 +29,7 @@ type Engine struct {
 	releaseData *release.ReleaseData
 
 	// Registry settings for template functions
-	registrySettings *RegistrySettings
+	registrySettings *types.RegistrySettings
 
 	// Internal state
 	configValues     types.AppConfigValues
@@ -64,7 +64,7 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 }
 
 // WithRegistrySettings sets the registry settings for template functions
-func WithRegistrySettings(registrySettings *RegistrySettings) EngineOption {
+func WithRegistrySettings(registrySettings *types.RegistrySettings) EngineOption {
 	return func(e *Engine) {
 		e.registrySettings = registrySettings
 	}

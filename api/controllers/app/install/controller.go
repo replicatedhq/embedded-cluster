@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -45,7 +44,7 @@ type InstallController struct {
 	configValues        types.AppConfigValues
 	clusterID           string
 	airgapBundle        string
-	registryDetector    template.RegistryDetector
+	registrySettings    *types.RegistrySettings
 }
 
 type InstallControllerOption func(*InstallController)
@@ -122,9 +121,9 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithRegistryDetector(registryDetector template.RegistryDetector) InstallControllerOption {
+func WithRegistrySettings(registrySettings *types.RegistrySettings) InstallControllerOption {
 	return func(c *InstallController) {
-		c.registryDetector = registryDetector
+		c.registrySettings = registrySettings
 	}
 }
 
@@ -178,9 +177,9 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appreleasemanager.WithReleaseData(controller.releaseData),
 		)
 
-		// Add registry detector if available
-		if controller.registryDetector != nil {
-			appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistryDetector(controller.registryDetector))
+		// Add registry settings if available
+		if controller.registrySettings != nil {
+			appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistrySettings(controller.registrySettings))
 		}
 
 		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(

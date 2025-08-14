@@ -20,12 +20,12 @@ type AppReleaseManager interface {
 }
 
 type appReleaseManager struct {
-	rawConfig        kotsv1beta1.Config
-	releaseData      *release.ReleaseData
-	templateEngine   *template.Engine
-	license          *kotsv1beta1.License
-	logger           logrus.FieldLogger
-	registryDetector template.RegistryDetector
+	rawConfig       kotsv1beta1.Config
+	releaseData     *release.ReleaseData
+	templateEngine  *template.Engine
+	license         *kotsv1beta1.License
+	logger          logrus.FieldLogger
+	registrySettings *types.RegistrySettings
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -55,9 +55,9 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 }
 
 
-func WithRegistryDetector(registryDetector template.RegistryDetector) AppReleaseManagerOption {
+func WithRegistrySettings(registrySettings *types.RegistrySettings) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
-		m.registryDetector = registryDetector
+		m.registrySettings = registrySettings
 	}
 }
 
@@ -80,23 +80,15 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 	}
 
 	if manager.templateEngine == nil {
-		ctx := context.Background()
-
 		var templateOpts []template.EngineOption
 		templateOpts = append(templateOpts, 
 			template.WithLicense(manager.license),
 			template.WithReleaseData(manager.releaseData),
 		)
 
-		// Detect registry settings if detector is available
-		if manager.registryDetector != nil {
-			registrySettings, err := manager.registryDetector.DetectRegistrySettings(ctx, manager.license)
-			if err != nil {
-				manager.logger.WithError(err).Warn("Failed to detect registry settings, template functions will return empty values")
-				// Continue with empty registry settings rather than failing
-				registrySettings = &template.RegistrySettings{}
-			}
-			templateOpts = append(templateOpts, template.WithRegistrySettings(registrySettings))
+		// Add registry settings if available
+		if manager.registrySettings != nil {
+			templateOpts = append(templateOpts, template.WithRegistrySettings(manager.registrySettings))
 		}
 
 		manager.templateEngine = template.NewEngine(&manager.rawConfig, templateOpts...)
