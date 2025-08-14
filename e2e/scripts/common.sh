@@ -111,22 +111,6 @@ wait_for_nginx_pods() {
     done
 }
 
-wait_for_memcached_pods() {
-    ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
-    counter=0
-    while [ "$ready" -lt "1" ]; do
-        if [ "$counter" -gt 36 ]; then
-            return 1
-        fi
-        sleep 5
-        counter=$((counter+1))
-        echo "Waiting for memcached pods"
-        ready=$(kubectl get pods -n embedded-cluster | grep -c memcached || true)
-        kubectl get pods -n embedded-cluster 2>&1 || true
-        echo "$ready"
-    done
-}
-
 wait_for_pods_running() {
     local timeout="$1"
     local start_time
@@ -219,8 +203,8 @@ ensure_app_deployed_airgap() {
 }
 
 ensure_app_not_upgraded() {
-    if kubectl get ns | grep -q memcached ; then
-        echo "found memcached ns"
+    if kubectl get ns | grep -q kube-state-metrics ; then
+        echo "found kube-state-metrics ns"
         return 1
     fi
     if kubectl get pods -n "$APP_NAMESPACE" -l app=second | grep -q second ; then
