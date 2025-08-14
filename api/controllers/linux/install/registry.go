@@ -34,11 +34,8 @@ func (c *InstallController) detectRegistrySettings(license *kotsv1beta1.License)
 	}
 	settings.Host = fmt.Sprintf("%s:5000", registryIP)
 
-	// Set namespace and other fields based on license
-	if license != nil && license.Spec.AppSlug != "" {
-		settings.Namespace = license.Spec.AppSlug
-		settings.ImagePullSecretName = fmt.Sprintf("%s-registry", license.Spec.AppSlug)
-	}
+	settings.Namespace = license.Spec.AppSlug
+	settings.ImagePullSecretName = fmt.Sprintf("%s-registry", license.Spec.AppSlug)
 
 	// Set full address
 	if settings.Namespace != "" {
