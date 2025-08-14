@@ -41,7 +41,7 @@ spec:
             image:
               repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
           version: 6.1.2
-        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/gitea/gitea
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/giteacharts/gitea
           name: gitea
           namespace: gitea
           order: 4
