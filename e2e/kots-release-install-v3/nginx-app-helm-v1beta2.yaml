@@ -19,6 +19,11 @@ spec:
       replicaCount: 1
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
+      env:
+        - name: PRIVATE_CA_CONFIGMAP
+          value: 'repl{{ PrivateCACert }}'
+        - name: SSL_CERT_DIR
+          value: "/etc/ssl/certs"
     client:
       enabled: true
       image:
@@ -35,6 +40,13 @@ spec:
       imagePullSecrets:
         - name: '{{repl ImagePullSecretName }}'
     configItemsConfigMapData:
+      # Registry template functions verification
+      has_local_registry: repl{{ HasLocalRegistry }}
+      local_registry_host: repl{{ HasLocalRegistry | ternary LocalRegistryHost "fallback-host" }}
+      local_registry_namespace: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "fallback-namespace" }}
+      local_registry_address: repl{{ HasLocalRegistry | ternary LocalRegistryAddress "fallback-address" }}
+      image_pull_secret_name: repl{{ HasLocalRegistry | ternary ImagePullSecretName "fallback-secret" }}
+
       # Text items
       text_simple: repl{{ ConfigOption "text_simple" }}
       text_with_default: repl{{ ConfigOption "text_with_default" }}
@@ -69,6 +81,20 @@ spec:
       file_simple: repl{{ ConfigOptionFilename "file_simple" }}
       file_with_default: repl{{ ConfigOptionFilename "file_with_default" }}
       file_required: repl{{ ConfigOptionFilename "file_required" }}
+
+  optionalValues:
+    - when: '{{repl ne PrivateCACert "" }}'
+      recursiveMerge: true
+      values:
+        server:
+          volumeMounts:
+            - name: ca-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+          volumes:
+            - name: ca-certs
+              configMap:
+                name: 'repl{{ PrivateCACert }}'
 
   builder:
     replicated:

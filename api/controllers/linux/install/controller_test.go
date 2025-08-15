@@ -1199,7 +1199,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
-				appcontroller.WithLicense([]byte("test-license")),
+				appcontroller.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
 				appcontroller.WithAppPreflightManager(mockAppPreflightManager),
 				appcontroller.WithAppReleaseManager(mockAppReleaseManager),
@@ -1216,7 +1216,7 @@ func TestSetupInfra(t *testing.T) {
 				WithAllowIgnoreHostPreflights(tt.serverAllowIgnoreHostPreflights),
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
-				WithLicense([]byte("test-license")),
+				WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 				WithStore(mockStore),
 			)
 			require.NoError(t, err)

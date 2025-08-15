@@ -42,7 +42,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      privateCASConfigMapName,
+				Name:      PrivateCASConfigMapName,
 				Namespace: _namespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,

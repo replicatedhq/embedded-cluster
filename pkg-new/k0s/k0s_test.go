@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,11 +52,11 @@ func TestPatchK0sConfig(t *testing.T) {
 			data, err := os.ReadFile(originalFile.Name())
 			req.NoError(err, "unable to read patched config")
 
-			var original k0sconfig.ClusterConfig
+			var original k0sv1beta1.ClusterConfig
 			err = k8syaml.Unmarshal(data, &original)
 			req.NoError(err, "unable to decode original file")
 
-			var expected k0sconfig.ClusterConfig
+			var expected k0sv1beta1.ClusterConfig
 			err = k8syaml.Unmarshal([]byte(tt.Expected), &expected)
 			req.NoError(err, "unable to unmarshal expected file")
 

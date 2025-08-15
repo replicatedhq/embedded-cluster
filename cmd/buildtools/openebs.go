@@ -84,7 +84,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 
 		logrus.Infof("updating openebs images")
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, nextChartVersion)
+		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, nextChartVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -110,7 +110,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 
 		current := openebs.Metadata
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, current.Version)
+		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, current.Version, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -121,7 +121,7 @@ var updateOpenEBSImagesCommand = &cli.Command{
 	},
 }
 
-func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, linuxUtilsVersion string) error {
+func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, linuxUtilsVersion string, filteredImages []string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -142,7 +142,7 @@ func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL st
 	// make sure we include the linux-utils image.
 	images = append(images, fmt.Sprintf("docker.io/openebs/linux-utils:%s", linuxUtilsVersion))
 
-	metaImages, err := UpdateImages(ctx, openebsImageComponents, openebs.Metadata.Images, images)
+	metaImages, err := UpdateImages(ctx, openebsImageComponents, openebs.Metadata.Images, images, filteredImages)
 	if err != nil {
 		return fmt.Errorf("failed to update images: %w", err)
 	}

@@ -50,16 +50,26 @@ spec:
             httpGet:
               path: /
               port: http
+          {{- if .Values.server.env }}
+          env:
+            {{- toYaml .Values.server.env | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.server.resources | nindent 12 }}
           volumeMounts:
             - name: {{ include "nginx-app.fullname" . }}-config
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
+            {{- if .Values.server.volumeMounts }}
+            {{- toYaml .Values.server.volumeMounts | nindent 12 }}
+            {{- end }}
       volumes:
         - name: {{ include "nginx-app.fullname" . }}-config
           configMap:
             name: {{ include "nginx-app.fullname" . }}-config
+        {{- if .Values.server.volumes }}
+        {{- toYaml .Values.server.volumes | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

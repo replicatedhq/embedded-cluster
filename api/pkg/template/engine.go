@@ -28,16 +28,20 @@ type Engine struct {
 	license     *kotsv1beta1.License
 	releaseData *release.ReleaseData
 
+	// Registry settings for template functions
+	registrySettings *types.RegistrySettings
+
 	// Internal state
-	configValues     types.AppConfigValues
-	prevConfigValues types.AppConfigValues
-	tmpl             *template.Template
-	funcMap          template.FuncMap
-	cache            map[string]resolvedConfigItem
-	depsTree         map[string][]string
-	stack            []string
-	proxySpec        *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
-	mtx              sync.Mutex
+	configValues               types.AppConfigValues
+	prevConfigValues           types.AppConfigValues
+	tmpl                       *template.Template
+	funcMap                    template.FuncMap
+	cache                      map[string]resolvedConfigItem
+	depsTree                   map[string][]string
+	stack                      []string
+	proxySpec                  *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
+	privateCACertConfigMapName string               // ConfigMap name for private CA certificates, empty string if not available
+	mtx                        sync.Mutex
 }
 
 type EngineOption func(*Engine)
@@ -57,6 +61,18 @@ func WithLicense(license *kotsv1beta1.License) EngineOption {
 func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 	return func(e *Engine) {
 		e.releaseData = releaseData
+	}
+}
+
+func WithRegistrySettings(registrySettings *types.RegistrySettings) EngineOption {
+	return func(e *Engine) {
+		e.registrySettings = registrySettings
+	}
+}
+
+func WithPrivateCACertConfigMapName(configMapName string) EngineOption {
+	return func(e *Engine) {
+		e.privateCACertConfigMapName = configMapName
 	}
 }
 

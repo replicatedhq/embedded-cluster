@@ -41,22 +41,14 @@ spec:
             image:
               repository: proxy.replicated.com/anonymous/bloomberg/goldpinger
           version: 6.1.2
-        - chartname: oci://proxy.replicated.com/anonymous/bitnamicharts/memcached
-          name: memcached
-          namespace: memcached
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/ghcr.io/prometheus-community/charts/kube-state-metrics
+          name: kube-state-metrics
+          namespace: kube-state-metrics
           order: 4
           values: |
             global:
-              imageRegistry: proxy.replicated.com/anonymous
-            volumePermissions:
-              resources:
-                requests:
-                  cpu: 25m
-                  memory: 128Mi
-                limits:
-                  cpu: 25m
-                  memory: 256Mi
-          version: 6.6.4
+              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io
+          version: 6.1.4
         concurrencyLevel: 0
         repositories:
         - name: ingress-nginx

@@ -29,12 +29,13 @@ type AppConfigManager interface {
 
 // appConfigManager is an implementation of the AppConfigManager interface
 type appConfigManager struct {
-	rawConfig      kotsv1beta1.Config
-	appConfigStore configstore.Store
-	releaseData    *release.ReleaseData
-	license        *kotsv1beta1.License
-	logger         logrus.FieldLogger
-	templateEngine *apitemplate.Engine
+	rawConfig                  kotsv1beta1.Config
+	appConfigStore             configstore.Store
+	releaseData                *release.ReleaseData
+	license                    *kotsv1beta1.License
+	logger                     logrus.FieldLogger
+	templateEngine             *apitemplate.Engine
+	privateCACertConfigMapName string
 }
 
 type AppConfigManagerOption func(*appConfigManager)
@@ -63,6 +64,12 @@ func WithLicense(license *kotsv1beta1.License) AppConfigManagerOption {
 	}
 }
 
+func WithPrivateCACertConfigMapName(configMapName string) AppConfigManagerOption {
+	return func(c *appConfigManager) {
+		c.privateCACertConfigMapName = configMapName
+	}
+}
+
 // NewAppConfigManager creates a new AppConfigManager with the provided options
 func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOption) (*appConfigManager, error) {
 	manager := &appConfigManager{
@@ -87,6 +94,7 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithMode(apitemplate.ModeConfig),
 			apitemplate.WithLicense(manager.license),
 			apitemplate.WithReleaseData(manager.releaseData),
+			apitemplate.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 	}
 

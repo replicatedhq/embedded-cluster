@@ -32,7 +32,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      privateCASConfigMapName,
+				Name:      PrivateCASConfigMapName,
 				Namespace: _namespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
@@ -67,7 +67,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
 					Namespace: _namespace,
-					Name:      privateCASConfigMapName,
+					Name:      PrivateCASConfigMapName,
 				}, cm)
 				assert.True(t, k8serrors.IsNotFound(err), "ConfigMap should not exist")
 			},
@@ -90,7 +90,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
 					Namespace: _namespace,
-					Name:      privateCASConfigMapName,
+					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
 
@@ -121,7 +121,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
 					Namespace: _namespace,
-					Name:      privateCASConfigMapName,
+					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
 
@@ -153,7 +153,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
 					Namespace: _namespace,
-					Name:      privateCASConfigMapName,
+					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
 
