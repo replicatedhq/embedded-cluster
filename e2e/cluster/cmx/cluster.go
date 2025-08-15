@@ -528,7 +528,7 @@ func (c *Cluster) SetNetworkReport(enabled bool) error {
 	// Wait until the nodes are all back in running
 	for nodeNum, node := range c.Nodes {
 		if err := c.waitUntilRunning(node, nodeNum, 30*time.Second); err != nil {
-			return fmt.Errorf("wait until node %d is airgapped: %v", nodeNum, err)
+			return fmt.Errorf("wait until node %d has network reporting enabled: %v", nodeNum, err)
 		}
 	}
 
@@ -568,10 +568,10 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 	}
 }
 
-func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
+func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, []byte, error) {
 	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID), "-ojson").Output()
 	if err != nil {
-		return nil, fmt.Errorf("collect network report: %v", err)
+		return nil, nil, fmt.Errorf("collect network report: %v", err)
 	}
 
 	// TODO: investigate CLI changes to make event_data a json object instead of a string
@@ -585,18 +585,18 @@ func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
 
 	report := networkReport{}
 	if err := json.Unmarshal(output, &report); err != nil {
-		return nil, fmt.Errorf("unmarshal network events: %v", err)
+		return nil, nil, fmt.Errorf("unmarshal network events: %v", err)
 	}
 
 	networkEvents := make([]NetworkEvent, 0, len(report.Events))
 	for _, e := range report.Events {
 		ne := NetworkEvent{}
 		if err := json.Unmarshal([]byte(e.EventData), &ne); err != nil {
-			return nil, fmt.Errorf("unmarshal network event data: %v", err)
+			return nil, nil, fmt.Errorf("unmarshal network event data: %v", err)
 		}
 
 		networkEvents = append(networkEvents, ne)
 	}
 
-	return networkEvents, nil
+	return networkEvents, output, nil
 }
