@@ -6,16 +6,26 @@ OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
-ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_IMAGE_OVERRIDE =
-ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
-ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.32.7+k0s.0
-K0S_GO_VERSION = v1.32.7+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.31.11+k0s.0
-PREVIOUS_K0S_GO_VERSION ?= v1.31.11+k0s.0
+
+K0S_MINOR_VERSION ?= 32
+
+# +++ Start K0S Versions +++
+K0S_VERSION_1_32 = v1.32.7+k0s.0
+K0S_VERSION_1_31 = v1.31.11+k0s.0
+K0S_VERSION_1_30 = v1.30.14+k0s.0
+K0S_VERSION_1_29 = v1.29.15+k0s.0
+# --- End K0S Versions ---
+
+# Dynamic version selection
+K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
+
+ifdef K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION)
+K0S_GO_VERSION = $(K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION))
+else
+K0S_GO_VERSION = $(K0S_VERSION)
+endif
+
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.121.2
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -30,20 +40,19 @@ else ifdef KOTS_BINARY_FILE_OVERRIDE
 KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 
+TROUBLESHOOT_VERSION = v0.121.2
+
+ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
+
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
-
-ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.30.5%2Bk0s.0-ec.1-$(ARCH)
-else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
-else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
-endif
 
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \

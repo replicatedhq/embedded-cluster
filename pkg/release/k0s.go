@@ -22,12 +22,12 @@ type K0sMetadata struct {
 	Images map[string]AddonImage `yaml:"images"`
 }
 
-func (a *K0sMetadata) Save() error {
+func (a *K0sMetadata) Save(minorVersion string) error {
 	buf := bytes.NewBufferString(k0sMetadataPreface)
 	if err := yaml.NewEncoder(buf).Encode(a); err != nil {
 		return fmt.Errorf("failed to encode k0s metadata: %w", err)
 	}
-	fpath := filepath.Join("pkg", "config", "static", "metadata.yaml")
+	fpath := filepath.Join("pkg", "config", "static", fmt.Sprintf("metadata-1_%s.yaml", minorVersion))
 	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write k0s metadata: %w", err)
 	}
