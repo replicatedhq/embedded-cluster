@@ -17,7 +17,9 @@ function init_vars() {
 }
 
 function local_artifact_mirror() {
-    make -C local-artifact-mirror build-ttl.sh 2>&1 | prefix_output "LAM"
+    make -C local-artifact-mirror build-ttl.sh \
+        PACKAGE_VERSION="$EC_VERSION" \
+        VERSION="$EC_VERSION" 2>&1 | prefix_output "LAM"
     cp local-artifact-mirror/build/image "local-artifact-mirror/build/image-$EC_VERSION"
 }
 
@@ -31,7 +33,10 @@ function operator() {
 
 function main() {
     init_vars
-    
+
+    # update do mod dependencies and generate crds
+    make build-deps
+
     local_artifact_mirror &
     lam_pid=$!
     

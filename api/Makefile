@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 include ../common.mk
+include ../versions.mk
 
 .PHONY: swagger
 swagger: swag
