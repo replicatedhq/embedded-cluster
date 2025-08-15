@@ -31,7 +31,7 @@ function main() {
     make go.mod
 
     make buildtools
-    ./output/bin/buildtools update images --image kube-proxy --image pause k0s
+    ./output/bin/buildtools update images --image kube-proxy --image pause --image calico-node --image calico-kube-controllers --image calico-cni k0s
 
     make -C kinds generate
     make -C operator manifests
