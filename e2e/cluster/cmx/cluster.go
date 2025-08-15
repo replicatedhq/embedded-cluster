@@ -36,6 +36,7 @@ type Node struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	NetworkID string `json:"network_id"`
+	Status    string `json:"status"`
 
 	privateIP       string `json:"-"`
 	sshEndpoint     string `json:"-"`
@@ -44,6 +45,18 @@ type Node struct {
 
 type Network struct {
 	ID string `json:"id"`
+}
+
+type NetworkEvent struct {
+	Timestamp     time.Time `json:"timestamp"`
+	PID           int       `json:"pid"`
+	SrcIP         string    `json:"srcIp"`
+	SrcPort       int       `json:"srcPort"`
+	DstIP         string    `json:"dstIp"`
+	DstPort       int       `json:"dstPort"`
+	DNSQueryName  string    `json:"dnsQueryName"`
+	LikelyService string    `json:"likelyService"`
+	Command       string    `json:"comm"`
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
@@ -503,4 +516,87 @@ func sshArgs() []string {
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "BatchMode=yes",
 	}
+}
+
+func (c *Cluster) SetNetworkReport(enabled bool) error {
+	// Update network reporting
+	output, err := exec.Command("replicated", "network", "update", c.network.ID, fmt.Sprintf("--collect-report=%v", enabled)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("update network collect-report: %v: %s", err, string(output))
+	}
+
+	// Wait until the nodes are all back in running
+	for nodeNum, node := range c.Nodes {
+		if err := c.waitUntilRunning(node, nodeNum, 30*time.Second); err != nil {
+			return fmt.Errorf("wait until node %d has network reporting enabled: %v", nodeNum, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.Duration) error {
+	timeout := time.After(timeoutDuration)
+	tick := time.Tick(2 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timed out after waiting %s for node to be in running state", timeoutDuration)
+		case <-tick:
+			output, err := exec.Command("replicated", "vm", "ls", "-ojson").Output()
+			if err != nil {
+				return fmt.Errorf("check node status: %v", err)
+			}
+
+			nodes := []Node{}
+			if err := json.Unmarshal(output, &nodes); err != nil {
+				return fmt.Errorf("unmarshal node info: %v", err)
+			}
+
+			for _, checkNode := range nodes {
+				if checkNode.ID != node.ID {
+					continue
+				}
+
+				if checkNode.Status == "running" {
+					return nil
+				}
+
+				c.t.Logf("node %v is not running yet, %v", nodeNum, checkNode.Status)
+			}
+		}
+	}
+}
+
+func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, []byte, error) {
+	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID), "-ojson").Output()
+	if err != nil {
+		return nil, nil, fmt.Errorf("collect network report: %v", err)
+	}
+
+	// TODO: investigate CLI changes to make event_data a json object instead of a string
+	type eventWrapper struct {
+		EventData string `json:"event_data"`
+	}
+
+	type networkReport struct {
+		Events []eventWrapper `json:"events"`
+	}
+
+	report := networkReport{}
+	if err := json.Unmarshal(output, &report); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal network events: %v", err)
+	}
+
+	networkEvents := make([]NetworkEvent, 0, len(report.Events))
+	for _, e := range report.Events {
+		ne := NetworkEvent{}
+		if err := json.Unmarshal([]byte(e.EventData), &ne); err != nil {
+			return nil, nil, fmt.Errorf("unmarshal network event data: %v", err)
+		}
+
+		networkEvents = append(networkEvents, ne)
+	}
+
+	return networkEvents, output, nil
 }
