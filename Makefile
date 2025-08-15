@@ -233,6 +233,15 @@ go.mod: Makefile
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
+.PHONY: crds
+crds: go.mod
+	$(MAKE) -C kinds generate
+	$(MAKE) -C operator manifests
+
+.PHONY: buildtools
+buildtools: go.mod crds
+	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
+
 .PHONY: static
 static: cmd/installer/goods/bins/k0s \
 	cmd/installer/goods/bins/kubectl-preflight \
@@ -253,26 +262,26 @@ static-dryrun:
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: export OS = linux
 embedded-cluster-linux-amd64: export ARCH = amd64
-embedded-cluster-linux-amd64: static go.mod embedded-cluster
+embedded-cluster-linux-amd64: static embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
 embedded-cluster-linux-arm64: export OS = linux
 embedded-cluster-linux-arm64: export ARCH = arm64
-embedded-cluster-linux-arm64: static go.mod embedded-cluster
+embedded-cluster-linux-arm64: static embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-darwin-arm64
 embedded-cluster-darwin-arm64: export OS = darwin
 embedded-cluster-darwin-arm64: export ARCH = arm64
-embedded-cluster-darwin-arm64: go.mod embedded-cluster
+embedded-cluster-darwin-arm64: embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster
-embedded-cluster:
+embedded-cluster: go.mod crds
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
@@ -280,8 +289,8 @@ embedded-cluster:
 		./cmd/installer
 
 .PHONY: envtest
-envtest:
-	$(MAKE) -C operator manifests envtest
+envtest: crds
+	$(MAKE) -C operator envtest
 
 .PHONY: unit-tests
 unit-tests: envtest
@@ -343,10 +352,6 @@ scan:
 		--severity="HIGH,CRITICAL" \
 		--ignore-unfixed \
 		./
-
-.PHONY: buildtools
-buildtools:
-	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: list-distros
 list-distros:

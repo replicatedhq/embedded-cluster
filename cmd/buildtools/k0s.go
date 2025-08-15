@@ -118,14 +118,13 @@ var updateK0sImagesCommand = &cli.Command{
 		if err != nil {
 			return fmt.Errorf("failed to get k0s version: %w", err)
 		}
+		k0sMinor := fmt.Sprintf("%d", sv.Minor())
 
 		newmeta := release.K0sMetadata{
 			Images: make(map[string]release.AddonImage),
 		}
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
-
-		k0sMinor := fmt.Sprintf("%d", sv.Minor())
 
 		metaImages, err := UpdateImages(
 			c.Context, k0sImageComponents, config.Metadata(k0sMinor).Images, k0sImages, c.StringSlice("image"),

@@ -35,6 +35,22 @@ K0S_VERSION_1_${minor_version} = $k0s_version" Makefile
     fi
 }
 
+function update_k0s_metadata() {
+    local minor_version=$1
+
+    # if the metadata file for the minor version does not exist, copy it from the previous minor version
+    if [ ! -f "./pkg/config/static/metadata-1_${minor_version}.yaml" ]; then
+        echo "metadata-1_${minor_version}.yaml not found, copying from metadata-1_$((minor_version - 1)).yaml"
+        cp "./pkg/config/static/metadata-1_$((minor_version - 1)).yaml" "./pkg/config/static/metadata-1_${minor_version}.yaml"
+    fi
+
+    make buildtools
+    ./output/bin/buildtools update images \
+        --image kube-proxy --image pause \
+        --image calico-cni --image calico-node --image calico-kube-controllers \
+        k0s
+}
+
 function main() {
     local minor_version=$1
     local minor_version_minus_1=$((minor_version - 1))
@@ -50,19 +66,22 @@ function main() {
     sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION = .*$/K0S_MINOR_VERSION = $minor_version/" Makefile
 
     # substitute images for the major.minor version minus 2
-    ./scripts/k0s-build-minor-version.sh "$minor_version_minus_2"
+    ./scripts/k0s-prepare-minor-version.sh "$minor_version_minus_2"
+    update_k0s_metadata "$minor_version_minus_2"
 
     # reset go.mod and go.sum
     git checkout -- **/go.mod **/go.sum
 
     # substitute images for the major.minor version minus 1
-    ./scripts/k0s-build-minor-version.sh "$minor_version_minus_1"
+    ./scripts/k0s-prepare-minor-version.sh "$minor_version_minus_1"
+    update_k0s_metadata "$minor_version_minus_1"
 
     # reset go.mod and go.sum
     git checkout -- **/go.mod **/go.sum
 
     # prepare the code for the current major.minor version
-    ./scripts/k0s-build-minor-version.sh "$minor_version"
+    ./scripts/k0s-prepare-minor-version.sh "$minor_version"
+    update_k0s_metadata "$minor_version"
 
     echo "Done"
 }

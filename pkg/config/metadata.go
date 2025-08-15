@@ -23,10 +23,11 @@ var (
 	metadataMinorRegex = regexp.MustCompile(`^metadata-1_(\d+)\.yaml$`)
 )
 
-func Metadata(minor string) release.K0sMetadata {
-	metadata, ok := metadataMap[minor]
+// Metadata returns the metadata for the given k0s minor version.
+func Metadata(minorVersion string) release.K0sMetadata {
+	metadata, ok := metadataMap[minorVersion]
 	if !ok {
-		panic(fmt.Sprintf("no metadata found for k0s version: %s", minor))
+		panic(fmt.Sprintf("no metadata found for k0s version: %s", minorVersion))
 	}
 	return metadata
 }
@@ -47,8 +48,7 @@ func init() {
 		}
 	}
 
-	minor := fmt.Sprintf("%d", k8sVersion.Minor())
-	m := Metadata(minor)
+	m := Metadata(fmt.Sprintf("%d", k8sVersion.Minor()))
 	_metadata = &m
 }
 
