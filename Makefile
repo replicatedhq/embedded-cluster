@@ -234,12 +234,15 @@ go.mod: Makefile
 	go mod tidy
 
 .PHONY: crds
-crds: go.mod
+crds:
 	$(MAKE) -C kinds generate
 	$(MAKE) -C operator manifests
 
+.PHONY: build-deps
+build-deps: go.mod crds
+
 .PHONY: buildtools
-buildtools: go.mod crds
+buildtools: build-deps
 	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: static
@@ -281,7 +284,7 @@ embedded-cluster-darwin-arm64: embedded-cluster
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster
-embedded-cluster: go.mod crds
+embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
@@ -410,11 +413,6 @@ delete-node%:
 .PHONY: test-lam-e2e
 test-lam-e2e: cmd/installer/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
-
-.PHONY: bin/installer
-bin/installer:
-	@mkdir -p bin
-	go build -o bin/installer ./cmd/installer
 
 # make test-embed channel=<channelid> app=<appslug>
 .PHONY: test-embed

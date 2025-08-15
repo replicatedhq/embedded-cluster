@@ -82,10 +82,6 @@ jobs:
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - name: Prepare k0s minor version
-        run: |
-          ./scripts/k0s-prepare-minor-version.sh "$K0S_MINOR_VERSION"
-
       - name: Build and push operator image
         id: operator-image
         env:
@@ -134,10 +130,6 @@ jobs:
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
-
-      - name: Prepare k0s minor version
-        run: |
-          ./scripts/k0s-prepare-minor-version.sh "$K0S_MINOR_VERSION"
 
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror

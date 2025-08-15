@@ -13,17 +13,21 @@ export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
 
 .PHONY: build
-build:
+build: build-deps
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w -extldflags=-static" \
 		-o bin/local-artifact-mirror-$(OS)-$(ARCH) ../cmd/local-artifact-mirror
 
+.PHONY: build-deps
+build-deps:
+	$(MAKE) -C .. go.mod crds
+
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-local-artifact-mirror
-melange-build-local-artifact-mirror:
+melange-build-local-artifact-mirror: build-deps
 	dagger call build-local-artifact-mirror-package \
 		--ec-version $(PACKAGE_VERSION) \
 		--arch $(ARCH) \
@@ -38,7 +42,7 @@ build-local-artifact-mirror-image:
 	fi
 
 .PHONY: build-local-artifact-mirror-image-chainguard
-build-local-artifact-mirror-image-chainguard:
+build-local-artifact-mirror-image-chainguard: build-deps
 	dagger call build-local-artifact-mirror-image \
 		--ec-version $(PACKAGE_VERSION) \
 		--repo $(IMAGE_NAME) \
@@ -46,7 +50,7 @@ build-local-artifact-mirror-image-chainguard:
 		export --path build
 
 .PHONY: build-local-artifact-mirror-image-dockerfile
-build-local-artifact-mirror-image-dockerfile:
+build-local-artifact-mirror-image-dockerfile: build-deps
 	docker build --platform="$(OS)/$(ARCH)" -t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" -f ../dev/dockerfiles/local-artifact-mirror/Dockerfile.ttlsh ../
 	mkdir -p build
 	echo "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" > build/image
@@ -60,7 +64,7 @@ build-and-push-local-artifact-mirror-image:
 	fi
 
 .PHONY: build-and-push-local-artifact-mirror-image-chainguard
-build-and-push-local-artifact-mirror-image-chainguard:
+build-and-push-local-artifact-mirror-image-chainguard: build-deps
 	mkdir -p build
 ifdef REGISTRY_SERVER
 	dagger call \
@@ -84,7 +88,7 @@ endif
 	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-local-artifact-mirror-image-dockerfile
-build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirror-image-dockerfile
+build-and-push-local-artifact-mirror-image-dockerfile: build-deps build-local-artifact-mirror-image-dockerfile
 	docker push "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-ttl.sh

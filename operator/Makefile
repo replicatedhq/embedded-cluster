@@ -81,11 +81,15 @@ test: manifests envtest ## Run tests.
 ##@ Build
 
 .PHONY: build
-build: ## Build manager binary.
+build: build-deps ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo,$(GO_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o bin/manager main.go
+
+.PHONY: build-deps
+build-deps:
+	$(MAKE) -C .. go.mod crds
 
 .PHONY: run
 run: manifests fmt ## Run a controller from your host.
@@ -151,7 +155,7 @@ export CHART_VERSION ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/^v//')
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-operator
-melange-build-operator:
+melange-build-operator: build-deps
 	dagger call build-operator-package \
 		--ec-version $(PACKAGE_VERSION) \
 		--arch $(ARCH) \
@@ -166,7 +170,7 @@ build-operator-image:
 	fi
 
 .PHONY: build-operator-image-chainguard
-build-operator-image-chainguard:
+build-operator-image-chainguard: build-deps
 	dagger call build-operator-image \
 		--ec-version $(PACKAGE_VERSION) \
 		--repo $(IMAGE_NAME) \
@@ -174,7 +178,7 @@ build-operator-image-chainguard:
 		export --path build/operator-package
 
 .PHONY: build-operator-image-dockerfile
-build-operator-image-dockerfile:
+build-operator-image-dockerfile: build-deps
 	docker build --platform="$(OS)/$(ARCH)" \
 		-t "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))" \
 		--build-arg VERSION=$(VERSION) \
@@ -193,7 +197,7 @@ build-and-push-operator-image:
 	fi
 
 .PHONY: build-and-push-operator-image-chainguard
-build-and-push-operator-image-chainguard:
+build-and-push-operator-image-chainguard: build-deps
 	mkdir -p build
 ifdef REGISTRY_SERVER
 	dagger call \

@@ -35,6 +35,19 @@ K0S_VERSION_1_${minor_version} = $k0s_version" Makefile
     fi
 }
 
+function update_go_dependencies() {
+    local minor_version=$1
+
+    K0S_MINOR_VERSION=$minor_version make go.mod
+}
+
+function generate_crd_manifests() {
+    local minor_version=$1
+
+    K0S_MINOR_VERSION=$minor_version make -C kinds generate
+    K0S_MINOR_VERSION=$minor_version make -C operator manifests
+}
+
 function update_k0s_metadata() {
     local minor_version=$1
 
@@ -66,21 +79,24 @@ function main() {
     sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION = .*$/K0S_MINOR_VERSION = $minor_version/" Makefile
 
     # substitute images for the major.minor version minus 2
-    ./scripts/k0s-prepare-minor-version.sh "$minor_version_minus_2"
+    update_go_dependencies "$minor_version_minus_2"
+    generate_crd_manifests "$minor_version_minus_2"
     update_k0s_metadata "$minor_version_minus_2"
 
     # reset go.mod and go.sum
     git checkout -- **/go.mod **/go.sum
 
     # substitute images for the major.minor version minus 1
-    ./scripts/k0s-prepare-minor-version.sh "$minor_version_minus_1"
+    update_go_dependencies "$minor_version_minus_1"
+    generate_crd_manifests "$minor_version_minus_1"
     update_k0s_metadata "$minor_version_minus_1"
 
     # reset go.mod and go.sum
     git checkout -- **/go.mod **/go.sum
 
     # prepare the code for the current major.minor version
-    ./scripts/k0s-prepare-minor-version.sh "$minor_version"
+    update_go_dependencies "$minor_version"
+    generate_crd_manifests "$minor_version"
     update_k0s_metadata "$minor_version"
 
     echo "Done"
