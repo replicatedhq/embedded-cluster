@@ -38,6 +38,7 @@ func (m *EmbeddedCluster) WithRegistryLogin(
 func directoryWithCommonGoFiles(dir *dagger.Directory, src *dagger.Directory) *dagger.Directory {
 	return dir.
 		WithFile("common.mk", src.File("common.mk")).
+		WithFile("versions.mk", src.File("versions.mk")).
 		WithFile("go.mod", src.File("go.mod")).
 		WithFile("go.sum", src.File("go.sum")).
 		WithDirectory("pkg", src.Directory("pkg")).

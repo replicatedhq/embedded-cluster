@@ -24,18 +24,26 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cur_minor="$INPUT_K0S_MINOR_VERSION"
-        if [ -z "$cur_minor" ]; then
-          cur_minor=$(make print-K0S_VERSION | awk -F'.' '{print $2}')
+        K0S_MINOR_VERSION=$INPUT_K0S_MINOR_VERSION
+        if [ -z "$K0S_MINOR_VERSION" ]; then
+          K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
         fi
-
-        ./scripts/update-k0s-dep-version.sh "$cur_minor"
+        echo "k0s minor version: $K0S_MINOR_VERSION"
+        ./scripts/k0s-update-dependencies.sh "$K0S_MINOR_VERSION"
     - name: Troubleshoot
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        export VERSION=$(gh release list --repo replicatedhq/troubleshoot --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
-        sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $VERSION" Makefile
+        version=$(gh release list --repo replicatedhq/troubleshoot --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
+        echo "troubleshoot version: $version"
+        sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $version" versions.mk
+    - name: FIO
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        version=$(gh release list --repo axboe/fio --json name,isLatest | jq -r '.[] | select(.isLatest)|.name' | cut -d- -f2)
+        echo "fio version: $version"
+        sed -i "/^FIO_VERSION/c\FIO_VERSION = $version" versions.mk
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
       with:
@@ -49,7 +57,5 @@ jobs:
           makefile
           type::chore
         draft: false
-        base: "main"
         body: |
           Automated changes by the [cron-makefile-dependencies](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/dependencies.yaml) GitHub action
-

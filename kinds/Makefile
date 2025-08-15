@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 include ../common.mk
+include ../versions.mk
 
 ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -20,7 +21,7 @@ vet: ## Run go vet against code.
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 
 ## Tool Versions
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
+# These are now defined in ../versions.mk
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
