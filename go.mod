@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.8
-	github.com/k0sproject/k0s v1.32.8-0.20250721135808-006eb13a92bf
+	github.com/k0sproject/k0s v1.30.15-0.20250623150554-3fca8b5eb8e1
 	github.com/ohler55/ojg v1.26.8
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
