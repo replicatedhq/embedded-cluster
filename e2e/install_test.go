@@ -2027,12 +2027,40 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
 	time.Sleep(5 * time.Second)
 
-	networkEvents, err := tc.CollectNetworkReport()
+	networkEvents, _, err := tc.CollectNetworkReport()
 	if err != nil {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
+	domainsByIps := make(map[string]map[string]struct{})
 	for _, ne := range networkEvents {
-		t.Logf("network event: %+v", ne)
+		// filter out local traffic
+		if ne.DstIP == "0.0.0.0" {
+			continue
+		}
+
+		domains := domainsByIps[ne.DstIP]
+		if domains == nil {
+			domains = make(map[string]struct{})
+		}
+
+		if len(strings.TrimSpace(ne.DNSQueryName)) > 0 {
+			domains[ne.DNSQueryName] = struct{}{}
+		}
+
+		domainsByIps[ne.DstIP] = domains
+	}
+
+	t.Log("Logged outbound external network accesses:\n")
+	for ip, domains := range domainsByIps {
+		domainOutput := ""
+		for domain := range domains {
+			domainOutput += fmt.Sprintf("\t- %v\n", domain)
+		}
+
+		t.Logf("IP: %v", ip)
+		if len(domainOutput) > 0 {
+			t.Logf("\n%v", domainOutput)
+		}
 	}
 }
