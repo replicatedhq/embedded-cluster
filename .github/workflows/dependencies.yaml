@@ -24,12 +24,11 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        cur_minor="$INPUT_K0S_MINOR_VERSION"
-        if [ -z "$cur_minor" ]; then
-          cur_minor=$(make print-K0S_VERSION | awk -F'.' '{print $2}')
+        minor_version="$INPUT_K0S_MINOR_VERSION"
+        if [ -z "$minor_version" ]; then
+          minor_version=$(make print-K0S_MINOR_VERSION)
         fi
-
-        ./scripts/update-k0s-dep-version.sh "$cur_minor"
+        ./scripts/k0s-update-dependencies.sh "$minor_version"
     - name: Troubleshoot
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,4 +51,3 @@ jobs:
         base: "main"
         body: |
           Automated changes by the [cron-makefile-dependencies](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/dependencies.yaml) GitHub action
-

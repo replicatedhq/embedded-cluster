@@ -24,7 +24,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-node": {
 		name: "calico-node",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := getCalicoTag(opts)
+			tag, err := getCalicoTag(opts, "registry.replicated.com/library/calico-node")
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico release: %w", err)
 			}
@@ -34,7 +34,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-cni": {
 		name: "calico-cni",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := getCalicoTag(opts)
+			tag, err := getCalicoTag(opts, "registry.replicated.com/library/calico-cni")
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
@@ -44,7 +44,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/calico-kube-controllers": {
 		name: "calico-kube-controllers",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			tag, err := getCalicoTag(opts)
+			tag, err := getCalicoTag(opts, "registry.replicated.com/library/calico-kube-controllers")
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
@@ -114,6 +114,12 @@ var updateK0sImagesCommand = &cli.Command{
 	Action: func(c *cli.Context) error {
 		logrus.Infof("updating k0s images")
 
+		sv, err := getK0sVersion()
+		if err != nil {
+			return fmt.Errorf("failed to get k0s version: %w", err)
+		}
+		k0sMinor := fmt.Sprintf("%d", sv.Minor())
+
 		newmeta := release.K0sMetadata{
 			Images: make(map[string]release.AddonImage),
 		}
@@ -121,7 +127,7 @@ var updateK0sImagesCommand = &cli.Command{
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
 		metaImages, err := UpdateImages(
-			c.Context, k0sImageComponents, config.Metadata.Images, k0sImages, c.StringSlice("image"),
+			c.Context, k0sImageComponents, config.Metadata(k0sMinor).Images, k0sImages, c.StringSlice("image"),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
@@ -129,7 +135,7 @@ var updateK0sImagesCommand = &cli.Command{
 		newmeta.Images = metaImages
 
 		logrus.Infof("saving k0s metadata")
-		if err := newmeta.Save(); err != nil {
+		if err := newmeta.Save(k0sMinor); err != nil {
 			return fmt.Errorf("failed to save k0s metadata: %w", err)
 		}
 
@@ -149,13 +155,14 @@ func getK0sVersion() (*semver.Version, error) {
 	return semver.MustParse(strings.TrimSpace(string(v))), nil
 }
 
-func getCalicoTag(opts addonComponentOptions) (string, error) {
+func getCalicoTag(opts addonComponentOptions, ref string) (string, error) {
 	calicoVersion := getCalicoVersion(opts)
 	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+	tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
 	if err != nil {
-		return "", fmt.Errorf("failed to get calico release: %w", err)
+		return "", fmt.Errorf("failed to get latest calico image tag: %w", err)
 	}
+
 	return tag, nil
 }
 

@@ -6,16 +6,26 @@ OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
-ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
-ADMIN_CONSOLE_IMAGE_OVERRIDE =
-ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
-ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.32.7+k0s.0
-K0S_GO_VERSION = v1.32.7+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.31.11+k0s.0
-PREVIOUS_K0S_GO_VERSION ?= v1.31.11+k0s.0
+
+K0S_MINOR_VERSION ?= 32
+
+# +++ Start K0S Versions +++
+K0S_VERSION_1_32 = v1.32.7+k0s.0
+K0S_VERSION_1_31 = v1.31.11+k0s.0
+K0S_VERSION_1_30 = v1.30.14+k0s.0
+K0S_VERSION_1_29 = v1.29.15+k0s.0
+# --- End K0S Versions ---
+
+# Dynamic version selection
+K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
+
+ifdef K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION)
+K0S_GO_VERSION = $(K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION))
+else
+K0S_GO_VERSION = $(K0S_VERSION)
+endif
+
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.121.2
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
@@ -30,20 +40,19 @@ else ifdef KOTS_BINARY_FILE_OVERRIDE
 KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 
+TROUBLESHOOT_VERSION = v0.121.2
+
+ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
+ADMIN_CONSOLE_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
+ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
+
 # TODO: move this to a manifest file
 LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
 METADATA_OPERATOR_BINARY_URL_OVERRIDE =
-
-ifeq ($(K0S_VERSION),v1.30.5+k0s.0-ec.1)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.30.5%2Bk0s.0-ec.1-$(ARCH)
-else ifeq ($(K0S_VERSION),v1.29.9+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.29.9%2Bk0s.0-ec.0-$(ARCH)
-else ifeq ($(K0S_VERSION),v1.28.14+k0s.0-ec.0)
-K0S_BINARY_SOURCE_OVERRIDE = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.28.14%2Bk0s.0-ec.0-$(ARCH)
-endif
 
 LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) \
@@ -224,6 +233,18 @@ go.mod: Makefile
 	go get github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
+.PHONY: crds
+crds:
+	$(MAKE) -C kinds generate
+	$(MAKE) -C operator manifests
+
+.PHONY: build-deps
+build-deps: go.mod crds
+
+.PHONY: buildtools
+buildtools:
+	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
+
 .PHONY: static
 static: cmd/installer/goods/bins/k0s \
 	cmd/installer/goods/bins/kubectl-preflight \
@@ -244,26 +265,26 @@ static-dryrun:
 .PHONY: embedded-cluster-linux-amd64
 embedded-cluster-linux-amd64: export OS = linux
 embedded-cluster-linux-amd64: export ARCH = amd64
-embedded-cluster-linux-amd64: static go.mod embedded-cluster
+embedded-cluster-linux-amd64: static embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-linux-arm64
 embedded-cluster-linux-arm64: export OS = linux
 embedded-cluster-linux-arm64: export ARCH = arm64
-embedded-cluster-linux-arm64: static go.mod embedded-cluster
+embedded-cluster-linux-arm64: static embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster-darwin-arm64
 embedded-cluster-darwin-arm64: export OS = darwin
 embedded-cluster-darwin-arm64: export ARCH = arm64
-embedded-cluster-darwin-arm64: go.mod embedded-cluster
+embedded-cluster-darwin-arm64: embedded-cluster
 	mkdir -p ./output/bin
 	cp ./build/embedded-cluster-$(OS)-$(ARCH) ./output/bin/$(APP_NAME)
 
 .PHONY: embedded-cluster
-embedded-cluster:
+embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
@@ -271,8 +292,8 @@ embedded-cluster:
 		./cmd/installer
 
 .PHONY: envtest
-envtest:
-	$(MAKE) -C operator manifests envtest
+envtest: crds
+	$(MAKE) -C operator envtest
 
 .PHONY: unit-tests
 unit-tests: envtest
@@ -335,10 +356,6 @@ scan:
 		--ignore-unfixed \
 		./
 
-.PHONY: buildtools
-buildtools:
-	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
-
 .PHONY: list-distros
 list-distros:
 	@$(MAKE) -C dev/distros list
@@ -396,11 +413,6 @@ delete-node%:
 .PHONY: test-lam-e2e
 test-lam-e2e: cmd/installer/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
-
-.PHONY: bin/installer
-bin/installer:
-	@mkdir -p bin
-	go build -o bin/installer ./cmd/installer
 
 # make test-embed channel=<channelid> app=<appslug>
 .PHONY: test-embed
