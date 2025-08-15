@@ -168,13 +168,12 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
 
-		// Registry template functions
-		"HasLocalRegistry":       e.hasLocalRegistry,
-		"LocalRegistryHost":      e.localRegistryHost,
-		"LocalRegistryNamespace": e.localRegistryNamespace,
-		"LocalRegistryAddress":   e.localRegistryAddress,
-		"LocalImageName":         func() string { return "" }, // TODO: implement later
-		"ImagePullSecretName":    e.imagePullSecretName,
+		// TODO: implement
+		"HasLocalRegistry":       func() bool { return false },
+		"LocalRegistryHost":      func() string { return "" },
+		"LocalRegistryNamespace": func() string { return "" },
+		"LocalImageName":         func() string { return "" },
+		"ImagePullSecretName":    func() string { return "" },
 	}
 }
 
@@ -189,46 +188,4 @@ func (e *Engine) recordDependency(dependency string) {
 			e.depsTree[currentItem] = append(e.depsTree[currentItem], dependency)
 		}
 	}
-}
-
-// Registry template functions
-
-// hasLocalRegistry returns true when local registry is available
-func (e *Engine) hasLocalRegistry() bool {
-	if e.registrySettings == nil {
-		return false
-	}
-	return e.registrySettings.HasLocalRegistry
-}
-
-// localRegistryHost returns the registry host with port
-func (e *Engine) localRegistryHost() string {
-	if e.registrySettings == nil {
-		return ""
-	}
-	return e.registrySettings.Host
-}
-
-// localRegistryNamespace returns the namespace for the local registry
-func (e *Engine) localRegistryNamespace() string {
-	if e.registrySettings == nil {
-		return ""
-	}
-	return e.registrySettings.Namespace
-}
-
-// localRegistryAddress returns the full registry address with namespace prefix
-func (e *Engine) localRegistryAddress() string {
-	if e.registrySettings == nil {
-		return ""
-	}
-	return e.registrySettings.Address
-}
-
-// imagePullSecretName returns standardized secret name pattern
-func (e *Engine) imagePullSecretName() string {
-	if e.registrySettings == nil {
-		return ""
-	}
-	return e.registrySettings.ImagePullSecretName
 }

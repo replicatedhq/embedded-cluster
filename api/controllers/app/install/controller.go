@@ -47,7 +47,6 @@ type InstallController struct {
 	clusterID                  string
 	airgapBundle               string
 	privateCACertConfigMapName string
-	registrySettings           *types.RegistrySettings
 }
 
 type InstallControllerOption func(*InstallController)
@@ -124,12 +123,6 @@ func WithAirgapBundle(airgapBundle string) InstallControllerOption {
 	}
 }
 
-func WithRegistrySettings(registrySettings *types.RegistrySettings) InstallControllerOption {
-	return func(c *InstallController) {
-		c.registrySettings = registrySettings
-	}
-}
-
 func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOption {
 	return func(c *InstallController) {
 		c.privateCACertConfigMapName = configMapName
@@ -191,20 +184,12 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.appReleaseManager == nil {
-		var appReleaseManagerOpts []appreleasemanager.AppReleaseManagerOption
-		appReleaseManagerOpts = append(appReleaseManagerOpts,
+		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
+			*controller.releaseData.AppConfig,
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
-		)
-
-		// Add registry settings if available
-		appReleaseManagerOpts = append(appReleaseManagerOpts, appreleasemanager.WithRegistrySettings(controller.registrySettings))
-
-		appReleaseManager, err := appreleasemanager.NewAppReleaseManager(
-			*controller.releaseData.AppConfig,
-			appReleaseManagerOpts...,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)
