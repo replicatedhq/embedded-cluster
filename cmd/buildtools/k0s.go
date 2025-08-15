@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -73,17 +75,35 @@ var k0sImageComponents = map[string]addonComponent{
 			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
 		},
 	},
-	"registry.k8s.io/pause": {
-		name: "pause",
-		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			return fmt.Sprintf("registry.k8s.io/pause:%s", opts.upstreamVersion.Original()), nil
-		},
-	},
+	"registry.k8s.io/pause":    pauseComponent,
+	"quay.io/k0sproject/pause": pauseComponent,
 	"quay.io/k0sproject/envoy-distroless": {
 		name: "envoy-distroless",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
 			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
 		},
+	},
+}
+
+var pauseComponent = addonComponent{
+	name: "pause",
+	getCustomImageName: func(opts addonComponentOptions) (string, error) {
+		k0sConfig := k0sv1beta1.DefaultClusterConfig()
+		pauseVersion := k0sConfig.Spec.Images.Pause.Version
+		sv, err := semver.NewVersion(pauseVersion)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse pause version: %w", err)
+		}
+
+		constraints := mustParseSemverConstraints(latestPatchConstraint(sv))
+
+		// Search the registry for the latest patch version for this major.minor
+		latestTag, err := GetGreatestTagFromRegistry(opts.ctx, "registry.k8s.io/pause", constraints)
+		if err != nil {
+			return "", fmt.Errorf("failed to get latest pause image tag: %w", err)
+		}
+
+		return fmt.Sprintf("registry.k8s.io/pause:%s", latestTag), nil
 	},
 }
 
@@ -100,7 +120,9 @@ var updateK0sImagesCommand = &cli.Command{
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
-		metaImages, err := UpdateImages(c.Context, k0sImageComponents, config.Metadata.Images, k0sImages)
+		metaImages, err := UpdateImages(
+			c.Context, k0sImageComponents, config.Metadata.Images, k0sImages, c.StringSlice("image"),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
 		}
@@ -120,11 +142,11 @@ func getK0sVersion() (*semver.Version, error) {
 		logrus.Infof("using input override from INPUT_K0S_VERSION: %s", v)
 		return semver.MustParse(v), nil
 	}
-	v, err := GetMakefileVariable("K0S_VERSION")
+	v, err := exec.Command("make", "print-K0S_VERSION").Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get k0s version: %w", err)
 	}
-	return semver.MustParse(v), nil
+	return semver.MustParse(strings.TrimSpace(string(v))), nil
 }
 
 func getCalicoTag(opts addonComponentOptions) (string, error) {

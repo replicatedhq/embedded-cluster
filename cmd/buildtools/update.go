@@ -35,6 +35,12 @@ var updateAddonCommand = &cli.Command{
 var updateImagesCommand = &cli.Command{
 	Name:  "images",
 	Usage: "Update embedded cluster images",
+	Flags: []cli.Flag{
+		&cli.StringSliceFlag{
+			Name:  "image",
+			Usage: "The images to update (all images if unset)",
+		},
+	},
 	Subcommands: []*cli.Command{
 		updateK0sImagesCommand,
 		updateOpenEBSImagesCommand,

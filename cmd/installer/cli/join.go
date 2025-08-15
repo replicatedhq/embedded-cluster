@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	k0sconfig "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
@@ -553,7 +553,7 @@ func getFirstDefinedProfile() (string, error) {
 		return "", fmt.Errorf("unable to open k0s config: %w", err)
 	}
 	defer k0scfg.Close()
-	cfg, err := k0sconfig.ConfigFromReader(k0scfg)
+	cfg, err := k0sv1beta1.ConfigFromReader(k0scfg)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}

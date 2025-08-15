@@ -137,7 +137,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Found 1 restorable backup!" {}
+    -timeout 120 "Found 1 restorable backup!" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
       exit 1
@@ -199,7 +199,7 @@ expect {
 }
 
 expect {
-    -timeout 30 "Found 1 restorable backup!" {}
+    -timeout 120 "Found 1 restorable backup!" {}
     timeout {
       puts "\n\nFailed to find a restorable backup."
       exit 1

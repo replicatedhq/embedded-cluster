@@ -87,19 +87,11 @@ spec:
           values: |
             image:
               repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
-        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/bitnamicharts/memcached
-          name: memcached
-          namespace: memcached
+        - chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/ghcr.io/prometheus-community/charts/kube-state-metrics
+          name: kube-state-metrics
+          namespace: kube-state-metrics
+          version: 6.1.4
+          order: 4
           values: |
             global:
-              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous
-            volumePermissions:
-             resources:
-               requests:
-                 cpu: 25m
-                 memory: 128Mi
-               limits:
-                 cpu: 25m
-                 memory: 256Mi
-          order: 4
-          version: 6.6.4
+              imageRegistry: ec-e2e-proxy.testcluster.net/anonymous/registry.k8s.io

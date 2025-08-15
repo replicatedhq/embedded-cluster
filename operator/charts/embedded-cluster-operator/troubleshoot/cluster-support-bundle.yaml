@@ -114,6 +114,13 @@ spec:
       - app.kubernetes.io/instance=seaweedfs
       limits:
         maxAge: 720h
+  - logs:
+      name: podlogs/velero
+      namespace: velero
+      selector:
+      - app.kubernetes.io/instance=velero
+      limits:
+        maxAge: 720h
   analyzers:
   - textAnalyze:
       checkName: Cluster installation status

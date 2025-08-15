@@ -16,11 +16,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 )
 
 type Controller interface {
@@ -253,7 +256,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 
 	// Initialize the app controller with the state machine first
 	if controller.InstallController == nil {
-		appInstallController, err := appcontroller.NewInstallController(
+		var appControllerOpts []appcontroller.InstallControllerOption
+		appControllerOpts = append(appControllerOpts,
 			appcontroller.WithStateMachine(controller.stateMachine),
 			appcontroller.WithLogger(controller.logger),
 			appcontroller.WithStore(controller.store),
@@ -262,7 +266,26 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithClusterID(controller.clusterID),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
+			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 		)
+
+		// Detect registry settings and pass to app controller
+		var license *kotsv1beta1.License
+		if controller.license != nil {
+			// Parse license from bytes
+			var parsedLicense kotsv1beta1.License
+			if err := yaml.Unmarshal(controller.license, &parsedLicense); err != nil {
+				return nil, fmt.Errorf("failed to parse license data: %w", err)
+			}
+			license = &parsedLicense
+		}
+		registrySettings, err := controller.detectRegistrySettings(license)
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect registry settings: %w", err)
+		}
+		appControllerOpts = append(appControllerOpts, appcontroller.WithRegistrySettings(registrySettings))
+
+		appInstallController, err := appcontroller.NewInstallController(appControllerOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
 		}

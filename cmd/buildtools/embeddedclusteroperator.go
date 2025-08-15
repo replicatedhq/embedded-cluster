@@ -79,7 +79,7 @@ var updateOperatorAddonCommand = &cli.Command{
 			}
 		}
 
-		err = updateOperatorAddonImages(c.Context, hcli, chartURL, nextChartVersion)
+		err = updateOperatorAddonImages(c.Context, hcli, chartURL, nextChartVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -105,7 +105,7 @@ var updateOperatorImagesCommand = &cli.Command{
 
 		current := embeddedclusteroperator.Metadata
 
-		err = updateOperatorAddonImages(c.Context, hcli, current.Location, current.Version)
+		err = updateOperatorAddonImages(c.Context, hcli, current.Location, current.Version, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update embedded cluster operator images: %w", err)
 		}
@@ -116,7 +116,7 @@ var updateOperatorImagesCommand = &cli.Command{
 	},
 }
 
-func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) error {
+func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, filteredImages []string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -138,7 +138,7 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 	images = append(images, "docker.io/library/busybox:latest")
 	images = append(images, "registry.replicated.com/library/goldpinger:latest")
 
-	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images)
+	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images, filteredImages)
 	if err != nil {
 		return fmt.Errorf("failed to update images: %w", err)
 	}
