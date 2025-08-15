@@ -285,8 +285,8 @@ jobs:
     permissions:
       pull-requests: write
     needs:
-      - release
       - get-tag
+      - release
       - find-previous-stable
     env:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}

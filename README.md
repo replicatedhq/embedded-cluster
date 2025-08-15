@@ -1,8 +1,8 @@
 # Embedded Cluster platform
 
 Replicated Embedded Cluster allows you to distribute a Kubernetes cluster and your application together as a single appliance, making it easy for enterprise users to install, update, and manage the application and the cluster in tandem.
-Embedded Cluster is based on the open source Kubernetes distribution k0s.
-For more information, see the [k0s documentation](https://docs.k0sproject.io/stable/).
+Embedded Cluster is based on the open source Kubernetes distribution K0s.
+For more information, see the [K0s documentation](https://docs.k0sproject.io/stable/).
 
 In Embedded Cluster, all components and functionalities are consolidated into a single binary, this binary facilitates a streamlined cluster installation process, removing the need for external dependencies (rpms, debs, etc).
 
@@ -190,6 +190,15 @@ For example:
 make ssh-node0
 ```
 
+### Building for Previous K0s Versions
+
+To build for a previous K0s version, set the K0S_MINOR_VERSION environment variable and run the build command.
+
+```bash
+export K0S_MINOR_VERSION=31
+make initial-release
+```
+
 ### Developing Embedded Cluster Operator
 
 1. To apply your current changes, run the following commands:
@@ -293,7 +302,7 @@ make ssh-node0
 
 ## Upgrading K0s Minor Version
 
-To upgrade the K0s minor version in Embedded Cluster, you can use the provided update script ./scripts/update-k0s-dep-version.sh.
+To upgrade the K0s minor version in Embedded Cluster, you can use the provided update script ./scripts/k0s-update-dependencies.sh.
 This script will update the K0s dependency version across the project and regenerate necessary files.
 
 ### Using the Update Script
@@ -301,7 +310,7 @@ This script will update the K0s dependency version across the project and regene
 The update script automates the process of upgrading K0s to a new minor version:
 
 ```bash
-./scripts/update-k0s-dep-version.sh [TARGET_MINOR]
+./scripts/k0s-update-dependencies.sh [TARGET_MINOR]
 ```
 
 **Parameters:**
@@ -310,10 +319,10 @@ The update script automates the process of upgrading K0s to a new minor version:
 **Examples:**
 ```bash
 # Upgrade to K0s 1.29.x
-./scripts/update-k0s-dep-version.sh 1.29
+./scripts/k0s-update-dependencies.sh 1.29
 
 # Upgrade to K0s 1.30.x
-./scripts/update-k0s-dep-version.sh 1.30
+./scripts/k0s-update-dependencies.sh 1.30
 ```
 
 ### What the Script Does

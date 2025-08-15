@@ -81,7 +81,7 @@ test: manifests envtest ## Run tests.
 ##@ Build
 
 .PHONY: build
-build: build-deps ## Build manager binary.
+build: ## Build manager binary.
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo,$(GO_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \

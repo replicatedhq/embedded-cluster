@@ -13,7 +13,7 @@ export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-local-artifact-mirror
 
 .PHONY: build
-build: build-deps
+build:
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
