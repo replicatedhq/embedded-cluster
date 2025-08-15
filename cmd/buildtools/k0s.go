@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -126,8 +125,10 @@ var updateK0sImagesCommand = &cli.Command{
 
 		k0sImages := config.ListK0sImages(k0sv1beta1.DefaultClusterConfig())
 
+		k0sMinor := fmt.Sprintf("%d", sv.Minor())
+
 		metaImages, err := UpdateImages(
-			c.Context, k0sImageComponents, config.Metadata(sv.Original()).Images, k0sImages, c.StringSlice("image"),
+			c.Context, k0sImageComponents, config.Metadata(k0sMinor).Images, k0sImages, c.StringSlice("image"),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to update images: %w", err)
@@ -135,7 +136,7 @@ var updateK0sImagesCommand = &cli.Command{
 		newmeta.Images = metaImages
 
 		logrus.Infof("saving k0s metadata")
-		if err := newmeta.Save(strconv.Itoa(int(sv.Minor()))); err != nil {
+		if err := newmeta.Save(k0sMinor); err != nil {
 			return fmt.Errorf("failed to save k0s metadata: %w", err)
 		}
 

@@ -22,9 +22,17 @@ function update_k0s_minor_version() {
     fi
 
     sed "${SED_ARGS[@]}" "/^K0S_VERSION_1_${minor_version} = .*/d" Makefile
-    sed "${SED_ARGS[@]}" "/# +++ Start K0S Versions +++/a\\
+    # Use a more portable approach that works on both Linux and macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed needs explicit newline
+        sed "${SED_ARGS[@]}" "/# +++ Start K0S Versions +++/a\\
 K0S_VERSION_1_${minor_version} = $k0s_version\\
 " Makefile
+    else
+        # Linux sed automatically adds newline, so we don't need the trailing backslash
+        sed "${SED_ARGS[@]}" "/# +++ Start K0S Versions +++/a\\
+K0S_VERSION_1_${minor_version} = $k0s_version" Makefile
+    fi
 }
 
 function main() {

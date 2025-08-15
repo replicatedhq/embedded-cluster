@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"gopkg.in/yaml.v3"
@@ -22,15 +23,10 @@ var (
 	metadataMinorRegex = regexp.MustCompile(`^metadata-1_(\d+)\.yaml$`)
 )
 
-func Metadata(ver string) release.K0sMetadata {
-	sv, err := semver.NewVersion(ver)
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse k0s version %s: %v", ver, err))
-	}
-
-	metadata, ok := metadataMap[fmt.Sprintf("%d", sv.Minor())]
+func Metadata(minor string) release.K0sMetadata {
+	metadata, ok := metadataMap[minor]
 	if !ok {
-		panic(fmt.Sprintf("no metadata found for k0s version: %s", ver))
+		panic(fmt.Sprintf("no metadata found for k0s version: %s", minor))
 	}
 	return metadata
 }
@@ -40,10 +36,32 @@ func init() {
 		panic(fmt.Errorf("failed to populate metadata map: %v", err))
 	}
 
-	if versions.K0sVersion != "0.0.0" {
-		m := Metadata(versions.K0sVersion)
-		_metadata = &m
+	k8sVersion, err := semver.NewVersion(constant.KubernetesMajorMinorVersion)
+	if err != nil {
+		panic(fmt.Errorf("failed to parse kubernetes version %s: %v", constant.KubernetesMajorMinorVersion, err))
 	}
+
+	if versions.K0sVersion != "0.0.0" {
+		if err := validateK0sVersion(k8sVersion); err != nil {
+			panic(err)
+		}
+	}
+
+	minor := fmt.Sprintf("%d", k8sVersion.Minor())
+	m := Metadata(minor)
+	_metadata = &m
+}
+
+func validateK0sVersion(k8sVersion *semver.Version) error {
+	sv, err := semver.NewVersion(versions.K0sVersion)
+	if err != nil {
+		return fmt.Errorf("failed to parse k0s version %s: %v", versions.K0sVersion, err)
+	}
+
+	if sv.Major() != k8sVersion.Major() || sv.Minor() != k8sVersion.Minor() {
+		return fmt.Errorf("k0s version %s does not match k8s dependency version %s", sv.Original(), k8sVersion.Original())
+	}
+	return nil
 }
 
 func populateMetadataMap() error {

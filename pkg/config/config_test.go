@@ -102,17 +102,6 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 }
 
 func TestRenderK0sConfig(t *testing.T) {
-	firstVersion := ""
-	for ver := range metadataMap {
-		firstVersion = ver
-		break
-	}
-	metadata := metadataMap[firstVersion]
-	_metadata = &metadata
-	defer func() {
-		_metadata = nil
-	}()
-
 	cfg := RenderK0sConfig(domains.DefaultProxyRegistryDomain)
 
 	assert.Equal(t, "calico", cfg.Spec.Network.Provider)

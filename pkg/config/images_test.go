@@ -10,17 +10,6 @@ import (
 )
 
 func TestListK0sImages(t *testing.T) {
-	firstVersion := ""
-	for ver := range metadataMap {
-		firstVersion = ver
-		break
-	}
-	metadata := metadataMap[firstVersion]
-	_metadata = &metadata
-	defer func() {
-		_metadata = nil
-	}()
-
 	original := airgap.GetImageURIs(RenderK0sConfig(domains.DefaultProxyRegistryDomain).Spec, true)
 	if len(original) == 0 {
 		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
@@ -53,7 +42,7 @@ func TestListK0sImages(t *testing.T) {
 	}
 
 	// make sure the list includes all images from the metadata
-	for _, i := range metadata.Images {
+	for _, i := range _metadata.Images {
 		if !slices.Contains(filtered, i.String()) {
 			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.String())
 		}
