@@ -15,7 +15,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -65,7 +65,7 @@ jobs:
       image: ${{ steps.operator-image.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dagger
         run: |
@@ -90,7 +90,7 @@ jobs:
       chart: ${{ steps.operator-chart.outputs.chart }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Build and push operator chart
         id: operator-chart
@@ -110,7 +110,7 @@ jobs:
       local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install dagger
         run: |
@@ -133,7 +133,7 @@ jobs:
     needs: [get-tag, buildtools, publish-images, publish-operator-image, publish-operator-chart]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -237,7 +237,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Export k0s version
         id: export
         env:
@@ -272,7 +272,7 @@ jobs:
       - find-previous-stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -409,7 +409,7 @@ jobs:
       - get-tag
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -508,7 +508,7 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Download binary
         uses: actions/download-artifact@v5
         with:
@@ -593,7 +593,7 @@ jobs:
             is-lxd: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Download current binary
         uses: actions/download-artifact@v5
         with:
@@ -640,7 +640,7 @@ jobs:
     needs: [release, release-app, get-tag]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           
