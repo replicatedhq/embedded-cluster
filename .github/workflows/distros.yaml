@@ -19,7 +19,7 @@ jobs:
       distros: ${{ steps.list-distros.outputs.distros }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: List distros
         id: list-distros
@@ -37,7 +37,7 @@ jobs:
         distro: ${{ fromJson(needs.list-distros.outputs.distros) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
