@@ -3,7 +3,7 @@ SHELL := /bin/bash
 DEBUG ?=
 RUN ?=
 
-K0S_VERSION ?= v1.30.9+k0s.0
+K0S_VERSION ?= v1.30.14+k0s.0
 
 GO_BUILD_TAGS ?= containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
