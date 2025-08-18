@@ -874,6 +874,8 @@ github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 h1:UhxFibDNY/bfvqU
 github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7/go.mod h1:cyGadeNEkKy96OOhEzfZl+yxihPEzKnqJwvfuSUqbZE=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
+github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
+github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.8.4 h1:CF7LEKg5FFOsASUj0+QwaXf8Ht6TlFxg09+S9wz0omw=
 github.com/ebitengine/purego v0.8.4/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
@@ -2457,8 +2459,8 @@ k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff h1:/usPimJzUKKu+m+TE36gUy
 k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff/go.mod h1:5jIi+8yX4RIb8wk3XwBo5Pq2ccx4FP10ohkbSKCZoK8=
 k8s.io/kubectl v0.33.3 h1:r/phHvH1iU7gO/l7tTjQk2K01ER7/OAJi8uFHHyWSac=
 k8s.io/kubectl v0.33.3/go.mod h1:euj2bG56L6kUGOE/ckZbCoudPwuj4Kud7BR0GzyNiT0=
-k8s.io/kubelet v0.33.2 h1:wxEau5/563oJb3j3KfrCKlNWWx35YlSgDLOYUBCQ0pg=
-k8s.io/kubelet v0.33.2/go.mod h1:way8VCDTUMiX1HTOvJv7M3xS/xNysJI6qh7TOqMe5KM=
+k8s.io/kubelet v0.33.3 h1:Cvy8+7Lq9saZds2ib7YBXbKvkMMJu3f5mzucmhSIJno=
+k8s.io/kubelet v0.33.3/go.mod h1:Q1Cfr6VQq1m9v9XsE/mDmhTxPdN6NPU6Ug0e6mAqi58=
 k8s.io/metrics v0.33.3 h1:9CcqBz15JZfISqwca33gdHS8I6XfsK1vA8WUdEnG70g=
 k8s.io/metrics v0.33.3/go.mod h1:Aw+cdg4AYHw0HvUY+lCyq40FOO84awrqvJRTw0cmXDs=
 k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738 h1:M3sRQVHv7vB20Xc2ybTt7ODCeFj6JSWYFzOFnYeS6Ro=
