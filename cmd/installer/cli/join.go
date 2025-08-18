@@ -9,7 +9,6 @@ import (
 	"syscall"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
@@ -548,12 +547,11 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 }
 
 func getFirstDefinedProfile() (string, error) {
-	k0scfg, err := os.Open(runtimeconfig.K0sConfigPath)
+	k0scfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
 	if err != nil {
-		return "", fmt.Errorf("unable to open k0s config: %w", err)
+		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}
-	defer k0scfg.Close()
-	cfg, err := k0sv1beta1.ConfigFromReader(k0scfg)
+	cfg, err := helpers.K0sConfigFromBytes(k0scfgBytes)
 	if err != nil {
 		return "", fmt.Errorf("unable to parse k0s config: %w", err)
 	}
