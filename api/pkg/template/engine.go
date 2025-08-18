@@ -28,9 +28,6 @@ type Engine struct {
 	license     *kotsv1beta1.License
 	releaseData *release.ReleaseData
 
-	// Registry settings for template functions
-	registrySettings *types.RegistrySettings
-
 	// Internal state
 	configValues               types.AppConfigValues
 	prevConfigValues           types.AppConfigValues
@@ -61,12 +58,6 @@ func WithLicense(license *kotsv1beta1.License) EngineOption {
 func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 	return func(e *Engine) {
 		e.releaseData = releaseData
-	}
-}
-
-func WithRegistrySettings(registrySettings *types.RegistrySettings) EngineOption {
-	return func(e *Engine) {
-		e.registrySettings = registrySettings
 	}
 }
 

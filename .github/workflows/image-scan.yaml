@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0 # fetch all history so that we can get the previous tag
 
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -75,7 +75,7 @@ jobs:
       matrix: ${{ steps.build-matrix.outputs.matrix }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup go
         uses: actions/setup-go@v5
@@ -130,7 +130,7 @@ jobs:
       matrix: ${{fromJson(needs.output-matrix.outputs.matrix)}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - uses: ./.github/actions/scan-image
         with:
           image-ref: '${{ matrix.image }}'
