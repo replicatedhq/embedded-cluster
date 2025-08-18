@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.8
-	github.com/k0sproject/k0s v1.33.4-0.20250721121212-4615902bc8c4
+	github.com/k0sproject/k0s v1.32.8-0.20250721135808-006eb13a92bf
 	github.com/ohler55/ojg v1.26.8
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
@@ -141,7 +141,6 @@ require (
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
