@@ -1998,6 +1998,7 @@ spec:
 
 func TestSingleNodeNetworkReport(t *testing.T) {
 	t.Parallel()
+	RequireEnvVars(t, []string{"SHORT_SHA"})
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
