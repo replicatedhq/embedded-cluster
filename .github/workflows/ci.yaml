@@ -47,6 +47,9 @@ jobs:
   web-tests:
     name: Web unit tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -56,16 +59,16 @@ jobs:
           node-version-file: ./web/.nvmrc
       - name: Install dependencies
         run: |
-          cd web
           npm install
       - name: Run web lint
         run: |
-          cd web
           npm run lint
       - name: Run web unit tests
         run: |
-          cd web
           npm run test:unit
+      - name: Build web
+        run: |
+          npm run build
 
   unit-tests:
     name: Unit tests
