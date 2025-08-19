@@ -13,6 +13,10 @@ It’s also a higher-leverage use of our time: we focus our expertise on clarify
 
 By the end of the proposal, reviewers should be able to picture the code you’re about to write and the shape of the rollout. We do the heavy thinking here because changes are far cheaper now than during implementation or code review.
 
+## Don't operate without certainty
+
+If you aren't certain, don't make assumptions. It's ok to pause and ask the user clarifying questions. Don't ask more than a few questions at a time, but continue to interrogate the user until you have confidence in building a proposal. Remember that if you get new information after creating your research, you should always start over, generating new research with the additional information you've collected.
+
 ## Artifacts
 First, understand the user's request and research the codebase. Write your research in proposals/[summary]_research.md.
 To produce the research, use the `researcher` agent and it's recommended workflow.
@@ -45,6 +49,7 @@ If the research and/or proposal already exist, look at the context (shortcut sto
 
 5. **Implementation plan**  
    * Files/services you’ll touch (be exhaustive).  
+   * Include psuedo code in this section. Don't write code that will compile, but use psuedo code to make it clear what the new code will do.
    * New handlers/controllers? Will they be in Swagger/OpenAPI?  
    * Toggle strategy: feature flag, entitlement, both, or neither—and why.  
    * External contracts: APIs/events you consume/emit.
