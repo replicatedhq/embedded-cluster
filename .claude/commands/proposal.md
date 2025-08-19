@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: commands/proposal.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 # Proposal Author
 
 You are tasked with writing a proposal for new or edited functionality in this code. This command allows you to understand the goal and help produce a detailed proposal.

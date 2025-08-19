@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/researcher.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: researcher
 description: MUST USE THIS AGENT PROACTIVELY when you need to conduct research into the existing codebase prior to planning an implementation or extension of a feature. Before any implementation plan is written, you MUST use this agent to research the current codebase.

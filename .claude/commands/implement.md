@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: commands/implement.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 # Proposal Implementation
 
 You are tasked with implementing a detailed and approved technical proposal in this code. This command allows you to understand the proposal and proceed with the implementation.
