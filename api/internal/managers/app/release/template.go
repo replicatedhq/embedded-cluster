@@ -71,18 +71,12 @@ func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigVal
 	templatedCRs := make([]*kotsv1beta2.HelmChart, 0, len(helmChartCRs))
 
 	for _, helmChartCR := range helmChartCRs {
-		if helmChartCR == nil {
+		if len(helmChartCR) == 0 {
 			continue
 		}
 
-		// Marshal the HelmChart CR to YAML for templating
-		helmChartYAML, err := kyaml.Marshal(helmChartCR)
-		if err != nil {
-			return nil, fmt.Errorf("marshal helm chart CR: %w", err)
-		}
-
 		// Parse the YAML as a template
-		if err := m.templateEngine.Parse(string(helmChartYAML)); err != nil {
+		if err := m.templateEngine.Parse(string(helmChartCR)); err != nil {
 			return nil, fmt.Errorf("parse helm chart template: %w", err)
 		}
 
