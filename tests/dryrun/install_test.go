@@ -626,7 +626,7 @@ func TestTLSConfigurationInstallation(t *testing.T) {
 	tmpdir := t.TempDir()
 	certPath := filepath.Join(tmpdir, "test-cert.pem")
 	keyPath := filepath.Join(tmpdir, "test-key.pem")
-	
+
 	// Valid test certificate and key data (same as unit tests)
 	certData := `-----BEGIN CERTIFICATE-----
 MIIDizCCAnOgAwIBAgIUJaAILNY7l9MR4mfMP4WiUObo6TIwDQYJKoZIhvcNAQEL
@@ -704,27 +704,27 @@ oxhVqyhpk86rf0rT5DcD/sBw
 
 	// --- validate that TLS secret exists --- //
 	assertSecretExists(t, kcli, "kotsadm-tls", "kotsadm")
-	
+
 	// --- validate TLS secret contents --- //
 	var tlsSecret corev1.Secret
 	err = kcli.Get(context.TODO(), types.NamespacedName{Name: "kotsadm-tls", Namespace: "kotsadm"}, &tlsSecret)
 	require.NoError(t, err)
-	
+
 	// Check secret type
 	assert.Equal(t, corev1.SecretTypeTLS, tlsSecret.Type)
-	
+
 	// Check certificate data
 	assert.Equal(t, []byte(certData), tlsSecret.Data["tls.crt"])
 	assert.Equal(t, []byte(keyData), tlsSecret.Data["tls.key"])
-	
+
 	// Check hostname in StringData
 	assert.Equal(t, "test.example.com", tlsSecret.StringData["hostname"])
-	
+
 	// Check labels
 	assert.Equal(t, "true", tlsSecret.Labels["kots.io/kotsadm"])
 	assert.Equal(t, "infra", tlsSecret.Labels["replicated.com/disaster-recovery"])
 	assert.Equal(t, "admin-console", tlsSecret.Labels["replicated.com/disaster-recovery-chart"])
-	
+
 	// Check annotations
 	assert.Equal(t, "0", tlsSecret.Annotations["acceptAnonymousUploads"])
 
@@ -737,7 +737,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			title: "InstallationStarted",
 			validate: func(payload string) {
 				assert.Contains(t, payload, "--tls-cert")
-				assert.Contains(t, payload, "--tls-key") 
+				assert.Contains(t, payload, "--tls-key")
 				assert.Contains(t, payload, "--hostname test.example.com")
 			},
 		},
