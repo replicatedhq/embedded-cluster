@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/proposals-analyzer.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: proposals-analyzer
 description: The research equivalent of codebase-analyzer. Use this subagent_type when wanting to deep dive on a research topic. Not commonly needed otherwise.

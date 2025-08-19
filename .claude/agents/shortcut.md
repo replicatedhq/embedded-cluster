@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/shortcut.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: shortcut-story-manager
 description: MUST USE THIS AGENT PROACTIVELY when you need to query, create, or edit Shortcut "stories" (or tickets, issues, etc). Shortcut is where we track work for this project. Any issue that this project works on will be on the "Installers" team and project in Shortcut.

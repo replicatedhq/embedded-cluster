@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/proposal-writer.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: proposal-writer
 description: MUST USE THIS AGENT PROACTIVELY when you need to produce a new proposal

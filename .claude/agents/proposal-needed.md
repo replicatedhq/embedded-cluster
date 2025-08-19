@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/proposal-needed.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: proposal-needed
 description: MUST USE THIS AGENT PROACTIVELY when you need to decide if a proposal should be written for a change.

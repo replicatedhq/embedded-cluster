@@ -1,6 +1,3 @@
-<!-- DO NOT EDIT: This file is auto-generated from github.com/replicatedhq/.claude -->
-<!-- Source: agents/codebase-analyzer.md -->
-<!-- Any local changes will be overwritten on next distribution -->
 ---
 name: codebase-analyzer
 description: Analyzes codebase implementation details. Call the codebase-analyzer agent when you need to find detailed information about specific components. As always, the more detailed your request prompt, the better! :)
