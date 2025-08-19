@@ -706,14 +706,12 @@ func boolPtr(b bool) *bool {
 
 func Test_processTLSConfig(t *testing.T) {
 	// Create a temporary directory for test certificates
-	tmpdir, err := os.MkdirTemp("", "tls-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Create valid test certificate and key files
 	certPath := filepath.Join(tmpdir, "test-cert.pem")
 	keyPath := filepath.Join(tmpdir, "test-key.pem")
-	
+
 	// Valid test certificate and key data
 	certData := `-----BEGIN CERTIFICATE-----
 MIIDizCCAnOgAwIBAgIUJaAILNY7l9MR4mfMP4WiUObo6TIwDQYJKoZIhvcNAQEL
@@ -766,7 +764,7 @@ r3glM4yhSJwf/cAWmt1A7DGOYnV7FF2wkDJJPX/Vag1uEsqrzwnAdFBymK5dwDsu
 oxhVqyhpk86rf0rT5DcD/sBw
 -----END PRIVATE KEY-----`
 
-	err = os.WriteFile(certPath, []byte(certData), 0644)
+	err := os.WriteFile(certPath, []byte(certData), 0644)
 	require.NoError(t, err)
 	err = os.WriteFile(keyPath, []byte(keyData), 0644)
 	require.NoError(t, err)
@@ -814,7 +812,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			expectTLS:   false,
 		},
 		{
-			name:        "invalid cert file",
+			name: "invalid cert file",
 			tlsCertFile: func() string {
 				invalidCertPath := filepath.Join(tmpdir, "invalid-cert.pem")
 				os.WriteFile(invalidCertPath, []byte("invalid cert data"), 0644)
