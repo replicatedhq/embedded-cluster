@@ -27,6 +27,9 @@ var (
 )
 
 // ReleaseData holds the parsed data from a Kots Release.
+//
+// Note / TODO: Custom resources (like HelmChart CRs) must be templated before they are parsed
+// to avoid unmarshaling errors due to invalid schema that only becomes valid after templating.
 type ReleaseData struct {
 	data                  []byte
 	Application           *kotsv1beta1.Application
@@ -36,7 +39,7 @@ type ReleaseData struct {
 	ChannelRelease        *ChannelRelease
 	VeleroBackup          *velerov1.Backup
 	VeleroRestore         *velerov1.Restore
-	HelmChartCRs          []*kotsv1beta2.HelmChart
+	HelmChartCRs          [][]byte
 	HelmChartArchives     [][]byte
 }
 
@@ -100,9 +103,9 @@ func GetChannelRelease() *ChannelRelease {
 
 // GetHelmChartCRs reads and returns the HelmChart custom resources embedded as part of the release.
 // If no HelmChart CRs are found, returns an empty slice.
-func GetHelmChartCRs() []*kotsv1beta2.HelmChart {
+func GetHelmChartCRs() [][]byte {
 	if _releaseData.HelmChartCRs == nil {
-		return []*kotsv1beta2.HelmChart{}
+		return [][]byte{}
 	}
 	return _releaseData.HelmChartCRs
 }
@@ -360,16 +363,10 @@ func (r *ReleaseData) parse() error {
 
 		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta2")):
 			if bytes.Contains(content.Bytes(), []byte("kind: HelmChart")) {
-				helmChart, err := parseHelmChartCR(content.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to parse helm chart CR: %w", err)
+				if r.HelmChartCRs == nil {
+					r.HelmChartCRs = [][]byte{}
 				}
-				if helmChart != nil {
-					if r.HelmChartCRs == nil {
-						r.HelmChartCRs = []*kotsv1beta2.HelmChart{}
-					}
-					r.HelmChartCRs = append(r.HelmChartCRs, helmChart)
-				}
+				r.HelmChartCRs = append(r.HelmChartCRs, content.Bytes())
 			}
 
 		case bytes.Contains(content.Bytes(), []byte("# channel release object")):

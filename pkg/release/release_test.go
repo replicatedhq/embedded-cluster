@@ -141,7 +141,11 @@ metadata:
 spec:
   chart:
     chartVersion: "1.0.0"
-    name: test-chart`
+    name: test-chart
+  optionalValues:
+    - when: '{{repl not (empty (ConfigOption "test-option")) }}'
+      recursiveMerge: true
+      values: repl{{ ConfigOption "test-option" | nindent 8 }}`
 
 	chartArchive := []byte("fake-chart-archive-content")
 
@@ -178,6 +182,7 @@ spec:
 	// Verify HelmChart CRs
 	assert.Len(t, release.HelmChartCRs, 1)
 	assert.NotNil(t, release.HelmChartCRs[0])
+	assert.Greater(t, len(release.HelmChartCRs[0]), 0)
 
 	// Verify chart archives
 	assert.Len(t, release.HelmChartArchives, 1)

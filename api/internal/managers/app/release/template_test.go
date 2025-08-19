@@ -22,7 +22,7 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		helmChartCRs  []*kotsv1beta2.HelmChart
+		helmChartCRs  [][]byte
 		chartArchives [][]byte
 		configValues  types.AppConfigValues
 		proxySpec     *ecv1beta1.ProxySpec
@@ -32,7 +32,7 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 	}{
 		{
 			name:         "no helm charts returns nil",
-			helmChartCRs: []*kotsv1beta2.HelmChart{},
+			helmChartCRs: [][]byte{},
 			configValues: types.AppConfigValues{},
 			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
@@ -40,9 +40,8 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 		},
 		{
 			name: "single chart with preflight spec and templating",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
-apiVersion: kots.io/v1beta2
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
   name: myapp-chart
@@ -114,9 +113,8 @@ spec:
 		},
 		{
 			name: "multiple charts with merged preflight specs and templating",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
-apiVersion: kots.io/v1beta2
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
   name: frontend-chart
@@ -126,8 +124,7 @@ spec:
     chartVersion: "1.0.0"
   values:
     versionCheckName: '{{repl ConfigOption "version_check_name"}}'`),
-				createHelmChartCRFromYAML(`
-apiVersion: kots.io/v1beta2
+				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
   name: backend-chart
@@ -224,9 +221,8 @@ spec:
 		},
 		{
 			name: "chart with no preflights returns empty spec",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
-apiVersion: kots.io/v1beta2
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
   name: simple-chart
@@ -245,9 +241,8 @@ spec:
 		},
 		{
 			name: "chart with proxy template functions",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
-apiVersion: kots.io/v1beta2
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
   name: proxy-chart
@@ -369,7 +364,7 @@ spec:
 func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 	tests := []struct {
 		name         string
-		helmChartCRs []*kotsv1beta2.HelmChart
+		helmChartCRs [][]byte
 		configValues types.AppConfigValues
 		proxySpec    *ecv1beta1.ProxySpec
 		expected     []*kotsv1beta2.HelmChart
@@ -377,7 +372,7 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 	}{
 		{
 			name:         "empty helm chart CRs",
-			helmChartCRs: []*kotsv1beta2.HelmChart{},
+			helmChartCRs: [][]byte{},
 			configValues: types.AppConfigValues{},
 			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected:     []*kotsv1beta2.HelmChart{},
@@ -385,8 +380,8 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 		},
 		{
 			name: "single helm chart with repl templating",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
+			helmChartCRs: [][]byte{
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -451,8 +446,8 @@ spec:
 		},
 		{
 			name: "multiple helm charts with mixed templating",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
+			helmChartCRs: [][]byte{
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -471,7 +466,7 @@ spec:
         limits:
           memory: 128Mi
 `),
-				createHelmChartCRFromYAML(`
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -552,9 +547,9 @@ spec:
 		},
 		{
 			name: "skip nil helm chart",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
+			helmChartCRs: [][]byte{
 				nil,
-				createHelmChartCRFromYAML(`
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -593,8 +588,8 @@ spec:
 		},
 		{
 			name: "helm chart with proxy template functions",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
+			helmChartCRs: [][]byte{
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
@@ -655,8 +650,8 @@ spec:
 		},
 		{
 			name: "helm chart with empty proxy spec",
-			helmChartCRs: []*kotsv1beta2.HelmChart{
-				createHelmChartCRFromYAML(`
+			helmChartCRs: [][]byte{
+				[]byte(`
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
