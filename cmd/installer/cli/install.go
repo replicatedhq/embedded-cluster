@@ -174,6 +174,9 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	if err := addInstallAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
+	if err := addTLSFlags(cmd, &flags); err != nil {
+		panic(err)
+	}
 	if err := addManagementConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
@@ -348,25 +351,26 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 	return nil
 }
 
+func addTLSFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+	managerName := "Admin Console"
+	if isV3Enabled() {
+		managerName = "Manager"
+	}
+
+	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", fmt.Sprintf("Path to the TLS certificate file for the %s", managerName))
+	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", fmt.Sprintf("Path to the TLS key file for the %s", managerName))
+	cmd.Flags().StringVar(&flags.hostname, "hostname", "", fmt.Sprintf("Hostname to use for accessing the %s", managerName))
+
+	return nil
+}
+
 func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
-	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", "Path to the TLS certificate file")
-	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", "Path to the TLS key file")
-	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
-	// not hide the new flags.
+	// not hide the manager-port flag.
 	if !isV3Enabled() {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("hostname"); err != nil {
 			return err
 		}
 	}
@@ -464,6 +468,43 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 	rc.SetProxySpec(proxy)
 	ki.SetProxySpec(proxy)
 
+	// Process TLS certificate configuration if provided
+	if err := processTLSConfig(flags); err != nil {
+		return fmt.Errorf("process TLS configuration: %w", err)
+	}
+
+	return nil
+}
+
+// processTLSConfig validates and processes TLS certificate configuration for both traditional and manager experience flows
+func processTLSConfig(flags *InstallCmdFlags) error {
+	// If both cert and key are provided, validate and load them
+	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
+		if err != nil {
+			return fmt.Errorf("load tls certificate: %w", err)
+		}
+		certData, err := os.ReadFile(flags.tlsCertFile)
+		if err != nil {
+			return fmt.Errorf("unable to read tls cert file: %w", err)
+		}
+		keyData, err := os.ReadFile(flags.tlsKeyFile)
+		if err != nil {
+			return fmt.Errorf("unable to read tls key file: %w", err)
+		}
+		flags.tlsCert = cert
+		flags.tlsCertBytes = certData
+		flags.tlsKeyBytes = keyData
+
+		return nil
+	}
+
+	// If only one of cert or key is provided, return an error
+	if flags.tlsCertFile != "" || flags.tlsKeyFile != "" {
+		return fmt.Errorf("both --tls-cert and --tls-key must be provided together")
+	}
+
+	// If neither is provided, no TLS configuration (will use default behavior)
 	return nil
 }
 
@@ -605,6 +646,7 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("unable to list all valid IP addresses: %w", err)
 	}
 
+	// For manager experience, generate self-signed cert if none provided, with user confirmation
 	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
@@ -620,25 +662,8 @@ func runManagerExperienceInstall(
 				return nil
 			}
 		}
-	}
 
-	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("load tls certificate: %w", err)
-		}
-		certData, err := os.ReadFile(flags.tlsCertFile)
-		if err != nil {
-			return fmt.Errorf("unable to read tls cert file: %w", err)
-		}
-		keyData, err := os.ReadFile(flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("unable to read tls key file: %w", err)
-		}
-		flags.tlsCert = cert
-		flags.tlsCertBytes = certData
-		flags.tlsKeyBytes = keyData
-	} else {
+		// Generate self-signed certificate
 		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses)
 		if err != nil {
 			return fmt.Errorf("generate tls certificate: %w", err)
