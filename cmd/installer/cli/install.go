@@ -349,20 +349,14 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) err
 }
 
 func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
-	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
-
-	// Use different descriptions for v2 vs v3
-	var certDesc, keyDesc string
+	managerName := "Admin Console"
 	if isV3Enabled() {
-		certDesc = "Path to the TLS certificate file for the installer"
-		keyDesc = "Path to the TLS key file for the installer"
-	} else {
-		certDesc = "Path to the TLS certificate file for the Admin Console"
-		keyDesc = "Path to the TLS key file for the Admin Console"
+		managerName = "Installer"
 	}
 
-	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", certDesc)
-	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", keyDesc)
+	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
+	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", fmt.Sprintf("Path to the TLS certificate file for the %s", managerName))
+	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", fmt.Sprintf("Path to the TLS key file for the %s", managerName))
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
