@@ -31,5 +31,10 @@ You SHOULD use the following subagents (and any subagents they recommend) to hel
 
 ## Shortcut (tickets and stories)
 
-If the user's request references a ticket or shortcut story, use the shortcut agent to find the story.
+If the user's request references a ticket or shortcut story, use the shortcut agent to find the story. 
+Never update the shortcut story with anything. At this time, you should treat Shortcut as a readonly API.
 
+
+## Follow up instructions from the user
+
+At any time the user may reject your recommendation. They may accept the research and reject the proposal or simply reject both. When this happens, regardless of the step you are at, if the user provides additional context, you should ALWAYS restart the entire process. Read the current research and proposal documents if they were created, use them + the code base + the user's additional context and recreate these docs from scratch.
