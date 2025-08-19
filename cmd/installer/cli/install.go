@@ -355,18 +355,9 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 	cmd.Flags().StringVar(&flags.hostname, "hostname", "", "Hostname to use for TLS configuration")
 
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
-	// not hide the new flags.
+	// not hide the manager-port flag.
 	if !isV3Enabled() {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("tls-cert"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("tls-key"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("hostname"); err != nil {
 			return err
 		}
 	}
@@ -463,6 +454,29 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 
 	rc.SetProxySpec(proxy)
 	ki.SetProxySpec(proxy)
+
+	// Validate TLS certificates if provided for non-V3 installs
+	if !flags.enableManagerExperience && (flags.tlsCertFile != "" || flags.tlsKeyFile != "") {
+		if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
+			return fmt.Errorf("both --tls-cert and --tls-key must be provided when using custom TLS certificates")
+		}
+
+		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
+		if err != nil {
+			return fmt.Errorf("load tls certificate: %w", err)
+		}
+		certData, err := os.ReadFile(flags.tlsCertFile)
+		if err != nil {
+			return fmt.Errorf("unable to read tls cert file: %w", err)
+		}
+		keyData, err := os.ReadFile(flags.tlsKeyFile)
+		if err != nil {
+			return fmt.Errorf("unable to read tls key file: %w", err)
+		}
+		flags.tlsCert = cert
+		flags.tlsCertBytes = certData
+		flags.tlsKeyBytes = keyData
+	}
 
 	return nil
 }
@@ -851,6 +865,9 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
 				Stdout:                *loading,
+				TLSCertBytes:          flags.tlsCertBytes,
+				TLSKeyBytes:           flags.tlsKeyBytes,
+				Hostname:              flags.hostname,
 			}
 			return kotscli.Install(opts)
 		},

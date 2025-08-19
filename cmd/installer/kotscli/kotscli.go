@@ -11,10 +11,14 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -31,9 +35,64 @@ type InstallOptions struct {
 	ReplicatedAppEndpoint string
 	SkipPreflights        bool
 	Stdout                io.Writer
+	TLSCertBytes          []byte
+	TLSKeyBytes           []byte
+	Hostname              string
+}
+
+// createTLSSecret creates the kotsadm-tls secret if TLS configuration is provided
+func createTLSSecret(ctx context.Context, opts InstallOptions) error {
+	if len(opts.TLSCertBytes) == 0 || len(opts.TLSKeyBytes) == 0 {
+		return nil // No TLS configuration provided
+	}
+
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("create kube client: %w", err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kotsadm-tls",
+			Namespace: opts.Namespace,
+			Labels: map[string]string{
+				"kots.io/kotsadm":                        "true",
+				"replicated.com/disaster-recovery":       "infra",
+				"replicated.com/disaster-recovery-chart": "admin-console",
+			},
+			Annotations: map[string]string{
+				"acceptAnonymousUploads": "0",
+			},
+		},
+		Type: "kubernetes.io/tls",
+		Data: map[string][]byte{
+			"tls.crt": opts.TLSCertBytes,
+			"tls.key": opts.TLSKeyBytes,
+		},
+		StringData: map[string]string{
+			"hostname": opts.Hostname,
+		},
+	}
+
+	err = kcli.Create(ctx, secret)
+	if k8serrors.IsAlreadyExists(err) {
+		// Secret already exists, update it
+		err = kcli.Update(ctx, secret)
+	}
+	if err != nil {
+		return fmt.Errorf("create kotsadm-tls secret: %w", err)
+	}
+
+	return nil
 }
 
 func Install(opts InstallOptions) error {
+	// Create TLS secret before KOTS install if provided
+	ctx := context.Background()
+	if err := createTLSSecret(ctx, opts); err != nil {
+		return fmt.Errorf("create TLS secret: %w", err)
+	}
+
 	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
@@ -72,7 +131,11 @@ func Install(opts InstallOptions) error {
 		opts.Namespace,
 		"--app-version-label",
 		appVersionLabel,
-		"--exclude-admin-console",
+	}
+
+	// Only exclude admin console if no TLS configuration is provided
+	if len(opts.TLSCertBytes) == 0 || len(opts.TLSKeyBytes) == 0 {
+		installArgs = append(installArgs, "--exclude-admin-console")
 	}
 	if opts.AirgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)

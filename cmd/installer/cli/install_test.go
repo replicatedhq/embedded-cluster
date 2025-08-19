@@ -703,3 +703,75 @@ func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+func Test_preRunInstallCommon_TLSValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		tlsCertFile string
+		tlsKeyFile  string
+		wantErr     string
+	}{
+		{
+			name:        "no TLS flags provided",
+			tlsCertFile: "",
+			tlsKeyFile:  "",
+			wantErr:     "",
+		},
+		{
+			name:        "only cert file provided",
+			tlsCertFile: "cert.pem",
+			tlsKeyFile:  "",
+			wantErr:     "both --tls-cert and --tls-key must be provided when using custom TLS certificates",
+		},
+		{
+			name:        "only key file provided",
+			tlsCertFile: "",
+			tlsKeyFile:  "key.pem",
+			wantErr:     "both --tls-cert and --tls-key must be provided when using custom TLS certificates",
+		},
+		{
+			name:        "both cert and key files provided but files don't exist",
+			tlsCertFile: "nonexistent-cert.pem",
+			tlsKeyFile:  "nonexistent-key.pem",
+			wantErr:     "unable to read tls cert file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			cmd := &cobra.Command{}
+			flags := &InstallCmdFlags{
+				enableManagerExperience: false, // Non-V3 install
+				tlsCertFile:             tt.tlsCertFile,
+				tlsKeyFile:              tt.tlsKeyFile,
+			}
+
+			// Set up the command with proxy flags (required by preRunInstallCommon)
+			mustAddProxyFlags(cmd.Flags())
+
+			// Create a minimal runtime config for the test
+			rc := runtimeconfig.New(nil)
+			ki := &mockKubernetesInstallation{}
+
+			err := preRunInstallCommon(cmd, flags, rc, ki)
+
+			if tt.wantErr != "" {
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+			} else {
+				req.NoError(err)
+			}
+		})
+	}
+}
+
+// Mock implementation for testing
+type mockKubernetesInstallation struct{}
+
+func (m *mockKubernetesInstallation) SetAdminConsolePort(port int)            {}
+func (m *mockKubernetesInstallation) SetManagerPort(port int)                 {}
+func (m *mockKubernetesInstallation) SetProxySpec(proxy *ecv1beta1.ProxySpec) {}
+func (m *mockKubernetesInstallation) AdminConsolePort() int                   { return 8800 }
+func (m *mockKubernetesInstallation) ManagerPort() int                        { return 30000 }
