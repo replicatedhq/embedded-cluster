@@ -829,7 +829,9 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc)
+	isHeadlessInstall := flags.configValues != "" && flags.adminConsolePassword != ""
+
+	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
 
 	return nil
 }
@@ -848,7 +850,6 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	if euCfg != nil {
 		euCfgSpec = &euCfg.Spec
 	}
-
 
 	opts := &addons.InstallOptions{
 		ClusterID:               flags.clusterID,
@@ -1419,11 +1420,16 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) {
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
-	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+	var message string
+	if isHeadlessInstall {
+		message = fmt.Sprintf("The Admin Console for %s is available at:", license.Spec.AppSlug)
+	} else {
+		message = fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+	}
 
 	// Determine the length of the longest line
 	longestLine := len(message)
