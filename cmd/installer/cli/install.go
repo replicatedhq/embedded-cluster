@@ -75,6 +75,7 @@ type InstallCmdFlags struct {
 	localArtifactMirrorPort int
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
+	ignoreAppPreflights     bool
 	networkInterface        string
 
 	// kubernetes flags
@@ -276,8 +277,9 @@ func newLinuxInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet 
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if enableV3 {
 		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
+	} else {
+		flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 	}
-
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -847,6 +849,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		euCfgSpec = &euCfg.Spec
 	}
 
+
 	opts := &addons.InstallOptions{
 		ClusterID:               flags.clusterID,
 		AdminConsolePwd:         flags.adminConsolePassword,
@@ -875,6 +878,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
+				SkipPreflights:        flags.ignoreAppPreflights,
 				Stdout:                *loading,
 			}
 			return kotscli.Install(opts)
