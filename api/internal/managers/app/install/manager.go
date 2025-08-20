@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -36,6 +37,8 @@ type appInstallManager struct {
 	airgapBundle    string
 	kotsCLI         KotsCLIInstaller
 	logger          logrus.FieldLogger
+	hcli            helm.Client
+	kubeConfigPath  string
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -79,6 +82,19 @@ func WithAirgapBundle(airgapBundle string) AppInstallManagerOption {
 func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kotsCLI = kotsCLI
+	}
+}
+
+// Add constructor options following infra manager pattern
+func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.hcli = hcli
+	}
+}
+
+func WithKubeConfigPath(path string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.kubeConfigPath = path
 	}
 }
 

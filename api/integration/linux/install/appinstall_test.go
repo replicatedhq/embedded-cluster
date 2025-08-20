@@ -33,6 +33,22 @@ import (
 
 // TestGetAppInstallStatus tests the GET /linux/install/app/status endpoint
 func TestGetAppInstallStatus(t *testing.T) {
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
+	releaseData := &release.ReleaseData{
+		HelmChartArchives:     [][]byte{mockChartArchive},
+		EmbeddedClusterConfig: &ecv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			DefaultDomains: release.Domains{
+				ReplicatedAppDomain: "replicated.example.com",
+				ProxyRegistryDomain: "some-proxy.example.com",
+			},
+		},
+		AppConfig: &kotsv1beta1.Config{},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 		// Create app install status
 		appInstallStatus := types.AppInstall{
@@ -59,7 +75,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstall.WithAppInstallManager(appInstallManager),
 			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -67,16 +83,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{},
-				ChannelRelease: &release.ChannelRelease{
-					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{},
-			}),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 		)
 		require.NoError(t, err)
@@ -118,7 +125,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -178,6 +185,22 @@ func TestGetAppInstallStatus(t *testing.T) {
 
 // TestPostInstallApp tests the POST /linux/install/app/install endpoint
 func TestPostInstallApp(t *testing.T) {
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
+	releaseData := &release.ReleaseData{
+		HelmChartArchives:     [][]byte{mockChartArchive},
+		EmbeddedClusterConfig: &ecv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			DefaultDomains: release.Domains{
+				ReplicatedAppDomain: "replicated.example.com",
+				ProxyRegistryDomain: "some-proxy.example.com",
+			},
+		},
+		AppConfig: &kotsv1beta1.Config{},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 		// Create a real runtime config with temp directory
 		rc := runtimeconfig.New(nil)
@@ -212,7 +235,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -221,16 +244,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithMetricsReporter(mockReporter),
-			linuxinstall.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{},
-				ChannelRelease: &release.ChannelRelease{
-					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{},
-			}),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
@@ -278,7 +292,7 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -286,7 +300,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -353,7 +367,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -363,7 +377,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithMetricsReporter(mockReporter),
 			linuxinstall.WithStore(mockStore),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
@@ -404,7 +418,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -457,7 +471,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -465,7 +479,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -520,7 +534,7 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -528,7 +542,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 

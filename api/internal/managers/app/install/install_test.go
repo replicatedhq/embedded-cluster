@@ -10,11 +10,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	helmrelease "helm.sh/helm/v3/pkg/release"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -28,8 +30,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 	licenseBytes, err := kyaml.Marshal(license)
 	require.NoError(t, err)
 
-	// Create test release data
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
 	releaseData := &release.ReleaseData{
+		HelmChartArchives: [][]byte{mockChartArchive},
 		ChannelRelease: &release.ChannelRelease{
 			DefaultDomains: release.Domains{
 				ReplicatedAppDomain: "replicated.app",
@@ -50,6 +56,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 				},
 			},
 		}
+
+		// Create mock helm client
+		mockHelmClient := &helm.MockClient{}
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ChartPath != "" && opts.ReleaseName != "" && opts.Namespace == "kotsadm"
+		})).Return(&helmrelease.Release{Name: "test-release"}, nil)
 
 		// Create mock installer with detailed verification
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -113,6 +125,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
 			WithKotsCLI(mockInstaller),
+			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -122,9 +135,14 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		mockInstaller.AssertExpectations(t)
+		mockHelmClient.AssertExpectations(t)
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
+		// Create mock helm client
+		mockHelmClient := &helm.MockClient{}
+		mockHelmClient.On("Install", mock.Anything, mock.Anything).Return(&helmrelease.Release{Name: "test-release"}, nil)
+
 		// Create mock installer that succeeds
 		mockInstaller := &MockKotsCLIInstaller{}
 		mockInstaller.On("Install", mock.Anything).Return(nil)
@@ -138,6 +156,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
 			WithKotsCLI(mockInstaller),
+			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -159,14 +178,15 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
 		mockInstaller.AssertExpectations(t)
+		mockHelmClient.AssertExpectations(t)
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
-		// Create mock installer that fails
-		mockInstaller := &MockKotsCLIInstaller{}
-		mockInstaller.On("Install", mock.Anything).Return(assert.AnError)
+		// Create mock helm client that fails
+		mockHelmClient := &helm.MockClient{}
+		mockHelmClient.On("Install", mock.Anything, mock.Anything).Return((*helmrelease.Release)(nil), assert.AnError)
 
-		// Create manager with initialized store
+		// Create manager with initialized store (no need for KOTS installer mock since Helm fails first)
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
 		}))
@@ -174,7 +194,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
-			WithKotsCLI(mockInstaller),
+			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -188,9 +208,9 @@ func TestAppInstallManager_Install(t *testing.T) {
 		appInstall, err := manager.GetStatus()
 		require.NoError(t, err)
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
-		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
+		assert.Contains(t, appInstall.Status.Description, "install helm charts")
 
-		mockInstaller.AssertExpectations(t)
+		mockHelmClient.AssertExpectations(t)
 	})
 
 	t.Run("GetStatus returns current app install state", func(t *testing.T) {

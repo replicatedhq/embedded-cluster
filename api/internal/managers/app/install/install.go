@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -10,8 +11,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -49,16 +52,24 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 		return fmt.Errorf("parse license: %w", err)
 	}
 
+	// Setup Helm client
+	if err := m.setupHelmClient(); err != nil {
+		return fmt.Errorf("setup helm client: %w", err)
+	}
+
+	// Install Helm charts
+	if err := m.installHelmCharts(ctx); err != nil {
+		return fmt.Errorf("install helm charts: %w", err)
+	}
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	installOpts := kotscli.InstallOptions{
-		AppSlug:      license.Spec.AppSlug,
-		License:      m.license,
-		Namespace:    constants.KotsadmNamespace,
-		ClusterID:    m.clusterID,
-		AirgapBundle: m.airgapBundle,
-		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
-		SkipPreflights:        os.Getenv("ENABLE_V3") == "1",
+		AppSlug:               license.Spec.AppSlug,
+		License:               m.license,
+		Namespace:             constants.KotsadmNamespace,
+		ClusterID:             m.clusterID,
+		AirgapBundle:          m.airgapBundle,
+		SkipPreflights:        true,
 		ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		Stdout:                m.newLogWriter(),
 	}
@@ -96,4 +107,48 @@ func (m *appInstallManager) createConfigValuesFile(configValues kotsv1beta1.Conf
 	}
 
 	return configValuesFile.Name(), nil
+}
+
+func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
+	logFn := m.logFn("app-helm")
+
+	if m.releaseData == nil || len(m.releaseData.HelmChartArchives) == 0 {
+		logFn("no helm charts found in release data")
+		return nil
+	}
+
+	logFn("installing %d helm charts from release data", len(m.releaseData.HelmChartArchives))
+
+	for i, chartArchive := range m.releaseData.HelmChartArchives {
+		logFn("installing chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
+
+		// Write chart archive to temp file
+		chartPath, err := m.writeChartArchiveToTemp(chartArchive)
+		if err != nil {
+			return fmt.Errorf("write chart archive %d to temp: %w", i, err)
+		}
+		defer os.Remove(chartPath)
+
+		// Get chart name to use as release name
+		ch, err := loader.LoadArchive(bytes.NewReader(chartArchive))
+		if err != nil {
+			return fmt.Errorf("load archive: %w", err)
+		}
+
+		// Install chart using Helm client
+		_, err = m.hcli.Install(ctx, helm.InstallOptions{
+			ChartPath: chartPath,
+			// TODO: namespace should come from HelmChart custom resource instead of constants.KotsadmNamespace
+			Namespace: constants.KotsadmNamespace,
+			// TODO: release name should come from HelmChart custom resource instead of chart name
+			ReleaseName: ch.Metadata.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("install chart %d: %w", i, err)
+		}
+
+		logFn("successfully installed chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
+	}
+
+	return nil
 }
