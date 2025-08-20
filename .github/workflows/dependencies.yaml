@@ -22,11 +22,12 @@ jobs:
         cache-dependency-path: "**/*.sum"
     - name: Get K0s minor version
       run: |
+        k0s_minor_version=$(make print-K0S_MINOR_VERSION)
         if [ -n "$INPUT_K0S_MINOR_VERSION" ]; then
-          echo "K0S_MINOR_VERSION=$INPUT_K0S_MINOR_VERSION" >> $GITHUB_ENV
-        else
-          echo "K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)" >> $GITHUB_ENV
+          k0s_minor_version=$INPUT_K0S_MINOR_VERSION
         fi
+        echo "K0S_MINOR_VERSION=$k0s_minor_version"
+        echo "K0S_MINOR_VERSION=$k0s_minor_version" >> $GITHUB_ENV
     - name: K0s minus 2
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
