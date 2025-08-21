@@ -904,6 +904,7 @@ jobs:
   e2e:
     name: E2E # this name is used by .github/workflows/automated-prs-manager.yaml
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    continue-on-error: ${{ matrix.continue-on-error || false }}
     needs:
       - build-current
       - build-previous-k0s
@@ -939,6 +940,8 @@ jobs:
             is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true
+          - test: TestSingleNodeNetworkReport
+            continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v5

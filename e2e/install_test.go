@@ -996,7 +996,8 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 		// the initially installed version is 1.8.0+k8s-1.28
 		// the '+' character is problematic in the regex used to validate the version, so we use '.' instead
 		appVer,
-		"v1.28.11"}
+		"v1.28.11",
+	}
 	if _, _, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1971,7 +1972,6 @@ spec:
 		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
 	}
 
-	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
 	line = []string{"airgap-update.sh"}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to run airgap update: %v", err)
@@ -1994,4 +1994,74 @@ spec:
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestSingleNodeNetworkReport(t *testing.T) {
+	t.Parallel()
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+		InstanceType: "r1.medium",
+	})
+	defer tc.Cleanup()
+
+	if err := tc.SetNetworkReport(true); err != nil {
+		t.Fatalf("failed to enable network reporting: %v", err)
+	}
+
+	downloadECRelease(t, tc, 0)
+	installSingleNode(t, tc)
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	checkInstallationState(t, tc)
+	checkNodeJoinCommand(t, tc, 0)
+
+	if err := tc.SetNetworkReport(false); err != nil {
+		t.Fatalf("failed to disable network reporting: %v", err)
+	}
+
+	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
+	time.Sleep(5 * time.Second)
+
+	networkEvents, _, err := tc.CollectNetworkReport()
+	if err != nil {
+		t.Fatalf("failed to collect network report: %v", err)
+	}
+
+	domainsByIps := make(map[string]map[string]struct{})
+	for _, ne := range networkEvents {
+		// filter out local traffic
+		if ne.DstIP == "0.0.0.0" {
+			continue
+		}
+
+		domains := domainsByIps[ne.DstIP]
+		if domains == nil {
+			domains = make(map[string]struct{})
+		}
+
+		if len(strings.TrimSpace(ne.DNSQueryName)) > 0 {
+			domains[ne.DNSQueryName] = struct{}{}
+		}
+
+		domainsByIps[ne.DstIP] = domains
+	}
+
+	t.Log("Logged outbound external network accesses:\n")
+	for ip, domains := range domainsByIps {
+		domainOutput := ""
+		for domain := range domains {
+			domainOutput += fmt.Sprintf("\t- %v\n", domain)
+		}
+
+		t.Logf("IP: %v", ip)
+		if len(domainOutput) > 0 {
+			t.Logf("\n%v", domainOutput)
+		}
+	}
 }
