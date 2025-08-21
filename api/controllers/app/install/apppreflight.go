@@ -17,6 +17,7 @@ import (
 type RunAppPreflightOptions struct {
 	PreflightBinaryPath string
 	ProxySpec           *ecv1beta1.ProxySpec
+	RegistrySettings    *types.RegistrySettings
 	ExtraPaths          []string
 	CleanupBinary       bool
 }
@@ -47,7 +48,7 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 	}
 
 	// Extract app preflight spec from Helm charts
-	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, configValues, opts.ProxySpec)
+	appPreflightSpec, err := c.appReleaseManager.ExtractAppPreflightSpec(ctx, configValues, opts.ProxySpec, opts.RegistrySettings)
 	if err != nil {
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}

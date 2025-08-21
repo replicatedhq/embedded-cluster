@@ -343,7 +343,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.ExtractAppPreflightSpec(t.Context(), tt.configValues, tt.proxySpec)
+			result, err := manager.ExtractAppPreflightSpec(t.Context(), tt.configValues, tt.proxySpec, nil)
 
 			// Check error expectation
 			if tt.expectError {
@@ -724,7 +724,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.(*appReleaseManager).templateHelmChartCRs(tt.configValues, tt.proxySpec)
+			result, err := manager.(*appReleaseManager).templateHelmChartCRs(tt.configValues, tt.proxySpec, nil)
 
 			// Check error expectation
 			if tt.expectError {

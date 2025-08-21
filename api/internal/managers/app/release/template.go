@@ -19,9 +19,9 @@ import (
 )
 
 // ExtractAppPreflightSpec extracts and merges preflight specifications from app releases
-func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) (*troubleshootv1beta2.PreflightSpec, error) {
+func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) (*troubleshootv1beta2.PreflightSpec, error) {
 	// Template Helm chart CRs with config values
-	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec)
+	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec, registrySettings)
 	if err != nil {
 		return nil, fmt.Errorf("template helm chart CRs: %w", err)
 	}
@@ -57,7 +57,7 @@ func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configV
 }
 
 // templateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
-func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) ([]*kotsv1beta2.HelmChart, error) {
+func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) ([]*kotsv1beta2.HelmChart, error) {
 	if m.templateEngine == nil {
 		return nil, fmt.Errorf("template engine not initialized")
 	}
@@ -81,7 +81,13 @@ func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigVal
 		}
 
 		// Execute the template with config values
-		templatedYAML, err := m.templateEngine.Execute(configValues, template.WithProxySpec(proxySpec))
+		execOptions := []template.ExecOption{
+			template.WithProxySpec(proxySpec),
+		}
+		if registrySettings != nil {
+			execOptions = append(execOptions, template.WithRegistrySettings(registrySettings))
+		}
+		templatedYAML, err := m.templateEngine.Execute(configValues, execOptions...)
 		if err != nil {
 			return nil, fmt.Errorf("execute helm chart template: %w", err)
 		}

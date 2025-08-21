@@ -1,12 +1,16 @@
 package linux
 
 import (
+	"context"
+	"encoding/base64"
+	"fmt"
 	"net/http"
 
 	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 )
 
 // GetInstallationConfig handler to get the installation config
@@ -163,9 +167,17 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	err := h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
+	registrySettings, err := h.calculateRegistrySettings(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: h.cfg.RuntimeConfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
 		ProxySpec:           h.cfg.RuntimeConfig.ProxySpec(),
+		RegistrySettings:    registrySettings,
 		ExtraPaths:          []string{h.cfg.RuntimeConfig.EmbeddedClusterBinsSubDir()},
 	})
 	if err != nil {
@@ -402,4 +414,45 @@ func (h *Handler) GetAppInstallStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, appInstall, h.logger)
+}
+
+// calculateRegistrySettings calculates registry settings for airgap installations
+func (h *Handler) calculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error) {
+	// Only return registry settings for airgap installations
+	if h.cfg.AirgapBundle == "" {
+		return nil, nil
+	}
+
+	serviceCIDR := h.cfg.RuntimeConfig.ServiceCIDR()
+	registryIP, err := registry.GetRegistryClusterIP(serviceCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registry cluster IP: %w", err)
+	}
+
+	// Construct registry host with port
+	registryHost := fmt.Sprintf("%s:5000", registryIP)
+
+	// Get app namespace from release data - required for app preflights
+	if h.cfg.ReleaseData == nil || h.cfg.ReleaseData.ChannelRelease == nil || h.cfg.ReleaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appNamespace := h.cfg.ReleaseData.ChannelRelease.AppSlug
+
+	// Construct full registry address with namespace
+	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
+
+	// Create image pull secret value using the same pattern as admin console
+	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
+		registryHost, registry.GetRegistryPassword(), authString)
+	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
+
+	return &types.RegistrySettings{
+		HasLocalRegistry:     true,
+		Host:                 registryHost,
+		Address:              registryAddress,
+		Namespace:            appNamespace,
+		ImagePullSecretName:  "embedded-cluster-registry",
+		ImagePullSecretValue: imagePullSecretValue,
+	}, nil
 }

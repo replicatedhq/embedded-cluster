@@ -198,7 +198,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create mock app release manager
 		mockAppReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-		mockAppReleaseManager.On("ExtractAppPreflightSpec", mock.Anything, mock.Anything, mock.Anything).Return(&troubleshootv1beta2.PreflightSpec{
+		mockAppReleaseManager.On("ExtractAppPreflightSpec", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&troubleshootv1beta2.PreflightSpec{
 			Analyzers: []*troubleshootv1beta2.Analyze{
 				{
 					ClusterVersion: &troubleshootv1beta2.ClusterVersion{
