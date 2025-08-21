@@ -752,3 +752,48 @@ oxhVqyhpk86rf0rT5DcD/sBw
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestIgnoreAppPreflightsInstallation(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstall(t,
+		&dryrun.Client{HelmClient: hcli},
+		"--ignore-app-preflights",
+	)
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]any{
+			regexp.MustCompile(`install fake-app-slug/fake-channel-slug .* --skip-preflights`),
+		},
+		false,
+	)
+
+	// --- validate metrics --- //
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, "--ignore-app-preflights")
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
+		},
+	})
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
