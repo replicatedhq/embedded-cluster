@@ -83,9 +83,7 @@ func (m *appReleaseManager) templateHelmChartCRs(configValues types.AppConfigVal
 		// Execute the template with config values
 		execOptions := []template.ExecOption{
 			template.WithProxySpec(proxySpec),
-		}
-		if registrySettings != nil {
-			execOptions = append(execOptions, template.WithRegistrySettings(registrySettings))
+			template.WithRegistrySettings(registrySettings),
 		}
 		templatedYAML, err := m.templateEngine.Execute(configValues, execOptions...)
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
 func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
@@ -170,4 +171,8 @@ func (c *InstallController) computeCIDRs(config *types.LinuxInstallationConfig) 
 
 func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
 	return c.installationManager.GetStatus()
+}
+
+func (c *InstallController) CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error) {
+	return c.installationManager.CalculateRegistrySettings(ctx, releaseData)
 }

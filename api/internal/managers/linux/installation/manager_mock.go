@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,4 +62,13 @@ func (m *MockInstallationManager) SetConfigDefaults(config *types.LinuxInstallat
 func (m *MockInstallationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(ctx, rc)
 	return args.Error(0)
+}
+
+// CalculateRegistrySettings mocks the CalculateRegistrySettings method
+func (m *MockInstallationManager) CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error) {
+	args := m.Called(ctx, releaseData)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.RegistrySettings), args.Error(1)
 }
