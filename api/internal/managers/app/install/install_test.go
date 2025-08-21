@@ -24,7 +24,6 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-
 func TestAppInstallManager_Install(t *testing.T) {
 	// Create test license
 	license := &kotsv1beta1.License{
