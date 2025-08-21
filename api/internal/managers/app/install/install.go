@@ -61,6 +61,7 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 	if err := m.installHelmCharts(ctx); err != nil {
 		return fmt.Errorf("install helm charts: %w", err)
 	}
+
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	installOpts := kotscli.InstallOptions{
