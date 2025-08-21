@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.8
-	github.com/k0sproject/k0s v1.33.4-0.20250721121212-4615902bc8c4
+	github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6
 	github.com/ohler55/ojg v1.26.9
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.38.0
@@ -300,7 +300,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	k8s.io/apiserver v0.33.4 // indirect
 	k8s.io/component-base v0.33.4 // indirect
-	k8s.io/kubelet v0.33.3 // indirect
+	k8s.io/kubelet v0.33.4 // indirect
 	k8s.io/metrics v0.33.4 // indirect
 	oras.land/oras-go v1.2.6 // indirect
 	periph.io/x/host/v3 v3.8.5 // indirect
