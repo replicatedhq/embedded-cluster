@@ -5,7 +5,6 @@ import (
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -155,8 +154,8 @@ func (m *MockController) GetAppInstallStatus(ctx context.Context) (types.AppInst
 }
 
 // CalculateRegistrySettings mocks the CalculateRegistrySettings method
-func (m *MockController) CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error) {
-	args := m.Called(ctx, releaseData)
+func (m *MockController) CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error) {
+	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

@@ -24,7 +24,7 @@ type InstallationManager interface {
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
 	SetConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
-	CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error)
+	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 }
 
 // installationManager is an implementation of the InstallationManager interface
@@ -32,6 +32,7 @@ type installationManager struct {
 	installationStore installation.Store
 	license           []byte
 	airgapBundle      string
+	releaseData       *release.ReleaseData
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
@@ -72,6 +73,12 @@ func WithNetUtils(netUtils utils.NetUtils) InstallationManagerOption {
 func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.hostUtils = hostUtils
+	}
+}
+
+func WithReleaseData(releaseData *release.ReleaseData) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.releaseData = releaseData
 	}
 }
 

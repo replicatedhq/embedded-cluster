@@ -13,7 +13,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -238,7 +237,7 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 }
 
 // CalculateRegistrySettings calculates registry settings for airgap installations
-func (m *installationManager) CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error) {
+func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
 	// Only return registry settings for airgap installations
 	if m.airgapBundle == "" {
 		return nil, nil
@@ -253,14 +252,7 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rel
 	serviceCIDR := config.ServiceCIDR
 	if serviceCIDR == "" {
 		// Fallback to runtime config if not set in installation config
-		rc, err := runtimeconfig.NewFromDisk()
-		if err == nil {
-			serviceCIDR = rc.ServiceCIDR()
-		}
-		// If we still don't have a service CIDR, use the default
-		if serviceCIDR == "" {
-			serviceCIDR = "10.96.0.0/12" // Default k8s service CIDR
-		}
+		serviceCIDR = rc.ServiceCIDR()
 	}
 
 	registryIP, err := registry.GetRegistryClusterIP(serviceCIDR)
@@ -272,10 +264,10 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rel
 	registryHost := fmt.Sprintf("%s:5000", registryIP)
 
 	// Get app namespace from release data - required for app preflights
-	if releaseData == nil || releaseData.ChannelRelease == nil || releaseData.ChannelRelease.AppSlug == "" {
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
 		return nil, fmt.Errorf("release data with app slug is required for registry settings")
 	}
-	appNamespace := releaseData.ChannelRelease.AppSlug
+	appNamespace := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
 	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)

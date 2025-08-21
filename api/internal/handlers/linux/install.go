@@ -163,7 +163,7 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	registrySettings, err := h.installController.CalculateRegistrySettings(r.Context(), h.cfg.ReleaseData)
+	registrySettings, err := h.installController.CalculateRegistrySettings(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
 		utils.JSONError(w, r, err, h.logger)
@@ -411,4 +411,3 @@ func (h *Handler) GetAppInstallStatus(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSON(w, r, http.StatusOK, appInstall, h.logger)
 }
-

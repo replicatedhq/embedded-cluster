@@ -34,7 +34,7 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
-	CalculateRegistrySettings(ctx context.Context, releaseData *release.ReleaseData) (*types.RegistrySettings, error)
+	CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error)
 	// App controller methods
 	appcontroller.Controller
 }
@@ -240,6 +240,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			installation.WithInstallationStore(controller.store.LinuxInstallationStore()),
 			installation.WithLicense(controller.license),
 			installation.WithAirgapBundle(controller.airgapBundle),
+			installation.WithReleaseData(controller.releaseData),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
 		)
