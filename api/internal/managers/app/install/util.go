@@ -33,9 +33,10 @@ func (m *appInstallManager) setupHelmClient() error {
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: m.kubeConfigPath,
-		K0sVersion: versions.K0sVersion,
-		LogFn:      m.logFn("app-helm"),
+		KubeConfig:       m.kubeConfigPath,
+		RESTClientGetter: m.restClientGetter,
+		K0sVersion:       versions.K0sVersion,
+		LogFn:            m.logFn("app-helm"),
 	})
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
@@ -66,7 +67,7 @@ func (m *appInstallManager) writeChartArchiveToTemp(chartArchive []byte) (string
 	defer tmpFile.Close()
 
 	if _, err := tmpFile.Write(chartArchive); err != nil {
-		os.Remove(tmpFile.Name())
+		_ = os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("write chart archive: %w", err)
 	}
 

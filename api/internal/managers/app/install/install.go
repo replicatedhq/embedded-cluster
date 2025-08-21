@@ -114,8 +114,7 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
 	logFn := m.logFn("app-helm")
 
 	if m.releaseData == nil || len(m.releaseData.HelmChartArchives) == 0 {
-		logFn("no helm charts found in release data")
-		return nil
+		return fmt.Errorf("no helm charts found in release data")
 	}
 
 	logFn("installing %d helm charts from release data", len(m.releaseData.HelmChartArchives))
@@ -123,8 +122,8 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
 	for i, chartArchive := range m.releaseData.HelmChartArchives {
 		logFn("installing chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
 
-		if err := m.installHelmChart(ctx, chartArchive, i); err != nil {
-			return err
+		if err := m.installHelmChart(ctx, chartArchive); err != nil {
+			return fmt.Errorf("install helm chart %d: %w", i, err)
 		}
 
 		logFn("successfully installed chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
@@ -133,11 +132,11 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
 	return nil
 }
 
-func (m *appInstallManager) installHelmChart(ctx context.Context, chartArchive []byte, chartIndex int) error {
+func (m *appInstallManager) installHelmChart(ctx context.Context, chartArchive []byte) error {
 	// Write chart archive to temp file
 	chartPath, err := m.writeChartArchiveToTemp(chartArchive)
 	if err != nil {
-		return fmt.Errorf("write chart archive %d to temp: %w", chartIndex, err)
+		return fmt.Errorf("write chart archive to temp: %w", err)
 	}
 	defer os.Remove(chartPath)
 
@@ -156,7 +155,7 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, chartArchive [
 		ReleaseName: ch.Metadata.Name,
 	})
 	if err != nil {
-		return fmt.Errorf("install chart %d: %w", chartIndex, err)
+		return fmt.Errorf("helm install: %w", err)
 	}
 
 	return nil
