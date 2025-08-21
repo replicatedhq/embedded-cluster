@@ -123,32 +123,40 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
 	for i, chartArchive := range m.releaseData.HelmChartArchives {
 		logFn("installing chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
 
-		// Write chart archive to temp file
-		chartPath, err := m.writeChartArchiveToTemp(chartArchive)
-		if err != nil {
-			return fmt.Errorf("write chart archive %d to temp: %w", i, err)
-		}
-		defer os.Remove(chartPath)
-
-		// Get chart name to use as release name
-		ch, err := loader.LoadArchive(bytes.NewReader(chartArchive))
-		if err != nil {
-			return fmt.Errorf("load archive: %w", err)
-		}
-
-		// Install chart using Helm client
-		_, err = m.hcli.Install(ctx, helm.InstallOptions{
-			ChartPath: chartPath,
-			// TODO: namespace should come from HelmChart custom resource instead of constants.KotsadmNamespace
-			Namespace: constants.KotsadmNamespace,
-			// TODO: release name should come from HelmChart custom resource instead of chart name
-			ReleaseName: ch.Metadata.Name,
-		})
-		if err != nil {
-			return fmt.Errorf("install chart %d: %w", i, err)
+		if err := m.installHelmChart(ctx, chartArchive, i); err != nil {
+			return err
 		}
 
 		logFn("successfully installed chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
+	}
+
+	return nil
+}
+
+func (m *appInstallManager) installHelmChart(ctx context.Context, chartArchive []byte, chartIndex int) error {
+	// Write chart archive to temp file
+	chartPath, err := m.writeChartArchiveToTemp(chartArchive)
+	if err != nil {
+		return fmt.Errorf("write chart archive %d to temp: %w", chartIndex, err)
+	}
+	defer os.Remove(chartPath)
+
+	// Get chart name to use as release name
+	ch, err := loader.LoadArchive(bytes.NewReader(chartArchive))
+	if err != nil {
+		return fmt.Errorf("load archive: %w", err)
+	}
+
+	// Install chart using Helm client
+	_, err = m.hcli.Install(ctx, helm.InstallOptions{
+		ChartPath: chartPath,
+		// TODO: namespace should come from HelmChart custom resource instead of constants.KotsadmNamespace
+		Namespace: constants.KotsadmNamespace,
+		// TODO: release name should come from HelmChart custom resource instead of chart name
+		ReleaseName: ch.Metadata.Name,
+	})
+	if err != nil {
+		return fmt.Errorf("install chart %d: %w", chartIndex, err)
 	}
 
 	return nil
