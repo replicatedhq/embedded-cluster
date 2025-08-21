@@ -43,6 +43,7 @@ func init() {
 	}
 
 	if versions.K0sVersion != "0.0.0" {
+		// validate that the go mod dependency matches the K0S_VERSION specified at compile time
 		if err := validateK0sVersion(k8sVersion); err != nil {
 			panic(err)
 		}
@@ -59,7 +60,7 @@ func validateK0sVersion(k8sVersion *semver.Version) error {
 	}
 
 	if sv.Major() != k8sVersion.Major() || sv.Minor() != k8sVersion.Minor() {
-		return fmt.Errorf("k0s version %s does not match k8s dependency version %s", sv.Original(), k8sVersion.Original())
+		return fmt.Errorf("versions.K0sVersion %s does not match k0s go mod dependency version %s", sv.Original(), k8sVersion.Original())
 	}
 	return nil
 }
@@ -72,7 +73,11 @@ func populateMetadataMap() error {
 		if d.IsDir() {
 			return nil
 		}
-		minorVersion := metadataMinorRegex.FindStringSubmatch(d.Name())[1]
+		matches := metadataMinorRegex.FindStringSubmatch(d.Name())
+		if len(matches) < 2 {
+			return fmt.Errorf("filename %s does not match expected metadata pattern", d.Name())
+		}
+		minorVersion := matches[1]
 		var metadata release.K0sMetadata
 		content, err := metadataFS.ReadFile(path)
 		if err != nil {
