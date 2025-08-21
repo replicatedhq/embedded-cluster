@@ -264,6 +264,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithClusterID(controller.clusterID),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
+			appcontroller.WithKubeConfigPath(controller.rc.PathToKubeConfig()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
