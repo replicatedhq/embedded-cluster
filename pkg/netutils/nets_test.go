@@ -79,18 +79,22 @@ func TestValidateCIDR(t *testing.T) {
 			cidr: "172.16.0.0/12",
 		},
 		{
-			name: "not a cidr address",
+			name: "not a canonical cidr address",
 			cidr: "192.168.1.1/16",
-			err:  "The provided CIDR block (192.168.1.1/16) is not valid",
+			err:  "The provided CIDR block (192.168.1.1/16) is not valid, please use the canonical representation 192.168.0.0/16",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := ValidateCIDR(tt.cidr, 16, true); err != nil {
-				assert.NotEmpty(t, tt.err, "received unexpected error")
+				if tt.err == "" {
+					t.Fatalf("unexpected error: %v", err)
+				}
 				assert.Contains(t, err.Error(), tt.err, "unexpected error message")
 				return
 			}
-			assert.Empty(t, tt.err, "unexpected error received")
+			if tt.err != "" {
+				t.Fatalf("expected error: %v", tt.err)
+			}
 		})
 	}
 }
