@@ -175,6 +175,22 @@ func TestGetAppInstallStatus(t *testing.T) {
 
 // TestPostInstallApp tests the POST /kubernetes/install/app/install endpoint
 func TestPostInstallApp(t *testing.T) {
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
+	releaseData := &release.ReleaseData{
+		HelmChartArchives:     [][]byte{mockChartArchive},
+		EmbeddedClusterConfig: &ecv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			DefaultDomains: release.Domains{
+				ReplicatedAppDomain: "replicated.example.com",
+				ProxyRegistryDomain: "some-proxy.example.com",
+			},
+		},
+		AppConfig: &kotsv1beta1.Config{},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 
 		// Create mock app install manager that succeeds
@@ -202,7 +218,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -210,16 +226,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
-			kubernetesinstall.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{},
-				ChannelRelease: &release.ChannelRelease{
-					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{},
-			}),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -265,7 +272,7 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -273,7 +280,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
-			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -326,7 +333,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -334,7 +341,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
-			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -372,7 +379,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create simple Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -425,7 +432,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -433,7 +440,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
-			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -488,7 +495,7 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 
@@ -496,7 +503,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
-			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
 

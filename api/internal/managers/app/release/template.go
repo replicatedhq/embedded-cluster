@@ -132,7 +132,7 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	// Create a Helm client for dry run templating
-	helmClient, err := helm.NewClient(helm.HelmOptions{})
+	helmClient, err := helm.NewClient(helm.HelmOptions{}) // TODO: pass K0sVersion (maybe rename to kubernetesVersion)
 	if err != nil {
 		return nil, fmt.Errorf("create helm client: %w", err)
 	}

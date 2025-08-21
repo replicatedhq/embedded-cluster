@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -47,6 +48,8 @@ type InstallController struct {
 	clusterID                  string
 	airgapBundle               string
 	privateCACertConfigMapName string
+	restClientGetter           genericclioptions.RESTClientGetter
+	kubeConfigPath             string
 }
 
 type InstallControllerOption func(*InstallController)
@@ -129,6 +132,18 @@ func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOptio
 	}
 }
 
+func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
+	return func(c *InstallController) {
+		c.restClientGetter = restClientGetter
+	}
+}
+
+func WithKubeConfigPath(kubeConfigPath string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.kubeConfigPath = kubeConfigPath
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		logger: logger.NewDiscardLogger(),
@@ -205,6 +220,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
+			appinstallmanager.WithRESTClientGetter(controller.restClientGetter),
+			appinstallmanager.WithKubeConfigPath(controller.kubeConfigPath),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
