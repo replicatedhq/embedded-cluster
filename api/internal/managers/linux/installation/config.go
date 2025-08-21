@@ -243,17 +243,8 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 		return nil, nil
 	}
 
-	// Get the current config to access service CIDR
-	config, err := m.GetConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get installation config: %w", err)
-	}
-
-	serviceCIDR := config.ServiceCIDR
-	if serviceCIDR == "" {
-		// Fallback to runtime config if not set in installation config
-		serviceCIDR = rc.ServiceCIDR()
-	}
+	// Use runtime config as the authoritative source for service CIDR
+	serviceCIDR := rc.ServiceCIDR()
 
 	registryIP, err := registry.GetRegistryClusterIP(serviceCIDR)
 	if err != nil {
