@@ -24,3 +24,12 @@ func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, con
 	}
 	return args.Get(0).(*troubleshootv1beta2.PreflightSpec), args.Error(1)
 }
+
+// ExtractInstallableHelmCharts mocks the ExtractInstallableHelmCharts method
+func (m *MockAppReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) ([]types.InstallableHelmChart, error) {
+	args := m.Called(ctx, configValues, proxySpec)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]types.InstallableHelmChart), args.Error(1)
+}

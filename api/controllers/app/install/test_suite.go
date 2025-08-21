@@ -13,6 +13,7 @@ import (
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -503,16 +504,17 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 	tests := []struct {
 		name                string
 		ignoreAppPreflights bool
+		proxySpec           *ecv1beta1.ProxySpec
 		currentState        statemachine.State
 		expectedState       statemachine.State
-		setupMocks          func(*appconfig.MockAppConfigManager, *appinstallmanager.MockAppInstallManager)
+		setupMocks          func(*appconfig.MockAppConfigManager, *appreleasemanager.MockAppReleaseManager, *appinstallmanager.MockAppInstallManager)
 		expectedErr         bool
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
 			currentState:  states.StateSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -521,27 +523,37 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "invalid state transition from infrastructure installing state",
 			currentState:  states.StateInfrastructureInstalling,
 			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
 		},
 		{
-			name:          "successful app installation from app preflights succeeded state",
+			name:          "successful app installation from app preflights succeeded state with helm charts",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				mock.InOrder(
-					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
-						Spec: kotsv1beta1.ConfigValuesSpec{
-							Values: map[string]kotsv1beta1.ConfigValue{
-								"test-key": {Value: "test-value"},
-							},
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
+				configValues := kotsv1beta1.ConfigValues{
+					Spec: kotsv1beta1.ConfigValuesSpec{
+						Values: map[string]kotsv1beta1.ConfigValue{
+							"test-key": {Value: "test-value"},
 						},
-					}, nil),
-					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
-						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					},
+				}
+				expectedCharts := []types.InstallableHelmChart{
+					{
+						Archive: []byte("chart-archive-data"),
+						Values:  map[string]any{"key": "value"},
+					},
+				}
+				appConfigValues := types.AppConfigValues{
+					"test-key": types.AppConfigValue{Value: "test-value"},
+				}
+				mock.InOrder(
+					acm.On("GetConfigValues").Return(appConfigValues, nil),
+					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return(expectedCharts, nil),
+					aim.On("Install", mock.Anything, expectedCharts, configValues).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -550,18 +562,22 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "successful app installation from app preflights failed bypassed state",
 			currentState:  states.StateAppPreflightsFailedBypassed,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				mock.InOrder(
-					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
-						Spec: kotsv1beta1.ConfigValuesSpec{
-							Values: map[string]kotsv1beta1.ConfigValue{
-								"test-key": {Value: "test-value"},
-							},
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
+				configValues := kotsv1beta1.ConfigValues{
+					Spec: kotsv1beta1.ConfigValuesSpec{
+						Values: map[string]kotsv1beta1.ConfigValue{
+							"test-key": {Value: "test-value"},
 						},
-					}, nil),
-					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
-						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					},
+				}
+				appConfigValues := types.AppConfigValues{
+					"test-key": types.AppConfigValue{Value: "test-value"},
+				}
+				mock.InOrder(
+					acm.On("GetConfigValues").Return(appConfigValues, nil),
+					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return([]types.InstallableHelmChart{}, nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, configValues).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -570,7 +586,11 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "get config values error",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
+				appConfigValues := types.AppConfigValues{
+					"test-key": types.AppConfigValue{Value: "test-value"},
+				}
+				acm.On("GetConfigValues").Return(appConfigValues, nil)
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
 			expectedErr: true,
@@ -580,18 +600,22 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: true,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				mock.InOrder(
-					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
-						Spec: kotsv1beta1.ConfigValuesSpec{
-							Values: map[string]kotsv1beta1.ConfigValue{
-								"test-key": {Value: "test-value"},
-							},
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
+				configValues := kotsv1beta1.ConfigValues{
+					Spec: kotsv1beta1.ConfigValuesSpec{
+						Values: map[string]kotsv1beta1.ConfigValue{
+							"test-key": {Value: "test-value"},
 						},
-					}, nil),
-					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
-						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					},
+				}
+				appConfigValues := types.AppConfigValues{
+					"test-key": types.AppConfigValue{Value: "test-value"},
+				}
+				mock.InOrder(
+					acm.On("GetConfigValues").Return(appConfigValues, nil),
+					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return([]types.InstallableHelmChart{}, nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, configValues).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -601,10 +625,47 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: false,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateAppPreflightsFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
 				// No mocks needed as method should return early with error
 			},
 			expectedErr: true,
+		},
+		{
+			name:          "successful app installation with proxy spec passed to helm chart extraction",
+			currentState:  states.StateAppPreflightsSucceeded,
+			expectedState: states.StateSucceeded,
+			proxySpec: &ecv1beta1.ProxySpec{
+				HTTPProxy:  "http://proxy.example.com:8080",
+				HTTPSProxy: "https://proxy.example.com:8080",
+				NoProxy:    "localhost,127.0.0.1",
+			},
+			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
+				configValues := kotsv1beta1.ConfigValues{
+					Spec: kotsv1beta1.ConfigValuesSpec{
+						Values: map[string]kotsv1beta1.ConfigValue{
+							"test-key": {Value: "test-value"},
+						},
+					},
+				}
+				appConfigValues := types.AppConfigValues{
+					"test-key": types.AppConfigValue{Value: "test-value"},
+				}
+				expectedCharts := []types.InstallableHelmChart{
+					{
+						Archive: []byte("chart-with-proxy-template"),
+						Values:  map[string]any{"proxy_url": "http://proxy.example.com:8080"},
+					},
+				}
+				mock.InOrder(
+					acm.On("GetConfigValues").Return(appConfigValues, nil),
+					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.MatchedBy(func(proxySpec *ecv1beta1.ProxySpec) bool {
+						return proxySpec != nil
+					})).Return(expectedCharts, nil),
+					aim.On("Install", mock.Anything, expectedCharts, configValues).Return(nil),
+				)
+			},
+			expectedErr: false,
 		},
 	}
 
@@ -627,8 +688,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			)
 			require.NoError(t, err, "failed to create install controller")
 
-			tt.setupMocks(appConfigManager, appInstallManager)
-			err = controller.InstallApp(t.Context(), tt.ignoreAppPreflights)
+			tt.setupMocks(appConfigManager, appReleaseManager, appInstallManager)
+			err = controller.InstallApp(t.Context(), tt.ignoreAppPreflights, tt.proxySpec)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -643,6 +704,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after app installation")
 
 			appConfigManager.AssertExpectations(s.T())
+			appReleaseManager.AssertExpectations(s.T())
 			appInstallManager.AssertExpectations(s.T())
 		})
 	}

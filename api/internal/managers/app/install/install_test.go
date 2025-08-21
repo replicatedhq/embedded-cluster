@@ -17,10 +17,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -47,8 +49,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 		},
 	}
 
-	t.Run("Config values should be passed to the installer", func(t *testing.T) {
-		configValues := kotsv1beta1.ConfigValues{
+	t.Run("Success", func(t *testing.T) {
+		kotsConfigValues := kotsv1beta1.ConfigValues{
 			Spec: kotsv1beta1.ConfigValuesSpec{
 				Values: map[string]kotsv1beta1.ConfigValue{
 					"key1": {
@@ -61,13 +63,57 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		}
 
-		// Create mock helm client
-		mockHelmClient := &helm.MockClient{}
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
-		})).Return(&helmrelease.Release{Name: "test-chart"}, nil)
+		// Create InstallableHelmCharts with pre-processed values
+		installableCharts := []types.InstallableHelmChart{
+			createTestInstallableHelmChart(t, "test-chart-1", "1.0.0", "test-chart-1", "kotsadm", map[string]any{
+				"image": map[string]any{
+					"repository": "nginx",
+					"tag":        "latest",
+				},
+				"replicas": 3,
+			}),
+			createTestInstallableHelmChart(t, "test-chart-2", "2.0.0", "test-chart-2", "kotsadm", map[string]any{
+				"database": map[string]any{
+					"host":     "postgres.example.com",
+					"password": "secret",
+				},
+			}),
+		}
 
-		// Create mock installer with detailed verification
+		// Create mock helm client that validates pre-processed values
+		mockHelmClient := &helm.MockClient{}
+
+		// Chart 1 installation (nginx chart)
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			if opts.ReleaseName != "test-chart-1" {
+				return false
+			}
+			if opts.Namespace != "kotsadm" {
+				return false
+			}
+			// Check if values contain expected pre-processed data for nginx chart
+			if vals, ok := opts.Values["image"].(map[string]any); ok {
+				return vals["repository"] == "nginx" && vals["tag"] == "latest" && opts.Values["replicas"] == 3
+			}
+			return false
+		})).Return(&helmrelease.Release{Name: "test-chart-1"}, nil)
+
+		// Chart 2 installation (database chart)
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			if opts.ReleaseName != "test-chart-2" {
+				return false
+			}
+			if opts.Namespace != "kotsadm" {
+				return false
+			}
+			// Check if values contain expected pre-processed database data
+			if vals, ok := opts.Values["database"].(map[string]any); ok {
+				return vals["host"] == "postgres.example.com" && vals["password"] == "secret"
+			}
+			return false
+		})).Return(&helmrelease.Release{Name: "test-chart-2"}, nil)
+
+		// Create mock installer with detailed verification of config values
 		mockInstaller := &MockKotsCLIInstaller{}
 		mockInstaller.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
 			// Verify basic install options
@@ -134,8 +180,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		// Run installation
-		err = manager.Install(context.Background(), configValues)
+		// Run installation with InstallableHelmCharts and config values
+		err = manager.Install(context.Background(), installableCharts, kotsConfigValues)
 		require.NoError(t, err)
 
 		mockInstaller.AssertExpectations(t)
@@ -143,6 +189,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
+		installableCharts := []types.InstallableHelmChart{
+			createTestInstallableHelmChart(t, "test-chart", "1.0.0", "test-chart", "kotsadm", map[string]any{"key": "value"}),
+		}
+
 		// Create mock helm client
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
@@ -174,7 +224,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StatePending, appInstall.Status.State)
 
 		// Run installation
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{})
+		err = manager.Install(context.Background(), installableCharts, kotsv1beta1.ConfigValues{})
 		require.NoError(t, err)
 
 		// Verify final status
@@ -188,6 +238,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
+		installableCharts := []types.InstallableHelmChart{
+			createTestInstallableHelmChart(t, "test-chart", "1.0.0", "test-chart", "kotsadm", map[string]any{"key": "value"}),
+		}
+
 		// Create mock helm client that fails
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
@@ -209,7 +263,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation (should fail)
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{})
+		err = manager.Install(context.Background(), installableCharts, kotsv1beta1.ConfigValues{})
 		assert.Error(t, err)
 
 		// Verify final status
@@ -246,12 +300,13 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, "Installing application", appInstall.Status.Description)
 		assert.Equal(t, "Installation started\n", appInstall.Logs)
 	})
+
 }
 
 func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 	manager := &appInstallManager{}
 
-	configValues := kotsv1beta1.ConfigValues{
+	kotsConfigValues := kotsv1beta1.ConfigValues{
 		Spec: kotsv1beta1.ConfigValuesSpec{
 			Values: map[string]kotsv1beta1.ConfigValue{
 				"testKey": {
@@ -261,7 +316,7 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 		},
 	}
 
-	filename, err := manager.createConfigValuesFile(configValues)
+	filename, err := manager.createConfigValuesFile(kotsConfigValues)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, filename)
 
@@ -314,4 +369,29 @@ type: application
 	return createTarGzArchive(t, map[string]string{
 		fmt.Sprintf("%s/Chart.yaml", name): chartYaml,
 	})
+}
+
+// Helper functions to create test data that can be reused across test cases
+func createTestHelmChartCR(name, releaseName, namespace string) *kotsv1beta2.HelmChart {
+	return &kotsv1beta2.HelmChart{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kots.io/v1beta2",
+			Kind:       "HelmChart",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: kotsv1beta2.HelmChartSpec{
+			ReleaseName: releaseName,
+			Namespace:   namespace,
+		},
+	}
+}
+
+func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, releaseName, namespace string, values map[string]any) types.InstallableHelmChart {
+	return types.InstallableHelmChart{
+		Archive: createTestChartArchive(t, chartName, chartVersion),
+		Values:  values,
+		CR:      createTestHelmChartCR(chartName, releaseName, namespace),
+	}
 }

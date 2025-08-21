@@ -195,7 +195,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
@@ -310,7 +310,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("App installation failure", func(t *testing.T) {
 		// Create mock app install manager that fails
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(errors.New("installation failed"))
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("installation failed"))
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateFailed,
@@ -414,7 +414,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
