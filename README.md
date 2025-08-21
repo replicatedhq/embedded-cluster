@@ -300,55 +300,48 @@ make initial-release
     make kurl-proxy-down-ec
     ```
 
+## Dependency Versions
+
+The [versions.mk](versions.mk) file serves as the single source of truth for all external dependency versions.
+
+### Automated Version Updates
+
+Dependency versions are automatically kept up-to-date through the [.github/workflows/dependencies.yaml](.github/workflows/dependencies.yaml) GitHub Actions workflow, which will run on a schedule and create a pull request for version updates when appropriate.
+
 ## Upgrading K0s Minor Version
 
-To upgrade the K0s minor version in Embedded Cluster, you can use the provided update script ./scripts/k0s-update-dependencies.sh.
-This script will update the K0s dependency version across the project and regenerate necessary files. This is automated in the .github/workflows/dependencies.yaml GitHub Actions workflow.
+To upgrade the K0s minor version, the [.github/workflows/dependencies.yaml](.github/workflows/dependencies.yaml) workflow can be triggered manually with the target minor version as input.
 
-### Using the Update Script
+> **Note:** For patch version updates within the same minor version (e.g., 1.33.4 to 1.33.5), the [automated dependency workflow](#automated-version-updates) handles this automatically.
 
-The update script automates the process of upgrading K0s to a new minor version:
+## Releasing
 
-```bash
-./scripts/k0s-update-dependencies.sh [TARGET_MINOR]
-```
+Embedded Cluster maintains support for the current and two previous K0s minor versions, ensuring backward compatibility while supporting the latest features.
+All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported K0s version.
 
-**Parameters:**
-- `[TARGET_MINOR]` - The target K0s minor version (e.g., `1.28`, `1.29`, `1.30`)
+### Release Tagging Strategy
+
+Releases follow the format: `{APP_VERSION}+k0s-{K0S_MINOR_VERSION}`
 
 **Examples:**
-```bash
-# Upgrade to K0s 1.29.x
-./scripts/k0s-update-dependencies.sh 1.29
+- `2.10.0+k0s-1.33` - Application version 2.10.0 with K0s 1.33.x support
+- `2.10.0+k0s-1.32` - Application version 2.10.0 with K0s 1.32.x support
+- `2.10.0+k0s-1.31` - Application version 2.10.0 with K0s 1.31.x support
 
-# Upgrade to K0s 1.30.x
-./scripts/k0s-update-dependencies.sh 1.30
-```
+### Release Process
 
-### What the Script Does
-
-The update script performs the following operations:
-
-1. **Updates Go module dependencies** - Modifies `go.mod` files to use the new K0s version
-2. **Regenerates CRDs** - Updates Custom Resource Definitions for the new K0s version
-3. **Updates build configurations** - Modifies build scripts and Dockerfiles as needed
-4. **Regenerates manifests** - Updates Kubernetes manifests and deployment files
-
-### After Running the Script
-
-1. **Review changes** - The script will show you what files were modified
-2. **Test the build** - Verify that the project builds successfully:
+1. **Prepare the release commit** - Ensure all changes are committed and tested
+2. **Create annotated tags** - Tag the same commit with all supported K0s minor versions using annotated tags with descriptive messages:
    ```bash
-   make build
-   ```
-3. **Run tests** - Ensure all tests pass with the new version:
-   ```bash
-   make unit-tests
-   make test-integration
-   ```
-4. **Test installation** - Verify that installation works with the new K0s version:
-   ```bash
-   make initial-release
-   make create-node0
-   # Test installation process
+   # Tag for K0s 1.33.x support
+   git tag -a 2.10.0+k0s-1.33 -m "Release 2.10.0+k0s-1.33"
+   git push origin 2.10.0+k0s-1.33
+
+   # Tag for K0s 1.32.x support
+   git tag -a 2.10.0+k0s-1.32 -m "Release 2.10.0+k0s-1.32"
+   git push origin 2.10.0+k0s-1.32
+
+   # Tag for K0s 1.31.x support
+   git tag -a 2.10.0+k0s-1.31 -m "Release 2.10.0+k0s-1.31"
+   git push origin 2.10.0+k0s-1.31
    ```
