@@ -163,7 +163,7 @@ ensure_app_deployed() {
     local version="$1"
 
     kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
-    if ! kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app | grep -q "${version}\s*\d+\s*deployed"; then
+    if ! kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app | grep -q "${version}\W*[0-9]*\W*deployed"; then
         echo "application version ${version} not deployed"
         kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app
         return 1

@@ -303,7 +303,7 @@ make initial-release
 ## Upgrading K0s Minor Version
 
 To upgrade the K0s minor version in Embedded Cluster, you can use the provided update script ./scripts/k0s-update-dependencies.sh.
-This script will update the K0s dependency version across the project and regenerate necessary files.
+This script will update the K0s dependency version across the project and regenerate necessary files. This is automated in the .github/workflows/dependencies.yaml GitHub Actions workflow.
 
 ### Using the Update Script
 
