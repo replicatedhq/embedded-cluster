@@ -1811,16 +1811,16 @@ func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
 		registrySettings *types.RegistrySettings
 		expectError      bool
 		errorContains    string
-		validateCharts   func(t *testing.T, charts []types.InstallableHelmChart)
+		expected         []types.InstallableHelmChart
+		validateCharts   func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte)
 	}{
 		{
-			name:         "no helm charts returns empty slice",
-			helmChartCRs: [][]byte{},
-			configValues: types.AppConfigValues{},
-			expectError:  false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				assert.Empty(t, charts)
-			},
+			name:          "no helm charts returns empty slice",
+			helmChartCRs:  [][]byte{},
+			chartArchives: [][]byte{},
+			configValues:  types.AppConfigValues{},
+			expectError:   false,
+			expected:      nil,
 		},
 		{
 			name: "single chart with basic values",
@@ -1858,40 +1858,48 @@ spec:
 				"ingress_host":   {Value: "nginx.example.com"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify chart archive is present
-				assert.NotEmpty(t, chart.Archive)
-
-				// Verify templated CR
-				assert.NotNil(t, chart.CR)
-				assert.Equal(t, "nginx-chart", chart.CR.Name)
-				assert.Equal(t, "nginx", chart.CR.Spec.Chart.Name)
-				assert.Equal(t, "1.0.0", chart.CR.Spec.Chart.ChartVersion)
-
-				// Verify processed values include base values and optional values
-				assert.NotNil(t, chart.Values)
-				assert.Equal(t, "3", chart.Values["replicaCount"])
-
-				// Check image values
-				imageValues, ok := chart.Values["image"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "nginx", imageValues["repository"])
-				assert.Equal(t, "1.20.0", imageValues["tag"])
-
-				// Check service values
-				serviceValues, ok := chart.Values["service"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "ClusterIP", serviceValues["type"])
-				assert.Equal(t, float64(80), serviceValues["port"])
-
-				// Check optional values were applied
-				ingressValues, ok := chart.Values["ingress"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, ingressValues["enabled"])
-				assert.Equal(t, "nginx.example.com", ingressValues["host"])
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "3",
+						"image": map[string]any{
+							"repository": "nginx",
+							"tag":        "1.20.0",
+						},
+						"service": map[string]any{
+							"type": "ClusterIP",
+							"port": float64(80),
+						},
+						"ingress": map[string]any{
+							"enabled": true,
+							"host":    "nginx.example.com",
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "3"
+    image:
+      repository: nginx
+      tag: "1.20.0"
+    service:
+      type: ClusterIP
+      port: 80
+  optionalValues:
+  - when: "true"
+    values:
+      ingress:
+        enabled: true
+        host: "nginx.example.com"`),
+				},
 			},
 		},
 		{
@@ -1929,12 +1937,22 @@ spec:
 				"skip_nginx": {Value: "true"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				// Should only have the redis chart since nginx is excluded
-				require.Len(t, charts, 1)
-				chart := charts[0]
-				assert.Equal(t, "included-chart", chart.CR.Name)
-				assert.Equal(t, "redis", chart.CR.Spec.Chart.Name)
+			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
+				expectedValues := map[string]any{
+					"persistence": map[string]any{
+						"enabled": true,
+					},
+				}
+
+				expectedCharts := []types.InstallableHelmChart{
+					{
+						Archive: testChartArchives[1], // redis chart (index 1)
+						Values:  expectedValues,
+						CR:      createHelmChartCRFromYAML(string(testHelmChartCRs[1])), // redis CR (index 1)
+					},
+				}
+
+				assert.Equal(t, expectedCharts, charts)
 			},
 		},
 		{
@@ -1970,23 +1988,41 @@ spec:
 				"enable_ssl":   {Value: "true"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify service values with recursive merge
-				serviceValues, ok := chart.Values["service"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "LoadBalancer", serviceValues["type"]) // from optional values (overrode base value)
-				assert.Equal(t, float64(80), serviceValues["port"])    // from base values (preserved)
-
-				// Verify ssl was added via recursive merge
-				sslValues, ok := chart.Values["ssl"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, sslValues["enabled"]) // from optional values (added)
-
-				// Verify base values preserved
-				assert.Equal(t, "1", chart.Values["replicaCount"]) // from base values
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "1",
+						"service": map[string]any{
+							"type": "LoadBalancer", // from optional values (overrode base value)
+							"port": float64(80),    // from base values (preserved)
+						},
+						"ssl": map[string]any{
+							"enabled": true, // from optional values (added)
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: merge-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    service:
+      type: "ClusterIP"
+      port: 80
+    replicaCount: "1"
+  optionalValues:
+  - when: "true"
+    recursiveMerge: true
+    values:
+      service:
+        type: LoadBalancer
+      ssl:
+        enabled: true`),
+				},
 			},
 		},
 		{
@@ -2019,17 +2055,34 @@ spec:
 				"redis_persistence":  {Value: "true"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify direct replacement: entire persistence key replaced
-				persistenceValues, ok := chart.Values["persistence"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "20Gi", persistenceValues["size"]) // from optional values (direct replacement)
-				// Note: enabled=true is GONE because entire persistence key was replaced
-				_, hasEnabled := persistenceValues["enabled"]
-				assert.False(t, hasEnabled, "enabled should be gone due to direct replacement")
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"persistence": map[string]any{
+							"size": "20Gi", // from optional values (direct replacement)
+							// Note: enabled=true is GONE because entire persistence key was replaced
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: replace-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    persistence:
+      enabled: "true"
+      size: "5Gi"
+  optionalValues:
+  - when: "true"
+    recursiveMerge: false
+    values:
+      persistence:
+        size: "20Gi"`),
+				},
 			},
 		},
 		{
@@ -2063,19 +2116,35 @@ spec:
 				NoProxy:    "localhost,127.0.0.1,.cluster.local",
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify proxy values were templated correctly
-				proxyValues, ok := chart.Values["proxy"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "http://proxy.example.com:8080", proxyValues["http"])
-				assert.Equal(t, "https://proxy.example.com:8443", proxyValues["https"])
-				assert.Equal(t, "localhost,127.0.0.1,.cluster.local", proxyValues["noProxy"])
-
-				// Verify conditional value was applied since proxy is configured
-				assert.Equal(t, true, chart.Values["proxyEnabled"])
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"proxy": map[string]any{
+							"http":    "http://proxy.example.com:8080",
+							"https":   "https://proxy.example.com:8443",
+							"noProxy": "localhost,127.0.0.1,.cluster.local",
+						},
+						"proxyEnabled": true,
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: proxy-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    proxy:
+      http: "http://proxy.example.com:8080"
+      https: "https://proxy.example.com:8443"
+      noProxy: "localhost,127.0.0.1,.cluster.local"
+  optionalValues:
+  - when: "true"
+    values:
+      proxyEnabled: true`),
+				},
 			},
 		},
 		{
@@ -2155,29 +2224,45 @@ spec:
 				"disable_monitoring": {Value: "false"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify base values preserved
-				assert.Equal(t, "1", chart.Values["replicaCount"]) // from base values
-
-				// Verify persistence enabled (when condition evaluated to true)
-				persistenceValues, ok := chart.Values["persistence"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, persistenceValues["enabled"]) // from optional values (when=true)
-
-				// Verify monitoring is NOT present (when condition evaluated to false)
-				_, hasMonitoring := chart.Values["monitoring"]
-				assert.False(t, hasMonitoring, "monitoring should not be present when condition is false")
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "1", // from base values
+						"persistence": map[string]any{
+							"enabled": true, // from optional values (when=true)
+						},
+						// monitoring should NOT be present (when condition evaluated to false)
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: mixed-conditions-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "1"
+  optionalValues:
+  - when: "true"
+    values:
+      persistence:
+        enabled: true
+  - when: "false"
+    values:
+      monitoring:
+        enabled: false`),
+				},
 			},
 		},
 		{
-			name:         "nil helm chart CRs",
-			helmChartCRs: nil,
-			configValues: types.AppConfigValues{},
-			expectError:  false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
+			name:          "nil helm chart CRs",
+			helmChartCRs:  nil,
+			chartArchives: [][]byte{},
+			configValues:  types.AppConfigValues{},
+			expectError:   false,
+			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
 				assert.Empty(t, charts)
 			},
 		},
@@ -2201,12 +2286,20 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			expectError:  false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-				assert.Equal(t, "valid-chart", chart.CR.Name)
-				assert.Equal(t, "nginx", chart.CR.Spec.Chart.Name)
-				assert.Equal(t, "2", chart.Values["replicaCount"])
+			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
+				expectedValues := map[string]any{
+					"replicaCount": "2",
+				}
+
+				expectedCharts := []types.InstallableHelmChart{
+					{
+						Archive: testChartArchives[0],
+						Values:  expectedValues,
+						CR:      createHelmChartCRFromYAML(string(testHelmChartCRs[1])), // Skip the nil CR at index 0
+					},
+				}
+
+				assert.Equal(t, expectedCharts, charts)
 			},
 		},
 		{
@@ -2249,33 +2342,49 @@ spec:
 				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 1)
-				chart := charts[0]
-
-				// Verify registry values were templated correctly for airgap mode
-				imageValues, ok := chart.Values["image"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "10.128.0.11:5000/myapp/nginx", imageValues["repository"])
-				assert.Equal(t, "1.20.0", imageValues["tag"])
-
-				// Verify image pull secrets
-				imagePullSecrets, ok := chart.Values["imagePullSecrets"].([]any)
-				require.True(t, ok)
-				require.Len(t, imagePullSecrets, 1)
-				secret := imagePullSecrets[0].(map[string]any)
-				assert.Equal(t, "embedded-cluster-registry", secret["name"])
-
-				// Verify registry settings
-				registryValues, ok := chart.Values["registry"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "10.128.0.11:5000", registryValues["host"])
-				assert.Equal(t, "10.128.0.11:5000/myapp", registryValues["address"])
-				assert.Equal(t, "myapp", registryValues["namespace"])
-				assert.Equal(t, "dGVzdC1zZWNyZXQtdmFsdWU=", registryValues["secret"])
-
-				// Verify conditional value was applied since local registry is available
-				assert.Equal(t, true, chart.Values["airgapMode"])
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"image": map[string]any{
+							"repository": "10.128.0.11:5000/myapp/nginx",
+							"tag":        "1.20.0",
+						},
+						"imagePullSecrets": []any{
+							map[string]any{"name": "embedded-cluster-registry"},
+						},
+						"registry": map[string]any{
+							"host":      "10.128.0.11:5000",
+							"address":   "10.128.0.11:5000/myapp",
+							"namespace": "myapp",
+							"secret":    "dGVzdC1zZWNyZXQtdmFsdWU=",
+						},
+						"airgapMode": true,
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: registry-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: "10.128.0.11:5000/myapp/nginx"
+      tag: "1.20.0"
+    imagePullSecrets:
+      - name: "embedded-cluster-registry"
+    registry:
+      host: "10.128.0.11:5000"
+      address: "10.128.0.11:5000/myapp"
+      namespace: "myapp"
+      secret: "dGVzdC1zZWNyZXQtdmFsdWU="
+  optionalValues:
+  - when: "true"
+    values:
+      airgapMode: true`),
+				},
 			},
 		},
 	}
@@ -2311,9 +2420,11 @@ spec:
 
 			require.NoError(t, err)
 
-			// Run validation if provided
-			if tt.validateCharts != nil {
-				tt.validateCharts(t, result)
+			// Use expectedInstallableCharts if provided, otherwise use validateCharts
+			if tt.expected != nil {
+				assert.Equal(t, tt.expected, result)
+			} else if tt.validateCharts != nil {
+				tt.validateCharts(t, result, tt.helmChartCRs, tt.chartArchives)
 			}
 		})
 	}
