@@ -171,3 +171,7 @@ func (c *InstallController) computeCIDRs(config *types.LinuxInstallationConfig) 
 func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
 	return c.installationManager.GetStatus()
 }
+
+func (c *InstallController) CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error) {
+	return c.installationManager.CalculateRegistrySettings(ctx, c.rc)
+}

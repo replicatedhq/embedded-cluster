@@ -23,6 +23,13 @@ func WithProxySpec(proxySpec *ecv1beta1.ProxySpec) ExecOption {
 	}
 }
 
+// WithRegistrySettings is an ExecOption that sets the registry settings for the engine.
+func WithRegistrySettings(registrySettings *types.RegistrySettings) ExecOption {
+	return func(e *Engine) {
+		e.registrySettings = registrySettings
+	}
+}
+
 // Execute executes the template engine using the provided config values and execution options.
 // In ModeConfig, it processes and templates the KOTS config itself, returning the templated config.
 // In ModeGeneric, it executes the engine's parsed template and returns the templated result.
@@ -168,12 +175,13 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
 
-		// TODO: implement
-		"HasLocalRegistry":       func() bool { return false },
-		"LocalRegistryHost":      func() string { return "" },
-		"LocalRegistryNamespace": func() string { return "" },
-		"LocalImageName":         func() string { return "" },
-		"ImagePullSecretName":    func() string { return "" },
+		// Registry template functions
+		"HasLocalRegistry":             e.hasLocalRegistry,
+		"LocalRegistryHost":            e.localRegistryHost,
+		"LocalRegistryAddress":         e.localRegistryAddress,
+		"LocalRegistryNamespace":       e.localRegistryNamespace,
+		"ImagePullSecretName":          e.imagePullSecretName,
+		"LocalRegistryImagePullSecret": e.localRegistryImagePullSecret,
 	}
 }
 
