@@ -704,6 +704,122 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
+func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
+	tests := []struct {
+		name                        string
+		enableV3EnvVar              string
+		expectedFlagShouldBeVisible bool
+	}{
+		{
+			name:                        "ENABLE_V3 not set - flag should be visible",
+			enableV3EnvVar:              "",
+			expectedFlagShouldBeVisible: true,
+		},
+		{
+			name:                        "ENABLE_V3 set to 1 - flag should be hidden",
+			enableV3EnvVar:              "1",
+			expectedFlagShouldBeVisible: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clean environment
+			os.Unsetenv("ENABLE_V3")
+
+			// Set environment variable if specified
+			if tt.enableV3EnvVar != "" {
+				t.Setenv("ENABLE_V3", tt.enableV3EnvVar)
+			}
+
+			flags := &InstallCmdFlags{}
+			enableV3 := isV3Enabled()
+			flagSet := newLinuxInstallFlags(flags, enableV3)
+
+			// Check if the flag exists
+			flag := flagSet.Lookup("ignore-app-preflights")
+			flagExists := flag != nil
+
+			assert.Equal(t, tt.expectedFlagShouldBeVisible, flagExists, "Flag visibility should match expected")
+
+			if flagExists {
+				// Test flag properties
+				assert.Equal(t, "ignore-app-preflights", flag.Name)
+				assert.Equal(t, "false", flag.DefValue) // Default should be false
+				assert.Equal(t, "Allow bypassing app preflight failures", flag.Usage)
+				assert.Equal(t, "bool", flag.Value.Type())
+
+				// Test flag targets - should be Linux only
+				targetAnnotation := flag.Annotations[flagAnnotationTarget]
+				require.NotNil(t, targetAnnotation, "Flag should have target annotation")
+				assert.Contains(t, targetAnnotation, flagAnnotationTargetValueLinux)
+			}
+		})
+	}
+}
+
+func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
+	tests := []struct {
+		name                     string
+		args                     []string
+		enableV3                 bool
+		expectedIgnorePreflights bool
+		expectError              bool
+	}{
+		{
+			name:                     "flag not provided, V3 disabled",
+			args:                     []string{},
+			enableV3:                 false,
+			expectedIgnorePreflights: false,
+			expectError:              false,
+		},
+		{
+			name:                     "flag set to true, V3 disabled",
+			args:                     []string{"--ignore-app-preflights"},
+			enableV3:                 false,
+			expectedIgnorePreflights: true,
+			expectError:              false,
+		},
+		{
+			name:                     "flag set but V3 enabled - should error",
+			args:                     []string{"--ignore-app-preflights"},
+			enableV3:                 true,
+			expectedIgnorePreflights: false,
+			expectError:              true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable for V3 testing
+			if tt.enableV3 {
+				t.Setenv("ENABLE_V3", "1")
+			}
+
+			// Create a flagset similar to how newLinuxInstallFlags works
+			flags := &InstallCmdFlags{}
+			flagSet := newLinuxInstallFlags(flags, tt.enableV3)
+
+			// Create a command to test flag parsing
+			cmd := &cobra.Command{
+				Use: "test",
+				Run: func(cmd *cobra.Command, args []string) {},
+			}
+			cmd.Flags().AddFlagSet(flagSet)
+
+			// Try to parse the arguments
+			err := cmd.Flags().Parse(tt.args)
+			if tt.expectError {
+				assert.Error(t, err, "Flag parsing should fail when flag doesn't exist")
+			} else {
+				assert.NoError(t, err, "Flag parsing should succeed")
+				// Check the flag value only if parsing succeeded
+				assert.Equal(t, tt.expectedIgnorePreflights, flags.ignoreAppPreflights)
+			}
+		})
+	}
+}
+
 func Test_processTLSConfig(t *testing.T) {
 	// Create a temporary directory for test certificates
 	tmpdir := t.TempDir()

@@ -75,6 +75,7 @@ type InstallCmdFlags struct {
 	localArtifactMirrorPort int
 	skipHostPreflights      bool
 	ignoreHostPreflights    bool
+	ignoreAppPreflights     bool
 	networkInterface        string
 
 	// kubernetes flags
@@ -276,8 +277,9 @@ func newLinuxInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet 
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if enableV3 {
 		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
+	} else {
+		flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 	}
-
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -827,7 +829,9 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		logrus.Warnf("Unable to create host support bundle: %v", err)
 	}
 
-	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc)
+	isHeadlessInstall := flags.configValues != "" && flags.adminConsolePassword != ""
+
+	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
 
 	return nil
 }
@@ -875,6 +879,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
+				SkipPreflights:        flags.ignoreAppPreflights,
 				Stdout:                *loading,
 			}
 			return kotscli.Install(opts)
@@ -1415,11 +1420,16 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) {
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
-	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+	var message string
+	if isHeadlessInstall {
+		message = fmt.Sprintf("The Admin Console for %s is available at:", license.Spec.AppSlug)
+	} else {
+		message = fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+	}
 
 	// Determine the length of the longest line
 	longestLine := len(message)
