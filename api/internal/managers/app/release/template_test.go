@@ -1893,9 +1893,6 @@ spec:
     service:
       type: ClusterIP
       port: 80
-    ingress:
-      enabled: true
-      host: "nginx.example.com"
   optionalValues:
   - when: "true"
     values:
@@ -2077,7 +2074,8 @@ spec:
     chartVersion: "2.0.0"
   values:
     persistence:
-      size: "20Gi"
+      enabled: "true"
+      size: "5Gi"
   optionalValues:
   - when: "true"
     recursiveMerge: false
@@ -2142,7 +2140,6 @@ spec:
       http: "http://proxy.example.com:8080"
       https: "https://proxy.example.com:8443"
       noProxy: "localhost,127.0.0.1,.cluster.local"
-    proxyEnabled: true
   optionalValues:
   - when: "true"
     values:
@@ -2247,8 +2244,6 @@ spec:
     chartVersion: "1.0.0"
   values:
     replicaCount: "1"
-    persistence:
-      enabled: true
   optionalValues:
   - when: "true"
     values:
@@ -2385,7 +2380,6 @@ spec:
       address: "10.128.0.11:5000/myapp"
       namespace: "myapp"
       secret: "dGVzdC1zZWNyZXQtdmFsdWU="
-    airgapMode: true
   optionalValues:
   - when: "true"
     values:
