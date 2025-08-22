@@ -22,12 +22,10 @@ function local_artifact_mirror() {
     if [ -n "$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME" ]; then
         make -C local-artifact-mirror build-ttl.sh \
             IMAGE_NAME="$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME" \
-            PACKAGE_VERSION="$EC_VERSION" \
             VERSION="$EC_VERSION" \
             | prefix_output "LAM"
     else
         make -C local-artifact-mirror build-ttl.sh \
-            PACKAGE_VERSION="$EC_VERSION" \
             VERSION="$EC_VERSION" \
             | prefix_output "LAM"
     fi
@@ -38,11 +36,9 @@ function operator() {
     if [ -n "$OPERATOR_IMAGE_NAME" ]; then
         make -C operator build-ttl.sh build-chart-ttl.sh \
             IMAGE_NAME="$OPERATOR_IMAGE_NAME" \
-            PACKAGE_VERSION="$EC_VERSION" \
             VERSION="$EC_VERSION" 2>&1 | prefix_output "OPERATOR"
     else
         make -C operator build-ttl.sh build-chart-ttl.sh \
-            PACKAGE_VERSION="$EC_VERSION" \
             VERSION="$EC_VERSION" 2>&1 | prefix_output "OPERATOR"
     fi
     cp operator/build/image "operator/build/image-$EC_VERSION"
