@@ -2,6 +2,8 @@ module github.com/replicatedhq/embedded-cluster
 
 go 1.24.6
 
+toolchain go1.24.4
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/sprig/v3 v3.3.0
