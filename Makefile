@@ -10,12 +10,12 @@ ADMIN_CONSOLE_CHART_REPO_OVERRIDE =
 ADMIN_CONSOLE_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
-K0S_VERSION = v1.33.3+k0s.0
-K0S_GO_VERSION = v1.33.3+k0s.0
-PREVIOUS_K0S_VERSION ?= v1.32.7+k0s.0
-PREVIOUS_K0S_GO_VERSION ?= v1.32.7+k0s.0
+K0S_VERSION = v1.33.4+k0s.0
+K0S_GO_VERSION = v1.33.4+k0s.0
+PREVIOUS_K0S_VERSION ?= v1.32.8+k0s.0
+PREVIOUS_K0S_GO_VERSION ?= v1.32.8+k0s.0
 K0S_BINARY_SOURCE_OVERRIDE =
-TROUBLESHOOT_VERSION = v0.121.2
+TROUBLESHOOT_VERSION = v0.121.3
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, there's NO need to update the KOTS_VERSION above as it will be dynamically generated
