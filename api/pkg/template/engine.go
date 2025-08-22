@@ -36,8 +36,9 @@ type Engine struct {
 	cache                      map[string]resolvedConfigItem
 	depsTree                   map[string][]string
 	stack                      []string
-	proxySpec                  *ecv1beta1.ProxySpec // Proxy spec for the proxy template functions, if applicable
-	privateCACertConfigMapName string               // ConfigMap name for private CA certificates, empty string if not available
+	proxySpec                  *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
+	registrySettings           *types.RegistrySettings // Registry settings for registry template functions, if applicable
+	privateCACertConfigMapName string                  // ConfigMap name for private CA certificates, empty string if not available
 	mtx                        sync.Mutex
 }
 

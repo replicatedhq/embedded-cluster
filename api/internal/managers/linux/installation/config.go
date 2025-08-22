@@ -2,6 +2,7 @@ package installation
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -10,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -232,4 +234,47 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	}
 
 	return nil
+}
+
+// CalculateRegistrySettings calculates registry settings for airgap installations
+func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
+	// Only return registry settings for airgap installations
+	if m.airgapBundle == "" {
+		return nil, nil
+	}
+
+	// Use runtime config as the authoritative source for service CIDR
+	serviceCIDR := rc.ServiceCIDR()
+
+	registryIP, err := registry.GetRegistryClusterIP(serviceCIDR)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get registry cluster IP: %w", err)
+	}
+
+	// Construct registry host with port
+	registryHost := fmt.Sprintf("%s:5000", registryIP)
+
+	// Get app namespace from release data - required for app preflights
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appNamespace := m.releaseData.ChannelRelease.AppSlug
+
+	// Construct full registry address with namespace
+	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
+
+	// Create image pull secret value using the same pattern as admin console
+	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
+		registryHost, registry.GetRegistryPassword(), authString)
+	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
+
+	return &types.RegistrySettings{
+		HasLocalRegistry:     true,
+		Host:                 registryHost,
+		Address:              registryAddress,
+		Namespace:            appNamespace,
+		ImagePullSecretName:  "embedded-cluster-registry",
+		ImagePullSecretValue: imagePullSecretValue,
+	}, nil
 }

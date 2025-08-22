@@ -97,9 +97,8 @@ build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirr
 	docker push "$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-ttl.sh
-build-ttl.sh:
-	@$(MAKE) build-and-push-local-artifact-mirror-image \
-		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
+build-ttl.sh: IMAGE_NAME = ttl.sh/$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
+build-ttl.sh: build-and-push-local-artifact-mirror-image
 
 .PHONY: clean
 clean:

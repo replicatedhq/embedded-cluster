@@ -163,9 +163,17 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	err := h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
+	registrySettings, err := h.installController.CalculateRegistrySettings(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: h.cfg.RuntimeConfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
 		ProxySpec:           h.cfg.RuntimeConfig.ProxySpec(),
+		RegistrySettings:    registrySettings,
 		ExtraPaths:          []string{h.cfg.RuntimeConfig.EmbeddedClusterBinsSubDir()},
 	})
 	if err != nil {

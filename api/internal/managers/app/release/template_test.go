@@ -343,7 +343,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.ExtractAppPreflightSpec(t.Context(), tt.configValues, tt.proxySpec)
+			result, err := manager.ExtractAppPreflightSpec(t.Context(), tt.configValues, tt.proxySpec, nil)
 
 			// Check error expectation
 			if tt.expectError {
@@ -363,20 +363,22 @@ spec:
 
 func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 	tests := []struct {
-		name         string
-		helmChartCRs [][]byte
-		configValues types.AppConfigValues
-		proxySpec    *ecv1beta1.ProxySpec
-		expected     []*kotsv1beta2.HelmChart
-		expectError  bool
+		name             string
+		helmChartCRs     [][]byte
+		configValues     types.AppConfigValues
+		proxySpec        *ecv1beta1.ProxySpec
+		registrySettings *types.RegistrySettings
+		expected         []*kotsv1beta2.HelmChart
+		expectError      bool
 	}{
 		{
-			name:         "empty helm chart CRs",
-			helmChartCRs: [][]byte{},
-			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
-			expected:     []*kotsv1beta2.HelmChart{},
-			expectError:  false,
+			name:             "empty helm chart CRs",
+			helmChartCRs:     [][]byte{},
+			configValues:     types.AppConfigValues{},
+			proxySpec:        &ecv1beta1.ProxySpec{},
+			registrySettings: nil,
+			expected:         []*kotsv1beta2.HelmChart{},
+			expectError:      false,
 		},
 		{
 			name: "single helm chart with repl templating",
@@ -704,6 +706,154 @@ spec:
 			},
 			expectError: false,
 		},
+		{
+			name: "helm chart with registry template functions - airgap mode",
+			helmChartCRs: [][]byte{
+				[]byte(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: '{{repl HasLocalRegistry | ternary LocalRegistryHost "proxy.replicated.com"}}/{{repl HasLocalRegistry | ternary LocalRegistryNamespace "external/path"}}/nginx'
+    imagePullSecrets:
+      - name: '{{repl ImagePullSecretName}}'
+    registry:
+      host: '{{repl LocalRegistryHost}}'
+      address: '{{repl LocalRegistryAddress}}'
+      namespace: '{{repl LocalRegistryNamespace}}'
+      secret: '{{repl LocalRegistryImagePullSecret}}'
+`),
+			},
+			configValues: types.AppConfigValues{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry:     true,
+				Host:                 "10.128.0.11:5000",
+				Address:              "10.128.0.11:5000/myapp",
+				Namespace:            "myapp",
+				ImagePullSecretName:  "embedded-cluster-registry",
+				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
+			},
+			expected: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: "10.128.0.11:5000/myapp/nginx"
+    imagePullSecrets:
+      - name: "embedded-cluster-registry"
+    registry:
+      host: "10.128.0.11:5000"
+      address: "10.128.0.11:5000/myapp"
+      namespace: "myapp"
+      secret: "dGVzdC1zZWNyZXQtdmFsdWU="
+`),
+			},
+			expectError: false,
+		},
+		{
+			name: "helm chart with registry template functions - online mode",
+			helmChartCRs: [][]byte{
+				[]byte(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: '{{repl HasLocalRegistry | ternary LocalRegistryHost "proxy.replicated.com"}}/{{repl HasLocalRegistry | ternary LocalRegistryNamespace "external/path"}}/nginx'
+    imagePullSecrets:
+      - name: '{{repl ImagePullSecretName}}'
+`),
+			},
+			configValues: types.AppConfigValues{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry: false,
+			},
+			expected: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: "proxy.replicated.com/external/path/nginx"
+    imagePullSecrets:
+      - name: ""
+`),
+			},
+			expectError: false,
+		},
+		{
+			name: "helm chart with registry template functions - nil registry settings",
+			helmChartCRs: [][]byte{
+				[]byte(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: '{{repl HasLocalRegistry | ternary LocalRegistryHost "proxy.replicated.com"}}/{{repl HasLocalRegistry | ternary LocalRegistryNamespace "external/path"}}/nginx'
+    imagePullSecrets:
+      - name: '{{repl ImagePullSecretName}}'
+`),
+			},
+			configValues:     types.AppConfigValues{},
+			proxySpec:        &ecv1beta1.ProxySpec{},
+			registrySettings: nil, // No registry settings provided
+			expected: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: "proxy.replicated.com/external/path/nginx"
+    imagePullSecrets:
+      - name: ""
+`),
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -724,7 +874,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.(*appReleaseManager).templateHelmChartCRs(tt.configValues, tt.proxySpec)
+			result, err := manager.(*appReleaseManager).templateHelmChartCRs(tt.configValues, tt.proxySpec, tt.registrySettings)
 
 			// Check error expectation
 			if tt.expectError {

@@ -152,3 +152,12 @@ func (m *MockController) GetAppInstallStatus(ctx context.Context) (types.AppInst
 	args := m.Called(ctx)
 	return args.Get(0).(types.AppInstall), args.Error(1)
 }
+
+// CalculateRegistrySettings mocks the CalculateRegistrySettings method
+func (m *MockController) CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.RegistrySettings), args.Error(1)
+}
