@@ -21,12 +21,14 @@ function init_vars() {
 function local_artifact_mirror() {
     if [ -n "$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME" ]; then
         make -C local-artifact-mirror build-ttl.sh \
-            PACKAGE_VERSION="$EC_VERSION" \
             IMAGE_NAME="$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME" \
+            PACKAGE_VERSION="$EC_VERSION" \
+            VERSION="$EC_VERSION" \
             | prefix_output "LAM"
     else
         make -C local-artifact-mirror build-ttl.sh \
             PACKAGE_VERSION="$EC_VERSION" \
+            VERSION="$EC_VERSION" \
             | prefix_output "LAM"
     fi
     cp local-artifact-mirror/build/image "local-artifact-mirror/build/image-$EC_VERSION"
