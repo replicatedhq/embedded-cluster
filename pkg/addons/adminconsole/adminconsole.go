@@ -23,6 +23,7 @@ type AdminConsole struct {
 	IsMultiNodeEnabled bool
 	Proxy              *ecv1beta1.ProxySpec
 	AdminConsolePort   int
+	IsV3               bool
 
 	// Linux specific options
 	ClusterID        string
