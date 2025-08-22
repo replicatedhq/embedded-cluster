@@ -224,7 +224,7 @@ func generateHelmValues(templatedCR *kotsv1beta2.HelmChart) (map[string]any, err
 	}
 
 	// Start with the base values
-	mergedValues := templatedCR.Spec.Values
+	mergedValues := maps.Clone(templatedCR.Spec.Values)
 	if mergedValues == nil {
 		mergedValues = map[string]kotsv1beta2.MappedChartValue{}
 	}
