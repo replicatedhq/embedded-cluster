@@ -227,15 +227,13 @@ build-chart:
 	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 
 .PHONY: build-ttl.sh
-build-ttl.sh:
-	@$(MAKE) build-and-push-operator-image \
-		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image
+build-ttl.sh: IMAGE_NAME = ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image
+build-ttl.sh: build-and-push-operator-image
 
 .PHONY: build-chart-ttl.sh
-build-chart-ttl.sh:
-	@$(MAKE) build-chart \
-		IMAGE_NAME=ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image \
-		CHART_REMOTE=oci://ttl.sh/$(CURRENT_USER)
+build-chart-ttl.sh: IMAGE_NAME = ttl.sh/$(CURRENT_USER)/embedded-cluster-operator-image
+build-chart-ttl.sh: CHART_REMOTE = oci://ttl.sh/$(CURRENT_USER)
+build-chart-ttl.sh: build-chart
 
 .PHONY: clean
 clean:

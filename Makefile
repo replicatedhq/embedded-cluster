@@ -177,10 +177,10 @@ output/bins/kubectl-kots-%:
 output/bins/kubectl-kots-override:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	if [[ "$(KOTS_BINARY_URL_OVERRIDE)" == ttl.sh* ]]; then \
-		oras pull "$(KOTS_BINARY_URL_OVERRIDE)" --output output/tmp ; \
-	else \
+	if [[ "$(KOTS_BINARY_URL_OVERRIDE)" == http://* ]] || [[ "$(KOTS_BINARY_URL_OVERRIDE)" == https://* ]]; then \
 		curl --retry 5 --retry-all-errors -fL -o output/tmp/kots.tar.gz "$(KOTS_BINARY_URL_OVERRIDE)" ; \
+	else \
+		oras pull "$(KOTS_BINARY_URL_OVERRIDE)" --output output/tmp ; \
 	fi
 	tar -xzf output/tmp/kots.tar.gz -C output/tmp
 	mv output/tmp/kots $@
