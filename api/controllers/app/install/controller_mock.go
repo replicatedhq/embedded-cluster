@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -70,8 +69,8 @@ func (m *MockController) GetAppPreflightTitles(ctx context.Context) ([]string, e
 }
 
 // InstallApp mocks the InstallApp method
-func (m *MockController) InstallApp(ctx context.Context, ignoreAppPreflights bool, proxySpec *ecv1beta1.ProxySpec) error {
-	args := m.Called(ctx, ignoreAppPreflights, proxySpec)
+func (m *MockController) InstallApp(ctx context.Context, opts InstallAppOptions) error {
+	args := m.Called(ctx, opts)
 	return args.Error(0)
 }
 

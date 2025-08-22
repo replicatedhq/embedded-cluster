@@ -34,7 +34,6 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 			name:         "no helm charts returns nil",
 			helmChartCRs: [][]byte{},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -79,7 +78,6 @@ spec:
 			configValues: types.AppConfigValues{
 				"check_name": {Value: "K8s Version Validation"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -177,7 +175,6 @@ spec:
 				"version_check_name":  {Value: "Custom K8s Version Check"},
 				"resource_check_name": {Value: "Custom Node Resource Check"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -235,7 +232,6 @@ spec:
 				createTestChartArchive(t, "simple-chart", "1.0.0"),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -375,7 +371,6 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 			name:             "empty helm chart CRs",
 			helmChartCRs:     [][]byte{},
 			configValues:     types.AppConfigValues{},
-			proxySpec:        &ecv1beta1.ProxySpec{},
 			registrySettings: nil,
 			expected:         []*kotsv1beta2.HelmChart{},
 			expectError:      false,
@@ -416,7 +411,6 @@ spec:
 				"enable_persistence": {Value: "true"},
 				"disable_monitoring": {Value: "false"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -501,7 +495,6 @@ spec:
 				"enable_resources":  {Value: "false"},
 				"redis_persistence": {Value: "true"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -564,7 +557,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -584,7 +576,6 @@ spec:
 			name:         "nil helm chart CRs",
 			helmChartCRs: nil,
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected:     []*kotsv1beta2.HelmChart{},
 			expectError:  false,
 		},
@@ -678,7 +669,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{}, // Empty proxy spec
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -732,7 +722,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry:     true,
 				Host:                 "10.128.0.11:5000",
@@ -787,7 +776,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: false,
 			},
@@ -832,7 +820,6 @@ spec:
 `),
 			},
 			configValues:     types.AppConfigValues{},
-			proxySpec:        &ecv1beta1.ProxySpec{},
 			registrySettings: nil, // No registry settings provided
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
@@ -1816,20 +1803,20 @@ data:
 
 func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
 	tests := []struct {
-		name           string
-		helmChartCRs   [][]byte
-		chartArchives  [][]byte
-		configValues   types.AppConfigValues
-		proxySpec      *ecv1beta1.ProxySpec
-		expectError    bool
-		errorContains  string
-		validateCharts func(t *testing.T, charts []types.InstallableHelmChart)
+		name             string
+		helmChartCRs     [][]byte
+		chartArchives    [][]byte
+		configValues     types.AppConfigValues
+		proxySpec        *ecv1beta1.ProxySpec
+		registrySettings *types.RegistrySettings
+		expectError      bool
+		errorContains    string
+		validateCharts   func(t *testing.T, charts []types.InstallableHelmChart)
 	}{
 		{
 			name:         "no helm charts returns empty slice",
 			helmChartCRs: [][]byte{},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectError:  false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				assert.Empty(t, charts)
@@ -1870,7 +1857,6 @@ spec:
 				"enable_ingress": {Value: "true"},
 				"ingress_host":   {Value: "nginx.example.com"},
 			},
-			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
@@ -1942,7 +1928,6 @@ spec:
 			configValues: types.AppConfigValues{
 				"skip_nginx": {Value: "true"},
 			},
-			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				// Should only have the redis chart since nginx is excluded
@@ -1984,7 +1969,6 @@ spec:
 				"service_type": {Value: "ClusterIP"},
 				"enable_ssl":   {Value: "true"},
 			},
-			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
@@ -2034,7 +2018,6 @@ spec:
 				"enable_persistence": {Value: "true"},
 				"redis_persistence":  {Value: "true"},
 			},
-			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
@@ -2113,7 +2096,6 @@ spec:
 				createTestChartArchive(t, "nginx", "1.0.0"), // Different chart
 			},
 			configValues:  types.AppConfigValues{},
-			proxySpec:     &ecv1beta1.ProxySpec{},
 			expectError:   true,
 			errorContains: "find chart archive for missing-chart",
 		},
@@ -2139,7 +2121,6 @@ spec:
 				createTestChartArchive(t, "nginx", "1.0.0"),
 			},
 			configValues:  types.AppConfigValues{},
-			proxySpec:     &ecv1beta1.ProxySpec{},
 			expectError:   true,
 			errorContains: "generate helm values for chart invalid-when-chart",
 		},
@@ -2173,7 +2154,6 @@ spec:
 				"enable_persistence": {Value: "true"},
 				"disable_monitoring": {Value: "false"},
 			},
-			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
@@ -2196,7 +2176,6 @@ spec:
 			name:         "nil helm chart CRs",
 			helmChartCRs: nil,
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectError:  false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				assert.Empty(t, charts)
@@ -2221,7 +2200,6 @@ spec:
 				createTestChartArchive(t, "nginx", "1.0.0"),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectError:  false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
@@ -2229,6 +2207,75 @@ spec:
 				assert.Equal(t, "valid-chart", chart.CR.Name)
 				assert.Equal(t, "nginx", chart.CR.Spec.Chart.Name)
 				assert.Equal(t, "2", chart.Values["replicaCount"])
+			},
+		},
+		{
+			name: "chart with registry template functions - airgap mode",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: registry-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: '{{repl HasLocalRegistry | ternary LocalRegistryHost "proxy.replicated.com"}}/{{repl HasLocalRegistry | ternary LocalRegistryNamespace "external/path"}}/nginx'
+      tag: "1.20.0"
+    imagePullSecrets:
+      - name: '{{repl ImagePullSecretName}}'
+    registry:
+      host: '{{repl LocalRegistryHost}}'
+      address: '{{repl LocalRegistryAddress}}'
+      namespace: '{{repl LocalRegistryNamespace}}'
+      secret: '{{repl LocalRegistryImagePullSecret}}'
+  optionalValues:
+  - when: '{{repl HasLocalRegistry}}'
+    values:
+      airgapMode: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry:     true,
+				Host:                 "10.128.0.11:5000",
+				Address:              "10.128.0.11:5000/myapp",
+				Namespace:            "myapp",
+				ImagePullSecretName:  "embedded-cluster-registry",
+				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
+			},
+			expectError: false,
+			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
+				require.Len(t, charts, 1)
+				chart := charts[0]
+
+				// Verify registry values were templated correctly for airgap mode
+				imageValues, ok := chart.Values["image"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, "10.128.0.11:5000/myapp/nginx", imageValues["repository"])
+				assert.Equal(t, "1.20.0", imageValues["tag"])
+
+				// Verify image pull secrets
+				imagePullSecrets, ok := chart.Values["imagePullSecrets"].([]any)
+				require.True(t, ok)
+				require.Len(t, imagePullSecrets, 1)
+				secret := imagePullSecrets[0].(map[string]any)
+				assert.Equal(t, "embedded-cluster-registry", secret["name"])
+
+				// Verify registry settings
+				registryValues, ok := chart.Values["registry"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, "10.128.0.11:5000", registryValues["host"])
+				assert.Equal(t, "10.128.0.11:5000/myapp", registryValues["address"])
+				assert.Equal(t, "myapp", registryValues["namespace"])
+				assert.Equal(t, "dGVzdC1zZWNyZXQtdmFsdWU=", registryValues["secret"])
+
+				// Verify conditional value was applied since local registry is available
+				assert.Equal(t, true, chart.Values["airgapMode"])
 			},
 		},
 	}
@@ -2250,7 +2297,7 @@ spec:
 			require.NoError(t, err)
 
 			// Execute the function
-			result, err := manager.ExtractInstallableHelmCharts(context.Background(), tt.configValues, tt.proxySpec)
+			result, err := manager.ExtractInstallableHelmCharts(context.Background(), tt.configValues, tt.proxySpec, tt.registrySettings)
 
 			// Check error expectation
 			if tt.expectError {

@@ -505,6 +505,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 		name                string
 		ignoreAppPreflights bool
 		proxySpec           *ecv1beta1.ProxySpec
+		registrySettings    *types.RegistrySettings
 		currentState        statemachine.State
 		expectedState       statemachine.State
 		setupMocks          func(*appconfig.MockAppConfigManager, *appreleasemanager.MockAppReleaseManager, *appinstallmanager.MockAppInstallManager)
@@ -552,7 +553,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
 					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
-					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return(expectedCharts, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return(expectedCharts, nil),
 					aim.On("Install", mock.Anything, expectedCharts, configValues).Return(nil),
 				)
 			},
@@ -576,7 +577,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
 					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
-					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return([]types.InstallableHelmChart{}, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return([]types.InstallableHelmChart{}, nil),
 					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, configValues).Return(nil),
 				)
 			},
@@ -614,7 +615,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
 					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
-					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return([]types.InstallableHelmChart{}, nil),
+					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return([]types.InstallableHelmChart{}, nil),
 					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, configValues).Return(nil),
 				)
 			},
@@ -639,6 +640,10 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				HTTPSProxy: "https://proxy.example.com:8080",
 				NoProxy:    "localhost,127.0.0.1",
 			},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry: true,
+				Host:             "10.128.0.11:5000",
+			},
 			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
 				configValues := kotsv1beta1.ConfigValues{
 					Spec: kotsv1beta1.ConfigValuesSpec{
@@ -661,6 +666,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 					acm.On("GetKotsadmConfigValues").Return(configValues, nil),
 					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.MatchedBy(func(proxySpec *ecv1beta1.ProxySpec) bool {
 						return proxySpec != nil
+					}), mock.MatchedBy(func(registrySettings *types.RegistrySettings) bool {
+						return registrySettings != nil
 					})).Return(expectedCharts, nil),
 					aim.On("Install", mock.Anything, expectedCharts, configValues).Return(nil),
 				)
@@ -689,7 +696,11 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			require.NoError(t, err, "failed to create install controller")
 
 			tt.setupMocks(appConfigManager, appReleaseManager, appInstallManager)
-			err = controller.InstallApp(t.Context(), tt.ignoreAppPreflights, tt.proxySpec)
+			err = controller.InstallApp(t.Context(), InstallAppOptions{
+				IgnoreAppPreflights: tt.ignoreAppPreflights,
+				ProxySpec:           tt.proxySpec,
+				RegistrySettings:    tt.registrySettings,
+			})
 
 			if tt.expectedErr {
 				assert.Error(t, err)

@@ -57,9 +57,9 @@ func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configV
 }
 
 // ExtractInstallableHelmCharts extracts and processes installable Helm charts from app releases
-func (m *appReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) ([]types.InstallableHelmChart, error) {
+func (m *appReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) ([]types.InstallableHelmChart, error) {
 	// Template Helm chart CRs with config values
-	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec)
+	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec, registrySettings)
 	if err != nil {
 		return nil, fmt.Errorf("template helm chart CRs: %w", err)
 	}

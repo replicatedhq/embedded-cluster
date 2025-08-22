@@ -26,8 +26,8 @@ func (m *MockAppReleaseManager) ExtractAppPreflightSpec(ctx context.Context, con
 }
 
 // ExtractInstallableHelmCharts mocks the ExtractInstallableHelmCharts method
-func (m *MockAppReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec) ([]types.InstallableHelmChart, error) {
-	args := m.Called(ctx, configValues, proxySpec)
+func (m *MockAppReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) ([]types.InstallableHelmChart, error) {
+	args := m.Called(ctx, configValues, proxySpec, registrySettings)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

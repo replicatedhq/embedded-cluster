@@ -231,7 +231,7 @@ func TestPostInstallApp(t *testing.T) {
 				},
 			},
 		}
-		mockAppReleaseManager.On("ExtractInstallableHelmCharts", mock.Anything, testAppConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec")).Return(testInstallableCharts, nil)
+		mockAppReleaseManager.On("ExtractInstallableHelmCharts", mock.Anything, testAppConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return(testInstallableCharts, nil)
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
