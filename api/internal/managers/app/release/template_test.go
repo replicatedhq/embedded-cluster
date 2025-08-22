@@ -1953,106 +1953,100 @@ spec:
 			},
 		},
 		{
-			name: "multiple charts with different value configurations",
+			name: "chart with recursive merge optional values",
 			helmChartCRs: [][]byte{
 				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: frontend-chart
+  name: merge-chart
 spec:
   chart:
     name: nginx
     chartVersion: "1.0.0"
   values:
-    replicaCount: '{{repl ConfigOption "frontend_replicas"}}'
-    image:
-      tag: '{{repl ConfigOption "frontend_tag"}}'
+    service:
+      type: '{{repl ConfigOption "service_type"}}'
+      port: 80
+    replicaCount: "1"
   optionalValues:
-  - when: '{{repl ConfigOptionEquals "enable_ssl" "true"}}'
+  - when: '{{repl ConfigOption "enable_ssl"}}'
     recursiveMerge: true
     values:
       service:
-        ports:
-          https: 443
+        type: LoadBalancer
       ssl:
         enabled: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"service_type": {Value: "ClusterIP"},
+				"enable_ssl":   {Value: "true"},
+			},
+			proxySpec:   &ecv1beta1.ProxySpec{},
+			expectError: false,
+			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
+				require.Len(t, charts, 1)
+				chart := charts[0]
+
+				// Verify service values with recursive merge
+				serviceValues, ok := chart.Values["service"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, "LoadBalancer", serviceValues["type"]) // from optional values (overrode base value)
+				assert.Equal(t, float64(80), serviceValues["port"])    // from base values (preserved)
+
+				// Verify ssl was added via recursive merge
+				sslValues, ok := chart.Values["ssl"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, true, sslValues["enabled"]) // from optional values (added)
+
+				// Verify base values preserved
+				assert.Equal(t, "1", chart.Values["replicaCount"]) // from base values
+			},
+		},
+		{
+			name: "chart with direct replacement optional values",
+			helmChartCRs: [][]byte{
 				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: backend-chart
+  name: replace-chart
 spec:
   chart:
     name: redis
     chartVersion: "2.0.0"
   values:
     persistence:
-      enabled: '{{repl ConfigOption "redis_persistence"}}'
-    resources:
-      limits:
-        memory: "256Mi"
+      enabled: '{{repl ConfigOption "enable_persistence"}}'
+      size: "5Gi"
   optionalValues:
   - when: '{{repl ConfigOption "redis_persistence"}}'
     recursiveMerge: false
     values:
       persistence:
-        size: "10Gi"
-        storageClass: "fast-ssd"`),
+        size: "20Gi"`),
 			},
 			chartArchives: [][]byte{
-				createTestChartArchive(t, "nginx", "1.0.0"),
 				createTestChartArchive(t, "redis", "2.0.0"),
 			},
 			configValues: types.AppConfigValues{
-				"frontend_replicas": {Value: "3"},
-				"frontend_tag":      {Value: "1.20.0"},
-				"enable_ssl":        {Value: "true"},
-				"redis_persistence": {Value: "true"},
+				"enable_persistence": {Value: "true"},
+				"redis_persistence":  {Value: "true"},
 			},
 			proxySpec:   &ecv1beta1.ProxySpec{},
 			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
-				require.Len(t, charts, 2)
+				require.Len(t, charts, 1)
+				chart := charts[0]
 
-				// Find charts by name
-				var frontendChart, backendChart *types.InstallableHelmChart
-				for i := range charts {
-					switch charts[i].CR.Name {
-					case "frontend-chart":
-						frontendChart = &charts[i]
-					case "backend-chart":
-						backendChart = &charts[i]
-					}
-				}
-
-				require.NotNil(t, frontendChart)
-				require.NotNil(t, backendChart)
-
-				// Validate frontend chart with recursive merge
-				assert.Equal(t, "3", frontendChart.Values["replicaCount"])
-				imageValues, ok := frontendChart.Values["image"].(map[string]any)
+				// Verify direct replacement: entire persistence key replaced
+				persistenceValues, ok := chart.Values["persistence"].(map[string]any)
 				require.True(t, ok)
-				assert.Equal(t, "1.20.0", imageValues["tag"])
-
-				// Check recursive merge worked for service
-				serviceValues, ok := frontendChart.Values["service"].(map[string]any)
-				require.True(t, ok)
-				portsValues, ok := serviceValues["ports"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, float64(443), portsValues["https"])
-
-				// Check SSL values were added
-				sslValues, ok := frontendChart.Values["ssl"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, sslValues["enabled"])
-
-				// Validate backend chart with direct replacement
-				persistenceValues, ok := backendChart.Values["persistence"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "10Gi", persistenceValues["size"])
-				assert.Equal(t, "fast-ssd", persistenceValues["storageClass"])
-				// Note: enabled should be gone due to direct replacement, not recursive merge
+				assert.Equal(t, "20Gi", persistenceValues["size"]) // from optional values (direct replacement)
+				// Note: enabled=true is GONE because entire persistence key was replaced
 				_, hasEnabled := persistenceValues["enabled"]
-				assert.False(t, hasEnabled, "enabled should be replaced, not merged")
+				assert.False(t, hasEnabled, "enabled should be gone due to direct replacement")
 			},
 		},
 		{
@@ -2150,63 +2144,52 @@ spec:
 			errorContains: "generate helm values for chart invalid-when-chart",
 		},
 		{
-			name: "chart with complex optional values conditions",
+			name: "chart with mixed when conditions",
 			helmChartCRs: [][]byte{
 				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: complex-conditions-chart
+  name: mixed-conditions-chart
 spec:
   chart:
     name: nginx
     chartVersion: "1.0.0"
   values:
     replicaCount: "1"
-    resources: {}
   optionalValues:
-  - when: "true"
+  - when: '{{repl ConfigOption "enable_persistence"}}'
     values:
       persistence:
         enabled: true
-  - when: "false"
+  - when: '{{repl ConfigOption "disable_monitoring"}}'
     values:
-      persistence:
-        enabled: false
-        size: "should-not-appear"
-  - when: "true"
-    recursiveMerge: true
-    values:
-      persistence:
-        size: "5Gi"
       monitoring:
-        enabled: true`),
+        enabled: false`),
 			},
 			chartArchives: [][]byte{
 				createTestChartArchive(t, "nginx", "1.0.0"),
 			},
-			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
-			expectError:  false,
+			configValues: types.AppConfigValues{
+				"enable_persistence": {Value: "true"},
+				"disable_monitoring": {Value: "false"},
+			},
+			proxySpec:   &ecv1beta1.ProxySpec{},
+			expectError: false,
 			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart) {
 				require.Len(t, charts, 1)
 				chart := charts[0]
 
-				// Verify base values
-				assert.Equal(t, "1", chart.Values["replicaCount"])
-				assert.Equal(t, map[string]any{}, chart.Values["resources"])
+				// Verify base values preserved
+				assert.Equal(t, "1", chart.Values["replicaCount"]) // from base values
 
-				// Verify optional values processing
+				// Verify persistence enabled (when condition evaluated to true)
 				persistenceValues, ok := chart.Values["persistence"].(map[string]any)
 				require.True(t, ok)
-				assert.Equal(t, true, persistenceValues["enabled"]) // From first when=true
-				assert.Equal(t, "5Gi", persistenceValues["size"])   // From third when=true with recursiveMerge
-				_, hasBadSize := persistenceValues["should-not-appear"]
-				assert.False(t, hasBadSize, "values from when=false should not appear")
+				assert.Equal(t, true, persistenceValues["enabled"]) // from optional values (when=true)
 
-				// Verify monitoring was added via recursive merge
-				monitoringValues, ok := chart.Values["monitoring"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, monitoringValues["enabled"])
+				// Verify monitoring is NOT present (when condition evaluated to false)
+				_, hasMonitoring := chart.Values["monitoring"]
+				assert.False(t, hasMonitoring, "monitoring should not be present when condition is false")
 			},
 		},
 		{

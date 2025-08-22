@@ -65,14 +65,14 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 		// Create InstallableHelmCharts with pre-processed values
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "test-chart-1", "1.0.0", "test-chart-1", "kotsadm", map[string]any{
+			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", map[string]any{
 				"image": map[string]any{
 					"repository": "nginx",
 					"tag":        "latest",
 				},
 				"replicas": 3,
 			}),
-			createTestInstallableHelmChart(t, "test-chart-2", "2.0.0", "test-chart-2", "kotsadm", map[string]any{
+			createTestInstallableHelmChart(t, "postgres-chart", "2.0.0", "database", "data", map[string]any{
 				"database": map[string]any{
 					"host":     "postgres.example.com",
 					"password": "secret",
@@ -85,10 +85,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 		// Chart 1 installation (nginx chart)
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			if opts.ReleaseName != "test-chart-1" {
+			if opts.ReleaseName != "web-server" {
 				return false
 			}
-			if opts.Namespace != "kotsadm" {
+			if opts.Namespace != "web" {
 				return false
 			}
 			// Check if values contain expected pre-processed data for nginx chart
@@ -96,14 +96,14 @@ func TestAppInstallManager_Install(t *testing.T) {
 				return vals["repository"] == "nginx" && vals["tag"] == "latest" && opts.Values["replicas"] == 3
 			}
 			return false
-		})).Return(&helmrelease.Release{Name: "test-chart-1"}, nil)
+		})).Return(&helmrelease.Release{Name: "web-server"}, nil)
 
 		// Chart 2 installation (database chart)
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			if opts.ReleaseName != "test-chart-2" {
+			if opts.ReleaseName != "database" {
 				return false
 			}
-			if opts.Namespace != "kotsadm" {
+			if opts.Namespace != "data" {
 				return false
 			}
 			// Check if values contain expected pre-processed database data
@@ -111,7 +111,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 				return vals["host"] == "postgres.example.com" && vals["password"] == "secret"
 			}
 			return false
-		})).Return(&helmrelease.Release{Name: "test-chart-2"}, nil)
+		})).Return(&helmrelease.Release{Name: "database"}, nil)
 
 		// Create mock installer with detailed verification of config values
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -190,14 +190,14 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "test-chart", "1.0.0", "test-chart", "kotsadm", map[string]any{"key": "value"}),
+			createTestInstallableHelmChart(t, "monitoring-chart", "1.0.0", "prometheus", "monitoring", map[string]any{"key": "value"}),
 		}
 
 		// Create mock helm client
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
-		})).Return(&helmrelease.Release{Name: "test-chart"}, nil)
+			return opts.ChartPath != "" && opts.ReleaseName == "prometheus" && opts.Namespace == "monitoring"
+		})).Return(&helmrelease.Release{Name: "prometheus"}, nil)
 
 		// Create mock installer that succeeds
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -239,13 +239,13 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "test-chart", "1.0.0", "test-chart", "kotsadm", map[string]any{"key": "value"}),
+			createTestInstallableHelmChart(t, "logging-chart", "1.0.0", "fluentd", "logging", map[string]any{"key": "value"}),
 		}
 
 		// Create mock helm client that fails
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
+			return opts.ChartPath != "" && opts.ReleaseName == "fluentd" && opts.Namespace == "logging"
 		})).Return((*helmrelease.Release)(nil), assert.AnError)
 
 		// Create manager with initialized store (no need for KOTS installer mock since Helm fails first)
