@@ -40,7 +40,7 @@ func ValidateCIDR(cidr string, notLessThan int, private bool) error {
 
 	if ipnet.String() != cidr {
 		//nolint:staticcheck // ST1005
-		return fmt.Errorf("The provided CIDR block (%s) is not valid", cidr)
+		return fmt.Errorf("The provided CIDR block (%s) is not valid, please use the canonical representation %s", cidr, ipnet.String())
 	}
 
 	if size, _ := ipnet.Mask.Size(); size > notLessThan {
