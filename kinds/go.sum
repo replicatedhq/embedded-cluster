@@ -34,8 +34,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k0sproject/dig v0.4.0 h1:yBxFUUxNXAMGBg6b7c6ypxdx/o3RmhoI5v5ABOw5tn0=
 github.com/k0sproject/dig v0.4.0/go.mod h1:rlZ7N7ZEcB4Fi96TPXkZ4dqyAiDWOGLapyL9YpZ7Qz4=
-github.com/k0sproject/k0s v1.33.4-0.20250721121212-4615902bc8c4 h1:Xj6IwJ9Xyf/eefwGVQnNr22/aC7t2PJ5BH5MNnROE6A=
-github.com/k0sproject/k0s v1.33.4-0.20250721121212-4615902bc8c4/go.mod h1:ZZoTRuEVpxAokPb4t35P1O27iq+QYxvtSqRx6dzc82k=
+github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6 h1:g5Jg/vHENLY1UnxDLkzcXLxxmSwLIxXIJNWlRAFPP6s=
+github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6/go.mod h1:DUWIG4PCnk8w0muU+mlE5VZq2vvKrB//XBcYvHKVK54=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
