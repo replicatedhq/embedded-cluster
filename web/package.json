@@ -27,7 +27,7 @@
     "@faker-js/faker": "^9.9.0",
     "@netlify/functions": "^4.2.2",
     "@netlify/vite-plugin": "^2.5.5",
-    "@testing-library/jest-dom": "^6.7.0",
+    "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.3.0",
