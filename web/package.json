@@ -23,7 +23,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "@eslint/js": "^9.33.0",
+    "@eslint/js": "^9.34.0",
     "@faker-js/faker": "^9.9.0",
     "@netlify/functions": "^4.2.1",
     "@netlify/vite-plugin": "^2.5.4",
