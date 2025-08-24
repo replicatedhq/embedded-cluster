@@ -28,6 +28,7 @@ type InstallOptions struct {
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec
 	KotsInstaller      adminconsole.KotsInstaller
 	ProxySpec          *ecv1beta1.ProxySpec
+	IsV3               bool
 
 	// Linux only options
 	ClusterID               string
@@ -52,6 +53,7 @@ type KubernetesInstallOptions struct {
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec
 	KotsInstaller      adminconsole.KotsInstaller
 	ProxySpec          *ecv1beta1.ProxySpec
+	IsV3               bool
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
@@ -160,6 +162,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		DataDir:            opts.DataDir,
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+		IsV3:               opts.IsV3,
 
 		Password:      opts.AdminConsolePwd,
 		TLSCertBytes:  opts.TLSCertBytes,
@@ -195,6 +198,7 @@ func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn 
 		IsMultiNodeEnabled: opts.IsMultiNodeEnabled,
 		Proxy:              opts.ProxySpec,
 		AdminConsolePort:   opts.AdminConsolePort,
+		IsV3:               opts.IsV3,
 
 		Password:      opts.AdminConsolePwd,
 		TLSCertBytes:  opts.TLSCertBytes,

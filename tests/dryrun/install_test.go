@@ -101,6 +101,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"embeddedClusterID":      in.Spec.ClusterID,
 		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
+		"isEmbeddedClusterV3":    false,
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
