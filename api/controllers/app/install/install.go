@@ -8,14 +8,21 @@ import (
 
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 )
 
 var (
 	ErrAppPreflightChecksFailed = errors.New("app preflight checks failed")
 )
 
+type InstallAppOptions struct {
+	IgnoreAppPreflights bool
+	ProxySpec           *ecv1beta1.ProxySpec
+	RegistrySettings    *types.RegistrySettings
+}
+
 // InstallApp triggers app installation with proper state transitions and panic handling
-func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+func (c *InstallController) InstallApp(ctx context.Context, opts InstallAppOptions) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -33,7 +40,7 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 	// Check if app preflights have failed and if we should ignore them
 	if c.stateMachine.CurrentState() == states.StateAppPreflightsFailed {
 		allowIgnoreAppPreflights := true // TODO: implement once we check for strict app preflights
-		if !ignoreAppPreflights || !allowIgnoreAppPreflights {
+		if !opts.IgnoreAppPreflights || !allowIgnoreAppPreflights {
 			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
 		}
 		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
@@ -47,9 +54,15 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 	}
 
 	// Get config values for app installation
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
+	appConfigValues, err := c.GetAppConfigValues(ctx)
 	if err != nil {
-		return fmt.Errorf("get kotsadm config values for app install: %w", err)
+		return fmt.Errorf("get app config values for app install: %w", err)
+	}
+
+	// Get KOTS config values for the KOTS CLI
+	kotsConfigValues, err := c.appConfigManager.GetKotsadmConfigValues()
+	if err != nil {
+		return fmt.Errorf("get kots config values for app install: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, states.StateAppInstalling)
@@ -80,8 +93,14 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 			}
 		}()
 
-		// Install the app
-		err := c.appInstallManager.Install(ctx, configValues)
+		// Extract installable Helm charts from release manager
+		installableCharts, err := c.appReleaseManager.ExtractInstallableHelmCharts(ctx, appConfigValues, opts.ProxySpec, opts.RegistrySettings)
+		if err != nil {
+			return fmt.Errorf("extract installable helm charts: %w", err)
+		}
+
+		// Install the app with installable charts and kots config values
+		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}
