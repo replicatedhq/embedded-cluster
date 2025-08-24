@@ -19,6 +19,7 @@ environment:
   environment:
     GOMODCACHE: /var/cache/melange
     VERSION: ${PACKAGE_VERSION}
+    K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 
 pipeline:
   - runs: |

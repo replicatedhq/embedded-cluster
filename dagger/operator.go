@@ -18,6 +18,9 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	repo string,
 	// Version to use for the package.
 	ecVersion string,
+	// K0s minor version to build for.
+	// +default=""
+	kzerosMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -26,9 +29,9 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateOprator(src, ecVersion)
+	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
 
-	pkgBuild := m.BuildOperatorPackage(src, ecVersion, arch)
+	pkgBuild := m.BuildOperatorPackage(src, ecVersion, kzerosMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -56,6 +59,9 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	repo string,
 	// Version to use for the package.
 	ecVersion string,
+	// K0s minor version to build for.
+	// +default=""
+	kzerosMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -64,9 +70,9 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateOprator(src, ecVersion)
+	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
 
-	pkgBuild := m.BuildOperatorPackage(src, ecVersion, arch)
+	pkgBuild := m.BuildOperatorPackage(src, ecVersion, kzerosMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -94,12 +100,15 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	src *dagger.Directory,
 	// Version to use for the package.
 	ecVersion string,
+	// K0s minor version to build for.
+	// +default=""
+	kzerosMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
 ) *dagger.Directory {
 
-	melangeFile := m.melangeTemplateOperator(src, ecVersion)
+	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
 
 	dir := dag.Directory().
 		WithDirectory("operator", src.Directory("operator"))
@@ -117,12 +126,17 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 func (m *EmbeddedCluster) apkoTemplateOprator(
 	src *dagger.Directory,
 	ecVersion string,
+	k0sMinorVersion string,
 ) *dagger.File {
+	vars := map[string]string{
+		"PACKAGE_VERSION": ecVersion,
+	}
+	if k0sMinorVersion != "" {
+		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
+	}
 	return m.renderTemplate(
 		src.Directory("operator/deploy"),
-		map[string]string{
-			"PACKAGE_VERSION": ecVersion,
-		},
+		vars,
 		"apko.tmpl.yaml",
 		"apko.yaml",
 	)
@@ -131,12 +145,17 @@ func (m *EmbeddedCluster) apkoTemplateOprator(
 func (m *EmbeddedCluster) melangeTemplateOperator(
 	src *dagger.Directory,
 	ecVersion string,
+	k0sMinorVersion string,
 ) *dagger.File {
+	vars := map[string]string{
+		"PACKAGE_VERSION": ecVersion,
+	}
+	if k0sMinorVersion != "" {
+		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
+	}
 	return m.renderTemplate(
 		src.Directory("operator/deploy"),
-		map[string]string{
-			"PACKAGE_VERSION": ecVersion,
-		},
+		vars,
 		"melange.tmpl.yaml",
 		"melange.yaml",
 	)

@@ -3,6 +3,7 @@ SHELL := /bin/bash
 export PATH := $(shell pwd)/bin:$(PATH)
 
 include ../common.mk
+include ../versions.mk
 
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
@@ -20,12 +21,17 @@ build:
 		-ldflags="-s -w -extldflags=-static" \
 		-o bin/local-artifact-mirror-$(OS)-$(ARCH) ../cmd/local-artifact-mirror
 
+.PHONY: build-deps
+build-deps:
+	$(MAKE) -C .. go.mod crds
+
 export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-local-artifact-mirror
 melange-build-local-artifact-mirror:
 	dagger call build-local-artifact-mirror-package \
 		--ec-version $(PACKAGE_VERSION) \
+		--kzeros-minor-version $(K0S_MINOR_VERSION) \
 		--arch $(ARCH) \
 		export --path build
 
@@ -41,6 +47,7 @@ build-local-artifact-mirror-image:
 build-local-artifact-mirror-image-chainguard:
 	dagger call build-local-artifact-mirror-image \
 		--ec-version $(PACKAGE_VERSION) \
+		--kzeros-minor-version $(K0S_MINOR_VERSION) \
 		--repo $(IMAGE_NAME) \
 		--arch $(ARCH) \
 		export --path build
@@ -70,6 +77,7 @@ ifdef REGISTRY_SERVER
 			--password env:REGISTRY_PASSWORD \
 		publish-local-artifact-mirror-image \
 			--ec-version $(PACKAGE_VERSION) \
+			--kzeros-minor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest
@@ -77,6 +85,7 @@ else
 	dagger call \
 		publish-local-artifact-mirror-image \
 			--ec-version $(PACKAGE_VERSION) \
+			--kzeros-minor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest

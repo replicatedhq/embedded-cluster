@@ -69,20 +69,31 @@ func k8sVersion() string {
 	return verParts[0]
 }
 
-func k8sVersionPrevious() string {
+func k8sVersionPrevious(n int) string {
+	if n < 1 {
+		panic(fmt.Sprintf("previous k0s version index must be at least 1, got %d", n))
+	}
 	// split the version string (like 'v1.29.6+k0s.0') into the k8s version and the k0s revision
-	verParts := strings.Split(os.Getenv("EXPECT_K0S_VERSION_PREVIOUS"), "+")
+	value := os.Getenv(fmt.Sprintf("EXPECT_K0S_VERSION_PREVIOUS_%d", n))
+	if value == "" {
+		panic(fmt.Sprintf("missing previous k0s version %d", n))
+	}
+	verParts := strings.Split(value, "+")
 	if len(verParts) < 2 {
-		panic(fmt.Sprintf("failed to parse previous k8s version %q", os.Getenv("EXPECT_K0S_VERSION_PREVIOUS")))
+		panic(fmt.Sprintf("failed to parse previous k8s version %q", value))
 	}
 	return verParts[0]
 }
 
 func k8sVersionPreviousStable() string {
 	// split the version string (like 'v1.29.6+k0s.0') into the k8s version and the k0s revision
-	verParts := strings.Split(os.Getenv("EXPECT_K0S_VERSION_PREVIOUS_STABLE"), "+")
+	value := os.Getenv("EXPECT_K0S_VERSION_PREVIOUS_STABLE")
+	if value == "" {
+		panic("missing previous stable k0s version")
+	}
+	verParts := strings.Split(value, "+")
 	if len(verParts) < 2 {
-		panic(fmt.Sprintf("failed to parse previous stable k8s version %q", os.Getenv("EXPECT_K0S_VERSION_PREVIOUS_STABLE")))
+		panic(fmt.Sprintf("failed to parse previous stable k8s version %q", value))
 	}
 	return verParts[0]
 }

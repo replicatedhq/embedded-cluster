@@ -13,8 +13,14 @@ inputs:
   k0s-version:
     description: 'k0s version to expect in e2e tests'
     required: true
-  k0s-version-previous:
-    description: 'k0s previous version to expect in e2e tests'
+  k0s-version-previous-1:
+    description: 'k0s previous (minor-1) version to expect in e2e tests'
+    required: true
+  k0s-version-previous-2:
+    description: 'k0s previous (minor-2) version to expect in e2e tests'
+    required: true
+  k0s-version-previous-3:
+    description: 'k0s previous (minor-3) version to expect in e2e tests'
     required: true
   k0s-version-previous-stable:
     description: 'k0s previous stable version to expect in e2e tests'
@@ -69,7 +75,9 @@ runs:
       export DR_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
       export DR_SECRET_ACCESS_KEY=${{ inputs.dr-aws-secret-access-key }}
       export EXPECT_K0S_VERSION=${{ inputs.k0s-version }}
-      export EXPECT_K0S_VERSION_PREVIOUS=${{ inputs.k0s-version-previous }}
+      export EXPECT_K0S_VERSION_PREVIOUS_1=${{ inputs.k0s-version-previous-1 }}
+      export EXPECT_K0S_VERSION_PREVIOUS_2=${{ inputs.k0s-version-previous-2 }}
+      export EXPECT_K0S_VERSION_PREVIOUS_3=${{ inputs.k0s-version-previous-3 }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"

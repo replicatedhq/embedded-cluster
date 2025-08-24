@@ -8,9 +8,6 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
-# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.26.0
-
 ## Tool Binaries
 MELANGE ?= $(LOCALBIN)/melange
 APKO ?= $(LOCALBIN)/apko
