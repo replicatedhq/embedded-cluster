@@ -951,7 +951,7 @@ jobs:
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-install.outputs.k0s_version }}
-          k0s-version-previous: ${{ needs.build-install.outputs.k0s_version_1 }}
+          k0s-version-previous-1: ${{ needs.build-install.outputs.k0s_version_1 }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
