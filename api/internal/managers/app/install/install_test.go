@@ -1,11 +1,7 @@
 package install
 
 import (
-	"archive/tar"
-	"bytes"
-	"compress/gzip"
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -14,13 +10,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	helmrelease "helm.sh/helm/v3/pkg/release"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -34,12 +28,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 	licenseBytes, err := kyaml.Marshal(license)
 	require.NoError(t, err)
 
-	// Create valid helm chart archive
-	mockChartArchive := createTestChartArchive(t, "test-chart", "0.1.0")
-
-	// Create test release data with helm chart archives
+	// Create test release data
 	releaseData := &release.ReleaseData{
-		HelmChartArchives: [][]byte{mockChartArchive},
 		ChannelRelease: &release.ChannelRelease{
 			DefaultDomains: release.Domains{
 				ReplicatedAppDomain: "replicated.app",
@@ -60,12 +50,6 @@ func TestAppInstallManager_Install(t *testing.T) {
 				},
 			},
 		}
-
-		// Create mock helm client
-		mockHelmClient := &helm.MockClient{}
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
-		})).Return(&helmrelease.Release{Name: "test-chart"}, nil)
 
 		// Create mock installer with detailed verification
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -129,7 +113,6 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
 			WithKotsCLI(mockInstaller),
-			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -139,16 +122,9 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		mockInstaller.AssertExpectations(t)
-		mockHelmClient.AssertExpectations(t)
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
-		// Create mock helm client
-		mockHelmClient := &helm.MockClient{}
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
-		})).Return(&helmrelease.Release{Name: "test-chart"}, nil)
-
 		// Create mock installer that succeeds
 		mockInstaller := &MockKotsCLIInstaller{}
 		mockInstaller.On("Install", mock.Anything).Return(nil)
@@ -162,7 +138,6 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
 			WithKotsCLI(mockInstaller),
-			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -184,17 +159,14 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
 		mockInstaller.AssertExpectations(t)
-		mockHelmClient.AssertExpectations(t)
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
-		// Create mock helm client that fails
-		mockHelmClient := &helm.MockClient{}
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
-			return opts.ChartPath != "" && opts.ReleaseName == "test-chart" && opts.Namespace == "kotsadm"
-		})).Return((*helmrelease.Release)(nil), assert.AnError)
+		// Create mock installer that fails
+		mockInstaller := &MockKotsCLIInstaller{}
+		mockInstaller.On("Install", mock.Anything).Return(assert.AnError)
 
-		// Create manager with initialized store (no need for KOTS installer mock since Helm fails first)
+		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
 		}))
@@ -202,7 +174,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
-			WithHelmClient(mockHelmClient),
+			WithKotsCLI(mockInstaller),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -216,9 +188,9 @@ func TestAppInstallManager_Install(t *testing.T) {
 		appInstall, err := manager.GetStatus()
 		require.NoError(t, err)
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
-		assert.Contains(t, appInstall.Status.Description, "install helm charts")
+		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
 
-		mockHelmClient.AssertExpectations(t)
+		mockInstaller.AssertExpectations(t)
 	})
 
 	t.Run("GetStatus returns current app install state", func(t *testing.T) {
@@ -276,42 +248,4 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 
 	// Clean up
 	os.Remove(filename)
-}
-
-// createTarGzArchive creates a tar.gz archive with the given files
-func createTarGzArchive(t *testing.T, files map[string]string) []byte {
-	t.Helper()
-
-	var buf bytes.Buffer
-	gw := gzip.NewWriter(&buf)
-	tw := tar.NewWriter(gw)
-
-	for filename, content := range files {
-		header := &tar.Header{
-			Name: filename,
-			Mode: 0600,
-			Size: int64(len(content)),
-		}
-		require.NoError(t, tw.WriteHeader(header))
-		_, err := tw.Write([]byte(content))
-		require.NoError(t, err)
-	}
-
-	require.NoError(t, tw.Close())
-	require.NoError(t, gw.Close())
-
-	return buf.Bytes()
-}
-
-func createTestChartArchive(t *testing.T, name, version string) []byte {
-	chartYaml := fmt.Sprintf(`apiVersion: v2
-name: %s
-version: %s
-description: A test Helm chart
-type: application
-`, name, version)
-
-	return createTarGzArchive(t, map[string]string{
-		fmt.Sprintf("%s/Chart.yaml", name): chartYaml,
-	})
 }

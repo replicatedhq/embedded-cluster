@@ -62,7 +62,7 @@ func writeChartArchiveToTemp(chartArchive []byte) (string, error) {
 
 	// Write the chart archive to the temporary file
 	if _, err := tmpFile.Write(chartArchive); err != nil {
-		_ = os.Remove(tmpFile.Name())
+		os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("write chart archive: %w", err)
 	}
 

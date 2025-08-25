@@ -7,11 +7,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var _ AppInstallManager = &appInstallManager{}
@@ -31,16 +29,13 @@ type AppInstallManager interface {
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	appInstallStore  appinstallstore.Store
-	releaseData      *release.ReleaseData
-	license          []byte
-	clusterID        string
-	airgapBundle     string
-	kotsCLI          KotsCLIInstaller
-	logger           logrus.FieldLogger
-	hcli             helm.Client
-	kubeConfigPath   string
-	restClientGetter genericclioptions.RESTClientGetter
+	appInstallStore appinstallstore.Store
+	releaseData     *release.ReleaseData
+	license         []byte
+	clusterID       string
+	airgapBundle    string
+	kotsCLI         KotsCLIInstaller
+	logger          logrus.FieldLogger
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -84,25 +79,6 @@ func WithAirgapBundle(airgapBundle string) AppInstallManagerOption {
 func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kotsCLI = kotsCLI
-	}
-}
-
-// Add constructor options following infra manager pattern
-func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.hcli = hcli
-	}
-}
-
-func WithKubeConfigPath(path string) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.kubeConfigPath = path
-	}
-}
-
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.restClientGetter = restClientGetter
 	}
 }
 
