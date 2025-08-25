@@ -15,19 +15,15 @@ import (
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
-	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
-	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -179,8 +175,12 @@ func TestGetAppInstallStatus(t *testing.T) {
 
 // TestPostInstallApp tests the POST /kubernetes/install/app/install endpoint
 func TestPostInstallApp(t *testing.T) {
-	// Create test release data
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
 	releaseData := &release.ReleaseData{
+		HelmChartArchives:     [][]byte{mockChartArchive},
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease: &release.ChannelRelease{
 			DefaultDomains: release.Domains{
@@ -192,50 +192,10 @@ func TestPostInstallApp(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		// Create mock app and kots config values
-		testAppConfigValues := types.AppConfigValues{
-			"service": {
-				Value: "ClusterIP",
-			},
-		}
-		testKotsConfigValues := kotsv1beta1.ConfigValues{
-			Spec: kotsv1beta1.ConfigValuesSpec{
-				Values: map[string]kotsv1beta1.ConfigValue{
-					"enable_ingress": {
-						Value: "1",
-					},
-				},
-			},
-		}
-
-		// Create app config manager with mock store
-		mockAppConfigManager := &appconfig.MockAppConfigManager{}
-		mockAppConfigManager.On("GetConfigValues").Return(testAppConfigValues, nil)
-		mockAppConfigManager.On("GetKotsadmConfigValues").Return(testKotsConfigValues, nil)
-
-		// Create mock app release manager that returns installable charts
-		mockAppReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-		testInstallableCharts := []types.InstallableHelmChart{
-			{
-				Archive: []byte("mock-helm-chart-archive-data"),
-				Values: map[string]any{
-					"service": map[string]any{
-						"port": 80,
-					},
-				},
-				CR: &kotsv1beta2.HelmChart{
-					Spec: kotsv1beta2.HelmChartSpec{
-						ReleaseName: "test-app",
-						Namespace:   "default",
-					},
-				},
-			},
-		}
-		mockAppReleaseManager.On("ExtractInstallableHelmCharts", mock.Anything, testAppConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return(testInstallableCharts, nil)
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, testInstallableCharts, testKotsConfigValues).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
@@ -243,18 +203,21 @@ func TestPostInstallApp(t *testing.T) {
 			},
 		}, nil)
 
+		// Create mock store
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		// Create state machine starting from AppPreflightsSucceeded (valid state for app install)
 		stateMachine := kubernetesinstall.NewStateMachine(
 			kubernetesinstall.WithCurrentState(states.StateAppPreflightsSucceeded),
 		)
 
-		// Create real app install controller with mock managers
+		// Create real app install controller with mock manager
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithAppReleaseManager(mockAppReleaseManager),
-			appinstall.WithAppConfigManager(mockAppConfigManager),
 			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(&store.MockStore{}),
+			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
 		)
 		require.NoError(t, err)
@@ -268,19 +231,11 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
-			KubernetesConfig: types.KubernetesConfig{
-				Installation: kubernetesinstallation.New(nil),
-			},
-		}
-		apiInstance, err := api.New(cfg,
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -303,8 +258,6 @@ func TestPostInstallApp(t *testing.T) {
 		}, 10*time.Second, 100*time.Millisecond, "state should transition to Succeeded")
 
 		// Verify that the app install manager was called (no metrics reporting verification)
-		mockAppConfigManager.AssertExpectations(t)
-		mockAppReleaseManager.AssertExpectations(t)
 		mockAppInstallManager.AssertExpectations(t)
 	})
 
@@ -332,19 +285,11 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
-			KubernetesConfig: types.KubernetesConfig{
-				Installation: kubernetesinstallation.New(nil),
-			},
-		}
-		apiInstance, err := api.New(cfg,
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -365,7 +310,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("App installation failure", func(t *testing.T) {
 		// Create mock app install manager that fails
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("installation failed"))
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(errors.New("installation failed"))
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateFailed,
@@ -401,19 +346,11 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
-			KubernetesConfig: types.KubernetesConfig{
-				Installation: kubernetesinstallation.New(nil),
-			},
-		}
-		apiInstance, err := api.New(cfg,
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -477,7 +414,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
@@ -508,19 +445,11 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
-			KubernetesConfig: types.KubernetesConfig{
-				Installation: kubernetesinstallation.New(nil),
-			},
-		}
-		apiInstance, err := api.New(cfg,
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -579,19 +508,11 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
-			KubernetesConfig: types.KubernetesConfig{
-				Installation: kubernetesinstallation.New(nil),
-			},
-		}
-		apiInstance, err := api.New(cfg,
+		apiInstance := integration.NewAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
-		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)

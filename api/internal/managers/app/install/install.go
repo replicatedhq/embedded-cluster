@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -13,11 +14,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"helm.sh/helm/v3/pkg/chart/loader"
 	kyaml "sigs.k8s.io/yaml"
 )
 
-// Install installs the app with the provided installable Helm charts and config values
-func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) (finalErr error) {
+// Install installs the app with the provided config values
+func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) (finalErr error) {
 	if err := m.setStatus(types.StateRunning, "Installing application"); err != nil {
 		return fmt.Errorf("set status: %w", err)
 	}
@@ -37,14 +39,14 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 		}
 	}()
 
-	if err := m.install(ctx, installableCharts, kotsConfigValues); err != nil {
+	if err := m.install(ctx, configValues); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *appInstallManager) install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) error {
+func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
@@ -56,7 +58,7 @@ func (m *appInstallManager) install(ctx context.Context, installableCharts []typ
 	}
 
 	// Install Helm charts
-	if err := m.installHelmCharts(ctx, installableCharts); err != nil {
+	if err := m.installHelmCharts(ctx); err != nil {
 		return fmt.Errorf("install helm charts: %w", err)
 	}
 
@@ -73,7 +75,7 @@ func (m *appInstallManager) install(ctx context.Context, installableCharts []typ
 		Stdout:                m.newLogWriter(),
 	}
 
-	configValuesFile, err := m.createConfigValuesFile(kotsConfigValues)
+	configValuesFile, err := m.createConfigValuesFile(configValues)
 	if err != nil {
 		return fmt.Errorf("creating config values file: %w", err)
 	}
@@ -87,9 +89,9 @@ func (m *appInstallManager) install(ctx context.Context, installableCharts []typ
 }
 
 // createConfigValuesFile creates a temporary file with the config values
-func (m *appInstallManager) createConfigValuesFile(kotsConfigValues kotsv1beta1.ConfigValues) (string, error) {
+func (m *appInstallManager) createConfigValuesFile(configValues kotsv1beta1.ConfigValues) (string, error) {
 	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
-	data, err := kyaml.Marshal(kotsConfigValues)
+	data, err := kyaml.Marshal(configValues)
 	if err != nil {
 		return "", fmt.Errorf("marshaling config values: %w", err)
 	}
@@ -108,48 +110,49 @@ func (m *appInstallManager) createConfigValuesFile(kotsConfigValues kotsv1beta1.
 	return configValuesFile.Name(), nil
 }
 
-func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCharts []types.InstallableHelmChart) error {
+func (m *appInstallManager) installHelmCharts(ctx context.Context) error {
 	logFn := m.logFn("app-helm")
 
-	if len(installableCharts) == 0 {
-		return fmt.Errorf("no helm charts found")
+	if m.releaseData == nil || len(m.releaseData.HelmChartArchives) == 0 {
+		return fmt.Errorf("no helm charts found in release data")
 	}
 
-	logFn("installing %d helm charts", len(installableCharts))
+	logFn("installing %d helm charts from release data", len(m.releaseData.HelmChartArchives))
 
-	for _, installableChart := range installableCharts {
-		logFn("installing %s helm chart", installableChart.CR.GetChartName())
+	for i, chartArchive := range m.releaseData.HelmChartArchives {
+		logFn("installing chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
 
-		if err := m.installHelmChart(ctx, installableChart); err != nil {
-			return fmt.Errorf("install %s helm chart: %w", installableChart.CR.GetChartName(), err)
+		if err := m.installHelmChart(ctx, chartArchive); err != nil {
+			return fmt.Errorf("install helm chart %d: %w", i, err)
 		}
 
-		logFn("successfully installed %s helm chart", installableChart.CR.GetChartName())
+		logFn("successfully installed chart %d/%d", i+1, len(m.releaseData.HelmChartArchives))
 	}
 
 	return nil
 }
 
-func (m *appInstallManager) installHelmChart(ctx context.Context, installableChart types.InstallableHelmChart) error {
+func (m *appInstallManager) installHelmChart(ctx context.Context, chartArchive []byte) error {
 	// Write chart archive to temp file
-	chartPath, err := m.writeChartArchiveToTemp(installableChart.Archive)
+	chartPath, err := m.writeChartArchiveToTemp(chartArchive)
 	if err != nil {
 		return fmt.Errorf("write chart archive to temp: %w", err)
 	}
 	defer os.Remove(chartPath)
 
-	// Fallback to admin console namespace if namespace is not set
-	namespace := installableChart.CR.GetNamespace()
-	if namespace == "" {
-		namespace = constants.KotsadmNamespace
+	// Get chart name to use as release name
+	ch, err := loader.LoadArchive(bytes.NewReader(chartArchive))
+	if err != nil {
+		return fmt.Errorf("load archive: %w", err)
 	}
 
-	// Install chart using Helm client with pre-processed values
+	// Install chart using Helm client
 	_, err = m.hcli.Install(ctx, helm.InstallOptions{
-		ChartPath:   chartPath,
-		Namespace:   namespace,
-		ReleaseName: installableChart.CR.GetReleaseName(),
-		Values:      installableChart.Values,
+		ChartPath: chartPath,
+		// TODO: namespace should come from HelmChart custom resource instead of constants.KotsadmNamespace
+		Namespace: constants.KotsadmNamespace,
+		// TODO: release name should come from HelmChart custom resource instead of chart name
+		ReleaseName: ch.Metadata.Name,
 	})
 	if err != nil {
 		return fmt.Errorf("helm install: %w", err)

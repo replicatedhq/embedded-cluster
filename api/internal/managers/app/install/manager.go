@@ -23,8 +23,8 @@ type KotsCLIInstaller interface {
 
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
-	// Install installs the app with the provided installable Helm charts and config values
-	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) error
+	// Install installs the app with the provided config values
+	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
 	// GetStatus returns the current app installation status
 	GetStatus() (types.AppInstall, error)
 }

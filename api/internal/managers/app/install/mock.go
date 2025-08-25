@@ -15,8 +15,8 @@ type MockAppInstallManager struct {
 }
 
 // Install mocks the Install method
-func (m *MockAppInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) error {
-	args := m.Called(ctx, installableCharts, kotsConfigValues)
+func (m *MockAppInstallManager) Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
+	args := m.Called(ctx, configValues)
 	return args.Error(0)
 }
 
