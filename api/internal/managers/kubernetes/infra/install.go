@@ -157,7 +157,6 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kube
 		EmbeddedConfigSpec: m.getECConfigSpec(),
 		EndUserConfigSpec:  m.getEndUserConfigSpec(),
 		ProxySpec:          ki.ProxySpec(),
-		IsV3:               true,
 	}
 
 	// TODO: no kots app install for now

@@ -298,7 +298,6 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
-		IsV3:                    true,
 	}
 
 	return opts
