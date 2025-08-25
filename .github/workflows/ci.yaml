@@ -732,20 +732,20 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # for multi-step upgrade test
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-3"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-3"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_3 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_3 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # for multi-step upgrade test
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-2"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-2"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_2 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_2 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-1"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-1"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_1 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_1 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
