@@ -300,11 +300,7 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.installController.InstallApp(r.Context(), appinstall.InstallAppOptions{
-		IgnoreAppPreflights: req.IgnoreAppPreflights,
-		ProxySpec:           h.cfg.Installation.ProxySpec(),
-		RegistrySettings:    nil,
-	})
+	err := h.installController.InstallApp(r.Context(), req.IgnoreAppPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)

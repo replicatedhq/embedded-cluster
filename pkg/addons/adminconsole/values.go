@@ -50,7 +50,6 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 	copiedValues["isAirgap"] = a.IsAirgap
-	copiedValues["isEmbeddedClusterV3"] = a.IsV3
 
 	if domains.ReplicatedAppDomain != "" {
 		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)

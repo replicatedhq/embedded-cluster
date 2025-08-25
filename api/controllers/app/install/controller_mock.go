@@ -69,8 +69,8 @@ func (m *MockController) GetAppPreflightTitles(ctx context.Context) ([]string, e
 }
 
 // InstallApp mocks the InstallApp method
-func (m *MockController) InstallApp(ctx context.Context, opts InstallAppOptions) error {
-	args := m.Called(ctx, opts)
+func (m *MockController) InstallApp(ctx context.Context, ignoreAppPreflights bool) error {
+	args := m.Called(ctx, ignoreAppPreflights)
 	return args.Error(0)
 }
 

@@ -95,7 +95,6 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 			IsMultiNodeEnabled: false,
 			Proxy:              nil,
 			AdminConsolePort:   8080,
-			IsV3:               true,
 
 			ClusterID:        "123",
 			ServiceCIDR:      "10.0.0.0/24",
@@ -107,10 +106,10 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
 		require.NoError(t, err, "GenerateHelmValues should not return an error")
 
+		assert.Contains(t, values, "embeddedClusterID")
 		assert.Equal(t, "123", values["embeddedClusterID"])
 		assert.Equal(t, dataDir, values["embeddedClusterDataDir"])
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
-		assert.Equal(t, true, values["isEmbeddedClusterV3"])
 
 		assert.Contains(t, values["extraEnv"], map[string]interface{}{
 			"name":  "SSL_CERT_CONFIGMAP",
@@ -129,7 +128,6 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 			IsMultiNodeEnabled: false,
 			Proxy:              nil,
 			AdminConsolePort:   8080,
-			IsV3:               true,
 		}
 
 		values, err := adminConsole.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
@@ -138,7 +136,6 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.NotContains(t, values, "embeddedClusterID")
 		assert.NotContains(t, values, "embeddedClusterDataDir")
 		assert.NotContains(t, values, "embeddedClusterK0sDir")
-		assert.Equal(t, true, values["isEmbeddedClusterV3"])
 
 		for _, env := range values["extraEnv"].([]map[string]interface{}) {
 			assert.NotEqual(t, "SSL_CERT_CONFIGMAP", env["name"], "SSL_CERT_CONFIGMAP environment variable should not be set")

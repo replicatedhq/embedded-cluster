@@ -192,7 +192,6 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
-			appcontroller.WithRESTClientGetter(controller.restClientGetter),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
