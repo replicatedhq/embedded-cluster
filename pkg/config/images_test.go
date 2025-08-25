@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -41,15 +42,8 @@ func TestListK0sImages(t *testing.T) {
 	}
 
 	// make sure the list includes all images from the metadata
-	for _, i := range Metadata.Images {
-		found := false
-		for _, f := range filtered {
-			if f == i.String() {
-				found = true
-				break
-			}
-		}
-		if !found {
+	for _, i := range _metadata.Images {
+		if !slices.Contains(filtered, i.String()) {
 			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.String())
 		}
 	}

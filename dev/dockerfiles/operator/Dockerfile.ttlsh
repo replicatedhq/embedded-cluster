@@ -8,6 +8,7 @@ COPY utils/go.mod utils/go.sum ./utils/
 RUN --mount=type=cache,target="/go/pkg/mod" go mod download
 
 COPY common.mk common.mk
+COPY versions.mk versions.mk
 COPY operator/ operator/
 COPY pkg/ pkg/
 COPY pkg-new/ pkg-new/

@@ -15,15 +15,26 @@ permissions:
   contents: write
 
 jobs:
-  git-sha:
-    name: Git SHA
+  output-vars:
+    name: Output variables
     runs-on: ubuntu-latest
     outputs:
       git_sha: ${{ steps.git_sha.outputs.git_sha }}
+      ec_version: ${{ steps.output_vars.outputs.ec_version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # necessary for getting the last tag
       - uses: ./.github/actions/git-sha
         id: git_sha
+      - name: Output variables
+        id: output_vars
+        run: |
+          ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
 
   sanitize:
     name: Sanitize
@@ -134,8 +145,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -154,8 +163,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -177,8 +184,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Setup go
         uses: actions/setup-go@v5
         with:
@@ -307,26 +312,40 @@ jobs:
             go.{mod,sum}
             Makefile
             common.mk
+            versions.mk
             dagger/**
             deploy/**
             fio/**
             local-artifact-mirror/**
             scripts/**
 
-  build-current:
+  build-install:
     name: Build current
     runs-on: ubuntu-latest
     needs:
-      - git-sha
+      - output-vars
       - should-run-e2e
     if: needs.should-run-e2e.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [0, 1, 2, 3]
     outputs:
-      k0s_version: ${{ steps.export.outputs.k0s_version }}
+      k0s_version: ${{ steps.export.outputs.k0s_version_0 }}
+      k0s_version_1: ${{ steps.export.outputs.k0s_version_1 }}
+      k0s_version_2: ${{ steps.export.outputs.k0s_version_2 }}
+      k0s_version_3: ${{ steps.export.outputs.k0s_version_3 }}
+      ec_version: ${{ steps.export.outputs.ec_version_0 }}
+      ec_version_1: ${{ steps.export.outputs.ec_version_1 }}
+      ec_version_2: ${{ steps.export.outputs.ec_version_2 }}
+      ec_version_3: ${{ steps.export.outputs.ec_version_3 }}
+      app_version: ${{ steps.export.outputs.app_version_0 }}
+      app_version_1: ${{ steps.export.outputs.app_version_1 }}
+      app_version_2: ${{ steps.export.outputs.app_version_2 }}
+      app_version_3: ${{ steps.export.outputs.app_version_3 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -355,6 +374,27 @@ jobs:
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
+      - name: Export versions
+        run: |
+          version_suffix=
+          if [ ${{ matrix.n }} -gt 0 ]; then
+            version_suffix="-previous-k0s-${{ matrix.n }}"
+          fi
+
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> $GITHUB_ENV
+
+          ec_version=$(./scripts/print-ec-version.sh "${{ needs.output-vars.outputs.ec_version }}" "$K0S_MINOR_VERSION")
+          export EC_VERSION=${ec_version}${version_suffix}
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "EC_VERSION=$EC_VERSION" >> "$GITHUB_ENV"
+
+          export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}${version_suffix}
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
       - name: Build
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
@@ -370,16 +410,19 @@ jobs:
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}
-          # avoid rate limiting
-          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
-
           ./scripts/build-and-release.sh
+
+          version_suffix=
+          if [ ${{ matrix.n }} -gt 0 ]; then
+            version_suffix="-previous-k0s-${{ matrix.n }}"
+          fi
+          if [ -n "$version_suffix" ]; then
+            cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
+          fi
 
       - name: Upload release
         uses: actions/upload-artifact@v4
+        if: ${{ matrix.n == 0 }}
         with:
           name: current-release
           path: |
@@ -387,104 +430,32 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
-      - name: Export k0s version
-        id: export
-        run: |
-          K0S_VERSION="$(make print-K0S_VERSION)"
-          echo "K0S_VERSION=\"$K0S_VERSION\""
-          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
-
-  build-previous-k0s:
-    name: Build previous k0s
-    runs-on: ubuntu-latest
-    needs:
-      - git-sha
-      - should-run-e2e
-    if: needs.should-run-e2e.outputs.run == 'true'
-    outputs:
-      k0s_version: ${{ steps.export.outputs.k0s_version }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Cache embedded bins
-        uses: actions/cache@v4
-        with:
-          path: |
-            output/bins
-          key: bins-cache
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ./web/.nvmrc
-
-      - uses: oras-project/setup-oras@v1
-
-      - uses: imjasonh/setup-crane@v0.4
-
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
-
-      - name: Build
-        env:
-          APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
-          APP_CHANNEL_SLUG: ci
-          RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
-          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
-          UPLOAD_BINARIES: "1"
-          SKIP_RELEASE: "1"
-          MANGLE_METADATA: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          k0s_minor_version=$(make print-PREVIOUS_K0S_VERSION | sed 's/v[0-9]*\.\([0-9]*\).*/\1/')
-
-          # update k0s dep version to previous k0s version
-          ./scripts/update-k0s-dep-version.sh "$k0s_minor_version"
-
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-previous-k0s
-          # avoid rate limiting
-          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
-
-          ./scripts/build-and-release.sh
-          cp output/bin/embedded-cluster output/bin/embedded-cluster-previous-k0s
-
-      - name: Upload release
+      - name: Upload release previous k0s
         uses: actions/upload-artifact@v4
+        if: ${{ matrix.n != 0 }}
         with:
-          name: previous-k0s-release
+          name: previous-k0s-${{ matrix.n }}-release
           path: |
-            output/bin/embedded-cluster-previous-k0s
+            output/bin/embedded-cluster-previous-k0s-${{ matrix.n }}
 
       - name: Export k0s version
         id: export
         run: |
-          # K0S_VERSION is now the previous k0s version
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
-          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+          echo "k0s_version_${{ matrix.n }}=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version_${{ matrix.n }}=$EC_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "app_version_${{ matrix.n }}=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
   find-previous-stable:
     name: Determine previous stable version
     runs-on: ubuntu-latest
     needs:
-      - git-sha
+      - output-vars
       - should-run-e2e
     if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
@@ -520,7 +491,7 @@ jobs:
     name: Build upgrade
     runs-on: ubuntu-latest
     needs:
-      - git-sha
+      - output-vars
       - should-run-e2e
     if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
@@ -528,11 +499,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Free up runner disk space
-        uses: ./.github/actions/free-disk-space
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -574,14 +540,11 @@ jobs:
           USE_CHAINGUARD: "1"
           UPLOAD_BINARIES: "1"
           SKIP_RELEASE: "1"
-          MANGLE_METADATA: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
-          export EC_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade
-          export APP_VERSION=appver-dev-${{ needs.git-sha.outputs.git_sha }}-upgrade
-          # avoid rate limiting
-          export FIO_VERSION=$(gh release list --repo axboe/fio --json tagName,isLatest | jq -r '.[] | select(.isLatest==true)|.tagName' | cut -d- -f2)
+          export EC_VERSION=${{ needs.output-vars.outputs.ec_version }}-upgrade
+          export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}-upgrade
 
           ./scripts/build-and-release.sh
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
@@ -605,7 +568,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - buildtools
-      - build-current
+      - build-install
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -641,7 +604,7 @@ jobs:
     name: Export version specifier
     runs-on: ubuntu-latest
     needs:
-      - git-sha
+      - output-vars
       - should-run-e2e
     if: needs.should-run-e2e.outputs.run == 'true'
     outputs:
@@ -652,7 +615,7 @@ jobs:
       - name: Export version specifier
         id: export-version-specifier
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
+          export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
           echo "version_specifier=$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
   release-app:
@@ -661,16 +624,13 @@ jobs:
     permissions:
       pull-requests: write
     needs:
-      - git-sha
-      - build-current
-      - build-previous-k0s
+      - output-vars
+      - build-install
       - build-upgrade
       - find-previous-stable
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -687,7 +647,7 @@ jobs:
           USES_DEV_BUCKET: "0"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
+          export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
@@ -695,50 +655,62 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
 
+          # for multi-step upgrade test
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_3 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_3 }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # for multi-step upgrade test
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_2 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_2 }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_1 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_1 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then install the current k0s version
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then install a version with alternate unsupported overrides
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-unsupported-overrides"
           export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
           ./scripts/ci-release-app.sh
 
           # then install a version with additional failing host preflights
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-failing-preflights"
           export RELEASE_YAML_DIR=e2e/kots-release-install-failing-preflights
           ./scripts/ci-release-app.sh
 
           # then install a version with additional warning host preflights
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-warning-preflights"
           export RELEASE_YAML_DIR=e2e/kots-release-install-warning-preflights
           ./scripts/ci-release-app.sh
 
           # promote a release with improved dr support
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-legacydr"
           export RELEASE_YAML_DIR=e2e/kots-release-install-legacydr
           ./scripts/ci-release-app.sh
 
           # then a noop upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-noop"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
@@ -751,7 +723,7 @@ jobs:
           APP_CHANNEL: CI-airgap
           USES_DEV_BUCKET: "0"
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
+          export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
@@ -759,26 +731,38 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
           ./scripts/ci-release-app.sh
 
+          # for multi-step upgrade test
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_3 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_3 }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # for multi-step upgrade test
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_2 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_2 }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-previous-k0s"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_1 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_1 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then install the current k0s version
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then a noop upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-noop"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # and finally an app upgrade
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')-upgrade"
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-upgrade"
           export APP_VERSION="appver-${SHORT_SHA}-upgrade"
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
@@ -786,8 +770,8 @@ jobs:
       - name: Create download link message text
         if: github.event_name == 'pull_request'
         run: |
-          export SHORT_SHA=dev-${{ needs.git-sha.outputs.git_sha }}
-          export EC_VERSION="$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')"
+          export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
+          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}"
 
           echo "This PR has been released (on staging) and is available for download with a embedded-cluster-smoke-test-staging-app [license ID](https://vendor.staging.replicated.com/apps/embedded-cluster-smoke-test-staging-app/customers?sort=name-asc)." > download-link.txt
@@ -814,9 +798,8 @@ jobs:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
     runs-on: ubuntu-22.04
     needs:
-      - git-sha
-      - build-current
-      - build-previous-k0s
+      - output-vars
+      - build-install
       - build-upgrade
       - find-previous-stable
       - release-app
@@ -837,7 +820,7 @@ jobs:
           - TestSingleNodeInstallationCentos9Stream
           - TestSingleNodeUpgradePreviousStable
           - TestInstallFromReplicatedApp
-          - TestUpgradeFromReplicatedApp
+          - TestUpgradeFromReplicatedAppPreviousK0s
           - TestResetAndReinstall
           - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
@@ -882,7 +865,7 @@ jobs:
           sudo modprobe nf_conntrack
       - name: Run test
         env:
-          SHORT_SHA: dev-${{ needs.git-sha.outputs.git_sha }}
+          SHORT_SHA: dev-${{ needs.output-vars.outputs.git_sha }}
           DR_S3_ENDPOINT: https://s3.amazonaws.com
           DR_S3_REGION: us-east-1
           DR_S3_BUCKET: kots-testim-snapshots
@@ -890,8 +873,10 @@ jobs:
           DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
           DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          EXPECT_K0S_VERSION: ${{ needs.build-current.outputs.k0s_version }}
-          EXPECT_K0S_VERSION_PREVIOUS: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          EXPECT_K0S_VERSION: ${{ needs.build-install.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS_1: ${{ needs.build-install.outputs.k0s_version_1 }}
+          EXPECT_K0S_VERSION_PREVIOUS_2: ${{ needs.build-install.outputs.k0s_version_2 }}
+          EXPECT_K0S_VERSION_PREVIOUS_3: ${{ needs.build-install.outputs.k0s_version_3 }}
           EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
         run: |
           make e2e-test TEST_NAME=${{ matrix.test }}
@@ -906,8 +891,7 @@ jobs:
     runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
     continue-on-error: ${{ matrix.continue-on-error || false }}
     needs:
-      - build-current
-      - build-previous-k0s
+      - build-install
       - build-upgrade
       - find-previous-stable
       - release-app
@@ -957,8 +941,10 @@ jobs:
           is-lxd: "${{ matrix.is-lxd || false }}"
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          k0s-version: ${{ needs.build-current.outputs.k0s_version }}
-          k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version: ${{ needs.build-install.outputs.k0s_version }}
+          k0s-version-previous-1: ${{ needs.build-install.outputs.k0s_version_1 }}
+          k0s-version-previous-2: ${{ needs.build-install.outputs.k0s_version_2 }}
+          k0s-version-previous-3: ${{ needs.build-install.outputs.k0s_version_3 }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -969,8 +955,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     needs:
-      - build-current
-      - build-previous-k0s
+      - build-install
       - build-upgrade
       - find-previous-stable
       - release-app
@@ -994,8 +979,8 @@ jobs:
           test-name: "${{ matrix.test }}"
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
-          k0s-version: ${{ needs.build-current.outputs.k0s_version }}
-          k0s-version-previous: ${{ needs.build-previous-k0s.outputs.k0s_version }}
+          k0s-version: ${{ needs.build-install.outputs.k0s_version }}
+          k0s-version-previous-1: ${{ needs.build-install.outputs.k0s_version_1 }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -1007,8 +992,7 @@ jobs:
     name: Validate success # this name is used by .github/workflows/automated-prs-manager.yaml
     runs-on: ubuntu-latest
     needs:
-      - build-current
-      - build-previous-k0s
+      - build-install
       - build-upgrade
       - e2e
       - e2e-main
@@ -1033,11 +1017,8 @@ jobs:
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success' && needs.e2e-docker.result != 'skipped'
         run: exit 1
-      - name: fail if build-current job was not successful
-        if: needs.build-current.result != 'success' && needs.build-current.result != 'skipped'
-        run: exit 1
-      - name: fail if build-previous-k0s job was not successful
-        if: needs.build-previous-k0s.result != 'success' && needs.build-previous-k0s.result != 'skipped'
+      - name: fail if build-install job was not successful
+        if: needs.build-install.result != 'success' && needs.build-install.result != 'skipped'
         run: exit 1
       - name: fail if build-upgrade job was not successful
         if: needs.build-upgrade.result != 'success' && needs.build-upgrade.result != 'skipped'

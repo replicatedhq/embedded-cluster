@@ -370,7 +370,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s", os.Getenv("SHORT_SHA"))
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
@@ -423,7 +423,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -454,7 +454,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring app", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}

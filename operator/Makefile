@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 include ../common.mk
+include ../versions.mk
 
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
@@ -15,7 +16,6 @@ ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.0.1
-K0S_VERSION ?= v1.29.9+k0s.0-ec.0
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -87,6 +87,10 @@ build: ## Build manager binary.
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o bin/manager main.go
 
+.PHONY: build-deps
+build-deps:
+	$(MAKE) -C .. go.mod crds
+
 .PHONY: run
 run: manifests fmt ## Run a controller from your host.
 	go run ./main.go
@@ -99,8 +103,7 @@ CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
-KUSTOMIZE_VERSION ?= v5.7.0
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
+# These are now defined in ../versions.mk
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
@@ -154,6 +157,7 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 melange-build-operator:
 	dagger call build-operator-package \
 		--ec-version $(PACKAGE_VERSION) \
+		--kzeros-minor-version $(K0S_MINOR_VERSION) \
 		--arch $(ARCH) \
 		export --path build
 
@@ -169,6 +173,7 @@ build-operator-image:
 build-operator-image-chainguard:
 	dagger call build-operator-image \
 		--ec-version $(PACKAGE_VERSION) \
+		--kzeros-minor-version $(K0S_MINOR_VERSION) \
 		--repo $(IMAGE_NAME) \
 		--arch $(ARCH) \
 		export --path build/operator-package
@@ -203,6 +208,7 @@ ifdef REGISTRY_SERVER
 			--password env:REGISTRY_PASSWORD \
 		publish-operator-image \
 			--ec-version $(PACKAGE_VERSION) \
+			--kzeros-minor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest
@@ -210,6 +216,7 @@ else
 	dagger call \
 		publish-operator-image \
 			--ec-version $(PACKAGE_VERSION) \
+			--kzeros-minor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest

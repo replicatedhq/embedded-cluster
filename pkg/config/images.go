@@ -1,30 +1,13 @@
 package config
 
 import (
-	_ "embed"
-	"fmt"
 	"strings"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"gopkg.in/yaml.v2"
 )
-
-var (
-	//go:embed static/metadata.yaml
-	rawmetadata []byte
-	// Metadata is the unmarshal version of rawmetadata.
-	Metadata release.K0sMetadata
-)
-
-func init() {
-	if err := yaml.Unmarshal(rawmetadata, &Metadata); err != nil {
-		panic(fmt.Sprintf("unable to unmarshal metadata: %v", err))
-	}
-}
 
 func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	var images []string
@@ -51,6 +34,10 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 }
 
 func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string) {
+	if _metadata == nil {
+		panic("k0s version is not set")
+	}
+
 	if cfg.Spec.Images == nil {
 		cfg.Spec.Images = &k0sv1beta1.ClusterImages{}
 	}
@@ -65,31 +52,31 @@ func overrideK0sImages(cfg *k0sv1beta1.ClusterConfig, proxyRegistryDomain string
 	}
 
 	if proxyRegistryDomain == "" {
-		cfg.Spec.Images.CoreDNS.Image = Metadata.Images["coredns"].Repo
-		cfg.Spec.Images.Calico.Node.Image = Metadata.Images["calico-node"].Repo
-		cfg.Spec.Images.Calico.CNI.Image = Metadata.Images["calico-cni"].Repo
-		cfg.Spec.Images.Calico.KubeControllers.Image = Metadata.Images["calico-kube-controllers"].Repo
-		cfg.Spec.Images.MetricsServer.Image = Metadata.Images["metrics-server"].Repo
-		cfg.Spec.Images.KubeProxy.Image = Metadata.Images["kube-proxy"].Repo
-		cfg.Spec.Images.Pause.Image = Metadata.Images["pause"].Repo
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = Metadata.Images["envoy-distroless"].Repo
+		cfg.Spec.Images.CoreDNS.Image = _metadata.Images["coredns"].Repo
+		cfg.Spec.Images.Calico.Node.Image = _metadata.Images["calico-node"].Repo
+		cfg.Spec.Images.Calico.CNI.Image = _metadata.Images["calico-cni"].Repo
+		cfg.Spec.Images.Calico.KubeControllers.Image = _metadata.Images["calico-kube-controllers"].Repo
+		cfg.Spec.Images.MetricsServer.Image = _metadata.Images["metrics-server"].Repo
+		cfg.Spec.Images.KubeProxy.Image = _metadata.Images["kube-proxy"].Repo
+		cfg.Spec.Images.Pause.Image = _metadata.Images["pause"].Repo
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = _metadata.Images["envoy-distroless"].Repo
 	} else {
-		cfg.Spec.Images.CoreDNS.Image = strings.Replace(Metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.Calico.Node.Image = strings.Replace(Metadata.Images["calico-node"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.Calico.CNI.Image = strings.Replace(Metadata.Images["calico-cni"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.Calico.KubeControllers.Image = strings.Replace(Metadata.Images["calico-kube-controllers"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.MetricsServer.Image = strings.Replace(Metadata.Images["metrics-server"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.KubeProxy.Image = strings.Replace(Metadata.Images["kube-proxy"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Images.Pause.Image = strings.Replace(Metadata.Images["pause"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
-		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = strings.Replace(Metadata.Images["envoy-distroless"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.CoreDNS.Image = strings.Replace(_metadata.Images["coredns"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.Node.Image = strings.Replace(_metadata.Images["calico-node"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.CNI.Image = strings.Replace(_metadata.Images["calico-cni"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Calico.KubeControllers.Image = strings.Replace(_metadata.Images["calico-kube-controllers"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.MetricsServer.Image = strings.Replace(_metadata.Images["metrics-server"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.KubeProxy.Image = strings.Replace(_metadata.Images["kube-proxy"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Images.Pause.Image = strings.Replace(_metadata.Images["pause"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
+		cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Image = strings.Replace(_metadata.Images["envoy-distroless"].Repo, "proxy.replicated.com", proxyRegistryDomain, 1)
 	}
 
-	cfg.Spec.Images.CoreDNS.Version = Metadata.Images["coredns"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.Calico.Node.Version = Metadata.Images["calico-node"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.Calico.CNI.Version = Metadata.Images["calico-cni"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.Calico.KubeControllers.Version = Metadata.Images["calico-kube-controllers"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.MetricsServer.Version = Metadata.Images["metrics-server"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.KubeProxy.Version = Metadata.Images["kube-proxy"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Images.Pause.Version = Metadata.Images["pause"].Tag[helpers.ClusterArch()]
-	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = Metadata.Images["envoy-distroless"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.CoreDNS.Version = _metadata.Images["coredns"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.Node.Version = _metadata.Images["calico-node"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.CNI.Version = _metadata.Images["calico-cni"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Calico.KubeControllers.Version = _metadata.Images["calico-kube-controllers"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.MetricsServer.Version = _metadata.Images["metrics-server"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.KubeProxy.Version = _metadata.Images["kube-proxy"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Images.Pause.Version = _metadata.Images["pause"].Tag[helpers.ClusterArch()]
+	cfg.Spec.Network.NodeLocalLoadBalancing.EnvoyProxy.Image.Version = _metadata.Images["envoy-distroless"].Tag[helpers.ClusterArch()]
 }
