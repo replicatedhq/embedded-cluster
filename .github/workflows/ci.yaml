@@ -30,7 +30,9 @@ jobs:
       - name: Output variables
         id: output_vars
         run: |
-          echo "ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')" >> $GITHUB_OUTPUT
+          ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          echo "ec_version=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")" >> $GITHUB_OUTPUT
 
   sanitize:
     name: Sanitize
@@ -331,6 +333,14 @@ jobs:
       k0s_version_1: ${{ steps.export.outputs.k0s_version_1 }}
       k0s_version_2: ${{ steps.export.outputs.k0s_version_2 }}
       k0s_version_3: ${{ steps.export.outputs.k0s_version_3 }}
+      ec_version: ${{ steps.export.outputs.ec_version_0 }}
+      ec_version_1: ${{ steps.export.outputs.ec_version_1 }}
+      ec_version_2: ${{ steps.export.outputs.ec_version_2 }}
+      ec_version_3: ${{ steps.export.outputs.ec_version_3 }}
+      app_version: ${{ steps.export.outputs.app_version_0 }}
+      app_version_1: ${{ steps.export.outputs.app_version_1 }}
+      app_version_2: ${{ steps.export.outputs.app_version_2 }}
+      app_version_3: ${{ steps.export.outputs.app_version_3 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -362,12 +372,26 @@ jobs:
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - name: Export k0s minor version
+      - name: Export versions
         run: |
+          version_suffix=
+          if [ ${{ matrix.n }} -gt 0 ]; then
+            version_suffix="-previous-k0s-${{ matrix.n }}"
+          fi
+
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
           export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
           echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
           echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> $GITHUB_ENV
+
+          ec_version=$(./scripts/print-ec-version.sh "${{ needs.output-vars.outputs.ec_version }}" "$K0S_MINOR_VERSION")
+          export EC_VERSION=${ec_version}${version_suffix}
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "EC_VERSION=$EC_VERSION" >> "$GITHUB_ENV"
+
+          export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}${version_suffix}
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
       - name: Build
         env:
@@ -384,15 +408,12 @@ jobs:
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ./scripts/build-and-release.sh
+
           version_suffix=
           if [ ${{ matrix.n }} -gt 0 ]; then
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
-          export EC_VERSION=${{ needs.output-vars.outputs.ec_version }}${version_suffix}
-          export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}${version_suffix}
-
-          ./scripts/build-and-release.sh
-
           if [ -n "$version_suffix" ]; then
             cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
           fi
@@ -421,6 +442,12 @@ jobs:
           K0S_VERSION="$(make print-K0S_VERSION)"
           echo "K0S_VERSION=\"$K0S_VERSION\""
           echo "k0s_version_${{ matrix.n }}=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version_${{ matrix.n }}=$EC_VERSION" >> "$GITHUB_OUTPUT"
+
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "app_version_${{ matrix.n }}=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
   find-previous-stable:
     name: Determine previous stable version
@@ -627,20 +654,20 @@ jobs:
           ./scripts/ci-release-app.sh
 
           # for multi-step upgrade test
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-3"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-3"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_3 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_3 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # for multi-step upgrade test
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-2"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-2"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_2 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_2 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-previous-k0s-1"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-k0s-1"
+          export EC_VERSION="${{ needs.build-install.outputs.ec_version_1 }}"
+          export APP_VERSION="${{ needs.build-install.outputs.app_version_1 }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
