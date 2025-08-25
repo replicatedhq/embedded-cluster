@@ -32,7 +32,9 @@ jobs:
         run: |
           ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
-          echo "ec_version=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")" >> $GITHUB_OUTPUT
+          EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
 
   sanitize:
     name: Sanitize
