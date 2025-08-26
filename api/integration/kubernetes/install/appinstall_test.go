@@ -36,11 +36,30 @@ import (
 // TestGetAppInstallStatus tests the GET /kubernetes/install/app/status endpoint
 func TestGetAppInstallStatus(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		// Create app install status
+		// Create app install status with components
 		appInstallStatus := types.AppInstall{
+			Components: []types.AppComponent{
+				{
+					Name: "nginx-chart",
+					Status: types.Status{
+						State:       types.StateSucceeded,
+						Description: "Installation complete",
+						LastUpdated: time.Now(),
+					},
+				},
+				{
+					Name: "postgres-chart",
+					Status: types.Status{
+						State:       types.StateRunning,
+						Description: "Installing chart",
+						LastUpdated: time.Now(),
+					},
+				},
+			},
 			Status: types.Status{
 				State:       types.StateRunning,
 				Description: "Installing application",
+				LastUpdated: time.Now(),
 			},
 			Logs: "Installation in progress...",
 		}
@@ -110,11 +129,25 @@ func TestGetAppInstallStatus(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the response structure matches App type with components
+		// Verify the response structure includes components
 		assert.Equal(t, appInstallStatus.Status.State, response.Status.State)
 		assert.Equal(t, appInstallStatus.Status.Description, response.Status.Description)
 		assert.Equal(t, appInstallStatus.Logs, response.Logs)
-		assert.NotNil(t, response.Components) // Should have components array
+
+		// Verify components array is present and has expected data
+		assert.Len(t, response.Components, 2, "Should have 2 components")
+
+		// Verify first component (nginx-chart)
+		nginxComponent := response.Components[0]
+		assert.Equal(t, "nginx-chart", nginxComponent.Name)
+		assert.Equal(t, types.StateSucceeded, nginxComponent.Status.State)
+		assert.Equal(t, "Installation complete", nginxComponent.Status.Description)
+
+		// Verify second component (postgres-chart)
+		postgresComponent := response.Components[1]
+		assert.Equal(t, "postgres-chart", postgresComponent.Name)
+		assert.Equal(t, types.StateRunning, postgresComponent.Status.State)
+		assert.Equal(t, "Installing chart", postgresComponent.Status.Description)
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {
