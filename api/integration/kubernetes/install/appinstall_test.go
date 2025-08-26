@@ -110,10 +110,11 @@ func TestGetAppInstallStatus(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the response
+		// Verify the response structure matches App type with components
 		assert.Equal(t, appInstallStatus.Status.State, response.Status.State)
 		assert.Equal(t, appInstallStatus.Status.Description, response.Status.Description)
 		assert.Equal(t, appInstallStatus.Logs, response.Logs)
+		assert.NotNil(t, response.Components) // Should have components array
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {

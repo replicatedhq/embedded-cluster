@@ -3,6 +3,7 @@ package install
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/tiendc/go-deepcopy"
@@ -20,6 +21,8 @@ type Store interface {
 	SetStatusDesc(desc string) error
 	AddLogs(logs string) error
 	GetLogs() (string, error)
+	SetComponentStatus(componentName string, status types.Status) error
+	RegisterComponents(componentNames []string) error
 }
 
 // memoryStore is an in-memory implementation of Store
@@ -106,4 +109,43 @@ func (s *memoryStore) GetLogs() (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.appInstall.Logs, nil
+}
+
+// SetComponentStatus sets the status of a specific component
+func (s *memoryStore) SetComponentStatus(componentName string, status types.Status) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find and update the component
+	for i := range s.appInstall.Components {
+		if s.appInstall.Components[i].Name == componentName {
+			s.appInstall.Components[i].Status = status
+			return nil
+		}
+	}
+
+	return fmt.Errorf("component %s not found", componentName)
+}
+
+// RegisterComponents initializes the components list with the given component names
+func (s *memoryStore) RegisterComponents(componentNames []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Clear existing components
+	s.appInstall.Components = make([]types.AppComponent, 0, len(componentNames))
+
+	// Initialize each component with pending status
+	for _, name := range componentNames {
+		s.appInstall.Components = append(s.appInstall.Components, types.AppComponent{
+			Name: name,
+			Status: types.Status{
+				State:       types.StatePending,
+				Description: "",
+				LastUpdated: time.Now(),
+			},
+		})
+	}
+
+	return nil
 }
