@@ -18,6 +18,10 @@ import (
 
 // Install installs the app with the provided installable Helm charts and config values
 func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) (finalErr error) {
+	if err := m.initializeComponents(installableCharts); err != nil {
+		return fmt.Errorf("initialize components: %w", err)
+	}
+
 	if err := m.setStatus(types.StateRunning, "Installing application"); err != nil {
 		return fmt.Errorf("set status: %w", err)
 	}
@@ -109,7 +113,7 @@ func (m *appInstallManager) createConfigValuesFile(kotsConfigValues kotsv1beta1.
 }
 
 func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCharts []types.InstallableHelmChart) error {
-	logFn := m.logFn("app-helm")
+	logFn := m.logFn("app")
 
 	if len(installableCharts) == 0 {
 		return fmt.Errorf("no helm charts found")
@@ -118,19 +122,42 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 	logFn("installing %d helm charts", len(installableCharts))
 
 	for _, installableChart := range installableCharts {
-		logFn("installing %s helm chart", installableChart.CR.GetChartName())
+		chartName := installableChart.CR.GetChartName()
+		logFn("installing %s chart", chartName)
 
 		if err := m.installHelmChart(ctx, installableChart); err != nil {
-			return fmt.Errorf("install %s helm chart: %w", installableChart.CR.GetChartName(), err)
+			return fmt.Errorf("install %s helm chart: %w", chartName, err)
 		}
 
-		logFn("successfully installed %s helm chart", installableChart.CR.GetChartName())
+		logFn("successfully installed %s chart", chartName)
 	}
 
 	return nil
 }
 
-func (m *appInstallManager) installHelmChart(ctx context.Context, installableChart types.InstallableHelmChart) error {
+func (m *appInstallManager) installHelmChart(ctx context.Context, installableChart types.InstallableHelmChart) (finalErr error) {
+	chartName := installableChart.CR.GetChartName()
+
+	if err := m.setComponentStatus(chartName, types.StateRunning, "Installing"); err != nil {
+		return fmt.Errorf("set component status: %w", err)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("recovered from panic: %v: %s", r, string(debug.Stack()))
+		}
+
+		if finalErr != nil {
+			if err := m.setComponentStatus(chartName, types.StateFailed, finalErr.Error()); err != nil {
+				m.logger.WithError(err).Errorf("failed to set %s chart failed status", chartName)
+			}
+		} else {
+			if err := m.setComponentStatus(chartName, types.StateSucceeded, ""); err != nil {
+				m.logger.WithError(err).Errorf("failed to set %s chart succeeded status", chartName)
+			}
+		}
+	}()
+
 	// Write chart archive to temp file
 	chartPath, err := m.writeChartArchiveToTemp(installableChart.Archive)
 	if err != nil {
@@ -156,4 +183,14 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 	}
 
 	return nil
+}
+
+// initializeComponents initializes the component tracking with chart names
+func (m *appInstallManager) initializeComponents(charts []types.InstallableHelmChart) error {
+	chartNames := make([]string, 0, len(charts))
+	for _, chart := range charts {
+		chartNames = append(chartNames, chart.CR.GetChartName())
+	}
+
+	return m.appInstallStore.RegisterComponents(chartNames)
 }

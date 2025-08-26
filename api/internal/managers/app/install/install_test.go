@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -388,6 +389,10 @@ func createTestHelmChartCR(name, releaseName, namespace string, weight int64) *k
 			Name: name,
 		},
 		Spec: kotsv1beta2.HelmChartSpec{
+			Chart: kotsv1beta2.ChartIdentifier{
+				Name:         name,
+				ChartVersion: "1.0.0",
+			},
 			ReleaseName: releaseName,
 			Namespace:   namespace,
 			Weight:      weight,
@@ -401,4 +406,119 @@ func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, relea
 		Values:  values,
 		CR:      createTestHelmChartCR(chartName, releaseName, namespace, weight),
 	}
+}
+
+// TestComponentStatusTracking tests that components are properly initialized and tracked
+func TestComponentStatusTracking(t *testing.T) {
+	t.Run("Components are registered and status is tracked", func(t *testing.T) {
+		// Create test charts with different weights
+		installableCharts := []types.InstallableHelmChart{
+			createTestInstallableHelmChart(t, "database-chart", "1.0.0", "postgres", "data", 10, map[string]any{"key": "value1"}),
+			createTestInstallableHelmChart(t, "web-chart", "2.0.0", "nginx", "web", 20, map[string]any{"key": "value2"}),
+		}
+
+		// Create mock helm client
+		mockHelmClient := &helm.MockClient{}
+
+		// Database chart installation (should be first due to lower weight)
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "postgres" && opts.Namespace == "data"
+		})).Return(&helmrelease.Release{Name: "postgres"}, nil).Once()
+
+		// Web chart installation (should be second due to higher weight)
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "nginx" && opts.Namespace == "web"
+		})).Return(&helmrelease.Release{Name: "nginx"}, nil).Once()
+
+		// Create mock KOTS installer
+		mockInstaller := &MockKotsCLIInstaller{}
+		mockInstaller.On("Install", mock.Anything).Return(nil)
+
+		// Create manager with in-memory store
+		appInstallStore := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
+			Status: types.Status{State: types.StatePending},
+		}))
+		manager, err := NewAppInstallManager(
+			WithAppInstallStore(appInstallStore),
+			WithReleaseData(&release.ReleaseData{}),
+			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
+			WithClusterID("test-cluster"),
+			WithKotsCLI(mockInstaller),
+			WithHelmClient(mockHelmClient),
+		)
+		require.NoError(t, err)
+
+		// Install the charts
+		err = manager.Install(context.Background(), installableCharts, kotsv1beta1.ConfigValues{})
+		require.NoError(t, err)
+
+		// Verify that components were registered and have correct status
+		appInstall, err := manager.GetStatus()
+		require.NoError(t, err)
+
+		// Should have 2 components
+		assert.Len(t, appInstall.Components, 2, "Should have 2 components")
+
+		// Components should be sorted by weight (database first with weight 10, web second with weight 20)
+		assert.Equal(t, "database-chart", appInstall.Components[0].Name)
+		assert.Equal(t, types.StateSucceeded, appInstall.Components[0].Status.State)
+
+		assert.Equal(t, "web-chart", appInstall.Components[1].Name)
+		assert.Equal(t, types.StateSucceeded, appInstall.Components[1].Status.State)
+
+		// Overall status should be succeeded
+		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
+		assert.Equal(t, "Installation complete", appInstall.Status.Description)
+
+		mockInstaller.AssertExpectations(t)
+		mockHelmClient.AssertExpectations(t)
+	})
+
+	t.Run("Component failure is tracked correctly", func(t *testing.T) {
+		// Create test chart
+		installableCharts := []types.InstallableHelmChart{
+			createTestInstallableHelmChart(t, "failing-chart", "1.0.0", "failing-app", "default", 0, map[string]any{"key": "value"}),
+		}
+
+		// Create mock helm client that fails
+		mockHelmClient := &helm.MockClient{}
+		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "failing-app"
+		})).Return((*helmrelease.Release)(nil), errors.New("helm install failed"))
+
+		// Create manager with in-memory store
+		appInstallStore := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
+			Status: types.Status{State: types.StatePending},
+		}))
+		manager, err := NewAppInstallManager(
+			WithAppInstallStore(appInstallStore),
+			WithReleaseData(&release.ReleaseData{}),
+			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
+			WithClusterID("test-cluster"),
+			WithHelmClient(mockHelmClient),
+		)
+		require.NoError(t, err)
+
+		// Install the charts (should fail)
+		err = manager.Install(context.Background(), installableCharts, kotsv1beta1.ConfigValues{})
+		require.Error(t, err)
+
+		// Verify that component failure is tracked
+		appInstall, err := manager.GetStatus()
+		require.NoError(t, err)
+
+		// Should have 1 component
+		assert.Len(t, appInstall.Components, 1, "Should have 1 component")
+
+		// Component should be marked as failed
+		failedComponent := appInstall.Components[0]
+		assert.Equal(t, "failing-chart", failedComponent.Name)
+		assert.Equal(t, types.StateFailed, failedComponent.Status.State)
+		assert.Contains(t, failedComponent.Status.Description, "helm install failed")
+
+		// Overall status should be failed
+		assert.Equal(t, types.StateFailed, appInstall.Status.State)
+
+		mockHelmClient.AssertExpectations(t)
+	})
 }

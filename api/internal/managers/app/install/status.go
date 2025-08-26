@@ -17,3 +17,11 @@ func (m *appInstallManager) setStatus(state types.State, description string) err
 		LastUpdated: time.Now(),
 	})
 }
+
+func (m *appInstallManager) setComponentStatus(componentName string, state types.State, description string) error {
+	return m.appInstallStore.SetComponentStatus(componentName, types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
+}

@@ -21,6 +21,14 @@ components:
         status_code:
           type: integer
       type: object
+    types.AppComponent:
+      properties:
+        name:
+          description: Chart name
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
     types.AppConfig:
       properties:
         groups:
@@ -47,6 +55,11 @@ components:
       type: object
     types.AppInstall:
       properties:
+        components:
+          items:
+            $ref: '#/components/schemas/types.AppComponent'
+          type: array
+          uniqueItems: false
         logs:
           type: string
         status:
@@ -210,6 +223,7 @@ components:
       - StateSucceeded
       - StateFailed
     types.Status:
+      description: Uses existing Status type
       properties:
         description:
           type: string
