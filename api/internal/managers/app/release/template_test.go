@@ -1822,7 +1822,7 @@ func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
 			expected:      nil,
 		},
 		{
-			name: "single chart with basic values",
+			name: "single chart with basic configuration",
 			helmChartCRs: [][]byte{
 				[]byte(`apiVersion: kots.io/v1beta2
 kind: HelmChart
@@ -1830,6 +1830,7 @@ metadata:
   name: nginx-chart
 spec:
   namespace: repl{{ConfigOption "namespace"}}
+  releaseName: repl{{ConfigOption "release_name"}}
   chart:
     name: nginx
     chartVersion: "1.0.0"
@@ -1853,6 +1854,7 @@ spec:
 			},
 			configValues: types.AppConfigValues{
 				"namespace":      {Value: "custom-namespace"},
+				"release_name":   {Value: "custom-release-name"},
 				"image_tag":      {Value: "1.20.0"},
 				"enable_ingress": {Value: "true"},
 				"ingress_host":   {Value: "nginx.example.com"},
@@ -1882,6 +1884,7 @@ metadata:
   name: nginx-chart
 spec:
   namespace: custom-namespace
+  releaseName: custom-release-name
   chart:
     name: nginx
     chartVersion: "1.0.0"
@@ -2559,7 +2562,8 @@ func createTestConfig() kotsv1beta1.Config {
 					Name: "test_group",
 					Items: []kotsv1beta1.ConfigItem{
 						{Name: "chart_name", Type: "text", Value: multitype.FromString("nginx")},
-						{Name: "namespace", Type: "text", Value: multitype.FromString("default")},
+						{Name: "namespace", Type: "text", Value: multitype.FromString("default-namespace")},
+						{Name: "release_name", Type: "text", Value: multitype.FromString("default-release-name")},
 						{Name: "image_tag", Type: "text", Value: multitype.FromString("1.20.0")},
 						{Name: "app_name", Type: "text", Value: multitype.FromString("myapp")},
 						{Name: "chart1_name", Type: "text", Value: multitype.FromString("nginx")},
