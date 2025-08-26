@@ -282,7 +282,7 @@ unit-tests: envtest
 	$(MAKE) -C utils unit-tests
 
 .PHONY: test-integration
-test-integration: static
+test-integration: static-dryrun
 	$(MAKE) -C api test-integration
 
 .PHONY: vet
