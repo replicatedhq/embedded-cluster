@@ -1812,7 +1812,6 @@ func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
 		expectError      bool
 		errorContains    string
 		expected         []types.InstallableHelmChart
-		validateCharts   func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte)
 	}{
 		{
 			name:          "no helm charts returns empty slice",
@@ -1937,22 +1936,27 @@ spec:
 				"skip_nginx": {Value: "true"},
 			},
 			expectError: false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
-				expectedValues := map[string]any{
-					"persistence": map[string]any{
-						"enabled": true,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"persistence": map[string]any{
+							"enabled": true,
+						},
 					},
-				}
-
-				expectedCharts := []types.InstallableHelmChart{
-					{
-						Archive: testChartArchives[1], // redis chart (index 1)
-						Values:  expectedValues,
-						CR:      createHelmChartCRFromYAML(string(testHelmChartCRs[1])), // redis CR (index 1)
-					},
-				}
-
-				assert.Equal(t, expectedCharts, charts)
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: included-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  exclude: false
+  values:
+    persistence:
+      enabled: true`),
+				},
 			},
 		},
 		{
@@ -2262,9 +2266,7 @@ spec:
 			chartArchives: [][]byte{},
 			configValues:  types.AppConfigValues{},
 			expectError:   false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
-				assert.Empty(t, charts)
-			},
+			expected:      nil,
 		},
 		{
 			name: "skip nil helm chart CR in collection",
@@ -2286,20 +2288,23 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			expectError:  false,
-			validateCharts: func(t *testing.T, charts []types.InstallableHelmChart, testHelmChartCRs [][]byte, testChartArchives [][]byte) {
-				expectedValues := map[string]any{
-					"replicaCount": "2",
-				}
-
-				expectedCharts := []types.InstallableHelmChart{
-					{
-						Archive: testChartArchives[0],
-						Values:  expectedValues,
-						CR:      createHelmChartCRFromYAML(string(testHelmChartCRs[1])), // Skip the nil CR at index 0
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "2",
 					},
-				}
-
-				assert.Equal(t, expectedCharts, charts)
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: valid-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "2"`),
+				},
 			},
 		},
 		{
@@ -2420,12 +2425,8 @@ spec:
 
 			require.NoError(t, err)
 
-			// Use expectedInstallableCharts if provided, otherwise use validateCharts
-			if tt.expected != nil {
-				assert.Equal(t, tt.expected, result)
-			} else if tt.validateCharts != nil {
-				tt.validateCharts(t, result, tt.helmChartCRs, tt.chartArchives)
-			}
+			// Validate expected results
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
