@@ -39,6 +39,7 @@ type appInstallManager struct {
 	kotsCLI          KotsCLIInstaller
 	logger           logrus.FieldLogger
 	hcli             helm.Client
+	k8sVersion       string
 	kubeConfigPath   string
 	restClientGetter genericclioptions.RESTClientGetter
 }
@@ -91,6 +92,12 @@ func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
 func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.hcli = hcli
+	}
+}
+
+func WithK8sVersion(k8sVersion string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.k8sVersion = k8sVersion
 	}
 }
 

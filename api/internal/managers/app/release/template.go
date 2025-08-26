@@ -226,9 +226,13 @@ func (m *appReleaseManager) setupHelmClient() error {
 		return nil
 	}
 
-	k8sVersion, err := m.getK8sVersion()
-	if err != nil {
-		return fmt.Errorf("get k8s version: %w", err)
+	k8sVersion := m.k8sVersion
+	if k8sVersion == "" {
+		var err error
+		k8sVersion, err = m.getK8sVersion()
+		if err != nil {
+			return fmt.Errorf("get k8s version: %w", err)
+		}
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{

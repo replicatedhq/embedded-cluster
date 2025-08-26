@@ -30,6 +30,7 @@ type appReleaseManager struct {
 	logger                     logrus.FieldLogger
 	privateCACertConfigMapName string
 	hcli                       helm.Client
+	k8sVersion                 string
 	restClientGetter           genericclioptions.RESTClientGetter
 	kubeConfigPath             string
 }
@@ -69,6 +70,12 @@ func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOptio
 func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.hcli = hcli
+	}
+}
+
+func WithK8sVersion(k8sVersion string) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.k8sVersion = k8sVersion
 	}
 }
 
