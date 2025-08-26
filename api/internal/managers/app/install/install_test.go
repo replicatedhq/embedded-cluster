@@ -63,16 +63,16 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		}
 
-		// Create InstallableHelmCharts with pre-processed values
+		// Create InstallableHelmCharts with weights - should already be sorted at this stage
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", map[string]any{
+			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", 10, map[string]any{
 				"image": map[string]any{
 					"repository": "nginx",
 					"tag":        "latest",
 				},
 				"replicas": 3,
 			}),
-			createTestInstallableHelmChart(t, "postgres-chart", "2.0.0", "database", "data", map[string]any{
+			createTestInstallableHelmChart(t, "postgres-chart", "2.0.0", "database", "data", 20, map[string]any{
 				"database": map[string]any{
 					"host":     "postgres.example.com",
 					"password": "secret",
@@ -84,7 +84,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		mockHelmClient := &helm.MockClient{}
 
 		// Chart 1 installation (nginx chart)
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+		nginxCall := mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			if opts.ReleaseName != "web-server" {
 				return false
 			}
@@ -99,7 +99,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		})).Return(&helmrelease.Release{Name: "web-server"}, nil)
 
 		// Chart 2 installation (database chart)
-		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+		databaseCall := mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			if opts.ReleaseName != "database" {
 				return false
 			}
@@ -112,6 +112,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			}
 			return false
 		})).Return(&helmrelease.Release{Name: "database"}, nil)
+
+		// Verify installation order
+		mock.InOrder(
+			nginxCall,
+			databaseCall,
+		)
 
 		// Create mock installer with detailed verification of config values
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -190,7 +196,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "monitoring-chart", "1.0.0", "prometheus", "monitoring", map[string]any{"key": "value"}),
+			createTestInstallableHelmChart(t, "monitoring-chart", "1.0.0", "prometheus", "monitoring", 0, map[string]any{"key": "value"}),
 		}
 
 		// Create mock helm client
@@ -239,7 +245,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
 		installableCharts := []types.InstallableHelmChart{
-			createTestInstallableHelmChart(t, "logging-chart", "1.0.0", "fluentd", "logging", map[string]any{"key": "value"}),
+			createTestInstallableHelmChart(t, "logging-chart", "1.0.0", "fluentd", "logging", 0, map[string]any{"key": "value"}),
 		}
 
 		// Create mock helm client that fails
@@ -372,7 +378,7 @@ type: application
 }
 
 // Helper functions to create test data that can be reused across test cases
-func createTestHelmChartCR(name, releaseName, namespace string) *kotsv1beta2.HelmChart {
+func createTestHelmChartCR(name, releaseName, namespace string, weight int64) *kotsv1beta2.HelmChart {
 	return &kotsv1beta2.HelmChart{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "kots.io/v1beta2",
@@ -384,14 +390,15 @@ func createTestHelmChartCR(name, releaseName, namespace string) *kotsv1beta2.Hel
 		Spec: kotsv1beta2.HelmChartSpec{
 			ReleaseName: releaseName,
 			Namespace:   namespace,
+			Weight:      weight,
 		},
 	}
 }
 
-func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, releaseName, namespace string, values map[string]any) types.InstallableHelmChart {
+func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, releaseName, namespace string, weight int64, values map[string]any) types.InstallableHelmChart {
 	return types.InstallableHelmChart{
 		Archive: createTestChartArchive(t, chartName, chartVersion),
 		Values:  values,
-		CR:      createTestHelmChartCR(chartName, releaseName, namespace),
+		CR:      createTestHelmChartCR(chartName, releaseName, namespace, weight),
 	}
 }
