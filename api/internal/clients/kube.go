@@ -71,10 +71,10 @@ func NewDiscoveryClient(opts KubeClientOptions) (discovery.DiscoveryInterface, e
 }
 
 func getRESTConfig(opts KubeClientOptions) (*rest.Config, error) {
-	if opts.RESTClientGetter == nil {
-		conf, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfigPath)
+	if opts.RESTClientGetter != nil {
+		conf, err := opts.RESTClientGetter.ToRESTConfig()
 		if err != nil {
-			return nil, fmt.Errorf("unable to process kubernetes config for kube client: %w", err)
+			return nil, fmt.Errorf("invalid rest client getter: %w", err)
 		}
 		return conf, nil
 	}
@@ -82,10 +82,10 @@ func getRESTConfig(opts KubeClientOptions) (*rest.Config, error) {
 	if opts.KubeConfigPath != "" {
 		conf, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfigPath)
 		if err != nil {
-			return nil, fmt.Errorf("unable to process kubernetes config for kube client: %w", err)
+			return nil, fmt.Errorf("invalid kubeconfig path: %w", err)
 		}
 		return conf, nil
 	}
 
-	return nil, fmt.Errorf("no rest client getter or kube config path provided")
+	return nil, fmt.Errorf("a valid kube config is required to create a kube client")
 }
