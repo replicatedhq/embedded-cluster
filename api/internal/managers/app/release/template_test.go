@@ -1828,8 +1828,8 @@ func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
 kind: HelmChart
 metadata:
   name: nginx-chart
-  namespace: default
 spec:
+  namespace: repl{{ConfigOption "namespace"}}
   chart:
     name: nginx
     chartVersion: "1.0.0"
@@ -1852,6 +1852,7 @@ spec:
 				createTestChartArchive(t, "nginx", "1.0.0"),
 			},
 			configValues: types.AppConfigValues{
+				"namespace":      {Value: "custom-namespace"},
 				"image_tag":      {Value: "1.20.0"},
 				"enable_ingress": {Value: "true"},
 				"ingress_host":   {Value: "nginx.example.com"},
@@ -1879,8 +1880,8 @@ spec:
 kind: HelmChart
 metadata:
   name: nginx-chart
-  namespace: default
 spec:
+  namespace: custom-namespace
   chart:
     name: nginx
     chartVersion: "1.0.0"
@@ -2558,6 +2559,7 @@ func createTestConfig() kotsv1beta1.Config {
 					Name: "test_group",
 					Items: []kotsv1beta1.ConfigItem{
 						{Name: "chart_name", Type: "text", Value: multitype.FromString("nginx")},
+						{Name: "namespace", Type: "text", Value: multitype.FromString("default")},
 						{Name: "image_tag", Type: "text", Value: multitype.FromString("1.20.0")},
 						{Name: "app_name", Type: "text", Value: multitype.FromString("myapp")},
 						{Name: "chart1_name", Type: "text", Value: multitype.FromString("nginx")},
