@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -100,6 +101,11 @@ func (m *appReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, co
 
 		installableCharts = append(installableCharts, installableChart)
 	}
+
+	// Sort charts by weight field before returning
+	sort.Slice(installableCharts, func(i, j int) bool {
+		return installableCharts[i].CR.GetWeight() < installableCharts[j].CR.GetWeight()
+	})
 
 	return installableCharts, nil
 }
