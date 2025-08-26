@@ -11,6 +11,7 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	coreclientset "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
@@ -44,48 +45,47 @@ func getScheme() *runtime.Scheme {
 
 // NewKubeClient returns a new kubernetes client.
 func NewKubeClient(opts KubeClientOptions) (client.Client, error) {
-	var restConfig *rest.Config
-	if opts.RESTClientGetter == nil && opts.KubeConfigPath == "" {
-		return nil, fmt.Errorf("a valid kube config is required to create a kube client")
+	restConfig, err := getRESTConfig(opts)
+	if err != nil {
+		return nil, err
 	}
-
-	if opts.RESTClientGetter == nil {
-		conf, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to process kubernetes config for kube client: %w", err)
-		}
-		restConfig = conf
-	} else {
-		conf, err := opts.RESTClientGetter.ToRESTConfig()
-		if err != nil {
-			return nil, fmt.Errorf("unable to process rest client config for kube client: %w", err)
-		}
-		restConfig = conf
-	}
-
 	return client.New(restConfig, client.Options{Scheme: getScheme()})
 }
 
 // NewMetadataClient returns a new kube metadata client.
 func NewMetadataClient(opts KubeClientOptions) (metadata.Interface, error) {
-	var restConfig *rest.Config
-	if opts.RESTClientGetter == nil && opts.KubeConfigPath == "" {
-		return nil, fmt.Errorf("a valid kube config is required to create a kube client")
+	restConfig, err := getRESTConfig(opts)
+	if err != nil {
+		return nil, err
 	}
+	return metadata.NewForConfig(restConfig)
+}
 
+// NewDiscoveryClient returns a new kube discovery client.
+func NewDiscoveryClient(opts KubeClientOptions) (discovery.DiscoveryInterface, error) {
+	restConfig, err := getRESTConfig(opts)
+	if err != nil {
+		return nil, err
+	}
+	return discovery.NewDiscoveryClientForConfig(restConfig)
+}
+
+func getRESTConfig(opts KubeClientOptions) (*rest.Config, error) {
 	if opts.RESTClientGetter == nil {
 		conf, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfigPath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process kubernetes config for kube client: %w", err)
 		}
-		restConfig = conf
-	} else {
-		conf, err := opts.RESTClientGetter.ToRESTConfig()
-		if err != nil {
-			return nil, fmt.Errorf("unable to process rest client config for kube client: %w", err)
-		}
-		restConfig = conf
+		return conf, nil
 	}
 
-	return metadata.NewForConfig(restConfig)
+	if opts.KubeConfigPath != "" {
+		conf, err := clientcmd.BuildConfigFromFlags("", opts.KubeConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to process kubernetes config for kube client: %w", err)
+		}
+		return conf, nil
+	}
+
+	return nil, fmt.Errorf("no rest client getter or kube config path provided")
 }

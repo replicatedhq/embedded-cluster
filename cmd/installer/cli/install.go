@@ -803,7 +803,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {

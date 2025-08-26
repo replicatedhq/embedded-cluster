@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 
+	clients "github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -185,13 +186,6 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
 	}
 
-	// Create a Helm client for dry run templating
-	helmClient, err := helm.NewClient(helm.HelmOptions{}) // TODO: pass K0sVersion (maybe rename to kubernetesVersion)
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer helmClient.Close()
-
 	// Write chart archive to a temporary file
 	chartPath, err := writeChartArchiveToTemp(chartArchive)
 	if err != nil {
@@ -215,12 +209,53 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	// Perform dry run rendering
-	manifests, err := helmClient.Render(ctx, installOpts)
+	if err := m.setupHelmClient(); err != nil {
+		return nil, fmt.Errorf("setup helm client: %w", err)
+	}
+
+	manifests, err := m.hcli.Render(ctx, installOpts)
 	if err != nil {
 		return nil, fmt.Errorf("render helm chart %s: %w", templatedCR.Name, err)
 	}
 
 	return manifests, nil
+}
+
+func (m *appReleaseManager) setupHelmClient() error {
+	if m.hcli != nil {
+		return nil
+	}
+
+	k8sVersion, err := m.getK8sVersion()
+	if err != nil {
+		return fmt.Errorf("get k8s version: %w", err)
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		// hcli.Render doesn't need a kubeconfig as it is client only
+		K8sVersion: k8sVersion,
+	})
+	if err != nil {
+		return fmt.Errorf("create helm client: %w", err)
+	}
+	m.hcli = hcli
+	return nil
+}
+
+// getK8sVersion creates a kubernetes client and returns the kubernetes version
+func (m *appReleaseManager) getK8sVersion() (string, error) {
+	kcli, err := clients.NewDiscoveryClient(clients.KubeClientOptions{
+		RESTClientGetter: m.restClientGetter,
+		KubeConfigPath:   m.kubeConfigPath,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create discovery client: %w", err)
+	}
+	version, err := kcli.ServerVersion()
+	if err != nil {
+		return "", fmt.Errorf("get server version: %w", err)
+	}
+	return version.String(), nil
 }
 
 // generateHelmValues generates Helm values for a single templated HelmChart custom resource

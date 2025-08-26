@@ -205,6 +205,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
+			appreleasemanager.WithRESTClientGetter(controller.restClientGetter),
+			appreleasemanager.WithKubeConfigPath(controller.kubeConfigPath),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)

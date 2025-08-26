@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
@@ -322,6 +323,11 @@ spec:
 		},
 	}
 
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		K8sVersion: "1.33.0",
+	})
+	require.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create release data
@@ -335,6 +341,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -843,6 +850,11 @@ spec:
 		},
 	}
 
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		K8sVersion: "1.33.0",
+	})
+	require.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a basic config for the template engine
@@ -857,6 +869,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -1120,6 +1133,11 @@ spec:
 		},
 	}
 
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		K8sVersion: "1.33.0",
+	})
+	require.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a basic config for the template engine
@@ -1132,6 +1150,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -2495,6 +2514,11 @@ spec:
 		},
 	}
 
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		K8sVersion: "1.33.0",
+	})
+	require.NoError(t, err)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create release data
@@ -2508,6 +2532,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 

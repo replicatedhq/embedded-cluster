@@ -8,10 +8,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // AppReleaseManager provides methods for managing the release of an app
@@ -27,6 +29,9 @@ type appReleaseManager struct {
 	license                    *kotsv1beta1.License
 	logger                     logrus.FieldLogger
 	privateCACertConfigMapName string
+	hcli                       helm.Client
+	restClientGetter           genericclioptions.RESTClientGetter
+	kubeConfigPath             string
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -58,6 +63,24 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.privateCACertConfigMapName = configMapName
+	}
+}
+
+func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.hcli = hcli
+	}
+}
+
+func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.restClientGetter = restClientGetter
+	}
+}
+
+func WithKubeConfigPath(kubeConfigPath string) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.kubeConfigPath = kubeConfigPath
 	}
 }
 

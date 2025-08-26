@@ -406,7 +406,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
@@ -613,7 +613,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
@@ -711,7 +711,7 @@ func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags, rc runtime
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
