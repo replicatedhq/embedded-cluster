@@ -2396,6 +2396,103 @@ spec:
 				},
 			},
 		},
+		{
+			name: "charts sorted by weight - negative, zero, positive",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: positive-weight-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  weight: 100
+  values:
+    name: "positive"`),
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: no-weight-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    name: "zero"`), // No weight specified, defaults to 0
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: negative-weight-chart
+spec:
+  chart:
+    name: postgresql
+    chartVersion: "1.0.0"
+  weight: -10
+  values:
+    name: "negative"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+				createTestChartArchive(t, "redis", "2.0.0"),
+				createTestChartArchive(t, "postgresql", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			expectError:  false,
+			expected: []types.InstallableHelmChart{
+				// Should be sorted by weight: postgresql (-10), redis (0), nginx (100)
+				{
+					Archive: createTestChartArchive(t, "postgresql", "1.0.0"),
+					Values: map[string]any{
+						"name": "negative",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: negative-weight-chart
+spec:
+  chart:
+    name: postgresql
+    chartVersion: "1.0.0"
+  weight: -10
+  values:
+    name: "negative"`),
+				},
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"name": "zero",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: no-weight-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    name: "zero"`),
+				},
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"name": "positive",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: positive-weight-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  weight: 100
+  values:
+    name: "positive"`),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
