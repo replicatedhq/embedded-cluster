@@ -85,7 +85,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	webServer, err := web.New(web.InitialState{
 		Title:         opts.ReleaseData.Application.Spec.Title,
 		Icon:          opts.ReleaseData.Application.Spec.Icon,
-		InstallTarget: string(opts.APIConfig.InstallTarget),
+		InstallTarget: string(opts.InstallTarget),
 	}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
 	if err != nil {
 		return fmt.Errorf("new web server: %w", err)
