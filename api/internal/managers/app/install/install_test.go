@@ -181,6 +181,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
+			WithK8sVersion("v1.33.0"),
 			WithKotsCLI(mockInstaller),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
@@ -218,6 +219,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
+			WithK8sVersion("v1.33.0"),
 			WithKotsCLI(mockInstaller),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
@@ -263,6 +265,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
+			WithK8sVersion("v1.33.0"),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
@@ -297,6 +300,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
+			WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -441,6 +445,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
+			WithK8sVersion("v1.33.0"),
 			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
 			WithClusterID("test-cluster"),
 			WithKotsCLI(mockInstaller),
@@ -493,6 +498,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
+			WithK8sVersion("v1.33.0"),
 			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),

@@ -13,7 +13,6 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // AppReleaseManager provides methods for managing the release of an app
@@ -31,8 +30,6 @@ type appReleaseManager struct {
 	privateCACertConfigMapName string
 	hcli                       helm.Client
 	k8sVersion                 string
-	restClientGetter           genericclioptions.RESTClientGetter
-	kubeConfigPath             string
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -79,18 +76,6 @@ func WithK8sVersion(k8sVersion string) AppReleaseManagerOption {
 	}
 }
 
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) AppReleaseManagerOption {
-	return func(m *appReleaseManager) {
-		m.restClientGetter = restClientGetter
-	}
-}
-
-func WithKubeConfigPath(kubeConfigPath string) AppReleaseManagerOption {
-	return func(m *appReleaseManager) {
-		m.kubeConfigPath = kubeConfigPath
-	}
-}
-
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -103,6 +88,9 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 
 	if manager.releaseData == nil {
 		return nil, fmt.Errorf("release data not found")
+	}
+	if manager.k8sVersion == "" {
+		return nil, fmt.Errorf("k8s version required")
 	}
 
 	if manager.logger == nil {

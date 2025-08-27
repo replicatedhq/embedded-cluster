@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
 
@@ -32,19 +31,10 @@ func (m *appInstallManager) setupHelmClient() error {
 		return nil
 	}
 
-	k8sVersion := m.k8sVersion
-	if k8sVersion == "" {
-		var err error
-		k8sVersion, err = m.getK8sVersion()
-		if err != nil {
-			return fmt.Errorf("get k8s version: %w", err)
-		}
-	}
-
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig:       m.kubeConfigPath,
 		RESTClientGetter: m.restClientGetter,
-		K8sVersion:       k8sVersion,
+		K8sVersion:       m.k8sVersion,
 		LogFn:            m.logFn("app-helm"),
 	})
 	if err != nil {
@@ -52,22 +42,6 @@ func (m *appInstallManager) setupHelmClient() error {
 	}
 	m.hcli = hcli
 	return nil
-}
-
-// getK8sVersion creates a kubernetes client and returns the kubernetes version
-func (m *appInstallManager) getK8sVersion() (string, error) {
-	kcli, err := clients.NewDiscoveryClient(clients.KubeClientOptions{
-		RESTClientGetter: m.restClientGetter,
-		KubeConfigPath:   m.kubeConfigPath,
-	})
-	if err != nil {
-		return "", fmt.Errorf("create discovery client: %w", err)
-	}
-	version, err := kcli.ServerVersion()
-	if err != nil {
-		return "", fmt.Errorf("get server version: %w", err)
-	}
-	return version.String(), nil
 }
 
 func (m *appInstallManager) logFn(component string) func(format string, v ...interface{}) {

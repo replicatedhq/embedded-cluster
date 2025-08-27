@@ -1199,6 +1199,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
+				appcontroller.WithK8sVersion("v1.33.0"),
 				appcontroller.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
 				appcontroller.WithAppPreflightManager(mockAppPreflightManager),

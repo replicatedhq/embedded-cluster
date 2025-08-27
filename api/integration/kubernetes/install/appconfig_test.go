@@ -65,11 +65,12 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
+		kubernetesinstall.WithK8sVersion("v1.33.0"),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -116,11 +117,12 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the completed install controller
-		completedAPIInstance := integration.NewAPIWithReleaseData(t,
+		completedAPIInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(completedInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -219,11 +221,12 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
+		kubernetesinstall.WithK8sVersion("v1.33.0"),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),

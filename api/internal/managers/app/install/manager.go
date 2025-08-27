@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"fmt"
 
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -119,6 +120,10 @@ func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, 
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.k8sVersion == "" {
+		return nil, fmt.Errorf("k8s version required")
 	}
 
 	if manager.logger == nil {

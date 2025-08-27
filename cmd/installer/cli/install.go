@@ -696,7 +696,8 @@ func runManagerExperienceInstall(
 
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: flags.adminConsolePassword,
+			InstallTarget: apitypes.InstallTarget(flags.target),
+			Password:      flags.adminConsolePassword,
 			TLSConfig: apitypes.TLSConfig{
 				CertBytes: flags.tlsCertBytes,
 				KeyBytes:  flags.tlsKeyBytes,
@@ -722,7 +723,6 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
-		InstallTarget:   flags.target,
 		MetricsReporter: metricsReporter,
 	}
 

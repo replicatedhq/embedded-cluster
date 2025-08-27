@@ -52,9 +52,15 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 
 	// TODO (@team): discuss which of these should / should not be pointers
 	if h.installController == nil {
+		k8sVersion, err := getK8sVersion(h.cfg.RESTClientGetter)
+		if err != nil {
+			return nil, fmt.Errorf("get k8s version: %w", err)
+		}
+
 		installController, err := install.NewInstallController(
 			install.WithLogger(h.logger),
 			install.WithMetricsReporter(h.metricsReporter),
+			install.WithK8sVersion(k8sVersion),
 			install.WithRESTClientGetter(h.cfg.RESTClientGetter),
 			install.WithReleaseData(h.cfg.ReleaseData),
 			install.WithConfigValues(h.cfg.ConfigValues),

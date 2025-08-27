@@ -205,7 +205,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create the API with the install controller
-			apiInstance := integration.NewAPIWithReleaseData(t,
+			apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
@@ -303,7 +303,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -362,7 +362,7 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -394,7 +394,7 @@ func TestLinuxConfigureInstallationControllerError(t *testing.T) {
 	mockController.On("ConfigureInstallation", mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Create the API with the mock controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -458,7 +458,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -519,7 +519,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		emptyAPI := integration.NewAPIWithReleaseData(t,
+		emptyAPI := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -582,7 +582,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		mockController.On("GetInstallationConfig", mock.Anything).Return(types.LinuxInstallationConfig{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -659,7 +659,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with controllers
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),

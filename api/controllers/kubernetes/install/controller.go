@@ -37,6 +37,7 @@ type InstallController struct {
 	installationManager installation.InstallationManager
 	infraManager        infra.InfraManager
 	metricsReporter     metrics.ReporterInterface
+	k8sVersion          string
 	restClientGetter    genericclioptions.RESTClientGetter
 	releaseData         *release.ReleaseData
 	password            string
@@ -70,6 +71,12 @@ func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
 func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InstallControllerOption {
 	return func(c *InstallController) {
 		c.metricsReporter = metricsReporter
+	}
+}
+
+func WithK8sVersion(k8sVersion string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.k8sVersion = k8sVersion
 	}
 }
 
@@ -191,7 +198,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithReleaseData(controller.releaseData),
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
-			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
+			appcontroller.WithPrivateCACertConfigMapName(""),    // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
+			appcontroller.WithK8sVersion(controller.k8sVersion), // Used to determine the kubernetes version for the helm client
 			appcontroller.WithRESTClientGetter(controller.restClientGetter),
 		)
 		if err != nil {

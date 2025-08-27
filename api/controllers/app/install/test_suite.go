@@ -142,6 +142,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -409,6 +410,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 				WithAppReleaseManager(appReleaseManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -481,6 +483,7 @@ func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -692,6 +695,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
