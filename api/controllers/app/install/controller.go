@@ -230,6 +230,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
+			appinstallmanager.WithK8sVersion(controller.k8sVersion),
 			appinstallmanager.WithRESTClientGetter(controller.restClientGetter),
 			appinstallmanager.WithKubeConfigPath(controller.kubeConfigPath),
 		)
