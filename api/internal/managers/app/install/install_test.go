@@ -257,7 +257,11 @@ func TestAppInstallManager_Install(t *testing.T) {
 			return opts.ChartPath != "" && opts.ReleaseName == "fluentd" && opts.Namespace == "logging"
 		})).Return((*helmrelease.Release)(nil), assert.AnError)
 
-		// Create manager with initialized store (no need for KOTS installer mock since Helm fails first)
+		// Create mock installer that succeeds (so we get to Helm charts)
+		mockInstaller := &MockKotsCLIInstaller{}
+		mockInstaller.On("Install", mock.Anything).Return(nil)
+
+		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
 		}))
@@ -266,6 +270,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
 			WithK8sVersion("v1.33.0"),
+			WithKotsCLI(mockInstaller),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
@@ -282,6 +287,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
 		assert.Contains(t, appInstall.Status.Description, "install helm charts")
 
+		mockInstaller.AssertExpectations(t)
 		mockHelmClient.AssertExpectations(t)
 	})
 
@@ -491,6 +497,10 @@ func TestComponentStatusTracking(t *testing.T) {
 			return opts.ReleaseName == "failing-app"
 		})).Return((*helmrelease.Release)(nil), errors.New("helm install failed"))
 
+		// Create mock installer that succeeds (so we get to Helm charts)
+		mockInstaller := &MockKotsCLIInstaller{}
+		mockInstaller.On("Install", mock.Anything).Return(nil)
+
 		// Create manager with in-memory store
 		appInstallStore := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
@@ -501,6 +511,7 @@ func TestComponentStatusTracking(t *testing.T) {
 			WithK8sVersion("v1.33.0"),
 			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
 			WithClusterID("test-cluster"),
+			WithKotsCLI(mockInstaller),
 			WithHelmClient(mockHelmClient),
 		)
 		require.NoError(t, err)
@@ -525,6 +536,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		// Overall status should be failed
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
 
+		mockInstaller.AssertExpectations(t)
 		mockHelmClient.AssertExpectations(t)
 	})
 }
