@@ -57,10 +57,22 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 	}
 }
 
-func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
+func NewTargetLinuxAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
 	cfg := types.APIConfig{
-		Password:    "password",
-		ReleaseData: DefaultReleaseData(),
+		InstallTarget: types.InstallTargetLinux,
+		Password:      "password",
+		ReleaseData:   DefaultReleaseData(),
+	}
+	a, err := api.New(cfg, opts...)
+	require.NoError(t, err)
+	return a
+}
+
+func NewTargetKubernetesAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
+	cfg := types.APIConfig{
+		InstallTarget: types.InstallTargetKubernetes,
+		Password:      "password",
+		ReleaseData:   DefaultReleaseData(),
 	}
 	a, err := api.New(cfg, opts...)
 	require.NoError(t, err)

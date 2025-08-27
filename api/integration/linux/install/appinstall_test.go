@@ -86,6 +86,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstallmanager.WithAppInstallStore(
 				appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(appInstallStatus)),
 			),
+			appinstallmanager.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -98,6 +99,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -111,7 +113,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -167,7 +169,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -194,7 +196,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		mockController.On("GetAppInstallStatus", mock.Anything).Return(types.AppInstall{}, assert.AnError)
 
 		// Create the API with mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -307,6 +309,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(&store.MockStore{}),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -322,8 +325,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -378,6 +382,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -391,8 +396,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -461,6 +467,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -477,8 +484,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -529,8 +537,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -589,6 +598,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -602,8 +612,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -664,6 +675,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -677,8 +689,9 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},

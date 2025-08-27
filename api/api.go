@@ -95,6 +95,10 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 
 // New creates a new API instance.
 func New(cfg types.APIConfig, opts ...Option) (*API, error) {
+	if cfg.InstallTarget == "" {
+		return nil, fmt.Errorf("target is required")
+	}
+
 	api := &API{
 		cfg: cfg,
 	}

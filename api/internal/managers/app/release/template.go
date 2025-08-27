@@ -185,13 +185,6 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 		return nil, fmt.Errorf("generate helm values for %s: %w", templatedCR.Name, err)
 	}
 
-	// Create a Helm client for dry run templating
-	helmClient, err := helm.NewClient(helm.HelmOptions{}) // TODO: pass K0sVersion (maybe rename to kubernetesVersion)
-	if err != nil {
-		return nil, fmt.Errorf("create helm client: %w", err)
-	}
-	defer helmClient.Close()
-
 	// Write chart archive to a temporary file
 	chartPath, err := writeChartArchiveToTemp(chartArchive)
 	if err != nil {
@@ -215,7 +208,11 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	// Perform dry run rendering
-	manifests, err := helmClient.Render(ctx, installOpts)
+	if err := m.setupHelmClient(); err != nil {
+		return nil, fmt.Errorf("setup helm client: %w", err)
+	}
+
+	manifests, err := m.hcli.Render(ctx, installOpts)
 	if err != nil {
 		return nil, fmt.Errorf("render helm chart %s: %w", templatedCR.Name, err)
 	}

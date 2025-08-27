@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 )
 
 // logWriter is an io.Writer that captures output and feeds it to the logs
@@ -35,7 +34,7 @@ func (m *appInstallManager) setupHelmClient() error {
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig:       m.kubeConfigPath,
 		RESTClientGetter: m.restClientGetter,
-		K0sVersion:       versions.K0sVersion,
+		K8sVersion:       m.k8sVersion,
 		LogFn:            m.logFn("app-helm"),
 	})
 	if err != nil {

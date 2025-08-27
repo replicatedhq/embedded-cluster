@@ -81,7 +81,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {

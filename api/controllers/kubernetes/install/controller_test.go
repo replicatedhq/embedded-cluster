@@ -102,6 +102,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				WithInstallation(ki),
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -219,6 +220,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithStore(mockStore),
 				WithMetricsReporter(metricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -282,6 +284,7 @@ func TestGetInstallationStatus(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -408,6 +411,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
+				appcontroller.WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -420,6 +424,7 @@ func TestSetupInfra(t *testing.T) {
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -514,6 +519,7 @@ func TestGetInfra(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInfraManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 

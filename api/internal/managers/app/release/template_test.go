@@ -335,6 +335,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -857,6 +858,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -1132,6 +1134,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -2508,6 +2511,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 

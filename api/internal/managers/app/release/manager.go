@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -27,6 +28,8 @@ type appReleaseManager struct {
 	license                    *kotsv1beta1.License
 	logger                     logrus.FieldLogger
 	privateCACertConfigMapName string
+	hcli                       helm.Client
+	k8sVersion                 string
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -61,6 +64,18 @@ func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOptio
 	}
 }
 
+func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.hcli = hcli
+	}
+}
+
+func WithK8sVersion(k8sVersion string) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.k8sVersion = k8sVersion
+	}
+}
+
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -73,6 +88,9 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 
 	if manager.releaseData == nil {
 		return nil, fmt.Errorf("release data not found")
+	}
+	if manager.k8sVersion == "" {
+		return nil, fmt.Errorf("k8s version required")
 	}
 
 	if manager.logger == nil {

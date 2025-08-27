@@ -8,6 +8,7 @@ import (
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
 	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type handlers struct {
@@ -49,28 +50,30 @@ func (a *API) initHandlers() error {
 	}
 	a.handlers.health = healthHandler
 
-	// Linux handler
-	linuxHandler, err := linuxhandler.New(
-		a.cfg,
-		linuxhandler.WithLogger(a.logger),
-		linuxhandler.WithMetricsReporter(a.metricsReporter),
-		linuxhandler.WithInstallController(a.linuxInstallController),
-	)
-	if err != nil {
-		return fmt.Errorf("new linux handler: %w", err)
-	}
-	a.handlers.linux = linuxHandler
+	switch a.cfg.InstallTarget {
+	case apitypes.InstallTargetLinux:
+		linuxHandler, err := linuxhandler.New(
+			a.cfg,
+			linuxhandler.WithLogger(a.logger),
+			linuxhandler.WithMetricsReporter(a.metricsReporter),
+			linuxhandler.WithInstallController(a.linuxInstallController),
+		)
+		if err != nil {
+			return fmt.Errorf("new linux handler: %w", err)
+		}
+		a.handlers.linux = linuxHandler
 
-	// Kubernetes handler
-	kubernetesHandler, err := kuberneteshandler.New(
-		a.cfg,
-		kuberneteshandler.WithLogger(a.logger),
-		kuberneteshandler.WithInstallController(a.kubernetesInstallController),
-	)
-	if err != nil {
-		return fmt.Errorf("new kubernetes handler: %w", err)
+	case apitypes.InstallTargetKubernetes:
+		kubernetesHandler, err := kuberneteshandler.New(
+			a.cfg,
+			kuberneteshandler.WithLogger(a.logger),
+			kuberneteshandler.WithInstallController(a.kubernetesInstallController),
+		)
+		if err != nil {
+			return fmt.Errorf("new kubernetes handler: %w", err)
+		}
+		a.handlers.kubernetes = kubernetesHandler
 	}
-	a.handlers.kubernetes = kubernetesHandler
 
 	return nil
 }
