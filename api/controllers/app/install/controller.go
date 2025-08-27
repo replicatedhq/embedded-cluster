@@ -48,6 +48,7 @@ type InstallController struct {
 	clusterID                  string
 	airgapBundle               string
 	privateCACertConfigMapName string
+	k8sVersion                 string
 	restClientGetter           genericclioptions.RESTClientGetter
 	kubeConfigPath             string
 }
@@ -132,6 +133,12 @@ func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOptio
 	}
 }
 
+func WithK8sVersion(k8sVersion string) InstallControllerOption {
+	return func(c *InstallController) {
+		c.k8sVersion = k8sVersion
+	}
+}
+
 func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
 	return func(c *InstallController) {
 		c.restClientGetter = restClientGetter
@@ -205,6 +212,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
+			appreleasemanager.WithK8sVersion(controller.k8sVersion),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)
@@ -220,6 +228,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
+			appinstallmanager.WithK8sVersion(controller.k8sVersion),
 			appinstallmanager.WithRESTClientGetter(controller.restClientGetter),
 			appinstallmanager.WithKubeConfigPath(controller.kubeConfigPath),
 		)

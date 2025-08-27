@@ -57,7 +57,8 @@ func Test_serveAPI(t *testing.T) {
 
 	config := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: "password",
+			InstallTarget: apitypes.InstallTargetLinux,
+			Password:      "password",
 			ReleaseData: &release.ReleaseData{
 				Application: &kotsv1beta1.Application{
 					Spec: kotsv1beta1.ApplicationSpec{},

@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"fmt"
 
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -39,6 +40,7 @@ type appInstallManager struct {
 	kotsCLI          KotsCLIInstaller
 	logger           logrus.FieldLogger
 	hcli             helm.Client
+	k8sVersion       string
 	kubeConfigPath   string
 	restClientGetter genericclioptions.RESTClientGetter
 }
@@ -94,6 +96,12 @@ func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
 	}
 }
 
+func WithK8sVersion(k8sVersion string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.k8sVersion = k8sVersion
+	}
+}
+
 func WithKubeConfigPath(path string) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kubeConfigPath = path
@@ -112,6 +120,10 @@ func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, 
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.k8sVersion == "" {
+		return nil, fmt.Errorf("k8s version required")
 	}
 
 	if manager.logger == nil {

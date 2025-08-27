@@ -69,8 +69,8 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		registryOpts = append(registryOpts, registry.ClientOptWriter(opts.Writer))
 	}
 	var kversion *semver.Version
-	if opts.K0sVersion != "" {
-		sv, err := semver.NewVersion(opts.K0sVersion)
+	if opts.K8sVersion != "" {
+		sv, err := semver.NewVersion(opts.K8sVersion)
 		if err != nil {
 			return nil, fmt.Errorf("parse k0s version: %w", err)
 		}
@@ -100,7 +100,7 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 type HelmOptions struct {
 	KubeConfig       string
 	RESTClientGetter genericclioptions.RESTClientGetter
-	K0sVersion       string
+	K8sVersion       string
 	AirgapPath       string
 	Writer           io.Writer
 	LogFn            action.DebugLog

@@ -69,6 +69,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstallmanager.WithAppInstallStore(
 				appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(appInstallStatus)),
 			),
+			appinstallmanager.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -81,6 +82,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -98,11 +100,12 @@ func TestGetAppInstallStatus(t *testing.T) {
 				},
 				AppConfig: &kotsv1beta1.Config{},
 			}),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -154,11 +157,12 @@ func TestGetAppInstallStatus(t *testing.T) {
 		// Create simple Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -185,7 +189,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		mockController.On("GetAppInstallStatus", mock.Anything).Return(types.AppInstall{}, assert.AnError)
 
 		// Create the API with mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -290,6 +294,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(&store.MockStore{}),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -298,13 +303,15 @@ func TestPostInstallApp(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			KubernetesConfig: types.KubernetesConfig{
 				Installation: kubernetesinstallation.New(nil),
 			},
@@ -354,6 +361,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -362,13 +370,15 @@ func TestPostInstallApp(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			KubernetesConfig: types.KubernetesConfig{
 				Installation: kubernetesinstallation.New(nil),
 			},
@@ -423,6 +433,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -431,13 +442,15 @@ func TestPostInstallApp(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			KubernetesConfig: types.KubernetesConfig{
 				Installation: kubernetesinstallation.New(nil),
 			},
@@ -477,11 +490,12 @@ func TestPostInstallApp(t *testing.T) {
 		// Create simple Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -530,6 +544,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -538,13 +553,15 @@ func TestPostInstallApp(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			KubernetesConfig: types.KubernetesConfig{
 				Installation: kubernetesinstallation.New(nil),
 			},
@@ -601,6 +618,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -609,13 +627,15 @@ func TestPostInstallApp(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(releaseData),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API
 		cfg := types.APIConfig{
-			Password:    "password",
-			ReleaseData: releaseData,
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
+			ReleaseData:   releaseData,
 			KubernetesConfig: types.KubernetesConfig{
 				Installation: kubernetesinstallation.New(nil),
 			},

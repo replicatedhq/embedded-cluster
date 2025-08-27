@@ -522,7 +522,7 @@ func NewHelm() (helm.Client, error) {
 	}
 	return helm.NewClient(helm.HelmOptions{
 		Writer:     logrus.New().Writer(),
-		K0sVersion: sv.Original(),
+		K8sVersion: sv.Original(),
 	})
 }
 

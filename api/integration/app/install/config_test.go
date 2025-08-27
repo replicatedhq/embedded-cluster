@@ -1051,7 +1051,7 @@ func TestAppInstallSuite(t *testing.T) {
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t,
+				return integration.NewTargetLinuxAPIWithReleaseData(t,
 					api.WithLinuxInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
@@ -1068,10 +1068,11 @@ func TestAppInstallSuite(t *testing.T) {
 					kubernetesinstall.WithReleaseData(rd),
 					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
+					kubernetesinstall.WithK8sVersion("v1.33.0"),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t,
+				return integration.NewTargetKubernetesAPIWithReleaseData(t,
 					api.WithKubernetesInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),

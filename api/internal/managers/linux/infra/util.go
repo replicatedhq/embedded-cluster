@@ -52,7 +52,7 @@ func (m *infraManager) setupClients(kubeConfigPath string, airgapChartsPath stri
 		}
 		hcli, err := helm.NewClient(helm.HelmOptions{
 			KubeConfig: kubeConfigPath,
-			K0sVersion: versions.K0sVersion,
+			K8sVersion: versions.K0sVersion,
 			AirgapPath: airgapPath,
 			LogFn:      m.logFn("helm"),
 		})

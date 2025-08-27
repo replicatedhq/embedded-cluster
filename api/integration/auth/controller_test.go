@@ -13,7 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
-	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -28,15 +28,15 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 	// Create an install controller
 	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithInstallationManager(installation.NewInstallationManager(
-			installation.WithNetUtils(&utils.MockNetUtils{}),
+		linuxinstall.WithInstallationManager(linuxinstallation.NewInstallationManager(
+			linuxinstallation.WithNetUtils(&utils.MockNetUtils{}),
 		)),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithAuthController(authController),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -134,7 +134,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 func TestAPIClientLogin(t *testing.T) {
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 
