@@ -34,6 +34,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockLicense creates a mock license for testing
+func mockLicense() []byte {
+	return []byte(`
+apiVersion: kots.io/v1beta1
+kind: License
+spec:
+  licenseID: "test-license-id-12345"
+  appSlug: "test-app"
+  customerName: "Test Customer"
+`)
+}
+
 // TestGetAppInstallStatus tests the GET /linux/install/app/status endpoint
 func TestGetAppInstallStatus(t *testing.T) {
 	// Create mock helm chart archive
@@ -44,9 +56,11 @@ func TestGetAppInstallStatus(t *testing.T) {
 		HelmChartArchives:     [][]byte{mockChartArchive},
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease: &release.ChannelRelease{
+			AppSlug: "test-app",
 			DefaultDomains: release.Domains{
-				ReplicatedAppDomain: "replicated.example.com",
-				ProxyRegistryDomain: "some-proxy.example.com",
+				ReplicatedAppDomain:      "replicated.example.com",
+				ProxyRegistryDomain:      "some-proxy.example.com",
+				ReplicatedRegistryDomain: "registry.example.com",
 			},
 		},
 		AppConfig: &kotsv1beta1.Config{},
@@ -109,6 +123,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -165,6 +180,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -228,9 +244,11 @@ func TestPostInstallApp(t *testing.T) {
 	releaseData := &release.ReleaseData{
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease: &release.ChannelRelease{
+			AppSlug: "test-app",
 			DefaultDomains: release.Domains{
-				ReplicatedAppDomain: "replicated.example.com",
-				ProxyRegistryDomain: "some-proxy.example.com",
+				ReplicatedAppDomain:      "replicated.example.com",
+				ProxyRegistryDomain:      "some-proxy.example.com",
+				ReplicatedRegistryDomain: "registry.example.com",
 			},
 		},
 		AppConfig: &kotsv1beta1.Config{},
@@ -320,6 +338,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithMetricsReporter(mockReporter),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -391,6 +410,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -479,6 +499,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStore(mockStore),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -532,6 +553,7 @@ func TestPostInstallApp(t *testing.T) {
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -607,6 +629,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -684,6 +707,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 

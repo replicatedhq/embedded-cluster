@@ -644,8 +644,8 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				NoProxy:    "localhost,127.0.0.1",
 			},
 			registrySettings: &types.RegistrySettings{
-				HasLocalRegistry: true,
-				Host:             "10.128.0.11:5000",
+				HasLocalRegistry:  true,
+				LocalRegistryHost: "10.128.0.11:5000",
 			},
 			setupMocks: func(acm *appconfig.MockAppConfigManager, arm *appreleasemanager.MockAppReleaseManager, aim *appinstallmanager.MockAppInstallManager) {
 				configValues := kotsv1beta1.ConfigValues{

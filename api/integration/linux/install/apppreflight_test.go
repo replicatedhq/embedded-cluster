@@ -238,14 +238,17 @@ func TestPostRunAppPreflights(t *testing.T) {
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
+						ReplicatedRegistryDomain: "registry.example.com",
 					},
 				},
 				AppConfig: &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
@@ -295,8 +298,19 @@ func TestPostRunAppPreflights(t *testing.T) {
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
 				linuxinstall.WithCurrentState(states.StateNew), // Wrong state
 			)),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{},
+				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
+						ReplicatedRegistryDomain: "registry.example.com",
+					},
+				},
+			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
