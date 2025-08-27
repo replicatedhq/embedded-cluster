@@ -238,8 +238,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{
 					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
-						ReplicatedAppDomain:     "replicated.example.com",
-						ProxyRegistryDomain:     "some-proxy.example.com",
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
 						ReplicatedRegistryDomain: "registry.example.com",
 					},
 				},
@@ -300,8 +300,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{
 					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
-						ReplicatedAppDomain:     "replicated.example.com",
-						ProxyRegistryDomain:     "some-proxy.example.com",
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
 						ReplicatedRegistryDomain: "registry.example.com",
 					},
 				},
