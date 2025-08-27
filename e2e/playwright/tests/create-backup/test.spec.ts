@@ -18,13 +18,17 @@ test('create backup', async ({ page }) => {
   await page.getByPlaceholder('http[s]://hostname[:port]').fill(process.env.DR_S3_ENDPOINT);
   await page.getByPlaceholder('us-east-1').click();
   await page.getByPlaceholder('us-east-1').fill(process.env.DR_S3_REGION);
-  await page.getByRole('button', { name: 'Update storage settings' }).click();
-  await expect(page.locator('.Loader')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Updating', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Update storage settings' })).not.toBeVisible();
-  await expect(page.locator('form')).toContainText('Settings updated', { timeout: 90000 });
-  await expect(page.locator('.Loader')).not.toBeVisible();
-  await expect(page.getByRole('button', { name: 'Update storage settings' })).toBeEnabled();
+
+  const storageCard = page.locator('[data-testid="snapshots-storage-settings-card"]');
+  await expect(storageCard.getByRole('button', { name: 'Update storage settings' })).toBeVisible();
+  await storageCard.getByRole('button', { name: 'Update storage settings' }).click();
+  await expect(storageCard.locator('.Loader')).toBeVisible();
+  await expect(storageCard.getByRole('button', { name: 'Updating', exact: true })).toBeDisabled();
+  await expect(storageCard.getByRole('button', { name: 'Update storage settings' })).not.toBeVisible();
+  await expect(storageCard.locator('form')).toContainText('Settings updated', { timeout: 90000 });
+  await expect(storageCard.locator('.Loader')).not.toBeVisible();
+  await expect(storageCard.getByRole('button', { name: 'Update storage settings' })).toBeEnabled();
+
   await page.locator('.subnav-item').getByText('Backups', { exact: true }).click();
   await expect(page.locator('#app')).toContainText('No backups yet');
   await page.getByRole('button', { name: 'Start a backup' }).click();
