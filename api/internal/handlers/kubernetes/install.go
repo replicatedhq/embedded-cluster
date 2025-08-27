@@ -302,6 +302,8 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: support registry settings
+
 	err := h.installController.InstallApp(r.Context(), appinstall.InstallAppOptions{
 		IgnoreAppPreflights: req.IgnoreAppPreflights,
 		ProxySpec:           h.cfg.Installation.ProxySpec(),
