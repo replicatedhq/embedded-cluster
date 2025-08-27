@@ -49,19 +49,22 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 }
 
 func (m *appInstallManager) install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) error {
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
-		return fmt.Errorf("parse license: %w", err)
-	}
-
-	// Setup Helm client
-	if err := m.setupHelmClient(); err != nil {
-		return fmt.Errorf("setup helm client: %w", err)
+	if err := m.installKots(kotsConfigValues); err != nil {
+		return fmt.Errorf("install kots: %w", err)
 	}
 
 	// Install Helm charts
 	if err := m.installHelmCharts(ctx, installableCharts); err != nil {
 		return fmt.Errorf("install helm charts: %w", err)
+	}
+
+	return nil
+}
+
+func (m *appInstallManager) installKots(kotsConfigValues kotsv1beta1.ConfigValues) error {
+	license := &kotsv1beta1.License{}
+	if err := kyaml.Unmarshal(m.license, license); err != nil {
+		return fmt.Errorf("parse license: %w", err)
 	}
 
 	ecDomains := utils.GetDomains(m.releaseData)
@@ -117,6 +120,11 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 
 	if len(installableCharts) == 0 {
 		return fmt.Errorf("no helm charts found")
+	}
+
+	// Setup Helm client
+	if err := m.setupHelmClient(); err != nil {
+		return fmt.Errorf("setup helm client: %w", err)
 	}
 
 	logFn("installing %d helm charts", len(installableCharts))
