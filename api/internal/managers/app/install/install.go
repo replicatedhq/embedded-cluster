@@ -86,11 +86,25 @@ func (m *appInstallManager) installKots(kotsConfigValues kotsv1beta1.ConfigValue
 	}
 	installOpts.ConfigValuesFile = configValuesFile
 
+	logFn := m.logFn("app")
+
+	logFn("preparing the app for installation")
+
 	if m.kotsCLI != nil {
-		return m.kotsCLI.Install(installOpts)
+		err := m.kotsCLI.Install(installOpts)
+		if err != nil {
+			return fmt.Errorf("install kots: %w", err)
+		}
+	} else {
+		err := kotscli.Install(installOpts)
+		if err != nil {
+			return fmt.Errorf("install kots: %w", err)
+		}
 	}
 
-	return kotscli.Install(installOpts)
+	logFn("successfully prepared the app for installation")
+
+	return nil
 }
 
 // createConfigValuesFile creates a temporary file with the config values
@@ -139,6 +153,8 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 
 		logFn("successfully installed %s chart", chartName)
 	}
+
+	logFn("successfully installed all %d helm charts", len(installableCharts))
 
 	return nil
 }
