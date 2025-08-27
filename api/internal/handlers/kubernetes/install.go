@@ -97,6 +97,8 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: support registry settings
+
 	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: preflightBinary,
 		ProxySpec:           h.cfg.Installation.ProxySpec(),

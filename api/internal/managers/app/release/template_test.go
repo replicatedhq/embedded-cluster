@@ -723,12 +723,12 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			registrySettings: &types.RegistrySettings{
-				HasLocalRegistry:     true,
-				Host:                 "10.128.0.11:5000",
-				Address:              "10.128.0.11:5000/myapp",
-				Namespace:            "myapp",
-				ImagePullSecretName:  "embedded-cluster-registry",
-				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.128.0.11:5000",
+				LocalRegistryAddress:   "10.128.0.11:5000/myapp",
+				LocalRegistryNamespace: "myapp",
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue:   "dGVzdC1zZWNyZXQtdmFsdWU=",
 			},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
@@ -745,7 +745,7 @@ spec:
     image:
       repository: "10.128.0.11:5000/myapp/nginx"
     imagePullSecrets:
-      - name: "embedded-cluster-registry"
+      - name: "test-app-registry"
     registry:
       host: "10.128.0.11:5000"
       address: "10.128.0.11:5000/myapp"
@@ -2343,12 +2343,12 @@ spec:
 			},
 			configValues: types.AppConfigValues{},
 			registrySettings: &types.RegistrySettings{
-				HasLocalRegistry:     true,
-				Host:                 "10.128.0.11:5000",
-				Address:              "10.128.0.11:5000/myapp",
-				Namespace:            "myapp",
-				ImagePullSecretName:  "embedded-cluster-registry",
-				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.128.0.11:5000",
+				LocalRegistryAddress:   "10.128.0.11:5000/myapp",
+				LocalRegistryNamespace: "myapp",
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue:   "dGVzdC1zZWNyZXQtdmFsdWU=",
 			},
 			expectError: false,
 			expected: []types.InstallableHelmChart{
@@ -2360,7 +2360,7 @@ spec:
 							"tag":        "1.20.0",
 						},
 						"imagePullSecrets": []any{
-							map[string]any{"name": "embedded-cluster-registry"},
+							map[string]any{"name": "test-app-registry"},
 						},
 						"registry": map[string]any{
 							"host":      "10.128.0.11:5000",
@@ -2383,7 +2383,7 @@ spec:
       repository: "10.128.0.11:5000/myapp/nginx"
       tag: "1.20.0"
     imagePullSecrets:
-      - name: "embedded-cluster-registry"
+      - name: "test-app-registry"
     registry:
       host: "10.128.0.11:5000"
       address: "10.128.0.11:5000/myapp"

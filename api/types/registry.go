@@ -5,14 +5,14 @@ type RegistrySettings struct {
 	// HasLocalRegistry indicates if a local registry is available (airgap installations)
 	HasLocalRegistry bool `json:"hasLocalRegistry"`
 
-	// Host is the registry host with port (e.g., "10.128.0.11:5000")
-	Host string `json:"host"`
+	// LocalRegistryHost is the registry host with port (e.g., "10.128.0.11:5000")
+	LocalRegistryHost string `json:"host"`
 
-	// Address is the full registry address with namespace (e.g., "10.128.0.11:5000/myapp")
-	Address string `json:"address"`
+	// LocalRegistryAddress is the full registry address with namespace (e.g., "10.128.0.11:5000/myapp")
+	LocalRegistryAddress string `json:"address"`
 
-	// Namespace is the app-specific namespace for registry isolation
-	Namespace string `json:"namespace"`
+	// LocalRegistryNamespace is the app-specific namespace for registry isolation
+	LocalRegistryNamespace string `json:"namespace"`
 
 	// ImagePullSecretName is the standardized image pull secret name
 	ImagePullSecretName string `json:"imagePullSecretName"`
