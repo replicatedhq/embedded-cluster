@@ -1,11 +1,12 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { PluggableList } from 'react-markdown/lib/react-markdown';
 
 interface MarkdownProps {
   children: string;
   className?: string;
-  rehypePlugins?: any[];
+  rehypePlugins?: PluggableList;
 }
 
 const Markdown: React.FC<MarkdownProps> = ({ children, rehypePlugins = [] }) => {
