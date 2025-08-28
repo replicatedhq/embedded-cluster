@@ -15,7 +15,7 @@ type resolvedConfigItem struct {
 	Effective string
 
 	// UserValue is the user-provided value for the config item (if it exists)
-	UserValue string
+	UserValue *string
 
 	// Value is the templated result of the config item's "value" field (if it exists)
 	// This represents the config-defined value after template processing
@@ -25,6 +25,9 @@ type resolvedConfigItem struct {
 	// This represents the config-defined default after template processing
 	Default string
 
+	// UserFilename is the user-provided filename for the config item (if it exists)
+	UserFilename *string
+
 	// Filename is the filename of the "file" type config item (if it exists)
 	Filename string
 
@@ -33,8 +36,9 @@ type resolvedConfigItem struct {
 	Processed bool
 }
 
-// templateConfigItems processes each config item in the engine's config by templating its value and default fields.
-// It returns a copy of the config with all items processed.
+// templateConfigItems processes each config item in the engine's config by templating its value
+// and default fields, applying user supplied information (value, filename) to the config. It
+// returns a copy of the config with all items processed.
 func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 	cfg := e.config.DeepCopy()
 
@@ -47,17 +51,23 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 
 			// Apply user value if it exists, otherwise use the templated config value (but not the default)
 			var value string
-			if resolved.UserValue != "" {
-				value = resolved.UserValue
+			if resolved.UserValue != nil {
+				value = *resolved.UserValue
 			} else if resolved.Value != "" {
 				value = resolved.Value
 			}
 
+			// Apply user filename if it exists, otherwise use the templated config filename
+			var filename string
+			if resolved.UserFilename != nil {
+				filename = *resolved.UserFilename
+			} else if resolved.Filename != "" {
+				filename = resolved.Filename
+			}
+
 			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(value)
 			cfg.Spec.Groups[i].Items[j].Default = multitype.FromString(resolved.Default)
-			if resolved.Filename != "" {
-				cfg.Spec.Groups[i].Items[j].Filename = resolved.Filename
-			}
+			cfg.Spec.Groups[i].Items[j].Filename = filename
 		}
 	}
 	return cfg, nil
@@ -150,7 +160,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 		return nil, fmt.Errorf("config item %s not found", name)
 	}
 
-	var effectiveValue, templatedValue, templatedDefault string
+	var effectiveValue, templatedValue, templatedDefault, templatedFilename string
 
 	// Template the value field if present
 	if configItem.Value.String() != "" {
@@ -170,24 +180,43 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 		templatedDefault = val
 	}
 
+	// Template the filename field if present
+	if configItem.Filename != "" {
+		val, err := e.processTemplate(configItem.Filename)
+		if err != nil {
+			return nil, fmt.Errorf("template filename for %s: %w", name, err)
+		}
+		templatedFilename = val
+	}
+
 	// Priority: user value > config value > config default
-	userVal, exists := e.configValues[name]
-	if exists {
-		effectiveValue = userVal.Value
+	var userVal *string
+	if v, exists := e.configValues[name]; exists {
+		userVal = &v.Value
+	}
+
+	if userVal != nil {
+		effectiveValue = *userVal
 	} else if templatedValue != "" {
 		effectiveValue = templatedValue
 	} else {
 		effectiveValue = templatedDefault
 	}
 
+	var userFilename *string
+	if v, exists := e.configValues[name]; exists {
+		userFilename = &v.Filename
+	}
+
 	// Cache the result and mark as processed
 	resolved := resolvedConfigItem{
-		Effective: effectiveValue,
-		UserValue: userVal.Value,
-		Value:     templatedValue,
-		Default:   templatedDefault,
-		Filename:  e.getItemFilename(configItem),
-		Processed: true,
+		Effective:    effectiveValue,
+		UserValue:    userVal,
+		Value:        templatedValue,
+		Default:      templatedDefault,
+		UserFilename: userFilename,
+		Filename:     templatedFilename,
+		Processed:    true,
 	}
 	e.cache[name] = resolved
 

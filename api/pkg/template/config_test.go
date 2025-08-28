@@ -194,7 +194,7 @@ func TestEngine_templateConfigItems(t *testing.T) {
 			},
 		},
 		{
-			name: "filename preservation from user config values",
+			name: "filename preservation from user config values with config default and value",
 			config: &kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
 					Groups: []kotsv1beta1.ConfigGroup{
@@ -202,22 +202,25 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Name: "files",
 							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:    "user_cert",
-									Type:    "file",
-									Value:   multitype.FromString("repl{{ upper \"user\" }}.pem"),
-									Default: multitype.FromString("default-user.pem"),
+									Name:     "user_overridden",
+									Type:     "file",
+									Value:    multitype.FromString("user_overridden_content"),
+									Default:  multitype.FromString("user_overridden_default"),
+									Filename: "user_overridden.txt",
 								},
 								{
-									Name:    "system_cert",
-									Type:    "file",
-									Value:   multitype.FromString("system.pem"),
-									Default: multitype.FromString("default-system.pem"),
+									Name:     "user_cleared",
+									Type:     "file",
+									Value:    multitype.FromString("user_cleared_content"),
+									Default:  multitype.FromString("user_cleared_default"),
+									Filename: "user_cleared.txt",
 								},
 								{
-									Name:    "no_filename_item",
-									Type:    "text",
-									Value:   multitype.FromString("some value"),
-									Default: multitype.FromString("default value"),
+									Name:     "no_user_value",
+									Type:     "file",
+									Value:    multitype.FromString("no_user_value_content"),
+									Default:  multitype.FromString("no_user_value_default"),
+									Filename: "no_user_value.txt",
 								},
 							},
 						},
@@ -225,9 +228,9 @@ func TestEngine_templateConfigItems(t *testing.T) {
 				},
 			},
 			configValues: types.AppConfigValues{
-				"user_cert":        {Filename: "custom-user-cert.pem", Value: "user-cert-content"},
-				"system_cert":      {Filename: "", Value: "system-cert-content"},
-				"no_filename_item": {Value: "custom value"},
+				"user_overridden": {Filename: "overridden.txt", Value: "overridden_content"}, // user overridden value
+				"user_cleared":    {Filename: "", Value: ""},                                 // user cleared value
+				// no user supplied value for no_user_value
 			},
 			expected: &kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
@@ -236,131 +239,25 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Name: "files",
 							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:     "user_cert",
+									Name:     "user_overridden",
 									Type:     "file",
-									Value:    multitype.FromString("user-cert-content"),
-									Default:  multitype.FromString("default-user.pem"),
-									Filename: "custom-user-cert.pem",
+									Value:    multitype.FromString("overridden_content"),
+									Default:  multitype.FromString("user_overridden_default"),
+									Filename: "overridden.txt",
 								},
 								{
-									Name:     "system_cert",
-									Type:     "file",
-									Value:    multitype.FromString("system-cert-content"),
-									Default:  multitype.FromString("default-system.pem"),
-									Filename: "",
-								},
-								{
-									Name:    "no_filename_item",
-									Type:    "text",
-									Value:   multitype.FromString("custom value"),
-									Default: multitype.FromString("default value"),
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "filename preservation with templated values",
-			config: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name: "templated_files",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "dynamic_cert",
-									Type:    "file",
-									Value:   multitype.FromString("repl{{ ConfigOption \"cert_type\" }}.pem"),
-									Default: multitype.FromString("default.pem"),
-								},
-								{
-									Name:    "cert_type",
-									Type:    "text",
-									Value:   multitype.FromString(""),
-									Default: multitype.FromString("server"),
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"dynamic_cert": {Filename: "server-cert.pem", Value: "cert-content"},
-				"cert_type":    {Value: "client"},
-			},
-			expected: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name: "templated_files",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:     "dynamic_cert",
-									Type:     "file",
-									Value:    multitype.FromString("cert-content"),
-									Default:  multitype.FromString("default.pem"),
-									Filename: "server-cert.pem",
-								},
-								{
-									Name:    "cert_type",
-									Type:    "text",
-									Value:   multitype.FromString("client"),
-									Default: multitype.FromString("server"),
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "filename preservation with empty user values",
-			config: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name: "empty_files",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:    "empty_file",
-									Type:    "file",
-									Value:   multitype.FromString(""),
-									Default: multitype.FromString("default-file.txt"),
-								},
-								{
-									Name:    "no_user_value",
-									Type:    "file",
-									Value:   multitype.FromString(""),
-									Default: multitype.FromString("default.txt"),
-								},
-							},
-						},
-					},
-				},
-			},
-			configValues: types.AppConfigValues{
-				"empty_file": {Filename: "", Value: ""},
-			},
-			expected: &kotsv1beta1.Config{
-				Spec: kotsv1beta1.ConfigSpec{
-					Groups: []kotsv1beta1.ConfigGroup{
-						{
-							Name: "empty_files",
-							Items: []kotsv1beta1.ConfigItem{
-								{
-									Name:     "empty_file",
+									Name:     "user_cleared",
 									Type:     "file",
 									Value:    multitype.FromString(""),
-									Default:  multitype.FromString("default-file.txt"),
+									Default:  multitype.FromString("user_cleared_default"),
 									Filename: "",
 								},
 								{
-									Name:    "no_user_value",
-									Type:    "file",
-									Value:   multitype.FromString(""),
-									Default: multitype.FromString("default.txt"),
+									Name:     "no_user_value",
+									Type:     "file",
+									Value:    multitype.FromString("no_user_value_content"),
+									Default:  multitype.FromString("no_user_value_default"),
+									Filename: "no_user_value.txt",
 								},
 							},
 						},
