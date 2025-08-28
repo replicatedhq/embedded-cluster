@@ -1167,7 +1167,8 @@ func TestEngine_ConfigMode_BasicTemplating(t *testing.T) {
 
 	expectedYAML := `apiVersion: kots.io/v1beta1
 kind: Config
-metadata: {}
+metadata:
+  creationTimestamp: null
 spec:
   groups:
   - items:
@@ -1251,7 +1252,8 @@ func TestEngine_ConfigMode_ValuePriority(t *testing.T) {
 
 	expectedYAMLWithUserValues := `apiVersion: kots.io/v1beta1
 kind: Config
-metadata: {}
+metadata:
+  creationTimestamp: null
 spec:
   groups:
   - items:
@@ -1288,7 +1290,8 @@ status: {}
 
 	expectedYAMLWithoutUserValues := `apiVersion: kots.io/v1beta1
 kind: Config
-metadata: {}
+metadata:
+  creationTimestamp: null
 spec:
   groups:
   - items:
@@ -1420,7 +1423,8 @@ func TestEngine_ConfigMode_ComplexDependencyChain(t *testing.T) {
 
 	expectedYAML := `apiVersion: kots.io/v1beta1
 kind: Config
-metadata: {}
+metadata:
+  creationTimestamp: null
 spec:
   groups:
   - items:
