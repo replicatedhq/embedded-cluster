@@ -8,21 +8,21 @@ export interface InitialState {
 
 export type State = 'Pending' | 'Running' | 'Succeeded' | 'Failed';
 
+export interface Status {
+  state: State;
+  description: string;
+  lastUpdated: string;
+}
+
 export interface InfraStatusResponse {
   components: InfraComponent[];
-  status: InfraStatus;
+  status: Status;
   logs: string;
 }
 
 export interface InfraComponent {
   name: string;
-  status: InfraStatus;
-}
-
-export interface InfraStatus {
-  state: State;
-  description: string;
-  lastUpdated: string;
+  status: Status;
 }
 
 export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'installation' | 'linux-completion' | 'kubernetes-completion';
@@ -77,37 +77,29 @@ export interface PreflightOutput {
   fail: PreflightResult[];
 }
 
-export interface PreflightStatus {
-  state: string;
-  description: string;
-  lastUpdated: string;
-}
-
 export interface HostPreflightResponse {
   titles: string[];
   output?: PreflightOutput;
-  status?: PreflightStatus;
+  status?: Status;
   allowIgnoreHostPreflights?: boolean;
 }
 
 export interface AppPreflightResponse {
   titles: string[];
   output?: PreflightOutput;
-  status?: PreflightStatus;
+  status?: Status;
   allowIgnoreAppPreflights?: boolean;
 }
 
-export interface AppInstallStatus {
-  status: {
-    state: State;
-    description: string;
-    lastUpdated: string;
-  };
+export interface AppInstallStatusResponse {
+  components: AppComponent[];
+  status: Status;
   logs: string;
 }
 
-export interface InstallationStatusResponse {
-  description: string;
-  lastUpdated: string;
-  state: State;
+export interface AppComponent {
+  name: string;
+  status: Status;
 }
+
+export type InstallationStatusResponse = Status;

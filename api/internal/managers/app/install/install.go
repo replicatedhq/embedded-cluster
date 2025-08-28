@@ -203,7 +203,7 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 		Values:      installableChart.Values,
 	})
 	if err != nil {
-		return fmt.Errorf("helm install: %w", err)
+		return err // do not wrap as wrapping is repetitive, e.g. "helm install: helm install: context deadline exceeded"
 	}
 
 	return nil
@@ -213,7 +213,11 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 func (m *appInstallManager) initializeComponents(charts []types.InstallableHelmChart) error {
 	chartNames := make([]string, 0, len(charts))
 	for _, chart := range charts {
-		chartNames = append(chartNames, chart.CR.GetChartName())
+		chartName := chart.CR.GetName()
+		if chartName == "" {
+			chartName = chart.CR.GetChartName()
+		}
+		chartNames = append(chartNames, chartName)
 	}
 
 	return m.appInstallStore.RegisterComponents(chartNames)
