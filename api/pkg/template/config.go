@@ -127,7 +127,12 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve config item: %w", err)
 	}
-	return resolved.Filename, nil
+
+	// Only return user filename, not config filename for KOTS parity
+	if resolved.UserFilename != nil {
+		return *resolved.UserFilename, nil
+	}
+	return "", nil
 }
 
 // resolveConfigItem processes a config item and returns its resolved values. It determines:
