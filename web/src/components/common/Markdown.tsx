@@ -5,7 +5,6 @@ import type { PluggableList } from 'react-markdown/lib/react-markdown';
 
 interface MarkdownProps {
   children: string;
-  className?: string;
   rehypePlugins?: PluggableList;
 }
 
