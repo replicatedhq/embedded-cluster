@@ -1,6 +1,5 @@
 import React from 'react';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import Markdown from './Markdown';
 
 interface LabelProps {
   content: string;
@@ -16,24 +15,7 @@ const Label: React.FC<LabelProps> = ({
   return (
     <div className={`mb-4 ${className}`} data-testid={dataTestId}>
       <div className="prose prose-sm prose-gray max-w-none">
-        <Markdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            a: ({ ...props }) => (
-              <a
-                {...props}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-              />
-            ),
-            code: ({ children }) => (
-              <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
-                {children}
-              </code>
-            ),
-          }}
-        >
+        <Markdown>
           {content}
         </Markdown>
       </div>
