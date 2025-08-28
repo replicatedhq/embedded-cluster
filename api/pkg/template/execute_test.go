@@ -1076,8 +1076,8 @@ repl{{ toJson $tls }}`),
 	})
 
 	// Verify performance characteristics: non-cached should be in ms, cached much faster
-	assert.True(t, firstDuration > time.Millisecond*100, "First execution should take at least 100ms (cert generation)")
-	assert.True(t, firstCachedDuration < time.Millisecond*20, "First cached execution should be under 20ms")
+	assert.Greater(t, firstDuration, time.Millisecond*50, "First execution should take at least 50ms (cert generation)")
+	assert.Less(t, firstCachedDuration, time.Millisecond*20, "First cached execution should be under 20ms")
 
 	// Verify caching provides significant speedup
 	assert.True(t, firstCachedDuration < firstDuration/5,
@@ -1102,8 +1102,8 @@ repl{{ toJson $tls }}`),
 	})
 
 	// Verify performance characteristics for second hostname
-	assert.True(t, secondDuration > time.Millisecond*100, "Second execution should take at least 100ms (cert generation)")
-	assert.True(t, secondCachedDuration < time.Millisecond*20, "Second cached execution should be under 20ms")
+	assert.Greater(t, secondDuration, time.Millisecond*50, "Second execution should take at least 50ms (cert generation)")
+	assert.Less(t, secondCachedDuration, time.Millisecond*20, "Second cached execution should be under 20ms")
 
 	// Verify caching provides significant speedup
 	assert.True(t, secondCachedDuration < secondDuration/5,

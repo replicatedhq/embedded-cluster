@@ -72,7 +72,7 @@ func New(initialState InitialState, opts ...WebOption) (*Web, error) {
 	}
 
 	// TODO we might consider moving this env var evaluation to the CLI and make it an overarching property of the project
-	if os.Getenv("EC_DEV_ENV") == "true" {
+	if os.Getenv("EC_DEV_ENV") == "true" || os.Getenv("EC_DEV_ENV") == "1" {
 		web.isDev = true
 	}
 

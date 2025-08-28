@@ -48,6 +48,7 @@ export interface AppConfigItem {
   type: string;
   value?: string;
   default?: string;
+  filename?: string;
   items?: AppConfigChildItem[];
 }
 

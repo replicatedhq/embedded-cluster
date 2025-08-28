@@ -238,6 +238,12 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return changedValues?.[item.name]?.value ?? (item.value || item.default || '');
   };
 
+  // Helper function to get the display filename for a config item (no defaults)
+  const getDisplayFilename = (item: AppConfigItem): string => {
+    // First check user value, then config item value (use ?? to allow empty strings from the user)
+    return changedValues?.[item.name]?.filename ?? (item.filename || '');
+  };
+
   // Helper function for password types to determine if the show password toggle should be enabled
   const allowShowPassword = (item: AppConfigItem): boolean => {
     // Only allow show password if the item is a password type and has a user value set
@@ -374,7 +380,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
           <FileInput
             {...sharedProps}
             value={getDisplayValue(item)}
-            filename={changedValues[item.name]?.filename}
+            filename={getDisplayFilename(item)}
             defaultValue={item.default}
             defaultFilename={item.name}
             onChange={(value: string, filename: string) => handleFileChange(item.name, value, filename)}

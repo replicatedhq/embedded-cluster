@@ -1673,6 +1673,208 @@ describe.each([
         filename: 'cert.pem'
       });
     });
+
+    it("handles file config items with filename from backend template engine", async () => {
+      // Create config with file item that has filename set by backend
+      const configWithFilename: AppConfig = {
+        groups: [
+          {
+            name: "files",
+            title: "File Configuration",
+            description: "Configure file uploads",
+            items: [
+              {
+                name: "config_file",
+                title: "Configuration File",
+                type: "file",
+                value: "base64_encoded_content_here",
+                filename: "config.yaml", // This filename comes from backend template engine
+                help_text: "Upload your configuration file"
+              },
+              {
+                name: "cert_file",
+                title: "Certificate File",
+                type: "file",
+                value: "another_base64_content",
+                filename: "cert.pem", // This filename comes from backend template engine
+                help_text: "Upload your certificate file"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithFilename);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for config to load
+      await waitForForm();
+
+      // Check that file inputs are rendered
+      expect(screen.getByTestId("config-item-config_file")).toBeInTheDocument();
+      expect(screen.getByTestId("config-item-cert_file")).toBeInTheDocument();
+
+      // Check that the filenames from backend are displayed
+      expect(screen.getByTestId("file-input-config_file-filename")).toBeInTheDocument();
+      expect(screen.getByTestId("file-input-cert_file-filename")).toBeInTheDocument();
+      expect(screen.getByText("config.yaml")).toBeInTheDocument();
+      expect(screen.getByText("cert.pem")).toBeInTheDocument();
+
+      // Test that we can still upload new files and they override the backend filename
+      const configFileInput = screen.getByTestId("file-input-config_file");
+      const newFile = new File(['new content'], 'new-config.yml', { type: 'text/plain' });
+
+      // Mock FileReader for new file upload
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
+          setTimeout(() => {
+            if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mockFileReader.onload({ target: { result: 'data:text/plain;base64,bmV3IGNvbnRlbnQ=' } } as any);
+            }
+          }, 0);
+        }),
+        result: 'data:text/plain;base64,bmV3IGNvbnRlbnQ=',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onerror: null as any
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      // Upload new file
+      fireEvent.change(configFileInput, { target: { files: [newFile] } });
+
+      // Wait for the new filename to appear
+      await waitFor(() => {
+        expect(screen.getByText("new-config.yml")).toBeInTheDocument();
+      });
+
+      // Verify the old filename is no longer displayed
+      expect(screen.queryByText("config.yaml")).not.toBeInTheDocument();
+
+      // Test form submission with the new file
+      let submittedValues: { values: AppConfigValues } | null = null;
+      server.use(
+        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: AppConfigValues };
+          submittedValues = body;
+          return HttpResponse.json(body);
+        })
+      );
+
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      // Wait for the mutation to complete
+      await waitFor(
+        () => {
+          expect(mockOnNext).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+
+      // Verify the new file was submitted with correct filename
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!.values.config_file).toEqual({
+        value: 'bmV3IGNvbnRlbnQ=', // base64 encoded "new content"
+        filename: 'new-config.yml'
+      });
+
+      // Verify the cert file is not submitted since it wasn't changed
+      expect(submittedValues!.values.cert_file).toBeUndefined();
+    });
+
+    it("handles file config items with no filename gracefully", async () => {
+      // Create config with file item that has no filename
+      const configWithoutFilename: AppConfig = {
+        groups: [
+          {
+            name: "files",
+            title: "File Configuration",
+            description: "Configure file uploads",
+            items: [
+              {
+                name: "no_filename_file",
+                title: "File Without Filename",
+                type: "file",
+                value: "base64_encoded_content",
+                // No filename field
+                help_text: "Upload a file"
+              }
+            ]
+          }
+        ]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/install/app/config/template`, () => {
+          return HttpResponse.json(configWithoutFilename);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+        },
+      });
+
+      // Wait for config to load
+      await waitForForm();
+
+      // Check that file input is rendered
+      expect(screen.getByTestId("config-item-no_filename_file")).toBeInTheDocument();
+
+      // Check that no filename is displayed initially (since no filename from backend)
+      expect(screen.queryByTestId("file-input-no_filename_file-filename")).not.toBeInTheDocument();
+
+      // Test that we can still upload a file and it gets a filename
+      const fileInput = screen.getByTestId("file-input-no_filename_file");
+      const newFile = new File(['content'], 'uploaded-file.txt', { type: 'text/plain' });
+
+      // Mock FileReader
+      const mockFileReader = {
+        readAsDataURL: vi.fn().mockImplementation(() => {
+          setTimeout(() => {
+            if (mockFileReader.onload) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y29udGVudA==' } } as any);
+            }
+          }, 0);
+        }),
+        result: 'data:text/plain;base64,Y29udGVudA==',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onload: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onerror: null as any
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.spyOn(global, 'FileReader').mockImplementation(() => mockFileReader as any);
+
+      // Upload file
+      fireEvent.change(fileInput, { target: { files: [newFile] } });
+
+      // Wait for the filename to appear
+      await waitFor(() => {
+        expect(screen.getByTestId("file-input-no_filename_file-filename")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("uploaded-file.txt")).toBeInTheDocument();
+    });
   });
 
   describe("Server-driven validation", () => {
