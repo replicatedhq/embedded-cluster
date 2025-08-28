@@ -3,6 +3,7 @@ package kubernetesinstallation
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/mock"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 var _ Installation = (*MockInstallation)(nil)
@@ -85,4 +86,18 @@ func (m *MockInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
 func (m *MockInstallation) PathToEmbeddedBinary(binaryName string) (string, error) {
 	args := m.Called(binaryName)
 	return args.String(0), args.Error(1)
+}
+
+// SetKubernetesEnvSettings mocks the SetKubernetesEnvSettings method
+func (m *MockInstallation) SetKubernetesEnvSettings(envSettings *helmcli.EnvSettings) {
+	m.Called(envSettings)
+}
+
+// GetKubernetesEnvSettings mocks the GetKubernetesEnvSettings method
+func (m *MockInstallation) GetKubernetesEnvSettings() *helmcli.EnvSettings {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*helmcli.EnvSettings)
 }

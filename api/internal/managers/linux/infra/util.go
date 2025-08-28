@@ -11,6 +11,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,9 +30,14 @@ func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) erro
 
 // setupClients initializes the kube, metadata, and helm clients if they are not already set.
 // We need to do it after the infra manager is initialized to ensure that the runtime config is available and we already have a cluster setup
-func (m *infraManager) setupClients(kubeConfigPath string, airgapChartsPath string) error {
+func (m *infraManager) setupClients(kubernetesEnvSettings *helmcli.EnvSettings, airgapChartsPath string) error {
+	var restClientGetter genericclioptions.RESTClientGetter
+	if kubernetesEnvSettings != nil {
+		restClientGetter = kubernetesEnvSettings.RESTClientGetter()
+	}
+
 	if m.kcli == nil {
-		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{KubeConfigPath: kubeConfigPath})
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
 		if err != nil {
 			return fmt.Errorf("create kube client: %w", err)
 		}
@@ -38,7 +45,7 @@ func (m *infraManager) setupClients(kubeConfigPath string, airgapChartsPath stri
 	}
 
 	if m.mcli == nil {
-		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{KubeConfigPath: kubeConfigPath})
+		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
 		if err != nil {
 			return fmt.Errorf("create metadata client: %w", err)
 		}
@@ -50,11 +57,12 @@ func (m *infraManager) setupClients(kubeConfigPath string, airgapChartsPath stri
 		if m.airgapBundle != "" {
 			airgapPath = airgapChartsPath
 		}
+
 		hcli, err := helm.NewClient(helm.HelmOptions{
-			KubeConfig: kubeConfigPath,
-			K8sVersion: versions.K0sVersion,
-			AirgapPath: airgapPath,
-			LogFn:      m.logFn("helm"),
+			KubernetesEnvSettings: kubernetesEnvSettings,
+			K8sVersion:            versions.K0sVersion,
+			AirgapPath:            airgapPath,
+			LogFn:                 m.logFn("helm"),
 		})
 		if err != nil {
 			return fmt.Errorf("create helm client: %w", err)

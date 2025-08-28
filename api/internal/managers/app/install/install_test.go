@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	helmrelease "helm.sh/helm/v3/pkg/release"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -97,7 +96,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 				return vals["repository"] == "nginx" && vals["tag"] == "latest" && opts.Values["replicas"] == 3
 			}
 			return false
-		})).Return(&helmrelease.Release{Name: "web-server"}, nil)
+		})).Return("Release \"web-server\" has been installed.", nil)
 
 		// Chart 2 installation (database chart)
 		databaseCall := mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
@@ -112,7 +111,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 				return vals["host"] == "postgres.example.com" && vals["password"] == "secret"
 			}
 			return false
-		})).Return(&helmrelease.Release{Name: "database"}, nil)
+		})).Return("Release \"database\" has been installed.", nil)
 
 		// Verify installation order
 		mock.InOrder(
@@ -205,7 +204,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ChartPath != "" && opts.ReleaseName == "prometheus" && opts.Namespace == "monitoring"
-		})).Return(&helmrelease.Release{Name: "prometheus"}, nil)
+		})).Return("Release \"prometheus\" has been installed.", nil)
 
 		// Create mock installer that succeeds
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -255,7 +254,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ChartPath != "" && opts.ReleaseName == "fluentd" && opts.Namespace == "logging"
-		})).Return((*helmrelease.Release)(nil), assert.AnError)
+		})).Return("", assert.AnError)
 
 		// Create mock installer that succeeds (so we get to Helm charts)
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -433,12 +432,12 @@ func TestComponentStatusTracking(t *testing.T) {
 		// Database chart installation (should be first due to lower weight)
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "postgres" && opts.Namespace == "data"
-		})).Return(&helmrelease.Release{Name: "postgres"}, nil).Once()
+		})).Return("Release \"postgres\" has been installed.", nil).Once()
 
 		// Web chart installation (should be second due to higher weight)
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "nginx" && opts.Namespace == "web"
-		})).Return(&helmrelease.Release{Name: "nginx"}, nil).Once()
+		})).Return("Release \"nginx\" has been installed.", nil).Once()
 
 		// Create mock KOTS installer
 		mockInstaller := &MockKotsCLIInstaller{}
@@ -495,7 +494,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		mockHelmClient := &helm.MockClient{}
 		mockHelmClient.On("Install", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "failing-app"
-		})).Return((*helmrelease.Release)(nil), errors.New("helm install failed"))
+		})).Return("", errors.New("helm install failed"))
 
 		// Create mock installer that succeeds (so we get to Helm charts)
 		mockInstaller := &MockKotsCLIInstaller{}

@@ -6,7 +6,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 const (
@@ -40,6 +39,5 @@ type LinuxConfig struct {
 }
 
 type KubernetesConfig struct {
-	RESTClientGetter genericclioptions.RESTClientGetter
-	Installation     kubernetesinstallation.Installation
+	Installation kubernetesinstallation.Installation
 }

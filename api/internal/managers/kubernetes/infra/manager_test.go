@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	metadatafake "k8s.io/client-go/metadata/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/scheme"
@@ -16,81 +17,50 @@ import (
 func TestNewInfraManager_ClientCreation(t *testing.T) {
 	tests := []struct {
 		name               string
-		setupMock          func(*clients.MockRESTClientGetter)
 		withKubeClient     bool
 		withMetadataClient bool
 		withHelmClient     bool
 		expectError        bool
 	}{
 		{
-			name: "creates all clients when none provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// kube client and metadata client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(2)
-			},
+			name:        "creates all clients when none provided",
 			expectError: false,
 		},
 		{
-			name: "creates kube and metadata clients when helm client provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// kube client and metadata client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(2)
-			},
+			name:           "creates kube and metadata clients when helm client provided",
 			withHelmClient: true,
 			expectError:    false,
 		},
 		{
-			name: "creates kube and helm clients when metadata client provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// kube client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(1)
-			},
+			name:               "creates kube and helm clients when metadata client provided",
 			withMetadataClient: true,
 			expectError:        false,
 		},
 		{
-			name: "creates metadata and helm clients when kube client provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// metadata client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(1)
-			},
+			name:           "creates metadata and helm clients when kube client provided",
 			withKubeClient: true,
 			expectError:    false,
 		},
 		{
-			name: "creates only helm client when kube and metadata clients provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// No ToRESTConfig calls expected
-			},
+			name:               "creates only helm client when kube and metadata clients provided",
 			withKubeClient:     true,
 			withMetadataClient: true,
 			expectError:        false,
 		},
 		{
-			name: "creates only metadata client when kube and helm clients provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// metadata client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(1)
-			},
+			name:           "creates only metadata client when kube and helm clients provided",
 			withKubeClient: true,
 			withHelmClient: true,
 			expectError:    false,
 		},
 		{
-			name: "creates only kube client when metadata and helm clients provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// kube client creation
-				mock.On("ToRESTConfig").Return(&rest.Config{}, nil).Times(1)
-			},
+			name:               "creates only kube client when metadata and helm clients provided",
 			withMetadataClient: true,
 			withHelmClient:     true,
 			expectError:        false,
 		},
 		{
-			name: "creates no clients when all provided",
-			setupMock: func(mock *clients.MockRESTClientGetter) {
-				// No ToRESTConfig calls expected
-			},
+			name:               "creates no clients when all provided",
 			withKubeClient:     true,
 			withMetadataClient: true,
 			withHelmClient:     true,
@@ -100,13 +70,9 @@ func TestNewInfraManager_ClientCreation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock RESTClientGetter
-			mockRestClientGetter := &clients.MockRESTClientGetter{}
-			tt.setupMock(mockRestClientGetter)
-
 			// Build options
 			opts := []InfraManagerOption{
-				WithRESTClientGetter(mockRestClientGetter),
+				WithKubernetesEnvSettings(helmcli.New()),
 			}
 
 			// Add pre-created clients if specified
@@ -133,9 +99,6 @@ func TestNewInfraManager_ClientCreation(t *testing.T) {
 			assert.NotNil(t, manager.kcli)
 			assert.NotNil(t, manager.mcli)
 			assert.NotNil(t, manager.hcli)
-
-			// Verify mock expectations
-			mockRestClientGetter.AssertExpectations(t)
 		})
 	}
 }
@@ -168,7 +131,7 @@ func TestNewInfraManager_ToRESTConfigError(t *testing.T) {
 
 			// Build options
 			opts := []InfraManagerOption{
-				WithRESTClientGetter(mockRestClientGetter),
+				WithKubernetesEnvSettings(helmcli.New()),
 			}
 
 			// Add pre-created clients if specified

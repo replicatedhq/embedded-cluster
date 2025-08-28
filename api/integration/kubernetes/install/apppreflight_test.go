@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // Test the getAppPreflightsStatus endpoint returns app preflights status correctly
@@ -246,8 +245,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			InstallTarget: types.InstallTargetKubernetes,
 			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 		},
@@ -299,8 +297,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			InstallTarget: types.InstallTargetKubernetes,
 			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 		},
@@ -346,8 +343,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			InstallTarget: types.InstallTargetKubernetes,
 			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 		},

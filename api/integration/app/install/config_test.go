@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -1069,6 +1070,7 @@ func TestAppInstallSuite(t *testing.T) {
 					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
 					kubernetesinstall.WithK8sVersion("v1.33.0"),
+					kubernetesinstall.WithKubernetesEnvSettings(helmcli.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller

@@ -27,7 +27,9 @@ func TestHostCABundle(t *testing.T) {
 	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
 	require.NoError(t, err, "Failed to write CA bundle file")
 
-	hcli, err := helm.NewClient(helm.HelmOptions{})
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath: "helm", // use the helm binary in PATH
+	})
 	require.NoError(t, err, "NewClient should not return an error")
 
 	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, ecv1beta1.Domains{}, nil)

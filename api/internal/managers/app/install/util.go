@@ -32,10 +32,9 @@ func (m *appInstallManager) setupHelmClient() error {
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig:       m.kubeConfigPath,
-		RESTClientGetter: m.restClientGetter,
-		K8sVersion:       m.k8sVersion,
-		LogFn:            m.logFn("app-helm"),
+		KubernetesEnvSettings: m.kubernetesEnvSettings,
+		K8sVersion:            m.k8sVersion,
+		LogFn:                 m.logFn("app-helm"),
 	})
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)

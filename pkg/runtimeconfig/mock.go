@@ -3,6 +3,7 @@ package runtimeconfig
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/mock"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 var _ RuntimeConfig = (*MockRuntimeConfig)(nil)
@@ -220,4 +221,13 @@ func (m *MockRuntimeConfig) SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec) {
 // SetHostCABundlePath mocks the SetHostCABundlePath method
 func (m *MockRuntimeConfig) SetHostCABundlePath(hostCABundlePath string) {
 	m.Called(hostCABundlePath)
+}
+
+// GetKubernetesEnvSettings mocks the GetKubernetesEnvSettings method
+func (m *MockRuntimeConfig) GetKubernetesEnvSettings() *helmcli.EnvSettings {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(*helmcli.EnvSettings)
 }
