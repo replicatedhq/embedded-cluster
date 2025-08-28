@@ -134,10 +134,11 @@ func TestEngine_templateConfigItems(t *testing.T) {
 							Name: "files",
 							Items: []kotsv1beta1.ConfigItem{
 								{
-									Name:    "cert_file",
-									Type:    "file",
-									Value:   multitype.FromString("CERT.pem"),
-									Default: multitype.FromString("default-cert.pem"),
+									Name:     "cert_file",
+									Type:     "file",
+									Value:    multitype.FromString("cert-content"),
+									Default:  multitype.FromString("default-cert.pem"),
+									Filename: "uploaded-cert.pem",
 								},
 							},
 						},
@@ -192,11 +193,189 @@ func TestEngine_templateConfigItems(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "filename preservation from user config values",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "user_cert",
+									Type:    "file",
+									Value:   multitype.FromString("repl{{ upper \"user\" }}.pem"),
+									Default: multitype.FromString("default-user.pem"),
+								},
+								{
+									Name:    "system_cert",
+									Type:    "file",
+									Value:   multitype.FromString("system.pem"),
+									Default: multitype.FromString("default-system.pem"),
+								},
+								{
+									Name:    "no_filename_item",
+									Type:    "text",
+									Value:   multitype.FromString("some value"),
+									Default: multitype.FromString("default value"),
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"user_cert":        {Filename: "custom-user-cert.pem", Value: "user-cert-content"},
+				"system_cert":      {Filename: "", Value: "system-cert-content"},
+				"no_filename_item": {Value: "custom value"},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "user_cert",
+									Type:     "file",
+									Value:    multitype.FromString("user-cert-content"),
+									Default:  multitype.FromString("default-user.pem"),
+									Filename: "custom-user-cert.pem",
+								},
+								{
+									Name:     "system_cert",
+									Type:     "file",
+									Value:    multitype.FromString("system-cert-content"),
+									Default:  multitype.FromString("default-system.pem"),
+									Filename: "",
+								},
+								{
+									Name:    "no_filename_item",
+									Type:    "text",
+									Value:   multitype.FromString("custom value"),
+									Default: multitype.FromString("default value"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "filename preservation with templated values",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "templated_files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "dynamic_cert",
+									Type:    "file",
+									Value:   multitype.FromString("repl{{ ConfigOption \"cert_type\" }}.pem"),
+									Default: multitype.FromString("default.pem"),
+								},
+								{
+									Name:    "cert_type",
+									Type:    "text",
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("server"),
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"dynamic_cert": {Filename: "server-cert.pem", Value: "cert-content"},
+				"cert_type":    {Value: "client"},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "templated_files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "dynamic_cert",
+									Type:     "file",
+									Value:    multitype.FromString("cert-content"),
+									Default:  multitype.FromString("default.pem"),
+									Filename: "server-cert.pem",
+								},
+								{
+									Name:    "cert_type",
+									Type:    "text",
+									Value:   multitype.FromString("client"),
+									Default: multitype.FromString("server"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "filename preservation with empty user values",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "empty_files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "empty_file",
+									Type:    "file",
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("default-file.txt"),
+								},
+								{
+									Name:    "no_user_value",
+									Type:    "file",
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("default.txt"),
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"empty_file": {Filename: "", Value: ""},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "empty_files",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "empty_file",
+									Type:     "file",
+									Value:    multitype.FromString(""),
+									Default:  multitype.FromString("default-file.txt"),
+									Filename: "",
+								},
+								{
+									Name:    "no_user_value",
+									Type:    "file",
+									Value:   multitype.FromString(""),
+									Default: multitype.FromString("default.txt"),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			engine := NewEngine(tt.config, WithMode(ModeConfig))
+			if tt.configValues != nil {
+				engine.configValues = tt.configValues
+			}
 
 			result, err := engine.templateConfigItems()
 			require.NoError(t, err)
@@ -467,4 +646,144 @@ func TestEngine_ShouldInvalidateItem(t *testing.T) {
 	engine.configValues = types.AppConfigValues{}
 	engine.depsTree = map[string][]string{}
 	assert.False(t, engine.shouldInvalidateItem("item1"), "should not invalidate item1 as it doesn't exist in either config values")
+}
+
+func TestEngine_GetItemFilename(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "test",
+					Items: []kotsv1beta1.ConfigItem{
+						{Name: "file_with_user_filename"},
+						{Name: "file_without_user_filename"},
+						{Name: "file_with_empty_user_filename"},
+						{Name: "non_file_item"},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	// Test 1: User provides filename - should use user filename
+	engine.configValues = types.AppConfigValues{
+		"file_with_user_filename": {Filename: "user-provided.txt", Value: "content"},
+	}
+	filename := engine.getItemFilename(&kotsv1beta1.ConfigItem{Name: "file_with_user_filename"})
+	assert.Equal(t, "user-provided.txt", filename, "should use user-provided filename")
+
+	// Test 2: User doesn't provide filename - should return empty string
+	engine.configValues = types.AppConfigValues{
+		"file_without_user_filename": {Value: "content"},
+	}
+	filename = engine.getItemFilename(&kotsv1beta1.ConfigItem{Name: "file_without_user_filename"})
+	assert.Equal(t, "", filename, "should return empty string when user doesn't provide filename")
+
+	// Test 3: User provides empty filename - should return empty string
+	engine.configValues = types.AppConfigValues{
+		"file_with_empty_user_filename": {Filename: "", Value: "content"},
+	}
+	filename = engine.getItemFilename(&kotsv1beta1.ConfigItem{Name: "file_with_empty_user_filename"})
+	assert.Equal(t, "", filename, "should return empty string when user provides empty filename")
+
+	// Test 4: Item not in config values - should return empty string
+	filename = engine.getItemFilename(&kotsv1beta1.ConfigItem{Name: "non_file_item"})
+	assert.Equal(t, "", filename, "should return empty string for item not in config values")
+
+	// Test 5: Empty config values - should return empty string
+	engine.configValues = types.AppConfigValues{}
+	filename = engine.getItemFilename(&kotsv1beta1.ConfigItem{Name: "file_with_user_filename"})
+	assert.Equal(t, "", filename, "should return empty string when config values is empty")
+}
+
+func TestEngine_FilenamePreservationInTemplateConfigItems(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "filename_test",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "preserved_file",
+							Type:    "file",
+							Value:   multitype.FromString(""),
+							Default: multitype.FromString("default.txt"),
+						},
+						{
+							Name:    "overwritten_file",
+							Type:    "file",
+							Value:   multitype.FromString(""),
+							Default: multitype.FromString("default.txt"),
+						},
+						{
+							Name:    "text_item",
+							Type:    "text",
+							Value:   multitype.FromString(""),
+							Default: multitype.FromString("default"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config, WithMode(ModeConfig))
+	engine.configValues = types.AppConfigValues{
+		"preserved_file":   {Filename: "preserved.txt", Value: "content1"},
+		"overwritten_file": {Filename: "overwritten.txt", Value: "content2"},
+		"text_item":        {Value: "text content"},
+	}
+
+	result, err := engine.templateConfigItems()
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	// Verify filename is preserved for file items
+	preservedItem := result.Spec.Groups[0].Items[0]
+	assert.Equal(t, "preserved.txt", preservedItem.Filename, "filename should be preserved for preserved_file")
+
+	overwrittenItem := result.Spec.Groups[0].Items[1]
+	assert.Equal(t, "overwritten.txt", overwrittenItem.Filename, "filename should be preserved for overwritten_file")
+
+	// Verify text items don't have filename field set
+	textItem := result.Spec.Groups[0].Items[2]
+	assert.Equal(t, "", textItem.Filename, "text items should not have filename field set")
+}
+
+func TestEngine_GetItemFilenameDirect(t *testing.T) {
+	// Test the getItemFilename function directly
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name: "test",
+					Items: []kotsv1beta1.ConfigItem{
+						{Name: "test_file"},
+					},
+				},
+			},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	// Test with user filename
+	engine.configValues = types.AppConfigValues{
+		"test_file": {Filename: "test.txt", Value: "content"},
+	}
+
+	configItem := &kotsv1beta1.ConfigItem{Name: "test_file"}
+	filename := engine.getItemFilename(configItem)
+
+	t.Logf("User filename test: expected 'test.txt', got '%s'", filename)
+	assert.Equal(t, "test.txt", filename, "should return user filename when provided")
+
+	// Test without user filename
+	engine.configValues = types.AppConfigValues{}
+	filename = engine.getItemFilename(configItem)
+
+	t.Logf("No user filename test: expected '', got '%s'", filename)
+	assert.Equal(t, "", filename, "should return empty string when no user filename")
 }

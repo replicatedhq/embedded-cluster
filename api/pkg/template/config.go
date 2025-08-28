@@ -55,6 +55,9 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 
 			cfg.Spec.Groups[i].Items[j].Value = multitype.FromString(value)
 			cfg.Spec.Groups[i].Items[j].Default = multitype.FromString(resolved.Default)
+			if resolved.Filename != "" {
+				cfg.Spec.Groups[i].Items[j].Filename = resolved.Filename
+			}
 		}
 	}
 	return cfg, nil

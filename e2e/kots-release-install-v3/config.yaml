@@ -356,6 +356,7 @@ spec:
           type: file
           default: "default file"
           help_text: "Help text of a **_File_** config item type **_with default value_**"
+          filename: "default-file.txt"
 
         - name: file_required
           title: File marked required
