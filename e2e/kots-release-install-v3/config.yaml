@@ -181,6 +181,12 @@ spec:
           type: text
           help_text: "Help text of a simple **_Text_** config item type"
 
+        - name: text_with_value
+          title: Text with value
+          type: text
+          value: "value text"
+          help_text: "Help text of a **_Text_** config item type **_with value_**"
+
         - name: text_with_default
           title: Text with default value
           type: text
