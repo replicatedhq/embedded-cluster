@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { truncate } from '../../utils/textUtils';
+import Markdown from './Markdown';
 
 interface HelpTextProps {
   dataTestId?: string;
@@ -33,27 +32,11 @@ const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue,
 
   return (
     <div data-testid={dataTestId ? `help-text-${dataTestId}` : "help-text"} className="mt-1 text-sm text-gray-500 [&_p]:inline [&_p]:mb-0">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+      <Markdown
         rehypePlugins={shouldTruncate && !showFullText ? [[truncate, maxTextLength]] : []}
-        components={{
-          a: ({ ...props }) => (
-            <a
-              {...props}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline"
-            />
-          ),
-          code: ({ children }) => (
-            <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded">
-              {children}
-            </code>
-          ),
-        }}
       >
         {combinedText}
-      </ReactMarkdown>
+      </Markdown>
       {shouldTruncate && (
         <button
           onClick={() => setShowFullText(!showFullText)}
