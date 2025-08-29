@@ -3,23 +3,21 @@ package infra
 import (
 	"context"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) error {
-	hostname, err := os.Hostname()
+	nodename, err := nodeutil.GetHostname("")
 	if err != nil {
 		return fmt.Errorf("get hostname: %w", err)
 	}
-	nodename := strings.ToLower(hostname)
 	if err := kubeutils.WaitForNode(ctx, kcli, nodename, false); err != nil {
 		return err
 	}
