@@ -1,7 +1,7 @@
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: nginx-app
+  name: Nginx App
 spec:
   chart:
     name: nginx-app

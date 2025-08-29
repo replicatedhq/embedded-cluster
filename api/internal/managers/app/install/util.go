@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -18,8 +19,14 @@ func (m *appInstallManager) newLogWriter() io.Writer {
 	return &logWriter{manager: m}
 }
 
+// ANSI escape sequence regex pattern
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
+
 func (lw *logWriter) Write(p []byte) (n int, err error) {
-	output := strings.TrimSpace(string(p))
+	output := string(p)
+	// Strip ANSI escape sequences
+	output = ansiEscapeRegex.ReplaceAllString(output, "")
+	output = strings.TrimSpace(output)
 	if output != "" {
 		lw.manager.addLogs("kots", "%s", output)
 	}
@@ -35,7 +42,7 @@ func (m *appInstallManager) setupHelmClient() error {
 		KubeConfig:       m.kubeConfigPath,
 		RESTClientGetter: m.restClientGetter,
 		K8sVersion:       m.k8sVersion,
-		LogFn:            m.logFn("app-helm"),
+		LogFn:            m.logFn("helm"),
 	})
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
