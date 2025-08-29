@@ -2100,6 +2100,12 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
+	allowedDomains := map[string]struct{}{
+		"proxy.replicated.com":    {},
+		"replicated.app":          {},
+		"registry.replicated.com": {},
+	}
+
 	domainsByIps := make(map[string]map[string]struct{})
 	for _, ne := range networkEvents {
 		// filter out local traffic
@@ -2123,7 +2129,12 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	for ip, domains := range domainsByIps {
 		domainOutput := ""
 		for domain := range domains {
-			domainOutput += fmt.Sprintf("\t- %v\n", domain)
+			_, allowed := allowedDomains[domain]
+			domainOutput += fmt.Sprintf("\t- %v - ALLOWED: %v\n", domain, allowed)
+		}
+
+		if len(ip) == 0 {
+			ip = "UNKNOWN"
 		}
 
 		t.Logf("IP: %v", ip)
