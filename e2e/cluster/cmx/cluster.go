@@ -382,18 +382,31 @@ func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (st
 	return c.RunPlaywrightTest(testName, args...)
 }
 
-func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+func (c *Cluster) BypassKurlProxy(envs ...map[string]string) error {
 	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
 	_, stderr, err := c.RunCommandOnNode(0, []string{"/usr/local/bin/bypass-kurl-proxy.sh"}, envs...)
 	if err != nil {
 		return fmt.Errorf("bypass kurl-proxy: %v: %s", err, string(stderr))
 	}
+
+	return nil
+}
+
+func (c *Cluster) NPMInstallPlaywright(envs ...map[string]string) error {
 	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
 	output, err := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("install playwright: %v: %s", err, string(output))
 	}
 	return nil
+}
+
+func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+	if err := c.BypassKurlProxy(envs...); err != nil {
+		return err
+	}
+
+	return c.NPMInstallPlaywright(envs...)
 }
 
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
@@ -568,13 +581,12 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 	}
 }
 
-func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, []byte, error) {
+func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
 	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID), "-ojson").Output()
 	if err != nil {
-		return nil, nil, fmt.Errorf("collect network report: %v", err)
+		return nil, fmt.Errorf("collect network report: %v", err)
 	}
 
-	// TODO: investigate CLI changes to make event_data a json object instead of a string
 	type eventWrapper struct {
 		EventData string `json:"event_data"`
 	}
@@ -585,18 +597,18 @@ func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, []byte, error) {
 
 	report := networkReport{}
 	if err := json.Unmarshal(output, &report); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal network events: %v", err)
+		return nil, fmt.Errorf("unmarshal network events: %v", err)
 	}
 
 	networkEvents := make([]NetworkEvent, 0, len(report.Events))
 	for _, e := range report.Events {
 		ne := NetworkEvent{}
 		if err := json.Unmarshal([]byte(e.EventData), &ne); err != nil {
-			return nil, nil, fmt.Errorf("unmarshal network event data: %v", err)
+			return nil, fmt.Errorf("unmarshal network event data: %v", err)
 		}
 
 		networkEvents = append(networkEvents, ne)
 	}
 
-	return networkEvents, output, nil
+	return networkEvents, nil
 }
