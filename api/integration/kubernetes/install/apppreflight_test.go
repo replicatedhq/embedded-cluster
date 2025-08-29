@@ -73,6 +73,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
 		appinstall.WithStore(mockStore),
 		appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appinstall.WithK8sVersion("v1.33.0"),
 	)
 	require.NoError(t, err)
 
@@ -80,11 +81,12 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithAppInstallController(appInstallController),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+		kubernetesinstall.WithK8sVersion("v1.33.0"),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -139,7 +141,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockController.On("GetAppPreflightTitles", mock.Anything).Return([]string{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t,
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -226,6 +228,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -234,12 +237,14 @@ func TestPostRunAppPreflights(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config in the API config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,
@@ -285,12 +290,14 @@ func TestPostRunAppPreflights(t *testing.T) {
 				kubernetesinstall.WithCurrentState(states.StateNew), // Wrong state
 			)),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,
@@ -330,12 +337,14 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create a basic install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,

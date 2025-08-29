@@ -75,7 +75,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -140,7 +140,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		mockController.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -224,7 +224,8 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			// Create the API with allow ignore host preflights flag
 			apiInstance, err := api.New(
 				types.APIConfig{
-					Password: "password",
+					InstallTarget: types.InstallTargetLinux,
+					Password:      "password",
 					LinuxConfig: types.LinuxConfig{
 						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
 					},
@@ -339,7 +340,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -407,7 +408,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -464,7 +465,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -522,7 +523,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -593,7 +594,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),

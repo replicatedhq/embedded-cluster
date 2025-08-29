@@ -34,7 +34,6 @@ func TestAppReleaseManager_ExtractAppPreflightSpec(t *testing.T) {
 			name:         "no helm charts returns nil",
 			helmChartCRs: [][]byte{},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -79,7 +78,6 @@ spec:
 			configValues: types.AppConfigValues{
 				"check_name": {Value: "K8s Version Validation"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -177,7 +175,6 @@ spec:
 				"version_check_name":  {Value: "Custom K8s Version Check"},
 				"resource_check_name": {Value: "Custom Node Resource Check"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expectedSpec: &troubleshootv1beta2.PreflightSpec{
 				Analyzers: []*troubleshootv1beta2.Analyze{
 					{
@@ -235,7 +232,6 @@ spec:
 				createTestChartArchive(t, "simple-chart", "1.0.0"),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expectedSpec: nil,
 			expectError:  false,
 		},
@@ -339,6 +335,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -375,7 +372,6 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 			name:             "empty helm chart CRs",
 			helmChartCRs:     [][]byte{},
 			configValues:     types.AppConfigValues{},
-			proxySpec:        &ecv1beta1.ProxySpec{},
 			registrySettings: nil,
 			expected:         []*kotsv1beta2.HelmChart{},
 			expectError:      false,
@@ -416,7 +412,6 @@ spec:
 				"enable_persistence": {Value: "true"},
 				"disable_monitoring": {Value: "false"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -501,7 +496,6 @@ spec:
 				"enable_resources":  {Value: "false"},
 				"redis_persistence": {Value: "true"},
 			},
-			proxySpec: &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -564,7 +558,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -584,7 +577,6 @@ spec:
 			name:         "nil helm chart CRs",
 			helmChartCRs: nil,
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			expected:     []*kotsv1beta2.HelmChart{},
 			expectError:  false,
 		},
@@ -678,7 +670,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{}, // Empty proxy spec
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
 apiVersion: kots.io/v1beta2
@@ -732,14 +723,13 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			registrySettings: &types.RegistrySettings{
-				HasLocalRegistry:     true,
-				Host:                 "10.128.0.11:5000",
-				Address:              "10.128.0.11:5000/myapp",
-				Namespace:            "myapp",
-				ImagePullSecretName:  "embedded-cluster-registry",
-				ImagePullSecretValue: "dGVzdC1zZWNyZXQtdmFsdWU=",
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.128.0.11:5000",
+				LocalRegistryAddress:   "10.128.0.11:5000/myapp",
+				LocalRegistryNamespace: "myapp",
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue:   "dGVzdC1zZWNyZXQtdmFsdWU=",
 			},
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
@@ -756,7 +746,7 @@ spec:
     image:
       repository: "10.128.0.11:5000/myapp/nginx"
     imagePullSecrets:
-      - name: "embedded-cluster-registry"
+      - name: "test-app-registry"
     registry:
       host: "10.128.0.11:5000"
       address: "10.128.0.11:5000/myapp"
@@ -787,7 +777,6 @@ spec:
 `),
 			},
 			configValues: types.AppConfigValues{},
-			proxySpec:    &ecv1beta1.ProxySpec{},
 			registrySettings: &types.RegistrySettings{
 				HasLocalRegistry: false,
 			},
@@ -832,7 +821,6 @@ spec:
 `),
 			},
 			configValues:     types.AppConfigValues{},
-			proxySpec:        &ecv1beta1.ProxySpec{},
 			registrySettings: nil, // No registry settings provided
 			expected: []*kotsv1beta2.HelmChart{
 				createHelmChartCRFromYAML(`
@@ -870,6 +858,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -1145,6 +1134,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
 			)
 			require.NoError(t, err)
 
@@ -1814,6 +1804,738 @@ data:
 	}
 }
 
+func TestAppReleaseManager_ExtractInstallableHelmCharts(t *testing.T) {
+	tests := []struct {
+		name             string
+		helmChartCRs     [][]byte
+		chartArchives    [][]byte
+		configValues     types.AppConfigValues
+		proxySpec        *ecv1beta1.ProxySpec
+		registrySettings *types.RegistrySettings
+		expectError      bool
+		errorContains    string
+		expected         []types.InstallableHelmChart
+	}{
+		{
+			name:          "no helm charts returns empty slice",
+			helmChartCRs:  [][]byte{},
+			chartArchives: [][]byte{},
+			configValues:  types.AppConfigValues{},
+			expectError:   false,
+			expected:      nil,
+		},
+		{
+			name: "single chart with basic configuration",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  namespace: repl{{ConfigOption "namespace"}}
+  releaseName: repl{{ConfigOption "release_name"}}
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "3"
+    image:
+      repository: nginx
+      tag: '{{repl ConfigOption "image_tag"}}'
+    service:
+      type: ClusterIP
+      port: 80
+  optionalValues:
+  - when: '{{repl ConfigOptionEquals "enable_ingress" "true"}}'
+    values:
+      ingress:
+        enabled: true
+        host: '{{repl ConfigOption "ingress_host"}}'`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"namespace":      {Value: "custom-namespace"},
+				"release_name":   {Value: "custom-release-name"},
+				"image_tag":      {Value: "1.20.0"},
+				"enable_ingress": {Value: "true"},
+				"ingress_host":   {Value: "nginx.example.com"},
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "3",
+						"image": map[string]any{
+							"repository": "nginx",
+							"tag":        "1.20.0",
+						},
+						"service": map[string]any{
+							"type": "ClusterIP",
+							"port": float64(80),
+						},
+						"ingress": map[string]any{
+							"enabled": true,
+							"host":    "nginx.example.com",
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-chart
+spec:
+  namespace: custom-namespace
+  releaseName: custom-release-name
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "3"
+    image:
+      repository: nginx
+      tag: "1.20.0"
+    service:
+      type: ClusterIP
+      port: 80
+  optionalValues:
+  - when: "true"
+    values:
+      ingress:
+        enabled: true
+        host: "nginx.example.com"`),
+				},
+			},
+		},
+		{
+			name: "chart with exclude=true should be skipped",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: excluded-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  exclude: '{{repl ConfigOptionEquals "skip_nginx" "true"}}'
+  values:
+    replicaCount: "2"`),
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: included-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  exclude: false
+  values:
+    persistence:
+      enabled: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+				createTestChartArchive(t, "redis", "2.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"skip_nginx": {Value: "true"},
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"persistence": map[string]any{
+							"enabled": true,
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: included-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  exclude: false
+  values:
+    persistence:
+      enabled: true`),
+				},
+			},
+		},
+		{
+			name: "chart with recursive merge optional values",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: merge-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    service:
+      type: '{{repl ConfigOption "service_type"}}'
+      port: 80
+    replicaCount: "1"
+  optionalValues:
+  - when: '{{repl ConfigOption "enable_ssl"}}'
+    recursiveMerge: true
+    values:
+      service:
+        type: LoadBalancer
+      ssl:
+        enabled: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"service_type": {Value: "ClusterIP"},
+				"enable_ssl":   {Value: "true"},
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "1",
+						"service": map[string]any{
+							"type": "LoadBalancer", // from optional values (overrode base value)
+							"port": float64(80),    // from base values (preserved)
+						},
+						"ssl": map[string]any{
+							"enabled": true, // from optional values (added)
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: merge-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    service:
+      type: "ClusterIP"
+      port: 80
+    replicaCount: "1"
+  optionalValues:
+  - when: "true"
+    recursiveMerge: true
+    values:
+      service:
+        type: LoadBalancer
+      ssl:
+        enabled: true`),
+				},
+			},
+		},
+		{
+			name: "chart with direct replacement optional values",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: replace-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    persistence:
+      enabled: '{{repl ConfigOption "enable_persistence"}}'
+      size: "5Gi"
+  optionalValues:
+  - when: '{{repl ConfigOption "redis_persistence"}}'
+    recursiveMerge: false
+    values:
+      persistence:
+        size: "20Gi"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "redis", "2.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"enable_persistence": {Value: "true"},
+				"redis_persistence":  {Value: "true"},
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"persistence": map[string]any{
+							"size": "20Gi", // from optional values (direct replacement)
+							// Note: enabled=true is GONE because entire persistence key was replaced
+						},
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: replace-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    persistence:
+      enabled: "true"
+      size: "5Gi"
+  optionalValues:
+  - when: "true"
+    recursiveMerge: false
+    values:
+      persistence:
+        size: "20Gi"`),
+				},
+			},
+		},
+		{
+			name: "chart with proxy template functions",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: proxy-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    proxy:
+      http: '{{repl HTTPProxy}}'
+      https: '{{repl HTTPSProxy}}'
+      noProxy: '{{repl NoProxy | join ","}}'
+  optionalValues:
+  - when: '{{repl if HTTPProxy}}true{{repl else}}false{{repl end}}'
+    values:
+      proxyEnabled: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			proxySpec: &ecv1beta1.ProxySpec{
+				HTTPProxy:  "http://proxy.example.com:8080",
+				HTTPSProxy: "https://proxy.example.com:8443",
+				NoProxy:    "localhost,127.0.0.1,.cluster.local",
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"proxy": map[string]any{
+							"http":    "http://proxy.example.com:8080",
+							"https":   "https://proxy.example.com:8443",
+							"noProxy": "localhost,127.0.0.1,.cluster.local",
+						},
+						"proxyEnabled": true,
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: proxy-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    proxy:
+      http: "http://proxy.example.com:8080"
+      https: "https://proxy.example.com:8443"
+      noProxy: "localhost,127.0.0.1,.cluster.local"
+  optionalValues:
+  - when: "true"
+    values:
+      proxyEnabled: true`),
+				},
+			},
+		},
+		{
+			name: "chart archive not found",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: missing-chart
+spec:
+  chart:
+    name: nonexistent
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "1"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"), // Different chart
+			},
+			configValues:  types.AppConfigValues{},
+			expectError:   true,
+			errorContains: "find chart archive for missing-chart",
+		},
+		{
+			name: "invalid when condition in optional values",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: invalid-when-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "1"
+  optionalValues:
+  - when: "not-a-boolean-value"
+    values:
+      debug: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues:  types.AppConfigValues{},
+			expectError:   true,
+			errorContains: "generate helm values for chart invalid-when-chart",
+		},
+		{
+			name: "chart with mixed when conditions",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: mixed-conditions-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "1"
+  optionalValues:
+  - when: '{{repl ConfigOption "enable_persistence"}}'
+    values:
+      persistence:
+        enabled: true
+  - when: '{{repl ConfigOption "disable_monitoring"}}'
+    values:
+      monitoring:
+        enabled: false`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{
+				"enable_persistence": {Value: "true"},
+				"disable_monitoring": {Value: "false"},
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "1", // from base values
+						"persistence": map[string]any{
+							"enabled": true, // from optional values (when=true)
+						},
+						// monitoring should NOT be present (when condition evaluated to false)
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: mixed-conditions-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "1"
+  optionalValues:
+  - when: "true"
+    values:
+      persistence:
+        enabled: true
+  - when: "false"
+    values:
+      monitoring:
+        enabled: false`),
+				},
+			},
+		},
+		{
+			name:          "nil helm chart CRs",
+			helmChartCRs:  nil,
+			chartArchives: [][]byte{},
+			configValues:  types.AppConfigValues{},
+			expectError:   false,
+			expected:      nil,
+		},
+		{
+			name: "skip nil helm chart CR in collection",
+			helmChartCRs: [][]byte{
+				nil,
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: valid-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "2"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			expectError:  false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"replicaCount": "2",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: valid-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    replicaCount: "2"`),
+				},
+			},
+		},
+		{
+			name: "chart with registry template functions - airgap mode",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: registry-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: '{{repl HasLocalRegistry | ternary LocalRegistryHost "proxy.replicated.com"}}/{{repl HasLocalRegistry | ternary LocalRegistryNamespace "external/path"}}/nginx'
+      tag: "1.20.0"
+    imagePullSecrets:
+      - name: '{{repl ImagePullSecretName}}'
+    registry:
+      host: '{{repl LocalRegistryHost}}'
+      address: '{{repl LocalRegistryAddress}}'
+      namespace: '{{repl LocalRegistryNamespace}}'
+      secret: '{{repl LocalRegistryImagePullSecret}}'
+  optionalValues:
+  - when: '{{repl HasLocalRegistry}}'
+    values:
+      airgapMode: true`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.128.0.11:5000",
+				LocalRegistryAddress:   "10.128.0.11:5000/myapp",
+				LocalRegistryNamespace: "myapp",
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue:   "dGVzdC1zZWNyZXQtdmFsdWU=",
+			},
+			expectError: false,
+			expected: []types.InstallableHelmChart{
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"image": map[string]any{
+							"repository": "10.128.0.11:5000/myapp/nginx",
+							"tag":        "1.20.0",
+						},
+						"imagePullSecrets": []any{
+							map[string]any{"name": "test-app-registry"},
+						},
+						"registry": map[string]any{
+							"host":      "10.128.0.11:5000",
+							"address":   "10.128.0.11:5000/myapp",
+							"namespace": "myapp",
+							"secret":    "dGVzdC1zZWNyZXQtdmFsdWU=",
+						},
+						"airgapMode": true,
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: registry-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    image:
+      repository: "10.128.0.11:5000/myapp/nginx"
+      tag: "1.20.0"
+    imagePullSecrets:
+      - name: "test-app-registry"
+    registry:
+      host: "10.128.0.11:5000"
+      address: "10.128.0.11:5000/myapp"
+      namespace: "myapp"
+      secret: "dGVzdC1zZWNyZXQtdmFsdWU="
+  optionalValues:
+  - when: "true"
+    values:
+      airgapMode: true`),
+				},
+			},
+		},
+		{
+			name: "charts sorted by weight - negative, zero, positive",
+			helmChartCRs: [][]byte{
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: positive-weight-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  weight: 100
+  values:
+    name: "positive"`),
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: no-weight-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    name: "zero"`), // No weight specified, defaults to 0
+				[]byte(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: negative-weight-chart
+spec:
+  chart:
+    name: postgresql
+    chartVersion: "1.0.0"
+  weight: -10
+  values:
+    name: "negative"`),
+			},
+			chartArchives: [][]byte{
+				createTestChartArchive(t, "nginx", "1.0.0"),
+				createTestChartArchive(t, "redis", "2.0.0"),
+				createTestChartArchive(t, "postgresql", "1.0.0"),
+			},
+			configValues: types.AppConfigValues{},
+			expectError:  false,
+			expected: []types.InstallableHelmChart{
+				// Should be sorted by weight: postgresql (-10), redis (0), nginx (100)
+				{
+					Archive: createTestChartArchive(t, "postgresql", "1.0.0"),
+					Values: map[string]any{
+						"name": "negative",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: negative-weight-chart
+spec:
+  chart:
+    name: postgresql
+    chartVersion: "1.0.0"
+  weight: -10
+  values:
+    name: "negative"`),
+				},
+				{
+					Archive: createTestChartArchive(t, "redis", "2.0.0"),
+					Values: map[string]any{
+						"name": "zero",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: no-weight-chart
+spec:
+  chart:
+    name: redis
+    chartVersion: "2.0.0"
+  values:
+    name: "zero"`),
+				},
+				{
+					Archive: createTestChartArchive(t, "nginx", "1.0.0"),
+					Values: map[string]any{
+						"name": "positive",
+					},
+					CR: createHelmChartCRFromYAML(`apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: positive-weight-chart
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  weight: 100
+  values:
+    name: "positive"`),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create release data
+			releaseData := &release.ReleaseData{
+				HelmChartCRs:      tt.helmChartCRs,
+				HelmChartArchives: tt.chartArchives,
+			}
+
+			// Create manager
+			config := createTestConfig()
+			manager, err := NewAppReleaseManager(
+				config,
+				WithReleaseData(releaseData),
+				WithK8sVersion("v1.33.0"),
+			)
+			require.NoError(t, err)
+
+			// Execute the function
+			result, err := manager.ExtractInstallableHelmCharts(context.Background(), tt.configValues, tt.proxySpec, tt.registrySettings)
+
+			// Check error expectation
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Validate expected results
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 // Helper function to create HelmChart from YAML string
 func createHelmChartCRFromYAML(yamlStr string) *kotsv1beta2.HelmChart {
 	var chart kotsv1beta2.HelmChart
@@ -1941,6 +2663,8 @@ func createTestConfig() kotsv1beta1.Config {
 					Name: "test_group",
 					Items: []kotsv1beta1.ConfigItem{
 						{Name: "chart_name", Type: "text", Value: multitype.FromString("nginx")},
+						{Name: "namespace", Type: "text", Value: multitype.FromString("default-namespace")},
+						{Name: "release_name", Type: "text", Value: multitype.FromString("default-release-name")},
 						{Name: "image_tag", Type: "text", Value: multitype.FromString("1.20.0")},
 						{Name: "app_name", Type: "text", Value: multitype.FromString("myapp")},
 						{Name: "chart1_name", Type: "text", Value: multitype.FromString("nginx")},
@@ -1960,6 +2684,16 @@ func createTestConfig() kotsv1beta1.Config {
 						{Name: "node_count", Type: "text", Value: multitype.FromString("3")},
 						{Name: "version_check_name", Type: "text", Value: multitype.FromString("Custom K8s Version Check")},
 						{Name: "resource_check_name", Type: "text", Value: multitype.FromString("Custom Node Resource Check")},
+						// Additional items for ExtractInstallableHelmCharts test
+						{Name: "image_tag", Type: "text", Value: multitype.FromString("1.20.0")},
+						{Name: "enable_ingress", Type: "text", Value: multitype.FromString("true")},
+						{Name: "ingress_host", Type: "text", Value: multitype.FromString("nginx.example.com")},
+						{Name: "skip_nginx", Type: "text", Value: multitype.FromString("true")},
+						{Name: "frontend_replicas", Type: "text", Value: multitype.FromString("3")},
+						{Name: "frontend_tag", Type: "text", Value: multitype.FromString("1.20.0")},
+						{Name: "enable_ssl", Type: "text", Value: multitype.FromString("true")},
+						{Name: "redis_persistence", Type: "text", Value: multitype.FromString("true")},
+						{Name: "invalid_boolean", Type: "text", Value: multitype.FromString("not-a-boolean")},
 					},
 				},
 			},

@@ -1,7 +1,7 @@
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: nginx-app
+  name: Nginx App
 spec:
   chart:
     name: nginx-app
@@ -42,10 +42,10 @@ spec:
     configItemsConfigMapData:
       # Registry template functions verification
       has_local_registry: repl{{ HasLocalRegistry }}
-      local_registry_host: repl{{ HasLocalRegistry | ternary LocalRegistryHost "fallback-host" }}
-      local_registry_namespace: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "fallback-namespace" }}
-      local_registry_address: repl{{ HasLocalRegistry | ternary LocalRegistryAddress "fallback-address" }}
-      image_pull_secret_name: repl{{ HasLocalRegistry | ternary ImagePullSecretName "fallback-secret" }}
+      local_registry_host: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}
+      local_registry_namespace: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "anonymous/registry.replicated.com/library" }}
+      local_registry_address: repl{{ HasLocalRegistry | ternary LocalRegistryAddress "ec-e2e-proxy.testcluster.net/anonymous/registry.replicated.com/library" }}
+      image_pull_secret_name: repl{{ ImagePullSecretName }}
       image_pull_secret_value: repl{{ LocalRegistryImagePullSecret }}
 
       # Text items

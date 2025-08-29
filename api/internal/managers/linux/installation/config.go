@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -14,6 +15,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func (m *installationManager) GetConfig() (types.LinuxInstallationConfig, error) {
@@ -236,11 +239,37 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	return nil
 }
 
-// CalculateRegistrySettings calculates registry settings for airgap installations
+// CalculateRegistrySettings calculates registry settings for both online and airgap installations
 func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
-	// Only return registry settings for airgap installations
 	if m.airgapBundle == "" {
-		return nil, nil
+		// Online mode: Use replicated proxy registry with license ID authentication
+		ecDomains := utils.GetDomains(m.releaseData)
+
+		// Parse license from bytes
+		if len(m.license) == 0 {
+			return nil, fmt.Errorf("license is required for online registry settings")
+		}
+		license := &kotsv1beta1.License{}
+		if err := kyaml.Unmarshal(m.license, license); err != nil {
+			return nil, fmt.Errorf("parse license: %w", err)
+		}
+
+		// Get app slug for secret name
+		if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+			return nil, fmt.Errorf("release data with app slug is required for registry settings")
+		}
+		appSlug := m.releaseData.ChannelRelease.AppSlug
+
+		// Create auth config for both proxy and registry domains
+		authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "LICENSE_ID", "password": "%s"},"%s":{"username": "LICENSE_ID", "password": "%s"}}}`,
+			ecDomains.ProxyRegistryDomain, license.Spec.LicenseID, ecDomains.ReplicatedRegistryDomain, license.Spec.LicenseID)
+		imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
+
+		return &types.RegistrySettings{
+			HasLocalRegistry:     false,
+			ImagePullSecretName:  fmt.Sprintf("%s-registry", appSlug),
+			ImagePullSecretValue: imagePullSecretValue,
+		}, nil
 	}
 
 	// Use runtime config as the authoritative source for service CIDR
@@ -254,27 +283,27 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 	// Construct registry host with port
 	registryHost := fmt.Sprintf("%s:5000", registryIP)
 
-	// Get app namespace from release data - required for app preflights
+	// Get app slug for secret name
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
 		return nil, fmt.Errorf("release data with app slug is required for registry settings")
 	}
-	appNamespace := m.releaseData.ChannelRelease.AppSlug
+	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
+	appNamespace := appSlug // registry namespace is the same as the app slug in linux target
 	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
 
 	// Create image pull secret value using the same pattern as admin console
-	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
-	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
-		registryHost, registry.GetRegistryPassword(), authString)
+	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "embedded-cluster", "password": "%s"}}}`,
+		registryHost, registry.GetRegistryPassword())
 	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
 
 	return &types.RegistrySettings{
-		HasLocalRegistry:     true,
-		Host:                 registryHost,
-		Address:              registryAddress,
-		Namespace:            appNamespace,
-		ImagePullSecretName:  "embedded-cluster-registry",
-		ImagePullSecretValue: imagePullSecretValue,
+		HasLocalRegistry:       true,
+		LocalRegistryHost:      registryHost,
+		LocalRegistryAddress:   registryAddress,
+		LocalRegistryNamespace: appNamespace,
+		ImagePullSecretName:    fmt.Sprintf("%s-registry", appSlug),
+		ImagePullSecretValue:   imagePullSecretValue,
 	}, nil
 }

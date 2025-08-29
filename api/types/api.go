@@ -9,8 +9,14 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
+const (
+	InstallTargetLinux      InstallTarget = "linux"
+	InstallTargetKubernetes InstallTarget = "kubernetes"
+)
+
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
+	InstallTarget      InstallTarget
 	Password           string
 	TLSConfig          TLSConfig
 	License            []byte
@@ -25,6 +31,8 @@ type APIConfig struct {
 	LinuxConfig
 	KubernetesConfig
 }
+
+type InstallTarget string
 
 type LinuxConfig struct {
 	RuntimeConfig             runtimeconfig.RuntimeConfig

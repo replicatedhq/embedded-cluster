@@ -44,7 +44,7 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 		charts := metadata.Configs.Charts
 
 		hcli, err := helm.NewClient(helm.HelmOptions{
-			K0sVersion: metadata.Versions["Kubernetes"],
+			K8sVersion: metadata.Versions["Kubernetes"],
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create helm client: %w", err)

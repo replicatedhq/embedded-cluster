@@ -5,10 +5,27 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"helm.sh/helm/v3/pkg/chart/loader"
 )
+
+func (m *appReleaseManager) setupHelmClient() error {
+	if m.hcli != nil {
+		return nil
+	}
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		// hcli.Render doesn't need a kubeconfig as it is client only
+		K8sVersion: m.k8sVersion,
+	})
+	if err != nil {
+		return fmt.Errorf("create helm client: %w", err)
+	}
+	m.hcli = hcli
+	return nil
+}
 
 // findChartArchive finds the chart archive that corresponds to the given HelmChart CR
 func findChartArchive(helmChartArchives [][]byte, templatedCR *kotsv1beta2.HelmChart) ([]byte, error) {
@@ -62,7 +79,7 @@ func writeChartArchiveToTemp(chartArchive []byte) (string, error) {
 
 	// Write the chart archive to the temporary file
 	if _, err := tmpFile.Write(chartArchive); err != nil {
-		os.Remove(tmpFile.Name())
+		_ = os.Remove(tmpFile.Name())
 		return "", fmt.Errorf("write chart archive: %w", err)
 	}
 

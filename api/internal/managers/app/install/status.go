@@ -1,7 +1,6 @@
 package install
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -19,9 +18,10 @@ func (m *appInstallManager) setStatus(state types.State, description string) err
 	})
 }
 
-func (m *appInstallManager) addLogs(format string, v ...interface{}) {
-	msg := fmt.Sprintf(format, v...)
-	if err := m.appInstallStore.AddLogs(msg); err != nil {
-		m.logger.WithError(err).Error("add log")
-	}
+func (m *appInstallManager) setComponentStatus(componentName string, state types.State, description string) error {
+	return m.appInstallStore.SetComponentStatus(componentName, types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

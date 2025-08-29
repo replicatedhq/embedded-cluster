@@ -696,7 +696,8 @@ func runManagerExperienceInstall(
 
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: flags.adminConsolePassword,
+			InstallTarget: apitypes.InstallTarget(flags.target),
+			Password:      flags.adminConsolePassword,
 			TLSConfig: apitypes.TLSConfig{
 				CertBytes: flags.tlsCertBytes,
 				KeyBytes:  flags.tlsKeyBytes,
@@ -722,7 +723,6 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
-		InstallTarget:   flags.target,
 		MetricsReporter: metricsReporter,
 	}
 
@@ -803,7 +803,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
 		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
+		K8sVersion: versions.K0sVersion,
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {

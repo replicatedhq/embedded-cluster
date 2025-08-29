@@ -60,7 +60,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
-				K0sVersion: versions.K0sVersion,
+				K8sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
 				LogFn: func(format string, v ...interface{}) {
 					slog.Info(fmt.Sprintf(format, v...), "component", "helm")

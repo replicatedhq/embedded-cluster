@@ -15,7 +15,9 @@ import (
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
+	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
+	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
@@ -26,19 +28,69 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// mockLicense creates a mock license for testing
+func mockLicense() []byte {
+	return []byte(`
+apiVersion: kots.io/v1beta1
+kind: License
+spec:
+  licenseID: "test-license-id-12345"
+  appSlug: "test-app"
+  customerName: "Test Customer"
+`)
+}
+
 // TestGetAppInstallStatus tests the GET /linux/install/app/status endpoint
 func TestGetAppInstallStatus(t *testing.T) {
+	// Create mock helm chart archive
+	mockChartArchive := []byte("mock-helm-chart-archive-data")
+
+	// Create test release data with helm chart archives
+	releaseData := &release.ReleaseData{
+		HelmChartArchives:     [][]byte{mockChartArchive},
+		EmbeddedClusterConfig: &ecv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			AppSlug: "test-app",
+			DefaultDomains: release.Domains{
+				ReplicatedAppDomain:      "replicated.example.com",
+				ProxyRegistryDomain:      "some-proxy.example.com",
+				ReplicatedRegistryDomain: "registry.example.com",
+			},
+		},
+		AppConfig: &kotsv1beta1.Config{},
+	}
+
 	t.Run("Success", func(t *testing.T) {
-		// Create app install status
+		// Create app install status with components
 		appInstallStatus := types.AppInstall{
+			Components: []types.AppComponent{
+				{
+					Name: "nginx-chart",
+					Status: types.Status{
+						State:       types.StateSucceeded,
+						Description: "Installation complete",
+						LastUpdated: time.Now(),
+					},
+				},
+				{
+					Name: "postgres-chart",
+					Status: types.Status{
+						State:       types.StateRunning,
+						Description: "Installing chart",
+						LastUpdated: time.Now(),
+					},
+				},
+			},
 			Status: types.Status{
 				State:       types.StateRunning,
 				Description: "Installing application",
+				LastUpdated: time.Now(),
 			},
 			Logs: "Installation in progress...",
 		}
@@ -48,6 +100,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstallmanager.WithAppInstallStore(
 				appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(appInstallStatus)),
 			),
+			appinstallmanager.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -59,7 +112,8 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstall.WithAppInstallManager(appInstallManager),
 			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -67,22 +121,14 @@ func TestGetAppInstallStatus(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{},
-				ChannelRelease: &release.ChannelRelease{
-					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{},
-			}),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -109,21 +155,37 @@ func TestGetAppInstallStatus(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&response)
 		require.NoError(t, err)
 
-		// Verify the response
+		// Verify the response structure includes components
 		assert.Equal(t, appInstallStatus.Status.State, response.Status.State)
 		assert.Equal(t, appInstallStatus.Status.Description, response.Status.Description)
 		assert.Equal(t, appInstallStatus.Logs, response.Logs)
+
+		// Verify components array is present and has expected data
+		assert.Len(t, response.Components, 2, "Should have 2 components")
+
+		// Verify first component (nginx-chart)
+		nginxComponent := response.Components[0]
+		assert.Equal(t, "nginx-chart", nginxComponent.Name)
+		assert.Equal(t, types.StateSucceeded, nginxComponent.Status.State)
+		assert.Equal(t, "Installation complete", nginxComponent.Status.Description)
+
+		// Verify second component (postgres-chart)
+		postgresComponent := response.Components[1]
+		assert.Equal(t, "postgres-chart", postgresComponent.Name)
+		assert.Equal(t, types.StateRunning, postgresComponent.Status.State)
+		assert.Equal(t, "Installing chart", postgresComponent.Status.Description)
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -150,7 +212,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		mockController.On("GetAppInstallStatus", mock.Anything).Return(types.AppInstall{}, assert.AnError)
 
 		// Create the API with mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -178,6 +240,20 @@ func TestGetAppInstallStatus(t *testing.T) {
 
 // TestPostInstallApp tests the POST /linux/install/app/install endpoint
 func TestPostInstallApp(t *testing.T) {
+	// Create test release data
+	releaseData := &release.ReleaseData{
+		EmbeddedClusterConfig: &ecv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			AppSlug: "test-app",
+			DefaultDomains: release.Domains{
+				ReplicatedAppDomain:      "replicated.example.com",
+				ProxyRegistryDomain:      "some-proxy.example.com",
+				ReplicatedRegistryDomain: "registry.example.com",
+			},
+		},
+		AppConfig: &kotsv1beta1.Config{},
+	}
+
 	t.Run("Success", func(t *testing.T) {
 		// Create a real runtime config with temp directory
 		rc := runtimeconfig.New(nil)
@@ -187,9 +263,50 @@ func TestPostInstallApp(t *testing.T) {
 		mockReporter := &metrics.MockReporter{}
 		mockReporter.On("ReportInstallationSucceeded", mock.Anything)
 
+		// Create mock app and kots config values
+		testAppConfigValues := types.AppConfigValues{
+			"service": {
+				Value: "ClusterIP",
+			},
+		}
+		testKotsConfigValues := kotsv1beta1.ConfigValues{
+			Spec: kotsv1beta1.ConfigValuesSpec{
+				Values: map[string]kotsv1beta1.ConfigValue{
+					"enable_ingress": {
+						Value: "1",
+					},
+				},
+			},
+		}
+
+		// Create app config manager with mock store
+		mockAppConfigManager := &appconfig.MockAppConfigManager{}
+		mockAppConfigManager.On("GetConfigValues").Return(testAppConfigValues, nil)
+		mockAppConfigManager.On("GetKotsadmConfigValues").Return(testKotsConfigValues, nil)
+
+		// Create mock app release manager that returns installable charts
+		mockAppReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+		testInstallableCharts := []types.InstallableHelmChart{
+			{
+				Archive: []byte("mock-helm-chart-archive-data"),
+				Values: map[string]any{
+					"service": map[string]any{
+						"port": 80,
+					},
+				},
+				CR: &kotsv1beta2.HelmChart{
+					Spec: kotsv1beta2.HelmChartSpec{
+						ReleaseName: "test-app",
+						Namespace:   "default",
+					},
+				},
+			},
+		}
+		mockAppReleaseManager.On("ExtractInstallableHelmCharts", mock.Anything, testAppConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return(testInstallableCharts, nil)
+
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, testInstallableCharts, testKotsConfigValues).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
@@ -197,22 +314,20 @@ func TestPostInstallApp(t *testing.T) {
 			},
 		}, nil)
 
-		// Create mock store
-		mockStore := &store.MockStore{}
-		mockStore.AppConfigMockStore.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
-		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
-
 		// Create state machine starting from AppPreflightsSucceeded (valid state for app install)
 		stateMachine := linuxinstall.NewStateMachine(
 			linuxinstall.WithCurrentState(states.StateAppPreflightsSucceeded),
 		)
 
-		// Create real app install controller with mock manager
+		// Create real app install controller with mock managers
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithAppInstallManager(mockAppInstallManager),
+			appinstall.WithAppReleaseManager(mockAppReleaseManager),
+			appinstall.WithAppConfigManager(mockAppConfigManager),
 			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithStore(&store.MockStore{}),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -221,26 +336,27 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithMetricsReporter(mockReporter),
-			linuxinstall.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{},
-				ChannelRelease: &release.ChannelRelease{
-					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{},
-			}),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -264,10 +380,16 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Verify that ReportInstallationSucceeded was called
 		mockReporter.AssertExpectations(t)
+		mockAppConfigManager.AssertExpectations(t)
+		mockAppReleaseManager.AssertExpectations(t)
 		mockAppInstallManager.AssertExpectations(t)
 	})
 
 	t.Run("Invalid state transition", func(t *testing.T) {
+		// Create a real runtime config with temp directory
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
 		// Create state machine starting from invalid state (infrastructure installing)
 		stateMachine := linuxinstall.NewStateMachine(
 			linuxinstall.WithCurrentState(states.StateInfrastructureInstalling),
@@ -278,7 +400,8 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -286,16 +409,26 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -326,7 +459,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create mock app install manager that fails
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(errors.New("installation failed"))
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(errors.New("installation failed"))
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateFailed,
@@ -353,7 +486,8 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -363,17 +497,27 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithMetricsReporter(mockReporter),
 			linuxinstall.WithStore(mockStore),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -402,18 +546,32 @@ func TestPostInstallApp(t *testing.T) {
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {
+		// Create a real runtime config with temp directory
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
 		// Create simple Linux install controller
 		installController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		// Create a new router and register API routes
 		router := mux.NewRouter()
@@ -432,6 +590,10 @@ func TestPostInstallApp(t *testing.T) {
 
 	// Test app preflight bypass - should succeed when ignoreAppPreflights is true
 	t.Run("App preflight bypass with failed preflights - ignored", func(t *testing.T) {
+		// Create a real runtime config with temp directory
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
 		// Create mock store
 		mockStore := &store.MockStore{}
 		mockStore.AppConfigMockStore.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
@@ -439,7 +601,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
-		mockAppInstallManager.On("Install", mock.Anything, mock.Anything).Return(nil)
+		mockAppInstallManager.On("Install", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		mockAppInstallManager.On("GetStatus").Return(types.AppInstall{
 			Status: types.Status{
 				State:       types.StateRunning,
@@ -457,7 +619,8 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithAppInstallManager(mockAppInstallManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -465,16 +628,26 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)
@@ -508,6 +681,10 @@ func TestPostInstallApp(t *testing.T) {
 
 	// Test app preflight bypass denied - should fail when ignoreAppPreflights is false and preflights failed
 	t.Run("App preflight bypass denied with failed preflights", func(t *testing.T) {
+		// Create a real runtime config with temp directory
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
 		// Create mock store
 		mockStore := &store.MockStore{}
 
@@ -520,7 +697,8 @@ func TestPostInstallApp(t *testing.T) {
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithReleaseData(releaseData),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -528,16 +706,26 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(releaseData),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		cfg := types.APIConfig{
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
+			ReleaseData:   releaseData,
+			LinuxConfig: types.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		}
+		apiInstance, err := api.New(cfg,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
+		require.NoError(t, err)
 
 		router := mux.NewRouter()
 		apiInstance.RegisterRoutes(router)

@@ -97,6 +97,8 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: support registry settings
+
 	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
 		PreflightBinaryPath: preflightBinary,
 		ProxySpec:           h.cfg.Installation.ProxySpec(),
@@ -300,7 +302,13 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.installController.InstallApp(r.Context(), req.IgnoreAppPreflights)
+	// TODO: support registry settings
+
+	err := h.installController.InstallApp(r.Context(), appinstall.InstallAppOptions{
+		IgnoreAppPreflights: req.IgnoreAppPreflights,
+		ProxySpec:           h.cfg.Installation.ProxySpec(),
+		RegistrySettings:    nil,
+	})
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)

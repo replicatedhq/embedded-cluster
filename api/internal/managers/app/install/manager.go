@@ -2,14 +2,17 @@ package install
 
 import (
 	"context"
+	"fmt"
 
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 var _ AppInstallManager = &appInstallManager{}
@@ -21,21 +24,25 @@ type KotsCLIInstaller interface {
 
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
-	// Install installs the app with the provided config values
-	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
+	// Install installs the app with the provided installable Helm charts and config values
+	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsConfigValues kotsv1beta1.ConfigValues) error
 	// GetStatus returns the current app installation status
 	GetStatus() (types.AppInstall, error)
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	appInstallStore appinstallstore.Store
-	releaseData     *release.ReleaseData
-	license         []byte
-	clusterID       string
-	airgapBundle    string
-	kotsCLI         KotsCLIInstaller
-	logger          logrus.FieldLogger
+	appInstallStore  appinstallstore.Store
+	releaseData      *release.ReleaseData
+	license          []byte
+	clusterID        string
+	airgapBundle     string
+	kotsCLI          KotsCLIInstaller
+	logger           logrus.FieldLogger
+	hcli             helm.Client
+	k8sVersion       string
+	kubeConfigPath   string
+	restClientGetter genericclioptions.RESTClientGetter
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -82,12 +89,41 @@ func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
 	}
 }
 
+// Add constructor options following infra manager pattern
+func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.hcli = hcli
+	}
+}
+
+func WithK8sVersion(k8sVersion string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.k8sVersion = k8sVersion
+	}
+}
+
+func WithKubeConfigPath(path string) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.kubeConfigPath = path
+	}
+}
+
+func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.restClientGetter = restClientGetter
+	}
+}
+
 // NewAppInstallManager creates a new AppInstallManager with the provided options
 func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, error) {
 	manager := &appInstallManager{}
 
 	for _, opt := range opts {
 		opt(manager)
+	}
+
+	if manager.k8sVersion == "" {
+		return nil, fmt.Errorf("k8s version required")
 	}
 
 	if manager.logger == nil {

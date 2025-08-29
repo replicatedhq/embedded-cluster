@@ -3,9 +3,11 @@ import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { NextButtonConfig } from "../types";
-import { State, AppInstallStatus } from "../../../../types";
+import { State, AppInstallStatusResponse } from "../../../../types";
+import InstallationProgress from '../shared/InstallationProgress';
+import LogViewer from '../shared/LogViewer';
+import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from "../shared/ErrorMessage";
 
 interface AppInstallationPhaseProps {
@@ -21,10 +23,11 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const [isPolling, setIsPolling] = useState(true);
   const [installationComplete, setInstallationComplete] = useState(false);
   const [installationSuccess, setInstallationSuccess] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
 
   // Query to poll app installation status
-  const { data: appInstallStatus, error: appStatusError } = useQuery<AppInstallStatus, Error>({
+  const { data: appInstallStatus, error: appStatusError } = useQuery<AppInstallStatusResponse, Error>({
     queryKey: ["appInstallationStatus"],
     queryFn: async () => {
       const response = await fetch(`/api/${target}/install/app/status`, {
@@ -37,7 +40,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to get app installation status");
       }
-      return response.json() as Promise<AppInstallStatus>;
+      return response.json() as Promise<AppInstallStatusResponse>;
     },
     enabled: isPolling,
     refetchInterval: 2000,
@@ -64,6 +67,15 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
     }
   }, [appInstallStatus, handleInstallationComplete]);
 
+  const getProgress = () => {
+    const components = appInstallStatus?.components || [];
+    if (components.length === 0) {
+      return 0;
+    }
+    const completedComponents = components.filter(component => component.status?.state === 'Succeeded').length;
+    return Math.round((completedComponents / components.length) * 100);
+  }
+
   // Update next button configuration
   useEffect(() => {
     setNextButtonConfig({
@@ -72,59 +84,37 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
     });
   }, [installationComplete, installationSuccess]);
 
-  const renderInstallationStatus = () => {
-    // Loading state
-    if (isPolling) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12" data-testid="app-installation-loading">
-          <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
-          <p className="text-lg font-medium text-gray-900">Installing application...</p>
-          <p className="text-sm text-gray-500 mt-2" data-testid="app-installation-loading-description">
-            {appInstallStatus?.status?.description || "Please wait while we install your application."}
-          </p>
-        </div>
-      );
-    }
+  const renderApplicationPhase = () => (
+    <div className="space-y-6">
+      <InstallationProgress
+        progress={getProgress()}
+        currentMessage={appInstallStatus?.status?.description || ''}
+        themeColor={themeColor}
+        status={appInstallStatus?.status?.state}
+      />
 
-    // Success state
-    if (appInstallStatus?.status?.state === "Succeeded") {
-      return (
-        <div className="flex flex-col items-center justify-center py-12" data-testid="app-installation-success">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-            style={{ backgroundColor: `${themeColor}1A` }}
-          >
-            <CheckCircle className="w-6 h-6" style={{ color: themeColor }} />
-          </div>
-          <p className="text-lg font-medium text-gray-900">Application installed successfully!</p>
-          <p className="text-sm text-gray-500 mt-2">Your application is now ready to use.</p>
-        </div>
-      );
-    }
-
-    // Error state
-    if (appInstallStatus?.status?.state === "Failed") {
-      return (
-        <div className="flex flex-col items-center justify-center py-12" data-testid="app-installation-error">
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
-            <XCircle className="w-6 h-6 text-red-600" />
-          </div>
-          <p className="text-lg font-medium text-gray-900">Application installation failed</p>
-          <p className="text-sm text-gray-500 mt-2" data-testid="app-installation-error-message">
-            {appInstallStatus?.status?.description || "An error occurred during installation."}
-          </p>
-        </div>
-      );
-    }
-
-    // Default loading state
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
-        <p className="text-lg font-medium text-gray-900">Preparing installation...</p>
+      <div className="space-y-2 divide-y divide-gray-200">
+        {(appInstallStatus?.components || []).map((component, index) => (
+          <StatusIndicator
+            key={index}
+            title={component.name}
+            status={component.status?.state}
+            themeColor={themeColor}
+          />
+        ))}
       </div>
-    );
-  };
+
+      <LogViewer
+        title="Application Installation Logs"
+        logs={appInstallStatus?.logs ? [appInstallStatus.logs] : []}
+        isExpanded={showLogs}
+        onToggle={() => setShowLogs(!showLogs)}
+      />
+
+      {appStatusError && <ErrorMessage error={appStatusError?.message} />}
+      {appInstallStatus?.status?.state === 'Failed' && <ErrorMessage error={appInstallStatus?.status?.description} />}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -133,9 +123,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
         <p className="text-gray-600 mt-1">{text.appInstallationDescription}</p>
       </div>
 
-      {renderInstallationStatus()}
-
-      {appStatusError && <ErrorMessage error={appStatusError?.message} />}
+      {renderApplicationPhase()}
     </div>
   );
 };

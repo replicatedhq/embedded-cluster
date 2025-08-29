@@ -118,6 +118,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		DataDir:            opts.DataDir,
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+		IsV3:               false,
 	})
 
 	return addOns, nil

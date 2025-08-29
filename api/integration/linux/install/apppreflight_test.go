@@ -74,6 +74,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 		appinstall.WithStore(mockStore),
 		appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appinstall.WithK8sVersion("v1.33.0"),
 	)
 	require.NoError(t, err)
 
@@ -85,7 +86,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -140,7 +141,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockController.On("GetAppPreflightTitles", mock.Anything).Return([]string{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -226,6 +227,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+			appinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -236,20 +238,24 @@ func TestPostRunAppPreflights(t *testing.T) {
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
-						ReplicatedAppDomain: "replicated.example.com",
-						ProxyRegistryDomain: "some-proxy.example.com",
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
+						ReplicatedRegistryDomain: "registry.example.com",
 					},
 				},
 				AppConfig: &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API with runtime config in the API config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -292,14 +298,26 @@ func TestPostRunAppPreflights(t *testing.T) {
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(
 				linuxinstall.WithCurrentState(states.StateNew), // Wrong state
 			)),
-			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithReleaseData(&release.ReleaseData{
+				AppConfig: &kotsv1beta1.Config{},
+				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain:      "replicated.example.com",
+						ProxyRegistryDomain:      "some-proxy.example.com",
+						ReplicatedRegistryDomain: "registry.example.com",
+					},
+				},
+			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithLicense(mockLicense()),
 		)
 		require.NoError(t, err)
 
 		// Create the API with runtime config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -343,7 +361,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with runtime config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetLinux,
+			Password:      "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
