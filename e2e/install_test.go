@@ -2100,6 +2100,22 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
+	allowedDomains := map[string]struct{}{
+		"proxy.staging.replicated.com":          {},
+		"ec-e2e-proxy.testcluster.net":          {},
+		"staging.replicated.app":                {},
+		"ec-e2e-replicated-app.testcluster.net": {},
+		"kots.io":                               {},
+		"release-assets.githubusercontent.com":  {},
+		"github.com":                            {},
+
+		// ntp from the underlying vm
+		"ntp.ubuntu.com":        {},
+		"0.ubuntu.pool.ntp.org": {},
+		"1.ubuntu.pool.ntp.org": {},
+		"2.ubuntu.pool.ntp.org": {},
+	}
+
 	domainsByIps := make(map[string]map[string]struct{})
 	for _, ne := range networkEvents {
 		// filter out local traffic
@@ -2123,7 +2139,12 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	for ip, domains := range domainsByIps {
 		domainOutput := ""
 		for domain := range domains {
-			domainOutput += fmt.Sprintf("\t- %v\n", domain)
+			_, allowed := allowedDomains[domain]
+			domainOutput += fmt.Sprintf("\t- %v - ALLOWED: %v\n", domain, allowed)
+		}
+
+		if len(ip) == 0 {
+			ip = "UNKNOWN"
 		}
 
 		t.Logf("IP: %v", ip)
