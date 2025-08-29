@@ -22,11 +22,17 @@ const Markdown: React.FC<MarkdownProps> = ({ children, rehypePlugins = [] }) => 
             className="text-blue-600 hover:text-blue-800 underline"
           />
         ),
-        // We use:
-        // - pre selectors to style code blocks and inline code blocks differently. This is because code blocks are rendered with a <pre><code>...</code></pre> structure
-        // - before:content-none and after:content-none to remove the default backticks that are added by the Label component through the prose class
+        // We need to use not-prose here to prevent Tailwind Typography from styling the code block differently within a prose parent (e.g. Label)
+        pre: ({ children }) => (
+          <pre className="not-prose bg-gray-100 p-4 rounded overflow-x-auto">
+            {children}
+          </pre>
+        ),
+        // We need to use not-prose here to prevent Tailwind Typography from styling the code block differently within a prose parent (e.g. Label)
+        // Specific selectors used for `pre` to make sure inline code styling does not conflict with code block styling since code blocks are rendered
+        // within a pre element
         code: ({ children }) => (
-          <code className="font-mono text-xs bg-gray-100 px-1 py-0.5 rounded [pre_&]:text-sm [pre_&]:bg-transparent [pre_&]:px-0 [pre_&]:py-0 before:content-none after:content-none">
+          <code className="not-prose font-mono font-semibold text-xs text-gray-700 bg-gray-100 px-1 py-0.5 rounded [pre_&]:bg-transparent [pre_&]:px-0 [pre_&]:py-0">
             {children}
           </code>
         ),
