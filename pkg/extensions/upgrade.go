@@ -25,7 +25,7 @@ type helmAction string
 func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ecv1beta1.Installation, in *ecv1beta1.Installation) error {
 	// add new helm repos
 	if in.Spec.Config.Extensions.Helm != nil {
-		if err := addRepos(hcli, in.Spec.Config.Extensions.Helm.Repositories); err != nil {
+		if err := addRepos(ctx, hcli, in.Spec.Config.Extensions.Helm.Repositories); err != nil {
 			return errors.Wrap(err, "add repos")
 		}
 	}

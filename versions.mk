@@ -25,6 +25,9 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 # Format: K0S_BINARY_SOURCE_OVERRIDE_<MINOR_VERSION>
 # Example: K0S_BINARY_SOURCE_OVERRIDE_32 = https://github.com/k0sproject/k0s/releases/download/v1.32.7+k0s.0/k0s-v1.32.7+k0s.0-amd64
 
+# Helm Version
+HELM_VERSION = v3.18.6
+
 # Troubleshoot Version
 TROUBLESHOOT_VERSION = v0.121.3
 

@@ -47,7 +47,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_SEAWEEDFS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest seaweedfs chart version")
-			latest, err := LatestChartVersion(hcli, seaweedfsRepo, "seaweedfs")
+			latest, err := LatestChartVersion(c.Context, hcli, seaweedfsRepo, "seaweedfs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest seaweedfs chart version: %v", err)
 			}
@@ -63,7 +63,7 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring seaweedfs chart version %s", nextChartVersion)
-		if err := MirrorChart(hcli, seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
+		if err := MirrorChart(c.Context, hcli, seaweedfsRepo, "seaweedfs", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror seaweedfs chart: %v", err)
 		}
 

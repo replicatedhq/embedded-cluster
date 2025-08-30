@@ -41,7 +41,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		defer hcli.Close()
 
-		latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
+		latest, err := LatestChartVersion(c.Context, hcli, registryRepo, "docker-registry")
 		if err != nil {
 			return fmt.Errorf("unable to get the latest registry version: %v", err)
 		}
@@ -54,7 +54,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring registry chart version %s", latest)
-		if err := MirrorChart(hcli, registryRepo, "docker-registry", latest); err != nil {
+		if err := MirrorChart(c.Context, hcli, registryRepo, "docker-registry", latest); err != nil {
 			return fmt.Errorf("unable to mirror chart: %w", err)
 		}
 

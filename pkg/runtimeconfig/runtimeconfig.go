@@ -8,6 +8,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"sigs.k8s.io/yaml"
 )
 
@@ -331,6 +332,14 @@ func (rc *runtimeConfig) SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec) {
 // SetHostCABundlePath sets the path to the host CA bundle.
 func (rc *runtimeConfig) SetHostCABundlePath(hostCABundlePath string) {
 	rc.spec.HostCABundlePath = hostCABundlePath
+}
+
+// GetKubernetesEnvSettings returns a minimal helm environment settings with just the kubeconfig path.
+// For Linux target, this builds the settings from the runtime config kubeconfig path.
+func (rc *runtimeConfig) GetKubernetesEnvSettings() *helmcli.EnvSettings {
+	envSettings := helmcli.New()
+	envSettings.KubeConfig = rc.PathToKubeConfig()
+	return envSettings
 }
 
 func mkdirAll(path string) error {

@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,19 +36,19 @@ type KotsCLIInstaller interface {
 
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
-	infraStore       infrastore.Store
-	password         string
-	tlsConfig        types.TLSConfig
-	license          []byte
-	airgapBundle     string
-	releaseData      *release.ReleaseData
-	endUserConfig    *ecv1beta1.Config
-	logger           logrus.FieldLogger
-	kcli             client.Client
-	mcli             metadata.Interface
-	hcli             helm.Client
-	restClientGetter genericclioptions.RESTClientGetter
-	mu               sync.RWMutex
+	infraStore            infrastore.Store
+	password              string
+	tlsConfig             types.TLSConfig
+	license               []byte
+	airgapBundle          string
+	releaseData           *release.ReleaseData
+	endUserConfig         *ecv1beta1.Config
+	logger                logrus.FieldLogger
+	kcli                  client.Client
+	mcli                  metadata.Interface
+	hcli                  helm.Client
+	kubernetesEnvSettings *helmcli.EnvSettings
+	mu                    sync.RWMutex
 }
 
 type InfraManagerOption func(*infraManager)
@@ -118,9 +119,9 @@ func WithHelmClient(hcli helm.Client) InfraManagerOption {
 	}
 }
 
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InfraManagerOption {
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) InfraManagerOption {
 	return func(c *infraManager) {
-		c.restClientGetter = restClientGetter
+		c.kubernetesEnvSettings = envSettings
 	}
 }
 
@@ -140,8 +141,18 @@ func NewInfraManager(opts ...InfraManagerOption) (*infraManager, error) {
 		manager.infraStore = infrastore.NewMemoryStore()
 	}
 
+	// If none is provided, use the default env settings from helm
+	if manager.kubernetesEnvSettings == nil {
+		manager.kubernetesEnvSettings = helmcli.New()
+	}
+
+	var restClientGetter genericclioptions.RESTClientGetter
+	if manager.kubernetesEnvSettings != nil {
+		restClientGetter = manager.kubernetesEnvSettings.RESTClientGetter()
+	}
+
 	if manager.kcli == nil {
-		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: manager.restClientGetter})
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
 		if err != nil {
 			return nil, fmt.Errorf("create kube client: %w", err)
 		}
@@ -149,7 +160,7 @@ func NewInfraManager(opts ...InfraManagerOption) (*infraManager, error) {
 	}
 
 	if manager.mcli == nil {
-		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{RESTClientGetter: manager.restClientGetter})
+		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
 		if err != nil {
 			return nil, fmt.Errorf("create metadata client: %w", err)
 		}
@@ -158,7 +169,7 @@ func NewInfraManager(opts ...InfraManagerOption) (*infraManager, error) {
 
 	if manager.hcli == nil {
 		hcli, err := helm.NewClient(helm.HelmOptions{
-			RESTClientGetter: manager.restClientGetter,
+			KubernetesEnvSettings: manager.kubernetesEnvSettings,
 			// TODO: how can we support airgap?
 			AirgapPath: "",
 			LogFn:      manager.logFn("helm"),

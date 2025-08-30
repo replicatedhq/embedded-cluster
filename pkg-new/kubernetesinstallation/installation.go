@@ -5,6 +5,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 var _ Installation = &kubernetesInstallation{}
@@ -16,8 +17,9 @@ type EnvSetter interface {
 }
 
 type kubernetesInstallation struct {
-	installation *ecv1beta1.KubernetesInstallation
-	envSetter    EnvSetter
+	installation          *ecv1beta1.KubernetesInstallation
+	envSetter             EnvSetter
+	kubernetesEnvSettings *helmcli.EnvSettings
 }
 
 type osEnvSetter struct{}
@@ -128,7 +130,17 @@ func (ki *kubernetesInstallation) SetProxySpec(proxySpec *ecv1beta1.ProxySpec) {
 	ki.installation.Spec.Proxy = proxySpec
 }
 
-// PathToEmbeddedBinary returns the path to an embedded binary by materializing it from the embedded assets.
+// PathToEmbeddedBinary returns the path to the embedded binary.
 func (ki *kubernetesInstallation) PathToEmbeddedBinary(binaryName string) (string, error) {
-	return goods.InternalBinary(binaryName)
+	return goods.Binary(binaryName)
+}
+
+// SetKubernetesEnvSettings sets the helm environment settings.
+func (ki *kubernetesInstallation) SetKubernetesEnvSettings(envSettings *helmcli.EnvSettings) {
+	ki.kubernetesEnvSettings = envSettings
+}
+
+// GetKubernetesEnvSettings returns the helm environment settings.
+func (ki *kubernetesInstallation) GetKubernetesEnvSettings() *helmcli.EnvSettings {
+	return ki.kubernetesEnvSettings
 }

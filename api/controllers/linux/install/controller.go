@@ -268,7 +268,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 			appcontroller.WithK8sVersion(versions.K0sVersion),                                  // Used to determine the kubernetes version for the helm client
-			appcontroller.WithKubeConfigPath(controller.rc.PathToKubeConfig()),
+			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)

@@ -52,9 +52,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	helmcli "helm.sh/helm/v3/pkg/cli"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -99,8 +99,6 @@ type installConfig struct {
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
-
-	kubernetesRESTClientGetter genericclioptions.RESTClientGetter
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -577,7 +575,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	return nil
 }
 
-func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kubernetesinstallation.Installation) error {
+func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, ki kubernetesinstallation.Installation) error {
 	// TODO: we only support amd64 clusters for target=kubernetes installs
 	helpers.SetClusterArch("amd64")
 
@@ -590,7 +588,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		}
 	}
 
-	restConfig, err := flags.kubernetesEnvSettings.RESTClientGetter().ToRESTConfig()
+	restConfig, err := clientcmd.BuildConfigFromFlags("", flags.kubernetesEnvSettings.KubeConfig)
 	if err != nil {
 		return fmt.Errorf("failed to discover kubeconfig: %w", err)
 	}
@@ -605,7 +603,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		return fmt.Errorf("failed to connect to kubernetes api server: %w", err)
 	}
 
-	flags.kubernetesRESTClientGetter = flags.kubernetesEnvSettings.RESTClientGetter()
+	ki.SetKubernetesEnvSettings(flags.kubernetesEnvSettings)
 
 	return nil
 }
@@ -717,8 +715,7 @@ func runManagerExperienceInstall(
 				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
-				RESTClientGetter: flags.kubernetesRESTClientGetter,
-				Installation:     ki,
+				Installation: ki,
 			},
 		},
 
@@ -802,9 +799,9 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K8sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create helm client: %w", err)

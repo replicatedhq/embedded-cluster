@@ -18,7 +18,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 type Controller interface {
@@ -34,22 +33,22 @@ type Controller interface {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager installation.InstallationManager
-	infraManager        infra.InfraManager
-	metricsReporter     metrics.ReporterInterface
-	k8sVersion          string
-	restClientGetter    genericclioptions.RESTClientGetter
-	releaseData         *release.ReleaseData
-	password            string
-	tlsConfig           types.TLSConfig
-	license             []byte
-	airgapBundle        string
-	configValues        types.AppConfigValues
-	endUserConfig       *ecv1beta1.Config
-	store               store.Store
-	ki                  kubernetesinstallation.Installation
-	stateMachine        statemachine.Interface
-	logger              logrus.FieldLogger
+	installationManager   installation.InstallationManager
+	infraManager          infra.InfraManager
+	metricsReporter       metrics.ReporterInterface
+	k8sVersion            string
+	kubernetesEnvSettings *helmcli.EnvSettings
+	releaseData           *release.ReleaseData
+	password              string
+	tlsConfig             types.TLSConfig
+	license               []byte
+	airgapBundle          string
+	configValues          types.AppConfigValues
+	endUserConfig         *ecv1beta1.Config
+	store                 store.Store
+	ki                    kubernetesinstallation.Installation
+	stateMachine          statemachine.Interface
+	logger                logrus.FieldLogger
 	// App controller composition
 	*appcontroller.InstallController
 }
@@ -80,9 +79,9 @@ func WithK8sVersion(k8sVersion string) InstallControllerOption {
 	}
 }
 
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) InstallControllerOption {
 	return func(c *InstallController) {
-		c.restClientGetter = restClientGetter
+		c.kubernetesEnvSettings = envSettings
 	}
 }
 
@@ -176,9 +175,9 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
-	// If none is provided, use the default env settings from helm to create a RESTClientGetter
-	if controller.restClientGetter == nil {
-		controller.restClientGetter = helmcli.New().RESTClientGetter()
+	// If none is provided, use the default env settings from helm
+	if controller.kubernetesEnvSettings == nil {
+		controller.kubernetesEnvSettings = helmcli.New()
 	}
 
 	if controller.installationManager == nil {
@@ -200,7 +199,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""),    // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithK8sVersion(controller.k8sVersion), // Used to determine the kubernetes version for the helm client
-			appcontroller.WithRESTClientGetter(controller.restClientGetter),
+			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
@@ -212,7 +211,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		infraManager, err := infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.KubernetesInfraStore()),
-			infra.WithRESTClientGetter(controller.restClientGetter),
+			infra.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 			infra.WithPassword(controller.password),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),

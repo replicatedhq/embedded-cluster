@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 type Handler struct {
@@ -52,7 +53,11 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 
 	// TODO (@team): discuss which of these should / should not be pointers
 	if h.installController == nil {
-		k8sVersion, err := getK8sVersion(h.cfg.RESTClientGetter)
+		var restClientGetter genericclioptions.RESTClientGetter
+		if ks := h.cfg.Installation.GetKubernetesEnvSettings(); ks != nil {
+			restClientGetter = ks.RESTClientGetter()
+		}
+		k8sVersion, err := getK8sVersion(restClientGetter)
 		if err != nil {
 			return nil, fmt.Errorf("get k8s version: %w", err)
 		}
@@ -61,7 +66,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithLogger(h.logger),
 			install.WithMetricsReporter(h.metricsReporter),
 			install.WithK8sVersion(k8sVersion),
-			install.WithRESTClientGetter(h.cfg.RESTClientGetter),
+			install.WithKubernetesEnvSettings(h.cfg.Installation.GetKubernetesEnvSettings()),
 			install.WithReleaseData(h.cfg.ReleaseData),
 			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),

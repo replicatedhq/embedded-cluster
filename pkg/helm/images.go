@@ -68,14 +68,14 @@ func ExtractImagesFromChart(hcli Client, ref string, version string, values map[
 	return images, nil
 }
 
-func GetChartMetadata(hcli Client, ref string, version string) (*chart.Metadata, error) {
-	chartPath, err := hcli.PullByRef(ref, version)
+func GetChartMetadata(ctx context.Context, hcli Client, ref string, version string) (*chart.Metadata, error) {
+	chartPath, err := hcli.PullByRef(ctx, ref, version)
 	if err != nil {
 		return nil, fmt.Errorf("pull: %w", err)
 	}
 	defer os.RemoveAll(chartPath)
 
-	return hcli.GetChartMetadata(chartPath)
+	return hcli.GetChartMetadata(ctx, chartPath)
 }
 
 func extractImagesFromK8sManifest(resource []byte) ([]string, error) {

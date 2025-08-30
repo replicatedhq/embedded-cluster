@@ -59,7 +59,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest openebs chart version")
-			latest, err := LatestChartVersion(hcli, openebsRepo, "openebs")
+			latest, err := LatestChartVersion(c.Context, hcli, openebsRepo, "openebs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
 			}
@@ -75,7 +75,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-		if err := MirrorChart(hcli, openebsRepo, "openebs", nextChartVersion); err != nil {
+		if err := MirrorChart(c.Context, hcli, openebsRepo, "openebs", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror openebs chart: %v", err)
 		}
 

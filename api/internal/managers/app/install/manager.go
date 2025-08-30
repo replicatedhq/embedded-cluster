@@ -12,7 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 var _ AppInstallManager = &appInstallManager{}
@@ -32,17 +32,16 @@ type AppInstallManager interface {
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	appInstallStore  appinstallstore.Store
-	releaseData      *release.ReleaseData
-	license          []byte
-	clusterID        string
-	airgapBundle     string
-	kotsCLI          KotsCLIInstaller
-	logger           logrus.FieldLogger
-	hcli             helm.Client
-	k8sVersion       string
-	kubeConfigPath   string
-	restClientGetter genericclioptions.RESTClientGetter
+	appInstallStore       appinstallstore.Store
+	releaseData           *release.ReleaseData
+	license               []byte
+	clusterID             string
+	airgapBundle          string
+	kotsCLI               KotsCLIInstaller
+	logger                logrus.FieldLogger
+	hcli                  helm.Client
+	k8sVersion            string
+	kubernetesEnvSettings *helmcli.EnvSettings
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -102,15 +101,9 @@ func WithK8sVersion(k8sVersion string) AppInstallManagerOption {
 	}
 }
 
-func WithKubeConfigPath(path string) AppInstallManagerOption {
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppInstallManagerOption {
 	return func(m *appInstallManager) {
-		m.kubeConfigPath = path
-	}
-}
-
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.restClientGetter = restClientGetter
+		m.kubernetesEnvSettings = envSettings
 	}
 }
 

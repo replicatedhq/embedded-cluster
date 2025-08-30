@@ -405,9 +405,9 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K8sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create helm client: %w", err)
@@ -612,9 +612,9 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K8sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("create helm client: %w", err)
@@ -710,9 +710,9 @@ func runRestoreExtensions(ctx context.Context, flags InstallCmdFlags, rc runtime
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K8sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create helm client: %w", err)

@@ -80,9 +80,9 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K8sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create helm client: %w", err)

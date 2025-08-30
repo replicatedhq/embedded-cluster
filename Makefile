@@ -104,6 +104,23 @@ output/bins/kubectl-support_bundle-%:
 	rm -rf output/tmp
 	touch $@
 
+.PHONY: cmd/installer/goods/bins/helm
+cmd/installer/goods/bins/helm:
+	$(MAKE) output/bins/helm-$(HELM_VERSION)-$(ARCH)
+	cp output/bins/helm-$(HELM_VERSION)-$(ARCH) $@
+	touch $@
+
+output/bins/helm-%:
+	mkdir -p output/bins
+	mkdir -p output/tmp
+	curl --retry 5 --retry-all-errors -fL -o output/tmp/helm.tar.gz \
+		https://get.helm.sh/helm-$(call split-hyphen,$*,1)-$(OS)-$(call split-hyphen,$*,2).tar.gz
+	tar -xzf output/tmp/helm.tar.gz -C output/tmp
+	mv output/tmp/$(OS)-$(call split-hyphen,$*,2)/helm $@
+	rm -rf output/tmp
+	chmod +x $@
+	touch $@
+
 .PHONY: cmd/installer/goods/bins/kubectl-preflight
 cmd/installer/goods/bins/kubectl-preflight:
 	$(MAKE) output/bins/kubectl-preflight-$(TROUBLESHOOT_VERSION)-$(ARCH)
@@ -229,6 +246,7 @@ static: cmd/installer/goods/bins/k0s \
 	cmd/installer/goods/bins/kubectl-support_bundle \
 	cmd/installer/goods/bins/local-artifact-mirror \
 	cmd/installer/goods/bins/fio \
+	cmd/installer/goods/bins/helm \
 	cmd/installer/goods/internal/bins/kubectl-kots
 
 .PHONY: static-dryrun
@@ -238,6 +256,7 @@ static-dryrun:
 		cmd/installer/goods/bins/kubectl-support_bundle \
 		cmd/installer/goods/bins/local-artifact-mirror \
 		cmd/installer/goods/bins/fio \
+		cmd/installer/goods/bins/helm \
 		cmd/installer/goods/internal/bins/kubectl-kots
 
 .PHONY: embedded-cluster-linux-amd64

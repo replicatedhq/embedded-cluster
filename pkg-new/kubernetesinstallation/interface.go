@@ -2,6 +2,7 @@ package kubernetesinstallation
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 // Installation defines the interface for managing kubernetes installation
@@ -24,4 +25,7 @@ type Installation interface {
 	SetProxySpec(proxySpec *ecv1beta1.ProxySpec)
 
 	PathToEmbeddedBinary(binaryName string) (string, error)
+
+	SetKubernetesEnvSettings(envSettings *helmcli.EnvSettings)
+	GetKubernetesEnvSettings() *helmcli.EnvSettings
 }

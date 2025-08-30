@@ -2,6 +2,7 @@ package runtimeconfig
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 // RuntimeConfig defines the interface for managing runtime configuration
@@ -47,4 +48,6 @@ type RuntimeConfig interface {
 	SetProxySpec(proxySpec *ecv1beta1.ProxySpec)
 	SetNetworkSpec(networkSpec ecv1beta1.NetworkSpec)
 	SetHostCABundlePath(hostCABundlePath string)
+
+	GetKubernetesEnvSettings() *helmcli.EnvSettings
 }

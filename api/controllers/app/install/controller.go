@@ -16,7 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -49,8 +49,7 @@ type InstallController struct {
 	airgapBundle               string
 	privateCACertConfigMapName string
 	k8sVersion                 string
-	restClientGetter           genericclioptions.RESTClientGetter
-	kubeConfigPath             string
+	kubernetesEnvSettings      *helmcli.EnvSettings
 }
 
 type InstallControllerOption func(*InstallController)
@@ -139,15 +138,9 @@ func WithK8sVersion(k8sVersion string) InstallControllerOption {
 	}
 }
 
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) InstallControllerOption {
 	return func(c *InstallController) {
-		c.restClientGetter = restClientGetter
-	}
-}
-
-func WithKubeConfigPath(kubeConfigPath string) InstallControllerOption {
-	return func(c *InstallController) {
-		c.kubeConfigPath = kubeConfigPath
+		c.kubernetesEnvSettings = envSettings
 	}
 }
 
@@ -229,8 +222,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 			appinstallmanager.WithK8sVersion(controller.k8sVersion),
-			appinstallmanager.WithRESTClientGetter(controller.restClientGetter),
-			appinstallmanager.WithKubeConfigPath(controller.kubeConfigPath),
+			appinstallmanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
