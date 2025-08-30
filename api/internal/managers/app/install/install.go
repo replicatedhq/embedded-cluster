@@ -144,7 +144,7 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 	logFn("installing %d helm charts", len(installableCharts))
 
 	for _, installableChart := range installableCharts {
-		chartName := installableChart.CR.GetChartName()
+		chartName := getChartDisplayName(installableChart)
 		logFn("installing %s chart", chartName)
 
 		if err := m.installHelmChart(ctx, installableChart); err != nil {
@@ -160,7 +160,7 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 }
 
 func (m *appInstallManager) installHelmChart(ctx context.Context, installableChart types.InstallableHelmChart) (finalErr error) {
-	chartName := installableChart.CR.GetChartName()
+	chartName := getChartDisplayName(installableChart)
 
 	if err := m.setComponentStatus(chartName, types.StateRunning, "Installing"); err != nil {
 		return fmt.Errorf("set component status: %w", err)
@@ -203,7 +203,7 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 		Values:      installableChart.Values,
 	})
 	if err != nil {
-		return fmt.Errorf("helm install: %w", err)
+		return err // do not wrap as wrapping is repetitive, e.g. "helm install: helm install: context deadline exceeded"
 	}
 
 	return nil
@@ -213,8 +213,18 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 func (m *appInstallManager) initializeComponents(charts []types.InstallableHelmChart) error {
 	chartNames := make([]string, 0, len(charts))
 	for _, chart := range charts {
-		chartNames = append(chartNames, chart.CR.GetChartName())
+		chartNames = append(chartNames, getChartDisplayName(chart))
 	}
 
 	return m.appInstallStore.RegisterComponents(chartNames)
+}
+
+// getChartDisplayName returns the name of the chart for display purposes. It prefers the
+// metadata.name field if available and falls back to the chart name.
+func getChartDisplayName(chart types.InstallableHelmChart) string {
+	chartName := chart.CR.GetName()
+	if chartName == "" {
+		chartName = chart.CR.GetChartName()
+	}
+	return chartName
 }
