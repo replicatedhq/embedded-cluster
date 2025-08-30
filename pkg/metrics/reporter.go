@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	nodeutil "k8s.io/component-helpers/node/util"
 )
 
 // ErrorNoFail is an error that is excluded from metrics failures.
@@ -239,7 +240,7 @@ func (r *Reporter) ReportSignalAborted(ctx context.Context, signal os.Signal) {
 
 // getHostname returns the hostname or "unknown" if there's an error.
 func getHostname() string {
-	hostname, err := os.Hostname()
+	hostname, err := nodeutil.GetHostname("")
 	if err != nil {
 		logrus.Warnf("unable to get hostname: %s", err)
 		hostname = "unknown"

@@ -36,6 +36,7 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/metadata"
+	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -203,7 +204,7 @@ func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtime
 		return fmt.Errorf("unable to get metadata client: %w", err)
 	}
 
-	hostname, err := os.Hostname()
+	nodename, err := nodeutil.GetHostname("")
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return fmt.Errorf("unable to get hostname: %w", err)
@@ -211,7 +212,6 @@ func runJoin(ctx context.Context, appSlug string, flags JoinCmdFlags, rc runtime
 
 	logrus.Debugf("waiting for node to join cluster")
 	loading.Infof("Waiting for node")
-	nodename := strings.ToLower(hostname)
 	if err := waitForNodeToJoin(ctx, kcli, nodename, isWorker); err != nil {
 		loading.ErrorClosef("Node failed to become ready")
 		return fmt.Errorf("unable to wait for node: %w", err)
