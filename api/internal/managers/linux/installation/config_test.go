@@ -325,6 +325,151 @@ func TestSetConfigDefaults(t *testing.T) {
 	})
 }
 
+func TestGetDefaults(t *testing.T) {
+	tests := []struct {
+		name            string
+		setupMocks      func(*utils.MockNetUtils)
+		setupEnv        func(t *testing.T)
+		expectedDefaults types.LinuxInstallationConfig
+		expectedErr     bool
+	}{
+		{
+			name: "successful defaults with network interface detection and no proxy env vars",
+			setupMocks: func(mockNetUtils *utils.MockNetUtils) {
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil)
+			},
+			setupEnv: func(t *testing.T) {
+				// Ensure proxy environment variables are not set
+				t.Setenv("HTTP_PROXY", "")
+				t.Setenv("http_proxy", "")
+				t.Setenv("HTTPS_PROXY", "")
+				t.Setenv("https_proxy", "")
+				t.Setenv("NO_PROXY", "")
+				t.Setenv("no_proxy", "")
+			},
+			expectedDefaults: types.LinuxInstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/test/data/dir",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
+				NetworkInterface:        "eth0",
+				HTTPProxy:               "",
+				HTTPSProxy:              "",
+				NoProxy:                 "",
+			},
+			expectedErr: false,
+		},
+		{
+			name: "successful defaults with proxy environment variables set",
+			setupMocks: func(mockNetUtils *utils.MockNetUtils) {
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil)
+			},
+			setupEnv: func(t *testing.T) {
+				// Set proxy environment variables
+				t.Setenv("HTTP_PROXY", "http://proxy.example.com:3128")
+				t.Setenv("HTTPS_PROXY", "https://proxy.example.com:3128") 
+				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
+			},
+			expectedDefaults: types.LinuxInstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/test/data/dir",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
+				NetworkInterface:        "eth0",
+				HTTPProxy:               "http://proxy.example.com:3128",
+				HTTPSProxy:              "https://proxy.example.com:3128",
+				NoProxy:                 "localhost,127.0.0.1",
+			},
+			expectedErr: false,
+		},
+		{
+			name: "successful defaults with lowercase proxy environment variables",
+			setupMocks: func(mockNetUtils *utils.MockNetUtils) {
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil)
+			},
+			setupEnv: func(t *testing.T) {
+				// Set lowercase proxy environment variables (higher precedence)
+				t.Setenv("http_proxy", "http://lower-proxy.example.com:8080")
+				t.Setenv("https_proxy", "https://lower-proxy.example.com:8080")
+				t.Setenv("no_proxy", "localhost,127.0.0.1,.example.com")
+				// Also set uppercase ones to verify lowercase takes precedence
+				t.Setenv("HTTP_PROXY", "http://upper-proxy.example.com:3128")
+				t.Setenv("HTTPS_PROXY", "https://upper-proxy.example.com:3128")
+				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
+			},
+			expectedDefaults: types.LinuxInstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/test/data/dir",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
+				NetworkInterface:        "eth0",
+				HTTPProxy:               "http://lower-proxy.example.com:8080",
+				HTTPSProxy:              "https://lower-proxy.example.com:8080",
+				NoProxy:                 "localhost,127.0.0.1,.example.com",
+			},
+			expectedErr: false,
+		},
+		{
+			name: "network interface detection fails with proxy env vars",
+			setupMocks: func(mockNetUtils *utils.MockNetUtils) {
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("", errors.New("network detection failed"))
+			},
+			setupEnv: func(t *testing.T) {
+				t.Setenv("HTTP_PROXY", "http://proxy.example.com:3128")
+				t.Setenv("HTTPS_PROXY", "https://proxy.example.com:3128")
+				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
+			},
+			expectedDefaults: types.LinuxInstallationConfig{
+				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+				DataDirectory:           "/test/data/dir",
+				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
+				NetworkInterface:        "", // Should be empty when detection fails
+				HTTPProxy:               "http://proxy.example.com:3128",
+				HTTPSProxy:              "https://proxy.example.com:3128",
+				NoProxy:                 "localhost,127.0.0.1",
+			},
+			expectedErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup environment variables
+			if tt.setupEnv != nil {
+				tt.setupEnv(t)
+			}
+
+			// Create a mock RuntimeConfig
+			mockRC := &runtimeconfig.MockRuntimeConfig{}
+			testDataDir := "/test/data/dir"
+			mockRC.On("EmbeddedClusterHomeDirectory").Return(testDataDir)
+
+			// Create mock NetUtils
+			mockNetUtils := &utils.MockNetUtils{}
+			tt.setupMocks(mockNetUtils)
+
+			// Create manager with mocks
+			manager := NewInstallationManager(WithNetUtils(mockNetUtils))
+
+			// Call GetDefaults
+			defaults, err := manager.GetDefaults(mockRC)
+
+			// Assertions
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedDefaults, defaults)
+			}
+
+			// Verify mock expectations
+			mockRC.AssertExpectations(t)
+			mockNetUtils.AssertExpectations(t)
+		})
+	}
+}
+
 func TestConfigSetAndGet(t *testing.T) {
 	manager := NewInstallationManager()
 

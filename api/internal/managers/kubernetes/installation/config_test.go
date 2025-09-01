@@ -160,6 +160,40 @@ func TestSetConfigDefaultsNoEnvProxy(t *testing.T) {
 	assert.Empty(t, config.NoProxy, "NoProxy should not be set from environment variable")
 }
 
+func TestGetDefaults(t *testing.T) {
+	tests := []struct {
+		name            string
+		expectedDefaults types.KubernetesInstallationConfig
+		expectedErr     bool
+	}{
+		{
+			name: "successful defaults",
+			expectedDefaults: types.KubernetesInstallationConfig{
+				AdminConsolePort: ecv1beta1.DefaultAdminConsolePort,
+			},
+			expectedErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create manager
+			manager := NewInstallationManager()
+
+			// Call GetDefaults
+			defaults, err := manager.GetDefaults()
+
+			// Assertions
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedDefaults, defaults)
+			}
+		})
+	}
+}
+
 func TestConfigSetAndGet(t *testing.T) {
 	manager := NewInstallationManager()
 

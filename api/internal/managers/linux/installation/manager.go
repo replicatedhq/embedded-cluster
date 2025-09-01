@@ -19,6 +19,7 @@ var _ InstallationManager = &installationManager{}
 type InstallationManager interface {
 	GetConfig() (types.LinuxInstallationConfig, error)
 	SetConfig(config types.LinuxInstallationConfig) error
+	GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error

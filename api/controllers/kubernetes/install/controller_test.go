@@ -29,7 +29,7 @@ func TestGetInstallationConfig(t *testing.T) {
 		name          string
 		setupMock     func(*installation.MockInstallationManager)
 		expectedErr   bool
-		expectedValue types.KubernetesInstallationConfig
+		expectedValue types.KubernetesInstallationConfigResponse
 	}{
 		{
 			name: "successful get",
@@ -41,18 +41,26 @@ func TestGetInstallationConfig(t *testing.T) {
 					NoProxy:          "localhost,127.0.0.1",
 				}
 
+				defaults := types.KubernetesInstallationConfig{
+					AdminConsolePort: 9090,
+				}
+
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", config, 9001).Return(nil),
+					m.On("GetDefaults").Return(defaults, nil),
 				)
 			},
 			expectedErr: false,
-			expectedValue: types.KubernetesInstallationConfig{
-				AdminConsolePort: 9000,
-				HTTPProxy:        "http://proxy.example.com:3128",
-				HTTPSProxy:       "https://proxy.example.com:3128",
-				NoProxy:          "localhost,127.0.0.1",
+			expectedValue: types.KubernetesInstallationConfigResponse{
+				Values: types.KubernetesInstallationConfig{
+					AdminConsolePort: 9000,
+					HTTPProxy:        "http://proxy.example.com:3128",
+					HTTPSProxy:       "https://proxy.example.com:3128",
+					NoProxy:          "localhost,127.0.0.1",
+				},
+				Defaults: types.KubernetesInstallationConfig{
+					AdminConsolePort: 9090,
+				},
 			},
 		},
 		{
@@ -61,7 +69,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				m.On("GetConfig").Return(types.KubernetesInstallationConfig{}, errors.New("read error"))
 			},
 			expectedErr:   true,
-			expectedValue: types.KubernetesInstallationConfig{},
+			expectedValue: types.KubernetesInstallationConfigResponse{},
 		},
 		{
 			name: "set defaults error",
@@ -69,24 +77,11 @@ func TestGetInstallationConfig(t *testing.T) {
 				config := types.KubernetesInstallationConfig{}
 				mock.InOrder(
 					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(errors.New("defaults error")),
+					m.On("GetDefaults").Return(types.KubernetesInstallationConfig{}, errors.New("defaults error")),
 				)
 			},
 			expectedErr:   true,
-			expectedValue: types.KubernetesInstallationConfig{},
-		},
-		{
-			name: "validate error",
-			setupMock: func(m *installation.MockInstallationManager) {
-				config := types.KubernetesInstallationConfig{}
-				mock.InOrder(
-					m.On("GetConfig").Return(config, nil),
-					m.On("SetConfigDefaults", &config).Return(nil),
-					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
-				)
-			},
-			expectedErr:   true,
-			expectedValue: types.KubernetesInstallationConfig{},
+			expectedValue: types.KubernetesInstallationConfigResponse{},
 		},
 	}
 
@@ -109,7 +104,7 @@ func TestGetInstallationConfig(t *testing.T) {
 
 			if tt.expectedErr {
 				assert.Error(t, err)
-				assert.Equal(t, types.KubernetesInstallationConfig{}, result)
+				assert.Equal(t, types.KubernetesInstallationConfigResponse{}, result)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedValue, result)
@@ -142,10 +137,23 @@ func TestConfigureInstallation(t *testing.T) {
 
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					m.On("SetConfigDefaults", &config).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(nil),
 				)
 			},
 			expectedErr: false,
+		},
+		{
+			name:          "set config defaults error",
+			config:        types.KubernetesInstallationConfig{},
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateInstallationConfigurationFailed,
+			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
+				mock.InOrder(
+					m.On("SetConfigDefaults", &config).Return(errors.New("set config defaults error")),
+				)
+			},
+			expectedErr: true,
 		},
 		{
 			name:          "configure installation error",
@@ -154,6 +162,7 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					m.On("SetConfigDefaults", &config).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
@@ -168,6 +177,7 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					m.On("SetConfigDefaults", &config).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
@@ -182,6 +192,7 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					m.On("SetConfigDefaults", &config).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
 					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),

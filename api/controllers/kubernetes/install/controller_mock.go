@@ -16,12 +16,12 @@ type MockController struct {
 }
 
 // GetInstallationConfig mocks the GetInstallationConfig method
-func (m *MockController) GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfig, error) {
+func (m *MockController) GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return types.KubernetesInstallationConfig{}, args.Error(1)
+		return types.KubernetesInstallationConfigResponse{}, args.Error(1)
 	}
-	return args.Get(0).(types.KubernetesInstallationConfig), args.Error(1)
+	return args.Get(0).(types.KubernetesInstallationConfigResponse), args.Error(1)
 }
 
 // ConfigureInstallation mocks the ConfigureInstallation method

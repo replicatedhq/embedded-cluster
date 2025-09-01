@@ -19,6 +19,29 @@ func (m *installationManager) SetConfig(config types.KubernetesInstallationConfi
 	return m.installationStore.SetConfig(config)
 }
 
+// GetDefaults returns the default values for Kubernetes installation configuration
+func (m *installationManager) GetDefaults() (types.KubernetesInstallationConfig, error) {
+	defaults := types.KubernetesInstallationConfig{
+		AdminConsolePort: ecv1beta1.DefaultAdminConsolePort,
+	}
+
+	return defaults, nil
+}
+
+// SetConfigDefaults sets default values for the installation configuration
+func (m *installationManager) SetConfigDefaults(config *types.KubernetesInstallationConfig) error {
+	defaults, err := m.GetDefaults()
+	if err != nil {
+		return fmt.Errorf("get defaults: %w", err)
+	}
+
+	if config.AdminConsolePort == 0 {
+		config.AdminConsolePort = defaults.AdminConsolePort
+	}
+
+	return nil
+}
+
 func (m *installationManager) ValidateConfig(config types.KubernetesInstallationConfig, managerPort int) error {
 	var ve *types.APIError
 
@@ -36,15 +59,6 @@ func (m *installationManager) validateAdminConsolePort(config types.KubernetesIn
 
 	if config.AdminConsolePort == managerPort {
 		return errors.New("adminConsolePort cannot be the same as the manager port")
-	}
-
-	return nil
-}
-
-// SetConfigDefaults sets default values for the installation configuration
-func (m *installationManager) SetConfigDefaults(config *types.KubernetesInstallationConfig) error {
-	if config.AdminConsolePort == 0 {
-		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
 	}
 
 	return nil

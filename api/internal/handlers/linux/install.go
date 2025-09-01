@@ -17,7 +17,7 @@ import (
 //	@Tags			linux-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.LinuxInstallationConfig
+//	@Success		200	{object}	types.LinuxInstallationConfigResponse
 //	@Router			/linux/install/installation/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetInstallationConfig(r.Context())

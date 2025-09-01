@@ -204,10 +204,10 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
-				assert.Equal(t, tc.config.HTTPProxy, storedConfig.HTTPProxy)
-				assert.Equal(t, tc.config.HTTPSProxy, storedConfig.HTTPSProxy)
-				assert.Equal(t, tc.config.NoProxy, storedConfig.NoProxy)
+				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.Values.AdminConsolePort)
+				assert.Equal(t, tc.config.HTTPProxy, storedConfig.Values.HTTPProxy)
+				assert.Equal(t, tc.config.HTTPSProxy, storedConfig.Values.HTTPSProxy)
+				assert.Equal(t, tc.config.NoProxy, storedConfig.Values.NoProxy)
 
 				// Verify that the installation was updated
 				if tc.validateInstallation != nil {
@@ -409,15 +409,21 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var config types.KubernetesInstallationConfig
-		err = json.NewDecoder(rec.Body).Decode(&config)
+		var configResponse types.KubernetesInstallationConfigResponse
+		err = json.NewDecoder(rec.Body).Decode(&configResponse)
 		require.NoError(t, err)
 
 		// Verify the installation data matches what we expect
-		assert.Equal(t, initialConfig.AdminConsolePort, config.AdminConsolePort)
-		assert.Equal(t, initialConfig.HTTPProxy, config.HTTPProxy)
-		assert.Equal(t, initialConfig.HTTPSProxy, config.HTTPSProxy)
-		assert.Equal(t, initialConfig.NoProxy, config.NoProxy)
+		assert.Equal(t, initialConfig.AdminConsolePort, configResponse.Values.AdminConsolePort)
+		assert.Equal(t, initialConfig.HTTPProxy, configResponse.Values.HTTPProxy)
+		assert.Equal(t, initialConfig.HTTPSProxy, configResponse.Values.HTTPSProxy)
+		assert.Equal(t, initialConfig.NoProxy, configResponse.Values.NoProxy)
+		
+		// Verify that defaults are properly populated
+		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Defaults.AdminConsolePort)
+		assert.Equal(t, "", configResponse.Defaults.HTTPProxy)  // Empty when no env vars
+		assert.Equal(t, "", configResponse.Defaults.HTTPSProxy) // Empty when no env vars  
+		assert.Equal(t, "", configResponse.Defaults.NoProxy)    // Empty when no env vars
 	})
 
 	// Test get with default/empty configuration
@@ -459,15 +465,21 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var config types.KubernetesInstallationConfig
-		err = json.NewDecoder(rec.Body).Decode(&config)
+		var configResponse types.KubernetesInstallationConfigResponse
+		err = json.NewDecoder(rec.Body).Decode(&configResponse)
 		require.NoError(t, err)
 
 		// Verify the installation data contains defaults or empty values
-		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, config.AdminConsolePort)
-		assert.Equal(t, "", config.HTTPProxy)
-		assert.Equal(t, "", config.HTTPSProxy)
-		assert.Equal(t, "", config.NoProxy)
+		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Values.AdminConsolePort)
+		assert.Equal(t, "", configResponse.Values.HTTPProxy)
+		assert.Equal(t, "", configResponse.Values.HTTPSProxy)
+		assert.Equal(t, "", configResponse.Values.NoProxy)
+		
+		// Verify that defaults are properly populated
+		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Defaults.AdminConsolePort)
+		assert.Equal(t, "", configResponse.Defaults.HTTPProxy)  // Empty when no env vars set
+		assert.Equal(t, "", configResponse.Defaults.HTTPSProxy) // Empty when no env vars set
+		assert.Equal(t, "", configResponse.Defaults.NoProxy)    // Empty when no env vars set
 	})
 
 	// Test authorization
@@ -494,7 +506,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	t.Run("Controller error", func(t *testing.T) {
 		// Create a mock controller that returns an error
 		mockController := &kubernetesinstall.MockController{}
-		mockController.On("GetInstallationConfig", mock.Anything).Return(types.KubernetesInstallationConfig{}, assert.AnError)
+		mockController.On("GetInstallationConfig", mock.Anything).Return(types.KubernetesInstallationConfigResponse{}, assert.AnError)
 
 		// Create the API with the mock controller
 		apiInstance := integration.NewAPIWithReleaseData(t,

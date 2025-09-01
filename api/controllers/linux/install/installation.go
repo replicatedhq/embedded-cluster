@@ -13,21 +13,23 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
-	config, err := c.installationManager.GetConfig()
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
+	// Get stored config (user values only)
+	values, err := c.installationManager.GetConfig()
 	if err != nil {
-		return types.LinuxInstallationConfig{}, err
+		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get config: %w", err)
 	}
 
-	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
-		return types.LinuxInstallationConfig{}, fmt.Errorf("set defaults: %w", err)
+	// Get defaults separately
+	defaults, err := c.installationManager.GetDefaults(c.rc)
+	if err != nil {
+		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get defaults: %w", err)
 	}
 
-	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
-		return types.LinuxInstallationConfig{}, fmt.Errorf("validate: %w", err)
-	}
-
-	return config, nil
+	return types.LinuxInstallationConfigResponse{
+		Values:   values,
+		Defaults: defaults,
+	}, nil
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error {
@@ -108,6 +110,11 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 			}
 		}
 	}()
+
+	// Apply defaults
+	if err := c.installationManager.SetConfigDefaults(&config, c.rc); err != nil {
+		return fmt.Errorf("apply defaults: %w", err)
+	}
 
 	if err := c.installationManager.ValidateConfig(config, c.rc.ManagerPort()); err != nil {
 		return fmt.Errorf("validate: %w", err)

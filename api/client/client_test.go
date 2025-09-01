@@ -112,9 +112,11 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.LinuxInstallationConfig{
-			GlobalCIDR:       "10.0.0.0/24",
-			AdminConsolePort: 8080,
+		json.NewEncoder(w).Encode(types.LinuxInstallationConfigResponse{
+			Values: types.LinuxInstallationConfig{
+				GlobalCIDR:       "10.0.0.0/24",
+				AdminConsolePort: 8080,
+			},
 		})
 	}))
 	defer server.Close()
@@ -123,8 +125,8 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	config, err := c.GetLinuxInstallationConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, "10.0.0.0/24", config.GlobalCIDR)
-	assert.Equal(t, 8080, config.AdminConsolePort)
+	assert.Equal(t, "10.0.0.0/24", config.Values.GlobalCIDR)
+	assert.Equal(t, 8080, config.Values.AdminConsolePort)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +141,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	config, err = c.GetLinuxInstallationConfig()
 	assert.Error(t, err)
-	assert.Equal(t, types.LinuxInstallationConfig{}, config)
+	assert.Equal(t, types.LinuxInstallationConfigResponse{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")
@@ -318,11 +320,13 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 
 		// Return successful response
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(types.KubernetesInstallationConfig{
-			HTTPProxy:        "http://proxy.example.com",
-			HTTPSProxy:       "https://proxy.example.com",
-			NoProxy:          "localhost,127.0.0.1",
-			AdminConsolePort: 8080,
+		json.NewEncoder(w).Encode(types.KubernetesInstallationConfigResponse{
+			Values: types.KubernetesInstallationConfig{
+				HTTPProxy:        "http://proxy.example.com",
+				HTTPSProxy:       "https://proxy.example.com",
+				NoProxy:          "localhost,127.0.0.1",
+				AdminConsolePort: 8080,
+			},
 		})
 	}))
 	defer server.Close()
@@ -331,10 +335,10 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 	config, err := c.GetKubernetesInstallationConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, "http://proxy.example.com", config.HTTPProxy)
-	assert.Equal(t, "https://proxy.example.com", config.HTTPSProxy)
-	assert.Equal(t, "localhost,127.0.0.1", config.NoProxy)
-	assert.Equal(t, 8080, config.AdminConsolePort)
+	assert.Equal(t, "http://proxy.example.com", config.Values.HTTPProxy)
+	assert.Equal(t, "https://proxy.example.com", config.Values.HTTPSProxy)
+	assert.Equal(t, "localhost,127.0.0.1", config.Values.NoProxy)
+	assert.Equal(t, 8080, config.Values.AdminConsolePort)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -349,7 +353,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 	c = New(errorServer.URL, WithToken("test-token"))
 	config, err = c.GetKubernetesInstallationConfig()
 	assert.Error(t, err)
-	assert.Equal(t, types.KubernetesInstallationConfig{}, config)
+	assert.Equal(t, types.KubernetesInstallationConfigResponse{}, config)
 
 	apiErr, ok := err.(*types.APIError)
 	require.True(t, ok, "Expected err to be of type *types.APIError")

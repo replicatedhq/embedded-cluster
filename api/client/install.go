@@ -8,31 +8,31 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error) {
+func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfigResponse, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/config", nil)
 	if err != nil {
-		return types.LinuxInstallationConfig{}, err
+		return types.LinuxInstallationConfigResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return types.LinuxInstallationConfig{}, err
+		return types.LinuxInstallationConfigResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.LinuxInstallationConfig{}, errorFromResponse(resp)
+		return types.LinuxInstallationConfigResponse{}, errorFromResponse(resp)
 	}
 
-	var config types.LinuxInstallationConfig
-	err = json.NewDecoder(resp.Body).Decode(&config)
+	var configResponse types.LinuxInstallationConfigResponse
+	err = json.NewDecoder(resp.Body).Decode(&configResponse)
 	if err != nil {
-		return types.LinuxInstallationConfig{}, err
+		return types.LinuxInstallationConfigResponse{}, err
 	}
 
-	return config, nil
+	return configResponse, nil
 }
 
 func (c *client) ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error) {
@@ -155,31 +155,31 @@ func (c *client) GetLinuxInfraStatus() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error) {
+func (c *client) GetKubernetesInstallationConfig() (types.KubernetesInstallationConfigResponse, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/installation/config", nil)
 	if err != nil {
-		return types.KubernetesInstallationConfig{}, err
+		return types.KubernetesInstallationConfigResponse{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	setAuthorizationHeader(req, c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return types.KubernetesInstallationConfig{}, err
+		return types.KubernetesInstallationConfigResponse{}, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.KubernetesInstallationConfig{}, errorFromResponse(resp)
+		return types.KubernetesInstallationConfigResponse{}, errorFromResponse(resp)
 	}
 
-	var config types.KubernetesInstallationConfig
-	err = json.NewDecoder(resp.Body).Decode(&config)
+	var configResponse types.KubernetesInstallationConfigResponse
+	err = json.NewDecoder(resp.Body).Decode(&configResponse)
 	if err != nil {
-		return types.KubernetesInstallationConfig{}, err
+		return types.KubernetesInstallationConfigResponse{}, err
 	}
 
-	return config, nil
+	return configResponse, nil
 }
 
 func (c *client) ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error) {

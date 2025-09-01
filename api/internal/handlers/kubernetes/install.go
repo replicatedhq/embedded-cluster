@@ -16,7 +16,7 @@ import (
 //	@Tags			kubernetes-install
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.KubernetesInstallationConfig
+//	@Success		200	{object}	types.KubernetesInstallationConfigResponse
 //	@Router			/kubernetes/install/installation/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.installController.GetInstallationConfig(r.Context())

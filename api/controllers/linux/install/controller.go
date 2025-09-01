@@ -25,7 +25,7 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error)
+	GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
 	ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) error

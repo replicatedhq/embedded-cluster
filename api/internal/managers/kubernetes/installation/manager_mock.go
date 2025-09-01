@@ -30,6 +30,15 @@ func (m *MockInstallationManager) SetConfig(config types.KubernetesInstallationC
 	return args.Error(0)
 }
 
+// GetDefaults mocks the GetDefaults method
+func (m *MockInstallationManager) GetDefaults() (types.KubernetesInstallationConfig, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return types.KubernetesInstallationConfig{}, args.Error(1)
+	}
+	return args.Get(0).(types.KubernetesInstallationConfig), args.Error(1)
+}
+
 // GetStatus mocks the GetStatus method
 func (m *MockInstallationManager) GetStatus() (types.Status, error) {
 	args := m.Called()
