@@ -32,6 +32,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 		name                 string
 		token                string
 		config               types.KubernetesInstallationConfig
+		expectedConfig       types.KubernetesInstallationConfig
 		expectedStatus       *types.Status
 		expectedStatusCode   int
 		expectedError        bool
@@ -41,6 +42,12 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			name:  "Valid config",
 			token: "TOKEN",
 			config: types.KubernetesInstallationConfig{
+				AdminConsolePort: 9000,
+				HTTPProxy:        "http://proxy.example.com",
+				HTTPSProxy:       "https://proxy.example.com",
+				NoProxy:          "somecompany.internal,192.168.17.0/24",
+			},
+			expectedConfig: types.KubernetesInstallationConfig{
 				AdminConsolePort: 9000,
 				HTTPProxy:        "http://proxy.example.com",
 				HTTPSProxy:       "https://proxy.example.com",
@@ -71,6 +78,12 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				HTTPSProxy:       "https://proxy.example.com",
 				NoProxy:          "somecompany.internal,192.168.17.0/24",
 			},
+			expectedConfig: types.KubernetesInstallationConfig{
+				AdminConsolePort: 30000,
+				HTTPProxy:        "http://proxy.example.com",
+				HTTPSProxy:       "https://proxy.example.com",
+				NoProxy:          "somecompany.internal,192.168.17.0/24",
+			},
 			expectedStatus: &types.Status{
 				State:       types.StateSucceeded,
 				Description: "Installation configured",
@@ -96,6 +109,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				HTTPSProxy:       "https://proxy.example.com",
 				NoProxy:          "somecompany.internal,192.168.17.0/24",
 			},
+			expectedConfig: types.KubernetesInstallationConfig{},
 			expectedStatus: &types.Status{
 				State:       types.StateFailed,
 				Description: "validate: field errors: adminConsolePort cannot be the same as the manager port",
@@ -104,7 +118,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 			expectedError:      true,
 		},
 		{
-			name:  "Invalid config - missing admin console port",
+			name:  "Valid config - missing admin console port will use defaults",
 			token: "TOKEN",
 			config: types.KubernetesInstallationConfig{
 				AdminConsolePort: 0, // Missing port
@@ -112,12 +126,18 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				HTTPSProxy:       "https://proxy.example.com",
 				NoProxy:          "somecompany.internal,192.168.17.0/24",
 			},
-			expectedStatus: &types.Status{
-				State:       types.StateFailed,
-				Description: "validate: field errors: adminConsolePort is required",
+			expectedConfig: types.KubernetesInstallationConfig{
+				AdminConsolePort: 30000, // DefaultAdminConsolePort
+				HTTPProxy:        "http://proxy.example.com",
+				HTTPSProxy:       "https://proxy.example.com",
+				NoProxy:          "somecompany.internal,192.168.17.0/24",
 			},
-			expectedStatusCode: http.StatusBadRequest,
-			expectedError:      true,
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
 		},
 		{
 			name:               "Unauthorized",
@@ -204,10 +224,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.Values.AdminConsolePort)
-				assert.Equal(t, tc.config.HTTPProxy, storedConfig.Values.HTTPProxy)
-				assert.Equal(t, tc.config.HTTPSProxy, storedConfig.Values.HTTPSProxy)
-				assert.Equal(t, tc.config.NoProxy, storedConfig.Values.NoProxy)
+				assert.Equal(t, tc.expectedConfig, storedConfig.Values)
 
 				// Verify that the installation was updated
 				if tc.validateInstallation != nil {
@@ -418,12 +435,9 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		assert.Equal(t, initialConfig.HTTPProxy, configResponse.Values.HTTPProxy)
 		assert.Equal(t, initialConfig.HTTPSProxy, configResponse.Values.HTTPSProxy)
 		assert.Equal(t, initialConfig.NoProxy, configResponse.Values.NoProxy)
-		
+
 		// Verify that defaults are properly populated
 		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Defaults.AdminConsolePort)
-		assert.Equal(t, "", configResponse.Defaults.HTTPProxy)  // Empty when no env vars
-		assert.Equal(t, "", configResponse.Defaults.HTTPSProxy) // Empty when no env vars  
-		assert.Equal(t, "", configResponse.Defaults.NoProxy)    // Empty when no env vars
 	})
 
 	// Test get with default/empty configuration
@@ -469,17 +483,14 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&configResponse)
 		require.NoError(t, err)
 
-		// Verify the installation data contains defaults or empty values
-		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Values.AdminConsolePort)
+		// Verify the installation data contains empty values
+		assert.Equal(t, 0, configResponse.Values.AdminConsolePort)
 		assert.Equal(t, "", configResponse.Values.HTTPProxy)
 		assert.Equal(t, "", configResponse.Values.HTTPSProxy)
 		assert.Equal(t, "", configResponse.Values.NoProxy)
-		
+
 		// Verify that defaults are properly populated
 		assert.Equal(t, ecv1beta1.DefaultAdminConsolePort, configResponse.Defaults.AdminConsolePort)
-		assert.Equal(t, "", configResponse.Defaults.HTTPProxy)  // Empty when no env vars set
-		assert.Equal(t, "", configResponse.Defaults.HTTPSProxy) // Empty when no env vars set
-		assert.Equal(t, "", configResponse.Defaults.NoProxy)    // Empty when no env vars set
 	})
 
 	// Test authorization
