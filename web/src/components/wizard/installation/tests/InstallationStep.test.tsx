@@ -125,15 +125,19 @@ describe('InstallationStep', () => {
   });
 
   const renderInstallationStep = (target: 'linux' | 'kubernetes' = 'linux') => {
-    return renderWithProviders(
-      <InstallationStep onNext={mockOnNext} />,
-      {
-        wrapperProps: {
-          target,
-          authenticated: true
+    const mockOnBack = vi.fn();
+    return {
+      ...renderWithProviders(
+        <InstallationStep onNext={mockOnNext} onBack={mockOnBack} />,
+        {
+          wrapperProps: {
+            target,
+            authenticated: true
+          }
         }
-      }
-    );
+      ),
+      mockOnBack
+    };
   };
 
   describe('Linux Target', () => {
@@ -622,6 +626,118 @@ describe('InstallationStep', () => {
       // Fourth phase should not be mounted at all
       expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
       expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Back Button Behavior', () => {
+    it('back button is present for linux target', async () => {
+      renderInstallationStep('linux');
+
+      // Wait for phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Back button should be present for linux target
+      expect(screen.getByTestId('installation-back-button')).toBeInTheDocument();
+    });
+
+    it('back button is disabled during linux-preflight phase when status is Running', async () => {
+      renderInstallationStep('linux');
+
+      // Wait for phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Back button should be disabled during linux-preflight when running
+      const backButton = screen.getByTestId('installation-back-button');
+      expect(backButton).toBeDisabled();
+    });
+
+    it('back button is enabled during linux-preflight phase when status is Failed', async () => {
+      // Configure linux-preflight to auto-fail
+      phaseMockConfig.linuxPreflight.autoStateChange = { delay: 100, state: 'Failed' };
+
+      renderInstallationStep('linux');
+
+      // Wait for phase to auto-fail
+      await waitFor(() => {
+        expect(screen.getByTestId('icon-failed')).toBeInTheDocument();
+      });
+
+      // Back button should be enabled when linux-preflight has failed
+      const backButton = screen.getByTestId('installation-back-button');
+      expect(backButton).not.toBeDisabled();
+    });
+
+    it('back button is disabled after linux-preflight phase completes successfully', async () => {
+      renderInstallationStep('linux');
+
+      // Wait for phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Complete linux-preflight phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Wait for transition to linux-installation phase
+      await waitFor(() => {
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+      });
+
+      // Back button should be disabled since linux-preflight succeeded
+      const backButton = screen.getByTestId('installation-back-button');
+      expect(backButton).toBeDisabled();
+    });
+
+    it('back button remains disabled during all phases after linux-preflight succeeds', async () => {
+      renderInstallationStep('linux');
+
+      // Progress through linux-preflight
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Move to linux-installation phase
+      await waitFor(() => {
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+      });
+
+      // Back button should be disabled since linux-preflight succeeded
+      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+
+      // Progress to app-preflight
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+      });
+
+      // Back button should still be disabled since linux-preflight succeeded
+      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+
+      // Progress to app-installation
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
+      });
+
+      // Back button should still be disabled since linux-preflight succeeded
+      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+    });
+
+    it('back button is not present for kubernetes target since it has no host preflights', async () => {
+      renderInstallationStep('kubernetes');
+
+      // Wait for phase to initialize
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+
+      // Back button should not be present for kubernetes target
+      expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
     });
   });
 });

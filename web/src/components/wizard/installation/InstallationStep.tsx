@@ -4,7 +4,7 @@ import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { State } from '../../../types';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import InstallationTimeline, { InstallationPhaseId as InstallationPhase, PhaseStatus } from './InstallationTimeline';
 import LinuxPreflightPhase from './phases/LinuxPreflightPhase';
 import AppPreflightPhase from './phases/AppPreflightPhase';
@@ -15,9 +15,10 @@ import { NextButtonConfig } from './types';
 
 interface InstallationStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
-const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
+const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   const { target, text } = useWizard();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -109,6 +110,12 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
     return completedPhases.has(phase) || phase === currentPhase;
   };
 
+  const isBackButtonEnabled = () => {
+    // Back button is only enabled if the target is linux and linux-preflight has failed (allowing user to go back to fix issues)
+    // Once linux-preflight succeeds, back button is permanently disabled for all subsequent phases
+    return phases['linux-preflight']?.status === 'Failed';
+  };
+
   const handlePhaseClick = (phase: InstallationPhase) => {
     if (canSelectPhase(phase)) {
       setSelectedPhase(phase);
@@ -188,13 +195,25 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       </Card>
 
       {nextButtonConfig && (
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          {target === 'linux' && (
+            <Button
+            onClick={onBack}
+            variant="outline"
+            disabled={!isBackButtonEnabled()}
+            icon={<ChevronLeft className="w-5 h-5"/>}
+            dataTestId="installation-back-button"
+            >
+              Back
+            </Button>
+          )}
           <Button
             ref={nextButtonRef}
             onClick={nextButtonConfig.onClick}
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}
             dataTestId="installation-next-button"
+            className={target === 'kubernetes' ? 'ml-auto' : ''}
           >
             {getNextButtonText()}
           </Button>
