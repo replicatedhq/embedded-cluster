@@ -61,7 +61,7 @@ func TestHelmClient_PullByRef(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
-					[]string{"show", "chart", "myrepo/mychart"},
+					[]string{"show", "chart", "myrepo/mychart", "--version", "1.2.3"},
 				).Return(`apiVersion: v2
 name: mychart
 description: A test chart from repo
@@ -100,7 +100,7 @@ appVersion: "1.0.0"`, "", nil)
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
-					[]string{"show", "chart", "oci://registry.example.com/charts/nginx"},
+					[]string{"show", "chart", "oci://registry.example.com/charts/nginx", "--version", "2.1.0"},
 				).Return(`apiVersion: v2
 name: nginx
 description: A nginx chart from OCI registry

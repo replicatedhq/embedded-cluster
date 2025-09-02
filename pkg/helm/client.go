@@ -28,12 +28,9 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		return nil, err
 	}
 
-	helmPath := opts.HelmPath
-	if helmPath == "" {
-		helmPath, err = goods.Binary("helm")
-		if err != nil {
-			return nil, fmt.Errorf("get helm binary: %w", err)
-		}
+	helmPath, err := getHelmPath(opts)
+	if err != nil {
+		return nil, fmt.Errorf("get helm path: %w", err)
 	}
 
 	var kversion *semver.Version
@@ -54,6 +51,20 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		airgapPath:            opts.AirgapPath,
 		repositories:          []*repo.Entry{},
 	}, nil
+}
+
+func getHelmPath(opts HelmOptions) (string, error) {
+	if opts.HelmPath != "" {
+		return opts.HelmPath, nil
+	}
+	if hp := os.Getenv("HELM_BINARY_PATH"); hp != "" {
+		return hp, nil
+	}
+	hp, err := goods.Binary("helm")
+	if err != nil {
+		return "", fmt.Errorf("get embedded helm binary: %w", err)
+	}
+	return hp, nil
 }
 
 type HelmOptions struct {
