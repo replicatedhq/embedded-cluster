@@ -322,6 +322,8 @@ spec:
 		},
 	}
 
+	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create release data
@@ -1121,6 +1123,8 @@ spec:
 			},
 		},
 	}
+
+	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

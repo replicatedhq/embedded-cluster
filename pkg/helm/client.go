@@ -55,9 +55,11 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 
 func getHelmPath(opts HelmOptions) (string, error) {
 	if opts.HelmPath != "" {
+		// used in operations that do not have the helm binary embedded (i.e. upgrade via operator, etc..)
 		return opts.HelmPath, nil
 	}
 	if hp := os.Getenv("HELM_BINARY_PATH"); hp != "" {
+		// used in tests so that we don't pass the helm binary path all over the place
 		return hp, nil
 	}
 	hp, err := goods.Binary("helm")

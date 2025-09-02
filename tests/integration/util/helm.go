@@ -12,7 +12,10 @@ func HelmClient(t *testing.T, kubeconfig string) helm.Client {
 	envSettings := helmcli.New()
 	envSettings.KubeConfig = kubeconfig
 
-	hcli, err := helm.NewClient(helm.HelmOptions{KubernetesEnvSettings: envSettings})
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath:              "helm", // use the helm binary in PATH
+		KubernetesEnvSettings: envSettings,
+	})
 	if err != nil {
 		t.Fatalf("failed to create helm client: %s", err)
 	}

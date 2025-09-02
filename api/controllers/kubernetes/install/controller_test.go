@@ -90,6 +90,8 @@ func TestGetInstallationConfig(t *testing.T) {
 		},
 	}
 
+	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ki := kubernetesinstallation.New(nil)
@@ -201,6 +203,8 @@ func TestConfigureInstallation(t *testing.T) {
 		},
 	}
 
+	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockInstallation := &kubernetesinstallation.MockInstallation{}
@@ -275,6 +279,8 @@ func TestGetInstallationStatus(t *testing.T) {
 			expectedValue: types.Status{},
 		},
 	}
+
+	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
