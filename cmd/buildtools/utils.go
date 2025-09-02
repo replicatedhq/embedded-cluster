@@ -468,7 +468,7 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	srcMeta, err := hcli.GetChartMetadata(ctx, chpath)
+	srcMeta, err := hcli.GetChartMetadata(ctx, chpath, ver)
 	if err != nil {
 		return fmt.Errorf("get source chart metadata: %w", err)
 	}
@@ -487,7 +487,7 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	chartURL := fmt.Sprintf("%s/%s", dst, name)
 	logrus.Infof("verifying if destination tag already exists")
-	dstMeta, err := helm.GetChartMetadata(ctx, hcli, chartURL, ver)
+	dstMeta, err := hcli.GetChartMetadata(ctx, chartURL, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {

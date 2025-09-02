@@ -224,7 +224,7 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 	}
 
 	// Get chart metadata to determine the actual chart name and construct filename
-	metadata, err := h.GetChartMetadata(ctx, ref)
+	metadata, err := h.GetChartMetadata(ctx, ref, version)
 	if err != nil {
 		return "", fmt.Errorf("get chart metadata: %w", err)
 	}
@@ -259,9 +259,12 @@ func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
 	return nil
 }
 
-func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string) (*chart.Metadata, error) {
+func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
 	// Use helm show chart to get chart metadata
 	args := []string{"show", "chart", ref}
+	if version != "" {
+		args = append(args, "--version", version)
+	}
 
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, args...)
 	if err != nil {

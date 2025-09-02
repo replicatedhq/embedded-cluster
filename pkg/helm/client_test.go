@@ -308,6 +308,7 @@ func TestHelmClient_GetChartMetadata(t *testing.T) {
 		name      string
 		setupMock func(*MockBinaryExecutor)
 		chartPath string
+		version   string
 		wantErr   bool
 	}{
 		{
@@ -316,7 +317,7 @@ func TestHelmClient_GetChartMetadata(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
-					[]string{"show", "chart", "/path/to/chart"},
+					[]string{"show", "chart", "/path/to/chart", "--version", "1.0.0"},
 				).Return(`apiVersion: v2
 name: test-chart
 description: A test chart
@@ -325,6 +326,7 @@ version: 1.0.0
 appVersion: "1.0.0"`, "", nil)
 			},
 			chartPath: "/path/to/chart",
+			version:   "1.0.0",
 			wantErr:   false,
 		},
 	}
@@ -339,7 +341,7 @@ appVersion: "1.0.0"`, "", nil)
 				executor: mockExec,
 			}
 
-			metadata, err := client.GetChartMetadata(t.Context(), tt.chartPath)
+			metadata, err := client.GetChartMetadata(t.Context(), tt.chartPath, tt.version)
 
 			if tt.wantErr {
 				assert.Error(t, err)
