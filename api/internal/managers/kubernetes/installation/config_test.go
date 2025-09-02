@@ -162,9 +162,9 @@ func TestSetConfigDefaultsNoEnvProxy(t *testing.T) {
 
 func TestGetDefaults(t *testing.T) {
 	tests := []struct {
-		name            string
+		name             string
 		expectedDefaults types.KubernetesInstallationConfig
-		expectedErr     bool
+		expectedErr      bool
 	}{
 		{
 			name: "successful defaults",

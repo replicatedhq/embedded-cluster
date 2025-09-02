@@ -327,11 +327,11 @@ func TestSetConfigDefaults(t *testing.T) {
 
 func TestGetDefaults(t *testing.T) {
 	tests := []struct {
-		name            string
-		setupMocks      func(*utils.MockNetUtils)
-		setupEnv        func(t *testing.T)
+		name             string
+		setupMocks       func(*utils.MockNetUtils)
+		setupEnv         func(t *testing.T)
 		expectedDefaults types.LinuxInstallationConfig
-		expectedErr     bool
+		expectedErr      bool
 	}{
 		{
 			name: "successful defaults with network interface detection and no proxy env vars",
@@ -367,7 +367,7 @@ func TestGetDefaults(t *testing.T) {
 			setupEnv: func(t *testing.T) {
 				// Set proxy environment variables
 				t.Setenv("HTTP_PROXY", "http://proxy.example.com:3128")
-				t.Setenv("HTTPS_PROXY", "https://proxy.example.com:3128") 
+				t.Setenv("HTTPS_PROXY", "https://proxy.example.com:3128")
 				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
 			},
 			expectedDefaults: types.LinuxInstallationConfig{
