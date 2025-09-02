@@ -55,6 +55,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
+	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -1361,11 +1362,10 @@ func waitForNode(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create kube client: %w", err)
 	}
-	hostname, err := os.Hostname()
+	nodename, err := nodeutil.GetHostname("")
 	if err != nil {
 		return fmt.Errorf("get hostname: %w", err)
 	}
-	nodename := strings.ToLower(hostname)
 	if err := kubeutils.WaitForNode(ctx, kcli, nodename, false); err != nil {
 		return fmt.Errorf("wait for node: %w", err)
 	}

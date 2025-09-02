@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -441,11 +442,11 @@ func (h *hostInfo) configureKubernetesClient() {
 
 // getHostName fetches the hostname for the node
 func (h *hostInfo) getHostName() error {
-	hostname, err := os.Hostname()
+	hostname, err := nodeutil.GetHostname("")
 	if err != nil {
 		return fmt.Errorf("unable to get hostname: %w", err)
 	}
-	h.Hostname = strings.ToLower(hostname)
+	h.Hostname = hostname
 	return nil
 }
 

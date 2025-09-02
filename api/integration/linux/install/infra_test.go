@@ -7,7 +7,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	metadatafake "k8s.io/client-go/metadata/fake"
+	nodeutil "k8s.io/component-helpers/node/util"
 	client "sigs.k8s.io/controller-runtime/pkg/client"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -87,7 +87,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	}
 
 	t.Run("Success", func(t *testing.T) {
-		hostname, err := os.Hostname()
+		hostname, err := nodeutil.GetHostname("")
 		require.NoError(t, err)
 
 		// Create mocks
