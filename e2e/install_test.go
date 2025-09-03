@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
@@ -2133,4 +2132,3 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		}
 	}
 }
-

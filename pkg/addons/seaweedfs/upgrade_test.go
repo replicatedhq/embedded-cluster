@@ -15,60 +15,60 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func Test_lessThanECVersion281(t *testing.T) {
+func Test_lessThanECVersion273(t *testing.T) {
 	tests := []struct {
 		name    string
 		version string
 		want    bool
 	}{
 		{
-			name:    "version 2.8.0 is less than 2.8.1",
+			name:    "version 2.7.2 is less than 2.7.3",
+			version: "2.7.2+k8s-1.29-49-gf92daca6",
+			want:    true,
+		},
+		{
+			name:    "version 2.7.3 is not less than 2.7.3",
+			version: "2.7.3+k8s-1.29-49-gf92daca6",
+			want:    false,
+		},
+		{
+			name:    "version 2.7.4 is not less than 2.7.3",
+			version: "2.7.4+k8s-1.29-49-gf92daca6",
+			want:    false,
+		},
+		{
+			name:    "version 2.7.0 is less than 2.7.3",
+			version: "2.7.0+k8s-1.29-49-gf92daca6",
+			want:    true,
+		},
+		{
+			name:    "version 2.8.0 is not less than 2.7.3",
 			version: "2.8.0+k8s-1.29-49-gf92daca6",
-			want:    true,
-		},
-		{
-			name:    "version 2.8.1 is not less than 2.8.1",
-			version: "2.8.1+k8s-1.29-49-gf92daca6",
 			want:    false,
 		},
 		{
-			name:    "version 2.8.2 is not less than 2.8.1",
-			version: "2.8.2+k8s-1.29-49-gf92daca6",
-			want:    false,
-		},
-		{
-			name:    "version 2.7.9 is less than 2.8.1",
-			version: "2.7.9+k8s-1.29-49-gf92daca6",
-			want:    true,
-		},
-		{
-			name:    "version 2.9.0 is not less than 2.8.1",
-			version: "2.9.0+k8s-1.29-49-gf92daca6",
-			want:    false,
-		},
-		{
-			name:    "version 1.15.0 is less than 2.8.1",
+			name:    "version 1.15.0 is less than 2.7.3",
 			version: "1.15.0+k8s-1.29-49-gf92daca6",
 			want:    true,
 		},
 		{
-			name:    "version 3.0.0 is not less than 2.8.1",
+			name:    "version 3.0.0 is not less than 2.7.3",
 			version: "3.0.0+k8s-1.29-49-gf92daca6",
 			want:    false,
 		},
 		{
-			name:    "old version scheme is less than 2.8.1",
+			name:    "old version scheme is less than 2.7.3",
 			version: "1.28.7+ec.0",
 			want:    true,
 		},
 		{
-			name:    "exact version 2.8.1",
-			version: "2.8.1",
+			name:    "exact version 2.7.3",
+			version: "2.7.3",
 			want:    false,
 		},
 		{
-			name:    "version with prerelease is less than 2.8.1",
-			version: "2.8.1-beta1+k8s-1.29",
+			name:    "version with prerelease is less than 2.7.3",
+			version: "2.7.3-beta1+k8s-1.29",
 			want:    true,
 		},
 	}
@@ -76,7 +76,7 @@ func Test_lessThanECVersion281(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ver := semver.MustParse(tt.version)
-			got := lessThanECVersion281(ver)
+			got := lessThanECVersion273(ver)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -93,7 +93,7 @@ func Test_needsScalingRestart(t *testing.T) {
 		want    bool
 	}{
 		{
-			name: "needs restart - pre 2.8.1 upgrade with 3 replicas not all ready",
+			name: "needs restart - pre 2.7.3 upgrade with 3 replicas not all ready",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -105,7 +105,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -115,11 +115,11 @@ func Test_needsScalingRestart(t *testing.T) {
 						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - pre 2.8.1
+						Name: "20241001205018", // Previous - pre 2.7.3
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.0+k8s-1.29-49-gf92daca6",
+							Version: "2.7.2+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -139,7 +139,7 @@ func Test_needsScalingRestart(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "no restart needed - post 2.8.1 upgrade",
+			name: "no restart needed - post 2.7.3 upgrade",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -151,7 +151,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.2+k8s-1.29-49-gf92daca6",
+							Version: "2.7.4+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -161,11 +161,11 @@ func Test_needsScalingRestart(t *testing.T) {
 						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - post 2.8.1
+						Name: "20241001205018", // Previous - post 2.7.3
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -178,7 +178,7 @@ func Test_needsScalingRestart(t *testing.T) {
 						Replicas: int32Ptr(3),
 					},
 					Status: appsv1.StatefulSetStatus{
-						ReadyReplicas: 1, // Not all replicas ready, but version >= 2.8.1
+						ReadyReplicas: 1, // Not all replicas ready, but version >= 2.7.3
 					},
 				},
 			},
@@ -197,7 +197,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -207,11 +207,11 @@ func Test_needsScalingRestart(t *testing.T) {
 						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - pre 2.8.1
+						Name: "20241001205018", // Previous - pre 2.7.3
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.0+k8s-1.29-49-gf92daca6",
+							Version: "2.7.2+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -231,7 +231,7 @@ func Test_needsScalingRestart(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "no restart needed - not 3 replicas",
+			name: "restart needed - upgrading from pre-2.7.3 with 1 replica",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -243,7 +243,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -253,11 +253,11 @@ func Test_needsScalingRestart(t *testing.T) {
 						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - pre 2.8.1
+						Name: "20241001205018", // Previous - pre 2.7.3
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.0+k8s-1.29-49-gf92daca6",
+							Version: "2.7.2+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -267,7 +267,53 @@ func Test_needsScalingRestart(t *testing.T) {
 						Namespace: "seaweedfs",
 					},
 					Spec: appsv1.StatefulSetSpec{
-						Replicas: int32Ptr(1), // Not 3 replicas
+						Replicas: int32Ptr(1), // 1 replica needs scaling
+					},
+					Status: appsv1.StatefulSetStatus{
+						ReadyReplicas: 1,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "no restart needed - upgrading from post-2.7.3 version",
+			objects: []client.Object{
+				&ecv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241002205018", // Latest
+					},
+					Spec: ecv1beta1.InstallationSpec{
+						Config: &ecv1beta1.ConfigSpec{
+							Version: "2.8.0+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				&ecv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241001205018", // Previous - post 2.7.3
+					},
+					Spec: ecv1beta1.InstallationSpec{
+						Config: &ecv1beta1.ConfigSpec{
+							Version: "2.7.4+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: int32Ptr(1),
 					},
 					Status: appsv1.StatefulSetStatus{
 						ReadyReplicas: 1,
@@ -289,7 +335,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -321,7 +367,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -331,11 +377,11 @@ func Test_needsScalingRestart(t *testing.T) {
 						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - pre 2.8.1
+						Name: "20241001205018", // Previous - pre 2.7.3
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.0+k8s-1.29-49-gf92daca6",
+							Version: "2.7.2+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -356,7 +402,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -402,7 +448,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
@@ -446,7 +492,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 					Spec: ecv1beta1.InstallationSpec{
 						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.8.1+k8s-1.29-49-gf92daca6",
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
 						},
 					},
 				},
