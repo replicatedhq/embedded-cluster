@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
 )
@@ -17,6 +18,7 @@ type Handler struct {
 	logger            logrus.FieldLogger
 	hostUtils         hostutils.HostUtilsInterface
 	metricsReporter   metrics.ReporterInterface
+	hcli              helm.Client
 }
 
 type Option func(*Handler)
@@ -42,6 +44,12 @@ func WithHostUtils(hostUtils hostutils.HostUtilsInterface) Option {
 func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 	return func(h *Handler) {
 		h.metricsReporter = metricsReporter
+	}
+}
+
+func WithHelmClient(hcli helm.Client) Option {
+	return func(h *Handler) {
+		h.hcli = hcli
 	}
 }
 
@@ -82,6 +90,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
 			install.WithClusterID(h.cfg.ClusterID),
 			install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
+			install.WithHelmClient(h.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("new install controller: %w", err)

@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -36,8 +37,8 @@ type InstallController struct {
 	installationManager   installation.InstallationManager
 	infraManager          infra.InfraManager
 	metricsReporter       metrics.ReporterInterface
-	k8sVersion            string
 	kubernetesEnvSettings *helmcli.EnvSettings
+	hcli                  helm.Client
 	releaseData           *release.ReleaseData
 	password              string
 	tlsConfig             types.TLSConfig
@@ -73,9 +74,9 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InstallContr
 	}
 }
 
-func WithK8sVersion(k8sVersion string) InstallControllerOption {
+func WithHelmClient(hcli helm.Client) InstallControllerOption {
 	return func(c *InstallController) {
-		c.k8sVersion = k8sVersion
+		c.hcli = hcli
 	}
 }
 
@@ -197,9 +198,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithReleaseData(controller.releaseData),
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
-			appcontroller.WithPrivateCACertConfigMapName(""),    // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
-			appcontroller.WithK8sVersion(controller.k8sVersion), // Used to determine the kubernetes version for the helm client
-			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
+			appcontroller.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
@@ -218,6 +218,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithAirgapBundle(controller.airgapBundle),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create infra manager: %w", err)

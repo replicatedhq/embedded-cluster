@@ -136,11 +136,6 @@ func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCh
 		return fmt.Errorf("no helm charts found")
 	}
 
-	// Setup Helm client
-	if err := m.setupHelmClient(); err != nil {
-		return fmt.Errorf("setup helm client: %w", err)
-	}
-
 	logFn("installing %d helm charts", len(installableCharts))
 
 	for _, installableChart := range installableCharts {
@@ -201,6 +196,7 @@ func (m *appInstallManager) installHelmChart(ctx context.Context, installableCha
 		Namespace:   namespace,
 		ReleaseName: installableChart.CR.GetReleaseName(),
 		Values:      installableChart.Values,
+		LogFn:       m.logFn("helm"),
 	})
 	if err != nil {
 		return err // do not wrap as wrapping is repetitive, e.g. "helm install: helm install: context deadline exceeded"

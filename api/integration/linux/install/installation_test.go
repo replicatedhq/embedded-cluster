@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -201,6 +202,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+				linuxinstall.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -299,6 +301,7 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -359,6 +362,7 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -443,6 +447,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithInstallationManager(installationManager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -515,6 +520,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithInstallationManager(emptyInstallationManager),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -636,6 +642,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 

@@ -168,16 +168,7 @@ func NewInfraManager(opts ...InfraManagerOption) (*infraManager, error) {
 	}
 
 	if manager.hcli == nil {
-		hcli, err := helm.NewClient(helm.HelmOptions{
-			KubernetesEnvSettings: manager.kubernetesEnvSettings,
-			// TODO: how can we support airgap?
-			AirgapPath: "",
-			LogFn:      manager.logFn("helm"),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("create helm client: %w", err)
-		}
-		manager.hcli = hcli
+		return nil, fmt.Errorf("helm client is required")
 	}
 
 	return manager, nil

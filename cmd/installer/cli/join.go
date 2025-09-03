@@ -610,6 +610,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath:              rc.PathToEmbeddedClusterBinary("helm"),
 		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
 		K8sVersion:            versions.K0sVersion,
 		AirgapPath:            airgapChartsPath,

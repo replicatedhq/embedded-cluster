@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,13 @@ func NewTargetLinuxAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API
 		Password:      "password",
 		ReleaseData:   DefaultReleaseData(),
 	}
-	a, err := api.New(cfg, opts...)
+
+	// Add default options
+	optsWithDefaults := append([]api.Option{
+		api.WithHelmClient(&helm.MockClient{}),
+	}, opts...)
+
+	a, err := api.New(cfg, optsWithDefaults...)
 	require.NoError(t, err)
 	return a
 }
@@ -74,7 +81,13 @@ func NewTargetKubernetesAPIWithReleaseData(t *testing.T, opts ...api.Option) *ap
 		Password:      "password",
 		ReleaseData:   DefaultReleaseData(),
 	}
-	a, err := api.New(cfg, opts...)
+
+	// Add default options
+	optsWithDefaults := append([]api.Option{
+		api.WithHelmClient(&helm.MockClient{}),
+	}, opts...)
+
+	a, err := api.New(cfg, optsWithDefaults...)
 	require.NoError(t, err)
 	return a
 }

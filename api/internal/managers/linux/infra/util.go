@@ -8,10 +8,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	helmcli "helm.sh/helm/v3/pkg/cli"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -30,10 +28,10 @@ func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) erro
 
 // setupClients initializes the kube, metadata, and helm clients if they are not already set.
 // We need to do it after the infra manager is initialized to ensure that the runtime config is available and we already have a cluster setup
-func (m *infraManager) setupClients(kubernetesEnvSettings *helmcli.EnvSettings, airgapChartsPath string) error {
+func (m *infraManager) setupClients(rc runtimeconfig.RuntimeConfig) error {
 	var restClientGetter genericclioptions.RESTClientGetter
-	if kubernetesEnvSettings != nil {
-		restClientGetter = kubernetesEnvSettings.RESTClientGetter()
+	if rc.GetKubernetesEnvSettings() != nil {
+		restClientGetter = rc.GetKubernetesEnvSettings().RESTClientGetter()
 	}
 
 	if m.kcli == nil {
@@ -53,21 +51,7 @@ func (m *infraManager) setupClients(kubernetesEnvSettings *helmcli.EnvSettings, 
 	}
 
 	if m.hcli == nil {
-		airgapPath := ""
-		if m.airgapBundle != "" {
-			airgapPath = airgapChartsPath
-		}
-
-		hcli, err := helm.NewClient(helm.HelmOptions{
-			KubernetesEnvSettings: kubernetesEnvSettings,
-			K8sVersion:            versions.K0sVersion,
-			AirgapPath:            airgapPath,
-			LogFn:                 m.logFn("helm"),
-		})
-		if err != nil {
-			return fmt.Errorf("create helm client: %w", err)
-		}
-		m.hcli = hcli
+		return fmt.Errorf("helm client is required")
 	}
 
 	return nil

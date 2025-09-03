@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"regexp"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
@@ -12,24 +14,23 @@ import (
 // This interface is mockable for testing purposes.
 type BinaryExecutor interface {
 	// ExecuteCommand runs a command and returns stdout, stderr, and error
-	ExecuteCommand(ctx context.Context, env map[string]string, args ...string) (stdout string, stderr string, err error)
+	ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (stdout string, stderr string, err error)
 }
 
 // binaryExecutor implements BinaryExecutor using helpers.RunCommandWithOptions
 type binaryExecutor struct {
-	bin   string // Path to the binary to execute
-	logFn LogFn  // Optional logging function
+	bin string // Path to the binary to execute
 }
 
 // newBinaryExecutor creates a new binaryExecutor with the specified binary path
-func newBinaryExecutor(bin string, logFn LogFn) BinaryExecutor {
-	return &binaryExecutor{bin: bin, logFn: logFn}
+func newBinaryExecutor(bin string) BinaryExecutor {
+	return &binaryExecutor{bin: bin}
 }
 
 // ExecuteCommand runs a command using helpers.RunCommandWithOptions and returns stdout, stderr, and error
-func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, args ...string) (string, string, error) {
+func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (string, string, error) {
 	var stdout, stderr bytes.Buffer
-	logWriter := &logWriter{logFn: c.logFn}
+	logWriter := &logWriter{logFn: logFn}
 
 	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{
 		Context: ctx,
@@ -46,9 +47,15 @@ type logWriter struct {
 	logFn LogFn
 }
 
+// match log lines that come from go files to reduce noise and keep the logs relevant and readable to the user
+var goFilePattern = regexp.MustCompile(`^\w+\.go:\d+:`)
+
 func (lw *logWriter) Write(p []byte) (n int, err error) {
 	if lw.logFn != nil && len(p) > 0 {
-		lw.logFn("%s", string(p))
+		line := strings.TrimSpace(string(p))
+		if line != "" && goFilePattern.MatchString(line) {
+			lw.logFn("%s", line)
+		}
 	}
 	return len(p), nil
 }

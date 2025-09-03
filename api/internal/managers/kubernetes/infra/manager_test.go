@@ -21,52 +21,34 @@ func TestNewInfraManager_ClientCreation(t *testing.T) {
 		expectError        bool
 	}{
 		{
-			name:        "creates all clients when none provided",
-			expectError: false,
+			name:        "fails when helm client not provided",
+			expectError: true,
 		},
 		{
-			name:           "creates kube and metadata clients when helm client provided",
+			name:           "creates kube and metadata clients when only helm client provided",
 			withHelmClient: true,
 			expectError:    false,
 		},
 		{
-			name:               "creates kube and helm clients when metadata client provided",
-			withMetadataClient: true,
-			expectError:        false,
-		},
-		{
-			name:           "creates metadata and helm clients when kube client provided",
-			withKubeClient: true,
-			expectError:    false,
-		},
-		{
-			name:               "creates only helm client when kube and metadata clients provided",
-			withKubeClient:     true,
-			withMetadataClient: true,
-			expectError:        false,
-		},
-		{
-			name:           "creates only metadata client when kube and helm clients provided",
+			name:           "creates metadata client when kube and helm clients provided",
 			withKubeClient: true,
 			withHelmClient: true,
 			expectError:    false,
 		},
 		{
-			name:               "creates only kube client when metadata and helm clients provided",
+			name:               "creates kube client when metadata and helm clients provided",
 			withMetadataClient: true,
 			withHelmClient:     true,
 			expectError:        false,
 		},
 		{
-			name:               "creates no clients when all provided",
+			name:               "uses all provided clients when all are given",
 			withKubeClient:     true,
 			withMetadataClient: true,
 			withHelmClient:     true,
 			expectError:        false,
 		},
 	}
-
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -83,7 +65,13 @@ func TestNewInfraManager_ClientCreation(t *testing.T) {
 				opts = append(opts, WithMetadataClient(metadatafake.NewSimpleMetadataClient(scheme.Scheme)))
 			}
 			if tt.withHelmClient {
-				opts = append(opts, WithHelmClient(&helm.MockClient{}))
+				// Create real helm client
+				hcli, err := helm.NewClient(helm.HelmOptions{
+					HelmPath:   "helm",
+					K8sVersion: "v1.26.0",
+				})
+				require.NoError(t, err)
+				opts = append(opts, WithHelmClient(hcli))
 			}
 
 			// Create manager

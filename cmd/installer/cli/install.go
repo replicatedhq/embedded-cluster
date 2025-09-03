@@ -798,6 +798,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath:              rc.PathToEmbeddedClusterBinary("helm"),
 		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
 		K8sVersion:            versions.K0sVersion,
 		AirgapPath:            airgapChartsPath,

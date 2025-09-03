@@ -29,7 +29,6 @@ type appReleaseManager struct {
 	logger                     logrus.FieldLogger
 	privateCACertConfigMapName string
 	hcli                       helm.Client
-	k8sVersion                 string
 }
 
 type AppReleaseManagerOption func(*appReleaseManager)
@@ -70,12 +69,6 @@ func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
 	}
 }
 
-func WithK8sVersion(k8sVersion string) AppReleaseManagerOption {
-	return func(m *appReleaseManager) {
-		m.k8sVersion = k8sVersion
-	}
-}
-
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -89,8 +82,9 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 	if manager.releaseData == nil {
 		return nil, fmt.Errorf("release data not found")
 	}
-	if manager.k8sVersion == "" {
-		return nil, fmt.Errorf("k8s version required")
+
+	if manager.hcli == nil {
+		return nil, fmt.Errorf("helm client is required")
 	}
 
 	if manager.logger == nil {

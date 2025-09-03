@@ -32,8 +32,8 @@ func Test_binaryExecutor_ExecuteCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := newBinaryExecutor(tt.bin, nil)
-			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, tt.args...)
+			executor := newBinaryExecutor(tt.bin)
+			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, nil, tt.args...)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -75,7 +75,16 @@ func Test_binaryExecutor_ExecuteCommand_WithLogging(t *testing.T) {
 			wantErr:        false,
 			expectedStdout: "stdout message\n",
 			expectedStderr: "stderr message\n",
-			expectedLogs:   []string{"stderr message\n"}, // Only stderr is logged
+			expectedLogs:   []string{}, // No logs expected since stderr doesn't match .go file pattern
+		},
+		{
+			name:           "command with go file pattern in stderr",
+			bin:            "sh",
+			args:           []string{"-c", "echo 'stdout message'; echo 'install.go:225: debug message' >&2"},
+			wantErr:        false,
+			expectedStdout: "stdout message\n",
+			expectedStderr: "install.go:225: debug message\n",
+			expectedLogs:   []string{"install.go:225: debug message"}, // Go file pattern should be logged
 		},
 	}
 
@@ -86,8 +95,8 @@ func Test_binaryExecutor_ExecuteCommand_WithLogging(t *testing.T) {
 				logs = append(logs, fmt.Sprintf(format, v...))
 			}
 
-			executor := newBinaryExecutor(tt.bin, logFn)
-			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, tt.args...)
+			executor := newBinaryExecutor(tt.bin)
+			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, logFn, tt.args...)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -114,12 +123,19 @@ func Test_logWriter_Write(t *testing.T) {
 
 	writer := &logWriter{logFn: logFn}
 
-	// Test writing data
-	n, err := writer.Write([]byte("test message"))
+	// Test writing data that matches .go file pattern
+	n, err := writer.Write([]byte("install.go:225: test message"))
 	assert.NoError(t, err)
-	assert.Equal(t, 12, n)
+	assert.Equal(t, 28, n)
 	assert.Len(t, loggedMessages, 1)
 	assert.Equal(t, "%s", loggedMessages[0])
+
+	// Test writing data that doesn't match .go file pattern (should be filtered out)
+	loggedMessages = nil
+	n, err = writer.Write([]byte("verbose debug message"))
+	assert.NoError(t, err)
+	assert.Equal(t, 21, n)
+	assert.Len(t, loggedMessages, 0) // Should be filtered out
 
 	// Test writing empty data
 	loggedMessages = nil
@@ -151,6 +167,7 @@ func Test_MockBinaryExecutor_ExecuteCommand(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything,
 					map[string]string{"TEST": "value"},
+					mock.Anything, // LogFn
 					[]string{"version"},
 				).Return("v3.12.0", "", nil)
 			},
@@ -166,6 +183,7 @@ func Test_MockBinaryExecutor_ExecuteCommand(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything,
 					mock.Anything,
+					mock.Anything, // LogFn
 					[]string{"invalid"},
 				).Return("", "command not found", assert.AnError)
 			},
@@ -182,7 +200,7 @@ func Test_MockBinaryExecutor_ExecuteCommand(t *testing.T) {
 			mock := &MockBinaryExecutor{}
 			tt.setupMock(mock)
 
-			stdout, stderr, err := mock.ExecuteCommand(t.Context(), tt.env, tt.args...)
+			stdout, stderr, err := mock.ExecuteCommand(t.Context(), tt.env, nil, tt.args...)
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)

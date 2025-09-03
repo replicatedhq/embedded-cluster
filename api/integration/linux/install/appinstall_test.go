@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -100,7 +101,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstallmanager.WithAppInstallStore(
 				appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(appInstallStatus)),
 			),
-			appinstallmanager.WithK8sVersion("v1.33.0"),
+			appinstallmanager.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -113,7 +114,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -124,6 +125,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(runtimeconfig.New(nil)),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -132,6 +134,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 
 		// Create a new router and register API routes
@@ -181,6 +184,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -189,6 +193,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 
 		// Create a new router and register API routes
@@ -216,6 +221,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 
 		// Create a new router and register API routes
@@ -327,7 +333,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(&store.MockStore{}),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -339,6 +345,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -355,6 +362,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -401,7 +409,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -411,6 +419,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -427,6 +436,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -487,7 +497,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -500,6 +510,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -516,6 +527,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -554,6 +566,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -570,6 +583,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -620,7 +634,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -630,6 +644,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -646,6 +661,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -698,7 +714,7 @@ func TestPostInstallApp(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(releaseData),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -708,6 +724,7 @@ func TestPostInstallApp(t *testing.T) {
 			linuxinstall.WithAppInstallController(appInstallController),
 			linuxinstall.WithReleaseData(releaseData),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -724,6 +741,7 @@ func TestPostInstallApp(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

@@ -14,7 +14,7 @@ type MockBinaryExecutor struct {
 }
 
 // ExecuteCommand mocks the ExecuteCommand method
-func (m *MockBinaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, args ...string) (string, string, error) {
-	callArgs := m.Called(ctx, env, args)
+func (m *MockBinaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (string, string, error) {
+	callArgs := m.Called(ctx, env, logFn, args)
 	return callArgs.String(0), callArgs.String(1), callArgs.Error(2)
 }

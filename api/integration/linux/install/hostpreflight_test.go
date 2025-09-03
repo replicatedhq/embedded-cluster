@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -71,6 +72,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithHostPreflightManager(manager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -218,6 +220,7 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithHostPreflightManager(manager),
 				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+				linuxinstall.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -234,6 +237,7 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
+				api.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -306,6 +310,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				AppConfig: &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -404,6 +409,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -461,6 +467,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -519,6 +526,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -590,6 +598,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

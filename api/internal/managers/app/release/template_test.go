@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
@@ -322,8 +323,6 @@ spec:
 		},
 	}
 
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create release data
@@ -332,12 +331,17 @@ spec:
 				HelmChartArchives: tt.chartArchives,
 			}
 
-			// Create manager
+			// Create real helm client
 			config := createTestConfig()
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm",    // use the helm binary in PATH
+				K8sVersion: "v1.33.0", // TODO NOW: check that is gets used
+			})
+			require.NoError(t, err)
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -860,7 +864,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
-				WithK8sVersion("1.33.0"),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -1124,8 +1128,6 @@ spec:
 		},
 	}
 
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a basic config for the template engine
@@ -1135,10 +1137,16 @@ spec:
 			releaseData := &release.ReleaseData{
 				HelmChartArchives: tt.helmChartArchives,
 			}
+			// Create real helm client
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary in PATH
+				K8sVersion: "v1.33.0",
+			})
+			require.NoError(t, err)
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -2515,7 +2523,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 

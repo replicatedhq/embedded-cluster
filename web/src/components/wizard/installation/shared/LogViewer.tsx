@@ -52,11 +52,11 @@ const LogViewer: React.FC<LogViewerProps> = ({
         <div 
           ref={logContainerRef}
           onScroll={handleLogContainerScroll}
-          className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto font-mono text-xs mt-2"
+          className="bg-gray-900 text-gray-200 rounded-md p-4 h-48 overflow-y-auto overflow-x-auto font-mono text-xs mt-2"
           data-testid="log-viewer-content"
         >
           {logs.map((log, index) => (
-            <div key={index} className="whitespace-pre-wrap pb-1">
+            <div key={index} className="whitespace-pre-wrap break-all pb-1">
               {log}
             </div>
           ))}

@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -74,7 +75,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
 		appinstall.WithStore(mockStore),
 		appinstall.WithReleaseData(integration.DefaultReleaseData()),
-		appinstall.WithK8sVersion("v1.33.0"),
+		appinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -82,6 +83,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithAppInstallController(appInstallController),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -90,6 +92,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
+		api.WithHelmClient(&helm.MockClient{}),
 	)
 
 	// Create a router and register the API routes
@@ -145,6 +148,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 
 		router := mux.NewRouter()
@@ -227,7 +231,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -249,6 +253,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -264,6 +269,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -311,6 +317,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithLicense(mockLicense()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -326,6 +333,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -356,6 +364,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create a basic install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -371,6 +380,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

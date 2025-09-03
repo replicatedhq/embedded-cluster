@@ -18,10 +18,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 )
 
@@ -65,6 +65,7 @@ type InstallController struct {
 	clusterID                 string
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
+	hcli                      helm.Client
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
@@ -206,6 +207,12 @@ func WithStore(store store.Store) InstallControllerOption {
 	}
 }
 
+func WithHelmClient(hcli helm.Client) InstallControllerOption {
+	return func(c *InstallController) {
+		c.hcli = hcli
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -267,8 +274,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithClusterID(controller.clusterID),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
-			appcontroller.WithK8sVersion(versions.K0sVersion),                                  // Used to determine the kubernetes version for the helm client
-			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
+			appcontroller.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
@@ -289,6 +295,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
+			infra.WithHelmClient(controller.hcli),
 		)
 	}
 

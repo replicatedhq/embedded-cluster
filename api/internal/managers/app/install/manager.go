@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 var _ AppInstallManager = &appInstallManager{}
@@ -32,16 +31,14 @@ type AppInstallManager interface {
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	appInstallStore       appinstallstore.Store
-	releaseData           *release.ReleaseData
-	license               []byte
-	clusterID             string
-	airgapBundle          string
-	kotsCLI               KotsCLIInstaller
-	logger                logrus.FieldLogger
-	hcli                  helm.Client
-	k8sVersion            string
-	kubernetesEnvSettings *helmcli.EnvSettings
+	appInstallStore appinstallstore.Store
+	releaseData     *release.ReleaseData
+	license         []byte
+	clusterID       string
+	airgapBundle    string
+	kotsCLI         KotsCLIInstaller
+	logger          logrus.FieldLogger
+	hcli            helm.Client
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -95,18 +92,6 @@ func WithHelmClient(hcli helm.Client) AppInstallManagerOption {
 	}
 }
 
-func WithK8sVersion(k8sVersion string) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.k8sVersion = k8sVersion
-	}
-}
-
-func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.kubernetesEnvSettings = envSettings
-	}
-}
-
 // NewAppInstallManager creates a new AppInstallManager with the provided options
 func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, error) {
 	manager := &appInstallManager{}
@@ -115,12 +100,12 @@ func NewAppInstallManager(opts ...AppInstallManagerOption) (*appInstallManager, 
 		opt(manager)
 	}
 
-	if manager.k8sVersion == "" {
-		return nil, fmt.Errorf("k8s version required")
-	}
-
 	if manager.logger == nil {
 		manager.logger = logger.NewDiscardLogger()
+	}
+
+	if manager.hcli == nil {
+		return nil, fmt.Errorf("helm client is required")
 	}
 
 	if manager.appInstallStore == nil {

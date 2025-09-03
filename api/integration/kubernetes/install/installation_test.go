@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -137,7 +138,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				kubernetesinstall.WithInstallation(ki),
 				kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 				kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-				kubernetesinstall.WithK8sVersion("v1.33.0"),
+				kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -229,7 +230,7 @@ func TestKubernetesConfigureInstallationValidation(t *testing.T) {
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -288,7 +289,7 @@ func TestKubernetesConfigureInstallationBadRequest(t *testing.T) {
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateApplicationConfigured))),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -373,7 +374,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		kubernetesinstall.WithInstallation(ki),
 		kubernetesinstall.WithInstallationManager(installationManager),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -436,7 +437,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 			kubernetesinstall.WithInstallation(ki),
 			kubernetesinstall.WithInstallationManager(emptyInstallationManager),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

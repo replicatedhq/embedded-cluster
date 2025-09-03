@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -90,8 +91,6 @@ func TestGetInstallationConfig(t *testing.T) {
 		},
 	}
 
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ki := kubernetesinstallation.New(nil)
@@ -100,11 +99,18 @@ func TestGetInstallationConfig(t *testing.T) {
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
+			// Create real helm client
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary in PATH
+				K8sVersion: "v1.33.0",
+			})
+			require.NoError(t, err)
+
 			controller, err := NewInstallController(
 				WithInstallation(ki),
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -203,8 +209,6 @@ func TestConfigureInstallation(t *testing.T) {
 		},
 	}
 
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockInstallation := &kubernetesinstallation.MockInstallation{}
@@ -217,6 +221,13 @@ func TestConfigureInstallation(t *testing.T) {
 
 			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, metricsReporter)
 
+			// Create real helm client
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary in PATH
+				K8sVersion: "v1.26.0",
+			})
+			require.NoError(t, err)
+
 			controller, err := NewInstallController(
 				WithInstallation(mockInstallation),
 				WithStateMachine(sm),
@@ -224,7 +235,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithStore(mockStore),
 				WithMetricsReporter(metricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -280,17 +291,22 @@ func TestGetInstallationStatus(t *testing.T) {
 		},
 	}
 
-	t.Setenv("HELM_BINARY_PATH", "helm") // use the helm binary in PATH
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockManager := &installation.MockInstallationManager{}
 			tt.setupMock(mockManager)
 
+			// Create real helm client
+			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary in PATH
+				K8sVersion: "v1.26.0",
+			})
+			require.NoError(t, err)
+
 			controller, err := NewInstallController(
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(hcli),
 			)
 			require.NoError(t, err)
 
@@ -417,7 +433,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
-				appcontroller.WithK8sVersion("v1.33.0"),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -430,7 +446,7 @@ func TestSetupInfra(t *testing.T) {
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -525,7 +541,7 @@ func TestGetInfra(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInfraManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 

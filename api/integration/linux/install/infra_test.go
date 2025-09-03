@@ -178,6 +178,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -353,6 +354,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -411,6 +413,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -476,6 +479,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -540,6 +544,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -604,6 +609,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -689,6 +695,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			}),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostPreflightsSucceeded))),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

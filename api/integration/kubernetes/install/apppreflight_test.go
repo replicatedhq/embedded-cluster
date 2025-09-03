@@ -22,6 +22,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -72,7 +73,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
 		appinstall.WithStore(mockStore),
 		appinstall.WithReleaseData(integration.DefaultReleaseData()),
-		appinstall.WithK8sVersion("v1.33.0"),
+		appinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -80,7 +81,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithAppInstallController(appInstallController),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -227,7 +228,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
-			appinstall.WithK8sVersion("v1.33.0"),
+			appinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -236,7 +237,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppInstallController(appInstallController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -252,6 +253,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -288,7 +290,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 				kubernetesinstall.WithCurrentState(states.StateNew), // Wrong state
 			)),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -304,6 +306,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -334,7 +337,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create a basic install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -350,6 +353,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

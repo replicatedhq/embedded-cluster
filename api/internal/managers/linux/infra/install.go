@@ -176,7 +176,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	// initialize the manager's helm and kube clients
-	err = m.setupClients(rc.GetKubernetesEnvSettings(), rc.EmbeddedClusterChartsSubDir())
+	err = m.setupClients(rc)
 	if err != nil {
 		return nil, fmt.Errorf("setup clients: %w", err)
 	}

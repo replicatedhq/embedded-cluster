@@ -15,6 +15,7 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -55,6 +56,10 @@ func Test_serveAPI(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
+	// Create a runtime config with temp directory
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir(t.TempDir())
+
 	config := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			InstallTarget: apitypes.InstallTargetLinux,
@@ -68,6 +73,9 @@ func Test_serveAPI(t *testing.T) {
 				},
 			},
 			ClusterID: "123",
+			LinuxConfig: apitypes.LinuxConfig{
+				RuntimeConfig: rc,
+			},
 		},
 		ManagerPort: portInt,
 		Logger:      apilogger.NewDiscardLogger(),

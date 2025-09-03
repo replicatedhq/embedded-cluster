@@ -25,7 +25,8 @@ func TestK0sDir(t *testing.T) {
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		HelmPath: "helm", // use the helm binary in PATH
+		HelmPath:   "helm", // use the helm binary in PATH
+		K8sVersion: "v1.26.0",
 	})
 	require.NoError(t, err, "NewClient should not return an error")
 

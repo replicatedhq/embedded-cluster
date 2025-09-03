@@ -38,6 +38,7 @@ func TestHelmClient_PullByRef(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"repo", "update", "myrepo"},
 				).Return("", "", nil)
 
@@ -45,6 +46,7 @@ func TestHelmClient_PullByRef(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					mock.MatchedBy(func(args []string) bool {
 						return len(args) == 7 &&
 							args[0] == "pull" &&
@@ -61,6 +63,7 @@ func TestHelmClient_PullByRef(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"show", "chart", "myrepo/mychart", "--version", "1.2.3"},
 				).Return(`apiVersion: v2
 name: mychart
@@ -84,6 +87,7 @@ appVersion: "1.0.0"`, "", nil)
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					mock.MatchedBy(func(args []string) bool {
 						return len(args) == 7 &&
 							args[0] == "pull" &&
@@ -100,6 +104,7 @@ appVersion: "1.0.0"`, "", nil)
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"show", "chart", "oci://registry.example.com/charts/nginx", "--version", "2.1.0"},
 				).Return(`apiVersion: v2
 name: nginx
@@ -156,6 +161,7 @@ func TestHelmClient_Install(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"install", "myrelease", "/path/to/chart", "--namespace", "default", "--create-namespace", "--wait", "--wait-for-jobs", "--timeout", "5m0s", "--replace", "--debug"},
 				).Return(`Release "myrelease" has been upgraded.`, "", nil)
 			},
@@ -173,6 +179,7 @@ func TestHelmClient_Install(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					mock.MatchedBy(func(args []string) bool {
 						// Check that it contains the expected arguments
 						hasInstall := false
@@ -247,6 +254,7 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"list", "--namespace", "default", "--filter", "^myrelease$", "--output", "json"},
 				).Return(`[{
 					"name": "myrelease",
@@ -269,6 +277,7 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"list", "--namespace", "default", "--filter", "^myrelease$", "--output", "json"},
 				).Return(`[]`, "", nil)
 			},
@@ -317,6 +326,7 @@ func TestHelmClient_GetChartMetadata(t *testing.T) {
 				m.On("ExecuteCommand",
 					mock.Anything, // context
 					mock.Anything, // env
+					mock.Anything, // LogFn
 					[]string{"show", "chart", "/path/to/chart", "--version", "1.0.0"},
 				).Return(`apiVersion: v2
 name: test-chart
@@ -534,7 +544,7 @@ func TestHelmClient_Latest(t *testing.T) {
 						"description": "A test chart"
 					}
 				]`
-				m.On("ExecuteCommand", mock.Anything, mock.Anything,
+				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 					[]string{"search", "repo", "myrepo/mychart", "--version", ">0.0.0", "--versions", "--output", "json"}).
 					Return(jsonOutput, "", nil)
 			},
@@ -546,7 +556,7 @@ func TestHelmClient_Latest(t *testing.T) {
 			reponame: "myrepo",
 			chart:    "nonexistent",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything,
+				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 					[]string{"search", "repo", "myrepo/nonexistent", "--version", ">0.0.0", "--versions", "--output", "json"}).
 					Return("[]", "", nil)
 			},
@@ -558,7 +568,7 @@ func TestHelmClient_Latest(t *testing.T) {
 			reponame: "myrepo",
 			chart:    "mychart",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything,
+				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 					[]string{"search", "repo", "myrepo/mychart", "--version", ">0.0.0", "--versions", "--output", "json"}).
 					Return("", "repo not found", assert.AnError)
 			},
@@ -570,7 +580,7 @@ func TestHelmClient_Latest(t *testing.T) {
 			reponame: "myrepo",
 			chart:    "mychart",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything,
+				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 					[]string{"search", "repo", "myrepo/mychart", "--version", ">0.0.0", "--versions", "--output", "json"}).
 					Return("invalid json", "", nil)
 			},
