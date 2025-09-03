@@ -11,7 +11,6 @@ interface HelpTextProps {
 
 const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue, error }) => {
   const [showFullText, setShowFullText] = useState(false);
-  const maxTextLength = 80;
 
   // The truncation threshold prevents cutting off text that's only slightly over the max length as
   // it would be preferable to display the full text than show/hide a small number of characters.
@@ -21,6 +20,8 @@ const HelpText: React.FC<HelpTextProps> = ({ dataTestId, helpText, defaultValue,
 
   // Build the combined text
   let combinedText = helpText || '';
+  // We don't truncate help text, only default text, therefore the max length we allow for the text is the help-text + 80 for any default text
+  const maxTextLength = combinedText.length + 80;
   if (defaultValue) {
     const defaultText = `(Default: \`${defaultValue}\`)`;
     combinedText = helpText ? `${helpText} ${defaultText}` : defaultText;

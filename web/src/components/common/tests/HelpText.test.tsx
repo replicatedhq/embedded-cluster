@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import HelpText from '../HelpText';
@@ -80,7 +79,7 @@ describe('HelpText', () => {
   });
 
   // Truncation functionality tests
-  describe('Text truncation', () => {
+  describe('Text truncation for default text', () => {
     it('does not truncate short text', () => {
       const shortText = 'This is a short help text';
       render(<HelpText helpText={shortText} />);
@@ -89,35 +88,37 @@ describe('HelpText', () => {
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-        it('truncates long text and shows "Show more" button', () => {
-      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and should be truncated with an ellipsis and show more button because it is longer than the threshold';
+    it('does not truncate long help text when no default value is present', () => {
+      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and should not be truncated when there is no default value present';
       render(<HelpText helpText={longText} />);
 
-      // Should show truncated text with ellipsis
-      expect(screen.getByText(/\.\.\./)).toBeInTheDocument();
-      // Should show "Show more" button
-      expect(screen.getByText('Show more')).toBeInTheDocument();
-      // Should not show the full text initially
-      expect(screen.queryByText(longText)).not.toBeInTheDocument();
+      // Should show the full text without truncation
+      expect(screen.getByText(longText)).toBeInTheDocument();
+      // Should not show "Show more" button
+      expect(screen.queryByText('Show more')).not.toBeInTheDocument();
+      // Should not show ellipsis
+      expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument();
     });
 
-        it('expands text when "Show more" is clicked', () => {
-      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and should be truncated with an ellipsis and show more button because it is longer than the threshold';
-      render(<HelpText helpText={longText} />);
+    it('expands text when "Show more" is clicked for long default values', () => {
+      const helpText = 'This is help text';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-should-be-truncated-when-combined-with-help-text';
+      render(<HelpText helpText={helpText} defaultValue={longDefaultValue} />);
 
       const showMoreButton = screen.getByText('Show more');
       fireEvent.click(showMoreButton);
 
       // Should show full text after clicking
-      expect(screen.getByText(longText)).toBeInTheDocument();
+      expect(screen.getByText(longDefaultValue)).toBeInTheDocument();
       // Button should change to "Show less"
       expect(screen.getByText('Show less')).toBeInTheDocument();
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-        it('collapses text when "Show less" is clicked', () => {
-      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and should be truncated with an ellipsis and show more button because it is longer than the threshold';
-      render(<HelpText helpText={longText} />);
+    it('collapses text when "Show less" is clicked for long default values', () => {
+      const helpText = 'This is help text';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-should-be-truncated-when-combined-with-help-text';
+      render(<HelpText helpText={helpText} defaultValue={longDefaultValue} />);
 
       const showMoreButton = screen.getByText('Show more');
       fireEvent.click(showMoreButton);
@@ -131,13 +132,13 @@ describe('HelpText', () => {
       expect(screen.queryByText('Show less')).not.toBeInTheDocument();
     });
 
-    it('truncates combined text with default value when total length exceeds limit', () => {
-      const longHelpText = 'This is a moderately long help text that when combined with default value it exceeds the limit';
-      const defaultValue = 'very-long-default-value-that-makes-total-exceed-limit';
+    it('truncates text when default value exceeds 80 characters', () => {
+      const helpText = 'This is help text';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-should-be-truncated-making-the-combined-text-too-long';
 
-      render(<HelpText helpText={longHelpText} defaultValue={defaultValue} />);
+      render(<HelpText helpText={helpText} defaultValue={longDefaultValue} />);
 
-      // Should show "Show more" button when combined text is too long
+      // Should show "Show more" button when default value exceeds 80 chars
       expect(screen.getByText('Show more')).toBeInTheDocument();
       expect(screen.getByText(/\.\.\./)).toBeInTheDocument();
     });
@@ -150,7 +151,7 @@ describe('HelpText', () => {
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-        it('truncates when only default value is present and exceeds limit', () => {
+    it('truncates when only default value is present and exceeds limit', () => {
       const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-the-maximum-character-limit-of-80-characters-and-the-threshold-so-it-should-be-truncated';
       render(<HelpText defaultValue={longDefaultValue} />);
 
@@ -158,9 +159,10 @@ describe('HelpText', () => {
       expect(screen.getByText(/\.\.\./)).toBeInTheDocument();
     });
 
-            it('preserves markdown formatting in truncated text', () => {
-      const longTextWithMarkdown = 'This is a very long help text with `code formatting` and **bold text** that exceeds the maximum length of 80 characters and the threshold so it should be truncated properly';
-      render(<HelpText helpText={longTextWithMarkdown} />);
+    it('preserves markdown formatting in help text with long default value', () => {
+      const helpTextWithMarkdown = 'This help text has `code formatting` and **bold text**';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-should-be-truncated-properly-while-preserving-markdown';
+      render(<HelpText helpText={helpTextWithMarkdown} defaultValue={longDefaultValue} />);
 
       expect(screen.getByText('Show more')).toBeInTheDocument();
 
@@ -168,21 +170,22 @@ describe('HelpText', () => {
       fireEvent.click(screen.getByText('Show more'));
       expect(screen.getByText('code formatting')).toHaveClass('font-mono');
       expect(screen.getByText('bold text')).toBeInTheDocument();
+      expect(screen.getByText(longDefaultValue)).toBeInTheDocument();
     });
 
-    it('preserves markdown formatting in truncated text with code blocks', () => {
-      // Create text with TLS certificate that will be truncated in the middle of the certificate
-      const longTextWithCodeBlock = 'To configure TLS, provide your certificate:\n\n```\n-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAKoK/heBjcOuMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV\nBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\naWRnaXRzIFB0eSBMdGQwHhcNMTcwODI3MjM1NzU5WhcNMTgwODI3MjM1NzU5WjBF\nMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50\nZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEAuuB5/8GvxwqhkzCQF22XA0cGRUbKCzlJHoFGELqoZKxSV8j9C7sW7A==\n-----END CERTIFICATE-----\n```\n\nEnsure the certificate is valid.';
-      const { container } = render(<HelpText helpText={longTextWithCodeBlock} />);
+    it('preserves markdown formatting in help text with code blocks and long default value', () => {
+      const helpTextWithCodeBlock = 'To configure TLS:\n\n```\nssl_cert=cert.pem\nssl_key=key.pem\n```';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-should-be-truncated-making-the-combined-text-too-long';
+      const { container } = render(<HelpText helpText={helpTextWithCodeBlock} defaultValue={longDefaultValue} />);
 
       expect(screen.getByText('Show more')).toBeInTheDocument();
 
       // Click to expand and check code block markdown is preserved
       fireEvent.click(screen.getByText('Show more'));
 
-      // Check that certificate content is present (may be in different elements)
-      expect(screen.getByText(/BEGIN CERTIFICATE/)).toBeInTheDocument();
-      expect(screen.getByText(/END CERTIFICATE/)).toBeInTheDocument();
+      // Check that certificate content is present
+      expect(screen.getByText(/ssl_cert=cert.pem/)).toBeInTheDocument();
+      expect(screen.getByText(/ssl_key=key.pem/)).toBeInTheDocument();
 
       // Check that pre/code elements exist for code block
       const preElements = container.querySelectorAll('pre');
@@ -191,54 +194,65 @@ describe('HelpText', () => {
       expect(codeElements.length).toBeGreaterThan(0);
     });
 
-        it('applies correct CSS classes to show more/less button', () => {
-      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and should be truncated with an ellipsis and show more button because it is longer than the threshold';
-      render(<HelpText helpText={longText} />);
+    it('applies correct CSS classes to show more/less button', () => {
+      const helpText = 'Help text';
+      // Need a much longer default value to exceed helpText.length + 80 + threshold
+      const longDefaultValue = 'a'.repeat(150); // This will definitely exceed the threshold
+      render(<HelpText helpText={helpText} defaultValue={longDefaultValue} />);
 
       const showMoreButton = screen.getByText('Show more');
       expect(showMoreButton).toHaveClass('ml-1', 'text-blue-600', 'hover:text-blue-800', 'text-xs', 'cursor-pointer');
       expect(showMoreButton).toHaveAttribute('type', 'button');
     });
 
-            it('handles text exactly at maxTextLength', () => {
-      // Create text that's exactly 80 characters (the maxTextLength)
-      const exactMaxText = 'a'.repeat(80);
-      render(<HelpText helpText={exactMaxText} />);
+    it('does not truncate default value exactly at 80 characters', () => {
+      const helpText = 'Help text';
+      // Create default value that's exactly 80 characters
+      const exactMaxDefaultValue = 'a'.repeat(80);
+      render(<HelpText helpText={helpText} defaultValue={exactMaxDefaultValue} />);
 
-      // Should not show "Show more" button at exactly maxTextLength
+      // Should not show "Show more" button at exactly 80 chars for default value
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-    it('handles text within the truncation threshold', () => {
-      // Create text that's 100 characters (over maxTextLength of 80 but within threshold of 40)
-      const withinThresholdText = 'a'.repeat(100);
-      render(<HelpText helpText={withinThresholdText} />);
+    it('does not truncate default value within the truncation threshold', () => {
+      const helpText = 'Help text';
+      // Create default value that's 100 characters (over 80 but within threshold of 40)
+      const withinThresholdDefaultValue = 'a'.repeat(100);
+      render(<HelpText helpText={helpText} defaultValue={withinThresholdDefaultValue} />);
 
       // Should not show "Show more" button when within threshold (80 + 40 = 120)
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-    it('handles text at the edge of truncation threshold', () => {
-      // Create text that's exactly 120 characters (maxTextLength + threshold = 80 + 40)
-      const atThresholdEdgeText = 'a'.repeat(120);
-      render(<HelpText helpText={atThresholdEdgeText} />);
+    it('does not truncate default value at the edge of truncation threshold', () => {
+      const helpText = 'Help text'; // 9 characters
+      // maxTextLength = 9 + 80 = 89
+      // combinedText = "Help text (Default: `...defaultValue...`)"
+      // For threshold edge: combinedText.length should be maxTextLength + 40 = 129
+      // "Help text (Default: `...`)" = 9 + " (Default: `" + defaultValue + "`)" = 9 + 13 + defaultValue.length + 2 = 24 + defaultValue.length
+      // So we need: 24 + defaultValue.length = 129, therefore defaultValue.length = 105
+      const atThresholdEdgeDefaultValue = 'a'.repeat(105);
+      render(<HelpText helpText={helpText} defaultValue={atThresholdEdgeDefaultValue} />);
 
       // Should not show "Show more" button when exactly at threshold edge
       expect(screen.queryByText('Show more')).not.toBeInTheDocument();
     });
 
-    it('handles text just over the truncation threshold', () => {
-      // Create text that's 121 characters (over maxTextLength + threshold = 80 + 40)
-      const justOverThresholdText = 'a'.repeat(121);
-      render(<HelpText helpText={justOverThresholdText} />);
+    it('truncates default value just over the truncation threshold', () => {
+      const helpText = 'Help text';
+      // Create default value that's 121 characters (over 80 + threshold = 80 + 40)
+      const justOverThresholdDefaultValue = 'a'.repeat(121);
+      render(<HelpText helpText={helpText} defaultValue={justOverThresholdDefaultValue} />);
 
       // Should show "Show more" button when over threshold limit
       expect(screen.getByText('Show more')).toBeInTheDocument();
     });
 
-        it('maintains proper data-testid when truncated', () => {
-      const longText = 'This is a very long help text that exceeds the maximum length of 80 characters and the threshold so it should be truncated';
-      const { container } = render(<HelpText helpText={longText} dataTestId="custom-test-id" />);
+    it('maintains proper data-testid when truncated', () => {
+      const helpText = 'Help text';
+      const longDefaultValue = 'this-is-a-very-long-default-value-that-exceeds-80-characters-and-the-threshold-so-it-should-be-truncated';
+      const { container } = render(<HelpText helpText={helpText} defaultValue={longDefaultValue} dataTestId="custom-test-id" />);
 
       const helpDiv = container.querySelector('[data-testid="help-text-custom-test-id"]');
       expect(helpDiv).toBeInTheDocument();
