@@ -166,7 +166,6 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 	return nil
 }
 
-
 func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
 	return c.installationManager.GetStatus()
 }

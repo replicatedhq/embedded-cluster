@@ -69,7 +69,6 @@ func (m *MockInstallationManager) ValidateConfig(config types.KubernetesInstalla
 	return args.Error(0)
 }
 
-
 // ConfigureInstallation mocks the ConfigureInstallation method
 func (m *MockInstallationManager) ConfigureInstallation(ctx context.Context, ki kubernetesinstallation.Installation, config types.KubernetesInstallationConfig) (finalErr error) {
 	args := m.Called(ctx, ki, config)

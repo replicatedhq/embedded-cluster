@@ -69,7 +69,6 @@ func (m *MockInstallationManager) ValidateConfig(config types.LinuxInstallationC
 	return args.Error(0)
 }
 
-
 // ConfigureHost mocks the ConfigureHost method
 func (m *MockInstallationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(ctx, rc)
