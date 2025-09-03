@@ -216,6 +216,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText={`Directory where ${title} will store its data`}
                     error={getFieldError("dataDirectory")}
                     className="w-96"
+                    dataTestId="data-directory-input"
                   />
 
                   <Input
@@ -227,6 +228,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
                     className="w-96"
+                    dataTestId="admin-console-port-input"
                   />
 
                   <Input
@@ -238,6 +240,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="Port for the local artifact mirror"
                     error={getFieldError("localArtifactMirrorPort")}
                     className="w-96"
+                    dataTestId="local-artifact-mirror-port-input"
                   />
                 </div>
               </div>
@@ -254,6 +257,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="HTTP proxy server URL"
                     error={getFieldError("httpProxy")}
                     className="w-96"
+                    dataTestId="http-proxy-input"
                   />
 
                   <Input
@@ -265,6 +269,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="HTTPS proxy server URL"
                     error={getFieldError("httpsProxy")}
                     className="w-96"
+                    dataTestId="https-proxy-input"
                   />
 
                   <Input
@@ -276,6 +281,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                     helpText="Comma-separated list of hosts to bypass the proxy"
                     error={getFieldError("noProxy")}
                     className="w-96"
+                    dataTestId="no-proxy-input"
                   />
                 </div>
               </div>
@@ -285,6 +291,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   type="button"
                   className="flex items-center text-lg font-semibold text-gray-900 mb-6"
                   onClick={() => setShowAdvanced(!showAdvanced)}
+                  data-testid="advanced-settings-toggle"
                 >
                   {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
                   Advanced Settings
@@ -310,6 +317,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                       required
                       placeholder="Select a network interface"
                       className="w-96"
+                      dataTestId="network-interface-select"
                     />
 
                     <Input
@@ -321,6 +329,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                       helpText="CIDR notation for the reserved network range (must be /16 or larger)"
                       error={getFieldError("globalCidr")}
                       className="w-96"
+                      dataTestId="global-cidr-input"
                     />
                   </div>
                 )}
@@ -343,7 +352,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
         <Button variant="outline" onClick={onBack} dataTestId="linux-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
-        <Button onClick={() => submitConfig(configValues)} icon={<ChevronRight className="w-5 h-5" />}>
+        <Button onClick={() => submitConfig(configValues)} icon={<ChevronRight className="w-5 h-5" />} dataTestId="linux-setup-submit-button">
           Next: Validate Host
         </Button>
       </div>

@@ -189,6 +189,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
                     className="w-96"
+                    dataTestId="admin-console-port-input"
                   />
                 </div>
               </div>
@@ -205,6 +206,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     helpText="HTTP proxy server URL"
                     error={getFieldError("httpProxy")}
                     className="w-96"
+                    dataTestId="http-proxy-input"
                   />
 
                   <Input
@@ -216,6 +218,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     helpText="HTTPS proxy server URL"
                     error={getFieldError("httpsProxy")}
                     className="w-96"
+                    dataTestId="https-proxy-input"
                   />
 
                   <Input
@@ -227,6 +230,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     helpText="Comma-separated list of hosts to bypass the proxy"
                     error={getFieldError("noProxy")}
                     className="w-96"
+                    dataTestId="no-proxy-input"
                   />
                 </div>
               </div>
@@ -248,7 +252,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         <Button variant="outline" onClick={onBack} dataTestId="kubernetes-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
-        <Button onClick={() => submitConfig(configValues)} icon={<ChevronRight className="w-5 h-5" />}>
+        <Button onClick={() => submitConfig(configValues)} icon={<ChevronRight className="w-5 h-5" />} dataTestId="kubernetes-setup-submit-button">
           Next: Start Installation
         </Button>
       </div>
