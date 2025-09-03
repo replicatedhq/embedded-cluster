@@ -47,6 +47,8 @@ func (m *installationManager) setConfigDefaults(config *types.KubernetesInstalla
 		return fmt.Errorf("get defaults: %w", err)
 	}
 
+	//Note: we don't set defaults for HTTPProxy, HTTPSProxy, NoProxy (like we do for the linux target) since the settings on the host (such as env vars, etc) are likely different form what we want to run on the k8s cluster
+
 	if config.AdminConsolePort == 0 {
 		config.AdminConsolePort = defaults.AdminConsolePort
 	}
