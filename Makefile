@@ -184,7 +184,7 @@ initial-release: export APP_VERSION = appver-dev-$(call random-string)
 initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=0 \
+	UPLOAD_BINARIES=1 \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
