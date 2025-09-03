@@ -17,7 +17,11 @@ func (m *installationManager) GetConfig() (types.KubernetesInstallationConfig, e
 	if err != nil {
 		return types.KubernetesInstallationConfig{}, fmt.Errorf("get config: %w", err)
 	}
-	m.setConfigDefaults(&config)
+
+	if err := m.setConfigDefaults(&config); err != nil {
+		return types.KubernetesInstallationConfig{}, fmt.Errorf("set config defaults: %w", err)
+	}
+
 	return config, nil
 }
 

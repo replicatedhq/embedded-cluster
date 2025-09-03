@@ -22,12 +22,15 @@ func (m *installationManager) GetConfig(rc runtimeconfig.RuntimeConfig) (types.L
 	if err != nil {
 		return types.LinuxInstallationConfig{}, fmt.Errorf("get config: %w", err)
 	}
-	m.setConfigDefaults(&config, rc)
-	
+
+	if err := m.setConfigDefaults(&config, rc); err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("set config defaults: %w", err)
+	}
+
 	if err := m.computeCIDRs(&config); err != nil {
 		return types.LinuxInstallationConfig{}, fmt.Errorf("compute cidrs: %w", err)
 	}
-	
+
 	return config, nil
 }
 
@@ -119,7 +122,7 @@ func (m *installationManager) computeCIDRs(config *types.LinuxInstallationConfig
 		config.PodCIDR = podCIDR
 		config.ServiceCIDR = serviceCIDR
 	}
-	
+
 	return nil
 }
 
