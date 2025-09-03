@@ -460,8 +460,3 @@ func TestWaitForPodDeleted(t *testing.T) {
 		})
 	}
 }
-
-// Helper function for creating int32 pointers
-func int32Ptr(i int32) *int32 {
-	return &i
-}
