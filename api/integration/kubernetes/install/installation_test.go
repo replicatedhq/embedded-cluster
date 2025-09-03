@@ -224,7 +224,7 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, tc.expectedConfig, storedConfig.Values)
+				assert.Equal(t, tc.expectedConfig, storedConfig.Resolved)
 
 				// Verify that the installation was updated
 				if tc.validateInstallation != nil {
@@ -397,7 +397,7 @@ func TestKubernetesGetInstallationConfig(t *testing.T) {
 		HTTPSProxy:       "https://proxy.example.com",
 		NoProxy:          "somecompany.internal,192.168.17.0/24",
 	}
-	err = installationManager.SetConfig(initialConfig)
+	err = installationManager.SetConfigValues(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with the install controller

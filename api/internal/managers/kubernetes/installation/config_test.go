@@ -128,7 +128,7 @@ func TestSetConfigDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewInstallationManager()
 
-			err := manager.SetConfigDefaults(&tt.inputConfig)
+			err := manager.setConfigDefaults(&tt.inputConfig)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig, tt.inputConfig)
 		})
@@ -145,7 +145,7 @@ func TestSetConfigDefaultsNoEnvProxy(t *testing.T) {
 
 	// Test with empty config - should only set admin console port default
 	config := types.KubernetesInstallationConfig{}
-	err := manager.SetConfigDefaults(&config)
+	err := manager.setConfigDefaults(&config)
 	assert.NoError(t, err)
 
 	// Verify that only the admin console port is set as default
@@ -197,7 +197,7 @@ func TestGetDefaults(t *testing.T) {
 func TestConfigSetAndGet(t *testing.T) {
 	manager := NewInstallationManager()
 
-	// Test writing a config
+	// Test writing config values
 	configToWrite := types.KubernetesInstallationConfig{
 		AdminConsolePort: 8800,
 		HTTPProxy:        "http://proxy.example.com:3128",
@@ -205,16 +205,26 @@ func TestConfigSetAndGet(t *testing.T) {
 		NoProxy:          "localhost,127.0.0.1",
 	}
 
-	err := manager.SetConfig(configToWrite)
+	err := manager.SetConfigValues(configToWrite)
 	assert.NoError(t, err)
 
-	// Test reading it back
-	readConfig, err := manager.GetConfig()
+	// Test reading user values back
+	readValues, err := manager.GetConfigValues()
 	assert.NoError(t, err)
 
-	// Verify the values match
-	assert.Equal(t, configToWrite.AdminConsolePort, readConfig.AdminConsolePort)
-	assert.Equal(t, configToWrite.HTTPProxy, readConfig.HTTPProxy)
-	assert.Equal(t, configToWrite.HTTPSProxy, readConfig.HTTPSProxy)
-	assert.Equal(t, configToWrite.NoProxy, readConfig.NoProxy)
+	// Verify the user values match
+	assert.Equal(t, configToWrite.AdminConsolePort, readValues.AdminConsolePort)
+	assert.Equal(t, configToWrite.HTTPProxy, readValues.HTTPProxy)
+	assert.Equal(t, configToWrite.HTTPSProxy, readValues.HTTPSProxy)
+	assert.Equal(t, configToWrite.NoProxy, readValues.NoProxy)
+
+	// Test reading resolved config (should have defaults applied)
+	resolvedConfig, err := manager.GetConfig()
+	assert.NoError(t, err)
+
+	// Verify the resolved config has user values
+	assert.Equal(t, configToWrite.AdminConsolePort, resolvedConfig.AdminConsolePort)
+	assert.Equal(t, configToWrite.HTTPProxy, resolvedConfig.HTTPProxy)
+	assert.Equal(t, configToWrite.HTTPSProxy, resolvedConfig.HTTPSProxy)
+	assert.Equal(t, configToWrite.NoProxy, resolvedConfig.NoProxy)
 }

@@ -66,9 +66,11 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			}(),
 			mockNetUtils: func() *utils.MockNetUtils {
 				mockNetUtils := &utils.MockNetUtils{}
-				// We need to mock it twice because we assert the stored config by caling GetInstallationConfig after the request
-				// which also calls DetermineBestNetworkInterface
-				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Twice()
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
 				return mockNetUtils
 			}(),
 			token: "TOKEN",
@@ -132,9 +134,11 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			}(),
 			mockNetUtils: func() *utils.MockNetUtils {
 				mockNetUtils := &utils.MockNetUtils{}
-				// We need to mock it twice because we assert the stored config by caling GetInstallationConfig after the request
-				// which also calls DetermineBestNetworkInterface
-				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Twice()
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
 				mockNetUtils.On("FirstValidIPNet", "eth0").Return(&net.IPNet{IP: net.ParseIP("192.168.17.12"), Mask: net.CIDRMask(24, 32)}, nil)
 				return mockNetUtils
 			}(),
@@ -208,9 +212,11 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			}(),
 			mockNetUtils: func() *utils.MockNetUtils {
 				mockNetUtils := &utils.MockNetUtils{}
-				// We need to mock it twice because we assert the stored config by caling GetInstallationConfig after the request
-				// which also calls DetermineBestNetworkInterface
-				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Twice()
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
 				return mockNetUtils
 			}(),
 			token: "TOKEN",
@@ -365,7 +371,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, tc.expectedConfig, storedConfig.Values)
+				assert.Equal(t, tc.expectedConfig, storedConfig.Resolved)
 			}
 
 			// Verify host configuration was performed for successful tests
@@ -527,7 +533,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 
 	netUtils := &utils.MockNetUtils{}
 	netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
-	netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
+	netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(2)
 
 	// Create a config manager
 	installationManager := linuxinstallationmanager.NewInstallationManager(
@@ -550,7 +556,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		GlobalCIDR:              "10.0.0.0/16",
 		NetworkInterface:        "eth0",
 	}
-	err = installationManager.SetConfig(initialConfig)
+	err = installationManager.SetConfigValues(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -602,7 +608,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	t.Run("Default configuration", func(t *testing.T) {
 		netUtils := &utils.MockNetUtils{}
 		netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
-		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
+		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(2)
 
 		rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 		defaultTempDir := t.TempDir()
@@ -761,7 +767,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		GlobalCIDR:              "192.168.0.0/16",
 		NetworkInterface:        "eth1",
 	}
-	err = installationManager.SetConfig(initialConfig)
+	err = installationManager.SetConfigValues(initialConfig)
 	require.NoError(t, err)
 
 	// Set some initial status

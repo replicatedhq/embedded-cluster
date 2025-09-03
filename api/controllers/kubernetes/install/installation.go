@@ -11,9 +11,9 @@ import (
 
 func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error) {
 	// Get stored config (user values only)
-	values, err := c.installationManager.GetConfig()
+	values, err := c.installationManager.GetConfigValues()
 	if err != nil {
-		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get config: %w", err)
+		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get config values: %w", err)
 	}
 
 	// Get defaults separately
@@ -22,9 +22,16 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.Ku
 		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get defaults: %w", err)
 	}
 
+	// Get the final "resolved" config with the user values and defaults applied
+	config, err := c.installationManager.GetConfig()
+	if err != nil {
+		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get config: %w", err)
+	}
+
 	return types.KubernetesInstallationConfigResponse{
 		Values:   values,
 		Defaults: defaults,
+		Resolved: config,
 	}, nil
 }
 
@@ -60,11 +67,6 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 			}
 		}
 	}()
-
-	// Apply defaults
-	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
-		return fmt.Errorf("apply defaults: %w", err)
-	}
 
 	if err := c.installationManager.ConfigureInstallation(ctx, c.ki, config); err != nil {
 		return err

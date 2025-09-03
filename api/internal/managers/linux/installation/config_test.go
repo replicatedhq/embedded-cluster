@@ -301,7 +301,7 @@ func TestSetConfigDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewInstallationManager(WithNetUtils(mockNetUtils))
 
-			err := manager.SetConfigDefaults(&tt.inputConfig, mockRC)
+			err := manager.setConfigDefaults(&tt.inputConfig, mockRC)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig, tt.inputConfig)
 		})
@@ -315,7 +315,7 @@ func TestSetConfigDefaults(t *testing.T) {
 		manager := NewInstallationManager(WithNetUtils(failingMockNetUtils))
 
 		config := types.LinuxInstallationConfig{}
-		err := manager.SetConfigDefaults(&config, mockRC)
+		err := manager.setConfigDefaults(&config, mockRC)
 		assert.NoError(t, err)
 
 		// Network interface should remain empty when detection fails
@@ -473,7 +473,7 @@ func TestGetDefaults(t *testing.T) {
 func TestConfigSetAndGet(t *testing.T) {
 	manager := NewInstallationManager()
 
-	// Test writing a config
+	// Test writing config values
 	configToWrite := types.LinuxInstallationConfig{
 		AdminConsolePort:        8800,
 		DataDirectory:           "/var/lib/embedded-cluster",
@@ -482,19 +482,95 @@ func TestConfigSetAndGet(t *testing.T) {
 		GlobalCIDR:              "10.0.0.0/16",
 	}
 
-	err := manager.SetConfig(configToWrite)
+	err := manager.SetConfigValues(configToWrite)
 	assert.NoError(t, err)
 
-	// Test reading it back
-	readConfig, err := manager.GetConfig()
+	// Test reading user values back
+	readValues, err := manager.GetConfigValues()
 	assert.NoError(t, err)
 
-	// Verify the values match
-	assert.Equal(t, configToWrite.AdminConsolePort, readConfig.AdminConsolePort)
-	assert.Equal(t, configToWrite.DataDirectory, readConfig.DataDirectory)
-	assert.Equal(t, configToWrite.LocalArtifactMirrorPort, readConfig.LocalArtifactMirrorPort)
-	assert.Equal(t, configToWrite.NetworkInterface, readConfig.NetworkInterface)
-	assert.Equal(t, configToWrite.GlobalCIDR, readConfig.GlobalCIDR)
+	// Verify the user values match
+	assert.Equal(t, configToWrite.AdminConsolePort, readValues.AdminConsolePort)
+	assert.Equal(t, configToWrite.DataDirectory, readValues.DataDirectory)
+	assert.Equal(t, configToWrite.LocalArtifactMirrorPort, readValues.LocalArtifactMirrorPort)
+	assert.Equal(t, configToWrite.NetworkInterface, readValues.NetworkInterface)
+	assert.Equal(t, configToWrite.GlobalCIDR, readValues.GlobalCIDR)
+
+	// Test reading resolved config (should have defaults applied)
+	// Create a mock RuntimeConfig for the GetConfig method
+	mockRC := &runtimeconfig.MockRuntimeConfig{}
+	mockRC.On("EmbeddedClusterHomeDirectory").Return("/test/data/dir")
+
+	resolvedConfig, err := manager.GetConfig(mockRC)
+	assert.NoError(t, err)
+
+	// Verify the resolved config has user values
+	assert.Equal(t, configToWrite.AdminConsolePort, resolvedConfig.AdminConsolePort)
+	assert.Equal(t, configToWrite.DataDirectory, resolvedConfig.DataDirectory)
+	assert.Equal(t, configToWrite.LocalArtifactMirrorPort, resolvedConfig.LocalArtifactMirrorPort)
+	assert.Equal(t, configToWrite.NetworkInterface, resolvedConfig.NetworkInterface)
+	assert.Equal(t, configToWrite.GlobalCIDR, resolvedConfig.GlobalCIDR)
+
+	// Verify mock expectations
+	mockRC.AssertExpectations(t)
+}
+
+// TestComputeCIDRs tests the CIDR computation logic
+func TestComputeCIDRs(t *testing.T) {
+	tests := []struct {
+		name        string
+		globalCIDR  string
+		expectedPod string
+		expectedSvc string
+		expectedErr bool
+	}{
+		{
+			name:        "valid cidr 10.0.0.0/16",
+			globalCIDR:  "10.0.0.0/16",
+			expectedPod: "10.0.0.0/17",
+			expectedSvc: "10.0.128.0/17",
+			expectedErr: false,
+		},
+		{
+			name:        "valid cidr 192.168.0.0/16",
+			globalCIDR:  "192.168.0.0/16",
+			expectedPod: "192.168.0.0/17",
+			expectedSvc: "192.168.128.0/17",
+			expectedErr: false,
+		},
+		{
+			name:        "no global cidr",
+			globalCIDR:  "",
+			expectedPod: "", // Should remain unchanged
+			expectedSvc: "", // Should remain unchanged
+			expectedErr: false,
+		},
+		{
+			name:        "invalid cidr",
+			globalCIDR:  "not-a-cidr",
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			manager := NewInstallationManager()
+
+			config := types.LinuxInstallationConfig{
+				GlobalCIDR: tt.globalCIDR,
+			}
+
+			err := manager.computeCIDRs(&config)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedPod, config.PodCIDR)
+				assert.Equal(t, tt.expectedSvc, config.ServiceCIDR)
+			}
+		})
+	}
 }
 
 func TestConfigureHost(t *testing.T) {

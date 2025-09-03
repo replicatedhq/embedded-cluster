@@ -11,11 +11,23 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 )
 
+// GetConfig returns the resolved installation configuration, with the user provided values AND defaults applied
 func (m *installationManager) GetConfig() (types.KubernetesInstallationConfig, error) {
+	config, err := m.GetConfigValues()
+	if err != nil {
+		return types.KubernetesInstallationConfig{}, fmt.Errorf("get config: %w", err)
+	}
+	m.setConfigDefaults(&config)
+	return config, nil
+}
+
+// GetConfigValues returns the installation configuration values provided by the user
+func (m *installationManager) GetConfigValues() (types.KubernetesInstallationConfig, error) {
 	return m.installationStore.GetConfig()
 }
 
-func (m *installationManager) SetConfig(config types.KubernetesInstallationConfig) error {
+// SetConfigValues persists the user provided changes to the installation config
+func (m *installationManager) SetConfigValues(config types.KubernetesInstallationConfig) error {
 	return m.installationStore.SetConfig(config)
 }
 
@@ -28,8 +40,8 @@ func (m *installationManager) GetDefaults() (types.KubernetesInstallationConfig,
 	return defaults, nil
 }
 
-// SetConfigDefaults sets default values for the installation configuration
-func (m *installationManager) SetConfigDefaults(config *types.KubernetesInstallationConfig) error {
+// setConfigDefaults sets default values for the installation configuration
+func (m *installationManager) setConfigDefaults(config *types.KubernetesInstallationConfig) error {
 	defaults, err := m.GetDefaults()
 	if err != nil {
 		return fmt.Errorf("get defaults: %w", err)
@@ -84,23 +96,30 @@ func (m *installationManager) ConfigureInstallation(ctx context.Context, ki kube
 		}
 	}()
 
-	if err := m.ValidateConfig(config, ki.ManagerPort()); err != nil {
-		return fmt.Errorf("validate: %w", err)
-	}
-
-	if err := m.SetConfig(config); err != nil {
+	// Store the user provided values before applying the defaults
+	if err := m.SetConfigValues(config); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
 
-	// update the kubernetes installation
-	ki.SetAdminConsolePort(config.AdminConsolePort)
+	// Get the resolved config with defaults applied
+	resolvedConfig, err := m.GetConfig()
+	if err != nil {
+		return fmt.Errorf("get resolved config: %w", err)
+	}
 
-	if config.HTTPProxy != "" || config.HTTPSProxy != "" || config.NoProxy != "" {
+	if err := m.ValidateConfig(resolvedConfig, ki.ManagerPort()); err != nil {
+		return fmt.Errorf("validate: %w", err)
+	}
+
+	// update the kubernetes installation
+	ki.SetAdminConsolePort(resolvedConfig.AdminConsolePort)
+
+	if resolvedConfig.HTTPProxy != "" || resolvedConfig.HTTPSProxy != "" || resolvedConfig.NoProxy != "" {
 		ki.SetProxySpec(&ecv1beta1.ProxySpec{
-			HTTPProxy:       config.HTTPProxy,
-			HTTPSProxy:      config.HTTPSProxy,
-			NoProxy:         config.NoProxy,
-			ProvidedNoProxy: config.NoProxy,
+			HTTPProxy:       resolvedConfig.HTTPProxy,
+			HTTPSProxy:      resolvedConfig.HTTPSProxy,
+			NoProxy:         resolvedConfig.NoProxy,
+			ProvidedNoProxy: resolvedConfig.NoProxy,
 		})
 	} else {
 		ki.SetProxySpec(nil)

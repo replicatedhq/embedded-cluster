@@ -17,13 +17,13 @@ var _ InstallationManager = &installationManager{}
 
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
-	GetConfig() (types.LinuxInstallationConfig, error)
-	SetConfig(config types.LinuxInstallationConfig) error
+	GetConfig(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
+	GetConfigValues() (types.LinuxInstallationConfig, error)
+	SetConfigValues(config types.LinuxInstallationConfig) error
 	GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
-	SetConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 }

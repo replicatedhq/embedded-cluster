@@ -16,11 +16,28 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (m *installationManager) GetConfig() (types.LinuxInstallationConfig, error) {
+// GetConfig returns the resolved installation configuration, with the user provided values AND defaults applied
+func (m *installationManager) GetConfig(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error) {
+	config, err := m.GetConfigValues()
+	if err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("get config: %w", err)
+	}
+	m.setConfigDefaults(&config, rc)
+	
+	if err := m.computeCIDRs(&config); err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("compute cidrs: %w", err)
+	}
+	
+	return config, nil
+}
+
+// GetConfigValues returns the installation configuration values provided by the user
+func (m *installationManager) GetConfigValues() (types.LinuxInstallationConfig, error) {
 	return m.installationStore.GetConfig()
 }
 
-func (m *installationManager) SetConfig(config types.LinuxInstallationConfig) error {
+// SetConfigValues persists the user provided changes to the installation config
+func (m *installationManager) SetConfigValues(config types.LinuxInstallationConfig) error {
 	return m.installationStore.SetConfig(config)
 }
 
@@ -48,8 +65,8 @@ func (m *installationManager) GetDefaults(rc runtimeconfig.RuntimeConfig) (types
 	return defaults, nil
 }
 
-// SetConfigDefaults sets default values for the installation configuration
-func (m *installationManager) SetConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error {
+// setConfigDefaults sets default values for the installation configuration
+func (m *installationManager) setConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error {
 	defaults, err := m.GetDefaults(rc)
 	if err != nil {
 		return fmt.Errorf("get defaults: %w", err)
@@ -89,6 +106,20 @@ func (m *installationManager) SetConfigDefaults(config *types.LinuxInstallationC
 		config.GlobalCIDR = defaults.GlobalCIDR
 	}
 
+	return nil
+}
+
+// computeCIDRs computes PodCIDR and ServiceCIDR from GlobalCIDR if GlobalCIDR is set
+func (m *installationManager) computeCIDRs(config *types.LinuxInstallationConfig) error {
+	if config.GlobalCIDR != "" {
+		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
+		if err != nil {
+			return fmt.Errorf("split network cidr: %w", err)
+		}
+		config.PodCIDR = podCIDR
+		config.ServiceCIDR = serviceCIDR
+	}
+	
 	return nil
 }
 

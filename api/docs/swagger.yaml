@@ -137,6 +137,8 @@ components:
       properties:
         defaults:
           $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+        resolved:
+          $ref: '#/components/schemas/types.KubernetesInstallationConfig'
         values:
           $ref: '#/components/schemas/types.KubernetesInstallationConfig'
       type: object
@@ -171,6 +173,8 @@ components:
     types.LinuxInstallationConfigResponse:
       properties:
         defaults:
+          $ref: '#/components/schemas/types.LinuxInstallationConfig'
+        resolved:
           $ref: '#/components/schemas/types.LinuxInstallationConfig'
         values:
           $ref: '#/components/schemas/types.LinuxInstallationConfig'
