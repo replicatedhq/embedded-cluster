@@ -94,10 +94,6 @@ func (k *KubeUtils) WaitForCRDToBeReady(ctx context.Context, cli client.Client, 
 	return nil
 }
 
-func (k *KubeUtils) RestartStatefulSetPods(ctx context.Context, cli client.Client, namespace, name string) error {
-	return nil
-}
-
 func (k *KubeUtils) KubeClient() (client.Client, error) {
 	return KubeClient()
 }

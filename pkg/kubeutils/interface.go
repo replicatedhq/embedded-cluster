@@ -40,7 +40,6 @@ type KubeUtilsInterface interface {
 	IsDaemonsetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
-	RestartStatefulSetPods(ctx context.Context, cli client.Client, namespace, name string) error
 	KubeClient() (client.Client, error)
 	MetadataClient() (metadata.Interface, error)
 	GetClientset() (kubernetes.Interface, error)

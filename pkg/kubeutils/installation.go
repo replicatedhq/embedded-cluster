@@ -394,7 +394,6 @@ func GetPreviousInstallation(ctx context.Context, cli client.Client, in *ecv1bet
 
 var (
 	version115            = semver.MustParse("1.15.0")
-	version281            = semver.MustParse("2.8.1")
 	oldVersionSchemeRegex = regexp.MustCompile(`.*\+ec\.[0-9]+`)
 )
 
@@ -403,10 +402,6 @@ func lessThanECVersion115(ver *semver.Version) bool {
 		return true
 	}
 	return ver.LessThan(version115)
-}
-
-func lessThanECVersion281(ver *semver.Version) bool {
-	return ver.LessThan(version281)
 }
 
 // MaybeOverrideInstallationDataDirs checks if the previous installation is less than EC version
