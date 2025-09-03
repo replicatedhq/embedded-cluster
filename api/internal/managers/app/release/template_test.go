@@ -334,8 +334,8 @@ spec:
 			// Create real helm client
 			config := createTestConfig()
 			hcli, err := helm.NewClient(helm.HelmOptions{
-				HelmPath:   "helm",    // use the helm binary in PATH
-				K8sVersion: "v1.33.0", // TODO NOW: check that is gets used
+				HelmPath:   "helm", // use the helm binary in PATH
+				K8sVersion: "v1.33.0",
 			})
 			require.NoError(t, err)
 			manager, err := NewAppReleaseManager(
