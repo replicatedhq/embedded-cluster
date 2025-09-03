@@ -45,6 +45,13 @@ jobs:
         version=$(gh release list --repo axboe/fio --json name,isLatest | jq -r '.[] | select(.isLatest)|.name' | cut -d- -f2)
         echo "fio version: $version"
         sed -i "/^FIO_VERSION/c\FIO_VERSION = $version" versions.mk
+    - name: Helm
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        version=$(gh release list --repo helm/helm --json tagName,isLatest | jq -r '.[] | select(.isLatest) | .tagName')
+        echo "helm version: $version"
+        sed -i "/^HELM_VERSION/c\HELM_VERSION = $version" versions.mk
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
       with:

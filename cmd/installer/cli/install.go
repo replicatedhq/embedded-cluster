@@ -54,7 +54,6 @@ import (
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -588,7 +587,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, ki kubern
 		}
 	}
 
-	restConfig, err := clientcmd.BuildConfigFromFlags("", flags.kubernetesEnvSettings.KubeConfig)
+	restConfig, err := flags.kubernetesEnvSettings.RESTClientGetter().ToRESTConfig()
 	if err != nil {
 		return fmt.Errorf("failed to discover kubeconfig: %w", err)
 	}
