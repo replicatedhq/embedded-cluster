@@ -316,27 +316,8 @@ func newKubernetesInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.Fla
 }
 
 func addKubernetesCLIFlags(flagSet *pflag.FlagSet, flags *InstallCmdFlags) {
-	// From helm
-	// https://github.com/helm/helm/blob/v3.18.3/pkg/cli/environment.go#L145-L163
-
 	s := helmcli.New()
-
-	flagSet.StringVar(&s.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file")
-	flagSet.StringVar(&s.KubeContext, "kube-context", s.KubeContext, "Name of the kubeconfig context to use")
-	flagSet.StringVar(&s.KubeToken, "kube-token", s.KubeToken, "Bearer token used for authentication")
-	flagSet.StringVar(&s.KubeAsUser, "kube-as-user", s.KubeAsUser, "Username to impersonate for the operation")
-	flagSet.StringArrayVar(&s.KubeAsGroups, "kube-as-group", s.KubeAsGroups, "Group to impersonate for the operation, this flag can be repeated to specify multiple groups.")
-	flagSet.StringVar(&s.KubeAPIServer, "kube-apiserver", s.KubeAPIServer, "The address and the port for the Kubernetes API server")
-	flagSet.StringVar(&s.KubeCaFile, "kube-ca-file", s.KubeCaFile, "The certificate authority file for the Kubernetes API server connection")
-	flagSet.StringVar(&s.KubeTLSServerName, "kube-tls-server-name", s.KubeTLSServerName, "Server name to use for Kubernetes API server certificate validation. If it is not provided, the hostname used to contact the server is used")
-	// flagSet.BoolVar(&s.Debug, "helm-debug", s.Debug, "enable verbose output")
-	flagSet.BoolVar(&s.KubeInsecureSkipTLSVerify, "kube-insecure-skip-tls-verify", s.KubeInsecureSkipTLSVerify, "If true, the Kubernetes API server's certificate will not be checked for validity. This will make your HTTPS connections insecure")
-	// flagSet.StringVar(&s.RegistryConfig, "helm-registry-config", s.RegistryConfig, "Path to the Helm registry config file")
-	// flagSet.StringVar(&s.RepositoryConfig, "helm-repository-config", s.RepositoryConfig, "Path to the file containing Helm repository names and URLs")
-	// flagSet.StringVar(&s.RepositoryCache, "helm-repository-cache", s.RepositoryCache, "Path to the directory containing cached Helm repository indexes")
-	flagSet.IntVar(&s.BurstLimit, "burst-limit", s.BurstLimit, "Kubernetes API client-side default throttling limit")
-	flagSet.Float32Var(&s.QPS, "qps", s.QPS, "Queries per second used when communicating with the Kubernetes API, not including bursting")
-
+	helm.AddKubernetesCLIFlags(flagSet, s)
 	flags.kubernetesEnvSettings = s
 }
 
