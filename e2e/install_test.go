@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
@@ -2130,5 +2131,120 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		if len(domainOutput) > 0 {
 			t.Logf("\n%v", domainOutput)
 		}
+	}
+}
+
+func TestMultiNodeAirgapHAUpgradeFromPre281(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	// 4-node HA cluster following existing HA patterns
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:                      t,
+		Nodes:                  4,
+		Distribution:           "ubuntu",
+		Version:                "22.04",
+		InstanceType:           "r1.medium",
+		SupportBundleNodeIndex: 2,
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	// Use version that triggers the pre-2.8.1 fix (e.g., previous-k0s-1 or previous-stable)
+	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		},
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+	)
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+
+	// Install expect dependency for HA join command (following existing HA patterns)
+	t.Logf("%s: installing expect package on node 3", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(3, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 3: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Install first node with pre-2.8.1 version
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap: true,
+		version:  initialVersion,
+	})
+
+	// Deploy app
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Join controller nodes for HA setup (following existing HA join patterns)
+	joinControllerNode(t, tc, 1)
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isHA: true})
+
+	// Join worker node
+	joinWorkerNode(t, tc, 3)
+
+	// Wait for all nodes to be ready
+	waitForNodes(t, tc, 4, nil)
+
+	// Verify initial HA state with SeaweedFS single replica (pre-2.8.1 behavior)
+	t.Logf("%s: checking initial single-replica SeaweedFS state", time.Now().Format(time.RFC3339))
+	checkInitialSingleReplicaState(t, tc)
+
+	// Perform upgrade that should trigger SeaweedFS scaling fix
+	t.Logf("%s: preparing upgrade bundle", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh", upgradeVersion}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare upgrade bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Execute upgrade via Playwright
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	testArgs := []string{upgradeVersion}
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Verify post-upgrade HA state with SeaweedFS scaled to 3 replicas
+	t.Logf("%s: checking post-upgrade HA state with SeaweedFS scaling", time.Now().Format(time.RFC3339))
+	checkPostUpgradeState(t, tc)
+
+	// Additional SeaweedFS-specific validation using existing patterns
+	t.Logf("%s: validating SeaweedFS HA mode after upgrade", time.Now().Format(time.RFC3339))
+	validateSeaweedFSHAState(t, tc, upgradeVersion)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// Helper functions following existing patterns
+func checkInitialSingleReplicaState(t *testing.T, tc cluster.Cluster) {
+	// Validate that SeaweedFS is running in single-replica mode (pre-2.8.1)
+	line := []string{"check-initial-seaweedfs-state.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check initial seaweedfs state: %v: %s: %s", err, stdout, stderr)
+	}
+}
+
+func validateSeaweedFSHAState(t *testing.T, tc cluster.Cluster, version string) {
+	// Use existing HA validation script that checks for 3 replicas
+	k8sVersionStr := k8sVersion()
+	line := []string{"check-airgap-post-ha-state.sh", version, k8sVersionStr}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check post-HA upgrade state: %v: %s: %s", err, stdout, stderr)
 	}
 }

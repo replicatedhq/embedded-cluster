@@ -67,6 +67,95 @@ func Test_lessThanECVersion115(t *testing.T) {
 	}
 }
 
+func Test_lessThanECVersion281(t *testing.T) {
+	type args struct {
+		ver *semver.Version
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "version 2.8.0 is less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.8.0+k8s-1.29-49-gf92daca6"),
+			},
+			want: true,
+		},
+		{
+			name: "version 2.8.1 is not less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.8.1+k8s-1.29-49-gf92daca6"),
+			},
+			want: false,
+		},
+		{
+			name: "version 2.8.2 is not less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.8.2+k8s-1.29-49-gf92daca6"),
+			},
+			want: false,
+		},
+		{
+			name: "version 2.7.9 is less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.7.9+k8s-1.29-49-gf92daca6"),
+			},
+			want: true,
+		},
+		{
+			name: "version 2.9.0 is not less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.9.0+k8s-1.29-49-gf92daca6"),
+			},
+			want: false,
+		},
+		{
+			name: "version 1.15.0 is less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("1.15.0+k8s-1.29-49-gf92daca6"),
+			},
+			want: true,
+		},
+		{
+			name: "version 3.0.0 is not less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("3.0.0+k8s-1.29-49-gf92daca6"),
+			},
+			want: false,
+		},
+		{
+			name: "old version scheme is less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("1.28.7+ec.0"),
+			},
+			want: true,
+		},
+		{
+			name: "exact version 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.8.1"),
+			},
+			want: false,
+		},
+		{
+			name: "version with prerelease is less than 2.8.1",
+			args: args{
+				ver: semver.MustParse("2.8.1-beta1+k8s-1.29"),
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := lessThanECVersion281(tt.args.ver); got != tt.want {
+				t.Errorf("lessThanECVersion281() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEnsureInstallationCRD(t *testing.T) {
 	ctrllog.SetLogger(testr.New(t))
 

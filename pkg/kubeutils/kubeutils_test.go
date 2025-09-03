@@ -7,6 +7,7 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/require"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -459,4 +460,210 @@ func TestWaitForPodDeleted(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRestartStatefulSetPods(t *testing.T) {
+	scheme := scheme.Scheme
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, appsv1.AddToScheme(scheme))
+
+	tests := []struct {
+		name        string
+		namespace   string
+		stsName     string
+		objects     []client.Object
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "error - statefulset not found",
+			namespace:   "test-ns",
+			stsName:     "missing-sts",
+			objects:     []client.Object{},
+			wantErr:     true,
+			errContains: "not found",
+		},
+		{
+			name:      "error - statefulset has nil replicas",
+			namespace: "test-ns",
+			stsName:   "test-sts",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "test-ns",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: nil,
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "nil replicas",
+		},
+		{
+			name:      "success - no pods exist (all get skipped)",
+			namespace: "test-ns",
+			stsName:   "test-sts",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-sts",
+						Namespace: "test-ns",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: int32Ptr(2),
+					},
+				},
+				// No pods exist - should skip all deletions
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			builder := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.objects...)
+
+			cli := builder.Build()
+
+			ku := &KubeUtils{}
+
+			err := ku.RestartStatefulSetPods(context.Background(), cli, tt.namespace, tt.stsName)
+
+			if tt.wantErr {
+				req.Error(err)
+				if tt.errContains != "" {
+					req.Contains(err.Error(), tt.errContains)
+				}
+			} else {
+				req.NoError(err)
+			}
+		})
+	}
+}
+
+func TestWaitForPodRecreatedAndReady(t *testing.T) {
+	scheme := scheme.Scheme
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	tests := []struct {
+		name           string
+		namespace      string
+		podName        string
+		objects        []client.Object
+		simulateDelete bool
+		cancelCtx      bool
+		wantErr        bool
+		errContains    string
+	}{
+		{
+			name:      "pod already ready",
+			namespace: "test-ns",
+			podName:   "test-pod",
+			objects: []client.Object{
+				&corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-pod",
+						Namespace: "test-ns",
+					},
+					Status: corev1.PodStatus{
+						Phase: corev1.PodRunning,
+						Conditions: []corev1.PodCondition{
+							{
+								Type:   corev1.PodReady,
+								Status: corev1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:           "pod gets recreated and becomes ready",
+			namespace:      "test-ns",
+			podName:        "test-pod",
+			objects:        []client.Object{},
+			simulateDelete: true,
+			wantErr:        false,
+		},
+		{
+			name:        "context canceled",
+			namespace:   "test-ns",
+			podName:     "test-pod",
+			objects:     []client.Object{},
+			cancelCtx:   true,
+			wantErr:     true,
+			errContains: "context canceled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			builder := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.objects...)
+
+			cli := builder.Build()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			if tt.simulateDelete {
+				// Simulate pod recreation by creating it after a short delay
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					pod := &corev1.Pod{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      tt.podName,
+							Namespace: tt.namespace,
+						},
+						Status: corev1.PodStatus{
+							Phase: corev1.PodRunning,
+							Conditions: []corev1.PodCondition{
+								{
+									Type:   corev1.PodReady,
+									Status: corev1.ConditionTrue,
+								},
+							},
+						},
+					}
+					err := cli.Create(ctx, pod)
+					req.NoError(err)
+				}()
+			}
+
+			if tt.cancelCtx {
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					cancel()
+				}()
+			}
+
+			ku := &KubeUtils{}
+
+			err := ku.waitForPodRecreatedAndReady(ctx, cli, tt.namespace, tt.podName)
+
+			if tt.wantErr {
+				req.Error(err)
+				if tt.errContains != "" {
+					req.Contains(err.Error(), tt.errContains)
+				}
+			} else {
+				req.NoError(err)
+			}
+		})
+	}
+}
+
+// Helper function for creating int32 pointers
+func int32Ptr(i int32) *int32 {
+	return &i
 }
