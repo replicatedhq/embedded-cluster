@@ -7,8 +7,7 @@ require (
 	github.com/k0sproject/dig v0.4.0
 	github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6
 	github.com/stretchr/testify v1.10.0
-	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.1
+	go.yaml.in/yaml/v3 v3.0.4
 	k8s.io/api v0.33.4
 	k8s.io/apimachinery v0.33.4
 	sigs.k8s.io/controller-runtime v0.21.0
@@ -44,6 +43,7 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	helm.sh/helm/v3 v3.18.6 // indirect
 	k8s.io/apiextensions-apiserver v0.33.4 // indirect
 	k8s.io/client-go v0.33.4 // indirect

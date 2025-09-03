@@ -11,7 +11,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/release"

@@ -16,7 +16,7 @@ import (
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	kyaml "sigs.k8s.io/yaml"

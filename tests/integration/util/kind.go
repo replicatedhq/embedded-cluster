@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
