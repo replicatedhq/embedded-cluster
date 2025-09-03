@@ -42,6 +42,7 @@ interface ConfigError extends Error {
 interface KubernetesConfigResponse {
   values: KubernetesConfig;
   defaults: KubernetesConfig;
+  resolved: KubernetesConfig;
 }
 
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
@@ -70,8 +71,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         throw new Error(errorData.message || "Failed to fetch install configuration");
       }
       const configResponse = await response.json();
-      // Update the global config with user values, TODO use the "resolved" config to update the context once the API supports it.
-      updateConfig(configResponse.values);
+      // Update the global config with resolved config which includes user values and defaults.
+      updateConfig(configResponse.resolved);
       // Store defaults for display in help text
       setDefaults(configResponse.defaults);
       // Store the config values for display in the form inputs

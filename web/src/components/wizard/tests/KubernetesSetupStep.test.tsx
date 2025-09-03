@@ -402,8 +402,8 @@ describe("KubernetesSetupStep", () => {
         expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
       });
 
-      // Verify that updateConfig was called with the values from the API response
-      expect(mockUpdateConfig).toHaveBeenCalledWith(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE.values);
+      // Verify that updateConfig was called with the resolved from the API response
+      expect(mockUpdateConfig).toHaveBeenCalledWith(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE.resolved);
 
       // Check that form shows the correct values
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;

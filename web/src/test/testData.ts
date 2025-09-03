@@ -21,6 +21,16 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE = {
     noProxy: "localhost,127.0.0.1",
     networkInterface: "eth0",
   },
+  resolved: {
+    adminConsolePort: 8800,
+    localArtifactMirrorPort: 8801,
+    networkInterface: "eth0",
+    dataDirectory: "/custom/data/dir",
+    globalCidr: "10.244.0.0/16",
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+  },
 };
 
 export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
@@ -40,6 +50,16 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
     noProxy: "localhost,127.0.0.1",
     networkInterface: "eth0",
   },
+  resolved: {
+    adminConsolePort: 30000,
+    localArtifactMirrorPort: 50000,
+    networkInterface: "eth0",
+    dataDirectory: "/custom/data/dir",
+    globalCidr: "10.244.0.0/16",
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+  },
 };
 
 export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY = {
@@ -47,6 +67,16 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY = {
     dataDirectory: "",
   },
   defaults: {
+    adminConsolePort: 30000,
+    localArtifactMirrorPort: 50000,
+    dataDirectory: "/var/lib/embedded-cluster",
+    globalCidr: "10.244.0.0/16",
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+    networkInterface: "eth0",
+  },
+  resolved: {
     adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     dataDirectory: "/var/lib/embedded-cluster",
@@ -68,6 +98,12 @@ export const MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE = {
     httpsProxy: "",
     noProxy: "localhost,127.0.0.1",
   },
+  resolved: {
+    adminConsolePort: 8800,
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+  },
 };
 
 export const MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
@@ -80,11 +116,23 @@ export const MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
     httpsProxy: "",
     noProxy: "localhost,127.0.0.1",
   },
+  resolved: {
+    adminConsolePort: 30000,
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+  },
 };
 
 export const MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY = {
   values: {},
   defaults: {
+    adminConsolePort: 30000,
+    httpProxy: "",
+    httpsProxy: "",
+    noProxy: "localhost,127.0.0.1",
+  },
+  resolved: {
     adminConsolePort: 30000,
     httpProxy: "",
     httpsProxy: "",
