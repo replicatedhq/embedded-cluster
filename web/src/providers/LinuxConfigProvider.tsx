@@ -1,21 +1,9 @@
 import React, { useState } from 'react';
 import { LinuxConfigContext } from '../contexts/LinuxConfigContext';
-
-export interface LinuxConfig {
-  adminConsolePort?: number;
-  localArtifactMirrorPort?: number;
-  dataDirectory: string;
-  useProxy: boolean;
-  httpProxy?: string;
-  httpsProxy?: string;
-  noProxy?: string;
-  networkInterface?: string;
-  globalCidr?: string;
-}
+import { LinuxConfig } from '../types';
 
 const defaultLinuxConfig: LinuxConfig = {
   dataDirectory: '/var/lib/embedded-cluster',
-  useProxy: false,
 };
 
 export const LinuxConfigProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

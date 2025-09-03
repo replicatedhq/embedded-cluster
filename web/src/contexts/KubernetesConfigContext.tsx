@@ -1,13 +1,5 @@
 import { createContext, useContext } from 'react';
-
-export interface KubernetesConfig {
-  adminConsolePort?: number;
-  useProxy: boolean;
-  httpProxy?: string;
-  httpsProxy?: string;
-  noProxy?: string;
-  installCommand?: string;
-}
+import { KubernetesConfig } from '../types';
 
 interface KubernetesConfigContextType {
   config: KubernetesConfig;

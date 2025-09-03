@@ -9,6 +9,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { handleUnauthorized } from "../../../utils/auth";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
+import { KubernetesConfig } from "../../../types";
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -38,14 +39,21 @@ interface ConfigError extends Error {
   errors?: { field: string; message: string }[];
 }
 
+interface KubernetesConfigResponse {
+  values: KubernetesConfig;
+  defaults: KubernetesConfig;
+}
+
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
-  const { config, updateConfig } = useKubernetesConfig();
+  const { updateConfig } = useKubernetesConfig(); // We need to make sure to update the global config
   const { text } = useWizard();
   const [error, setError] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState<KubernetesConfig>({});
+  const [configValues, setConfigValues] = useState<KubernetesConfig>({});
   const { token } = useAuth();
 
   // Query for fetching install configuration
-  const { isLoading: isConfigLoading } = useQuery({
+  const { isLoading: isConfigLoading } = useQuery<KubernetesConfigResponse, Error>({
     queryKey: ["installConfig"],
     queryFn: async () => {
       const response = await fetch("/api/kubernetes/install/installation/config", {
@@ -61,15 +69,20 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         }
         throw new Error(errorData.message || "Failed to fetch install configuration");
       }
-      const config = await response.json();
-      updateConfig(config);
-      return config;
+      const configResponse = await response.json();
+      // Update the global config with user values, TODO use the "resolved" config to update the context once the API supports it.
+      updateConfig(configResponse.values);
+      // Store defaults for display in help text
+      setDefaults(configResponse.defaults);
+      // Store the config values for display in the form inputs
+      setConfigValues(configResponse.values)
+      return configResponse;
     },
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, typeof config>({
-    mutationFn: async (configData: typeof config) => {
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, KubernetesConfig>({
+    mutationFn: async (configData) => {
       const response = await fetch("/api/kubernetes/install/installation/configure", {
         method: "POST",
         headers: {
@@ -90,7 +103,10 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       return response.json();
     },
     onSuccess: () => {
-      setError(null); // Clear any previous errors
+      // Update the global (context) config we use accross the project
+      updateConfig(configValues);
+      // Clear any previous errors
+      setError(null);
       startInstallation();
     },
     onError: (err: ConfigError) => {
@@ -129,11 +145,14 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
     const { id, value } = e.target;
     if (id === "adminConsolePort") {
       // Only update if the value is empty or a valid number
-      if (value === "" || !isNaN(Number(value))) {
-        updateConfig({ [id]: value === "" ? undefined : Number(value) });
+      if (value === "") {
+        setConfigValues({ ...configValues, [id]: undefined })
+      }
+      else if (Number.isInteger(Number(value))) {
+        setConfigValues({ ...configValues, [id]: Number.parseInt(value) })
       }
     } else {
-      updateConfig({ [id]: value });
+      setConfigValues({ ...configValues, [id]: value });
     }
   };
 
@@ -164,12 +183,11 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                   <Input
                     id="adminConsolePort"
                     label={fieldNames.adminConsolePort}
-                    value={config.adminConsolePort?.toString() || ""}
+                    value={configValues.adminConsolePort && configValues.adminConsolePort.toString() || ""}
                     onChange={handleInputChange}
-                    placeholder="30000"
+                    defaultValue={defaults.adminConsolePort?.toString()}
                     helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
-                    required
                     className="w-96"
                   />
                 </div>
@@ -181,9 +199,9 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                   <Input
                     id="httpProxy"
                     label={fieldNames.httpProxy}
-                    value={config.httpProxy || ""}
+                    value={configValues.httpProxy || ""}
                     onChange={handleInputChange}
-                    placeholder="http://proxy.example.com:3128"
+                    defaultValue={defaults.httpProxy}
                     helpText="HTTP proxy server URL"
                     error={getFieldError("httpProxy")}
                     className="w-96"
@@ -192,9 +210,9 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                   <Input
                     id="httpsProxy"
                     label={fieldNames.httpsProxy}
-                    value={config.httpsProxy || ""}
+                    value={configValues.httpsProxy || ""}
                     onChange={handleInputChange}
-                    placeholder="https://proxy.example.com:3128"
+                    defaultValue={defaults.httpsProxy}
                     helpText="HTTPS proxy server URL"
                     error={getFieldError("httpsProxy")}
                     className="w-96"
@@ -203,9 +221,9 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                   <Input
                     id="noProxy"
                     label={fieldNames.noProxy}
-                    value={config.noProxy || ""}
+                    value={configValues.noProxy || ""}
                     onChange={handleInputChange}
-                    placeholder="localhost,127.0.0.1,.example.com"
+                    defaultValue={defaults.noProxy}
                     helpText="Comma-separated list of hosts to bypass the proxy"
                     error={getFieldError("noProxy")}
                     className="w-96"
@@ -230,7 +248,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         <Button variant="outline" onClick={onBack} dataTestId="kubernetes-setup-button-back" icon={<ChevronLeft className="w-5 h-5" />}>
           Back
         </Button>
-        <Button onClick={() => submitConfig(config)} icon={<ChevronRight className="w-5 h-5" />}>
+        <Button onClick={() => submitConfig(configValues)} icon={<ChevronRight className="w-5 h-5" />}>
           Next: Start Installation
         </Button>
       </div>

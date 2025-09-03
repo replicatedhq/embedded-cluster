@@ -1,8 +1,6 @@
 import { createContext, useContext } from "react";
 import { InstallationTarget } from "../types/installation-target";
-import { WizardText } from "../providers/WizardProvider";
-
-export type WizardMode = "install" | "upgrade";
+import { WizardMode, WizardText } from "../types";
 
 interface WizardModeContextType {
   target: InstallationTarget;

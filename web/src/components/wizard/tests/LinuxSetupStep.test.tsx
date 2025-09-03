@@ -1,21 +1,20 @@
-import React from "react";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
-import { MOCK_LINUX_INSTALL_CONFIG, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
   http.get("*/api/linux/install/installation/config", () => {
-    return HttpResponse.json({ config: MOCK_LINUX_INSTALL_CONFIG });
+    return HttpResponse.json(MOCK_LINUX_INSTALL_CONFIG_RESPONSE);
   }),
 
   // Mock network interfaces endpoint
   http.get("*/api/console/available-network-interfaces", () => {
-    return HttpResponse.json({ networkInterfaces: MOCK_NETWORK_INTERFACES });
+    return HttpResponse.json(MOCK_NETWORK_INTERFACES);
   }),
 
   // Mock config submission endpoint
@@ -45,7 +44,7 @@ describe("LinuxSetupStep", () => {
   });
 
   it("renders the linux setup form with card, title, and next button", async () => {
-    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={vi.fn()} />, {
       wrapperProps: {
         authenticated: true,
         contextValues: {
@@ -56,7 +55,6 @@ describe("LinuxSetupStep", () => {
               localArtifactMirrorPort: 8081,
               networkInterface: "eth0",
               globalCidr: "10.244.0.0/16",
-              useProxy: false,
             },
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
@@ -100,9 +98,7 @@ describe("LinuxSetupStep", () => {
   it("handles form errors gracefully", async () => {
     server.use(
       http.get("*/api/console/available-network-interfaces", () => {
-        return HttpResponse.json({
-          networkInterfaces: MOCK_NETWORK_INTERFACES,
-        });
+        return HttpResponse.json(MOCK_NETWORK_INTERFACES);
       }),
       // Mock config submission endpoint to return an error
       http.post("*/api/linux/install/installation/configure", () => {
@@ -110,18 +106,13 @@ describe("LinuxSetupStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={vi.fn()} />, {
       wrapperProps: {
         authenticated: true,
         contextValues: {
           linuxConfigContext: {
             config: {
-              dataDirectory: "/var/lib/embedded-cluster",
-              adminConsolePort: 8080,
-              localArtifactMirrorPort: 8081,
-              networkInterface: "eth0",
-              globalCidr: "10.244.0.0/16",
-              useProxy: false,
+              dataDirectory: "",
             },
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
@@ -160,13 +151,11 @@ describe("LinuxSetupStep", () => {
   it("handles field-specific errors gracefully", async () => {
     server.use(
       http.get("*/api/console/available-network-interfaces", () => {
-        return HttpResponse.json({
-          networkInterfaces: MOCK_NETWORK_INTERFACES,
-        });
+        return HttpResponse.json(MOCK_NETWORK_INTERFACES);
       }),
       // Mock config submission endpoint to return field-specific errors
       http.post("*/api/linux/install/installation/configure", () => {
-        return new HttpResponse(JSON.stringify({ 
+        return new HttpResponse(JSON.stringify({
           message: "Validation failed",
           errors: [
             { field: "dataDirectory", message: "Data Directory is required" },
@@ -176,18 +165,13 @@ describe("LinuxSetupStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={vi.fn()} />, {
       wrapperProps: {
         authenticated: true,
         contextValues: {
           linuxConfigContext: {
             config: {
               dataDirectory: "",
-              adminConsolePort: 0,
-              localArtifactMirrorPort: 8081,
-              networkInterface: "eth0",
-              globalCidr: "10.244.0.0/16",
-              useProxy: false,
             },
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
@@ -234,23 +218,13 @@ describe("LinuxSetupStep", () => {
       http.get("*/api/linux/install/installation/config", ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          config: {
-            dataDirectory: "/var/lib/embedded-cluster",
-            adminConsolePort: 8080,
-            localArtifactMirrorPort: 8081,
-            networkInterface: "eth0",
-            globalCidr: "10.244.0.0/16",
-          },
-        });
+        return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
       }),
       // Mock network interfaces endpoint
       http.get("*/api/console/available-network-interfaces", ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          networkInterfaces: MOCK_NETWORK_INTERFACES,
-        });
+        return HttpResponse.json(MOCK_NETWORK_INTERFACES);
       }),
       // Mock config submission endpoint
       http.post("*/api/linux/install/installation/configure", async ({ request }) => {
@@ -259,7 +233,11 @@ describe("LinuxSetupStep", () => {
         const body = await request.json();
         // Verify the request body has all required fields
         expect(body).toMatchObject({
+          adminConsolePort: 8080,
+          localArtifactMirrorPort: 8081,
           dataDirectory: "/var/lib/embedded-cluster",
+          networkInterface: "eth0",
+          globalCidr: "10.244.0.0/16",
         });
         return new HttpResponse(JSON.stringify({ success: true }), {
           status: 200,
@@ -270,18 +248,13 @@ describe("LinuxSetupStep", () => {
       })
     );
 
-    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} />, {
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={vi.fn()} />, {
       wrapperProps: {
         authenticated: true,
         contextValues: {
           linuxConfigContext: {
             config: {
-              dataDirectory: "/var/lib/embedded-cluster",
-              adminConsolePort: 8080,
-              localArtifactMirrorPort: 8081,
-              networkInterface: "eth0",
-              globalCidr: "10.244.0.0/16",
-              useProxy: false,
+              dataDirectory: "",
             },
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),

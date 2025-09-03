@@ -5,13 +5,13 @@ import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-do
 import { vi } from "vitest";
 import { JSX } from "react/jsx-runtime";
 
-import { InitialState } from "../types";
+import { InitialState, LinuxConfig, KubernetesConfig, WizardMode, WizardText } from "../types";
 import { InstallationTarget } from "../types/installation-target";
 import { createQueryClient } from "../query-client";
-import { LinuxConfigContext, LinuxConfig } from "../contexts/LinuxConfigContext";
-import { KubernetesConfigContext, KubernetesConfig } from "../contexts/KubernetesConfigContext";
+import { LinuxConfigContext } from "../contexts/LinuxConfigContext";
+import { KubernetesConfigContext } from "../contexts/KubernetesConfigContext";
 import { SettingsContext, Settings } from "../contexts/SettingsContext";
-import { WizardContext, WizardMode } from "../contexts/WizardModeContext";
+import { WizardContext } from "../contexts/WizardModeContext";
 import { InitialStateContext } from "../contexts/InitialStateContext";
 import { AuthContext } from "../contexts/AuthContext";
 
@@ -51,24 +51,7 @@ interface MockProviderProps {
     wizardModeContext: {
       target: InstallationTarget;
       mode: WizardMode;
-      text: {
-        title: string;
-        subtitle: string;
-        welcomeTitle: string;
-        welcomeDescription: string;
-        configurationTitle: string;
-        configurationDescription: string;
-        linuxSetupTitle: string;
-        linuxSetupDescription: string;
-        kubernetesSetupTitle: string;
-        kubernetesSetupDescription: string;
-        validationTitle: string;
-        validationDescription: string;
-        installationTitle: string;
-        installationDescription: string;
-        welcomeButtonText: string;
-        nextButtonText: string;
-      };
+      text: WizardText;
     };
     authContext: {
       token: string | null;
@@ -129,7 +112,6 @@ export const renderWithProviders = (
       config: {
         adminConsolePort: 8800,
         dataDirectory: "/var/lib/embedded-cluster",
-        useProxy: false,
       },
       updateConfig: vi.fn(),
       resetConfig: vi.fn(),
@@ -137,7 +119,6 @@ export const renderWithProviders = (
     kubernetesConfigContext: {
       config: {
         adminConsolePort: 8080,
-        useProxy: false,
         installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
       },
       updateConfig: vi.fn(),
@@ -163,10 +144,16 @@ export const renderWithProviders = (
         linuxSetupDescription: "Set up the hosts to use for this installation.",
         kubernetesSetupTitle: "Kubernetes Setup",
         kubernetesSetupDescription: "Set up the Kubernetes cluster for this installation.",
-        validationTitle: "Validation",
-        validationDescription: "Validate the host requirements before proceeding with installation.",
-        installationTitle: "Installing My App",
-        installationDescription: "",
+        kubernetesInstallationTitle: "Infrastructure Installation",
+        kubernetesInstallationDescription: "Installing infrastructure components",
+        linuxValidationTitle: "Validation",
+        linuxValidationDescription: "Validate the host requirements before proceeding with installation.",
+        linuxInstallationTitle: "Infrastructure Installation",
+        linuxInstallationDescription: "Installing infrastructure components",
+        appValidationTitle: "App Validation",
+        appValidationDescription: "Validate the app requirements before proceeding with installation.",
+        appInstallationTitle: "Installing My App",
+        appInstallationDescription: "",
         welcomeButtonText: "Start",
         nextButtonText: "Next: Start Installation",
       },

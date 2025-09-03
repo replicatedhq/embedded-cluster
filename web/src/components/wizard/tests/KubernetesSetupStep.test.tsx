@@ -4,19 +4,12 @@ import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import KubernetesSetupStep from "../setup/KubernetesSetupStep.tsx";
-
-const MOCK_KUBERNETES_CONFIG = {
-  adminConsolePort: 30000,
-  useProxy: false,
-  httpProxy: "",
-  httpsProxy: "",
-  noProxy: "",
-};
+import { MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE } from "../../../test/testData.ts";
 
 const server = setupServer(
   // Mock install config endpoint
   http.get("*/api/kubernetes/install/installation/config", () => {
-    return HttpResponse.json({ config: MOCK_KUBERNETES_CONFIG });
+    return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
   }),
 
   // Mock config submission endpoint
@@ -58,7 +51,7 @@ describe("KubernetesSetupStep", () => {
         target: "kubernetes",
         contextValues: {
           kubernetesConfigContext: {
-            config: MOCK_KUBERNETES_CONFIG,
+            config: {},
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
           },
@@ -100,7 +93,7 @@ describe("KubernetesSetupStep", () => {
         target: "kubernetes",
         contextValues: {
           kubernetesConfigContext: {
-            config: MOCK_KUBERNETES_CONFIG,
+            config: {},
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
           },
@@ -133,7 +126,7 @@ describe("KubernetesSetupStep", () => {
     server.use(
       // Mock config submission endpoint to return field-specific errors
       http.post("*/api/kubernetes/install/installation/configure", () => {
-        return new HttpResponse(JSON.stringify({ 
+        return new HttpResponse(JSON.stringify({
           message: "Validation failed",
           errors: [
             { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" },
@@ -149,7 +142,7 @@ describe("KubernetesSetupStep", () => {
         target: "kubernetes",
         contextValues: {
           kubernetesConfigContext: {
-            config: MOCK_KUBERNETES_CONFIG,
+            config: {},
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
           },
@@ -182,16 +175,14 @@ describe("KubernetesSetupStep", () => {
     expect(mockOnNext).not.toHaveBeenCalled();
   });
 
-  it("submits the form successfully", async () => {    
+  it("submits the form successfully", async () => {
     // Mock all required API endpoints
     server.use(
       // Mock install config endpoint
       http.get("*/api/kubernetes/install/installation/config", ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          config: MOCK_KUBERNETES_CONFIG,
-        });
+        return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
       }),
       // Mock config submission endpoint
       http.post("*/api/kubernetes/install/installation/configure", async ({ request }) => {
@@ -217,7 +208,7 @@ describe("KubernetesSetupStep", () => {
         target: "kubernetes",
         contextValues: {
           kubernetesConfigContext: {
-            config: MOCK_KUBERNETES_CONFIG,
+            config: {},
             updateConfig: vi.fn(),
             resetConfig: vi.fn(),
           },

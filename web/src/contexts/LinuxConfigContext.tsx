@@ -1,16 +1,6 @@
 import { createContext, useContext } from 'react';
+import { LinuxConfig } from '../types';
 
-export interface LinuxConfig {
-  adminConsolePort?: number;
-  localArtifactMirrorPort?: number;
-  dataDirectory: string;
-  useProxy: boolean;
-  httpProxy?: string;
-  httpsProxy?: string;
-  noProxy?: string;
-  networkInterface?: string;
-  globalCidr?: string;
-}
 
 interface LinuxConfigContextType {
   config: LinuxConfig;

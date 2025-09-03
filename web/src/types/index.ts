@@ -25,6 +25,57 @@ export interface InfraStatus {
   lastUpdated: string;
 }
 
+// Linux Configuration Type used during the setup step
+export interface LinuxConfig {
+  adminConsolePort?: number;
+  localArtifactMirrorPort?: number;
+  dataDirectory: string;
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+  networkInterface?: string;
+  globalCidr?: string;
+}
+
+// Kubernetes Configuration Type used during the setup step
+export interface KubernetesConfig {
+  adminConsolePort?: number;
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+  installCommand?: string;
+}
+
+
+// WizardMode tells us in which mode the installer wizard is running, upgrade or install
+export type WizardMode = "install" | "upgrade";
+
+// WizardText type holds the text fields for the multiple wizard step text fields
+export interface WizardText {
+  title: string;
+  subtitle: string;
+  welcomeTitle: string;
+  welcomeDescription: string;
+  configurationTitle: string;
+  configurationDescription: string;
+  linuxSetupTitle: string;
+  linuxSetupDescription: string;
+  kubernetesSetupTitle: string;
+  kubernetesSetupDescription: string;
+  kubernetesInstallationTitle: string;
+  kubernetesInstallationDescription: string;
+  linuxValidationTitle: string;
+  linuxValidationDescription: string;
+  linuxInstallationTitle: string;
+  linuxInstallationDescription: string;
+  appValidationTitle: string;
+  appValidationDescription: string;
+  appInstallationTitle: string;
+  appInstallationDescription: string;
+  welcomeButtonText: string;
+  nextButtonText: string;
+}
+
 export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'installation' | 'linux-completion' | 'kubernetes-completion';
 
 // App Configuration Types
