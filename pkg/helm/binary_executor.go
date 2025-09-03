@@ -54,7 +54,7 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 	if lw.logFn != nil && len(p) > 0 {
 		line := strings.TrimSpace(string(p))
 		if line != "" && goFilePattern.MatchString(line) {
-			lw.logFn("%s", line)
+			lw.logFn("helm: %s", line)
 		}
 	}
 	return len(p), nil

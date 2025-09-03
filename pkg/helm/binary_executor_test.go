@@ -84,7 +84,7 @@ func Test_binaryExecutor_ExecuteCommand_WithLogging(t *testing.T) {
 			wantErr:        false,
 			expectedStdout: "stdout message\n",
 			expectedStderr: "install.go:225: debug message\n",
-			expectedLogs:   []string{"install.go:225: debug message"}, // Go file pattern should be logged
+			expectedLogs:   []string{"helm: install.go:225: debug message"}, // Go file pattern should be logged with helm prefix
 		},
 	}
 
@@ -128,7 +128,7 @@ func Test_logWriter_Write(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 28, n)
 	assert.Len(t, loggedMessages, 1)
-	assert.Equal(t, "install.go:225: test message", loggedMessages[0])
+	assert.Equal(t, "helm: install.go:225: test message", loggedMessages[0])
 
 	// Test writing data that doesn't match .go file pattern (should be filtered out)
 	loggedMessages = nil
