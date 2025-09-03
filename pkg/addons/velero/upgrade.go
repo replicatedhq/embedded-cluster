@@ -41,6 +41,7 @@ func (v *Velero) Upgrade(
 		Values:       values,
 		Namespace:    v.Namespace(),
 		Force:        false,
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

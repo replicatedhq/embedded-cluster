@@ -44,7 +44,6 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		kubernetesEnvSettings: opts.KubernetesEnvSettings,
 		airgapPath:            opts.AirgapPath,
 		repositories:          []*repo.Entry{},
-		logFn:                 opts.LogFn,
 	}, nil
 }
 
@@ -53,7 +52,6 @@ type HelmOptions struct {
 	KubernetesEnvSettings *helmcli.EnvSettings
 	K8sVersion            string
 	AirgapPath            string
-	LogFn                 LogFn // Global log function to use for all commands
 }
 
 type LogFn func(format string, args ...interface{})
@@ -97,14 +95,13 @@ type HelmClient struct {
 	kubernetesEnvSettings *helmcli.EnvSettings // Kubernetes environment settings
 	airgapPath            string               // Airgap path where charts are stored
 	repositories          []*repo.Entry        // Repository entries for helm repo commands
-	logFn                 LogFn                // Global log function to use for all commands
 }
 
 func (h *HelmClient) prepare(ctx context.Context) error {
 	// Update all repositories to ensure we have the latest chart information
 	for _, repo := range h.repositories {
 		args := []string{"repo", "update", repo.Name}
-		_, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+		_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 		if err != nil {
 			return fmt.Errorf("helm repo update %s: %w, stderr: %s", repo.Name, err, stderr)
 		}
@@ -138,7 +135,7 @@ func (h *HelmClient) AddRepo(ctx context.Context, repo *repo.Entry) error {
 		args = append(args, "--pass-credentials")
 	}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return fmt.Errorf("helm repo add: %w, stderr: %s", err, stderr)
 	}
@@ -152,7 +149,7 @@ func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string
 	// Use helm search repo with JSON output to find the latest version
 	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return "", fmt.Errorf("helm search repo: %w, stderr: %s", err, stderr)
 	}
@@ -214,7 +211,7 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 	// Add debug flag to report progress and capture debug logs
 	args = append(args, "--debug")
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return "", fmt.Errorf("helm pull: %w, stderr: %s", err, stderr)
 	}
@@ -235,7 +232,7 @@ func (h *HelmClient) RegistryAuth(ctx context.Context, server, user, pass string
 	// Use helm registry login for authentication
 	args := []string{"registry", "login", server, "--username", user, "--password", pass}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return fmt.Errorf("helm registry login: %w, stderr: %s", err, stderr)
 	}
@@ -247,7 +244,7 @@ func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
 	// Use helm push to upload the chart
 	args := []string{"push", path, dst}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return fmt.Errorf("helm push: %w, stderr: %s", err, stderr)
 	}
@@ -262,7 +259,7 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 		args = append(args, "--version", version)
 	}
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm show chart: %w, stderr: %s", err, stderr)
 	}
@@ -278,7 +275,7 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	// Use helm list to check if release exists
 	args := []string{"list", "--namespace", namespace, "--filter", fmt.Sprintf("^%s$", releaseName), "--output", "json"}
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, h.logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return false, fmt.Errorf("helm list: %w, stderr: %s", err, stderr)
 	}
@@ -380,14 +377,8 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, 
 	// NOTE: we don't set client.Atomic = true on install as it makes installation failures difficult to debug
 	// since it will rollback the release.
 
-	// Check for log function override
-	logFn := h.logFn
-	if opts.LogFn != nil {
-		logFn = opts.LogFn
-	}
-
 	// Execute helm install command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return "", fmt.Errorf("helm install: %w, stderr: %s", err, stderr)
 	}
@@ -476,14 +467,8 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	// Add debug flag to report progress and capture debug logs
 	args = append(args, "--debug")
 
-	// Check for log function override
-	logFn := h.logFn
-	if opts.LogFn != nil {
-		logFn = opts.LogFn
-	}
-
 	// Execute helm upgrade command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return "", fmt.Errorf("helm upgrade: %w, stderr: %s", err, stderr)
 	}
@@ -522,14 +507,8 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 		args = append(args, "--timeout", timeout.String())
 	}
 
-	// Check for log function override
-	logFn := h.logFn
-	if opts.LogFn != nil {
-		logFn = opts.LogFn
-	}
-
 	// Execute helm uninstall command
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, logFn, args...)
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return fmt.Errorf("helm uninstall: %w, stderr: %s", err, stderr)
 	}
@@ -586,14 +565,8 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 	// Add debug flag to report progress and capture debug logs
 	args = append(args, "--debug")
 
-	// Check for log function override
-	logFn := h.logFn
-	if opts.LogFn != nil {
-		logFn = opts.LogFn
-	}
-
 	// Execute helm template command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, logFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm template: %w, stderr: %s", err, stderr)
 	}

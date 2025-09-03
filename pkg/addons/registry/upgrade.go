@@ -57,6 +57,7 @@ func (r *Registry) Upgrade(
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
