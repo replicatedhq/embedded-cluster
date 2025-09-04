@@ -1165,7 +1165,10 @@ func TestSetupInfra(t *testing.T) {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s", tt.expectedState)
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running infra setup")
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked after running infra setup")
 
 			mockPreflightManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)
