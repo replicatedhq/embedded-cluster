@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
-import React from 'react';
+import { useEffect } from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
@@ -9,7 +9,9 @@ import { State } from '../../../../types/index.ts';
 // Type for phase component props
 type PhaseProps = {
   onNext: () => void;
+  onBack: () => void;
   setNextButtonConfig: (config: { disabled: boolean; onClick: () => void }) => void;
+  setBackButtonConfig: (config: { hidden: boolean; disabled?: boolean; onClick: () => void }) => void;
   onStateChange: (state: string) => void;
 };
 
@@ -44,8 +46,27 @@ const phaseMockConfig = {
   }
 };
 
-const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig, phaseTestId: string) => ({ onNext, setNextButtonConfig, onStateChange }: PhaseProps) => {
-  React.useEffect(() => {
+const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConfig, phaseTestId: string) => ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }: PhaseProps) => {
+  // Set up initial back button config 
+  useEffect(() => {
+    if (phaseKey === 'linuxPreflight') {
+    // The back button is visible and disabled by default during the linux-preflight phase
+    // It is enabled on preflight failure, and permanently hidden on preflight success
+      setBackButtonConfig({
+        hidden: false,
+        disabled: true,
+        onClick: onBack,
+      });
+    } else {
+      // All other phases have back button hidden
+      setBackButtonConfig({
+        hidden: true,
+        onClick: onBack,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     onStateChange('Running');
     const config = phaseMockConfig[phaseKey];
     setNextButtonConfig({
@@ -53,6 +74,14 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
       onClick: () => {
         if (config.outcome === 'failure') {
           onStateChange('Failed');
+          // Update back button config when linux-preflight fails
+          if (phaseKey === 'linuxPreflight') {
+            setBackButtonConfig({
+              hidden: false, // Show back button when linux-preflight fails
+              disabled: false, // Enable back button when linux-preflight fails
+              onClick: onBack,
+            });
+          }
           // Don't call onNext() when failed - stay on same phase
         } else {
           onStateChange('Succeeded');
@@ -65,6 +94,14 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
     if (config.autoStateChange) {
       const timeout = setTimeout(() => {
         onStateChange(config.autoStateChange!.state);
+        // Update back button config when auto state change happens
+        if (phaseKey === 'linuxPreflight' && config.autoStateChange!.state === 'Failed') {
+          setBackButtonConfig({
+            onClick: onBack,
+            hidden: false, // Show back button when linux-preflight auto-fails
+            disabled: false, // Enable back button when linux-preflight auto-fails
+          });
+        }
       }, config.autoStateChange.delay);
       
       return () => {
@@ -630,15 +667,18 @@ describe('InstallationStep', () => {
   });
 
   describe('Back Button Behavior', () => {
-    it('back button is present for linux target', async () => {
+    it('back button is only present for linux target when preflight fails', async () => {
+      // Configure linux-preflight to auto-fail
+      phaseMockConfig.linuxPreflight.autoStateChange = { delay: 100, state: 'Failed' };
+
       renderInstallationStep('linux');
 
-      // Wait for phase to initialize
+      // Wait for phase to auto-fail
       await waitFor(() => {
-        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+        expect(screen.getByTestId('icon-failed')).toBeInTheDocument();
       });
 
-      // Back button should be present for linux target
+      // Back button should be present for linux target when preflight fails
       expect(screen.getByTestId('installation-back-button')).toBeInTheDocument();
     });
 
@@ -650,8 +690,9 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
       });
 
-      // Back button should be disabled during linux-preflight when running
+      // Back button should be present but disabled during linux-preflight when running
       const backButton = screen.getByTestId('installation-back-button');
+      expect(backButton).toBeInTheDocument();
       expect(backButton).toBeDisabled();
     });
 
@@ -671,7 +712,7 @@ describe('InstallationStep', () => {
       expect(backButton).not.toBeDisabled();
     });
 
-    it('back button is disabled after linux-preflight phase completes successfully', async () => {
+    it('back button is not present after linux-preflight phase completes successfully', async () => {
       renderInstallationStep('linux');
 
       // Wait for phase to initialize
@@ -687,12 +728,11 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
-      // Back button should be disabled since linux-preflight succeeded
-      const backButton = screen.getByTestId('installation-back-button');
-      expect(backButton).toBeDisabled();
+      // Back button should not be present since linux-preflight succeeded
+      expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
     });
 
-    it('back button remains disabled during all phases after linux-preflight succeeds', async () => {
+    it('back button remains hidden during all phases after linux-preflight succeeds', async () => {
       renderInstallationStep('linux');
 
       // Progress through linux-preflight
@@ -706,8 +746,8 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
       });
 
-      // Back button should be disabled since linux-preflight succeeded
-      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+      // Back button should not be present since linux-preflight succeeded
+      expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
 
       // Progress to app-preflight
       fireEvent.click(screen.getByTestId('installation-next-button'));
@@ -715,8 +755,8 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
       });
 
-      // Back button should still be disabled since linux-preflight succeeded
-      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+      // Back button should still not be present since linux-preflight succeeded
+      expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
 
       // Progress to app-installation
       fireEvent.click(screen.getByTestId('installation-next-button'));
@@ -724,8 +764,8 @@ describe('InstallationStep', () => {
         expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
       });
 
-      // Back button should still be disabled since linux-preflight succeeded
-      expect(screen.getByTestId('installation-back-button')).toBeDisabled();
+      // Back button should still not be present since linux-preflight succeeded
+      expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
     });
 
     it('back button is not present for kubernetes target since it has no host preflights', async () => {

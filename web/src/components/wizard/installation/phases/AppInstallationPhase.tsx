@@ -4,17 +4,19 @@ import { useSettings } from "../../../../contexts/SettingsContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
-import { NextButtonConfig } from "../types";
+import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State, AppInstallStatus } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
 
 interface AppInstallationPhaseProps {
   onNext: () => void;
+  onBack: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
+  setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
 }
 
-const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
+const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { text, target } = useWizard();
   const { settings } = useSettings();
   const { token } = useAuth();
@@ -71,6 +73,15 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
       onClick: onNext,
     });
   }, [installationComplete, installationSuccess]);
+
+  // Update back button configuration
+  useEffect(() => {
+    // Back button is hidden for app-installation phase since linux-preflight has already succeeded
+    setBackButtonConfig({
+      hidden: true,
+      onClick: onBack,
+    });
+  }, [setBackButtonConfig, onBack]);
 
   const renderInstallationStatus = () => {
     // Loading state

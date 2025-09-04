@@ -11,7 +11,7 @@ import AppPreflightPhase from './phases/AppPreflightPhase';
 import LinuxInstallationPhase from './phases/LinuxInstallationPhase';
 import KubernetesInstallationPhase from './phases/KubernetesInstallationPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
-import { NextButtonConfig } from './types';
+import { NextButtonConfig, BackButtonConfig } from './types';
 
 interface InstallationStepProps {
   onNext: () => void;
@@ -35,6 +35,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
   const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
+  const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
@@ -110,12 +111,6 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
     return completedPhases.has(phase) || phase === currentPhase;
   };
 
-  const isBackButtonEnabled = () => {
-    // Back button is only enabled if the target is linux and linux-preflight has failed (allowing user to go back to fix issues)
-    // Once linux-preflight succeeds, back button is permanently disabled for all subsequent phases
-    return phases['linux-preflight']?.status === 'Failed';
-  };
-
   const handlePhaseClick = (phase: InstallationPhase) => {
     if (canSelectPhase(phase)) {
       setSelectedPhase(phase);
@@ -128,8 +123,11 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   const renderPhase = (phase: InstallationPhase) => {
     const commonProps = {
       onNext: goToNextPhase,
+      onBack,
       // Only pass the real setNextButtonConfig to the current phase
       setNextButtonConfig: phase === currentPhase ? setNextButtonConfig : noOp,
+      // Only pass the real setBackButtonConfig to the current phase
+      setBackButtonConfig: phase === currentPhase ? setBackButtonConfig : noOp,
       onStateChange: handleStateChange(phase)
     };
 
@@ -196,11 +194,11 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
 
       {nextButtonConfig && (
         <div className="flex justify-between">
-          {target === 'linux' && (
+          {backButtonConfig && !backButtonConfig.hidden && (
             <Button
-            onClick={onBack}
+            onClick={backButtonConfig.onClick}
             variant="outline"
-            disabled={!isBackButtonEnabled()}
+            disabled={backButtonConfig.disabled ?? false}
             icon={<ChevronLeft className="w-5 h-5"/>}
             dataTestId="installation-back-button"
             >
@@ -213,7 +211,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}
             dataTestId="installation-next-button"
-            className={target === 'kubernetes' ? 'ml-auto' : ''}
+            className={(!backButtonConfig || backButtonConfig.hidden) ? 'ml-auto' : ''}
           >
             {getNextButtonText()}
           </Button>

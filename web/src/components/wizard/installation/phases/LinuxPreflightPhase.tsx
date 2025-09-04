@@ -6,16 +6,18 @@ import { AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { NextButtonConfig } from "../types";
+import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State } from "../../../../types";
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;
+  onBack: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
+  setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
 }
 
-const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
+const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -116,6 +118,17 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, setNe
       onClick: handleNextClick,
     });
   }, [canProceed]);
+
+  // Update back button configuration synchronously to prevent flash of enabled state
+  useEffect(() => {
+    setBackButtonConfig({
+      // Back button is always visible in linux-preflight phase until preflights succeed
+      hidden: preflightSuccess,
+      // Back button is only enabled when preflights are done running and failed
+      disabled: !preflightComplete || preflightSuccess,
+      onClick: onBack,
+    });
+  }, [preflightComplete, preflightSuccess, setBackButtonConfig, onBack]);
 
   return (
     <div className="space-y-6">
