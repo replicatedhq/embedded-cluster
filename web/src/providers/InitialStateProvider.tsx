@@ -1,6 +1,7 @@
 import React from "react";
 import { InitialStateContext } from "../contexts/InitialStateContext";
 import { InstallationTarget, isInstallationTarget } from "../types/installation-target";
+import { InitialState } from "../types";
 
 function parseInstallationTarget(target: string): InstallationTarget {
   if (isInstallationTarget(target)) {
@@ -14,7 +15,7 @@ export const InitialStateProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   // __INITIAL_STATE__ is a global variable that can be set by the server-side rendering process
   // as a way to pass initial data to the client.
-  const initialState = window.__INITIAL_STATE__ || {};
+  const initialState: Partial<InitialState> = window.__INITIAL_STATE__ || {};
 
   const state = {
     title: initialState.title || "My App",

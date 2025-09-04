@@ -294,7 +294,7 @@ describe("LinuxSetupStep", () => {
           authenticated: true,
           contextValues: {
             linuxConfigContext: {
-              config: {},
+              config: { dataDirectory: '' },
               updateConfig: mockUpdateConfig,
               resetConfig: vi.fn(),
             },
@@ -328,7 +328,7 @@ describe("LinuxSetupStep", () => {
           authenticated: true,
           contextValues: {
             linuxConfigContext: {
-              config: {},
+              config: { dataDirectory: '' },
               updateConfig: mockUpdateConfig,
               resetConfig: vi.fn(),
             },
@@ -356,7 +356,7 @@ describe("LinuxSetupStep", () => {
           authenticated: true,
           contextValues: {
             linuxConfigContext: {
-              config: {},
+              config: { dataDirectory: '' },
               updateConfig: mockUpdateConfig,
               resetConfig: vi.fn(),
             },
@@ -394,7 +394,7 @@ describe("LinuxSetupStep", () => {
           authenticated: true,
           contextValues: {
             linuxConfigContext: {
-              config: {},
+              config: { dataDirectory: '' },
               updateConfig: mockUpdateConfig,
               resetConfig: vi.fn(),
             },
@@ -429,7 +429,7 @@ describe("LinuxSetupStep", () => {
           authenticated: true,
           contextValues: {
             linuxConfigContext: {
-              config: {},
+              config: { dataDirectory: '' },
               updateConfig: mockUpdateConfig,
               resetConfig: vi.fn(),
             },

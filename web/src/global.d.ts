@@ -1,9 +1,13 @@
-import { InitialState } from './types';
 // src/global.d.ts
-export { };
+export {};
 
 declare global {
   interface Window {
-    __INITIAL_STATE__?: InitialState;
+    __INITIAL_STATE__?: unknown;
   }
+
+  // For Node.js test environment
+  var global: {
+    window: Window;
+  } & typeof globalThis;
 }

@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
-import { InfraStatusResponse } from '../../../../types';
+import { InfraStatusResponse, State } from '../../../../types';
 import InstallationProgress from '../shared/InstallationProgress';
 import LogViewer from '../shared/LogViewer';
 import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig } from '../types';
-import { State } from '../../../../types';
 
 interface LinuxInstallationPhaseProps {
   onNext: () => void;
