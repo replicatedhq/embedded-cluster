@@ -366,8 +366,6 @@ func (h *HelmClient) createValuesFile(values map[string]interface{}) (string, er
 }
 
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, error) {
-	logrus.Debugf("HelmClient.Install: starting install for release '%s' in namespace '%s'", opts.ReleaseName, opts.Namespace)
-
 	// Build helm install command arguments
 	args := []string{"install", opts.ReleaseName}
 
