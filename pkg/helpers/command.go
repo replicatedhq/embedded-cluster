@@ -43,6 +43,11 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())
 		logrus.Debugf("stderr: %s", stderr.String())
+
+		// Check if it's a context error and return it instead
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if stderr.String() != "" {
 			return fmt.Errorf("%w: %s", err, stderr.String())
 		}
