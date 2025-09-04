@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/repo"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -150,10 +151,11 @@ appVersion: "1.25.0"`, "", nil)
 
 func TestHelmClient_Install(t *testing.T) {
 	tests := []struct {
-		name      string
-		setupMock func(*MockBinaryExecutor)
-		opts      InstallOptions
-		wantErr   bool
+		name                  string
+		setupMock             func(*MockBinaryExecutor)
+		kubernetesEnvSettings *helmcli.EnvSettings
+		opts                  InstallOptions
+		wantErr               bool
 	}{
 		{
 			name: "successful install",
@@ -165,6 +167,7 @@ func TestHelmClient_Install(t *testing.T) {
 					[]string{"install", "myrelease", "/path/to/chart", "--namespace", "default", "--create-namespace", "--wait", "--wait-for-jobs", "--timeout", "5m0s", "--replace", "--debug"},
 				).Return(`Release "myrelease" has been upgraded.`, "", nil)
 			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
 			opts: InstallOptions{
 				ReleaseName: "myrelease",
 				ChartPath:   "/path/to/chart",
@@ -181,21 +184,13 @@ func TestHelmClient_Install(t *testing.T) {
 					mock.Anything, // env
 					mock.Anything, // LogFn
 					mock.MatchedBy(func(args []string) bool {
-						// Check that it contains the expected arguments
-						hasInstall := false
-						hasValues := false
-						for i, arg := range args {
-							if arg == "install" && i == 0 {
-								hasInstall = true
-							}
-							if arg == "--values" && i < len(args)-1 {
-								hasValues = true
-							}
-						}
-						return hasInstall && hasValues
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "install") &&
+							strings.Contains(argsStr, "--values")
 					}),
 				).Return(`Release "myrelease" has been installed.`, "", nil)
 			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
 			opts: InstallOptions{
 				ReleaseName: "myrelease",
 				ChartPath:   "/path/to/chart",
@@ -204,6 +199,53 @@ func TestHelmClient_Install(t *testing.T) {
 				Values: map[string]interface{}{
 					"key": "value",
 				},
+			},
+			wantErr: false,
+		},
+
+		{
+			name: "install with kubernetes env settings",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "install") &&
+							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig") &&
+							strings.Contains(argsStr, "--kube-context test-context") &&
+							strings.Contains(argsStr, "--kube-token test-token") &&
+							strings.Contains(argsStr, "--kube-as-user test-user") &&
+							strings.Contains(argsStr, "--kube-as-group test-group1") &&
+							strings.Contains(argsStr, "--kube-as-group test-group2") &&
+							strings.Contains(argsStr, "--kube-apiserver https://test-server:6443") &&
+							strings.Contains(argsStr, "--kube-ca-file /tmp/ca.crt") &&
+							strings.Contains(argsStr, "--kube-tls-server-name test-server") &&
+							strings.Contains(argsStr, "--kube-insecure-skip-tls-verify") &&
+							strings.Contains(argsStr, "--burst-limit 100") &&
+							strings.Contains(argsStr, "--qps 50.00")
+					}),
+				).Return(`Release "myrelease" has been installed.`, "", nil)
+			},
+			kubernetesEnvSettings: &helmcli.EnvSettings{
+				KubeConfig:                "/tmp/test-kubeconfig",
+				KubeContext:               "test-context",
+				KubeToken:                 "test-token",
+				KubeAsUser:                "test-user",
+				KubeAsGroups:              []string{"test-group1", "test-group2"},
+				KubeAPIServer:             "https://test-server:6443",
+				KubeCaFile:                "/tmp/ca.crt",
+				KubeTLSServerName:         "test-server",
+				KubeInsecureSkipTLSVerify: true,
+				BurstLimit:                100,
+				QPS:                       50.0,
+			},
+			opts: InstallOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+				Timeout:     5 * time.Minute,
 			},
 			wantErr: false,
 		},
@@ -220,9 +262,10 @@ func TestHelmClient_Install(t *testing.T) {
 			defer os.RemoveAll(tmpdir)
 
 			client := &HelmClient{
-				helmPath: "/usr/local/bin/helm",
-				executor: mockExec,
-				tmpdir:   tmpdir,
+				helmPath:              "/usr/local/bin/helm",
+				executor:              mockExec,
+				tmpdir:                tmpdir,
+				kubernetesEnvSettings: tt.kubernetesEnvSettings,
 			}
 
 			stdout, err := client.Install(t.Context(), tt.opts)
@@ -241,12 +284,13 @@ func TestHelmClient_Install(t *testing.T) {
 
 func TestHelmClient_ReleaseExists(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupMock   func(*MockBinaryExecutor)
-		namespace   string
-		releaseName string
-		want        bool
-		wantErr     bool
+		name                  string
+		setupMock             func(*MockBinaryExecutor)
+		kubernetesEnvSettings *helmcli.EnvSettings
+		namespace             string
+		releaseName           string
+		want                  bool
+		wantErr               bool
 	}{
 		{
 			name: "release exists",
@@ -255,7 +299,14 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 					mock.Anything, // context
 					mock.Anything, // env
 					mock.Anything, // LogFn
-					[]string{"list", "--namespace", "default", "--filter", "^myrelease$", "--output", "json"},
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "list") &&
+							strings.Contains(argsStr, "--namespace default") &&
+							strings.Contains(argsStr, "--filter ^myrelease$") &&
+							strings.Contains(argsStr, "--output json") &&
+							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig")
+					}),
 				).Return(`[{
 					"name": "myrelease",
 					"namespace": "default",
@@ -265,6 +316,9 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 					"chart": "test-chart-1.0.0",
 					"app_version": "1.0.0"
 				}]`, "", nil)
+			},
+			kubernetesEnvSettings: &helmcli.EnvSettings{
+				KubeConfig: "/tmp/test-kubeconfig",
 			},
 			namespace:   "default",
 			releaseName: "myrelease",
@@ -281,10 +335,11 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 					[]string{"list", "--namespace", "default", "--filter", "^myrelease$", "--output", "json"},
 				).Return(`[]`, "", nil)
 			},
-			namespace:   "default",
-			releaseName: "myrelease",
-			want:        false,
-			wantErr:     false,
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  false,
+			wantErr:               false,
 		},
 	}
 
@@ -294,8 +349,9 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			tt.setupMock(mockExec)
 
 			client := &HelmClient{
-				helmPath: "/usr/local/bin/helm",
-				executor: mockExec,
+				helmPath:              "/usr/local/bin/helm",
+				executor:              mockExec,
+				kubernetesEnvSettings: tt.kubernetesEnvSettings,
 			}
 
 			exists, err := client.ReleaseExists(t.Context(), tt.namespace, tt.releaseName)
@@ -607,6 +663,353 @@ func TestHelmClient_Latest(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
+			mockExec.AssertExpectations(t)
+		})
+	}
+}
+
+func TestHelmClient_Upgrade(t *testing.T) {
+	tests := []struct {
+		name                  string
+		setupMock             func(*MockBinaryExecutor)
+		kubernetesEnvSettings *helmcli.EnvSettings
+		opts                  UpgradeOptions
+		wantErr               bool
+	}{
+		{
+			name: "successful upgrade",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					[]string{"upgrade", "myrelease", "/path/to/chart", "--namespace", "default", "--wait", "--wait-for-jobs", "--timeout", "5m0s", "--atomic", "--debug"},
+				).Return(`Release "myrelease" has been upgraded.`, "", nil)
+			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			opts: UpgradeOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+				Timeout:     5 * time.Minute,
+			},
+			wantErr: false,
+		},
+		{
+			name: "upgrade with values",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "upgrade") &&
+							strings.Contains(argsStr, "--values")
+					}),
+				).Return(`Release "myrelease" has been upgraded.`, "", nil)
+			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			opts: UpgradeOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+				Timeout:     5 * time.Minute,
+				Values: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "upgrade with kubernetes env settings",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "upgrade") &&
+							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig") &&
+							strings.Contains(argsStr, "--kube-context test-context") &&
+							strings.Contains(argsStr, "--kube-token test-token") &&
+							strings.Contains(argsStr, "--kube-as-user test-user") &&
+							strings.Contains(argsStr, "--kube-as-group test-group1") &&
+							strings.Contains(argsStr, "--kube-as-group test-group2") &&
+							strings.Contains(argsStr, "--kube-apiserver https://test-server:6443") &&
+							strings.Contains(argsStr, "--kube-ca-file /tmp/ca.crt") &&
+							strings.Contains(argsStr, "--kube-tls-server-name test-server") &&
+							strings.Contains(argsStr, "--kube-insecure-skip-tls-verify") &&
+							strings.Contains(argsStr, "--burst-limit 100") &&
+							strings.Contains(argsStr, "--qps 50.00")
+					}),
+				).Return(`Release "myrelease" has been upgraded.`, "", nil)
+			},
+			kubernetesEnvSettings: &helmcli.EnvSettings{
+				KubeConfig:                "/tmp/test-kubeconfig",
+				KubeContext:               "test-context",
+				KubeToken:                 "test-token",
+				KubeAsUser:                "test-user",
+				KubeAsGroups:              []string{"test-group1", "test-group2"},
+				KubeAPIServer:             "https://test-server:6443",
+				KubeCaFile:                "/tmp/ca.crt",
+				KubeTLSServerName:         "test-server",
+				KubeInsecureSkipTLSVerify: true,
+				BurstLimit:                100,
+				QPS:                       50.0,
+			},
+			opts: UpgradeOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+				Timeout:     5 * time.Minute,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &MockBinaryExecutor{}
+			tt.setupMock(mockExec)
+
+			// Create temporary directory for the test
+			tmpdir, err := os.MkdirTemp("", "helm-test-*")
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpdir)
+
+			client := &HelmClient{
+				helmPath:              "/usr/local/bin/helm",
+				executor:              mockExec,
+				tmpdir:                tmpdir,
+				kubernetesEnvSettings: tt.kubernetesEnvSettings,
+			}
+
+			_, err = client.Upgrade(t.Context(), tt.opts)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			mockExec.AssertExpectations(t)
+		})
+	}
+}
+
+func TestHelmClient_Uninstall(t *testing.T) {
+	tests := []struct {
+		name                  string
+		setupMock             func(*MockBinaryExecutor)
+		kubernetesEnvSettings *helmcli.EnvSettings
+		opts                  UninstallOptions
+		wantErr               bool
+	}{
+		{
+			name: "successful uninstall",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					[]string{"uninstall", "myrelease", "--namespace", "default", "--debug"},
+				).Return(`release "myrelease" uninstalled`, "", nil)
+			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			opts: UninstallOptions{
+				ReleaseName: "myrelease",
+				Namespace:   "default",
+			},
+			wantErr: false,
+		},
+		{
+			name: "uninstall with kubernetes env settings",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "uninstall") &&
+							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig") &&
+							strings.Contains(argsStr, "--kube-context test-context")
+					}),
+				).Return(`release "myrelease" uninstalled`, "", nil)
+			},
+			kubernetesEnvSettings: &helmcli.EnvSettings{
+				KubeConfig:  "/tmp/test-kubeconfig",
+				KubeContext: "test-context",
+			},
+			opts: UninstallOptions{
+				ReleaseName: "myrelease",
+				Namespace:   "default",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &MockBinaryExecutor{}
+			tt.setupMock(mockExec)
+
+			client := &HelmClient{
+				helmPath:              "/usr/local/bin/helm",
+				executor:              mockExec,
+				kubernetesEnvSettings: tt.kubernetesEnvSettings,
+			}
+
+			err := client.Uninstall(t.Context(), tt.opts)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			mockExec.AssertExpectations(t)
+		})
+	}
+}
+
+func TestHelmClient_Render(t *testing.T) {
+	tests := []struct {
+		name                  string
+		setupMock             func(*MockBinaryExecutor)
+		kubernetesEnvSettings *helmcli.EnvSettings
+		opts                  InstallOptions
+		wantErr               bool
+	}{
+		{
+			name: "successful render",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					[]string{"template", "myrelease", "/path/to/chart", "--namespace", "default", "--create-namespace", "--include-crds", "--debug"},
+				).Return(`---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config`, "", nil)
+			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			opts: InstallOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+			},
+			wantErr: false,
+		},
+		{
+			name: "render with values",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "template") &&
+							strings.Contains(argsStr, "--values")
+					}),
+				).Return(`---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config`, "", nil)
+			},
+			kubernetesEnvSettings: nil, // No kubeconfig settings
+			opts: InstallOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+				Values: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "render with kubernetes env settings",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "template") &&
+							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig") &&
+							strings.Contains(argsStr, "--kube-context test-context") &&
+							strings.Contains(argsStr, "--kube-token test-token") &&
+							strings.Contains(argsStr, "--kube-as-user test-user") &&
+							strings.Contains(argsStr, "--kube-as-group test-group1") &&
+							strings.Contains(argsStr, "--kube-as-group test-group2") &&
+							strings.Contains(argsStr, "--kube-apiserver https://test-server:6443") &&
+							strings.Contains(argsStr, "--kube-ca-file /tmp/ca.crt") &&
+							strings.Contains(argsStr, "--kube-tls-server-name test-server") &&
+							strings.Contains(argsStr, "--kube-insecure-skip-tls-verify") &&
+							strings.Contains(argsStr, "--burst-limit 100") &&
+							strings.Contains(argsStr, "--qps 50.00")
+					}),
+				).Return(`---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config`, "", nil)
+			},
+			kubernetesEnvSettings: &helmcli.EnvSettings{
+				KubeConfig:                "/tmp/test-kubeconfig",
+				KubeContext:               "test-context",
+				KubeToken:                 "test-token",
+				KubeAsUser:                "test-user",
+				KubeAsGroups:              []string{"test-group1", "test-group2"},
+				KubeAPIServer:             "https://test-server:6443",
+				KubeCaFile:                "/tmp/ca.crt",
+				KubeTLSServerName:         "test-server",
+				KubeInsecureSkipTLSVerify: true,
+				BurstLimit:                100,
+				QPS:                       50.0,
+			},
+			opts: InstallOptions{
+				ReleaseName: "myrelease",
+				ChartPath:   "/path/to/chart",
+				Namespace:   "default",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &MockBinaryExecutor{}
+			tt.setupMock(mockExec)
+
+			// Create temporary directory for the test
+			tmpdir, err := os.MkdirTemp("", "helm-test-*")
+			require.NoError(t, err)
+			defer os.RemoveAll(tmpdir)
+
+			client := &HelmClient{
+				helmPath:              "/usr/local/bin/helm",
+				executor:              mockExec,
+				tmpdir:                tmpdir,
+				kubernetesEnvSettings: tt.kubernetesEnvSettings,
+			}
+
+			_, err = client.Render(t.Context(), tt.opts)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
 			mockExec.AssertExpectations(t)
 		})
 	}

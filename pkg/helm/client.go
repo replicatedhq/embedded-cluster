@@ -534,6 +534,7 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 	// Add namespace
 	if opts.Namespace != "" {
 		args = append(args, "--namespace", opts.Namespace)
+		args = append(args, "--create-namespace")
 	}
 
 	// Add labels if provided

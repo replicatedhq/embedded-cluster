@@ -148,7 +148,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	)
 
 	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
-		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
+		regexp.MustCompile(`StatefulSet is ready: seaweedfs-master`),
 	)
 
 	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
