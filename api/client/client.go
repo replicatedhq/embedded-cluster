@@ -11,7 +11,7 @@ import (
 
 type Client interface {
 	Authenticate(password string) error
-	GetLinuxInstallationConfig() (types.LinuxInstallationConfig, error)
+	GetLinuxInstallationConfig() (types.LinuxInstallationConfigResponse, error)
 	GetLinuxInstallationStatus() (types.Status, error)
 	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
 	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
@@ -24,7 +24,7 @@ type Client interface {
 	InstallLinuxApp() (types.AppInstall, error)
 	GetLinuxAppInstallStatus() (types.AppInstall, error)
 
-	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfig, error)
+	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfigResponse, error)
 	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus() (types.Status, error)
 	SetupKubernetesInfra() (types.Infra, error)

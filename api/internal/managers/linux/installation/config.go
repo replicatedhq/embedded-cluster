@@ -16,12 +16,114 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
-func (m *installationManager) GetConfig() (types.LinuxInstallationConfig, error) {
+// GetConfig returns the resolved installation configuration, with the user provided values AND defaults applied
+func (m *installationManager) GetConfig(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error) {
+	config, err := m.GetConfigValues()
+	if err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("get config: %w", err)
+	}
+
+	if err := m.setConfigDefaults(&config, rc); err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("set config defaults: %w", err)
+	}
+
+	if err := m.computeCIDRs(&config); err != nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("compute cidrs: %w", err)
+	}
+
+	return config, nil
+}
+
+// GetConfigValues returns the installation configuration values provided by the user
+func (m *installationManager) GetConfigValues() (types.LinuxInstallationConfig, error) {
 	return m.installationStore.GetConfig()
 }
 
-func (m *installationManager) SetConfig(config types.LinuxInstallationConfig) error {
+// SetConfigValues persists the user provided changes to the installation config
+func (m *installationManager) SetConfigValues(config types.LinuxInstallationConfig) error {
 	return m.installationStore.SetConfig(config)
+}
+
+// GetDefaults returns the default values for installation configuration
+func (m *installationManager) GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error) {
+	defaults := types.LinuxInstallationConfig{
+		AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
+		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
+		LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
+		GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
+	}
+
+	// Try to auto-detect network interface for defaults
+	if autoInterface, err := m.netUtils.DetermineBestNetworkInterface(); err == nil {
+		defaults.NetworkInterface = autoInterface
+	}
+
+	// Get the proxy default values and apply them to the defaults
+	proxy := &ecv1beta1.ProxySpec{}
+	newconfig.SetProxyDefaults(proxy)
+	defaults.HTTPProxy = proxy.HTTPProxy
+	defaults.HTTPSProxy = proxy.HTTPSProxy
+	defaults.NoProxy = proxy.ProvidedNoProxy
+
+	return defaults, nil
+}
+
+// setConfigDefaults sets default values for the installation configuration
+func (m *installationManager) setConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error {
+	defaults, err := m.GetDefaults(rc)
+	if err != nil {
+		return fmt.Errorf("get defaults: %w", err)
+	}
+	if config.AdminConsolePort == 0 {
+		config.AdminConsolePort = defaults.AdminConsolePort
+	}
+
+	if config.DataDirectory == "" {
+		config.DataDirectory = defaults.DataDirectory
+	}
+
+	if config.LocalArtifactMirrorPort == 0 {
+		config.LocalArtifactMirrorPort = defaults.LocalArtifactMirrorPort
+	}
+
+	if config.NetworkInterface == "" {
+		config.NetworkInterface = defaults.NetworkInterface
+	}
+
+	// apply the proxy default values
+	if config.HTTPProxy == "" {
+		config.HTTPProxy = defaults.HTTPProxy
+	}
+	if config.HTTPSProxy == "" {
+		config.HTTPSProxy = defaults.HTTPSProxy
+	}
+	if config.NoProxy == "" {
+		config.NoProxy = defaults.NoProxy
+	}
+
+	// if the client has not explicitly set / used pod/service cidrs, we assume the client is using the global cidr
+	// and only popluate the default for the global cidr.
+	// we don't populate pod/service cidrs defaults because the client would have to explicitly
+	// set them in order to use them in place of the global cidr.
+	if config.PodCIDR == "" && config.ServiceCIDR == "" && config.GlobalCIDR == "" {
+		config.GlobalCIDR = defaults.GlobalCIDR
+	}
+
+	return nil
+}
+
+// computeCIDRs computes PodCIDR and ServiceCIDR from GlobalCIDR if GlobalCIDR is set
+func (m *installationManager) computeCIDRs(config *types.LinuxInstallationConfig) error {
+	if config.GlobalCIDR != "" {
+		podCIDR, serviceCIDR, err := netutils.SplitNetworkCIDR(config.GlobalCIDR)
+		if err != nil {
+			return fmt.Errorf("split network cidr: %w", err)
+		}
+		config.PodCIDR = podCIDR
+		config.ServiceCIDR = serviceCIDR
+	}
+
+	return nil
 }
 
 func (m *installationManager) ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error {
@@ -147,61 +249,6 @@ func (m *installationManager) validateDataDirectory(config types.LinuxInstallati
 		return errors.New("dataDirectory is required")
 	}
 
-	return nil
-}
-
-// SetConfigDefaults sets default values for the installation configuration
-func (m *installationManager) SetConfigDefaults(config *types.LinuxInstallationConfig, rc runtimeconfig.RuntimeConfig) error {
-	if config.AdminConsolePort == 0 {
-		config.AdminConsolePort = ecv1beta1.DefaultAdminConsolePort
-	}
-
-	if config.DataDirectory == "" {
-		config.DataDirectory = rc.EmbeddedClusterHomeDirectory()
-	}
-
-	if config.LocalArtifactMirrorPort == 0 {
-		config.LocalArtifactMirrorPort = ecv1beta1.DefaultLocalArtifactMirrorPort
-	}
-
-	// if a network interface was not provided, attempt to discover it
-	if config.NetworkInterface == "" {
-		autoInterface, err := m.netUtils.DetermineBestNetworkInterface()
-		if err == nil {
-			config.NetworkInterface = autoInterface
-		}
-	}
-
-	if err := m.setCIDRDefaults(config); err != nil {
-		return fmt.Errorf("unable to set cidr defaults: %w", err)
-	}
-
-	m.setProxyDefaults(config)
-
-	return nil
-}
-
-func (m *installationManager) setProxyDefaults(config *types.LinuxInstallationConfig) {
-	proxy := &ecv1beta1.ProxySpec{
-		HTTPProxy:       config.HTTPProxy,
-		HTTPSProxy:      config.HTTPSProxy,
-		ProvidedNoProxy: config.NoProxy,
-	}
-	newconfig.SetProxyDefaults(proxy)
-
-	config.HTTPProxy = proxy.HTTPProxy
-	config.HTTPSProxy = proxy.HTTPSProxy
-	config.NoProxy = proxy.ProvidedNoProxy
-}
-
-func (m *installationManager) setCIDRDefaults(config *types.LinuxInstallationConfig) error {
-	// if the client has not explicitly set / used pod/service cidrs, we assume the client is using the global cidr
-	// and only popluate the default for the global cidr.
-	// we don't populate pod/service cidrs defaults because the client would have to explicitly
-	// set them in order to use them in place of the global cidr.
-	if config.PodCIDR == "" && config.ServiceCIDR == "" && config.GlobalCIDR == "" {
-		config.GlobalCIDR = ecv1beta1.DefaultNetworkCIDR
-	}
 	return nil
 }
 

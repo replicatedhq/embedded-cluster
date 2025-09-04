@@ -30,3 +30,17 @@ type KubernetesInstallationConfig struct {
 	HTTPSProxy       string `json:"httpsProxy"`
 	NoProxy          string `json:"noProxy"`
 }
+
+// LinuxInstallationConfigResponse represents the API response with the user provided values and defaults separated as well as the final resolved config
+type LinuxInstallationConfigResponse struct {
+	Values   LinuxInstallationConfig `json:"values"`
+	Defaults LinuxInstallationConfig `json:"defaults"`
+	Resolved LinuxInstallationConfig `json:"resolved"`
+}
+
+// KubernetesInstallationConfigResponse represents the API response with the user provided values and defaults separated as well as the final resolved config
+type KubernetesInstallationConfigResponse struct {
+	Values   KubernetesInstallationConfig `json:"values"`
+	Defaults KubernetesInstallationConfig `json:"defaults"`
+	Resolved KubernetesInstallationConfig `json:"resolved"`
+}

@@ -15,11 +15,12 @@ var _ InstallationManager = &installationManager{}
 // InstallationManager provides methods for validating and setting defaults for installation configuration
 type InstallationManager interface {
 	GetConfig() (types.KubernetesInstallationConfig, error)
-	SetConfig(config types.KubernetesInstallationConfig) error
+	GetConfigValues() (types.KubernetesInstallationConfig, error)
+	SetConfigValues(config types.KubernetesInstallationConfig) error
+	GetDefaults() (types.KubernetesInstallationConfig, error)
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
 	ValidateConfig(config types.KubernetesInstallationConfig, managerPort int) error
-	SetConfigDefaults(config *types.KubernetesInstallationConfig) error
 	ConfigureInstallation(ctx context.Context, ki kubernetesinstallation.Installation, config types.KubernetesInstallationConfig) error
 }
 

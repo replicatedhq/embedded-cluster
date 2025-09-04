@@ -16,12 +16,12 @@ type MockController struct {
 }
 
 // GetInstallationConfig mocks the GetInstallationConfig method
-func (m *MockController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
+func (m *MockController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return types.LinuxInstallationConfig{}, args.Error(1)
+		return types.LinuxInstallationConfigResponse{}, args.Error(1)
 	}
-	return args.Get(0).(types.LinuxInstallationConfig), args.Error(1)
+	return args.Get(0).(types.LinuxInstallationConfigResponse), args.Error(1)
 }
 
 // ConfigureInstallation mocks the ConfigureInstallation method

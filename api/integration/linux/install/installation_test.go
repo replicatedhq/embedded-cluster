@@ -39,6 +39,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 		mockNetUtils          *utils.MockNetUtils
 		token                 string
 		config                types.LinuxInstallationConfig
+		expectedConfig        types.LinuxInstallationConfig
 		expectedStatus        *types.Status
 		expectedStatusCode    int
 		expectedError         bool
@@ -63,13 +64,30 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				).Return(nil).Once()
 				return mockHostUtils
 			}(),
-			mockNetUtils: &utils.MockNetUtils{},
-			token:        "TOKEN",
+			mockNetUtils: func() *utils.MockNetUtils {
+				mockNetUtils := &utils.MockNetUtils{}
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
+				return mockNetUtils
+			}(),
+			token: "TOKEN",
 			config: types.LinuxInstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8000,
 				LocalArtifactMirrorPort: 8081,
 				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
+			},
+			expectedConfig: types.LinuxInstallationConfig{
+				DataDirectory:           "/tmp/data",
+				AdminConsolePort:        8000,
+				LocalArtifactMirrorPort: 8081,
+				GlobalCIDR:              "10.0.0.0/16",
+				PodCIDR:                 "10.0.0.0/17",
+				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
 			},
 			expectedStatus: &types.Status{
@@ -116,6 +134,11 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			}(),
 			mockNetUtils: func() *utils.MockNetUtils {
 				mockNetUtils := &utils.MockNetUtils{}
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
 				mockNetUtils.On("FirstValidIPNet", "eth0").Return(&net.IPNet{IP: net.ParseIP("192.168.17.12"), Mask: net.CIDRMask(24, 32)}, nil)
 				return mockNetUtils
 			}(),
@@ -125,6 +148,18 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				AdminConsolePort:        8000,
 				LocalArtifactMirrorPort: 8081,
 				GlobalCIDR:              "10.0.0.0/16",
+				NetworkInterface:        "eth0",
+				HTTPProxy:               "http://proxy.example.com",
+				HTTPSProxy:              "https://proxy.example.com",
+				NoProxy:                 "somecompany.internal,192.168.17.0/24",
+			},
+			expectedConfig: types.LinuxInstallationConfig{
+				DataDirectory:           "/tmp/data",
+				AdminConsolePort:        8000,
+				LocalArtifactMirrorPort: 8081,
+				GlobalCIDR:              "10.0.0.0/16",
+				PodCIDR:                 "10.0.0.0/17",
+				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
 				HTTPProxy:               "http://proxy.example.com",
 				HTTPSProxy:              "https://proxy.example.com",
@@ -156,10 +191,76 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 			},
 		},
 		{
+			name: "Config with default values",
+			mockHostUtils: func() *hostutils.MockHostUtils {
+				mockHostUtils := &hostutils.MockHostUtils{}
+				mockHostUtils.On("ConfigureHost", mock.Anything,
+					mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
+						return rc.EmbeddedClusterHomeDirectory() == "/tmp/data" &&
+							rc.AdminConsolePort() == 30000 &&
+							rc.LocalArtifactMirrorPort() == 50000 &&
+							rc.NetworkInterface() == "eth0" &&
+							rc.GlobalCIDR() == "10.244.0.0/16" &&
+							rc.ServiceCIDR() == "10.244.128.0/17" &&
+							rc.PodCIDR() == "10.244.0.0/17" &&
+							rc.NodePortRange() == "80-32767" &&
+							rc.ProxySpec() == nil
+					}),
+					mock.Anything,
+				).Return(nil).Once()
+				return mockHostUtils
+			}(),
+			mockNetUtils: func() *utils.MockNetUtils {
+				mockNetUtils := &utils.MockNetUtils{}
+				// We need to mock multiple calls because DetermineBestNetworkInterface is called during:
+				// 1. Configuration process (SetConfigDefaults)
+				// 2. GetConfig call which internally calls SetConfigDefaults again
+				// 3. GetInstallationConfig after the request to verify the result
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(3)
+				return mockNetUtils
+			}(),
+			token: "TOKEN",
+			config: types.LinuxInstallationConfig{
+				DataDirectory: "/tmp/data", // We only provide the data directory
+			},
+			expectedConfig: types.LinuxInstallationConfig{
+				DataDirectory:           "/tmp/data",
+				AdminConsolePort:        30000,
+				LocalArtifactMirrorPort: 50000,
+				GlobalCIDR:              "10.244.0.0/16",
+				PodCIDR:                 "10.244.0.0/17",
+				ServiceCIDR:             "10.244.128.0/17",
+				NetworkInterface:        "eth0",
+			},
+			expectedStatus: &types.Status{
+				State:       types.StateSucceeded,
+				Description: "Installation configured",
+			},
+			expectedStatusCode: http.StatusOK,
+			expectedError:      false,
+			validateRuntimeConfig: func(t *testing.T, rc runtimeconfig.RuntimeConfig) {
+				assert.Equal(t, "/tmp/data", rc.EmbeddedClusterHomeDirectory())
+				assert.Equal(t, 30000, rc.AdminConsolePort())
+				assert.Equal(t, 50000, rc.LocalArtifactMirrorPort())
+				assert.Equal(t, ecv1beta1.NetworkSpec{
+					NetworkInterface: "eth0",
+					GlobalCIDR:       "10.244.0.0/16",
+					PodCIDR:          "10.244.0.0/17",
+					ServiceCIDR:      "10.244.128.0/17",
+					NodePortRange:    "80-32767",
+				}, rc.Get().Network)
+				assert.Equal(t, (*ecv1beta1.ProxySpec)(nil), rc.ProxySpec())
+			},
+		},
+		{
 			name:          "Invalid config - port conflict",
 			mockHostUtils: &hostutils.MockHostUtils{},
-			mockNetUtils:  &utils.MockNetUtils{},
-			token:         "TOKEN",
+			mockNetUtils: func() *utils.MockNetUtils {
+				mockNetUtils := &utils.MockNetUtils{}
+				mockNetUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
+				return mockNetUtils
+			}(),
+			token: "TOKEN",
 			config: types.LinuxInstallationConfig{
 				DataDirectory:           "/tmp/data",
 				AdminConsolePort:        8080,
@@ -167,6 +268,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 			},
+			expectedConfig: types.LinuxInstallationConfig{},
 			expectedStatus: &types.Status{
 				State:       types.StateFailed,
 				Description: "validate: field errors: adminConsolePort and localArtifactMirrorPort cannot be equal",
@@ -269,13 +371,7 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				// Verify that the config is in the store
 				storedConfig, err := installController.GetInstallationConfig(t.Context())
 				require.NoError(t, err)
-				assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), storedConfig.DataDirectory)
-				assert.Equal(t, tc.config.AdminConsolePort, storedConfig.AdminConsolePort)
-
-				// Verify that the runtime config is updated
-				assert.Equal(t, tc.config.DataDirectory, rc.EmbeddedClusterHomeDirectory())
-				assert.Equal(t, tc.config.AdminConsolePort, rc.AdminConsolePort())
-				assert.Equal(t, tc.config.LocalArtifactMirrorPort, rc.LocalArtifactMirrorPort())
+				assert.Equal(t, tc.expectedConfig, storedConfig.Resolved)
 			}
 
 			// Verify host configuration was performed for successful tests
@@ -435,8 +531,14 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	rc.SetDataDir(tempDir)
 
+	netUtils := &utils.MockNetUtils{}
+	netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
+	netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(2)
+
 	// Create a config manager
-	installationManager := linuxinstallationmanager.NewInstallationManager()
+	installationManager := linuxinstallationmanager.NewInstallationManager(
+		linuxinstallationmanager.WithNetUtils(netUtils),
+	)
 
 	// Create an install controller with the config manager
 	installController, err := linuxinstall.NewInstallController(
@@ -448,13 +550,13 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 
 	// Set some initial config
 	initialConfig := types.LinuxInstallationConfig{
-		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
+		DataDirectory:           "/some/directory",
 		AdminConsolePort:        8080,
 		LocalArtifactMirrorPort: 8081,
 		GlobalCIDR:              "10.0.0.0/16",
 		NetworkInterface:        "eth0",
 	}
-	err = installationManager.SetConfig(initialConfig)
+	err = installationManager.SetConfigValues(initialConfig)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
@@ -483,23 +585,30 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var config types.LinuxInstallationConfig
-		err = json.NewDecoder(rec.Body).Decode(&config)
+		var configResponse types.LinuxInstallationConfigResponse
+		err = json.NewDecoder(rec.Body).Decode(&configResponse)
 		require.NoError(t, err)
 
 		// Verify the installation data matches what we expect
-		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
-		assert.Equal(t, initialConfig.AdminConsolePort, config.AdminConsolePort)
-		assert.Equal(t, initialConfig.LocalArtifactMirrorPort, config.LocalArtifactMirrorPort)
-		assert.Equal(t, initialConfig.GlobalCIDR, config.GlobalCIDR)
-		assert.Equal(t, initialConfig.NetworkInterface, config.NetworkInterface)
+		assert.Equal(t, initialConfig.DataDirectory, configResponse.Values.DataDirectory)
+		assert.Equal(t, initialConfig.AdminConsolePort, configResponse.Values.AdminConsolePort)
+		assert.Equal(t, initialConfig.LocalArtifactMirrorPort, configResponse.Values.LocalArtifactMirrorPort)
+		assert.Equal(t, initialConfig.GlobalCIDR, configResponse.Values.GlobalCIDR)
+		assert.Equal(t, initialConfig.NetworkInterface, configResponse.Values.NetworkInterface)
+
+		// Verify that defaults are properly populated
+		assert.Equal(t, 30000, configResponse.Defaults.AdminConsolePort)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), configResponse.Defaults.DataDirectory)
+		assert.Equal(t, 50000, configResponse.Defaults.LocalArtifactMirrorPort)
+		assert.Equal(t, "10.244.0.0/16", configResponse.Defaults.GlobalCIDR)
+		assert.Equal(t, "eth0", configResponse.Defaults.NetworkInterface)
 	})
 
 	// Test get with default/empty configuration
 	t.Run("Default configuration", func(t *testing.T) {
 		netUtils := &utils.MockNetUtils{}
 		netUtils.On("ListValidNetworkInterfaces").Return([]string{"eth0", "eth1"}, nil).Once()
-		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Once()
+		netUtils.On("DetermineBestNetworkInterface").Return("eth0", nil).Times(2)
 
 		rc := runtimeconfig.New(nil, runtimeconfig.WithEnvSetter(&testEnvSetter{}))
 		defaultTempDir := t.TempDir()
@@ -542,17 +651,28 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
 		// Parse the response body
-		var config types.LinuxInstallationConfig
-		err = json.NewDecoder(rec.Body).Decode(&config)
+		var configResponse types.LinuxInstallationConfigResponse
+		err = json.NewDecoder(rec.Body).Decode(&configResponse)
 		require.NoError(t, err)
 
-		// Verify the installation data contains defaults or empty values
-		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
-		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
-		assert.Equal(t, 30000, config.AdminConsolePort)
-		assert.Equal(t, 50000, config.LocalArtifactMirrorPort)
-		assert.Equal(t, "10.244.0.0/16", config.GlobalCIDR)
-		assert.Equal(t, "eth0", config.NetworkInterface)
+		// Verify the installation data contains empty values
+		assert.Equal(t, "", configResponse.Values.DataDirectory)
+		assert.Equal(t, 0, configResponse.Values.AdminConsolePort)
+		assert.Equal(t, 0, configResponse.Values.LocalArtifactMirrorPort)
+		assert.Equal(t, "", configResponse.Values.GlobalCIDR)
+		assert.Equal(t, "", configResponse.Values.NetworkInterface)
+
+		// Verify that defaults are properly populated
+		assert.Equal(t, 30000, configResponse.Defaults.AdminConsolePort)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), configResponse.Defaults.DataDirectory)
+		assert.Equal(t, 50000, configResponse.Defaults.LocalArtifactMirrorPort)
+		assert.Equal(t, "10.244.0.0/16", configResponse.Defaults.GlobalCIDR)
+		assert.Equal(t, "eth0", configResponse.Defaults.NetworkInterface)
+
+		// Verify proxy defaults (should be empty when no env vars set)
+		assert.Equal(t, "", configResponse.Defaults.HTTPProxy)
+		assert.Equal(t, "", configResponse.Defaults.HTTPSProxy)
+		assert.Equal(t, "", configResponse.Defaults.NoProxy)
 	})
 
 	// Test authorization
@@ -579,7 +699,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	t.Run("Controller error", func(t *testing.T) {
 		// Create a mock controller that returns an error
 		mockController := &linuxinstall.MockController{}
-		mockController.On("GetInstallationConfig", mock.Anything).Return(types.LinuxInstallationConfig{}, assert.AnError)
+		mockController.On("GetInstallationConfig", mock.Anything).Return(types.LinuxInstallationConfigResponse{}, assert.AnError)
 
 		// Create the API with the mock controller
 		apiInstance := integration.NewAPIWithReleaseData(t,
@@ -647,7 +767,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		GlobalCIDR:              "192.168.0.0/16",
 		NetworkInterface:        "eth1",
 	}
-	err = installationManager.SetConfig(initialConfig)
+	err = installationManager.SetConfigValues(initialConfig)
 	require.NoError(t, err)
 
 	// Set some initial status
@@ -679,16 +799,23 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 
 	// Test GetLinuxInstallationConfig
 	t.Run("GetLinuxInstallationConfig", func(t *testing.T) {
-		config, err := c.GetLinuxInstallationConfig()
+		configResponse, err := c.GetLinuxInstallationConfig()
 		require.NoError(t, err, "GetInstallationConfig should succeed")
 
 		// Verify values
 		// Note: DataDirectory gets overridden with the temp directory from RuntimeConfig
-		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), config.DataDirectory)
-		assert.Equal(t, 9080, config.AdminConsolePort)
-		assert.Equal(t, 9081, config.LocalArtifactMirrorPort)
-		assert.Equal(t, "192.168.0.0/16", config.GlobalCIDR)
-		assert.Equal(t, "eth1", config.NetworkInterface)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), configResponse.Values.DataDirectory)
+		assert.Equal(t, 9080, configResponse.Values.AdminConsolePort)
+		assert.Equal(t, 9081, configResponse.Values.LocalArtifactMirrorPort)
+		assert.Equal(t, "192.168.0.0/16", configResponse.Values.GlobalCIDR)
+		assert.Equal(t, "eth1", configResponse.Values.NetworkInterface)
+
+		// Verify defaults are present
+		assert.Equal(t, 30000, configResponse.Defaults.AdminConsolePort)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), configResponse.Defaults.DataDirectory)
+		assert.Equal(t, 50000, configResponse.Defaults.LocalArtifactMirrorPort)
+		assert.Equal(t, "10.244.0.0/16", configResponse.Defaults.GlobalCIDR)
+		assert.NotEmpty(t, configResponse.Defaults.NetworkInterface)
 	})
 
 	// Test GetLinuxInstallationStatus
@@ -729,11 +856,11 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		}
 
 		// Get the config to verify it persisted
-		newConfig, err := c.GetLinuxInstallationConfig()
+		newConfigResponse, err := c.GetLinuxInstallationConfig()
 		require.NoError(t, err, "GetLinuxInstallationConfig should succeed after setting config")
-		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), newConfig.DataDirectory)
-		assert.Equal(t, config.AdminConsolePort, newConfig.AdminConsolePort)
-		assert.Equal(t, config.NetworkInterface, newConfig.NetworkInterface)
+		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), newConfigResponse.Values.DataDirectory)
+		assert.Equal(t, config.AdminConsolePort, newConfigResponse.Values.AdminConsolePort)
+		assert.Equal(t, config.NetworkInterface, newConfigResponse.Values.NetworkInterface)
 
 		// Verify host configuration was performed
 		mockHostUtils.AssertExpectations(t)

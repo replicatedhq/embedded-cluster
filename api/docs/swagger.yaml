@@ -133,6 +133,15 @@ components:
         noProxy:
           type: string
       type: object
+    types.KubernetesInstallationConfigResponse:
+      properties:
+        defaults:
+          $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+        resolved:
+          $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+        values:
+          $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+      type: object
     types.LinuxInfraSetupRequest:
       properties:
         ignoreHostPreflights:
@@ -160,6 +169,15 @@ components:
           type: string
         serviceCidr:
           type: string
+      type: object
+    types.LinuxInstallationConfigResponse:
+      properties:
+        defaults:
+          $ref: '#/components/schemas/types.LinuxInstallationConfig'
+        resolved:
+          $ref: '#/components/schemas/types.LinuxInstallationConfig'
+        values:
+          $ref: '#/components/schemas/types.LinuxInstallationConfig'
       type: object
     types.PatchAppConfigValuesRequest:
       properties:
@@ -648,7 +666,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+                $ref: '#/components/schemas/types.KubernetesInstallationConfigResponse'
           description: OK
       security:
       - bearerauth: []
@@ -965,7 +983,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.LinuxInstallationConfig'
+                $ref: '#/components/schemas/types.LinuxInstallationConfigResponse'
           description: OK
       security:
       - bearerauth: []

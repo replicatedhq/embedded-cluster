@@ -22,7 +22,7 @@ import (
 )
 
 type Controller interface {
-	GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfig, error)
+	GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error)
 	ConfigureInstallation(ctx context.Context, config types.KubernetesInstallationConfig) error
 	GetInstallationStatus(ctx context.Context) (types.Status, error)
 	SetupInfra(ctx context.Context) error

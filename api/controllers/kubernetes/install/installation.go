@@ -9,21 +9,30 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfig, error) {
+func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error) {
+	// Get stored config (user values only)
+	values, err := c.installationManager.GetConfigValues()
+	if err != nil {
+		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get config values: %w", err)
+	}
+
+	// Get defaults separately
+	defaults, err := c.installationManager.GetDefaults()
+	if err != nil {
+		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get defaults: %w", err)
+	}
+
+	// Get the final "resolved" config with the user values and defaults applied
 	config, err := c.installationManager.GetConfig()
 	if err != nil {
-		return types.KubernetesInstallationConfig{}, err
+		return types.KubernetesInstallationConfigResponse{}, fmt.Errorf("get config: %w", err)
 	}
 
-	if err := c.installationManager.SetConfigDefaults(&config); err != nil {
-		return types.KubernetesInstallationConfig{}, fmt.Errorf("set defaults: %w", err)
-	}
-
-	if err := c.installationManager.ValidateConfig(config, c.ki.ManagerPort()); err != nil {
-		return types.KubernetesInstallationConfig{}, fmt.Errorf("validate: %w", err)
-	}
-
-	return config, nil
+	return types.KubernetesInstallationConfigResponse{
+		Values:   values,
+		Defaults: defaults,
+		Resolved: config,
+	}, nil
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (finalErr error) {

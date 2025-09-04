@@ -24,10 +24,28 @@ func (m *MockInstallationManager) GetConfig() (types.KubernetesInstallationConfi
 	return args.Get(0).(types.KubernetesInstallationConfig), args.Error(1)
 }
 
-// SetConfig mocks the SetConfig method
-func (m *MockInstallationManager) SetConfig(config types.KubernetesInstallationConfig) error {
+// GetConfigValues mocks the GetConfigValues method
+func (m *MockInstallationManager) GetConfigValues() (types.KubernetesInstallationConfig, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return types.KubernetesInstallationConfig{}, args.Error(1)
+	}
+	return args.Get(0).(types.KubernetesInstallationConfig), args.Error(1)
+}
+
+// SetConfigValues mocks the SetConfigValues method
+func (m *MockInstallationManager) SetConfigValues(config types.KubernetesInstallationConfig) error {
 	args := m.Called(config)
 	return args.Error(0)
+}
+
+// GetDefaults mocks the GetDefaults method
+func (m *MockInstallationManager) GetDefaults() (types.KubernetesInstallationConfig, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return types.KubernetesInstallationConfig{}, args.Error(1)
+	}
+	return args.Get(0).(types.KubernetesInstallationConfig), args.Error(1)
 }
 
 // GetStatus mocks the GetStatus method
@@ -48,12 +66,6 @@ func (m *MockInstallationManager) SetStatus(status types.Status) error {
 // ValidateConfig mocks the ValidateConfig method
 func (m *MockInstallationManager) ValidateConfig(config types.KubernetesInstallationConfig, managerPort int) error {
 	args := m.Called(config, managerPort)
-	return args.Error(0)
-}
-
-// SetConfigDefaults mocks the SetConfigDefaults method
-func (m *MockInstallationManager) SetConfigDefaults(config *types.KubernetesInstallationConfig) error {
-	args := m.Called(config)
 	return args.Error(0)
 }
 
