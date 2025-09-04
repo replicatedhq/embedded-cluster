@@ -48,7 +48,6 @@ func (s *SeaweedFS) Upgrade(
 		}
 	}
 
-	// Now perform the helm upgrade (normal path for both cases)
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  s.ReleaseName(),
 		ChartPath:    s.ChartLocation(domains),
