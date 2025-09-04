@@ -243,7 +243,7 @@ func Test_needsScalingRestart(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "error - no previous installation",
+			name: "no restart needed - no previous installation",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -272,8 +272,7 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want:    false,
-			wantErr: true,
+			want: false,
 		},
 		{
 			name: "error - previous installation missing version",
@@ -413,6 +412,41 @@ func Test_needsScalingRestart(t *testing.T) {
 			},
 			want:    false,
 			wantErr: true,
+		},
+		{
+			name: "no restart needed - StatefulSet not found",
+			objects: []client.Object{
+				&ecv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241002205018", // Latest
+					},
+					Spec: ecv1beta1.InstallationSpec{
+						Config: &ecv1beta1.ConfigSpec{
+							Version: "2.7.3+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				&ecv1beta1.Installation{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Installation",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "20241001205018", // Previous - pre 2.7.3
+					},
+					Spec: ecv1beta1.InstallationSpec{
+						Config: &ecv1beta1.ConfigSpec{
+							Version: "2.7.2+k8s-1.29-49-gf92daca6",
+						},
+					},
+				},
+				// No StatefulSet - SeaweedFS not installed
+			},
+			want: false,
 		},
 		{
 			name: "error - no installations",

@@ -82,6 +82,11 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 	// Get the previous installation to check version
 	previous, err := kubeutils.GetPreviousInstallation(ctx, kcli, latest)
 	if err != nil {
+		var errNotFound kubeutils.ErrInstallationNotFound
+		if errors.As(err, &errNotFound) {
+			logrus.Debug("No previous installation found, no scaling fix needed")
+			return false, nil // No previous installation means no upgrade, no scaling fix needed
+		}
 		return false, fmt.Errorf("getting previous installation: %w", err)
 	}
 
@@ -106,8 +111,11 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 	var sts appsv1.StatefulSet
 	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
 	if err := kcli.Get(ctx, nsn, &sts); err != nil {
-		logrus.Debugf("Could not get SeaweedFS master StatefulSet: %v", err)
-		return false, nil // No StatefulSet means SeaweedFS not yet installed
+		if apierrors.IsNotFound(err) {
+			logrus.Debug("SeaweedFS master StatefulSet not found, no scaling fix needed")
+			return false, nil // No StatefulSet means SeaweedFS not yet installed
+		}
+		return false, fmt.Errorf("getting SeaweedFS master StatefulSet: %w", err)
 	}
 
 	// Check current replica configuration - need scaling fix if:
