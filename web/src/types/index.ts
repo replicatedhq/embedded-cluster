@@ -1,9 +1,9 @@
-import { InstallationTarget } from './installation-target';
+import { InstallationTarget } from "./installation-target";
 
 // Window type with optional __INITIAL_STATE__ property
 export type WindowWithInitialState = typeof window & {
-  __INITIAL_STATE__?: any;
-}
+  __INITIAL_STATE__?: unknown;
+};
 
 export interface InitialState {
   title: string;
@@ -11,7 +11,7 @@ export interface InitialState {
   installTarget: InstallationTarget;
 }
 
-export type State = 'Pending' | 'Running' | 'Succeeded' | 'Failed';
+export type State = "Pending" | "Running" | "Succeeded" | "Failed";
 
 export interface InfraStatusResponse {
   components: InfraComponent[];
@@ -51,7 +51,6 @@ export interface KubernetesConfig {
   installCommand?: string;
 }
 
-
 // WizardMode tells us in which mode the installer wizard is running, upgrade or install
 export type WizardMode = "install" | "upgrade";
 
@@ -81,7 +80,14 @@ export interface WizardText {
   nextButtonText: string;
 }
 
-export type WizardStep = 'welcome' | 'configuration' | 'linux-setup' | 'kubernetes-setup' | 'installation' | 'linux-completion' | 'kubernetes-completion';
+export type WizardStep =
+  | "welcome"
+  | "configuration"
+  | "linux-setup"
+  | "kubernetes-setup"
+  | "installation"
+  | "linux-completion"
+  | "kubernetes-completion";
 
 // App Configuration Types
 export interface AppConfig {

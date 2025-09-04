@@ -6,7 +6,7 @@ import { InstallationTarget } from "../../types/installation-target";
 
 // Window type with optional __INITIAL_STATE__ property
 type WindowWithInitialState = typeof window & {
-  __INITIAL_STATE__?: any;
+  __INITIAL_STATE__?: unknown;
 }
 
 describe("InitialStateContext", () => {
