@@ -275,7 +275,6 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 		delete(spec, "storage")
 		patch["spec"] = spec
 	default:
-		fmt.Printf("spec is of type %T\n", patch["spec"])
 		return patch
 	}
 
