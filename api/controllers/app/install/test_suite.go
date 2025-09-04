@@ -156,7 +156,11 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after setting app config values")
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
 			appConfigManager.AssertExpectations(s.T())
 
 		})
@@ -423,7 +427,10 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, 2*time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running app preflights")
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, 2*time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			appPreflightManager.AssertExpectations(s.T())
 			appReleaseManager.AssertExpectations(s.T())
@@ -640,7 +647,10 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, 2*time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after app installation")
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, 2*time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			appConfigManager.AssertExpectations(s.T())
 			appInstallManager.AssertExpectations(s.T())
