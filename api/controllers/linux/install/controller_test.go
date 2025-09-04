@@ -431,9 +431,9 @@ func TestConfigureInstallation(t *testing.T) {
 			mockStore.AppConfigMockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
-			assert.Eventually(t, func() bool {
-				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
-			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
+			// TODO: find a better way to do this
+			time.Sleep(1 * time.Second)
+			mockMetricsReporter.AssertExpectations(t)
 		})
 	}
 }
@@ -1187,9 +1187,9 @@ func TestSetupInfra(t *testing.T) {
 			mockStore.AppConfigMockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
-			assert.Eventually(t, func() bool {
-				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
-			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
+			// TODO: find a better way to do this
+			time.Sleep(1 * time.Second)
+			mockMetricsReporter.AssertExpectations(t)
 		})
 	}
 }
