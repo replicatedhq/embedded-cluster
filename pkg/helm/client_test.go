@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -301,20 +302,20 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 					mock.Anything, // LogFn
 					mock.MatchedBy(func(args []string) bool {
 						argsStr := strings.Join(args, " ")
-						return strings.HasPrefix(argsStr, "list") &&
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease") &&
 							strings.Contains(argsStr, "--namespace default") &&
-							strings.Contains(argsStr, "--filter ^myrelease$") &&
+							strings.Contains(argsStr, "--max 1") &&
 							strings.Contains(argsStr, "--output json") &&
 							strings.Contains(argsStr, "--kubeconfig /tmp/test-kubeconfig")
 					}),
 				).Return(`[{
-					"name": "myrelease",
-					"namespace": "default",
 					"revision": 1,
 					"updated": "2023-01-01T00:00:00Z",
 					"status": "deployed",
 					"chart": "test-chart-1.0.0",
-					"app_version": "1.0.0"
+					"app_version": "1.0.0",
+					"description": "Install complete"
 				}]`, "", nil)
 			},
 			kubernetesEnvSettings: &helmcli.EnvSettings{
@@ -332,7 +333,7 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 					mock.Anything, // context
 					mock.Anything, // env
 					mock.Anything, // LogFn
-					[]string{"list", "--namespace", "default", "--filter", "^myrelease$", "--output", "json"},
+					[]string{"history", "myrelease", "--namespace", "default", "--max", "1", "--output", "json"},
 				).Return(`[]`, "", nil)
 			},
 			kubernetesEnvSettings: nil, // No kubeconfig settings
@@ -340,6 +341,126 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			releaseName:           "myrelease",
 			want:                  false,
 			wantErr:               false,
+		},
+		{
+			name: "release exists but is uninstalled",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease") &&
+							strings.Contains(argsStr, "--namespace default") &&
+							strings.Contains(argsStr, "--max 1") &&
+							strings.Contains(argsStr, "--output json")
+					}),
+				).Return(`[{
+					"revision": 2,
+					"updated": "2023-01-01T01:00:00Z",
+					"status": "uninstalled",
+					"chart": "test-chart-1.0.0",
+					"app_version": "1.0.0",
+					"description": "Uninstallation complete"
+				}]`, "", nil)
+			},
+			kubernetesEnvSettings: nil,
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  false,
+			wantErr:               false,
+		},
+		{
+			name: "release exists in pending-install state",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease") &&
+							strings.Contains(argsStr, "--namespace default") &&
+							strings.Contains(argsStr, "--max 1") &&
+							strings.Contains(argsStr, "--output json")
+					}),
+				).Return(`[{
+					"revision": 1,
+					"updated": "2023-01-01T00:00:00Z",
+					"status": "pending-install",
+					"chart": "test-chart-1.0.0",
+					"app_version": "1.0.0",
+					"description": "Install in progress"
+				}]`, "", nil)
+			},
+			kubernetesEnvSettings: nil,
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  true,
+			wantErr:               false,
+		},
+		{
+			name: "release not found error in stderr",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease")
+					}),
+				).Return("", "release: not found", fmt.Errorf("exit status 1"))
+			},
+			kubernetesEnvSettings: nil,
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  false,
+			wantErr:               false,
+		},
+		{
+			name: "release not found error in err message",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease")
+					}),
+				).Return("", "", fmt.Errorf("release: not found"))
+			},
+			kubernetesEnvSettings: nil,
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  false,
+			wantErr:               false,
+		},
+		{
+			name: "other command execution error",
+			setupMock: func(m *MockBinaryExecutor) {
+				m.On("ExecuteCommand",
+					mock.Anything, // context
+					mock.Anything, // env
+					mock.Anything, // LogFn
+					mock.MatchedBy(func(args []string) bool {
+						argsStr := strings.Join(args, " ")
+						return strings.HasPrefix(argsStr, "history") &&
+							strings.Contains(argsStr, "myrelease")
+					}),
+				).Return("", "connection refused", fmt.Errorf("exit status 1"))
+			},
+			kubernetesEnvSettings: nil,
+			namespace:             "default",
+			releaseName:           "myrelease",
+			want:                  false,
+			wantErr:               true,
 		},
 	}
 

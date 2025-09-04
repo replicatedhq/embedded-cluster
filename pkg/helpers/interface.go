@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"io"
+	"os/exec"
 )
 
 var h HelpersInterface
@@ -39,6 +40,8 @@ type RunCommandOptions struct {
 	Stdin io.Reader
 	// LogOnSuccess makes the command output to be logged even when it succeeds.
 	LogOnSuccess bool
+	// Cancel is a function to cancel the command.
+	Cancel func(cmd *exec.Cmd)
 }
 
 // Convenience functions

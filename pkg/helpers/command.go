@@ -23,6 +23,9 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	stderr := bytes.NewBuffer(nil)
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.CommandContext(ctx, bin, args...)
+	if opts.Cancel != nil {
+		opts.Cancel(cmd)
+	}
 	cmd.Stdout = stdout
 	if opts.Stdout != nil {
 		cmd.Stdout = io.MultiWriter(opts.Stdout, stdout)
