@@ -1,17 +1,8 @@
 import React, { useState } from 'react';
 import { KubernetesConfigContext } from '../contexts/KubernetesConfigContext';
-
-export interface KubernetesConfig {
-  adminConsolePort?: number;
-  useProxy: boolean;
-  httpProxy?: string;
-  httpsProxy?: string;
-  noProxy?: string;
-  installCommand?: string;
-}
+import { KubernetesConfig } from '../types';
 
 const defaultKubernetesConfig: KubernetesConfig = {
-  useProxy: false,
   installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000'
 };
 

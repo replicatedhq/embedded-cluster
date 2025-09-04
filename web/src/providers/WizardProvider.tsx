@@ -1,33 +1,7 @@
 import React from "react";
+import { WizardText, WizardMode } from "../types";
 import { useInitialState } from "../contexts/InitialStateContext";
 import { WizardContext } from "../contexts/WizardModeContext";
-
-export type WizardMode = "install" | "upgrade";
-
-export interface WizardText {
-  title: string;
-  subtitle: string;
-  welcomeTitle: string;
-  welcomeDescription: string;
-  configurationTitle: string;
-  configurationDescription: string;
-  linuxSetupTitle: string;
-  linuxSetupDescription: string;
-  kubernetesSetupTitle: string;
-  kubernetesSetupDescription: string;
-  kubernetesInstallationTitle: string;
-  kubernetesInstallationDescription: string;
-  linuxValidationTitle: string;
-  linuxValidationDescription: string;
-  linuxInstallationTitle: string;
-  linuxInstallationDescription: string;
-  appValidationTitle: string;
-  appValidationDescription: string;
-  appInstallationTitle: string;
-  appInstallationDescription: string;
-  welcomeButtonText: string;
-  nextButtonText: string;
-}
 
 const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, WizardText> => ({
   install: {

@@ -19,6 +19,7 @@ interface SelectProps {
   className?: string;
   labelClassName?: string;
   placeholder?: string;
+  dataTestId?: string;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -34,6 +35,7 @@ const Select: React.FC<SelectProps> = ({
   className = "",
   labelClassName = "",
   placeholder,
+  dataTestId,
 }) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -59,6 +61,7 @@ const Select: React.FC<SelectProps> = ({
             "--tw-ring-offset-color": themeColor,
           } as React.CSSProperties
         }
+        data-testid={dataTestId}
       >
         {placeholder && (
           <option value="" disabled>
