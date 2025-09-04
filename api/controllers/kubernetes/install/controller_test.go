@@ -216,17 +216,17 @@ func TestConfigureInstallation(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockManager := &installation.MockInstallationManager{}
-			metricsReporter := &metrics.MockReporter{}
+			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, metricsReporter)
+			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, mockMetricsReporter)
 
 			controller, err := NewInstallController(
 				WithInstallation(mockInstallation),
 				WithStateMachine(sm),
 				WithInstallationManager(mockManager),
 				WithStore(mockStore),
-				WithMetricsReporter(metricsReporter),
+				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
@@ -238,17 +238,25 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
+			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
 				return sm.CurrentState() == tt.expectedState
 			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after configuration")
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			mockManager.AssertExpectations(t)
-			metricsReporter.AssertExpectations(t)
 			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
 			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
 			mockStore.AppConfigMockStore.AssertExpectations(t)
 			mockInstallation.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			// TODO: find a better way to do this
+			time.Sleep(1 * time.Second)
+			mockMetricsReporter.AssertExpectations(t)
 		})
 	}
 }
@@ -450,17 +458,24 @@ func TestSetupInfra(t *testing.T) {
 				require.NoError(t, err)
 			}
 
+			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
-				t.Logf("Current state: %s, Expected state: %s", sm.CurrentState(), tt.expectedState)
 				return sm.CurrentState() == tt.expectedState
-			}, time.Second, 100*time.Millisecond, "state should be %s", tt.expectedState)
-			assert.False(t, sm.IsLockAcquired(), "state machine should not be locked after running infra setup")
+			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
-			mockMetricsReporter.AssertExpectations(t)
 			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
 			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			// TODO: find a better way to do this
+			time.Sleep(1 * time.Second)
+			mockMetricsReporter.AssertExpectations(t)
 		})
 	}
 }
