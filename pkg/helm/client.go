@@ -88,6 +88,15 @@ type UninstallOptions struct {
 	LogFn          LogFn // Log function override to use for uninstall command
 }
 
+type RollbackOptions struct {
+	ReleaseName string
+	Namespace   string
+	Revision    int // Target revision to rollback to, 0 for automatic
+	Timeout     time.Duration
+	Force       bool
+	LogFn       LogFn // Log function override to use for rollback command
+}
+
 type HelmClient struct {
 	helmPath              string               // Path to helm binary
 	executor              BinaryExecutor       // Mockable executor
@@ -102,9 +111,9 @@ func (h *HelmClient) prepare(ctx context.Context) error {
 	// Update all repositories to ensure we have the latest chart information
 	for _, repo := range h.repositories {
 		args := []string{"repo", "update", repo.Name}
-		_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+		_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 		if err != nil {
-			return fmt.Errorf("helm repo update %s: %w, stderr: %s", repo.Name, err, stderr)
+			return fmt.Errorf("execute command: %w", err)
 		}
 	}
 	return nil
@@ -136,9 +145,9 @@ func (h *HelmClient) AddRepo(ctx context.Context, repo *repo.Entry) error {
 		args = append(args, "--pass-credentials")
 	}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("helm repo add: %w, stderr: %s", err, stderr)
+		return fmt.Errorf("execute command: %w", err)
 	}
 
 	// Store the repository entry for future reference
@@ -150,9 +159,9 @@ func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string
 	// Use helm search repo with JSON output to find the latest version
 	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("helm search repo: %w, stderr: %s", err, stderr)
+		return "", fmt.Errorf("execute command: %w", err)
 	}
 
 	// Parse JSON output
@@ -212,9 +221,9 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 	// Add debug flag to report progress and capture debug logs
 	args = append(args, "--debug")
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("helm pull: %w, stderr: %s", err, stderr)
+		return "", fmt.Errorf("execute command: %w", err)
 	}
 
 	// Get chart metadata to determine the actual chart name and construct filename
@@ -233,9 +242,9 @@ func (h *HelmClient) RegistryAuth(ctx context.Context, server, user, pass string
 	// Use helm registry login for authentication
 	args := []string{"registry", "login", server, "--username", user, "--password", pass}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("helm registry login: %w, stderr: %s", err, stderr)
+		return fmt.Errorf("execute command: %w", err)
 	}
 
 	return nil
@@ -245,9 +254,9 @@ func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
 	// Use helm push to upload the chart
 	args := []string{"push", path, dst}
 
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("helm push: %w, stderr: %s", err, stderr)
+		return fmt.Errorf("execute command: %w", err)
 	}
 
 	return nil
@@ -260,9 +269,9 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 		args = append(args, "--version", version)
 	}
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return nil, fmt.Errorf("helm show chart: %w, stderr: %s", err, stderr)
+		return nil, fmt.Errorf("execute command: %w", err)
 	}
 
 	var metadata chart.Metadata
@@ -272,9 +281,19 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 	return &metadata, nil
 }
 
-func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
-	// Use helm history to check if release exists
-	args := []string{"history", releaseName, "--namespace", namespace, "--max", "1", "--output", "json"}
+// ReleaseHistoryEntry represents a single entry in helm release history
+type ReleaseHistoryEntry struct {
+	Revision int            `json:"revision"`
+	Status   release.Status `json:"status"`
+}
+
+// ReleaseHistory returns the release history for a given release
+func (h *HelmClient) ReleaseHistory(ctx context.Context, namespace string, releaseName string, maxRevisions int) ([]ReleaseHistoryEntry, error) {
+	args := []string{"history", releaseName, "--namespace", namespace, "--output", "json"}
+
+	if maxRevisions > 0 {
+		args = append(args, "--max", fmt.Sprintf("%d", maxRevisions))
+	}
 
 	// Add kubeconfig and context if available
 	args = h.addKubernetesEnvArgs(args)
@@ -282,20 +301,41 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		if strings.Contains(err.Error(), "release: not found") || strings.Contains(stderr, "release: not found") {
-			return false, nil
+			return nil, nil
 		}
-		return false, fmt.Errorf("execute command: %w", err)
+		return nil, fmt.Errorf("execute command: %w", err)
 	}
 
-	var history []struct {
-		Status release.Status `json:"status"`
-	}
+	var history []ReleaseHistoryEntry
 	if err := json.Unmarshal([]byte(stdout), &history); err != nil {
-		return false, fmt.Errorf("parse release history json: %w", err)
+		return nil, fmt.Errorf("parse release history json: %w", err)
+	}
+
+	return history, nil
+}
+
+// GetLastRevision returns the revision number of the latest release entry
+func (h *HelmClient) GetLastRevision(ctx context.Context, namespace string, releaseName string) (int, error) {
+	history, err := h.ReleaseHistory(ctx, namespace, releaseName, 1)
+	if err != nil {
+		return 0, fmt.Errorf("get release history: %w", err)
+	}
+
+	if len(history) == 0 {
+		return 0, fmt.Errorf("no release history found for %s", releaseName)
+	}
+
+	return history[0].Revision, nil
+}
+
+func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
+	history, err := h.ReleaseHistory(ctx, namespace, releaseName, 1)
+	if err != nil {
+		return false, fmt.Errorf("get release history: %w", err)
 	}
 
 	// True if release has history and is not uninstalled
-	exists := len(history) > 0 && history[len(history)-1].Status != release.StatusUninstalled
+	exists := len(history) > 0 && history[0].Status != release.StatusUninstalled
 
 	return exists, nil
 }
@@ -387,9 +427,9 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, 
 	// since it will rollback the release.
 
 	// Execute helm install command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return "", fmt.Errorf("helm install: %w, stderr: %s", err, stderr)
+		return "", fmt.Errorf("execute command: %w", err)
 	}
 
 	return stdout, nil
@@ -477,9 +517,75 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	args = append(args, "--debug")
 
 	// Execute helm upgrade command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return "", fmt.Errorf("helm upgrade: %w, stderr: %s", err, stderr)
+		if strings.Contains(err.Error(), "another operation") && strings.Contains(err.Error(), "in progress") {
+			// Get the last revision
+			lastRevision, err := h.GetLastRevision(ctx, opts.Namespace, opts.ReleaseName)
+			if err != nil {
+				return "", fmt.Errorf("get last revision: %w", err)
+			}
+
+			// Rollback to the latest revision
+			if _, err := h.Rollback(ctx, RollbackOptions{
+				ReleaseName: opts.ReleaseName,
+				Namespace:   opts.Namespace,
+				Revision:    lastRevision,
+				Timeout:     opts.Timeout,
+				Force:       opts.Force,
+				LogFn:       opts.LogFn,
+			}); err != nil {
+				return "", fmt.Errorf("rollback: %w", err)
+			}
+
+			// Retry upgrade after successful rollback
+			return h.Upgrade(ctx, opts)
+		}
+
+		return "", fmt.Errorf("execute command: %w", err)
+	}
+
+	return stdout, nil
+}
+
+func (h *HelmClient) Rollback(ctx context.Context, opts RollbackOptions) (string, error) {
+	args := []string{"rollback", opts.ReleaseName}
+
+	// If specific revision is provided, use it
+	if opts.Revision > 0 {
+		args = append(args, fmt.Sprintf("%d", opts.Revision))
+	}
+
+	// Add namespace
+	if opts.Namespace != "" {
+		args = append(args, "--namespace", opts.Namespace)
+	}
+
+	// Add wait options
+	args = append(args, "--wait")
+	args = append(args, "--wait-for-jobs")
+
+	// Add timeout
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Minute
+	}
+	args = append(args, "--timeout", timeout.String())
+
+	// Add force flag if specified
+	if opts.Force {
+		args = append(args, "--force")
+	}
+
+	// Add kubernetes environment arguments
+	args = h.addKubernetesEnvArgs(args)
+
+	// Add debug flag to report progress and capture debug logs
+	args = append(args, "--debug")
+
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	if err != nil {
+		return "", fmt.Errorf("execute command: %w", err)
 	}
 
 	return stdout, nil
@@ -517,9 +623,9 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	}
 
 	// Execute helm uninstall command
-	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return fmt.Errorf("helm uninstall: %w, stderr: %s", err, stderr)
+		return fmt.Errorf("execute command: %w", err)
 	}
 
 	return nil
@@ -576,9 +682,9 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 	args = append(args, "--debug")
 
 	// Execute helm template command
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return nil, fmt.Errorf("helm template: %w, stderr: %s", err, stderr)
+		return nil, fmt.Errorf("execute command: %w", err)
 	}
 
 	manifests, err := splitManifests(stdout)

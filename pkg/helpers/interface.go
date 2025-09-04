@@ -40,8 +40,8 @@ type RunCommandOptions struct {
 	Stdin io.Reader
 	// LogOnSuccess makes the command output to be logged even when it succeeds.
 	LogOnSuccess bool
-	// Cancel is a function to cancel the command.
-	Cancel func(cmd *exec.Cmd)
+	// ModifyCmd is a function to modify the command before execution.
+	ModifyCmd func(cmd *exec.Cmd)
 }
 
 // Convenience functions
