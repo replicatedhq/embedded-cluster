@@ -113,7 +113,7 @@ func (h *HelmClient) prepare(ctx context.Context) error {
 		args := []string{"repo", "update", repo.Name}
 		_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 		if err != nil {
-			return fmt.Errorf("execute command: %w", err)
+			return fmt.Errorf("helm repo update %s: %w", repo.Name, err)
 		}
 	}
 	return nil
@@ -517,30 +517,31 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	// Execute helm upgrade command
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
+		// Check if this is an "another operation in progress" error
 		if isOperationInProgressError(err.Error()) || isOperationInProgressError(stderr) {
-			// Get the last revision
-			lastRevision, err := h.GetLastRevision(ctx, opts.Namespace, opts.ReleaseName)
-			if err != nil {
-				return "", fmt.Errorf("get last revision: %w", err)
+			// Get the last revision for rollback
+			lastRevision, rollbackErr := h.GetLastRevision(ctx, opts.Namespace, opts.ReleaseName)
+			if rollbackErr != nil {
+				return "", fmt.Errorf("get last revision for rollback recovery: %w", rollbackErr)
 			}
 
 			// Rollback to the latest revision
-			if _, err := h.Rollback(ctx, RollbackOptions{
+			if _, rollbackErr := h.Rollback(ctx, RollbackOptions{
 				ReleaseName: opts.ReleaseName,
 				Namespace:   opts.Namespace,
 				Revision:    lastRevision,
 				Timeout:     opts.Timeout,
 				Force:       opts.Force,
 				LogFn:       opts.LogFn,
-			}); err != nil {
-				return "", fmt.Errorf("rollback: %w", err)
+			}); rollbackErr != nil {
+				return "", fmt.Errorf("rollback recovery failed: %w", rollbackErr)
 			}
 
 			// Retry upgrade after successful rollback
 			return h.Upgrade(ctx, opts)
 		}
 
-		return "", fmt.Errorf("execute command: %w", err)
+		return "", fmt.Errorf("helm upgrade failed: %w", err)
 	}
 
 	return stdout, nil
