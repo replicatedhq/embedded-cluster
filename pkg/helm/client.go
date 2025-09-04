@@ -147,7 +147,7 @@ func (h *HelmClient) AddRepo(ctx context.Context, repo *repo.Entry) error {
 
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("execute command: %w", err)
+		return fmt.Errorf("helm repo add: %w", err)
 	}
 
 	// Store the repository entry for future reference
@@ -161,7 +161,7 @@ func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("execute command: %w", err)
+		return "", fmt.Errorf("helm search repo: %w", err)
 	}
 
 	// Parse JSON output
@@ -223,7 +223,7 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("execute command: %w", err)
+		return "", fmt.Errorf("helm pull: %w", err)
 	}
 
 	// Get chart metadata to determine the actual chart name and construct filename
@@ -244,7 +244,7 @@ func (h *HelmClient) RegistryAuth(ctx context.Context, server, user, pass string
 
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("execute command: %w", err)
+		return fmt.Errorf("helm registry login: %w", err)
 	}
 
 	return nil
@@ -256,7 +256,7 @@ func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
 
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return fmt.Errorf("execute command: %w", err)
+		return fmt.Errorf("helm push: %w", err)
 	}
 
 	return nil
@@ -271,7 +271,7 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return nil, fmt.Errorf("execute command: %w", err)
+		return nil, fmt.Errorf("helm show chart: %w", err)
 	}
 
 	var metadata chart.Metadata
@@ -300,7 +300,7 @@ func (h *HelmClient) ReleaseHistory(ctx context.Context, namespace string, relea
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return nil, fmt.Errorf("execute command: %w", err)
+		return nil, fmt.Errorf("helm history: %w", err)
 	}
 
 	var history []ReleaseHistoryEntry
@@ -427,7 +427,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, 
 	// Execute helm install command
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return "", fmt.Errorf("execute command: %w", err)
+		return "", fmt.Errorf("execute: %w", err)
 	}
 
 	return stdout, nil
@@ -588,7 +588,7 @@ func (h *HelmClient) Rollback(ctx context.Context, opts RollbackOptions) (string
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return "", fmt.Errorf("execute command: %w", err)
+		return "", fmt.Errorf("execute: %w", err)
 	}
 
 	return stdout, nil
@@ -628,7 +628,7 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 	// Execute helm uninstall command
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return fmt.Errorf("execute command: %w", err)
+		return fmt.Errorf("execute: %w", err)
 	}
 
 	return nil
@@ -687,7 +687,7 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 	// Execute helm template command
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return nil, fmt.Errorf("execute command: %w", err)
+		return nil, fmt.Errorf("execute: %w", err)
 	}
 
 	manifests, err := splitManifests(stdout)
