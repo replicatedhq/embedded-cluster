@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"io"
-	"os/exec"
 )
 
 var h HelpersInterface
@@ -40,8 +39,6 @@ type RunCommandOptions struct {
 	Stdin io.Reader
 	// LogOnSuccess makes the command output to be logged even when it succeeds.
 	LogOnSuccess bool
-	// ModifyCmd is a function to modify the command before execution.
-	ModifyCmd func(cmd *exec.Cmd)
 }
 
 // Convenience functions

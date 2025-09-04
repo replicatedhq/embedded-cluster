@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os/exec"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
@@ -39,12 +37,6 @@ func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]stri
 		Stdout:  &stdout,
 		Stderr:  io.MultiWriter(&stderr, logWriter), // Helm uses stderr for debug logging and progress
 		Env:     env,
-		ModifyCmd: func(cmd *exec.Cmd) {
-			cmd.Cancel = func() error {
-				// Cancel function defaults to SIGKILL, but Helm only handles SIGINT and SIGTERM gracefully
-				return cmd.Process.Signal(syscall.SIGTERM)
-			}
-		},
 	}, c.bin, args...)
 
 	return stdout.String(), stderr.String(), err

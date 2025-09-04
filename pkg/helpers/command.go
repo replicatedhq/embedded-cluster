@@ -44,10 +44,6 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	}
 	cmd.Env = cmdEnv
 
-	if opts.ModifyCmd != nil {
-		opts.ModifyCmd(cmd)
-	}
-
 	if err := cmd.Run(); err != nil {
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())
