@@ -265,14 +265,19 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 	delete(patch, "metadata")
 
 	// handle "spec" subkeys
-	spec, ok := patch["spec"].(map[interface{}]interface{})
-	if !ok {
+	switch spec := patch["spec"].(type) {
+	case map[string]interface{}:
+		delete(spec, "api")
+		delete(spec, "storage")
+		patch["spec"] = spec
+	case map[interface{}]interface{}:
+		delete(spec, "api")
+		delete(spec, "storage")
+		patch["spec"] = spec
+	default:
+		fmt.Printf("spec is of type %T\n", patch["spec"])
 		return patch
 	}
-
-	delete(spec, "api")
-	delete(spec, "storage")
-	patch["spec"] = spec
 
 	return patch
 }
