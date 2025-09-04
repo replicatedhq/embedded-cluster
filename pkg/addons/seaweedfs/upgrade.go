@@ -71,7 +71,7 @@ func (s *SeaweedFS) Upgrade(
 // needsScalingRestart checks if this upgrade requires SeaweedFS master pod restart
 // due to scaling from single replica to HA mode from versions < 2.7.3
 func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client) (bool, error) {
-	logrus.Info("Checking if scaling fix is needed for upgrade from pre-2.7.3")
+	logrus.Debug("Checking if scaling fix is needed for upgrade from pre-2.7.3")
 
 	// Get the latest installation to use for getting the previous one
 	latest, err := kubeutils.GetLatestInstallation(ctx, kcli)
@@ -97,16 +97,16 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 
 	// Only restart if upgrading from < 2.7.3
 	if !lessThanECVersion273(prevVersion) {
-		logrus.Infof("Previous version %s >= 2.7.3, no scaling fix needed", prevVersion.String())
+		logrus.Debugf("Previous version %s >= 2.7.3, no scaling fix needed", prevVersion.String())
 		return false, nil
 	}
-	logrus.Infof("Previous version %s < 2.7.3, checking StatefulSet configuration", prevVersion.String())
+	logrus.Debugf("Previous version %s < 2.7.3, checking StatefulSet configuration", prevVersion.String())
 
 	// Check if SeaweedFS StatefulSet exists and check current replica configuration
 	var sts appsv1.StatefulSet
 	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
 	if err := kcli.Get(ctx, nsn, &sts); err != nil {
-		logrus.Infof("Could not get SeaweedFS master StatefulSet: %v", err)
+		logrus.Debugf("Could not get SeaweedFS master StatefulSet: %v", err)
 		return false, nil // No StatefulSet means SeaweedFS not yet installed
 	}
 
@@ -117,19 +117,19 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 	if sts.Spec.Replicas != nil {
 		currentReplicas = *sts.Spec.Replicas
 	}
-	logrus.Infof("StatefulSet current replicas: %d, ready replicas: %d", currentReplicas, sts.Status.ReadyReplicas)
+	logrus.Debugf("StatefulSet current replicas: %d, ready replicas: %d", currentReplicas, sts.Status.ReadyReplicas)
 
 	if currentReplicas == 1 {
-		logrus.Info("Scaling fix needed - currently 1 replica, upgrading from pre-2.7.3")
+		logrus.Debug("Scaling fix needed - currently 1 replica, upgrading from pre-2.7.3")
 		return true, nil
 	}
 
 	if currentReplicas == 3 && sts.Status.ReadyReplicas < 3 {
-		logrus.Info("Scaling fix needed - 3 replicas configured but not all ready")
+		logrus.Debug("Scaling fix needed - 3 replicas configured but not all ready")
 		return true, nil
 	}
 
-	logrus.Infof("No scaling fix needed - StatefulSet has %d replicas with %d ready", currentReplicas, sts.Status.ReadyReplicas)
+	logrus.Debugf("No scaling fix needed - StatefulSet has %d replicas with %d ready", currentReplicas, sts.Status.ReadyReplicas)
 	return false, nil
 }
 
@@ -155,7 +155,7 @@ func (s *SeaweedFS) scaleStatefulSet(ctx context.Context, kcli client.Client, re
 			currentReplicas = *sts.Spec.Replicas
 		}
 
-		logrus.Infof("Scaling SeaweedFS master StatefulSet from %d to %d replicas", currentReplicas, replicas)
+		logrus.Debugf("Scaling SeaweedFS master StatefulSet from %d to %d replicas", currentReplicas, replicas)
 
 		sts.Spec.Replicas = &replicas
 		if err := kcli.Update(ctx, &sts); err != nil {
@@ -172,7 +172,7 @@ func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client
 	// Wait for StatefulSet to scale down completely
 	if err := kubeutils.WaitForStatefulset(ctx, kcli, s.Namespace(), "seaweedfs-master", nil); err != nil {
 		// This might fail because we're scaling to 0, continue to verify pods are terminated
-		logrus.Infof("WaitForStatefulset returned error (expected when scaling to 0): %v", err)
+		logrus.Debugf("WaitForStatefulset returned error (expected when scaling to 0): %v", err)
 	}
 
 	// Retry logic: verify no pods are running by checking for remaining pods
@@ -205,7 +205,7 @@ func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client
 		}
 
 		// Wait before retry
-		logrus.Infof("Still waiting for %d pods to terminate, retrying in 10 seconds...", runningPods)
+		logrus.Debugf("Still waiting for %d pods to terminate, retrying in 10 seconds...", runningPods)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -214,7 +214,7 @@ func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client
 		}
 	}
 
-	logrus.Info("All SeaweedFS master pods have been terminated successfully")
+	logrus.Debug("All SeaweedFS master pods have been terminated successfully")
 	return nil
 }
 
