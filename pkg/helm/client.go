@@ -517,7 +517,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	// Execute helm upgrade command
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		if isOperationInProgressError(err.Error()) || isOperationInProgressError(stderr) {
+		if shouldRollback(err.Error()) || shouldRollback(stderr) {
 			// Get the last revision
 			lastRevision, err := h.GetLastRevision(ctx, opts.Namespace, opts.ReleaseName)
 			if err != nil {
@@ -546,7 +546,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	return stdout, nil
 }
 
-func isOperationInProgressError(err string) bool {
+func shouldRollback(err string) bool {
 	return strings.Contains(err, "another operation") && strings.Contains(err, "in progress")
 }
 
