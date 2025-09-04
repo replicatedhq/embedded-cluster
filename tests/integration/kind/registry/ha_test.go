@@ -255,6 +255,7 @@ func waitForMatchingMessage(t *testing.T, r io.Reader, re *regexp.Regexp) bool {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		b := scanner.Bytes()
+		t.Logf("%s got message: %s", formattedTime(), string(b))
 		if re.Match(b) {
 			t.Logf("%s got matching message: %s", formattedTime(), string(b))
 			return true
