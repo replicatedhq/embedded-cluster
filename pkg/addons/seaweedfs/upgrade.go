@@ -190,9 +190,6 @@ func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client
 			"app.kubernetes.io/name":      "seaweedfs",
 			"app.kubernetes.io/component": "master",
 		}); err != nil {
-			if apierrors.IsNotFound(err) {
-				break // No pods found, we're done
-			}
 			return fmt.Errorf("listing seaweedfs master pods: %w", err)
 		}
 
