@@ -298,11 +298,8 @@ func (h *HelmClient) ReleaseHistory(ctx context.Context, namespace string, relea
 	// Add kubeconfig and context if available
 	args = h.addKubernetesEnvArgs(args)
 
-	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		if strings.Contains(err.Error(), "release: not found") || strings.Contains(stderr, "release: not found") {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("execute command: %w", err)
 	}
 
@@ -331,6 +328,9 @@ func (h *HelmClient) GetLastRevision(ctx context.Context, namespace string, rele
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
 	history, err := h.ReleaseHistory(ctx, namespace, releaseName, 1)
 	if err != nil {
+		if strings.Contains(err.Error(), "release: not found") {
+			return false, nil
+		}
 		return false, fmt.Errorf("get release history: %w", err)
 	}
 
@@ -517,9 +517,9 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	args = append(args, "--debug")
 
 	// Execute helm upgrade command
-	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		if strings.Contains(err.Error(), "another operation") && strings.Contains(err.Error(), "in progress") {
+		if isOperationInProgressError(err.Error()) || isOperationInProgressError(stderr) {
 			// Get the last revision
 			lastRevision, err := h.GetLastRevision(ctx, opts.Namespace, opts.ReleaseName)
 			if err != nil {
@@ -546,6 +546,10 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, 
 	}
 
 	return stdout, nil
+}
+
+func isOperationInProgressError(err string) bool {
+	return strings.Contains(err, "another operation") && strings.Contains(err, "in progress")
 }
 
 func (h *HelmClient) Rollback(ctx context.Context, opts RollbackOptions) (string, error) {
