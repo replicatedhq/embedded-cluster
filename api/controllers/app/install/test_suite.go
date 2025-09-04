@@ -155,10 +155,12 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 
 			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
 				return !sm.IsLockAcquired()
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
-
-			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			appConfigManager.AssertExpectations(s.T())
 
@@ -425,10 +427,12 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 
 			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, 2*time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
 				return !sm.IsLockAcquired()
 			}, 2*time.Second, 100*time.Millisecond, "state machine should not be locked")
-
-			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			appPreflightManager.AssertExpectations(s.T())
 			appReleaseManager.AssertExpectations(s.T())
@@ -643,10 +647,12 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 
 			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, 2*time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
 				return !sm.IsLockAcquired()
 			}, 2*time.Second, 100*time.Millisecond, "state machine should not be locked")
-
-			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			appConfigManager.AssertExpectations(s.T())
 			appInstallManager.AssertExpectations(s.T())
