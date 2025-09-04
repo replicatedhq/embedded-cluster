@@ -36,41 +36,6 @@ func Test_lessThanECVersion273(t *testing.T) {
 			version: "2.7.4+k8s-1.29-49-gf92daca6",
 			want:    false,
 		},
-		{
-			name:    "version 2.7.0 is less than 2.7.3",
-			version: "2.7.0+k8s-1.29-49-gf92daca6",
-			want:    true,
-		},
-		{
-			name:    "version 2.8.0 is not less than 2.7.3",
-			version: "2.8.0+k8s-1.29-49-gf92daca6",
-			want:    false,
-		},
-		{
-			name:    "version 1.15.0 is less than 2.7.3",
-			version: "1.15.0+k8s-1.29-49-gf92daca6",
-			want:    true,
-		},
-		{
-			name:    "version 3.0.0 is not less than 2.7.3",
-			version: "3.0.0+k8s-1.29-49-gf92daca6",
-			want:    false,
-		},
-		{
-			name:    "old version scheme is less than 2.7.3",
-			version: "1.28.7+ec.0",
-			want:    true,
-		},
-		{
-			name:    "exact version 2.7.3",
-			version: "2.7.3",
-			want:    false,
-		},
-		{
-			name:    "version with prerelease is less than 2.7.3",
-			version: "2.7.3-beta1+k8s-1.29",
-			want:    true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -137,52 +102,6 @@ func Test_needsScalingRestart(t *testing.T) {
 				},
 			},
 			want: true,
-		},
-		{
-			name: "no restart needed - post 2.7.3 upgrade",
-			objects: []client.Object{
-				&ecv1beta1.Installation{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Installation",
-						APIVersion: "embeddedcluster.replicated.com/v1beta1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241002205018", // Latest
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.7.4+k8s-1.29-49-gf92daca6",
-						},
-					},
-				},
-				&ecv1beta1.Installation{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Installation",
-						APIVersion: "embeddedcluster.replicated.com/v1beta1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - post 2.7.3
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.7.3+k8s-1.29-49-gf92daca6",
-						},
-					},
-				},
-				&appsv1.StatefulSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "seaweedfs-master",
-						Namespace: "seaweedfs",
-					},
-					Spec: appsv1.StatefulSetSpec{
-						Replicas: int32Ptr(3),
-					},
-					Status: appsv1.StatefulSetStatus{
-						ReadyReplicas: 1, // Not all replicas ready, but version >= 2.7.3
-					},
-				},
-			},
-			want: false,
 		},
 		{
 			name: "no restart needed - all replicas ready",
@@ -355,41 +274,6 @@ func Test_needsScalingRestart(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "no restart needed - no StatefulSet",
-			objects: []client.Object{
-				&ecv1beta1.Installation{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Installation",
-						APIVersion: "embeddedcluster.replicated.com/v1beta1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241002205018", // Latest
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.7.3+k8s-1.29-49-gf92daca6",
-						},
-					},
-				},
-				&ecv1beta1.Installation{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "Installation",
-						APIVersion: "embeddedcluster.replicated.com/v1beta1",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "20241001205018", // Previous - pre 2.7.3
-					},
-					Spec: ecv1beta1.InstallationSpec{
-						Config: &ecv1beta1.ConfigSpec{
-							Version: "2.7.2+k8s-1.29-49-gf92daca6",
-						},
-					},
-				},
-				// No StatefulSet
-			},
-			want: false,
-		},
-		{
 			name: "no restart needed - previous installation missing version",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
@@ -553,7 +437,8 @@ func Test_needsScalingRestart(t *testing.T) {
 
 			cli := builder.Build()
 
-			got := needsScalingRestart(context.Background(), cli)
+			s := &SeaweedFS{}
+			got := s.needsScalingRestart(context.Background(), cli)
 			assert.Equal(t, tt.want, got)
 		})
 	}

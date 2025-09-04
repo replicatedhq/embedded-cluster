@@ -42,7 +42,7 @@ func (s *SeaweedFS) Upgrade(
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	if needsScalingRestart(ctx, kcli) {
+	if s.needsScalingRestart(ctx, kcli) {
 		if err := s.performPreUpgradeStatefulSetRestart(ctx, kcli, logf); err != nil {
 			return errors.Wrap(err, "pre-upgrade statefulset restart")
 		}
@@ -67,7 +67,7 @@ func (s *SeaweedFS) Upgrade(
 
 // needsScalingRestart checks if this upgrade requires SeaweedFS master pod restart
 // due to scaling from single replica to HA mode from versions < 2.7.3
-func needsScalingRestart(ctx context.Context, kcli client.Client) bool {
+func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client) bool {
 	logrus.Info("Checking if scaling fix is needed for upgrade from pre-2.7.3")
 
 	// Get the latest installation to use for getting the previous one
@@ -105,7 +105,7 @@ func needsScalingRestart(ctx context.Context, kcli client.Client) bool {
 
 	// Check if SeaweedFS StatefulSet exists and check current replica configuration
 	var sts appsv1.StatefulSet
-	nsn := client.ObjectKey{Namespace: "seaweedfs", Name: "seaweedfs-master"}
+	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
 	if err := kcli.Get(ctx, nsn, &sts); err != nil {
 		logrus.Infof("Could not get SeaweedFS master StatefulSet: %v", err)
 		return false
@@ -144,7 +144,7 @@ func lessThanECVersion273(ver *semver.Version) bool {
 func (s *SeaweedFS) scaleStatefulSet(ctx context.Context, kcli client.Client, replicas int32) error {
 	// Get the current StatefulSet
 	var sts appsv1.StatefulSet
-	nsn := client.ObjectKey{Namespace: "seaweedfs", Name: "seaweedfs-master"}
+	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
 	if err := kcli.Get(ctx, nsn, &sts); err != nil {
 		return errors.Wrap(err, "get SeaweedFS master StatefulSet")
 	}
@@ -171,8 +171,7 @@ func (s *SeaweedFS) scaleStatefulSet(ctx context.Context, kcli client.Client, re
 // waitForStatefulSetScaleDown waits for all pods in the StatefulSet to be terminated
 func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client.Client) error {
 	// Wait for StatefulSet to scale down completely
-	kubeutils := &kubeutils.KubeUtils{}
-	if err := kubeutils.WaitForStatefulset(ctx, kcli, "seaweedfs", "seaweedfs-master", nil); err != nil {
+	if err := kubeutils.WaitForStatefulset(ctx, kcli, s.Namespace(), "seaweedfs-master", nil); err != nil {
 		// This might fail because we're scaling to 0, continue to verify pods are terminated
 		logrus.Infof("WaitForStatefulset returned error (expected when scaling to 0): %v", err)
 	}
@@ -180,7 +179,7 @@ func (s *SeaweedFS) waitForStatefulSetScaleDown(ctx context.Context, kcli client
 	// Retry logic: verify no pods are running by checking for remaining pods
 	for i := 0; i < 5; i++ {
 		var podList corev1.PodList
-		if err := kcli.List(ctx, &podList, client.InNamespace("seaweedfs"), client.MatchingLabels{
+		if err := kcli.List(ctx, &podList, client.InNamespace(s.Namespace()), client.MatchingLabels{
 			"app.kubernetes.io/name":      "seaweedfs",
 			"app.kubernetes.io/component": "master",
 		}); err != nil {
