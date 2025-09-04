@@ -273,8 +273,8 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 }
 
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
-	// Use helm status to check if release exists (including pending/failed states)
-	args := []string{"status", releaseName, "--namespace", namespace, "--output", "json"}
+	// Use helm history to check if release exists
+	args := []string{"history", releaseName, "--namespace", namespace, "--max", "1", "--output", "json"}
 
 	// Add kubeconfig and context if available
 	args = h.addKubernetesEnvArgs(args)
@@ -284,32 +284,35 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		// helm status returns error if release doesn't exist
 		if strings.Contains(err.Error(), "release: not found") {
 			logrus.Infof("ReleaseExists: release not found, returning false")
 			return false, nil
 		}
-		logrus.Infof("ReleaseExists: helm status failed: %v, stderr: %s", err, stderr)
+		logrus.Infof("ReleaseExists: helm history failed: %v, stderr: %s", err, stderr)
 		return false, fmt.Errorf("execute command: %w", err)
 	}
 
-	logrus.Infof("ReleaseExists: helm status stdout: %s", stdout)
-	logrus.Infof("ReleaseExists: helm status stderr: %s", stderr)
+	logrus.Infof("ReleaseExists: helm history stdout: %s", stdout)
+	logrus.Infof("ReleaseExists: helm history stderr: %s", stderr)
 
-	var status struct {
-		Info struct {
-			Status release.Status `json:"status"`
-		} `json:"info"`
+	var history []struct {
+		Status release.Status `json:"status"`
 	}
-	if err := json.Unmarshal([]byte(stdout), &status); err != nil {
+	if err := json.Unmarshal([]byte(stdout), &history); err != nil {
 		logrus.Infof("ReleaseExists: failed to parse JSON: %v", err)
-		return false, fmt.Errorf("parse release status JSON: %w", err)
+		return false, fmt.Errorf("parse release history JSON: %w", err)
 	}
 
-	logrus.Infof("ReleaseExists: found release with status: %s", status.Info.Status)
+	if len(history) == 0 {
+		logrus.Infof("ReleaseExists: no history found, returning false")
+		return false, nil
+	}
 
+	logrus.Infof("ReleaseExists: found release with status: %s", history[0].Status)
+
+	// Equivalent to: isReleaseUninstalled(versions) check
 	// True if release exists and is not uninstalled
-	exists := status.Info.Status != release.StatusUninstalled
+	exists := history[0].Status != release.StatusUninstalled
 
 	logrus.Infof("ReleaseExists: returning %t for release '%s' in namespace '%s'", exists, releaseName, namespace)
 	return exists, nil
