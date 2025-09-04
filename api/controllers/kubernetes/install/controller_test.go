@@ -238,13 +238,12 @@ func TestConfigureInstallation(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			assert.Eventually(t, func() bool {
-				return sm.CurrentState() == tt.expectedState
-			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
-
+			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
 				return !sm.IsLockAcquired()
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			mockManager.AssertExpectations(t)
 			metricsReporter.AssertExpectations(t)
@@ -453,14 +452,12 @@ func TestSetupInfra(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Eventually(t, func() bool {
-				t.Logf("Current state: %s, Expected state: %s", sm.CurrentState(), tt.expectedState)
-				return sm.CurrentState() == tt.expectedState
-			}, time.Second, 100*time.Millisecond, "state should be %s", tt.expectedState)
-
+			// Wait for the goroutine to complete and state to transition
 			assert.Eventually(t, func() bool {
 				return !sm.IsLockAcquired()
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
