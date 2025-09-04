@@ -56,6 +56,7 @@ func Test_needsScalingRestart(t *testing.T) {
 		name    string
 		objects []client.Object
 		want    bool
+		wantErr bool
 	}{
 		{
 			name: "needs restart - pre 2.7.3 upgrade with 3 replicas not all ready",
@@ -242,7 +243,7 @@ func Test_needsScalingRestart(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "no restart needed - no previous installation",
+			name: "error - no previous installation",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -271,10 +272,11 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want:    false,
+			wantErr: true,
 		},
 		{
-			name: "no restart needed - previous installation missing version",
+			name: "error - previous installation missing version",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -317,10 +319,11 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want:    false,
+			wantErr: true,
 		},
 		{
-			name: "no restart needed - previous installation has nil config",
+			name: "error - previous installation has nil config",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -361,10 +364,11 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want:    false,
+			wantErr: true,
 		},
 		{
-			name: "no restart needed - invalid previous version",
+			name: "error - invalid previous version",
 			objects: []client.Object{
 				&ecv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
@@ -407,10 +411,11 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want:    false,
+			wantErr: true,
 		},
 		{
-			name: "no restart needed - no installations",
+			name: "error - no installations",
 			objects: []client.Object{
 				&appsv1.StatefulSet{
 					ObjectMeta: metav1.ObjectMeta{
@@ -425,7 +430,8 @@ func Test_needsScalingRestart(t *testing.T) {
 					},
 				},
 			},
-			want: false,
+			want:    false,
+			wantErr: true,
 		},
 	}
 
@@ -438,8 +444,14 @@ func Test_needsScalingRestart(t *testing.T) {
 			cli := builder.Build()
 
 			s := &SeaweedFS{}
-			got := s.needsScalingRestart(context.Background(), cli)
-			assert.Equal(t, tt.want, got)
+			got, err := s.needsScalingRestart(context.Background(), cli)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, tt.want, got)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
 		})
 	}
 }
