@@ -395,17 +395,17 @@ func TestConfigureInstallation(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockManager := &installation.MockInstallationManager{}
-			metricsReporter := &metrics.MockReporter{}
+			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMock(mockManager, rc, tt.config, mockStore, metricsReporter)
+			tt.setupMock(mockManager, rc, tt.config, mockStore, mockMetricsReporter)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
 				WithStateMachine(sm),
 				WithInstallationManager(mockManager),
 				WithStore(mockStore),
-				WithMetricsReporter(metricsReporter),
+				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
@@ -425,11 +425,15 @@ func TestConfigureInstallation(t *testing.T) {
 			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			mockManager.AssertExpectations(t)
-			metricsReporter.AssertExpectations(t)
 			mockStore.LinuxInfraMockStore.AssertExpectations(t)
 			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
 			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
 			mockStore.AppConfigMockStore.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			assert.Eventually(t, func() bool {
+				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
+			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
 		})
 	}
 }
@@ -1177,11 +1181,15 @@ func TestSetupInfra(t *testing.T) {
 			mockPreflightManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
-			mockMetricsReporter.AssertExpectations(t)
 			mockStore.LinuxInfraMockStore.AssertExpectations(t)
 			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
 			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
 			mockStore.AppConfigMockStore.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			assert.Eventually(t, func() bool {
+				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
+			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
 		})
 	}
 }

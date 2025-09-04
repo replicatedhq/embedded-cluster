@@ -216,17 +216,17 @@ func TestConfigureInstallation(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockManager := &installation.MockInstallationManager{}
-			metricsReporter := &metrics.MockReporter{}
+			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, metricsReporter)
+			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, mockMetricsReporter)
 
 			controller, err := NewInstallController(
 				WithInstallation(mockInstallation),
 				WithStateMachine(sm),
 				WithInstallationManager(mockManager),
 				WithStore(mockStore),
-				WithMetricsReporter(metricsReporter),
+				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 			)
 			require.NoError(t, err)
@@ -246,11 +246,15 @@ func TestConfigureInstallation(t *testing.T) {
 			assert.Equal(t, tt.expectedState, sm.CurrentState(), "state should be %s but is %s", tt.expectedState, sm.CurrentState())
 
 			mockManager.AssertExpectations(t)
-			metricsReporter.AssertExpectations(t)
 			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
 			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
 			mockStore.AppConfigMockStore.AssertExpectations(t)
 			mockInstallation.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			assert.Eventually(t, func() bool {
+				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
+			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
 		})
 	}
 }
@@ -461,9 +465,13 @@ func TestSetupInfra(t *testing.T) {
 
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
-			mockMetricsReporter.AssertExpectations(t)
 			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
 			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			assert.Eventually(t, func() bool {
+				return mock.AssertExpectationsForObjects(t, mockMetricsReporter)
+			}, time.Second, 100*time.Millisecond, "metrics reporter should have expected expectations")
 		})
 	}
 }
