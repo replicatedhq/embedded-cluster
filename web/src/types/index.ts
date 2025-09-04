@@ -1,5 +1,10 @@
 import { InstallationTarget } from './installation-target';
 
+// Window type with optional __INITIAL_STATE__ property
+export type WindowWithInitialState = typeof window & {
+  __INITIAL_STATE__?: any;
+}
+
 export interface InitialState {
   title: string;
   icon?: string;

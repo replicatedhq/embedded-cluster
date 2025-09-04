@@ -4,8 +4,9 @@ import { InitialStateContext, useInitialState } from "../InitialStateContext";
 import { InitialStateProvider } from "../../providers/InitialStateProvider";
 import { InstallationTarget } from "../../types/installation-target";
 
-type CustomWindow = typeof window & {
-  __INITIAL_STATE__?: unknown;
+// Window type with optional __INITIAL_STATE__ property
+type WindowWithInitialState = typeof window & {
+  __INITIAL_STATE__?: any;
 }
 
 describe("InitialStateContext", () => {
@@ -16,7 +17,7 @@ describe("InitialStateContext", () => {
     global.window = {
       ...originalWindow,
       __INITIAL_STATE__: undefined,
-    } as CustomWindow;
+    } as WindowWithInitialState;
   });
 
   afterEach(() => {
@@ -57,9 +58,10 @@ describe("InitialStateContext", () => {
       };
 
       // Set up window.__INITIAL_STATE__ with valid target
-      global.window.__INITIAL_STATE__ = {
-        installTarget: "linux",
-      };
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: { installTarget: "linux" }
+      } as WindowWithInitialState;
 
       render(
         <InitialStateProvider>
@@ -78,9 +80,10 @@ describe("InitialStateContext", () => {
       };
 
       // Set up window.__INITIAL_STATE__ with valid target
-      global.window.__INITIAL_STATE__ = {
-        installTarget: "kubernetes",
-      };
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: { installTarget: "kubernetes" }
+      } as WindowWithInitialState;
 
       render(
         <InitialStateProvider>
@@ -94,9 +97,10 @@ describe("InitialStateContext", () => {
     it("throws error for invalid installation target", () => {
 
       // Set up window.__INITIAL_STATE__ with invalid target
-      global.window.__INITIAL_STATE__ = {
-        installTarget: "invalid-target",
-      };
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: { installTarget: "invalid-target" }
+      } as WindowWithInitialState;
 
       // Mock console.error to prevent error output in tests
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => { });
@@ -140,11 +144,14 @@ describe("InitialStateContext", () => {
 
     it("uses values from window.__INITIAL_STATE__ when available", () => {
 
-      global.window.__INITIAL_STATE__ = {
-        title: "Custom App Title",
-        icon: "custom-icon.png",
-        installTarget: "kubernetes",
-      };
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: {
+          title: "Custom App Title",
+          icon: "custom-icon.png",
+          installTarget: "kubernetes",
+        }
+      } as WindowWithInitialState;
 
       const TestComponent = () => {
         const state = useInitialState();
@@ -170,10 +177,13 @@ describe("InitialStateContext", () => {
 
     it("falls back to defaults for missing properties", () => {
 
-      global.window.__INITIAL_STATE__ = {
-        title: "Partial Config",
-        // icon and installTarget are missing
-      };
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: {
+          title: "Partial Config",
+          // icon and installTarget are missing
+        }
+      } as WindowWithInitialState;
 
       const TestComponent = () => {
         const state = useInitialState();
@@ -199,7 +209,10 @@ describe("InitialStateContext", () => {
 
     it("handles empty window.__INITIAL_STATE__ object", () => {
 
-      global.window.__INITIAL_STATE__ = {};
+      global.window = {
+        ...global.window,
+        __INITIAL_STATE__: {}
+      } as WindowWithInitialState;
 
       const TestComponent = () => {
         const state = useInitialState();

@@ -1,5 +1,4 @@
-import React from "react";
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, within, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "../../../../test/setup.tsx";
 import KubernetesInstallationPhase from "../phases/KubernetesInstallationPhase.tsx";

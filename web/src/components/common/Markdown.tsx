@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { PluggableList } from 'react-markdown/lib/react-markdown';
+import type { PluggableList } from 'unified';
 
 interface MarkdownProps {
   children: string;

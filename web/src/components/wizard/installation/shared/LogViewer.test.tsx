@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { renderWithProviders } from '../../../../test/setup.tsx';
