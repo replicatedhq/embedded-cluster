@@ -273,42 +273,45 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 }
 
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
-	// Use helm list to check if release exists
-	args := []string{"list", "--namespace", namespace, "--filter", fmt.Sprintf("^%s$", releaseName), "--output", "json"}
+	// Use helm status to check if release exists (including pending/failed states)
+	args := []string{"status", releaseName, "--namespace", namespace, "--output", "json"}
 
 	// Add kubeconfig and context if available
 	args = h.addKubernetesEnvArgs(args)
 
-	logrus.Debugf("ReleaseExists: checking for release '%s' in namespace '%s'", releaseName, namespace)
-	logrus.Debugf("ReleaseExists: executing helm command: %s", strings.Join(args, " "))
+	logrus.Infof("ReleaseExists: checking for release '%s' in namespace '%s'", releaseName, namespace)
+	logrus.Infof("ReleaseExists: executing helm command: %s", strings.Join(args, " "))
 
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		logrus.Debugf("ReleaseExists: helm list failed: %v, stderr: %s", err, stderr)
-		return false, fmt.Errorf("helm list: %w, stderr: %s", err, stderr)
+		// helm status returns error if release doesn't exist
+		if strings.Contains(err.Error(), "release: not found") {
+			logrus.Infof("ReleaseExists: release not found, returning false")
+			return false, nil
+		}
+		logrus.Infof("ReleaseExists: helm status failed: %v, stderr: %s", err, stderr)
+		return false, fmt.Errorf("execute command: %w", err)
 	}
 
-	logrus.Debugf("ReleaseExists: helm list stdout: %s", stdout)
-	logrus.Debugf("ReleaseExists: helm list stderr: %s", stderr)
+	logrus.Infof("ReleaseExists: helm status stdout: %s", stdout)
+	logrus.Infof("ReleaseExists: helm status stderr: %s", stderr)
 
-	var releases []struct {
-		Name   string         `json:"name"`
-		Status release.Status `json:"status"`
+	var status struct {
+		Info struct {
+			Status release.Status `json:"status"`
+		} `json:"info"`
 	}
-	if err := json.Unmarshal([]byte(stdout), &releases); err != nil {
-		logrus.Debugf("ReleaseExists: failed to parse JSON: %v", err)
-		return false, fmt.Errorf("parse release list JSON: %w", err)
+	if err := json.Unmarshal([]byte(stdout), &status); err != nil {
+		logrus.Infof("ReleaseExists: failed to parse JSON: %v", err)
+		return false, fmt.Errorf("parse release status JSON: %w", err)
 	}
 
-	logrus.Debugf("ReleaseExists: found %d releases", len(releases))
-	for i, rel := range releases {
-		logrus.Debugf("ReleaseExists: release[%d]: name='%s', status='%s'", i, rel.Name, rel.Status)
-	}
+	logrus.Infof("ReleaseExists: found release with status: %s", status.Info.Status)
 
 	// True if release exists and is not uninstalled
-	exists := len(releases) > 0 && releases[len(releases)-1].Status != release.StatusUninstalled
+	exists := status.Info.Status != release.StatusUninstalled
 
-	logrus.Debugf("ReleaseExists: returning %t for release '%s' in namespace '%s'", exists, releaseName, namespace)
+	logrus.Infof("ReleaseExists: returning %t for release '%s' in namespace '%s'", exists, releaseName, namespace)
 	return exists, nil
 }
 
