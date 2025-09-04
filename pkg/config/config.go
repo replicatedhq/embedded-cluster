@@ -11,7 +11,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -265,14 +265,18 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 	delete(patch, "metadata")
 
 	// handle "spec" subkeys
-	spec, ok := patch["spec"].(map[interface{}]interface{})
-	if !ok {
+	switch spec := patch["spec"].(type) {
+	case map[string]interface{}:
+		delete(spec, "api")
+		delete(spec, "storage")
+		patch["spec"] = spec
+	case map[interface{}]interface{}:
+		delete(spec, "api")
+		delete(spec, "storage")
+		patch["spec"] = spec
+	default:
 		return patch
 	}
-
-	delete(spec, "api")
-	delete(spec, "storage")
-	patch["spec"] = spec
 
 	return patch
 }
