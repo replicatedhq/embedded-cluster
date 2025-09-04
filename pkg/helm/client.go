@@ -279,21 +279,36 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	// Add kubeconfig and context if available
 	args = h.addKubernetesEnvArgs(args)
 
+	logrus.Debugf("ReleaseExists: checking for release '%s' in namespace '%s'", releaseName, namespace)
+	logrus.Debugf("ReleaseExists: executing helm command: %s", strings.Join(args, " "))
+
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
+		logrus.Debugf("ReleaseExists: helm list failed: %v, stderr: %s", err, stderr)
 		return false, fmt.Errorf("helm list: %w, stderr: %s", err, stderr)
 	}
 
+	logrus.Debugf("ReleaseExists: helm list stdout: %s", stdout)
+	logrus.Debugf("ReleaseExists: helm list stderr: %s", stderr)
+
 	var releases []struct {
+		Name   string         `json:"name"`
 		Status release.Status `json:"status"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &releases); err != nil {
+		logrus.Debugf("ReleaseExists: failed to parse JSON: %v", err)
 		return false, fmt.Errorf("parse release list JSON: %w", err)
+	}
+
+	logrus.Debugf("ReleaseExists: found %d releases", len(releases))
+	for i, rel := range releases {
+		logrus.Debugf("ReleaseExists: release[%d]: name='%s', status='%s'", i, rel.Name, rel.Status)
 	}
 
 	// True if release exists and is not uninstalled
 	exists := len(releases) > 0 && releases[len(releases)-1].Status != release.StatusUninstalled
 
+	logrus.Debugf("ReleaseExists: returning %t for release '%s' in namespace '%s'", exists, releaseName, namespace)
 	return exists, nil
 }
 
@@ -323,6 +338,8 @@ func (h *HelmClient) createValuesFile(values map[string]interface{}) (string, er
 }
 
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, error) {
+	logrus.Debugf("HelmClient.Install: starting install for release '%s' in namespace '%s'", opts.ReleaseName, opts.Namespace)
+
 	// Build helm install command arguments
 	args := []string{"install", opts.ReleaseName}
 
@@ -380,6 +397,8 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (string, 
 
 	// NOTE: we don't set client.Atomic = true on install as it makes installation failures difficult to debug
 	// since it will rollback the release.
+
+	logrus.Debugf("HelmClient.Install: executing helm command: %s", strings.Join(args, " "))
 
 	// Execute helm install command
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)

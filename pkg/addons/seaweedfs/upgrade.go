@@ -17,14 +17,22 @@ func (s *SeaweedFS) Upgrade(
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
 	domains ecv1beta1.Domains, overrides []string,
 ) error {
+	logrus.Debugf("SeaweedFS.Upgrade: starting upgrade for release '%s' in namespace '%s'", s.ReleaseName(), s.Namespace())
+
 	exists, err := hcli.ReleaseExists(ctx, s.Namespace(), s.ReleaseName())
 	if err != nil {
+		logrus.Debugf("SeaweedFS.Upgrade: ReleaseExists failed: %v", err)
 		return errors.Wrap(err, "check if release exists")
 	}
+
+	logrus.Debugf("SeaweedFS.Upgrade: ReleaseExists returned %t", exists)
+
 	if !exists {
-		logrus.Debugf("Release not found, installing release %s in namespace %s", s.ReleaseName(), s.Namespace())
+		logrus.Debugf("SeaweedFS.Upgrade: Release not found, installing release %s in namespace %s", s.ReleaseName(), s.Namespace())
 		return s.Install(ctx, logf, kcli, mcli, hcli, domains, overrides)
 	}
+
+	logrus.Debugf("SeaweedFS.Upgrade: Release exists, proceeding with helm upgrade")
 
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")

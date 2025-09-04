@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/sirupsen/logrus"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,6 +24,8 @@ func (s *SeaweedFS) Install(
 	kcli client.Client, mcli metadata.Interface, hcli helm.Client,
 	domains ecv1beta1.Domains, overrides []string,
 ) error {
+	logrus.Debugf("SeaweedFS.Install: starting install for release '%s' in namespace '%s'", s.ReleaseName(), s.Namespace())
+
 	if err := s.ensurePreRequisites(ctx, kcli); err != nil {
 		return errors.Wrap(err, "create prerequisites")
 	}
