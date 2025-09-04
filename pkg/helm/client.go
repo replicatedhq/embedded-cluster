@@ -276,6 +276,9 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	// Use helm list to check if release exists
 	args := []string{"list", "--namespace", namespace, "--filter", fmt.Sprintf("^%s$", releaseName), "--output", "json"}
 
+	// Add kubeconfig and context if available
+	args = h.addKubernetesEnvArgs(args)
+
 	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return false, fmt.Errorf("helm list: %w, stderr: %s", err, stderr)
