@@ -56,3 +56,9 @@ func (m *MockStore) SetStatus(status types.Status) error {
 	args := m.Called(status)
 	return args.Error(0)
 }
+
+// Clear mocks the Clear method
+func (m *MockStore) Clear() error {
+	args := m.Called()
+	return args.Error(0)
+}

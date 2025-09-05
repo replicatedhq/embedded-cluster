@@ -20,6 +20,7 @@ type HostPreflightManager interface {
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
+	ClearHostPreflightResults(ctx context.Context) error
 }
 
 type hostPreflightManager struct {

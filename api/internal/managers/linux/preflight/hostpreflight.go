@@ -152,6 +152,10 @@ func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]st
 	return m.hostPreflightStore.GetTitles()
 }
 
+func (m *hostPreflightManager) ClearHostPreflightResults(ctx context.Context) error {
+	return m.hostPreflightStore.Clear()
+}
+
 func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPreflightSpec) error {
 	titles, err := m.getTitles(hpf)
 	if err != nil {
