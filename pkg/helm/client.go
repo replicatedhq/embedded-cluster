@@ -23,7 +23,7 @@ import (
 var _ Client = (*HelmClient)(nil)
 
 func newClient(opts HelmOptions) (*HelmClient, error) {
-	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-cache-*")
+	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-*")
 	if err != nil {
 		return nil, err
 	}
