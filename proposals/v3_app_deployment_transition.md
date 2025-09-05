@@ -12,7 +12,8 @@
 | sc-128062 | Support the releaseName field in the HelmChart custom resource |
 | sc-128364 | Rely on KOTS CLI to process the app's airgap bundle and create the image pull secrets |
 | sc-128060 | Add missing functionality for the image pull secret template functions |
-| sc-128058 | Support helmUpgradeFlags field from the HelmChart custom resource when deploying charts |
+| sc-128058 | Use Helm binary instead of the Go SDK to manage charts in V3 installs |
+| sc-128450 | Support helmUpgradeFlags field from the HelmChart custom resource when deploying charts |
 | sc-128057 | Sort charts by the weight field in the HelmChart custom resource |
 | sc-128056 | Make sure the exclude field from the HelmChart custom resource is respected |
 | sc-128055 | Make sure the namespace field in the HelmChart custom resource is respected |
@@ -257,51 +258,48 @@ func (m *appReleaseManager) ExtractInstallableHelmCharts(...) ([]InstallableHelm
 
 ---
 
-#### 2.6 Story sc-128058: Support helmUpgradeFlags field
+#### 2.6 Story sc-128058: Use Helm binary instead of the Go SDK
 
-**Purpose:** Apply custom Helm upgrade flags from HelmChart CR during installation.
+**Purpose:** In order to facilitate the migration from KOTS with minimal risk and potential regressions, and in addition to other benefits, we should use the Helm binary instead of the Go SDK to manage charts
+
+**Implementation:** See [helm_binary_migration.md](./helm_binary_migration.md)
+
+#### 2.7 Story sc-128450: Support helmUpgradeFlags field
+
+**Purpose:** Apply custom Helm upgrade flags from HelmChart CR during installation
 
 **Implementation:**
-- Parse helmUpgradeFlags from HelmChart CR and apply to Helm install client options
-- IMPORTANT: coordinate with the data team to make sure we cover all the flags our current vendors are using and the way they are using them
+- Pass helmUpgradeFlags directly to the helm install command arguments
 
 ```go
 // api/internal/managers/app/install/install.go
 func (m *appInstallManager) installHelmChart(ctx context.Context, chart InstallableHelmChart) error {
     opts := helm.InstallOptions{...}
     
-    // Apply flags from HelmChart CR
+    // Pass upgrade flags directly as extra args
     if len(chart.CR.Spec.HelmUpgradeFlags) > 0 {
-        err := applyHelmUpgradeFlags(opts, chart.CR.Spec.HelmUpgradeFlags)
+        opts.ExtraArgs = append(opts.ExtraArgs, chart.CR.Spec.HelmUpgradeFlags...)
     }
     
     return m.hcli.Install(ctx, opts)
 }
 
-func applyHelmUpgradeFlags(opts *helm.InstallOptions, flags []string) error {
-   // Create a new flag set to parse the helm flags
-   flagSet := pflag.NewFlagSet("helm-flags", pflag.ContinueOnError)
-
-   // Define flags that helm install supports: https://github.com/helm/helm/blob/main/pkg/cmd/install.go#L187C6-L235
-   force := flagSet.Bool("force", false, "")
-   replace := flagSet.Bool("replace", false, "")
-
-   // Parse the flags
-   if err := flagSet.Parse(flags); err != nil {
-         // Return error if the flags are not valid
-         return err
-   }
-
-   // Apply parsed values to options
-   if *force {
-         opts.Force = true
-   }
-   if *replace {
-         opts.Replace = true
-   }
-   // ...
-
-   return nil
+// pkg/helm/binary_client.go
+func (c *BinaryHelmClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+    args := []string{"install", opts.ReleaseName}
+    
+    // ... existing code ...
+    
+    // Pass extra args
+    if len(opts.ExtraArgs) > 0 {
+        args = append(args, opts.ExtraArgs...)
+    }
+    
+    // Execute helm command
+    stdout, stderr, err := c.executor.ExecuteCommand(ctx, nil, c.helmPath, args...)
+    
+    // Parse release from JSON output
+    return &release, nil
 }
 ```
 

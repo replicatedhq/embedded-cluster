@@ -20,7 +20,7 @@ func Install(ctx context.Context, hcli helm.Client, progressChan chan<- Extensio
 		return nil
 	}
 
-	if err := addRepos(hcli, config.AdditionalRepositories()); err != nil {
+	if err := addRepos(ctx, hcli, config.AdditionalRepositories()); err != nil {
 		return errors.Wrap(err, "add additional helm repositories")
 	}
 

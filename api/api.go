@@ -9,6 +9,7 @@ import (
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -37,6 +38,7 @@ import (
 type API struct {
 	cfg types.APIConfig
 
+	hcli            helm.Client
 	logger          logrus.FieldLogger
 	metricsReporter metrics.ReporterInterface
 
@@ -93,6 +95,13 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 	}
 }
 
+// WithHelmClient configures the helm client for the API.
+func WithHelmClient(hcli helm.Client) Option {
+	return func(a *API) {
+		a.hcli = hcli
+	}
+}
+
 // New creates a new API instance.
 func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 	if cfg.InstallTarget == "" {
@@ -117,6 +126,10 @@ func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 			return nil, fmt.Errorf("create logger: %w", err)
 		}
 		api.logger = l
+	}
+
+	if err := api.initClients(); err != nil {
+		return nil, fmt.Errorf("init clients: %w", err)
 	}
 
 	if err := api.initHandlers(); err != nil {

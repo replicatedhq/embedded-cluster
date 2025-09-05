@@ -15,6 +15,7 @@ import (
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -65,7 +66,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -117,7 +118,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -221,7 +222,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
-		kubernetesinstall.WithK8sVersion("v1.33.0"),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 

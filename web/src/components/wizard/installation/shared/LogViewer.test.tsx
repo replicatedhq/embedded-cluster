@@ -264,4 +264,49 @@ describe('LogViewer', () => {
       expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
     });
   });
+
+  it('handles extremely long log lines without causing horizontal overflow', () => {
+    const longLogLines = [
+      'Short log message',
+      // Very long JSON log line similar to what was seen in the bug report
+      `level=DEBUG msg=Request id=3 url=https://ec-e2e-proxy.testcluster.net/v2/anonymous/ttl.sh/salah/embedded-cluster-operator/blobs/sha256:4b2ac16cacd8d47216406c3d0061666949203030c2c74ccst1756913131 Content-Security-Policy: frame-ancestors none; default-src none; sandbox digest:sha256:4b2ac16cacd8d47216406c3d0061666949203030c2c74ccst1756913131 mediaType:application/vnd.cnf.helm.chart.content.v1.tar+gzip layer:application/vnd.oci.image.layer.v1.tar+gzip size:1259 very long log line that simulates the overflow issue without complex JSON escaping`,
+      // Another very long line with repeated text
+      'Authorization: Bearer ' + 'a'.repeat(500) + ' User-Agent: Helm/3.18.0',
+      'Regular log message after long lines'
+    ];
+
+    renderWithProviders(
+      <LogViewer
+        title="Installation Logs"
+        logs={longLogLines}
+        isExpanded={true}
+        onToggle={mockOnToggle}
+      />
+    );
+
+    const logContainer = screen.getByTestId('log-viewer-content');
+    
+    // Verify the container has proper overflow classes
+    expect(logContainer).toHaveClass('overflow-y-auto');
+    expect(logContainer).toHaveClass('overflow-x-auto');
+    
+    // Verify all log lines are rendered
+    longLogLines.forEach(log => {
+      expect(screen.getByText(log)).toBeInTheDocument();
+    });
+
+    // Get all log line divs and verify they have break-all class
+    const logElements = logContainer.querySelectorAll('div');
+    const logLineDivs = Array.from(logElements).filter(div => 
+      div.textContent && longLogLines.some(log => div.textContent === log)
+    );
+    
+    logLineDivs.forEach(logDiv => {
+      expect(logDiv).toHaveClass('break-all');
+      expect(logDiv).toHaveClass('whitespace-pre-wrap');
+    });
+
+    // Test that the component doesn't crash with very long content
+    expect(logContainer).toBeInTheDocument();
+  });
 }); 

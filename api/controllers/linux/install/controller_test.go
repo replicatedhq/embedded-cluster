@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -153,6 +154,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				WithRuntimeConfig(rc),
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -423,6 +425,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithStore(mockStore),
 				WithMetricsReporter(metricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -489,6 +492,7 @@ func TestIntegrationComputeCIDRs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			controller, err := NewInstallController(
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -789,6 +793,7 @@ func TestRunHostPreflights(t *testing.T) {
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
 				WithMetricsReporter(mockReporter),
 				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -853,6 +858,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 			controller, err := NewInstallController(
 				WithHostPreflightManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -905,6 +911,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 			controller, err := NewInstallController(
 				WithHostPreflightManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -957,6 +964,7 @@ func TestGetHostPreflightTitles(t *testing.T) {
 			controller, err := NewInstallController(
 				WithHostPreflightManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -1013,6 +1021,7 @@ func TestGetInstallationStatus(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -1199,11 +1208,11 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
-				appcontroller.WithK8sVersion("v1.33.0"),
 				appcontroller.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
 				appcontroller.WithAppPreflightManager(mockAppPreflightManager),
 				appcontroller.WithAppReleaseManager(mockAppReleaseManager),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -1219,6 +1228,7 @@ func TestSetupInfra(t *testing.T) {
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -1315,6 +1325,7 @@ func TestGetInfra(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInfraManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 

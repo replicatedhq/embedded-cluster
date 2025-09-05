@@ -3,14 +3,12 @@ package helm
 import (
 	"context"
 	"fmt"
-	"os"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/distribution/reference"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	"helm.sh/helm/v3/pkg/chart"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -66,16 +64,6 @@ func ExtractImagesFromChart(hcli Client, ref string, version string, values map[
 	sort.Strings(images)
 
 	return images, nil
-}
-
-func GetChartMetadata(hcli Client, ref string, version string) (*chart.Metadata, error) {
-	chartPath, err := hcli.PullByRef(ref, version)
-	if err != nil {
-		return nil, fmt.Errorf("pull: %w", err)
-	}
-	defer os.RemoveAll(chartPath)
-
-	return hcli.GetChartMetadata(chartPath)
 }
 
 func extractImagesFromK8sManifest(resource []byte) ([]string, error) {

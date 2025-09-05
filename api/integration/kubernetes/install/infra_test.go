@@ -123,6 +123,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinstall.WithInstallation(ki),
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -133,7 +134,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -229,6 +229,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -239,7 +240,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 
@@ -319,6 +319,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinstall.WithInstallation(ki),
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(states.StateInstallationConfigured))),
 			kubernetesinstall.WithInfraManager(infraManager),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -329,7 +330,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
-			kubernetesinstall.WithK8sVersion("v1.33.0"),
 		)
 		require.NoError(t, err)
 

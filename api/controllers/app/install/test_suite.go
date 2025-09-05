@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -132,6 +133,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
+			mockHelmClient := &helm.MockClient{}
 			sm := s.CreateStateMachine(tt.currentState)
 
 			controller, err := NewInstallController(
@@ -142,7 +144,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(mockHelmClient),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -402,6 +404,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+			mockHelmClient := &helm.MockClient{}
 			sm := s.CreateStateMachine(tt.currentState)
 			controller, err := NewInstallController(
 				WithStateMachine(sm),
@@ -410,7 +413,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 				WithAppReleaseManager(appReleaseManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(mockHelmClient),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -473,6 +476,7 @@ func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
+			mockHelmClient := &helm.MockClient{}
 			sm := s.CreateStateMachine(states.StateNew)
 
 			controller, err := NewInstallController(
@@ -483,7 +487,7 @@ func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(mockHelmClient),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -685,6 +689,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
+			mockHelmClient := &helm.MockClient{}
 			sm := s.CreateStateMachine(tt.currentState)
 
 			controller, err := NewInstallController(
@@ -695,7 +700,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 				WithAppInstallManager(appInstallManager),
 				WithStore(&store.MockStore{}),
 				WithReleaseData(&release.ReleaseData{}),
-				WithK8sVersion("v1.33.0"),
+				WithHelmClient(mockHelmClient),
 			)
 			require.NoError(t, err, "failed to create install controller")
 

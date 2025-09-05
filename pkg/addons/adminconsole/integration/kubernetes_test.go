@@ -31,7 +31,10 @@ func TestKubernetes_Airgap(t *testing.T) {
 		KotsInstaller: nil,
 	}
 
-	hcli, err := helm.NewClient(helm.HelmOptions{})
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath:   "helm", // use the helm binary in PATH
+		K8sVersion: "v1.26.0",
+	})
 	require.NoError(t, err, "NewClient should not return an error")
 
 	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, ecv1beta1.Domains{}, nil)

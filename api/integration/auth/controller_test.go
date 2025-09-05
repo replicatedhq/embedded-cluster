@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +33,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 			linuxinstallation.WithNetUtils(&utils.MockNetUtils{}),
 		)),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 

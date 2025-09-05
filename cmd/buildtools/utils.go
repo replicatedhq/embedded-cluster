@@ -342,14 +342,14 @@ func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *se
 	return bestStr, nil
 }
 
-func LatestChartVersion(hcli helm.Client, repo *repo.Entry, name string) (string, error) {
+func LatestChartVersion(ctx context.Context, hcli helm.Client, repo *repo.Entry, name string) (string, error) {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err := hcli.AddRepo(repo)
+	err := hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("add helm repo: %w", err)
 	}
 	logrus.Infof("finding latest chart version of %s/%s", repo, name)
-	return hcli.Latest(repo.Name, name)
+	return hcli.Latest(ctx, repo.Name, name)
 }
 
 type DockerManifestNotFoundError struct {
@@ -453,29 +453,29 @@ func RemoveTagFromImage(image string) string {
 	return location
 }
 
-func MirrorChart(hcli helm.Client, repo *repo.Entry, name, ver string) error {
+func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, ver string) error {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err := hcli.AddRepo(repo)
+	err := hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("add helm repo: %w", err)
 	}
 
 	logrus.Infof("pulling %s chart version %s", name, ver)
-	chpath, err := hcli.Pull(repo.Name, name, ver)
+	chpath, err := hcli.Pull(ctx, repo.Name, name, ver)
 	if err != nil {
 		return fmt.Errorf("pull chart %s: %w", name, err)
 	}
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	srcMeta, err := hcli.GetChartMetadata(chpath)
+	srcMeta, err := hcli.GetChartMetadata(ctx, chpath, ver)
 	if err != nil {
 		return fmt.Errorf("get source chart metadata: %w", err)
 	}
 
 	if val := os.Getenv("CHARTS_REGISTRY_SERVER"); val != "" {
 		logrus.Infof("authenticating with %q", os.Getenv("CHARTS_REGISTRY_SERVER"))
-		if err := hcli.RegistryAuth(
+		if err := hcli.RegistryAuth(ctx,
 			os.Getenv("CHARTS_REGISTRY_SERVER"),
 			os.Getenv("CHARTS_REGISTRY_USER"),
 			os.Getenv("CHARTS_REGISTRY_PASS"),
@@ -487,7 +487,7 @@ func MirrorChart(hcli helm.Client, repo *repo.Entry, name, ver string) error {
 	dst := fmt.Sprintf("oci://%s", os.Getenv("CHARTS_DESTINATION"))
 	chartURL := fmt.Sprintf("%s/%s", dst, name)
 	logrus.Infof("verifying if destination tag already exists")
-	dstMeta, err := helm.GetChartMetadata(hcli, chartURL, ver)
+	dstMeta, err := hcli.GetChartMetadata(ctx, chartURL, ver)
 	if err != nil && !strings.HasSuffix(err.Error(), "not found") {
 		return fmt.Errorf("verify tag exists: %w", err)
 	} else if err == nil {
@@ -501,7 +501,7 @@ func MirrorChart(hcli helm.Client, repo *repo.Entry, name, ver string) error {
 	logrus.Infof("destination tag does not exist")
 
 	logrus.Infof("pushing %s chart to %s", name, dst)
-	if err := hcli.Push(chpath, dst); err != nil {
+	if err := hcli.Push(ctx, chpath, dst); err != nil {
 		return fmt.Errorf("push %s chart: %w", name, err)
 	}
 	remote := fmt.Sprintf("%s/%s:%s", dst, name, ver)
@@ -521,7 +521,7 @@ func NewHelm() (helm.Client, error) {
 		return nil, fmt.Errorf("get k0s version: %w", err)
 	}
 	return helm.NewClient(helm.HelmOptions{
-		Writer:     logrus.New().Writer(),
+		HelmPath:   "helm", // use the helm binary in PATH
 		K8sVersion: sv.Original(),
 	})
 }

@@ -208,9 +208,6 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 	}
 
 	// Perform dry run rendering
-	if err := m.setupHelmClient(); err != nil {
-		return nil, fmt.Errorf("setup helm client: %w", err)
-	}
 
 	manifests, err := m.hcli.Render(ctx, installOpts)
 	if err != nil {

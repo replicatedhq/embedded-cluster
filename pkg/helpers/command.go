@@ -23,26 +23,36 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	stderr := bytes.NewBuffer(nil)
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.CommandContext(ctx, bin, args...)
+
 	cmd.Stdout = stdout
 	if opts.Stdout != nil {
 		cmd.Stdout = io.MultiWriter(opts.Stdout, stdout)
 	}
+
 	if opts.Stdin != nil {
 		cmd.Stdin = opts.Stdin
 	}
+
 	cmd.Stderr = stderr
 	if opts.Stderr != nil {
 		cmd.Stderr = io.MultiWriter(opts.Stderr, stderr)
 	}
+
 	cmdEnv := cmd.Environ()
 	for k, v := range opts.Env {
 		cmdEnv = append(cmdEnv, fmt.Sprintf("%s=%s", k, v))
 	}
 	cmd.Env = cmdEnv
+
 	if err := cmd.Run(); err != nil {
 		logrus.Debugf("failed to run command:")
 		logrus.Debugf("stdout: %s", stdout.String())
 		logrus.Debugf("stderr: %s", stderr.String())
+
+		// Check if it's a context error and return it instead
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if stderr.String() != "" {
 			return fmt.Errorf("%w: %s", err, stderr.String())
 		}

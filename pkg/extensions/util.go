@@ -14,7 +14,7 @@ import (
 	helmrepo "helm.sh/helm/v3/pkg/repo"
 )
 
-func addRepos(hcli helm.Client, repos []k0sv1beta1.Repository) error {
+func addRepos(ctx context.Context, hcli helm.Client, repos []k0sv1beta1.Repository) error {
 	for _, r := range repos {
 		logrus.Debugf("Adding helm repository %s", r.Name)
 
@@ -30,7 +30,7 @@ func addRepos(hcli helm.Client, repos []k0sv1beta1.Repository) error {
 		if r.Insecure != nil {
 			helmRepo.InsecureSkipTLSverify = *r.Insecure
 		}
-		if err := hcli.AddRepo(helmRepo); err != nil {
+		if err := hcli.AddRepo(ctx, helmRepo); err != nil {
 			return errors.Wrapf(err, "add helm repository %s", r.Name)
 		}
 	}

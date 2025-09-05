@@ -35,6 +35,7 @@ func (v *Velero) Install(
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    v.Namespace(),
+		LogFn:        helm.LogFn(logf),
 	}
 
 	if v.DryRun {

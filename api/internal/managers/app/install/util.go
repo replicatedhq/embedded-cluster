@@ -6,8 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 )
 
 // logWriter is an io.Writer that captures output and feeds it to the logs
@@ -31,24 +29,6 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 		lw.manager.addLogs("kots", "%s", output)
 	}
 	return len(p), nil
-}
-
-func (m *appInstallManager) setupHelmClient() error {
-	if m.hcli != nil {
-		return nil
-	}
-
-	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig:       m.kubeConfigPath,
-		RESTClientGetter: m.restClientGetter,
-		K8sVersion:       m.k8sVersion,
-		LogFn:            m.logFn("helm"),
-	})
-	if err != nil {
-		return fmt.Errorf("create helm client: %w", err)
-	}
-	m.hcli = hcli
-	return nil
 }
 
 func (m *appInstallManager) logFn(component string) func(format string, v ...interface{}) {

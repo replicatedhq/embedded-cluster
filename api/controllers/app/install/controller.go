@@ -13,10 +13,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -48,9 +48,7 @@ type InstallController struct {
 	clusterID                  string
 	airgapBundle               string
 	privateCACertConfigMapName string
-	k8sVersion                 string
-	restClientGetter           genericclioptions.RESTClientGetter
-	kubeConfigPath             string
+	hcli                       helm.Client
 }
 
 type InstallControllerOption func(*InstallController)
@@ -133,21 +131,9 @@ func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOptio
 	}
 }
 
-func WithK8sVersion(k8sVersion string) InstallControllerOption {
+func WithHelmClient(hcli helm.Client) InstallControllerOption {
 	return func(c *InstallController) {
-		c.k8sVersion = k8sVersion
-	}
-}
-
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) InstallControllerOption {
-	return func(c *InstallController) {
-		c.restClientGetter = restClientGetter
-	}
-}
-
-func WithKubeConfigPath(kubeConfigPath string) InstallControllerOption {
-	return func(c *InstallController) {
-		c.kubeConfigPath = kubeConfigPath
+		c.hcli = hcli
 	}
 }
 
@@ -212,7 +198,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
-			appreleasemanager.WithK8sVersion(controller.k8sVersion),
+			appreleasemanager.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)
@@ -228,9 +214,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
-			appinstallmanager.WithK8sVersion(controller.k8sVersion),
-			appinstallmanager.WithRESTClientGetter(controller.restClientGetter),
-			appinstallmanager.WithKubeConfigPath(controller.kubeConfigPath),
+			appinstallmanager.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)

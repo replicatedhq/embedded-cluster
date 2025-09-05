@@ -18,12 +18,14 @@ import (
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -1048,6 +1050,7 @@ func TestAppInstallSuite(t *testing.T) {
 					linuxinstall.WithReleaseData(rd),
 					linuxinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					linuxinstall.WithConfigValues(configValues),
+					linuxinstall.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
@@ -1068,7 +1071,8 @@ func TestAppInstallSuite(t *testing.T) {
 					kubernetesinstall.WithReleaseData(rd),
 					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
-					kubernetesinstall.WithK8sVersion("v1.33.0"),
+					kubernetesinstall.WithKubernetesEnvSettings(helmcli.New()),
+					kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
