@@ -37,9 +37,16 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		kversion = sv
 	}
 
+	// Create helm environment variables for tmpdir isolation
+	helmEnv := map[string]string{
+		"HELM_CACHE_HOME":  filepath.Join(tmpdir, ".cache"),
+		"HELM_CONFIG_HOME": filepath.Join(tmpdir, ".config"),
+		"HELM_DATA_HOME":   filepath.Join(tmpdir, ".local"),
+	}
+
 	return &HelmClient{
 		helmPath:              opts.HelmPath,
-		executor:              newBinaryExecutor(opts.HelmPath),
+		executor:              newBinaryExecutor(opts.HelmPath, helmEnv),
 		tmpdir:                tmpdir,
 		kversion:              kversion,
 		kubernetesEnvSettings: opts.KubernetesEnvSettings,

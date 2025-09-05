@@ -32,7 +32,7 @@ func Test_binaryExecutor_ExecuteCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := newBinaryExecutor(tt.bin)
+			executor := newBinaryExecutor(tt.bin, nil)
 			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, nil, tt.args...)
 
 			if tt.wantErr {
@@ -95,7 +95,7 @@ func Test_binaryExecutor_ExecuteCommand_WithLogging(t *testing.T) {
 				logs = append(logs, fmt.Sprintf(format, v...))
 			}
 
-			executor := newBinaryExecutor(tt.bin)
+			executor := newBinaryExecutor(tt.bin, nil)
 			stdout, stderr, err := executor.ExecuteCommand(t.Context(), nil, logFn, tt.args...)
 
 			if tt.wantErr {
@@ -149,6 +149,41 @@ func Test_logWriter_Write(t *testing.T) {
 	n, err = writer.Write([]byte("test"))
 	assert.NoError(t, err)
 	assert.Equal(t, 4, n)
+}
+
+func Test_binaryExecutor_EnvironmentMerging(t *testing.T) {
+	// Test that default environment is merged with provided environment
+	defaultEnv := map[string]string{
+		"DEFAULT_VAR": "default_value",
+		"OVERRIDE_ME": "default_override",
+	}
+
+	executor := newBinaryExecutor("sh", defaultEnv)
+
+	// Create a command that outputs all environment variables containing our test vars
+	providedEnv := map[string]string{
+		"PROVIDED_VAR": "provided_value",
+		"OVERRIDE_ME":  "overridden_value", // This should override the default
+	}
+
+	// Use a shell command to check if our environment variables are set
+	stdout, _, err := executor.ExecuteCommand(
+		t.Context(),
+		providedEnv,
+		nil,
+		"-c", "echo DEFAULT_VAR=$DEFAULT_VAR PROVIDED_VAR=$PROVIDED_VAR OVERRIDE_ME=$OVERRIDE_ME",
+	)
+
+	require.NoError(t, err)
+
+	// Verify that:
+	// 1. Default env var is present
+	assert.Contains(t, stdout, "DEFAULT_VAR=default_value")
+	// 2. Provided env var is present
+	assert.Contains(t, stdout, "PROVIDED_VAR=provided_value")
+	// 3. Provided env var overrides default
+	assert.Contains(t, stdout, "OVERRIDE_ME=overridden_value")
+	assert.NotContains(t, stdout, "OVERRIDE_ME=default_override")
 }
 
 func Test_MockBinaryExecutor_ExecuteCommand(t *testing.T) {

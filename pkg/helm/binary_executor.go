@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"maps"
 	"regexp"
 	"strings"
 
@@ -19,12 +20,13 @@ type BinaryExecutor interface {
 
 // binaryExecutor implements BinaryExecutor using helpers.RunCommandWithOptions
 type binaryExecutor struct {
-	bin string // Path to the binary to execute
+	bin        string            // Path to the binary to execute
+	defaultEnv map[string]string // Default environment variables to set for all commands
 }
 
-// newBinaryExecutor creates a new binaryExecutor with the specified binary path
-func newBinaryExecutor(bin string) BinaryExecutor {
-	return &binaryExecutor{bin: bin}
+// newBinaryExecutor creates a new binaryExecutor with the specified binary path and optional default environment
+func newBinaryExecutor(bin string, defaultEnv map[string]string) BinaryExecutor {
+	return &binaryExecutor{bin: bin, defaultEnv: defaultEnv}
 }
 
 // ExecuteCommand runs a command using helpers.RunCommandWithOptions and returns stdout, stderr, and error
@@ -32,11 +34,16 @@ func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]stri
 	var stdout, stderr bytes.Buffer
 	logWriter := &logWriter{logFn: logFn}
 
+	// Merge default environment with provided environment (provided env takes precedence)
+	mergedEnv := make(map[string]string)
+	maps.Copy(mergedEnv, c.defaultEnv)
+	maps.Copy(mergedEnv, env)
+
 	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{
 		Context: ctx,
 		Stdout:  &stdout,
 		Stderr:  io.MultiWriter(&stderr, logWriter), // Helm uses stderr for debug logging and progress
-		Env:     env,
+		Env:     mergedEnv,
 	}, c.bin, args...)
 
 	return stdout.String(), stderr.String(), err
