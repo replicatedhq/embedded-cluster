@@ -33,6 +33,11 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		return types.NewConflictError(err)
 	}
 
+	// Clear any previous preflight results immediately to prevent serving stale data
+	if err := c.hostPreflightManager.ClearHostPreflightResults(ctx); err != nil {
+		return fmt.Errorf("clear previous preflight results: %w", err)
+	}
+
 	// Get the configured custom domains
 	ecDomains := utils.GetDomains(c.releaseData)
 

@@ -7,15 +7,17 @@ import InstallationProgress from '../shared/InstallationProgress';
 import LogViewer from '../shared/LogViewer';
 import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
-import { NextButtonConfig } from '../types';
+import { NextButtonConfig, BackButtonConfig } from '../types';
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;
+  onBack: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
+  setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
 }
 
-const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
+const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
@@ -110,6 +112,15 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
       onClick: onNext,
     });
   }, [installComplete]);
+
+  // Update back button configuration
+  useEffect(() => {
+    // Back button is hidden for kubernetes-installation phase because there are no host preflights
+    setBackButtonConfig({
+      hidden: true,
+      onClick: onBack,
+    });
+  }, [setBackButtonConfig, onBack]);
 
   return (
     <div className="space-y-6">

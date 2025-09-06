@@ -85,6 +85,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     },
     enabled: isInstallationStatusPolling,
     refetchInterval: 1000,
+    gcTime: 0,
   });
 
   // Query to poll preflight status
@@ -106,6 +107,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     },
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
+    gcTime: 0,
   });
 
   // Handle preflight status changes
