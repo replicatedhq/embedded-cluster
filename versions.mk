@@ -29,11 +29,11 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 TROUBLESHOOT_VERSION = v0.121.3
 
 # FIO Version (for performance testing)
-FIO_VERSION = 3.40
+FIO_VERSION = 3.41
 
 # Kubernetes Development Tool Versions
-CONTROLLER_TOOLS_VERSION ?= v0.18.0
-KUSTOMIZE_VERSION ?= v5.7.0
+CONTROLLER_TOOLS_VERSION = v0.19.0
+KUSTOMIZE_VERSION = v5.7.1
 
 # KOTS Version Overrides
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, KOTS_VERSION will be dynamically generated
