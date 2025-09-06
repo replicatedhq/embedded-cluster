@@ -31,12 +31,7 @@ TROUBLESHOOT_VERSION = v0.121.3
 # FIO Version (for performance testing)
 FIO_VERSION = 3.40
 
-# EnvTest Kubernetes Version (for testing)
-# TODO: add to the dependencies.yaml workflow
-ENVTEST_K8S_VERSION = 1.26.0
-
 # Kubernetes Development Tool Versions
-# TODO: add to the dependencies.yaml workflow
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
 KUSTOMIZE_VERSION ?= v5.7.0
 
