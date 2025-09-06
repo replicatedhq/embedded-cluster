@@ -52,7 +52,7 @@ jobs:
           cd k0s && git tag ${{ github.event.inputs.tag }}-${{ github.event.inputs.versionSuffix }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: k0s/go.mod
           cache-dependency-path: k0s/go.sum

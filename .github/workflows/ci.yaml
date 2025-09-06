@@ -43,7 +43,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -88,7 +88,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -146,7 +146,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -162,7 +162,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -183,7 +183,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -222,7 +222,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -247,7 +247,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -269,7 +269,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -353,7 +353,7 @@ jobs:
           key: bins-cache
 
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -506,7 +506,7 @@ jobs:
           key: bins-cache
 
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -844,7 +844,7 @@ jobs:
           name: current-release
           path: output/bin
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
