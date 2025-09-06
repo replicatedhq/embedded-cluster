@@ -75,6 +75,7 @@ fmt: ## Run go fmt against code.
 	go fmt ./...
 
 .PHONY: test
+test: ENVTEST_K8S_VERSION = $(shell echo $(K0S_VERSION) | sed 's/v\([0-9]*\.[0-9]*\)\.[0-9]*.*/\1/')
 test: manifests envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test -tags $(GO_BUILD_TAGS) ./... -coverprofile cover.out
 

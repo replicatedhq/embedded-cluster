@@ -9,8 +9,8 @@ images:
     calico-cni:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.3-amd64@sha256:b8c230d7a8799b24125a9416bbeda4e1123299d06f82e1d0cf7053ef057cc792
-            arm64: v3.29.3-arm64@sha256:329e15ec505d01845ef91c8fbbbfed95b37f022e2e04c4a2afc40981eb103dc8
+            amd64: v3.29.3-amd64@sha256:e1a825105a3490ae457d625515396b5382cb77efbec742429d7ccc73e8dce4b9
+            arm64: v3.29.3-arm64@sha256:5a8fa32796ed438c78abfef3e5773edd6aa62770bad045d96112fcf62067bbcf
     calico-kube-controllers:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/calico-kube-controllers
         tag:
