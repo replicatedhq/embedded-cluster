@@ -52,6 +52,10 @@ jobs:
         version=$(gh release list --repo kubernetes-sigs/controller-tools --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
         echo "controller-tools version: $version"
         sed -i "/^CONTROLLER_TOOLS_VERSION/c\CONTROLLER_TOOLS_VERSION = $version" versions.mk
+
+        # update CRDs
+        make -C kinds generate
+        make -C operator manifests
     - name: Kustomize
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
