@@ -13,13 +13,15 @@ jobs:
   update-dependencies:
     runs-on: ubuntu-latest
     steps:
-    - name: Check out repo
+    - name: Checkout
       uses: actions/checkout@v5
-    - name: Set up Go
+
+    - name: Setup go
       uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
         cache-dependency-path: "**/*.sum"
+
     - name: K0s
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -31,6 +33,7 @@ jobs:
         echo "k0s minor version: $K0S_MINOR_VERSION"
         ./scripts/k0s-update-dependencies.sh "$K0S_MINOR_VERSION" \
           UPDATE_ALL_IMAGES=true
+
     - name: Troubleshoot
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,6 +41,7 @@ jobs:
         version=$(gh release list --repo replicatedhq/troubleshoot --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
         echo "troubleshoot version: $version"
         sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $version" versions.mk
+
     - name: FIO
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,6 +49,7 @@ jobs:
         version=$(gh release list --repo axboe/fio --json name,isLatest | jq -r '.[] | select(.isLatest)|.name' | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')
         echo "fio version: $version"
         sed -i "/^FIO_VERSION/c\FIO_VERSION = $version" versions.mk
+
     - name: Controller Tools
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,10 +57,10 @@ jobs:
         version=$(gh release list --repo kubernetes-sigs/controller-tools --json name,isLatest | jq -r '.[] | select(.isLatest)|.name')
         echo "controller-tools version: $version"
         sed -i "/^CONTROLLER_TOOLS_VERSION/c\CONTROLLER_TOOLS_VERSION = $version" versions.mk
-
         # update CRDs
         make -C kinds generate
         make -C operator manifests
+
     - name: Kustomize
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,6 +68,7 @@ jobs:
         version=$(gh release list --repo kubernetes-sigs/kustomize --json name,createdAt | jq -r '.[] | select(.name | startswith("kustomize/")) | .name' | head -1 | sed 's/kustomize\///')
         echo "kustomize version: $version"
         sed -i "/^KUSTOMIZE_VERSION/c\KUSTOMIZE_VERSION = $version" versions.mk
+
     - name: Create Pull Request
       uses: peter-evans/create-pull-request@v7
       with:
