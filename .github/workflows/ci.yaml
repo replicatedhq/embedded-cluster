@@ -65,7 +65,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: ./web/.nvmrc
       - name: Install dependencies
@@ -359,7 +359,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: ./web/.nvmrc
 
@@ -512,7 +512,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: ./web/.nvmrc
 
