@@ -784,6 +784,11 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
+	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
+		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
 	if err := tc.Airgap(); err != nil {
 		t.Fatalf("failed to airgap cluster: %v", err)
@@ -798,11 +803,6 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	line := []string{"/usr/local/bin/airgap-prepare.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
-		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
 	t.Logf("%s: correcting selinux label for embedded cluster binary directory", time.Now().Format(time.RFC3339))
