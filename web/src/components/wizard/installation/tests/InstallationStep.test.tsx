@@ -74,11 +74,12 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
       onClick: () => {
         if (config.outcome === 'failure') {
           onStateChange('Failed');
-          // Update back button config when linux-preflight fails
+          // Update back button config to enable it when linux-preflight fails
+          // The button is always visible until preflights succeed
           if (phaseKey === 'linuxPreflight') {
             setBackButtonConfig({
-              hidden: false, // Show back button when linux-preflight fails
-              disabled: false, // Enable back button when linux-preflight fails
+              hidden: false,
+              disabled: false,
               onClick: onBack,
             });
           }
@@ -94,12 +95,13 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
     if (config.autoStateChange) {
       const timeout = setTimeout(() => {
         onStateChange(config.autoStateChange!.state);
-        // Update back button config when auto state change happens
+        // Update back button config to enable it when auto state change happens
+        // The button is always visible until preflights succeed
         if (phaseKey === 'linuxPreflight' && config.autoStateChange!.state === 'Failed') {
           setBackButtonConfig({
             onClick: onBack,
-            hidden: false, // Show back button when linux-preflight auto-fails
-            disabled: false, // Enable back button when linux-preflight auto-fails
+            hidden: false,
+            disabled: false,
           });
         }
       }, config.autoStateChange.delay);

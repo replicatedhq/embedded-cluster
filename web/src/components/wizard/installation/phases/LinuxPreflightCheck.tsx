@@ -107,6 +107,8 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     },
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
+    // The back button in InstallationStep is configured based on preflight status; `gcTime: 0` ensures
+    // the button doesn't incorrectly appear enabled due to stale cached data.
     gcTime: 0,
   });
 

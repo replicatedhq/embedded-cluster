@@ -119,7 +119,6 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
     });
   }, [canProceed]);
 
-  // Update back button configuration synchronously to prevent flash of enabled state
   useEffect(() => {
     setBackButtonConfig({
       // Back button is always visible in linux-preflight phase until preflights succeed

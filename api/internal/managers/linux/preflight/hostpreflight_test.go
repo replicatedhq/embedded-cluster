@@ -631,6 +631,55 @@ func TestHostPreflightManager_GetHostPreflightTitles(t *testing.T) {
 	}
 }
 
+func TestHostPreflightManager_ClearHostPreflightResults(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupMocks    func(*preflightstore.MockStore)
+		expectedError string
+	}{
+		{
+			name: "success",
+			setupMocks: func(store *preflightstore.MockStore) {
+				store.On("Clear").Return(nil)
+			},
+		},
+		{
+			name: "error from store",
+			setupMocks: func(store *preflightstore.MockStore) {
+				store.On("Clear").Return(fmt.Errorf("clear error"))
+			},
+			expectedError: "clear error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup mocks
+			mockStore := &preflightstore.MockStore{}
+			tt.setupMocks(mockStore)
+
+			// Create manager using builder pattern
+			manager := NewHostPreflightManager(
+				WithHostPreflightStore(mockStore),
+			)
+
+			// Execute
+			err := manager.ClearHostPreflightResults(context.Background())
+
+			// Assert
+			if tt.expectedError != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Verify mocks
+			mockStore.AssertExpectations(t)
+		})
+	}
+}
+
 func preflightRunOptionsFromRC(rc runtimeconfig.RuntimeConfig) preflights.RunOptions {
 	return preflights.RunOptions{
 		PreflightBinaryPath: rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
