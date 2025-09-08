@@ -789,19 +789,6 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		t.Fatalf("failed to airgap cluster: %v", err)
 	}
 
-	t.Logf("%s: creating /.autorelabel file for SELinux relabeling", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"touch", "/.autorelabel"}); err != nil {
-		t.Fatalf("fail to create /.autorelabel file on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	t.Logf("%s: rebooting VM for SELinux relabeling", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"reboot"}); err != nil {
-		t.Fatalf("fail to reboot node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	t.Logf("%s: waiting for node to reboot", time.Now().Format(time.RFC3339))
-	tc.WaitForReboot()
-
 	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
 		t.Fatalf("fail to set selinux to Enforcing mode %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
