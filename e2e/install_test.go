@@ -800,6 +800,11 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
+	t.Logf("%s: correcting selinux label for embedded cluster binary directory", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo semanage fcontext -a -t bin_t \"/var/lib/embedded-cluster/bin(/.*)?\" && sudo restorecon -RvF /var/lib/embedded-cluster"}); err != nil {
+		t.Fatalf("fail to correct selinux label for embedded cluster binary directory on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap:                true,
 		version:                 initialVersion,
