@@ -51,7 +51,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -159,13 +159,13 @@ jobs:
           key: bins-cache
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: ./web/.nvmrc
 
@@ -433,7 +433,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -541,7 +541,7 @@ jobs:
           name: current-release
           path: output/bin
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"

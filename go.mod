@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.3
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20241030172432-dee0d04b56ee
-	github.com/containers/image/v5 v5.36.1
+	github.com/containers/image/v5 v5.36.2
 	github.com/coreos/go-systemd/v22 v22.6.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
@@ -28,15 +28,15 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6
-	github.com/ohler55/ojg v1.26.9
-	github.com/onsi/ginkgo/v2 v2.25.2
+	github.com/ohler55/ojg v1.26.10
+	github.com/onsi/ginkgo/v2 v2.25.3
 	github.com/onsi/gomega v1.38.2
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c
 	github.com/replicatedhq/troubleshoot v0.121.3
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger/v2 v2.0.2
@@ -351,7 +351,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/spf13/pflag v1.0.7
+	github.com/spf13/pflag v1.0.10
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
