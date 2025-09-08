@@ -184,8 +184,8 @@ func TestPostInstallApp(t *testing.T) {
 		rc.SetDataDir(t.TempDir())
 
 		// Create mock metrics reporter - this is the key test for reporting handlers
-		mockReporter := &metrics.MockReporter{}
-		mockReporter.On("ReportInstallationSucceeded", mock.Anything)
+		mockMetricsReporter := &metrics.MockReporter{}
+		mockMetricsReporter.On("ReportInstallationSucceeded", mock.Anything)
 
 		// Create mock app install manager that succeeds
 		mockAppInstallManager := &appinstallmanager.MockAppInstallManager{}
@@ -220,7 +220,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithMetricsReporter(mockReporter),
+			linuxinstall.WithMetricsReporter(mockMetricsReporter),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -262,9 +262,13 @@ func TestPostInstallApp(t *testing.T) {
 			return stateMachine.CurrentState() == states.StateSucceeded
 		}, 10*time.Second, 100*time.Millisecond, "state should transition to Succeeded")
 
-		// Verify that ReportInstallationSucceeded was called
-		mockReporter.AssertExpectations(t)
 		mockAppInstallManager.AssertExpectations(t)
+
+		// Wait for the event handler goroutine to complete
+		// TODO: find a better way to do this
+		time.Sleep(1 * time.Second)
+		// Verify that ReportInstallationSucceeded was called
+		mockMetricsReporter.AssertExpectations(t)
 	})
 
 	t.Run("Invalid state transition", func(t *testing.T) {
@@ -319,8 +323,8 @@ func TestPostInstallApp(t *testing.T) {
 		rc.SetDataDir(t.TempDir())
 
 		// Create mock metrics reporter expecting failure report
-		mockReporter := &metrics.MockReporter{}
-		mockReporter.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+		mockMetricsReporter := &metrics.MockReporter{}
+		mockMetricsReporter.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
 			return err.Error() == "install app: installation failed"
 		}))
 
@@ -361,7 +365,7 @@ func TestPostInstallApp(t *testing.T) {
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
 			linuxinstall.WithAppInstallController(appInstallController),
-			linuxinstall.WithMetricsReporter(mockReporter),
+			linuxinstall.WithMetricsReporter(mockMetricsReporter),
 			linuxinstall.WithStore(mockStore),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 			linuxinstall.WithRuntimeConfig(rc),
@@ -395,10 +399,14 @@ func TestPostInstallApp(t *testing.T) {
 			return stateMachine.CurrentState() == states.StateAppInstallFailed
 		}, 10*time.Second, 100*time.Millisecond, "state should transition to AppInstallFailed")
 
-		// Verify that ReportInstallationFailed was called
-		mockReporter.AssertExpectations(t)
 		mockAppInstallManager.AssertExpectations(t)
 		mockStore.AppInstallMockStore.AssertExpectations(t)
+
+		// Wait for the event handler goroutine to complete
+		// TODO: find a better way to do this
+		time.Sleep(1 * time.Second)
+		// Verify that ReportInstallationFailed was called
+		mockMetricsReporter.AssertExpectations(t)
 	})
 
 	t.Run("Authorization error", func(t *testing.T) {

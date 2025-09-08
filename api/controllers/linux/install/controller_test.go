@@ -708,17 +708,17 @@ func TestRunHostPreflights(t *testing.T) {
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			mockReporter := &metrics.MockReporter{}
+			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
 
-			tt.setupMocks(mockPreflightManager, rc, mockReporter, mockStore)
+			tt.setupMocks(mockPreflightManager, rc, mockMetricsReporter, mockStore)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
 				WithStateMachine(sm),
 				WithHostPreflightManager(mockPreflightManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithMetricsReporter(mockReporter),
+				WithMetricsReporter(mockMetricsReporter),
 				WithStore(mockStore),
 			)
 			require.NoError(t, err)
@@ -741,11 +741,15 @@ func TestRunHostPreflights(t *testing.T) {
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			mockPreflightManager.AssertExpectations(t)
-			mockReporter.AssertExpectations(t)
 			mockStore.LinuxInfraMockStore.AssertExpectations(t)
 			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
 			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
 			mockStore.AppConfigMockStore.AssertExpectations(t)
+
+			// Wait for the event handler goroutine to complete
+			// TODO: find a better way to do this
+			time.Sleep(1 * time.Second)
+			mockMetricsReporter.AssertExpectations(t)
 		})
 	}
 }

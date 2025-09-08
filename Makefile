@@ -274,6 +274,7 @@ envtest: crds
 	$(MAKE) -C operator envtest
 
 .PHONY: unit-tests
+unit-tests: ENVTEST_K8S_VERSION = $(shell echo $(K0S_VERSION) | sed 's/v\([0-9]*\.[0-9]*\)\.[0-9]*.*/\1/')
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
 		go test -race -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./web/... ./pkg-new/...
