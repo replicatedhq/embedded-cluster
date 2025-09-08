@@ -29,7 +29,7 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 TROUBLESHOOT_VERSION = v0.121.3
 
 # FIO Version (for performance testing)
-FIO_VERSION = 3.40
+FIO_VERSION = Fio 3.41
 
 # EnvTest Kubernetes Version (for testing)
 # TODO: add to the dependencies.yaml workflow
