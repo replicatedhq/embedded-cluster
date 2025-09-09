@@ -4,20 +4,21 @@ import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { State } from '../../../types';
-import { ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import InstallationTimeline, { InstallationPhaseId as InstallationPhase, PhaseStatus } from './InstallationTimeline';
 import LinuxPreflightPhase from './phases/LinuxPreflightPhase';
 import AppPreflightPhase from './phases/AppPreflightPhase';
 import LinuxInstallationPhase from './phases/LinuxInstallationPhase';
 import KubernetesInstallationPhase from './phases/KubernetesInstallationPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
-import { NextButtonConfig } from './types';
+import { NextButtonConfig, BackButtonConfig } from './types';
 
 interface InstallationStepProps {
   onNext: () => void;
+  onBack: () => void;
 }
 
-const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
+const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   const { target, text } = useWizard();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -34,6 +35,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
   const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
+  const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
@@ -69,7 +71,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       ...prev,
       [phase]: { ...prev[phase], status }
     }));
-    
+
     // Auto-advance to next phase when current phase succeeds
     if (phase === currentPhase && status === 'Succeeded') {
       setTimeout(() => {
@@ -116,13 +118,16 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
   };
 
   // No-op function for non-current steps
-  const noOp = useCallback(() => {}, []);
+  const noOp = useCallback(() => { }, []);
 
   const renderPhase = (phase: InstallationPhase) => {
     const commonProps = {
       onNext: goToNextPhase,
+      onBack,
       // Only pass the real setNextButtonConfig to the current phase
       setNextButtonConfig: phase === currentPhase ? setNextButtonConfig : noOp,
+      // Only pass the real setBackButtonConfig to the current phase
+      setBackButtonConfig: phase === currentPhase ? setBackButtonConfig : noOp,
       onStateChange: handleStateChange(phase)
     };
 
@@ -157,8 +162,8 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
       };
 
       return (
-        <div 
-          key={phase} 
+        <div
+          key={phase}
           data-testid={`${phase}-container`}
           className={`h-full flex flex-col ${phase === selectedPhase ? 'block' : 'hidden'}`}
         >
@@ -187,19 +192,31 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext }) => {
         </div>
       </Card>
 
-      {nextButtonConfig && (
-        <div className="flex justify-end">
+      <div className="flex justify-between">
+        {backButtonConfig && !backButtonConfig.hidden && (
+          <Button
+            onClick={backButtonConfig.onClick}
+            variant="outline"
+            disabled={backButtonConfig.disabled ?? false}
+            icon={<ChevronLeft className="w-5 h-5" />}
+            dataTestId="installation-back-button"
+          >
+            Back
+          </Button>
+        )}
+        {nextButtonConfig && (
           <Button
             ref={nextButtonRef}
             onClick={nextButtonConfig.onClick}
             disabled={nextButtonConfig.disabled}
             icon={<ChevronRight className="w-5 h-5" />}
             dataTestId="installation-next-button"
+            className={(!backButtonConfig || backButtonConfig.hidden) ? 'ml-auto' : ''}
           >
             {getNextButtonText()}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

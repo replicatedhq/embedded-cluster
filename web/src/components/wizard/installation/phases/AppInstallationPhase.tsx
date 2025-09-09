@@ -70,7 +70,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
       disabled: !installationComplete || !installationSuccess,
       onClick: onNext,
     });
-  }, [installationComplete, installationSuccess]);
+  }, [installationComplete, installationSuccess, onNext]);
 
   const renderInstallationStatus = () => {
     // Loading state

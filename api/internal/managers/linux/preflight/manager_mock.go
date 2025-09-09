@@ -57,3 +57,9 @@ func (m *MockHostPreflightManager) GetHostPreflightTitles(ctx context.Context) (
 	}
 	return args.Get(0).([]string), args.Error(1)
 }
+
+// ClearHostPreflightResults mocks the ClearHostPreflightResults method
+func (m *MockHostPreflightManager) ClearHostPreflightResults(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}

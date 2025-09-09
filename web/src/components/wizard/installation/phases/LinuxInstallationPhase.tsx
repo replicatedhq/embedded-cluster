@@ -7,15 +7,17 @@ import InstallationProgress from '../shared/InstallationProgress';
 import LogViewer from '../shared/LogViewer';
 import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
-import { NextButtonConfig } from '../types';
+import { NextButtonConfig, BackButtonConfig } from '../types';
 
 interface LinuxInstallationPhaseProps {
   onNext: () => void;
+  onBack: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
+  setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
 }
 
-const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
+const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
@@ -110,6 +112,15 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
       onClick: onNext,
     });
   }, [installComplete]);
+
+  // Update back button configuration
+  useEffect(() => {
+    // Back button is hidden for linux-installation phase as the changes made in this phase are currently irreversible
+    setBackButtonConfig({
+      hidden: true,
+      onClick: onBack,
+    });
+  }, [setBackButtonConfig, onBack]);
 
   return (
     <div className="space-y-6">
