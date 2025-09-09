@@ -192,19 +192,19 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
         </div>
       </Card>
 
-      {nextButtonConfig && (
-        <div className="flex justify-between">
-          {backButtonConfig && !backButtonConfig.hidden && (
-            <Button
-            onClick={backButtonConfig.onClick}
-            variant="outline"
-            disabled={backButtonConfig.disabled ?? false}
-            icon={<ChevronLeft className="w-5 h-5"/>}
-            dataTestId="installation-back-button"
-            >
-              Back
-            </Button>
-          )}
+      <div className="flex justify-between">
+        {backButtonConfig && !backButtonConfig.hidden && (
+          <Button
+          onClick={backButtonConfig.onClick}
+          variant="outline"
+          disabled={backButtonConfig.disabled ?? false}
+          icon={<ChevronLeft className="w-5 h-5"/>}
+          dataTestId="installation-back-button"
+          >
+            Back
+          </Button>
+        )}
+        {nextButtonConfig && (
           <Button
             ref={nextButtonRef}
             onClick={nextButtonConfig.onClick}
@@ -215,8 +215,8 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
           >
             {getNextButtonText()}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

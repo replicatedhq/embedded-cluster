@@ -4,9 +4,9 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import AppInstallationPhase from '../phases/AppInstallationPhase.tsx';
-import { withTestButton } from './TestWrapper.tsx';
+import { withNextButtonOnly } from './TestWrapper.tsx';
 
-const TestAppInstallationPhase = withTestButton(AppInstallationPhase);
+const TestAppInstallationPhase = withNextButtonOnly(AppInstallationPhase);
 
 const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   // Mock app installation status endpoint

@@ -4,9 +4,9 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import AppPreflightPhase from '../phases/AppPreflightPhase.tsx';
-import { withTestButton } from './TestWrapper.tsx';
+import { withNextButtonOnly } from './TestWrapper.tsx';
 
-const TestAppPreflightPhase = withTestButton(AppPreflightPhase);
+const TestAppPreflightPhase = withNextButtonOnly(AppPreflightPhase);
 
 const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   // Mock start app installation endpoint

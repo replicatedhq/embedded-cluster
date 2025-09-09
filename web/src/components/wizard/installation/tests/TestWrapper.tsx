@@ -4,7 +4,7 @@ import { NextButtonConfig, BackButtonConfig } from "../types";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 
 // HOC that provides setNextButtonConfig, setBackButtonConfig, and onBack props and renders buttons
-export function withTestButton<P extends { 
+export function withTestButton<P extends {
   setNextButtonConfig: (config: NextButtonConfig) => void;
   setBackButtonConfig: (config: BackButtonConfig) => void;
   onBack: () => void;
@@ -52,6 +52,39 @@ export function withTestButton<P extends {
             icon={<ChevronRight className="w-5 h-5" />}
             dataTestId="next-button"
             className={backButtonConfig.hidden ? 'ml-auto' : ''}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    );
+  };
+}
+
+// HOC that provides setNextButtonConfig and renders next button
+export function withNextButtonOnly<P extends {
+  setNextButtonConfig: (config: NextButtonConfig) => void;
+}>(
+  Component: React.ComponentType<P>
+) {
+  return function WrappedComponent(props: Omit<P, 'setNextButtonConfig'>) {
+    const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig>({
+      disabled: true,
+      onClick: () => {}
+    });
+
+    return (
+      <div>
+        <Component
+          {...(props as P)}
+          setNextButtonConfig={setNextButtonConfig}
+        />
+        <div className="flex justify-end">
+          <Button
+            onClick={nextButtonConfig.onClick}
+            disabled={nextButtonConfig.disabled}
+            icon={<ChevronRight className="w-5 h-5" />}
+            dataTestId="next-button"
           >
             Next
           </Button>

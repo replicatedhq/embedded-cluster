@@ -6,18 +6,16 @@ import { AlertTriangle } from "lucide-react";
 import AppPreflightCheck from "./AppPreflightCheck";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../../contexts/AuthContext";
-import { NextButtonConfig, BackButtonConfig } from "../types";
+import { NextButtonConfig } from "../types";
 import { State } from "../../../../types";
 
 interface AppPreflightPhaseProps {
   onNext: () => void;
-  onBack: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
-  setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
 }
 
-const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
+const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { text, target } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
@@ -118,15 +116,6 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, onBack, s
       onClick: handleNextClick,
     });
   }, [canProceed]);
-
-  // Update back button configuration
-  useEffect(() => {
-    // Back button is hidden for app-preflight phase since linux-preflight has already succeeded
-    setBackButtonConfig({
-      hidden: true,
-      onClick: onBack,
-    });
-  }, [setBackButtonConfig, onBack]);
 
   return (
     <div className="space-y-6">

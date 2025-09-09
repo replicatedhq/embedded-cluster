@@ -115,7 +115,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
 
   // Update back button configuration
   useEffect(() => {
-    // Back button is hidden for linux-installation phase since linux-preflight has already succeeded
+    // Back button is hidden for linux-installation phase as the changes made in this phase are currently irreversible
     setBackButtonConfig({
       hidden: true,
       onClick: onBack,
