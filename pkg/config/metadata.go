@@ -13,6 +13,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
+// testing
+
 var (
 	_metadata   *release.K0sMetadata
 	metadataMap = map[string]release.K0sMetadata{}
