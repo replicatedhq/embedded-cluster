@@ -71,7 +71,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
       ...prev,
       [phase]: { ...prev[phase], status }
     }));
-    
+
     // Auto-advance to next phase when current phase succeeds
     if (phase === currentPhase && status === 'Succeeded') {
       setTimeout(() => {
@@ -118,7 +118,7 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   };
 
   // No-op function for non-current steps
-  const noOp = useCallback(() => {}, []);
+  const noOp = useCallback(() => { }, []);
 
   const renderPhase = (phase: InstallationPhase) => {
     const commonProps = {
@@ -162,8 +162,8 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
       };
 
       return (
-        <div 
-          key={phase} 
+        <div
+          key={phase}
           data-testid={`${phase}-container`}
           className={`h-full flex flex-col ${phase === selectedPhase ? 'block' : 'hidden'}`}
         >
@@ -195,11 +195,11 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
       <div className="flex justify-between">
         {backButtonConfig && !backButtonConfig.hidden && (
           <Button
-          onClick={backButtonConfig.onClick}
-          variant="outline"
-          disabled={backButtonConfig.disabled ?? false}
-          icon={<ChevronLeft className="w-5 h-5"/>}
-          dataTestId="installation-back-button"
+            onClick={backButtonConfig.onClick}
+            variant="outline"
+            disabled={backButtonConfig.disabled ?? false}
+            icon={<ChevronLeft className="w-5 h-5" />}
+            dataTestId="installation-back-button"
           >
             Back
           </Button>
