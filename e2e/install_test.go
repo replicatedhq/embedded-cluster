@@ -770,7 +770,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		T:            t,
 		Nodes:        1,
 		Distribution: "almalinux",
-		Version:      "10",
+		Version:      "8",
 	})
 	defer tc.Cleanup()
 
