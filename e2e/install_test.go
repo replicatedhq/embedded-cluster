@@ -784,23 +784,15 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
+	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
+		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
 	if err := tc.Airgap(); err != nil {
 		t.Fatalf("failed to airgap cluster: %v", err)
 	}
-
-	t.Logf("%s: creating /.autorelabel file for SELinux relabeling", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"touch", "/.autorelabel"}); err != nil {
-		t.Fatalf("fail to create /.autorelabel file on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	t.Logf("%s: rebooting VM for SELinux relabeling", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"reboot"}); err != nil {
-		t.Fatalf("fail to reboot node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	t.Logf("%s: waiting for node to reboot", time.Now().Format(time.RFC3339))
-	tc.WaitForReboot()
 
 	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
@@ -811,6 +803,11 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	line := []string{"/usr/local/bin/airgap-prepare.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: correcting selinux label for embedded cluster binary directory", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo semanage fcontext -a -t bin_t \"/var/lib/embedded-cluster/bin(/.*)?\""}); err != nil {
+		t.Fatalf("fail to correct selinux label for embedded cluster binary directory on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
 	installSingleNodeWithOptions(t, tc, installOptions{
