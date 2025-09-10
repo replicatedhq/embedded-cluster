@@ -4,6 +4,7 @@ import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	apppreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
+	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
@@ -22,6 +23,7 @@ type MockStore struct {
 	AppConfigMockStore              appconfig.MockStore
 	AppPreflightMockStore           apppreflight.MockStore
 	AppInstallMockStore             appinstall.MockStore
+	AppUpgradeMockStore             appupgrade.MockStore
 }
 
 // LinuxPreflightStore returns the mock linux preflight store
@@ -62,4 +64,9 @@ func (m *MockStore) AppPreflightStore() apppreflight.Store {
 // AppInstallStore returns the mock app install store
 func (m *MockStore) AppInstallStore() appinstall.Store {
 	return &m.AppInstallMockStore
+}
+
+// AppUpgradeStore returns the mock app upgrade store
+func (m *MockStore) AppUpgradeStore() appupgrade.Store {
+	return &m.AppUpgradeMockStore
 }

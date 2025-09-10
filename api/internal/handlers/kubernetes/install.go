@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"net/http"
 
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
@@ -97,7 +97,7 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.installController.RunAppPreflights(r.Context(), appinstall.RunAppPreflightOptions{
+	err = h.installController.RunAppPreflights(r.Context(), appcontroller.RunAppPreflightOptions{
 		PreflightBinaryPath: preflightBinary,
 		ProxySpec:           h.cfg.Installation.ProxySpec(),
 		CleanupBinary:       true,

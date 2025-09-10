@@ -55,6 +55,7 @@ func (a *API) initHandlers() error {
 		linuxhandler.WithLogger(a.logger),
 		linuxhandler.WithMetricsReporter(a.metricsReporter),
 		linuxhandler.WithInstallController(a.linuxInstallController),
+		linuxhandler.WithUpgradeController(a.linuxUpgradeController),
 	)
 	if err != nil {
 		return fmt.Errorf("new linux handler: %w", err)
@@ -66,6 +67,7 @@ func (a *API) initHandlers() error {
 		a.cfg,
 		kuberneteshandler.WithLogger(a.logger),
 		kuberneteshandler.WithInstallController(a.kubernetesInstallController),
+		kuberneteshandler.WithUpgradeController(a.kubernetesUpgradeController),
 	)
 	if err != nil {
 		return fmt.Errorf("new kubernetes handler: %w", err)

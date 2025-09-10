@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
@@ -420,7 +420,7 @@ func TestSetupInfra(t *testing.T) {
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 			tt.setupMocks(ki, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore, mockAppConfigManager)
 
-			appInstallController, err := appcontroller.NewInstallController(
+			appController, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
@@ -433,7 +433,7 @@ func TestSetupInfra(t *testing.T) {
 				WithStateMachine(sm),
 				WithInstallationManager(mockInstallationManager),
 				WithInfraManager(mockInfraManager),
-				WithAppInstallController(appInstallController),
+				WithAppController(appController),
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),

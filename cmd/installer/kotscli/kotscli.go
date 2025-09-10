@@ -3,11 +3,14 @@ package kotscli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -283,4 +286,183 @@ func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string
 	}
 
 	return outBuffer.String(), nil
+}
+
+// UpstreamUpgradeOptions represents options for upgrading an application
+type UpstreamUpgradeOptions struct {
+	AppSlug               string
+	Namespace             string
+	ClusterID             string
+	AirgapBundle          string
+	ReplicatedAppEndpoint string
+	SkipPreflights        bool
+	Stdout                io.Writer
+}
+
+// UpstreamUpgrade performs an application upgrade using KOTS CLI
+func UpstreamUpgrade(opts UpstreamUpgradeOptions) error {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	upgradeArgs := []string{
+		"upstream",
+		"upgrade",
+		opts.AppSlug,
+		"--namespace",
+		opts.Namespace,
+		"--wait",
+		"-ojson",
+	}
+
+	if opts.AirgapBundle != "" {
+		upgradeArgs = append(upgradeArgs, "--airgap-bundle", opts.AirgapBundle)
+	}
+
+	if opts.SkipPreflights {
+		upgradeArgs = append(upgradeArgs, "--skip-preflights")
+	}
+
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, upgradeArgs...)
+	if err != nil {
+		return fmt.Errorf("upgrade the application: %w", err)
+	}
+
+	return nil
+}
+
+// GetVersionsOptions represents options for getting application versions
+type GetVersionsOptions struct {
+	AppSlug               string
+	Namespace             string
+	ClusterID             string
+	ReplicatedAppEndpoint string
+}
+
+// AppVersionResponse represents a version response from kubectl kots get versions
+type AppVersionResponse struct {
+	VersionLabel    string     `json:"versionLabel"`
+	Sequence        int64      `json:"sequence"`
+	CreatedOn       time.Time  `json:"createdOn"`
+	Status          string     `json:"status"`
+	DeployedAt      *time.Time `json:"deployedAt"`
+	Source          string     `json:"source"`
+	ChannelID       string     `json:"channelId"`
+	ChannelSequence int64      `json:"channelSequence"`
+}
+
+// GetVersions retrieves the list of application versions using kubectl kots get versions
+func GetVersions(opts GetVersionsOptions) ([]AppVersionResponse, error) {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return nil, fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	getVersionsArgs := []string{
+		"get",
+		"versions",
+		opts.AppSlug,
+		"-n",
+		opts.Namespace,
+		"-ojson",
+	}
+
+	outBuffer := bytes.NewBuffer(nil)
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Stdout:       outBuffer,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, getVersionsArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("get application versions: %w", err)
+	}
+
+	var versions []AppVersionResponse
+	if err := json.Unmarshal(outBuffer.Bytes(), &versions); err != nil {
+		return nil, fmt.Errorf("unmarshal versions response: %w", err)
+	}
+
+	return versions, nil
+}
+
+type SetConfigOptions struct {
+	AppSlug               string
+	Namespace             string
+	ClusterID             string
+	Sequence              int64
+	ConfigValuesFile      string
+	Deploy                bool
+	ReplicatedAppEndpoint string
+	Stdout                io.Writer
+}
+
+func SetConfig(opts SetConfigOptions) error {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	setConfigArgs := []string{
+		"set",
+		"config",
+		opts.AppSlug,
+		"--namespace",
+		opts.Namespace,
+	}
+
+	if opts.Sequence != 0 {
+		setConfigArgs = append(setConfigArgs, "--sequence", strconv.FormatInt(opts.Sequence, 10))
+	}
+
+	if opts.ConfigValuesFile != "" {
+		setConfigArgs = append(setConfigArgs, "--config-file", opts.ConfigValuesFile)
+	}
+
+	if opts.Deploy {
+		setConfigArgs = append(setConfigArgs, "--deploy")
+	}
+
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, setConfigArgs...)
+	if err != nil {
+		return fmt.Errorf("set config: %w", err)
+	}
+
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	apppreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
+	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
@@ -37,6 +38,9 @@ type Store interface {
 
 	// AppInstallStore provides access to app install operations
 	AppInstallStore() appinstall.Store
+
+	// AppUpgradeStore provides access to app upgrade operations
+	AppUpgradeStore() appupgrade.Store
 }
 
 // StoreOption is a function that configures a store
@@ -91,6 +95,13 @@ func WithAppInstallStore(store appinstall.Store) StoreOption {
 	}
 }
 
+// WithAppUpgradeStore sets the app upgrade store
+func WithAppUpgradeStore(store appupgrade.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.appUpgradeStore = store
+	}
+}
+
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
@@ -103,6 +114,7 @@ type memoryStore struct {
 	appConfigStore    appconfig.Store
 	appPreflightStore apppreflight.Store
 	appInstallStore   appinstall.Store
+	appUpgradeStore   appupgrade.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -145,6 +157,10 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.appInstallStore = appinstall.NewMemoryStore()
 	}
 
+	if s.appUpgradeStore == nil {
+		s.appUpgradeStore = appupgrade.NewMemoryStore()
+	}
+
 	return s
 }
 
@@ -178,4 +194,8 @@ func (s *memoryStore) AppPreflightStore() apppreflight.Store {
 
 func (s *memoryStore) AppInstallStore() appinstall.Store {
 	return s.appInstallStore
+}
+
+func (s *memoryStore) AppUpgradeStore() appupgrade.Store {
+	return s.appUpgradeStore
 }

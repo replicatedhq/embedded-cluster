@@ -1,4 +1,4 @@
-package install
+package app
 
 import (
 	"context"
@@ -22,7 +22,7 @@ type RunAppPreflightOptions struct {
 	CleanupBinary       bool
 }
 
-func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
+func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -115,7 +115,7 @@ func (c *InstallController) RunAppPreflights(ctx context.Context, opts RunAppPre
 	return nil
 }
 
-func (c *InstallController) getStateFromAppPreflightsOutput(ctx context.Context) statemachine.State {
+func (c *AppController) getStateFromAppPreflightsOutput(ctx context.Context) statemachine.State {
 	output, err := c.GetAppPreflightOutput(ctx)
 	// If there was an error getting the state we assume preflight execution failed
 	if err != nil {
@@ -129,14 +129,14 @@ func (c *InstallController) getStateFromAppPreflightsOutput(ctx context.Context)
 	return states.StateAppPreflightsFailed
 }
 
-func (c *InstallController) GetAppPreflightStatus(ctx context.Context) (types.Status, error) {
+func (c *AppController) GetAppPreflightStatus(ctx context.Context) (types.Status, error) {
 	return c.appPreflightManager.GetAppPreflightStatus(ctx)
 }
 
-func (c *InstallController) GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
+func (c *AppController) GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
 	return c.appPreflightManager.GetAppPreflightOutput(ctx)
 }
 
-func (c *InstallController) GetAppPreflightTitles(ctx context.Context) ([]string, error) {
+func (c *AppController) GetAppPreflightTitles(ctx context.Context) ([]string, error) {
 	return c.appPreflightManager.GetAppPreflightTitles(ctx)
 }

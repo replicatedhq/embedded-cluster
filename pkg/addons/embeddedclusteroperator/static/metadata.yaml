@@ -5,21 +5,21 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.19.0+k8s-1.30
-location: oci://proxy.replicated.com/anonymous/registry.replicated.com/library/embedded-cluster-operator
+version: 2.11.1+k8s-1.33-salah
+location: oci://proxy.replicated.com/anonymous/ttl.sh/salah/embedded-cluster-operator
 images:
     embedded-cluster-operator:
-        repo: proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image
+        repo: proxy.replicated.com/anonymous/ttl.sh/salah/embedded-cluster-operator-image
         tag:
             amd64: v1.19.0-k8s-1.30
-            arm64: v1.19.0-k8s-1.30
+            arm64: 2.11.1-k8s-1.33-salah-arm64@sha256:649280af0ac81ed27c7a20c1dbe805305b140f88b320431427ddb37ae11435a7
     goldpinger:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/goldpinger
         tag:
-            amd64: latest
-            arm64: latest
+            amd64: latest-amd64@sha256:4322cddb150888e988e1330cf189bd21fe7b5cf609fcfd708b42755fcd0bbb41
+            arm64: latest-arm64@sha256:d07e7e880e6c13f3b58c04b92d10f0f2daec62513b0b191743b7c153d63b7476
     utils:
-        repo: proxy.replicated.com/anonymous/replicated/ec-utils
+        repo: proxy.replicated.com/anonymous/ttl.sh/replicated/ec-utils
         tag:
-            amd64: latest
-            arm64: latest
+            amd64: latest-amd64@sha256:6177ee4f1b09f8bd785d8ff7b11644cdc05ef267d801fa0d089e5360897c8d62
+            arm64: latest-arm64@sha256:5299ef1ddeafd7b400f9bdb3949f7b77cce53f334390f0cee3019c89bf2b5cd6

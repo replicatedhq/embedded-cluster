@@ -1,9 +1,8 @@
-package app
+package tests
 
 import (
 	"testing"
 
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -34,7 +33,7 @@ func TestAppInstallControllerSuite(t *testing.T) {
 
 	for _, tt := range installTypes {
 		t.Run(tt.name, func(t *testing.T) {
-			testSuite := &appinstall.AppInstallControllerTestSuite{
+			testSuite := &AppControllerTestSuite{
 				InstallType:        tt.installType,
 				CreateStateMachine: tt.createStateMachine,
 			}

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -68,7 +68,7 @@ type InstallController struct {
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
 	// App controller composition
-	*appcontroller.InstallController
+	*appcontroller.AppController
 }
 
 type InstallControllerOption func(*InstallController)
@@ -187,9 +187,9 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
-func WithAppInstallController(appInstallController *appcontroller.InstallController) InstallControllerOption {
+func WithAppController(appController *appcontroller.AppController) InstallControllerOption {
 	return func(c *InstallController) {
-		c.InstallController = appInstallController
+		c.AppController = appController
 	}
 }
 
@@ -255,8 +255,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	// Initialize the app controller with the state machine first
-	if controller.InstallController == nil {
-		appInstallController, err := appcontroller.NewInstallController(
+	if controller.AppController == nil {
+		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(controller.stateMachine),
 			appcontroller.WithLogger(controller.logger),
 			appcontroller.WithStore(controller.store),
@@ -268,9 +268,9 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 		)
 		if err != nil {
-			return nil, fmt.Errorf("create app install controller: %w", err)
+			return nil, fmt.Errorf("create app controller: %w", err)
 		}
-		controller.InstallController = appInstallController
+		controller.AppController = appController
 	}
 
 	if controller.infraManager == nil {
