@@ -39,6 +39,13 @@ var openebsImageComponents = map[string]addonComponent{
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
+	"docker.io/bitnamilegacy/kubectl": {
+		name: "kubectl",
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "kubectl"
+		},
+		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
+	},
 	"docker.io/openebs/kubectl": {
 		name: "kubectl",
 		getWolfiPackageName: func(opts addonComponentOptions) string {
