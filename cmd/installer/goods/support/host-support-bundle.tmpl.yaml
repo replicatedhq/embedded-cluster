@@ -72,7 +72,8 @@ spec:
   - run:
       collectorName: top
       command: top
-      args: ['-b', '-n', '1']
+      env: ['COLUMNS=512']
+      args: ['-b', '-n', '1', '-c']
   - run:
       collectorName: uname
       command: uname
