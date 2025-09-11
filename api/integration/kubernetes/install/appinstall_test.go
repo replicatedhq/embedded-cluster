@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
+	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
@@ -415,14 +416,27 @@ func TestPostInstallApp(t *testing.T) {
 			},
 		}, nil)
 
+		// Create mock app preflight manager that returns non-strict failures (can be bypassed)
+		mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+		mockAppPreflightManager.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+			Fail: []types.PreflightsRecord{
+				{
+					Title:   "Non-strict preflight failure",
+					Message: "This is a non-strict failure",
+					Strict:  false, // This allows bypass
+				},
+			},
+		}, nil)
+
 		// Create state machine starting from AppPreflightsFailed
 		stateMachine := kubernetesinstall.NewStateMachine(
 			kubernetesinstall.WithCurrentState(states.StateAppPreflightsFailed),
 		)
 
-		// Create real app install controller
+		// Create real app install controller with mock app preflight manager
 		appInstallController, err := appinstall.NewInstallController(
 			appinstall.WithAppInstallManager(mockAppInstallManager),
+			appinstall.WithAppPreflightManager(mockAppPreflightManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -472,6 +486,7 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Verify mocks
 		mockAppInstallManager.AssertExpectations(t)
+		mockAppPreflightManager.AssertExpectations(t)
 	})
 
 	// Test app preflight bypass denied - should fail when ignoreAppPreflights is false and preflights failed
@@ -479,13 +494,26 @@ func TestPostInstallApp(t *testing.T) {
 		// Create mock store
 		mockStore := &store.MockStore{}
 
+		// Create mock app preflight manager that returns non-strict failures (method should be called but bypass denied)
+		mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+		mockAppPreflightManager.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+			Fail: []types.PreflightsRecord{
+				{
+					Title:   "Non-strict preflight failure",
+					Message: "This is a non-strict failure",
+					Strict:  false, // Non-strict but bypass still denied due to ignoreAppPreflights=false
+				},
+			},
+		}, nil)
+
 		// Create state machine starting from AppPreflightsFailed
 		stateMachine := kubernetesinstall.NewStateMachine(
 			kubernetesinstall.WithCurrentState(states.StateAppPreflightsFailed),
 		)
 
-		// Create real app install controller
+		// Create real app install controller with mock app preflight manager
 		appInstallController, err := appinstall.NewInstallController(
+			appinstall.WithAppPreflightManager(mockAppPreflightManager),
 			appinstall.WithStateMachine(stateMachine),
 			appinstall.WithStore(mockStore),
 			appinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -534,5 +562,86 @@ func TestPostInstallApp(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
 		assert.Contains(t, apiError.Message, "app preflight checks failed")
+
+		// Verify mocks
+		mockAppPreflightManager.AssertExpectations(t)
+	})
+
+	// Test strict app preflight bypass blocked - should fail even with ignoreAppPreflights=true when strict failures exist
+	t.Run("Strict app preflight bypass blocked", func(t *testing.T) {
+		// Create mock store
+		mockStore := &store.MockStore{}
+
+		// Create mock app preflight manager that returns strict failures (cannot be bypassed)
+		mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+		mockAppPreflightManager.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+			Fail: []types.PreflightsRecord{
+				{
+					Title:   "Strict preflight failure",
+					Message: "This is a strict failure that cannot be bypassed",
+					Strict:  true, // Strict failure - cannot be bypassed
+				},
+			},
+		}, nil)
+
+		// Create state machine starting from AppPreflightsFailed
+		stateMachine := kubernetesinstall.NewStateMachine(
+			kubernetesinstall.WithCurrentState(states.StateAppPreflightsFailed),
+		)
+
+		// Create real app install controller with mock app preflight manager
+		appInstallController, err := appinstall.NewInstallController(
+			appinstall.WithAppPreflightManager(mockAppPreflightManager),
+			appinstall.WithStateMachine(stateMachine),
+			appinstall.WithStore(mockStore),
+			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create Kubernetes install controller
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithStateMachine(stateMachine),
+			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create the API
+		apiInstance := integration.NewAPIWithReleaseData(t,
+			api.WithKubernetesInstallController(installController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request with ignoreAppPreflights=true (should still fail due to strict failures)
+		requestBody := types.InstallAppRequest{
+			IgnoreAppPreflights: true,
+		}
+		reqBodyBytes, err := json.Marshal(requestBody)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "/kubernetes/install/app/install", bytes.NewReader(reqBodyBytes))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response - should fail because of strict preflight failures
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+
+		// Parse the response body
+		var apiError types.APIError
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusBadRequest, apiError.StatusCode)
+		assert.Contains(t, apiError.Message, "installation blocked: strict app preflight checks failed")
+
+		// Verify mocks
+		mockAppPreflightManager.AssertExpectations(t)
 	})
 }

@@ -30,6 +30,7 @@ type PreflightsOutput struct {
 type PreflightsRecord struct {
 	Title   string `json:"title"`
 	Message string `json:"message"`
+	Strict  bool   `json:"strict"`
 }
 
 // HasFail returns true if any of the preflight checks failed.
@@ -40,4 +41,14 @@ func (o PreflightsOutput) HasFail() bool {
 // HasWarn returns true if any of the preflight checks returned a warning.
 func (o PreflightsOutput) HasWarn() bool {
 	return len(o.Warn) > 0
+}
+
+// HasStrictFailures returns true if any of the failed app preflight checks are marked as strict.
+func (o PreflightsOutput) HasStrictFailures() bool {
+	for _, fail := range o.Fail {
+		if fail.Strict {
+			return true
+		}
+	}
+	return false
 }
