@@ -207,8 +207,8 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: go.mod
 go.mod: Makefile
-	(set -x; cd kinds && go get github.com/k0sproject/k0s@$(K0S_GO_VERSION) && go mod tidy)
-	(set -x; go get github.com/k0sproject/k0s@$(K0S_GO_VERSION))
+	(set -x; cd kinds && go mod edit -require=github.com/k0sproject/k0s@$(K0S_GO_VERSION) && go mod tidy)
+	go mod edit -require=github.com/k0sproject/k0s@$(K0S_GO_VERSION)
 	go mod tidy
 
 .PHONY: crds
