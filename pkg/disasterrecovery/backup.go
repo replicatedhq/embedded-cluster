@@ -103,13 +103,7 @@ func ListReplicatedBackups(ctx context.Context, cli client.Client) ([]Replicated
 		return nil, err
 	}
 	for i, backup := range backups {
-		if backup.TypeMeta.APIVersion == "" || backup.TypeMeta.Kind == "" {
-			gvk, err := cli.GroupVersionKindFor(&backup)
-			if err != nil {
-				return nil, fmt.Errorf("get gvk: %w", err)
-			}
-			backup.TypeMeta.SetGroupVersionKind(gvk)
-		}
+		kubeutils.EnsureGVK(ctx, cli, &backup)
 		backups[i] = backup
 	}
 	replicatedBackups := groupBackupsByName(backups)
