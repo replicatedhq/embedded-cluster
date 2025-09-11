@@ -26,7 +26,7 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 # Example: K0S_BINARY_SOURCE_OVERRIDE_32 = https://github.com/k0sproject/k0s/releases/download/v1.32.7+k0s.0/k0s-v1.32.7+k0s.0-amd64
 
 # Troubleshoot Version
-TROUBLESHOOT_VERSION = v0.121.3
+TROUBLESHOOT_VERSION = v0.122.0
 
 # FIO Version (for performance testing)
 FIO_VERSION = 3.41
