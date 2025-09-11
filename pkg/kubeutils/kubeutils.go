@@ -14,6 +14,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -537,4 +538,15 @@ func NumOfControlPlaneNodes(ctx context.Context, cli client.Client) (int, error)
 		return 0, err
 	}
 	return len(nodes.Items), nil
+}
+
+func EnsureGVK(ctx context.Context, cli client.Client, obj runtime.Object) error {
+	if obj.GetObjectKind().GroupVersionKind().Version == "" || obj.GetObjectKind().GroupVersionKind().Kind == "" {
+		gvk, err := cli.GroupVersionKindFor(obj)
+		if err != nil {
+			return fmt.Errorf("get gvk: %w", err)
+		}
+		obj.GetObjectKind().SetGroupVersionKind(gvk)
+	}
+	return nil
 }

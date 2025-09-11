@@ -102,6 +102,16 @@ func ListReplicatedBackups(ctx context.Context, cli client.Client) ([]Replicated
 	if err != nil {
 		return nil, err
 	}
+	for i, backup := range backups {
+		if backup.TypeMeta.APIVersion == "" || backup.TypeMeta.Kind == "" {
+			gvk, err := cli.GroupVersionKindFor(&backup)
+			if err != nil {
+				return nil, fmt.Errorf("get gvk: %w", err)
+			}
+			backup.TypeMeta.SetGroupVersionKind(gvk)
+		}
+		backups[i] = backup
+	}
 	replicatedBackups := groupBackupsByName(backups)
 	sort.Sort(ReplicatedBackups(replicatedBackups))
 	return replicatedBackups, nil
@@ -320,6 +330,10 @@ func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace 
 		return nil, fmt.Errorf("unable to list backups: %w", err)
 	}
 	if len(backups.Items) > 0 {
+		for i, backup := range backups.Items {
+			kubeutils.EnsureGVK(ctx, cli, &backup)
+			backups.Items[i] = backup
+		}
 		return backups.Items, nil
 	}
 	backup := &velerov1.Backup{}
@@ -329,6 +343,7 @@ func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace 
 	} else if err != nil {
 		return nil, fmt.Errorf("unable to get backup: %w", err)
 	}
+	kubeutils.EnsureGVK(ctx, cli, backup)
 
 	return []velerov1.Backup{*backup}, nil
 }

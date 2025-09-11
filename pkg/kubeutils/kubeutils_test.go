@@ -60,7 +60,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				&embeddedclusterv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Installation",
-						APIVersion: "v1beta1",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "20241002205018",
@@ -78,7 +78,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 			in: &embeddedclusterv1beta1.Installation{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Installation",
-					APIVersion: "v1beta1",
+					APIVersion: "embeddedcluster.replicated.com/v1beta1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "20241002205018",
@@ -92,7 +92,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 			want: &embeddedclusterv1beta1.Installation{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Installation",
-					APIVersion: "v1beta1",
+					APIVersion: "embeddedcluster.replicated.com/v1beta1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "20230000000000",
@@ -114,7 +114,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				&embeddedclusterv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Installation",
-						APIVersion: "v1beta1",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "20220000000000",
@@ -128,7 +128,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				&embeddedclusterv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Installation",
-						APIVersion: "v1beta1",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "20241002205018",
@@ -142,7 +142,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				&embeddedclusterv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Installation",
-						APIVersion: "v1beta1",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "20230000000000",
@@ -156,7 +156,7 @@ func TestGetPreviousInstallation(t *testing.T) {
 				&embeddedclusterv1beta1.Installation{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Installation",
-						APIVersion: "v1beta1",
+						APIVersion: "embeddedcluster.replicated.com/v1beta1",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "20210000000000",

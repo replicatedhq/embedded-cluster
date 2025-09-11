@@ -77,12 +77,7 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
-		// Ensure TypeMeta is set for the object
-		gvk, err := d.kcli.GroupVersionKindFor(o)
-		if err != nil {
-			return fmt.Errorf("get gvk: %w", err)
-		}
-		o.GetObjectKind().SetGroupVersionKind(gvk)
+		kubeutils.EnsureGVK(ctx, kcli, o.(client.Object))
 
 		data, err := yaml.Marshal(o)
 		if err != nil {
