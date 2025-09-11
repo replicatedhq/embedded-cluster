@@ -77,11 +77,19 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
+		// Ensure TypeMeta is set for the object
+		gvk, err := d.kcli.GroupVersionKindFor(o)
+		if err != nil {
+			return fmt.Errorf("get gvk: %w", err)
+		}
+		o.GetObjectKind().SetGroupVersionKind(gvk)
+
 		data, err := yaml.Marshal(o)
 		if err != nil {
 			return fmt.Errorf("marshal object: %w", err)
 		}
 		result = append(result, string(data))
+
 		return nil
 	}
 
