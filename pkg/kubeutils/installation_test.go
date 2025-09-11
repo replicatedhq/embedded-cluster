@@ -2,7 +2,6 @@ package kubeutils
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -354,9 +353,6 @@ func TestRecordInstallation(t *testing.T) {
 				tt.validate(t, &resultInstallation)
 			}
 
-			json, err := json.MarshalIndent(resultInstallation, "", "  ")
-			require.NoError(t, err)
-			t.Logf("resultInstallation: %s", string(json))
 			// Verify common fields
 			assert.NotEmpty(t, resultInstallation.Name)
 			assert.Equal(t, "", resultInstallation.APIVersion) // I expected this to be "embeddedcluster.replicated.com/v1beta1"
