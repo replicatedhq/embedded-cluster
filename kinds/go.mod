@@ -53,3 +53,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
+
+replace go.etcd.io/etcd => go.etcd.io/etcd/v3 v3.6.4
