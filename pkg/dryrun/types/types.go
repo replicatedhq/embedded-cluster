@@ -77,11 +77,16 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
+		if err := kubeutils.EnsureGVK(ctx, kcli, o); err != nil {
+			return fmt.Errorf("ensure gvk: %w", err)
+		}
+
 		data, err := yaml.Marshal(o)
 		if err != nil {
 			return fmt.Errorf("marshal object: %w", err)
 		}
 		result = append(result, string(data))
+
 		return nil
 	}
 

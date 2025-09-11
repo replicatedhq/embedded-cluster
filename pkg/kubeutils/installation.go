@@ -333,6 +333,9 @@ func ListInstallations(ctx context.Context, cli client.Client) ([]ecv1beta1.Inst
 			log := ctrl.LoggerFrom(ctx)
 			log.Info("Updated installation with legacy data dirs", "installation", install.Name)
 		}
+		if err := EnsureGVK(ctx, cli, &install); err != nil {
+			return nil, fmt.Errorf("ensure gvk for installation %s: %w", install.GetName(), err)
+		}
 		installs[i] = install
 		previous = &install
 	}

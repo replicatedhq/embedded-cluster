@@ -102,6 +102,12 @@ func ListReplicatedBackups(ctx context.Context, cli client.Client) ([]Replicated
 	if err != nil {
 		return nil, err
 	}
+	for i, backup := range backups {
+		if err := kubeutils.EnsureGVK(ctx, cli, &backup); err != nil {
+			return nil, fmt.Errorf("ensure gvk %d: %w", i, err)
+		}
+		backups[i] = backup
+	}
 	replicatedBackups := groupBackupsByName(backups)
 	sort.Sort(ReplicatedBackups(replicatedBackups))
 	return replicatedBackups, nil
@@ -320,6 +326,12 @@ func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace 
 		return nil, fmt.Errorf("unable to list backups: %w", err)
 	}
 	if len(backups.Items) > 0 {
+		for i, backup := range backups.Items {
+			if err := kubeutils.EnsureGVK(ctx, cli, &backup); err != nil {
+				return nil, fmt.Errorf("ensure gvk %d: %w", i, err)
+			}
+			backups.Items[i] = backup
+		}
 		return backups.Items, nil
 	}
 	backup := &velerov1.Backup{}
@@ -328,6 +340,9 @@ func getBackupsFromName(ctx context.Context, cli client.Client, veleroNamespace 
 		return nil, ErrBackupNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("unable to get backup: %w", err)
+	}
+	if err := kubeutils.EnsureGVK(ctx, cli, backup); err != nil {
+		return nil, fmt.Errorf("ensure gvk: %w", err)
 	}
 
 	return []velerov1.Backup{*backup}, nil

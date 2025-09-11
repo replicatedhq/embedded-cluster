@@ -238,6 +238,10 @@ func (m *mockClient) Patch(ctx context.Context, obj client.Object, patch client.
 	return m.fake.Patch(ctx, obj, patch, opts...)
 }
 
+func (m *mockClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	return m.fake.Apply(ctx, obj, opts...)
+}
+
 func (m *mockClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	return m.fake.DeleteAllOf(ctx, obj, opts...)
 }

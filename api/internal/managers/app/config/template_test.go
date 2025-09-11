@@ -136,7 +136,6 @@ func TestConfigTemplateProcessing(t *testing.T) {
 		expectedYAML := `apiVersion: kots.io/v1beta1
 kind: Config
 metadata:
-  creationTimestamp: null
   name: test-config
 spec:
   groups:
@@ -276,7 +275,6 @@ status: {}
 		expectedYAML := `apiVersion: kots.io/v1beta1
 kind: Config
 metadata:
-  creationTimestamp: null
   name: complex-config
 spec:
   groups:

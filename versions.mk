@@ -40,4 +40,4 @@ KUSTOMIZE_VERSION = v5.7.1
 KOTS_BINARY_URL_OVERRIDE =
 # If KOTS_BINARY_FILE_OVERRIDE is set, KOTS_VERSION will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
-KOTS_BINARY_FILE_OVERRIDE = 
+KOTS_BINARY_FILE_OVERRIDE =

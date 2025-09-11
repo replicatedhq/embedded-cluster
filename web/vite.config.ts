@@ -24,11 +24,11 @@ export default defineConfig(({ mode }) => {
       netlify(),
       viteStaticCopy({
         targets: [
-          // When building, vite removes README.md from the dist directory which makes the git tree dirty as it is in the .gitignore.
+          // When building, vite removes PLACEHOLDER from the dist directory which makes the git tree dirty as it is in the .gitignore.
           // This is needed because otherwise the go build fails with "pattern dist: no matching files found".
-          // This copies README.md back into the dist directory.
+          // This copies PLACEHOLDER back into the dist directory.
           {
-            src: path.resolve(__dirname, './README.md'),
+            src: path.resolve(__dirname, './PLACEHOLDER'),
             dest: './',
           },
         ],
