@@ -77,7 +77,9 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
-		kubeutils.EnsureGVK(ctx, kcli, o.(client.Object))
+		if err := kubeutils.EnsureGVK(ctx, kcli, o.(client.Object)); err != nil {
+			return fmt.Errorf("ensure gvk: %w", err)
+		}
 
 		data, err := yaml.Marshal(o)
 		if err != nil {

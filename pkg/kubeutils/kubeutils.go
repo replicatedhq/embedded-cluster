@@ -544,7 +544,7 @@ func EnsureGVK(ctx context.Context, cli client.Client, obj runtime.Object) error
 	if obj.GetObjectKind().GroupVersionKind().Version == "" || obj.GetObjectKind().GroupVersionKind().Kind == "" {
 		gvk, err := cli.GroupVersionKindFor(obj)
 		if err != nil {
-			return fmt.Errorf("get gvk: %w", err)
+			return err
 		}
 		obj.GetObjectKind().SetGroupVersionKind(gvk)
 	}
