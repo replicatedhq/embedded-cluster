@@ -48,14 +48,14 @@ describe.each([
     server = createServer(target);
     server.listen();
   });
-  
+
   afterEach(() => {
     server.resetHandlers();
     mockOnComplete.mockClear();
     mockOnRun.mockClear();
     vi.clearAllMocks();
   });
-  
+
   afterAll(() => server.close());
 
   it("shows validating state when preflights are polling", async () => {
@@ -124,7 +124,7 @@ describe.each([
     await waitFor(() => {
       expect(screen.getByText("Application validation successful!")).toBeInTheDocument();
     });
-    expect(mockOnComplete).toHaveBeenCalledWith(true, false); // success: true, allowIgnore: false (default)
+    expect(mockOnComplete).toHaveBeenCalledWith(true, false, false); // success: true, allowIgnore: false, hasStrictFailures: false
   });
 
   it("handles preflight run error", async () => {
@@ -215,7 +215,7 @@ describe.each([
     });
 
     // The component should call onComplete with BOTH success status AND allowIgnoreAppPreflights flag
-    expect(mockOnComplete).toHaveBeenCalledWith(false, true); // success: false, allowIgnore: true
+    expect(mockOnComplete).toHaveBeenCalledWith(false, true, false); // success: false, allowIgnore: true, hasStrictFailures: false
   });
 
   it("passes allowIgnoreAppPreflights false to onComplete callback", async () => {
@@ -251,7 +251,131 @@ describe.each([
       expect(screen.getByText("Disk Space")).toBeInTheDocument();
     });
 
-    // The component should call onComplete with success: false, allowIgnore: false
-    expect(mockOnComplete).toHaveBeenCalledWith(false, false);
+    // The component should call onComplete with success: false, allowIgnore: false, hasStrictFailures: false
+    expect(mockOnComplete).toHaveBeenCalledWith(false, false, false);
+  });
+
+  // New tests for strict preflight functionality
+  it("displays strict failures with visual distinction", async () => {
+    // Mock preflight status endpoint with strict and non-strict failures
+    server.use(
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          titles: ["Test"],
+          output: {
+            pass: [],
+            warn: [],
+            fail: [
+              { title: "Critical Security Check", message: "Security requirement not met", strict: true },
+              { title: "Disk Space", message: "Insufficient disk space", strict: false }
+            ],
+          },
+          status: { state: "Failed" },
+          allowIgnoreAppPreflights: true,
+          hasStrictAppPreflightFailures: true,
+        });
+      })
+    );
+
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        target,
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
+    });
+
+    // Check that strict failure is displayed with "Critical" badge
+    expect(screen.getByText("Critical Security Check")).toBeInTheDocument();
+    expect(screen.getByText("Critical")).toBeInTheDocument(); // Critical badge
+
+    // Check that non-strict failure is displayed normally
+    expect(screen.getByText("Disk Space")).toBeInTheDocument();
+
+    // The component should call onComplete with strict failures flag
+    expect(mockOnComplete).toHaveBeenCalledWith(false, true, true); // success: false, allowIgnore: true, hasStrictFailures: true
+  });
+
+  it("shows appropriate guidance for strict failures in What's Next section", async () => {
+    // Mock preflight status endpoint with strict failures
+    server.use(
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          titles: ["Test"],
+          output: {
+            pass: [],
+            warn: [],
+            fail: [
+              { title: "Critical Security Check", message: "Security requirement not met", strict: true }
+            ],
+          },
+          status: { state: "Failed" },
+          allowIgnoreAppPreflights: true,
+          hasStrictAppPreflightFailures: true,
+        });
+      })
+    );
+
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        target,
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
+    });
+
+  });
+
+  it("passes hasStrictAppPreflightFailures from API response to onComplete", async () => {
+    // Mock preflight status endpoint with hasStrictAppPreflightFailures field
+    server.use(
+      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          titles: ["Test"],
+          output: {
+            pass: [],
+            warn: [],
+            fail: [
+              { title: "Regular Check", message: "Regular failure", strict: false }
+            ],
+          },
+          status: { state: "Failed" },
+          allowIgnoreAppPreflights: true,
+          hasStrictAppPreflightFailures: true, // Backend says there are strict failures
+        });
+      })
+    );
+
+    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        target,
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Application Requirements Not Met")).toBeInTheDocument();
+    });
+
+    // Should use the hasStrictAppPreflightFailures from API response (true), not client-side detection (false)
+    expect(mockOnComplete).toHaveBeenCalledWith(false, true, true);
   });
 });

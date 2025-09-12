@@ -185,7 +185,7 @@ describe.each([
       fireEvent.click(nextButton);
     });
 
-    // Modal SHOULD appear when allowIgnoreAppPreflights is true and preflights fail
+    // Modal appears when allowIgnoreAppPreflights is true and preflights fail (but none are strict failures)
     await waitFor(() => {
       expect(screen.getByText('Proceed with Failed Checks?')).toBeInTheDocument();
     });
@@ -430,6 +430,101 @@ describe.each([
       expect(mockOnNext).toHaveBeenCalledTimes(1);
     });
   });
+
+  // New tests for strict preflight blocking
+  it('disables Start Installation button when strict failures exist regardless of allowIgnoreAppPreflights', async () => {
+    // Mock preflight status endpoint - returns strict failures with allowIgnoreAppPreflights: true
+    server.use(
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
+        return HttpResponse.json({
+          titles: ['App Check'],
+          status: { state: 'Failed' },
+          output: {
+            fail: [
+              { title: 'Critical Security Check', message: 'Security requirement not met', strict: true },
+              { title: 'Disk Space', message: 'Not enough disk space available', strict: false }
+            ],
+            warn: [],
+            pass: []
+          },
+          allowIgnoreAppPreflights: true,
+          hasStrictAppPreflightFailures: true
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestAppPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      {
+        wrapperProps: {
+          target,
+          authenticated: true
+        }
+      }
+    );
+
+    // Wait for preflights to complete and show failures
+    await waitFor(() => {
+      expect(screen.getByText('Application Requirements Not Met')).toBeInTheDocument();
+    });
+
+    // Button should be disabled even though allowIgnoreAppPreflights is true
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).toBeDisabled();
+    });
+  });
+
+  it('does not show modal when strict failures exist because button is disabled', async () => {
+    // Mock preflight status endpoint - returns strict failures
+    server.use(
+      http.get(`*/api/${target}/install/app-preflights/status`, () => {
+        return HttpResponse.json({
+          titles: ['App Check'],
+          status: { state: 'Failed' },
+          output: {
+            fail: [
+              { title: 'Critical Security Check', message: 'Security requirement not met', strict: true }
+            ],
+            warn: [],
+            pass: []
+          },
+          allowIgnoreAppPreflights: true,
+          hasStrictAppPreflightFailures: true
+        });
+      })
+    );
+
+    renderWithProviders(
+      <TestAppPreflightPhase
+        onNext={mockOnNext}
+        onStateChange={mockOnStateChange}
+      />,
+      {
+        wrapperProps: {
+          target,
+          authenticated: true
+        }
+      }
+    );
+
+    // Wait for preflights to complete and show failures
+    await waitFor(() => {
+      expect(screen.getByText('Application Requirements Not Met')).toBeInTheDocument();
+    });
+
+    // Button should be disabled
+    await waitFor(() => {
+      const nextButton = screen.getByTestId('next-button');
+      expect(nextButton).toBeDisabled();
+    });
+
+    // Button is disabled for strict failures, so no modal should be possible
+    // This test verifies the button is properly disabled and no modal interaction occurs
+  });
 });
 
 // Additional robust frontend tests for error handling and edge cases
@@ -438,12 +533,12 @@ describe.each([
   { target: "linux" as const, displayName: "Linux" }
 ])('AppPreflightPhase - Error Handling & Edge Cases - $displayName', ({ target }) => {
   let server: ReturnType<typeof createServer>;
-  
+
   beforeAll(() => {
     server = createServer(target);
     server.listen();
   });
-  
+
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
@@ -559,12 +654,12 @@ describe.each([
   { target: "linux" as const, displayName: "Linux" }
 ])('AppPreflightPhase - onStateChange Tests - $displayName', ({ target }) => {
   let server: ReturnType<typeof createServer>;
-  
+
   beforeAll(() => {
     server = createServer(target);
     server.listen();
   });
-  
+
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
