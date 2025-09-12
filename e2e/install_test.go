@@ -2093,7 +2093,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	}
 
 	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
-	time.Sleep(20 * time.Second)
+	time.Sleep(1 * time.Minute)
 
 	networkEvents, _, err := tc.CollectNetworkReport()
 	if err != nil {
