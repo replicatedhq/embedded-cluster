@@ -9,7 +9,7 @@ import { PreflightOutput, AppPreflightResponse } from "../../../../types";
 
 interface AppPreflightCheckProps {
   onRun: () => void;
-  onComplete: (success: boolean, allowIgnoreAppPreflights: boolean) => void;
+  onComplete: (success: boolean, allowIgnoreAppPreflights: boolean, hasStrictFailures: boolean) => void;
 }
 
 const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete }) => {
@@ -21,6 +21,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
+  const hasStrictFailures = (response?: AppPreflightResponse) => response?.hasStrictAppPreflightFailures ?? false;
   const isSuccessful = (response?: AppPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
@@ -83,7 +84,11 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   useEffect(() => {
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
-      onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreAppPreflights ?? false);
+      onComplete(
+        !hasFailures(preflightResponse.output),
+        preflightResponse.allowIgnoreAppPreflights ?? false,
+        hasStrictFailures(preflightResponse)
+      );
     }
   }, [preflightResponse]);
 
@@ -162,19 +167,36 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
       {/* Failures Section */}
       {hasFailures(preflightResponse?.output) && (
         <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
-          {preflightResponse?.output?.fail?.map((result, index) => (
-            <div key={`fail-${index}`} className="p-4">
-              <div className="flex items-start">
-                <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
-                <div className="ml-3">
-                  <h4 className="text-sm font-medium text-gray-900">{result.title}</h4>
-                  <div className="mt-2 text-sm text-gray-600">
-                    <p>{result.message}</p>
+          {preflightResponse?.output?.fail
+            ?.slice()
+            .sort((a, b) => (b.strict ? 1 : 0) - (a.strict ? 1 : 0))
+            .map((result, index) => (
+              <div
+                key={`fail-${result.title}-${index}`}
+                className={`p-4 ${index === 0 ? 'rounded-t-lg' : ''} ${index === (preflightResponse?.output?.fail?.length ?? 0) - 1 ? 'rounded-b-lg' : ''}`}
+                style={result.strict ? {
+                  borderLeft: '4px solid #dc2626',
+                  backgroundColor: '#fef2f2'
+                } : {}}
+              >
+                <div className="flex items-start" style={result.strict ? { marginLeft: '-4px' } : {}}>
+                  <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                  <div className="ml-3 flex-grow">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-gray-900">{result.title}</h4>
+                      {result.strict && (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">
+                          Critical
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                      <p>{result.message}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
         </div>
       )}
 

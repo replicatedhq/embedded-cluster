@@ -20,6 +20,7 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreAppPreflights, setAllowIgnoreAppPreflights] = React.useState(false);
+  const [hasStrictFailures, setHasStrictFailures] = React.useState(false);
   const [showPreflightModal, setShowPreflightModal] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { token } = useAuth();
@@ -28,13 +29,15 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
     setPreflightComplete(false);
     setPreflightSuccess(false);
     setAllowIgnoreAppPreflights(false);
+    setHasStrictFailures(false);
     onStateChange('Running');
   }, []);
 
-  const onComplete = useCallback((success: boolean, allowIgnore: boolean) => {
+  const onComplete = useCallback((success: boolean, allowIgnore: boolean, hasStrictFailures: boolean) => {
     setPreflightComplete(true);
     setPreflightSuccess(success);
     setAllowIgnoreAppPreflights(allowIgnore);
+    setHasStrictFailures(hasStrictFailures);
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
@@ -73,11 +76,12 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       return;
     }
 
-    // If preflights failed and button is enabled (allowIgnoreAppPreflights is true), show warning modal
-    if (allowIgnoreAppPreflights) {
+
+    // Show warning modal if app preflights failed, none are strict, and button is enabled (allowIgnoreAppPreflights is true)
+    if (!hasStrictFailures && allowIgnoreAppPreflights) {
       setShowPreflightModal(true);
     }
-    // Note: If allowIgnoreAppPreflights is false, button should be disabled (handled in canProceed)
+    // Note: This button will be disabled if hasStrictFailures is true or allowIgnoreAppPreflights is false
   };
 
   const handleCancelProceed = () => {
@@ -100,9 +104,14 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       return true;
     }
 
+    // If strict failures exist, never allow proceeding
+    if (hasStrictFailures) {
+      return false;
+    }
+
     // If preflights failed, only allow proceeding if CLI flag was used
     return allowIgnoreAppPreflights;
-  }, [preflightComplete, preflightSuccess, allowIgnoreAppPreflights]);
+  }, [preflightComplete, preflightSuccess, hasStrictFailures, allowIgnoreAppPreflights]);
 
   // Report that step is running when component mounts
   useEffect(() => {
