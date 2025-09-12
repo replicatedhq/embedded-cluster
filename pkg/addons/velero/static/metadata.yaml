@@ -9,10 +9,10 @@ version: 10.1.2
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
-        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/kubectl
+        repo: proxy.replicated.com/anonymous/replicated/ec-kubectl
         tag:
-            amd64: 1.33.2-amd64@sha256:a3d7cf8c0e53cadaf168f52f49e59bdf7caea43ddb889688d61ae4575c0707e0
-            arm64: 1.33.2-arm64@sha256:f11befb4c452cbb6f0a3afcc226ec414a56f0c15fb2d10abd0179a9793f188d0
+            amd64: 1.34.1-r0-amd64@sha256:2d10f0b5cf4a7f16f96a795d508ab0f940ad77f716d62d1289279473dd730292
+            arm64: 1.34.1-r0-arm64@sha256:665bae7259ed483a62990b92b417f63e4ba1feee82be82b42e6ef5e00e9fc65d
     velero:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/velero
         tag:
