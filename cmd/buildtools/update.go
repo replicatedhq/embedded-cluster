@@ -45,6 +45,7 @@ var updateImagesCommand = &cli.Command{
 		updateK0sImagesCommand,
 		updateOpenEBSImagesCommand,
 		updateOperatorImagesCommand,
+		updateRegistryImagesCommand,
 		updateSeaweedFSImagesCommand,
 		updateVeleroImagesCommand,
 	},

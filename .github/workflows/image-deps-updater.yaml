@@ -11,6 +11,9 @@ on:
       openebs_version:
         description: 'OpenEBS version for discovering image versions'
         required: false
+      registry_version:
+        description: 'Registry version for discovering image versions'
+        required: false
       velero_version:
         description: 'Velero version for discovering image versions'
         required: false
@@ -55,6 +58,7 @@ jobs:
       matrix:
         addon:
           - openebs
+          - registry
           - velero
           - seaweedfs
     steps:
@@ -73,6 +77,7 @@ jobs:
         IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
         IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
         INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+        INPUT_REGISTRY_VERSION: ${{ github.event.inputs.registry_version }}
         INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
         INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}

@@ -8,6 +8,9 @@ on:
       openebs_chart_version:
         description: 'OpenEBS chart version for updating the chart and images'
         required: false
+      registry_chart_version:
+        description: 'Registry chart version for updating the chart and images'
+        required: false
       velero_chart_version:
         description: 'Velero chart version for updating the chart and images'
         required: false
@@ -66,6 +69,7 @@ jobs:
           IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           CHARTS_DESTINATION: registry.replicated.com/ec-charts
           INPUT_OPENEBS_CHART_VERSION: ${{ github.event.inputs.openebs_chart_version }}
+          INPUT_REGISTRY_CHART_VERSION: ${{ github.event.inputs.registry_chart_version }}
           INPUT_VELERO_CHART_VERSION: ${{ github.event.inputs.velero_chart_version }}
           INPUT_SEAWEEDFS_CHART_VERSION: ${{ github.event.inputs.seaweedfs_chart_version }}
           ARCHS: "amd64,arm64"
