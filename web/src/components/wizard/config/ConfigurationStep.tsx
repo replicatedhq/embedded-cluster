@@ -7,6 +7,7 @@ import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
 import Label from '../../common/Label';
+import Markdown from '../../common/Markdown';
 import FileInput from '../../common/file';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -410,7 +411,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return (
       <div className="space-y-6">
         {group.description && (
-          <p className="text-gray-600 mb-4">{group.description}</p>
+          <div className="text-gray-600 mb-4 prose max-w-none">
+            <Markdown>
+              {group.description}
+            </Markdown>
+          </div>
         )}
         {group.items.map(item => (
           <div key={item.name} data-testid={`config-item-${item.name}`}>
