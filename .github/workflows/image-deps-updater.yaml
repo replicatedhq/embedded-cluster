@@ -140,7 +140,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update k0s images"
-        branch: automation/k0s-image-dependencies
+        branch: automation/k0s-image-dependencies/${{ github.ref_name }}
         delete-branch: true
         labels: |
           automated-pr

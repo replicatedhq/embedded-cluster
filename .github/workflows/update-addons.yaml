@@ -79,7 +79,7 @@ jobs:
           token: ${{ secrets.GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version
           title: "feat: update ${{ matrix.addon }} version"
-          branch: automation/update-makefile-${{ matrix.addon }}
+          branch: automation/update-makefile-${{ matrix.addon }}/${{ github.ref_name }}
           delete-branch: true
           labels: |
             automated-pr
