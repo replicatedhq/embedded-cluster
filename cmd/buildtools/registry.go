@@ -22,8 +22,9 @@ var registryImageComponents = map[string]addonComponent{
 	"docker.io/library/registry": {
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			// TODO (@salah): build with apko once distribution is out of beta: https://github.com/wolfi-dev/os/blob/main/distribution.yaml
-			return "docker.io/replicated/ec-registry:2.8.3-r0", nil
+			ref := "registry.replicated.com/library/registry"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 	},
 }
@@ -41,11 +42,14 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		defer hcli.Close()
 
-		latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
-		if err != nil {
-			return fmt.Errorf("unable to get the latest registry version: %v", err)
-		}
-		logrus.Printf("latest registry chart version: %s", latest)
+		latest := "2.8.3"
+
+		// TODO: unpin this
+		// latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
+		// if err != nil {
+		// 	return fmt.Errorf("unable to get the latest registry version: %v", err)
+		// }
+		// logrus.Printf("latest registry chart version: %s", latest)
 
 		current := registry.Metadata
 		if current.Version == latest && !c.Bool("force") {
