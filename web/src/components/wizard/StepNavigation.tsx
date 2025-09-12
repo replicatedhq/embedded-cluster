@@ -71,7 +71,7 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
                 }}
               >
                 <span
-                  className={`flex-shrink-0 w-8 h-8 flex items-center justify-center mr-3 rounded-full`}
+                  className={`shrink-0 w-8 h-8 flex items-center justify-center mr-3 rounded-full`}
                   style={{
                     backgroundColor: status === 'complete' || status === 'current' ? themeColor : 'rgb(229 231 235)',
                     color: status === 'complete' || status === 'current' ? 'white' : 'rgb(107 114 128)',

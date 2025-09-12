@@ -78,7 +78,7 @@ const InstallWizard: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-grow">
+      <main className="grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <StepNavigation currentStep={currentStep} />
           <div className="mt-8">{renderStep()}</div>

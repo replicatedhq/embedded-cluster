@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import netlify from '@netlify/vite-plugin';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { env } from 'process';
 import { InitialState } from './src/types';
@@ -10,6 +11,7 @@ import { InitialState } from './src/types';
 export default defineConfig(({ mode }) => {
   return {
     plugins: [
+      tailwindcss(),
       {
         name: 'gomplate-html-transform',
         transformIndexHtml(html) {

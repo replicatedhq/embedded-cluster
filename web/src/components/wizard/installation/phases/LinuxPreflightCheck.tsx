@@ -172,7 +172,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     return (
       <div className="bg-white rounded-lg border border-red-200 p-4">
         <div className="flex items-start">
-          <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+          <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
           <div className="ml-3">
             <h4 className="text-sm font-medium text-gray-900">Unable to complete system requirement checks</h4>
             <p className="mt-1 text-sm text-red-600">{getErrorMessage()}</p>
@@ -215,7 +215,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
           {preflightResponse?.output?.fail?.map((result, index) => (
             <div key={`fail-${index}`} className="p-4">
               <div className="flex items-start">
-                <XCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
                 <div className="ml-3">
                   <h4 className="text-sm font-medium text-gray-900">{result.title}</h4>
                   <div className="mt-2 text-sm text-gray-600">
@@ -234,7 +234,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
           {preflightResponse?.output?.warn?.map((result, index) => (
             <div key={`warn-${index}`} className="p-4">
               <div className="flex items-start">
-                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 shrink-0" />
                 <div className="ml-3">
                   <h4 className="text-sm font-medium text-gray-900">{result.title}</h4>
                   <div className="mt-2 text-sm text-gray-600">
