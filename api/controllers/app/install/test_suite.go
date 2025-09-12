@@ -514,14 +514,14 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 		ignoreAppPreflights bool
 		currentState        statemachine.State
 		expectedState       statemachine.State
-		setupMocks          func(*appconfig.MockAppConfigManager, *appinstallmanager.MockAppInstallManager)
+		setupMocks          func(*appconfig.MockAppConfigManager, *appinstallmanager.MockAppInstallManager, *apppreflightmanager.MockAppPreflightManager)
 		expectedErr         bool
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
 			currentState:  states.StateSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -530,7 +530,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "invalid state transition from infrastructure installing state",
 			currentState:  states.StateInfrastructureInstalling,
 			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -539,7 +539,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "successful app installation from app preflights succeeded state",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -559,7 +559,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "successful app installation from app preflights failed bypassed state",
 			currentState:  states.StateAppPreflightsFailedBypassed,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -579,7 +579,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			name:          "get config values error",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
 			expectedErr: true,
@@ -589,7 +589,17 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: true,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+				// Mock GetAppPreflightOutput to return non-strict failures (can be bypassed)
+				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+					Fail: []types.PreflightsRecord{
+						{
+							Title:   "Non-strict preflight failure",
+							Message: "This is a non-strict failure",
+							Strict:  false, // This allows bypass
+						},
+					},
+				}, nil)
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -610,8 +620,36 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: false,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateAppPreflightsFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager) {
-				// No mocks needed as method should return early with error
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+				// Mock GetAppPreflightOutput to return non-strict failures (method should be called but bypass denied)
+				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+					Fail: []types.PreflightsRecord{
+						{
+							Title:   "Non-strict preflight failure",
+							Message: "This is a non-strict failure",
+							Strict:  false, // Non-strict but bypass still denied due to ignoreAppPreflights=false
+						},
+					},
+				}, nil)
+			},
+			expectedErr: true,
+		},
+		{
+			name:                "strict app preflight bypass blocked",
+			ignoreAppPreflights: true,
+			currentState:        states.StateAppPreflightsFailed,
+			expectedState:       states.StateAppPreflightsFailed,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+				// Mock GetAppPreflightOutput to return strict failures (cannot be bypassed)
+				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+					Fail: []types.PreflightsRecord{
+						{
+							Title:   "Strict preflight failure",
+							Message: "This is a strict failure that cannot be bypassed",
+							Strict:  true, // Strict failure - cannot be bypassed
+						},
+					},
+				}, nil)
 			},
 			expectedErr: true,
 		},
@@ -636,7 +674,7 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			)
 			require.NoError(t, err, "failed to create install controller")
 
-			tt.setupMocks(appConfigManager, appInstallManager)
+			tt.setupMocks(appConfigManager, appInstallManager, appPreflightManager)
 			err = controller.InstallApp(t.Context(), tt.ignoreAppPreflights)
 
 			if tt.expectedErr {
