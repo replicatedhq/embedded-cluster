@@ -162,7 +162,7 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
           }
         >
           <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <AlertTriangle className="h-6 w-6 text-amber-500" />
             </div>
             <div>

@@ -8,7 +8,7 @@ interface ErrorMessageProps {
 const ErrorMessage: React.FC<ErrorMessageProps> = ({ error }) => (
   <div className="mt-6 p-4 bg-red-50 text-red-800 rounded-md" data-testid="error-message">
     <div className="flex">
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <XCircle className="h-5 w-5 text-red-400" />
       </div>
       <div className="ml-3">

@@ -55,7 +55,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({
         required={required}
         className={`w-full px-3 py-2 border ${
           error ? 'border-red-500' : 'border-gray-300'
-        } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[2.625rem] ${
+        } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-10.5 ${
           disabled ? 'bg-gray-100 text-gray-500' : 'bg-white'
         }`}
         style={{

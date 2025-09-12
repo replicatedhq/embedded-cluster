@@ -63,11 +63,11 @@ const InstallationTimeline: React.FC<InstallationTimelineProps> = ({
                 disabled={!isClickable}
                 data-testid={`timeline-${phaseKey}`}
               >
-                <div className="flex-shrink-0 mt-0.5">
+                <div className="shrink-0 mt-0.5">
                   {getStatusIcon(phase.status)}
                 </div>
                 
-                <div className="flex-grow min-w-0">
+                <div className="grow min-w-0">
                   <h4 className={`text-sm font-medium ${
                     isSelected ? 'text-gray-900' : isActive ? 'text-gray-900' : phase.status === 'Succeeded' ? 'text-gray-700' : 'text-gray-600'
                   }`}>

@@ -32,7 +32,7 @@ const Markdown: React.FC<MarkdownProps> = ({ children, rehypePlugins = [] }) => 
         // Specific selectors used for `pre` to make sure inline code styling does not conflict with code block styling since code blocks are rendered
         // within a pre element
         code: ({ children }) => (
-          <code className="not-prose font-mono font-semibold text-xs text-gray-700 bg-gray-100 px-1 py-0.5 rounded [pre_&]:bg-transparent [pre_&]:px-0 [pre_&]:py-0">
+          <code className="not-prose font-mono font-semibold text-xs text-gray-700 bg-gray-100 px-1 py-0.5 rounded in-[pre]:bg-transparent in-[pre]:px-0 in-[pre]:py-0">
             {children}
           </code>
         ),

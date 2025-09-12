@@ -48,7 +48,7 @@ const KubernetesCompletionStep: React.FC = () => {
                   </Button>
                 </div>
                 <div className="flex items-start space-x-2 p-2 bg-white rounded border border-gray-300">
-                  <Terminal className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <Terminal className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                   <code className="font-mono text-sm text-left">
                     {config.installCommand}
                   </code>

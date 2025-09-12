@@ -39,10 +39,10 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ title, status, themeC
 
   return (
     <div className="flex items-center space-x-4 py-3" data-testid={`status-indicator-${testId}`}>
-      <div className="flex-shrink-0 text-gray-400">
+      <div className="shrink-0 text-gray-400">
         <Server className="w-5 h-5" />
       </div>
-      <div className="flex-grow">
+      <div className="grow">
         <h4 data-testid="status-title" className="text-sm font-medium text-gray-900">{title}</h4>
       </div>
       <div className="text-sm font-medium">
