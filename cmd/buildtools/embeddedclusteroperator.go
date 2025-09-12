@@ -21,7 +21,7 @@ var operatorImageComponents = map[string]addonComponent{
 	"docker.io/library/busybox": {
 		name: "utils",
 	},
-	"registry.replicated.com/library/goldpinger": {
+	"proxy.replicated.com/library/goldpinger": {
 		name:             "goldpinger",
 		useUpstreamImage: true,
 	},
@@ -63,11 +63,10 @@ var updateOperatorAddonCommand = &cli.Command{
 		if chartURL != "" {
 			logrus.Infof("using input override from INPUT_OPERATOR_CHART_URL: %s", chartURL)
 			chartURL = strings.TrimPrefix(chartURL, "oci://")
-			chartURL = strings.TrimPrefix(chartURL, "proxy.replicated.com/anonymous/")
 		} else {
-			chartURL = "registry.replicated.com/library/embedded-cluster-operator"
+			chartURL = "proxy.replicated.com/library/embedded-cluster-operator"
 		}
-		chartURL = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", chartURL)
+		chartURL = fmt.Sprintf("oci://%s", chartURL)
 
 		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
 		if imageOverride != "" {
@@ -136,7 +135,7 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 
 	// make sure we include the operator util and goldpinger images as they don't show up when rendering the helm chart.
 	images = append(images, "docker.io/library/busybox:latest")
-	images = append(images, "registry.replicated.com/library/goldpinger:latest")
+	images = append(images, "proxy.replicated.com/library/goldpinger:latest")
 
 	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images, filteredImages)
 	if err != nil {

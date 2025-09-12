@@ -15,47 +15,44 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/2dd6bcb3f57b0ba3aa3f0cea262c60f917940720/README.md#compatibility
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/v1.13.0/README.md#compatibility
 var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
 	"1.16": mustParseSemverConstraints(">=1.12,<1.13"),
-	"1.15": mustParseSemverConstraints(">=1.11,<1.12"),
-	"1.14": mustParseSemverConstraints(">=1.10,<1.11"),
-	"1.13": mustParseSemverConstraints(">=1.9,<1.10"),
+	"1.17": mustParseSemverConstraints(">=1.13,<1.14"),
 }
 
 var veleroImageComponents = map[string]addonComponent{
 	"docker.io/velero/velero": {
 		name: "velero",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "velero"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "proxy.replicated.com/library/velero"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
+			if err != nil {
+				return "", fmt.Errorf("get greatest tag from registry: %w", err)
+			}
+			return fmt.Sprintf("%s:%s", ref, tag), nil
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
 	"docker.io/velero/velero-plugin-for-aws": {
 		name: "velero-plugin-for-aws",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "velero-plugin-for-aws"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "proxy.replicated.com/library/velero-plugin-for-aws"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
+			if err != nil {
+				return "", fmt.Errorf("get greatest tag from registry: %w", err)
+			}
+			return fmt.Sprintf("%s:%s", ref, tag), nil
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
-	"docker.io/velero/velero-restore-helper": {
-		name: "velero-restore-helper",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "velero-restore-helper"
-		},
-		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
-	},
-	"docker.io/bitnami/kubectl": {
-		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
-		},
-		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
-	},
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "proxy.replicated.com/library/kubectl"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
@@ -104,14 +101,13 @@ var updateVeleroAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		upstream = addProxyAnonymousPrefix(upstream)
+		withproto := fmt.Sprintf("oci://%s", upstream)
 
 		veleroVersion, err := findVeleroVersionFromChart(c.Context, hcli, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find velero version from chart: %w", err)
 		}
-		restoreHelperVersion := veleroVersion
-		logrus.Infof("found latest velero restore helper version %s", restoreHelperVersion)
 
 		awsPluginVersion, err := findBestAWSPluginVersion(c.Context, veleroVersion)
 		if err != nil {
@@ -121,7 +117,7 @@ var updateVeleroAddonCommand = &cli.Command{
 
 		logrus.Infof("updating velero images")
 
-		err = updateVeleroAddonImages(c.Context, hcli, withproto, nextChartVersion, restoreHelperVersion, awsPluginVersion, nil)
+		err = updateVeleroAddonImages(c.Context, hcli, withproto, nextChartVersion, awsPluginVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -147,15 +143,7 @@ var updateVeleroImagesCommand = &cli.Command{
 
 		current := velero.Metadata
 
-		image, ok := velero.Metadata.Images["velero-restore-helper"]
-		if !ok {
-			return fmt.Errorf("failed to find velero restore helper image")
-		}
-		restoreHelperVersion, _, _ := strings.Cut(image.Tag["amd64"], "@")
-		restoreHelperVersion = strings.TrimSuffix(restoreHelperVersion, "-amd64")
-		restoreHelperVersion = strings.TrimPrefix(restoreHelperVersion, "v")
-
-		image, ok = velero.Metadata.Images["velero-plugin-for-aws"]
+		image, ok := velero.Metadata.Images["velero-plugin-for-aws"]
 		if !ok {
 			return fmt.Errorf("failed to find velero plugin for aws image")
 		}
@@ -163,7 +151,7 @@ var updateVeleroImagesCommand = &cli.Command{
 		awsPluginVersion = strings.TrimSuffix(awsPluginVersion, "-amd64")
 		awsPluginVersion = strings.TrimPrefix(awsPluginVersion, "v")
 
-		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, restoreHelperVersion, awsPluginVersion, c.StringSlice("image"))
+		err = updateVeleroAddonImages(c.Context, hcli, current.Location, current.Version, awsPluginVersion, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update velero images: %w", err)
 		}
@@ -211,7 +199,7 @@ func findBestAWSPluginVersion(ctx context.Context, veleroVersion string) (string
 	return strings.TrimPrefix(awsPluginVersion, "v"), nil
 }
 
-func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, restoreHelperVersion string, awsPluginVersion string, filteredImages []string) error {
+func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, awsPluginVersion string, filteredImages []string) error {
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
@@ -230,7 +218,6 @@ func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL str
 	}
 
 	// make sure we include additional images
-	images = append(images, fmt.Sprintf("docker.io/velero/velero-restore-helper:%s", restoreHelperVersion))
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
 
 	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images, filteredImages)

@@ -52,7 +52,7 @@ func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image strin
 		}
 		return
 	}
-	repo, tag, err = c.resolveApkoImageRepoAndTag(ctx, image, arch)
+	repo, tag, err = c.resolveApkoImageRepoAndTag(ctx, arch)
 	if err != nil {
 		err = fmt.Errorf("resolve apko image repo and tag: %w", err)
 	}
@@ -74,8 +74,12 @@ func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, ima
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(image), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
+
+	repo := FamiliarImageName(RemoveTagFromImage(image))
+	repo = addProxyAnonymousPrefix(repo)
+
 	return repo, tag, nil
 }
 
@@ -90,6 +94,7 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 	if err != nil {
 		return "", "", fmt.Errorf("get latest k8s version: %w", err)
 	}
+
 	customImage, err := c.getCustomImageName(addonComponentOptions{
 		ctx:              ctx,
 		k0sVersion:       k0sVersion,
@@ -99,16 +104,21 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image name for %s: %w", c.name, err)
 	}
+
 	digest, err := GetImageDigest(ctx, customImage, arch)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
+
+	repo := FamiliarImageName(RemoveTagFromImage(customImage))
+	repo = addProxyAnonymousPrefix(repo)
+
 	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, arch string) (string, string, error) {
 	builtImage, err := GetImageNameFromBuildFile("build/image")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get digest from build file: %w", err)
@@ -118,8 +128,12 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image s
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", builtImage, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(builtImage), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(builtImage)))
+
+	repo := FamiliarImageName(RemoveTagFromImage(builtImage))
+	repo = addProxyAnonymousPrefix(repo)
+
 	return repo, tag, nil
 }
 

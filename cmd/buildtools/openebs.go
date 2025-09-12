@@ -97,7 +97,8 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		upstream = addProxyAnonymousPrefix(upstream)
+		withproto := fmt.Sprintf("oci://%s", upstream)
 
 		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(hcli, withproto, nextChartVersion)
 		if err != nil {
