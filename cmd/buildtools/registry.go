@@ -45,9 +45,8 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		defer hcli.Close()
 
-		nextChartVersion := os.Getenv("INPUT_REGISTRY_CHART_VERSION")
 		// TODO: unpin this
-		nextChartVersion = "2.8.3"
+		nextChartVersion := "2.8.3" // os.Getenv("INPUT_REGISTRY_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_REGISTRY_CHART_VERSION: %s", nextChartVersion)
 		} else {
