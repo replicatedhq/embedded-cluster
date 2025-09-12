@@ -244,12 +244,3 @@ func mustParseSemverConstraints(s string) *semver.Constraints {
 	}
 	return c
 }
-
-func getVeleroTag(ref string, opts addonComponentOptions) (string, error) {
-	constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-	tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
-	if err != nil {
-		return "", fmt.Errorf("failed to get greatest tag from registry: %w", err)
-	}
-	return tag, nil
-}
