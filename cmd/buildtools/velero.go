@@ -49,15 +49,18 @@ var veleroImageComponents = map[string]addonComponent{
 	},
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
-		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/kubectl"
-			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
-			if err != nil {
-				return "", fmt.Errorf("get greatest tag from registry: %w", err)
-			}
-			return fmt.Sprintf("%s:%s", ref, tag), nil
+		getWolfiPackageName: func(opts addonComponentOptions) string {
+			return "kubectl"
 		},
+		// getCustomImageName: func(opts addonComponentOptions) (string, error) {
+		// 	ref := "registry.replicated.com/library/kubectl"
+		// 	constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+		// 	tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
+		// 	if err != nil {
+		// 		return "", fmt.Errorf("get greatest tag from registry: %w", err)
+		// 	}
+		// 	return fmt.Sprintf("%s:%s", ref, tag), nil
+		// },
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 }
