@@ -42,6 +42,10 @@ updates:
       security:
         update-types:
           - "patch"
+      tailwindcss:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
