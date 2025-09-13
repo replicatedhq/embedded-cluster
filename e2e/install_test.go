@@ -2090,42 +2090,44 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	}
 
 	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
-	time.Sleep(5 * time.Second)
+	time.Sleep(1 * time.Minute)
 
 	networkEvents, _, err := tc.CollectNetworkReport()
 	if err != nil {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
-	domainsByIps := make(map[string]map[string]struct{})
+	allowedDomains := map[string]struct{}{
+		"proxy.staging.replicated.com":          {},
+		"ec-e2e-proxy.testcluster.net":          {},
+		"staging.replicated.app":                {},
+		"ec-e2e-replicated-app.testcluster.net": {},
+		"kots.io":                               {},
+		"release-assets.githubusercontent.com":  {},
+		"github.com":                            {},
+
+		// ntp from the underlying vm
+		"ntp.ubuntu.com":        {},
+		"0.ubuntu.pool.ntp.org": {},
+		"1.ubuntu.pool.ntp.org": {},
+		"2.ubuntu.pool.ntp.org": {},
+	}
+
+	domains := make(map[string]struct{})
 	for _, ne := range networkEvents {
-		// filter out local traffic
-		if ne.DstIP == "0.0.0.0" {
+		if ne.DNSQueryName == "" {
 			continue
 		}
 
-		domains := domainsByIps[ne.DstIP]
-		if domains == nil {
-			domains = make(map[string]struct{})
-		}
-
-		if len(strings.TrimSpace(ne.DNSQueryName)) > 0 {
-			domains[ne.DNSQueryName] = struct{}{}
-		}
-
-		domainsByIps[ne.DstIP] = domains
+		domains[ne.DNSQueryName] = struct{}{}
 	}
 
-	t.Log("Logged outbound external network accesses:\n")
-	for ip, domains := range domainsByIps {
-		domainOutput := ""
-		for domain := range domains {
-			domainOutput += fmt.Sprintf("\t- %v\n", domain)
-		}
-
-		t.Logf("IP: %v", ip)
-		if len(domainOutput) > 0 {
-			t.Logf("\n%v", domainOutput)
+	t.Log("Logged outbound external network accesses:")
+	for domain := range domains {
+		_, allowed := allowedDomains[domain]
+		t.Logf("%v - ALLOWED: %v", domain, allowed)
+		if !allowed {
+			t.Fail()
 		}
 	}
 }
