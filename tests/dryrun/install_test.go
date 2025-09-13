@@ -88,7 +88,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-		"image.repository":        "fake-replicated-proxy.test.net/anonymous/replicated/ec-velero",
+		"image.repository":        "fake-replicated-proxy.test.net/anonymous/registry.replicated.com/library/velero",
 	})
 
 	// admin console
@@ -555,7 +555,7 @@ func TestNoDomains(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-		"image.repository":        "proxy.staging.replicated.com/anonymous/replicated/ec-velero",
+		"image.repository":        "proxy.staging.replicated.com/anonymous/registry.replicated.com/library/velero",
 	})
 
 	// admin console
