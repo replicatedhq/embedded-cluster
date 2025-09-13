@@ -1301,7 +1301,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	}
 
 	text := fmt.Sprintf("Do you want to continue installing %s anyway?", channelRelease.VersionLabel)
-	confirmed, err := prompt.Confirm(text, true)
+	confirmed, err := prompt.Confirm(text, false)
 	if err != nil {
 		return fmt.Errorf("failed to get confirmation: %w", err)
 	}
