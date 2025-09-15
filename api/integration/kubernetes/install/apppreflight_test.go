@@ -117,6 +117,105 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		assert.Equal(t, apf.Titles, status.Titles)
 		assert.Equal(t, apf.Output, status.Output)
 		assert.Equal(t, apf.Status, status.Status)
+		assert.False(t, status.HasStrictAppPreflightFailures)
+	})
+
+	// Test API endpoint returns hasStrictAppPreflightFailures: true when strict failures exist
+	t.Run("Success with strict failures", func(t *testing.T) {
+		apfStrict := types.AppPreflights{
+			Output: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{
+					{
+						Title:   "Some Passing Check",
+						Message: "All good",
+						Strict:  false,
+					},
+				},
+				Fail: []types.PreflightsRecord{
+					{
+						Title:   "Critical App Requirement",
+						Message: "This is a strict failure that blocks installation",
+						Strict:  true, // This is the key - strict failure
+					},
+					{
+						Title:   "Non-critical Check",
+						Message: "This can be bypassed",
+						Strict:  false,
+					},
+				},
+			},
+			Titles: []string{
+				"Some Passing Check",
+				"Critical App Requirement",
+				"Non-critical Check",
+			},
+			Status: types.Status{
+				State:       types.StateFailed,
+				Description: "App preflights failed with strict failures",
+			},
+		}
+
+		// Create real app preflight manager with strict failures
+		strictAppPreflightManager := apppreflightmanager.NewAppPreflightManager(
+			apppreflightmanager.WithAppPreflightStore(
+				apppreflightstore.NewMemoryStore(apppreflightstore.WithAppPreflight(apfStrict)),
+			),
+		)
+
+		// Create mock store with proper app config store
+		mockStrictStore := &store.MockStore{}
+		mockStrictStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
+		// Create real app install controller
+		strictAppInstallController, err := appinstall.NewInstallController(
+			appinstall.WithAppPreflightManager(strictAppPreflightManager),
+			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
+			appinstall.WithStore(mockStrictStore),
+			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create Kubernetes install controller
+		strictInstallController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithAppInstallController(strictAppInstallController),
+			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+		)
+		require.NoError(t, err)
+
+		// Create the API with the install controller
+		strictAPIInstance := integration.NewAPIWithReleaseData(t,
+			api.WithKubernetesInstallController(strictInstallController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+
+		// Create a router and register the API routes
+		strictRouter := mux.NewRouter()
+		strictAPIInstance.RegisterRoutes(strictRouter)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodGet, "/kubernetes/install/app-preflights/status", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		strictRouter.ServeHTTP(rec, req)
+
+		// Check the response
+		require.Equal(t, http.StatusOK, rec.Code, "expected status ok, got %d with body %s", rec.Code, rec.Body.String())
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Parse the response body
+		var strictStatus types.InstallAppPreflightsStatusResponse
+		err = json.NewDecoder(rec.Body).Decode(&strictStatus)
+		require.NoError(t, err)
+
+		// Check the parsed response
+		assert.Equal(t, apfStrict.Titles, strictStatus.Titles)
+		assert.Equal(t, apfStrict.Output, strictStatus.Output)
+		assert.Equal(t, apfStrict.Status, strictStatus.Status)
+		assert.True(t, strictStatus.HasStrictAppPreflightFailures)
+		assert.True(t, strictStatus.AllowIgnoreAppPreflights) // Hardcoded to true in API handlers
 	})
 
 	// Test authorization error

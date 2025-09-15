@@ -32,10 +32,20 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 
 	// Check if app preflights have failed and if we should ignore them
 	if c.stateMachine.CurrentState() == states.StateAppPreflightsFailed {
-		allowIgnoreAppPreflights := true // TODO: implement once we check for strict app preflights
+		// Immediately block installation if there are strict app preflight failures (cannot be bypassed)
+		preflightOutput, err := c.appPreflightManager.GetAppPreflightOutput(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get app preflight output: %w", err)
+		}
+		if preflightOutput != nil && preflightOutput.HasStrictFailures() {
+			return types.NewBadRequestError(errors.New("installation blocked: strict app preflight checks failed"))
+		}
+
+		allowIgnoreAppPreflights := true // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
 		if !ignoreAppPreflights || !allowIgnoreAppPreflights {
 			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
 		}
+
 		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
 		if err != nil {
 			return fmt.Errorf("failed to transition states: %w", err)

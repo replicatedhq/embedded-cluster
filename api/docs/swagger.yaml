@@ -93,6 +93,8 @@ components:
       properties:
         allowIgnoreAppPreflights:
           type: boolean
+        hasStrictAppPreflightFailures:
+          type: boolean
         output:
           $ref: '#/components/schemas/types.PreflightsOutput'
         status:
@@ -211,6 +213,8 @@ components:
       properties:
         message:
           type: string
+        strict:
+          type: boolean
         title:
           type: string
       type: object
