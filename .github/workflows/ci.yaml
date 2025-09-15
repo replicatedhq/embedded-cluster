@@ -467,7 +467,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          k0s_majmin_version="$(make print-PREVIOUS_K0S_VERSION | sed 's/v\([0-9]*\.[0-9]*\).*/\1/')"
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          previous_k0s_minor_version=$(($k0s_minor_version - 1))
+          k0s_majmin_version="1.${previous_k0s_minor_version}"
           if [ "$k0s_majmin_version" == "1.28" ]; then
             k0s_majmin_version="1.29"
           fi
