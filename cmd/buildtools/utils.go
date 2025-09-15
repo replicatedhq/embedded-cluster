@@ -543,3 +543,11 @@ func GetLatestKubernetesVersion() (*semver.Version, error) {
 func GetSupportedArchs() []string {
 	return []string{"amd64", "arm64"}
 }
+
+func getLatestImageNameAndTag(ctx context.Context, ref string, constraints *semver.Constraints) (string, error) {
+	tag, err := GetGreatestTagFromRegistry(ctx, ref, constraints)
+	if err != nil {
+		return "", fmt.Errorf("get greatest tag from registry: %w", err)
+	}
+	return fmt.Sprintf("%s:%s", ref, tag), nil
+}

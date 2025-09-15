@@ -11,6 +11,9 @@ on:
       openebs_version:
         description: 'OpenEBS version for discovering image versions'
         required: false
+      registry_version:
+        description: 'Registry version for discovering image versions'
+        required: false
       velero_version:
         description: 'Velero version for discovering image versions'
         required: false
@@ -55,6 +58,7 @@ jobs:
       matrix:
         addon:
           - openebs
+          - registry
           - velero
           - seaweedfs
     steps:
@@ -73,6 +77,7 @@ jobs:
         IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
         IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
         INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+        INPUT_REGISTRY_VERSION: ${{ github.event.inputs.registry_version }}
         INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
         INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
         INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
@@ -90,7 +95,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update ${{ matrix.addon }} images"
-        branch: automation/${{ matrix.addon }}-image-dependencies
+        branch: automation/${{ matrix.addon }}-image-dependencies/${{ github.ref_name }}
         delete-branch: true
         labels: |
           automated-pr
@@ -140,7 +145,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update k0s images"
-        branch: automation/k0s-image-dependencies
+        branch: automation/k0s-image-dependencies/${{ github.ref_name }}
         delete-branch: true
         labels: |
           automated-pr
