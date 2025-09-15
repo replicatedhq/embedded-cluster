@@ -132,6 +132,7 @@ export type AppConfigValues = Record<string, AppConfigValue>;
 export interface PreflightResult {
   title: string;
   message: string;
+  strict?: boolean;
 }
 
 export interface PreflightOutput {
@@ -158,6 +159,7 @@ export interface AppPreflightResponse {
   output?: PreflightOutput;
   status?: PreflightStatus;
   allowIgnoreAppPreflights?: boolean;
+  hasStrictAppPreflightFailures?: boolean;
 }
 
 export interface AppInstallStatus {
