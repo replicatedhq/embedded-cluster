@@ -22,34 +22,37 @@ var openebsRepo = &repo.Entry{
 var openebsImageComponents = map[string]addonComponent{
 	"docker.io/openebs/provisioner-localpv": {
 		name: "openebs-provisioner-localpv",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			// package name is not the same as the component name
-			return "dynamic-localpv-provisioner"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/openebs-provisioner-localpv"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"docker.io/openebs/linux-utils": {
-		name:                         "openebs-linux-utils",
-		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
-	},
-	"docker.io/bitnami/kubectl": {
-		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		name: "openebs-linux-utils",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/openebs-linux-utils"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
-		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/kubectl"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 	"docker.io/openebs/kubectl": {
 		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/kubectl"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
