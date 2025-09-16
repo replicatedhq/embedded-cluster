@@ -112,7 +112,7 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
 
-	repo := FamiliarImageName(RemoveTagFromImage(image))
+	repo := FamiliarImageName(RemoveTagFromImage(customImage))
 	repo = addProxyAnonymousPrefix(repo)
 
 	return repo, tag, nil
