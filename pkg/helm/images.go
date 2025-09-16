@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -60,6 +61,33 @@ func ExtractImagesFromChart(hcli Client, ref string, version string, values map[
 			return nil, fmt.Errorf("extract images from manifest %d: %w", i, err)
 		}
 		images = append(images, ims...)
+	}
+
+	images = helpers.UniqueStringSlice(images)
+	sort.Strings(images)
+
+	return images, nil
+}
+
+func ExtractMatchesFromChart(hcli Client, ref string, version string, values map[string]interface{}, matchRegexp *regexp.Regexp) ([]string, error) {
+	parts := strings.Split(ref, "/")
+	name := parts[len(parts)-1]
+
+	manifests, err := hcli.Render(context.Background(), InstallOptions{
+		ReleaseName:  name,
+		ChartPath:    ref,
+		ChartVersion: version,
+		Values:       values,
+		Namespace:    "default",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("render: %w", err)
+	}
+
+	images := []string{}
+	for _, manifest := range manifests {
+		matches := matchRegexp.FindStringSubmatch(string(manifest))
+		images = append(images, matches...)
 	}
 
 	images = helpers.UniqueStringSlice(images)
