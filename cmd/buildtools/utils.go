@@ -289,7 +289,7 @@ func GetGreatestGitHubTag(ctx context.Context, owner, repo string, constraints *
 		if sv.Prerelease() != "" {
 			continue
 		}
-		if !constraints.Check(sv) {
+		if constraints != nil && !constraints.Check(sv) {
 			continue
 		}
 		if best == nil || sv.GreaterThan(best) {
@@ -322,12 +322,22 @@ func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *se
 			if sv.Prerelease() != "" {
 				continue
 			}
-			if !constraints.Check(sv) {
+			if constraints != nil && !constraints.Check(sv) {
+				continue
+			}
+			if best != nil && sv.Equal(best) {
+				// When versions are equal, prefer the more specific tag (e.g., 4.3.0 over 4.3)
+				// Compare the original tag strings to determine which is more specific
+				if len(tag) > len(bestStr) {
+					best = sv
+					bestStr = tag
+				}
 				continue
 			}
 			if best == nil || sv.GreaterThan(best) {
 				best = sv
 				bestStr = tag
+				continue
 			}
 		}
 		return nil
