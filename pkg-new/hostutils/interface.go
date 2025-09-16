@@ -25,7 +25,7 @@ type HostUtilsInterface interface {
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
 	ResetFirewalld(ctx context.Context) error
 	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
-	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error
+	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 	AddInsecureRegistry(registry string) error
 	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
@@ -63,8 +63,8 @@ func MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
 	return h.MaterializeFiles(rc, airgapBundle)
 }
 
-func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error {
-	return h.CreateSystemdUnitFiles(ctx, logger, rc, isWorker)
+func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error {
+	return h.CreateSystemdUnitFiles(ctx, logger, rc, hostname, isWorker)
 }
 
 func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {

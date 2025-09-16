@@ -34,6 +34,9 @@ const dynamicSysctlConfigPath = "/etc/sysctl.d/99-dynamic-embedded-cluster.conf"
 // the embedded cluster.
 const modulesLoadConfigPath = "/etc/modules-load.d/99-embedded-cluster.conf"
 
+// systemdConfigPath is the path to the systemd unit files directory.
+var systemdConfigPath = "/etc/systemd/system"
+
 //go:embed static/sysctl.d/99-embedded-cluster.conf
 var embeddedClusterSysctlConf []byte
 
@@ -206,20 +209,25 @@ func modprobe(module string) error {
 
 // CreateSystemdUnitFiles links the k0s systemd unit file. this also creates a new
 // systemd unit file for the local artifact mirror service.
-func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error {
+func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error {
 	dst := systemdUnitFileName()
 	if _, err := os.Lstat(dst); err == nil {
 		if err := os.Remove(dst); err != nil {
 			return err
 		}
 	}
-	src := "/etc/systemd/system/k0scontroller.service"
+	src := fmt.Sprintf("%s/k0scontroller.service", systemdConfigPath)
 	if isWorker {
-		src = "/etc/systemd/system/k0sworker.service"
+		src = fmt.Sprintf("%s/k0sworker.service", systemdConfigPath)
 	}
 	if proxy := rc.ProxySpec(); proxy != nil {
 		if err := ensureProxyConfig(fmt.Sprintf("%s.d", src), proxy.HTTPProxy, proxy.HTTPSProxy, proxy.NoProxy); err != nil {
 			return fmt.Errorf("unable to create proxy config: %w", err)
+		}
+	}
+	if hostname != "" {
+		if err := ensureAutopilotConfig(fmt.Sprintf("%s.d", src), hostname); err != nil {
+			return fmt.Errorf("unable to create autopilot hostname config: %w", err)
 		}
 	}
 	logger.Debugf("linking %s to %s", src, dst)
@@ -237,11 +245,11 @@ func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.Fi
 }
 
 func systemdUnitFileName() string {
-	return fmt.Sprintf("/etc/systemd/system/%s.service", runtimeconfig.AppSlug())
+	return fmt.Sprintf("%s/%s.service", systemdConfigPath, runtimeconfig.AppSlug())
 }
 
 // ensureProxyConfig creates a new http-proxy.conf configuration file. The file is saved in the
-// systemd directory (/etc/systemd/system/k0scontroller.service.d/).
+// systemd directory (/etc/systemd/system/k0s{controller,worker}.service.d/).
 func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
 	// create the directory
 	if err := os.MkdirAll(servicePath, 0755); err != nil {
@@ -341,5 +349,23 @@ func (h *HostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeC
 	if err != nil {
 		return fmt.Errorf("write drop-in file: %w", err)
 	}
+	return nil
+}
+
+// ensureAutopilotConfig creates a new autopilot-hostname.conf configuration file. The file is saved in the
+// systemd directory (/etc/systemd/system/k0s{controller,worker}.service.d/).
+func ensureAutopilotConfig(servicePath string, hostname string) error {
+	if err := os.MkdirAll(servicePath, 0755); err != nil {
+		return fmt.Errorf("unable to create directory: %w", err)
+	}
+
+	content := fmt.Sprintf(`[Service]
+Environment="AUTOPILOT_HOSTNAME=%s"`, hostname)
+
+	err := os.WriteFile(filepath.Join(servicePath, "autopilot-hostname.conf"), []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("unable to create and write autopilot hostname file: %w", err)
+	}
+
 	return nil
 }

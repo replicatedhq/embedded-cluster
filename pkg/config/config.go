@@ -116,7 +116,7 @@ func PatchK0sConfig(config *k0sv1beta1.ClusterConfig, patch string, respectImmut
 }
 
 // InstallFlags returns a list of default flags to be used when bootstrapping a k0s cluster.
-func InstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) ([]string, error) {
+func InstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostname string) ([]string, error) {
 	flags := []string{
 		"install",
 		"controller",
@@ -132,16 +132,21 @@ func InstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) ([]string, erro
 	if profile != "" {
 		flags = append(flags, profile)
 	}
-	flags = append(flags, AdditionalInstallFlags(rc, nodeIP)...)
+	flags = append(flags, AdditionalInstallFlags(rc, nodeIP, hostname)...)
 	flags = append(flags, AdditionalInstallFlagsController()...)
 	return flags, nil
 }
 
-func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string) []string {
+func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostname string) []string {
+	kubeletExtraArgs := fmt.Sprintf("--node-ip=%s", nodeIP)
+	if hostname != "" {
+		kubeletExtraArgs = fmt.Sprintf("%s --hostname-override=%s", kubeletExtraArgs, hostname)
+	}
+
 	return []string{
 		// NOTE: quotes are not supported in older systemd
 		// kardianos/service will escape spaces with "\x20"
-		"--kubelet-extra-args", fmt.Sprintf("--node-ip=%s", nodeIP),
+		"--kubelet-extra-args", kubeletExtraArgs,
 		"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 	}
 }

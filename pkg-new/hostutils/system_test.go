@@ -175,3 +175,129 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 		}
 	}
 }
+
+func Test_ensureProxyConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		httpProxy   string
+		httpsProxy  string
+		noProxy     string
+		expectError bool
+	}{
+		{
+			name:       "creates proxy config with all values",
+			httpProxy:  "http://proxy.example.com:8080",
+			httpsProxy: "https://proxy.example.com:8443",
+			noProxy:    "localhost,127.0.0.1,10.0.0.0/8",
+		},
+		{
+			name:       "creates proxy config with empty values",
+			httpProxy:  "",
+			httpsProxy: "",
+			noProxy:    "",
+		},
+		{
+			name:       "creates proxy config with partial values",
+			httpProxy:  "http://proxy.example.com:8080",
+			httpsProxy: "",
+			noProxy:    "localhost",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for service path
+			tempDir := t.TempDir()
+			servicePath := filepath.Join(tempDir, "k0scontroller.service.d")
+
+			err := ensureProxyConfig(servicePath, tt.httpProxy, tt.httpsProxy, tt.noProxy)
+			if tt.expectError {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Verify directory was created
+			assert.DirExists(t, servicePath)
+
+			// Verify file was created
+			configFile := filepath.Join(servicePath, "http-proxy.conf")
+			assert.FileExists(t, configFile)
+
+			// Read and verify file contents
+			content, err := os.ReadFile(configFile)
+			require.NoError(t, err)
+
+			expectedContent := `[Service]
+Environment="HTTP_PROXY=` + tt.httpProxy + `"
+Environment="HTTPS_PROXY=` + tt.httpsProxy + `"
+Environment="NO_PROXY=` + tt.noProxy + `"`
+
+			assert.Equal(t, expectedContent, string(content))
+
+			// Verify file permissions
+			info, err := os.Stat(configFile)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+		})
+	}
+}
+
+func Test_ensureAutopilotConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		hostname    string
+		expectError bool
+	}{
+		{
+			name:     "creates autopilot config with hostname",
+			hostname: "test-hostname",
+		},
+		{
+			name:     "creates autopilot config with FQDN",
+			hostname: "test-hostname.example.com",
+		},
+		{
+			name:     "creates autopilot config with empty hostname",
+			hostname: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for service path
+			tempDir := t.TempDir()
+			servicePath := filepath.Join(tempDir, "k0scontroller.service.d")
+
+			err := ensureAutopilotConfig(servicePath, tt.hostname)
+			if tt.expectError {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+
+			// Verify directory was created
+			assert.DirExists(t, servicePath)
+
+			// Verify file was created
+			configFile := filepath.Join(servicePath, "autopilot-hostname.conf")
+			assert.FileExists(t, configFile)
+
+			// Read and verify file contents
+			content, err := os.ReadFile(configFile)
+			require.NoError(t, err)
+
+			expectedContent := `[Service]
+Environment="AUTOPILOT_HOSTNAME=` + tt.hostname + `"`
+
+			assert.Equal(t, expectedContent, string(content))
+
+			// Verify file permissions
+			info, err := os.Stat(configFile)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
+		})
+	}
+}

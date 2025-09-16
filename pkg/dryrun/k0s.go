@@ -19,8 +19,8 @@ func (c *K0s) GetStatus(ctx context.Context) (*k0s.K0sStatus, error) {
 	return c.Status, nil
 }
 
-func (c *K0s) Install(rc runtimeconfig.RuntimeConfig) error {
-	return k0s.New().Install(rc) // actual implementation accounts for dryrun
+func (c *K0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
+	return k0s.New().Install(rc, hostname) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) IsInstalled() (bool, error) {

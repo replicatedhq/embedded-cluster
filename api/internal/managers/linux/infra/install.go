@@ -22,6 +22,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
+	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -152,21 +153,27 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 
 	m.setStatusDesc(fmt.Sprintf("Installing %s", componentName))
 
+	// Detect stable hostname early in installation
+	hostname, err := nodeutil.GetHostname("")
+	if err != nil {
+		return nil, fmt.Errorf("unable to detect hostname: %w", err)
+	}
+
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err := m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
+	k0sCfg, err = m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
 	logFn("creating systemd unit files")
-	if err := m.hostUtils.CreateSystemdUnitFiles(ctx, m.logger, rc, false); err != nil {
+	if err := m.hostUtils.CreateSystemdUnitFiles(ctx, m.logger, rc, hostname, false); err != nil {
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logFn("installing k0s")
-	if err := m.k0scli.Install(rc); err != nil {
+	if err := m.k0scli.Install(rc, hostname); err != nil {
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}
 

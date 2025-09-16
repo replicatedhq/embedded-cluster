@@ -57,7 +57,7 @@ func (k *K0s) GetStatus(ctx context.Context) (*K0sStatus, error) {
 
 // Install runs the k0s install command and waits for it to finish. If no configuration
 // is found one is generated.
-func (k *K0s) Install(rc runtimeconfig.RuntimeConfig) error {
+func (k *K0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
 	ourbin := rc.PathToEmbeddedClusterBinary("k0s")
 	hstbin := runtimeconfig.K0sBinaryPath
 	if err := helpers.MoveFile(ourbin, hstbin); err != nil {
@@ -68,7 +68,7 @@ func (k *K0s) Install(rc runtimeconfig.RuntimeConfig) error {
 	if err != nil {
 		return fmt.Errorf("unable to find first valid address: %w", err)
 	}
-	flags, err := config.InstallFlags(rc, nodeIP)
+	flags, err := config.InstallFlags(rc, nodeIP, hostname)
 	if err != nil {
 		return fmt.Errorf("unable to get install flags: %w", err)
 	}

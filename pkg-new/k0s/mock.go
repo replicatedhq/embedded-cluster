@@ -26,8 +26,8 @@ func (m *MockK0s) GetStatus(ctx context.Context) (*K0sStatus, error) {
 }
 
 // Install mocks the Install method
-func (m *MockK0s) Install(rc runtimeconfig.RuntimeConfig) error {
-	args := m.Called(rc)
+func (m *MockK0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
+	args := m.Called(rc, hostname)
 	return args.Error(0)
 }
 

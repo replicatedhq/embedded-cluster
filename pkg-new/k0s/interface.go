@@ -35,7 +35,7 @@ type K0sVars struct {
 
 type K0sInterface interface {
 	GetStatus(ctx context.Context) (*K0sStatus, error)
-	Install(rc runtimeconfig.RuntimeConfig) error
+	Install(rc runtimeconfig.RuntimeConfig, hostname string) error
 	IsInstalled() (bool, error)
 	WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error)
 	PatchK0sConfig(path string, patch string) error
@@ -46,8 +46,8 @@ func GetStatus(ctx context.Context) (*K0sStatus, error) {
 	return _k0s.GetStatus(ctx)
 }
 
-func Install(rc runtimeconfig.RuntimeConfig) error {
-	return _k0s.Install(rc)
+func Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
+	return _k0s.Install(rc, hostname)
 }
 
 func IsInstalled() (bool, error) {
