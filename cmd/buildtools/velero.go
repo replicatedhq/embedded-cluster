@@ -185,9 +185,9 @@ func findVeleroVersionFromChart(ctx context.Context, hcli helm.Client, chartURL 
 	}
 
 	for _, image := range images {
+		tag := TagFromImage(image)
 		image = RemoveTagFromImage(image)
 		if image == "docker.io/velero/velero" {
-			tag := TagFromImage(image)
 			return strings.TrimPrefix(tag, "v"), nil
 		}
 	}
