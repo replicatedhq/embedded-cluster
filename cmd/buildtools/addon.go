@@ -52,7 +52,7 @@ func (c *addonComponent) resolveImageRepoAndTag(ctx context.Context, image strin
 		}
 		return
 	}
-	repo, tag, err = c.resolveApkoImageRepoAndTag(ctx, image, arch)
+	repo, tag, err = c.resolveApkoImageRepoAndTag(ctx, arch)
 	if err != nil {
 		err = fmt.Errorf("resolve apko image repo and tag: %w", err)
 	}
@@ -118,7 +118,7 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 	return repo, tag, nil
 }
 
-func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, arch string) (string, string, error) {
 	builtImage, err := GetImageNameFromBuildFile("build/image")
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get digest from build file: %w", err)
