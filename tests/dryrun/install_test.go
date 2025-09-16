@@ -536,9 +536,9 @@ func TestNoDomains(t *testing.T) {
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
 		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
-		"['localpv-provisioner'].helperPod.image.registry": "proxy.staging.replicated.com/anonymous/",
-		"['localpv-provisioner'].localpv.image.registry":   "proxy.staging.replicated.com/anonymous/",
-		"['preUpgradeHook'].image.registry":                "proxy.staging.replicated.com/anonymous",
+		"['localpv-provisioner'].helperPod.image.registry": "proxy.staging.replicated.com/library/",
+		"['localpv-provisioner'].localpv.image.registry":   "proxy.staging.replicated.com/library/",
+		"['preUpgradeHook'].image.registry":                "proxy.staging.replicated.com/library",
 	})
 
 	// embedded cluster operator
