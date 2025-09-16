@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -22,34 +23,36 @@ var openebsRepo = &repo.Entry{
 var openebsImageComponents = map[string]addonComponent{
 	"docker.io/openebs/provisioner-localpv": {
 		name: "openebs-provisioner-localpv",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			// package name is not the same as the component name
-			return "dynamic-localpv-provisioner"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/openebs-provisioner-localpv"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"docker.io/openebs/linux-utils": {
-		name:                         "openebs-linux-utils",
-		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
-	},
-	"docker.io/bitnami/kubectl": {
-		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		name: "openebs-linux-utils",
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/openebs-linux-utils"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
-		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
+		upstreamVersionInputOverride: "INPUT_OPENEBS_VERSION",
 	},
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/kubectl"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 	"docker.io/openebs/kubectl": {
 		name: "kubectl",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "kubectl"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/kubectl"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
@@ -96,9 +99,15 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
+		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(hcli, withproto, nextChartVersion)
+		if err != nil {
+			return fmt.Errorf("failed to find openebs linux utils version from chart: %w", err)
+		}
+		logrus.Infof("found latest openebs linux utils version %s", linuxUtilsVersion)
+
 		logrus.Infof("updating openebs images")
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, nextChartVersion, nil)
+		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, linuxUtilsVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -124,7 +133,15 @@ var updateOpenEBSImagesCommand = &cli.Command{
 
 		current := openebs.Metadata
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, current.Version, c.StringSlice("image"))
+		image, ok := current.Images["openebs-linux-utils"]
+		if !ok {
+			return fmt.Errorf("failed to find openebs linux utils image")
+		}
+		linuxUtilsVersion, _, _ := strings.Cut(image.Tag["amd64"], "@")
+		linuxUtilsVersion = strings.TrimSuffix(linuxUtilsVersion, "-amd64")
+		linuxUtilsVersion = strings.TrimPrefix(linuxUtilsVersion, "v")
+
+		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, linuxUtilsVersion, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -168,4 +185,27 @@ func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL st
 	}
 
 	return nil
+}
+
+var openebsLinuxUtilsRegexp = regexp.MustCompile(`openebs/linux-utils:v?[\d\.]+`)
+
+func findOpenEBSLinuxUtilsVersionFromChart(hcli helm.Client, chartURL string, chartVersion string) (string, error) {
+	values, err := release.GetValuesWithOriginalImages("openebs")
+	if err != nil {
+		return "", fmt.Errorf("failed to get velero values: %v", err)
+	}
+	images, err := helm.ExtractMatchesFromChart(hcli, chartURL, chartVersion, values, openebsLinuxUtilsRegexp)
+	if err != nil {
+		return "", fmt.Errorf("failed to get images from openebs chart: %w", err)
+	}
+
+	for _, image := range images {
+		tag := TagFromImage(image)
+		image = RemoveTagFromImage(image)
+		if image == "openebs/linux-utils" {
+			return strings.TrimPrefix(tag, "v"), nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find openebs linux utils image tag")
 }
