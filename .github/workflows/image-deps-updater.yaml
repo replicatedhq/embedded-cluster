@@ -88,6 +88,16 @@ jobs:
         chmod +x ./output/bin/buildtools
         ./output/bin/buildtools update images ${{ matrix.addon }}
 
+    - name: Determine target branch
+      id: determine-target
+      run: |
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          target_branch="automation/${{ matrix.addon }}-image-dependencies"
+        else
+          target_branch="automation/${{ github.ref_name }}/${{ matrix.addon }}-image-dependencies"
+        fi
+        echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
+
     - name: Create Pull Request # creates a PR if there are differences
       uses: peter-evans/create-pull-request@v7
       id: cpr
@@ -95,7 +105,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update ${{ matrix.addon }} images"
-        branch: automation/${{ matrix.addon }}-image-dependencies/${{ github.ref_name }}
+        branch: ${{ steps.determine-target.outputs.target_branch }}
         delete-branch: true
         labels: |
           automated-pr
@@ -138,6 +148,16 @@ jobs:
         ./scripts/k0s-update-images.sh "$k0s_minor_version" \
           UPDATE_ALL_IMAGES=true
 
+    - name: Determine target branch
+      id: determine-target
+      run: |
+        if [ "${{ github.ref_name }}" = "main" ]; then
+          target_branch="automation/k0s-image-dependencies"
+        else
+          target_branch="automation/${{ github.ref_name }}/k0s-image-dependencies"
+        fi
+        echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
+
     - name: Create Pull Request # creates a PR if there are differences
       uses: peter-evans/create-pull-request@v7
       id: cpr
@@ -145,7 +165,7 @@ jobs:
         token: ${{ secrets.GH_PAT }}
         commit-message: 'Update image versions'
         title: "chore: update k0s images"
-        branch: automation/k0s-image-dependencies/${{ github.ref_name }}
+        branch: ${{ steps.determine-target.outputs.target_branch }}
         delete-branch: true
         labels: |
           automated-pr

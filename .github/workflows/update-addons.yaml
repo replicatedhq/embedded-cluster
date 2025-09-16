@@ -77,13 +77,22 @@ jobs:
         run: |
           chmod 755 ./output/bin/buildtools
           ./output/bin/buildtools update addon ${{ matrix.addon }}
+      - name: Determine target branch
+        id: determine-target
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            target_branch="automation/update-makefile-${{ matrix.addon }}"
+          else
+            target_branch="automation/${{ github.ref_name }}/update-makefile-${{ matrix.addon }}"
+          fi
+          echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version
           title: "feat: update ${{ matrix.addon }} version"
-          branch: automation/update-makefile-${{ matrix.addon }}/${{ github.ref_name }}
+          branch: ${{ steps.determine-target.outputs.target_branch }}
           delete-branch: true
           labels: |
             automated-pr

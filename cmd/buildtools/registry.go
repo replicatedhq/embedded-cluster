@@ -25,8 +25,10 @@ var registryImageComponents = map[string]addonComponent{
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/registry"
-			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
+			// TODO: unpin this
+			return fmt.Sprintf("%s:%s", ref, "2.8.3"), nil
+			// constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			// return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_REGISTRY_VERSION",
 	},
@@ -45,8 +47,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		defer hcli.Close()
 
-		// TODO: unpin this
-		nextChartVersion := "2.8.3" // os.Getenv("INPUT_REGISTRY_CHART_VERSION")
+		nextChartVersion := os.Getenv("INPUT_REGISTRY_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_REGISTRY_CHART_VERSION: %s", nextChartVersion)
 		} else {
