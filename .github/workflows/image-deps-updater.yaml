@@ -31,24 +31,24 @@ jobs:
   compile-buildtools:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
 
-    - name: Setup Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
-        cache-dependency-path: "**/*.sum"
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
 
-    - name: Compile buildtools
-      run: |
-        make buildtools
+      - name: Compile buildtools
+        run: |
+          make buildtools
 
-    - name: Upload buildtools artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: buildtools
-        path: output/bin/buildtools
+      - name: Upload buildtools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildtools
+          path: output/bin/buildtools
 
   update-addon-images:
     runs-on: ubuntu-latest
@@ -62,101 +62,121 @@ jobs:
           - velero
           - seaweedfs
     steps:
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
 
-    - name: Download buildtools artifact
-      uses: actions/download-artifact@v5
-      with:
-        name: buildtools
-        path: output/bin
+      - name: Download buildtools artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: buildtools
+          path: output/bin
 
-    - name: Update ${{ matrix.addon }} images
-      env:
-        IMAGES_REGISTRY_SERVER: index.docker.io
-        IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-        IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
-        INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
-        INPUT_REGISTRY_VERSION: ${{ github.event.inputs.registry_version }}
-        INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
-        INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
-        INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
-        INPUT_SEAWEEDFS_VERSION: ${{ github.event.inputs.seaweedfs_version }}
-        ARCHS: "amd64,arm64"
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        chmod +x ./output/bin/buildtools
-        ./output/bin/buildtools update images ${{ matrix.addon }}
+      - name: Update ${{ matrix.addon }} images
+        env:
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+          INPUT_OPENEBS_VERSION: ${{ github.event.inputs.openebs_version }}
+          INPUT_REGISTRY_VERSION: ${{ github.event.inputs.registry_version }}
+          INPUT_VELERO_VERSION: ${{ github.event.inputs.velero_version }}
+          INPUT_VELERO_AWS_PLUGIN_VERSION: ${{ github.event.inputs.velero_aws_plugin_version }}
+          INPUT_KUBECTL_VERSION: ${{ github.event.inputs.kubectl_version }}
+          INPUT_SEAWEEDFS_VERSION: ${{ github.event.inputs.seaweedfs_version }}
+          ARCHS: "amd64,arm64"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x ./output/bin/buildtools
+          ./output/bin/buildtools update images ${{ matrix.addon }}
 
-    - name: Create Pull Request # creates a PR if there are differences
-      uses: peter-evans/create-pull-request@v7
-      id: cpr
-      with:
-        token: ${{ secrets.GH_PAT }}
-        commit-message: 'Update image versions'
-        title: "chore: update ${{ matrix.addon }} images"
-        branch: automation/${{ matrix.addon }}-image-dependencies/${{ github.ref_name }}
-        delete-branch: true
-        labels: |
-          automated-pr
-          images
-          type::security
-        draft: false
-        base: ${{ github.ref_name }}
-        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+      - name: Determine target branch
+        id: determine-target
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            target_branch="automation/${{ matrix.addon }}-image-dependencies"
+          else
+            target_branch="automation/${{ github.ref_name }}/${{ matrix.addon }}-image-dependencies"
+          fi
+          echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
 
-    - name: Check outputs
-      if: ${{ steps.cpr.outputs.pull-request-number }}
-      run: |
-        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+      - name: Create Pull Request # creates a PR if there are differences
+        uses: peter-evans/create-pull-request@v7
+        id: cpr
+        with:
+          token: ${{ secrets.GH_PAT }}
+          commit-message: 'Update image versions'
+          title: "chore: update ${{ matrix.addon }} images"
+          branch: ${{ steps.determine-target.outputs.target_branch }}
+          delete-branch: true
+          labels: |
+            automated-pr
+            images
+            type::security
+          draft: false
+          base: ${{ github.ref_name }}
+          body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
 
   update-k0s-images:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
 
-    - name: Setup Go
-      uses: actions/setup-go@v6
-      with:
-        go-version-file: go.mod
-        cache-dependency-path: "**/*.sum"
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
 
-    - name: Update k0s images
-      env:
-        IMAGES_REGISTRY_SERVER: index.docker.io
-        IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
-        IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
-        ARCHS: "amd64,arm64"
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        k0s_minor_version=$(make print-K0S_MINOR_VERSION)
-        if [ -n "${{ github.event.inputs.k0s_minor_version }}" ]; then
-          k0s_minor_version="${{ github.event.inputs.k0s_minor_version }}"
-        fi
-        ./scripts/k0s-update-images.sh "$k0s_minor_version" \
-          UPDATE_ALL_IMAGES=true
+      - name: Update k0s images
+        env:
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+          ARCHS: "amd64,arm64"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          if [ -n "${{ github.event.inputs.k0s_minor_version }}" ]; then
+            k0s_minor_version="${{ github.event.inputs.k0s_minor_version }}"
+          fi
+          ./scripts/k0s-update-images.sh "$k0s_minor_version" \
+            UPDATE_ALL_IMAGES=true
 
-    - name: Create Pull Request # creates a PR if there are differences
-      uses: peter-evans/create-pull-request@v7
-      id: cpr
-      with:
-        token: ${{ secrets.GH_PAT }}
-        commit-message: 'Update image versions'
-        title: "chore: update k0s images"
-        branch: automation/k0s-image-dependencies/${{ github.ref_name }}
-        delete-branch: true
-        labels: |
-          automated-pr
-          images
-          type::security
-        draft: false
-        base: ${{ github.ref_name }}
-        body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+      - name: Determine target branch
+        id: determine-target
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            target_branch="automation/k0s-image-dependencies"
+          else
+            target_branch="automation/${{ github.ref_name }}/k0s-image-dependencies"
+          fi
+          echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
 
-    - name: Check outputs
-      if: ${{ steps.cpr.outputs.pull-request-number }}
-      run: |
-        echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
-        echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
+      - name: Create Pull Request # creates a PR if there are differences
+        uses: peter-evans/create-pull-request@v7
+        id: cpr
+        with:
+          token: ${{ secrets.GH_PAT }}
+          commit-message: 'Update image versions'
+          title: "chore: update k0s images"
+          branch: ${{ steps.determine-target.outputs.target_branch }}
+          delete-branch: true
+          labels: |
+            automated-pr
+            images
+            type::security
+          draft: false
+          base: ${{ github.ref_name }}
+          body: "Automated changes by the [image-deps-updater](https://github.com/replicatedhq/embedded-cluster/blob/main/.github/workflows/image-deps-updater.yaml) GitHub action"
+
+      - name: Check outputs
+        if: ${{ steps.cpr.outputs.pull-request-number }}
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}"
