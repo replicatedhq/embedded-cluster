@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
@@ -98,9 +99,15 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
+		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(c.Context, hcli, withproto, nextChartVersion)
+		if err != nil {
+			return fmt.Errorf("failed to find openebs linux utils version from chart: %w", err)
+		}
+		logrus.Infof("found latest openebs linux utils version %s", linuxUtilsVersion)
+
 		logrus.Infof("updating openebs images")
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, nextChartVersion, nil)
+		err = updateOpenEBSAddonImages(c.Context, hcli, withproto, nextChartVersion, linuxUtilsVersion, nil)
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -126,7 +133,15 @@ var updateOpenEBSImagesCommand = &cli.Command{
 
 		current := openebs.Metadata
 
-		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, current.Version, c.StringSlice("image"))
+		image, ok := current.Images["openebs-linux-utils"]
+		if !ok {
+			return fmt.Errorf("failed to find openebs linux utils image")
+		}
+		linuxUtilsVersion, _, _ := strings.Cut(image.Tag["amd64"], "@")
+		linuxUtilsVersion = strings.TrimSuffix(linuxUtilsVersion, "-amd64")
+		linuxUtilsVersion = strings.TrimPrefix(linuxUtilsVersion, "v")
+
+		err = updateOpenEBSAddonImages(c.Context, hcli, current.Location, current.Version, linuxUtilsVersion, c.StringSlice("image"))
 		if err != nil {
 			return fmt.Errorf("failed to update openebs images: %w", err)
 		}
@@ -170,4 +185,27 @@ func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL st
 	}
 
 	return nil
+}
+
+var openebsLinuxUtilsRegexp = regexp.MustCompile(`openebs/linux-utils:v?[\d\.]+`)
+
+func findOpenEBSLinuxUtilsVersionFromChart(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) (string, error) {
+	values, err := release.GetValuesWithOriginalImages("openebs")
+	if err != nil {
+		return "", fmt.Errorf("failed to get velero values: %v", err)
+	}
+	images, err := helm.ExtractMatchesFromChart(hcli, chartURL, chartVersion, values, openebsLinuxUtilsRegexp)
+	if err != nil {
+		return "", fmt.Errorf("failed to get images from openebs chart: %w", err)
+	}
+
+	for _, image := range images {
+		image = RemoveTagFromImage(image)
+		if image == "openebs/linux-utils" {
+			tag := TagFromImage(image)
+			return strings.TrimPrefix(tag, "v"), nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find openebs linux utils image tag")
 }
