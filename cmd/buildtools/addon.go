@@ -77,12 +77,8 @@ func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, ima
 
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(image), arch, digest)
 
-	var repo string
-	if strings.HasPrefix(image, "proxy.replicated.com/") {
-		repo = FamiliarImageName(RemoveTagFromImage(image))
-	} else {
-		repo = fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
-	}
+	repo := FamiliarImageName(RemoveTagFromImage(image))
+	repo = addProxyAnonymousPrefix(repo)
 
 	return repo, tag, nil
 }
@@ -116,12 +112,8 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
 
-	var repo string
-	if strings.HasPrefix(customImage, "proxy.replicated.com/") {
-		repo = FamiliarImageName(RemoveTagFromImage(customImage))
-	} else {
-		repo = fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
-	}
+	repo := FamiliarImageName(RemoveTagFromImage(image))
+	repo = addProxyAnonymousPrefix(repo)
 
 	return repo, tag, nil
 }
@@ -138,7 +130,9 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image s
 	}
 
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(builtImage), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(builtImage)))
+
+	repo := FamiliarImageName(RemoveTagFromImage(builtImage))
+	repo = addProxyAnonymousPrefix(repo)
 
 	return repo, tag, nil
 }

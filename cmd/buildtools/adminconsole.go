@@ -58,10 +58,10 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			return nil
 		}
 
-		upstream := "registry.replicated.com/library/admin-console"
+		upstream := "proxy.replicated.com/library/admin-console"
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream),
+			Location: fmt.Sprintf("oci://%s", upstream),
 			Images:   make(map[string]release.AddonImage),
 		}
 
