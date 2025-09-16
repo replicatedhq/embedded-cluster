@@ -15,9 +15,10 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/2dd6bcb3f57b0ba3aa3f0cea262c60f917940720/README.md#compatibility
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/v1.13.0/README.md#compatibility
 var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
 	"1.16": mustParseSemverConstraints(">=1.12,<1.13"),
+	"1.17": mustParseSemverConstraints(">=1.13,<1.14"),
 }
 
 var veleroImageComponents = map[string]addonComponent{
