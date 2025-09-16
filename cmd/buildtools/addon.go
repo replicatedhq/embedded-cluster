@@ -74,8 +74,16 @@ func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, ima
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(image), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
+
+	var repo string
+	if strings.HasPrefix(image, "proxy.replicated.com/") {
+		repo = FamiliarImageName(RemoveTagFromImage(image))
+	} else {
+		repo = fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(image)))
+	}
+
 	return repo, tag, nil
 }
 
@@ -90,6 +98,7 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 	if err != nil {
 		return "", "", fmt.Errorf("get latest k8s version: %w", err)
 	}
+
 	customImage, err := c.getCustomImageName(addonComponentOptions{
 		ctx:              ctx,
 		k0sVersion:       k0sVersion,
@@ -99,12 +108,21 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image name for %s: %w", c.name, err)
 	}
+
 	digest, err := GetImageDigest(ctx, customImage, arch)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
-	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
+
+	var repo string
+	if strings.HasPrefix(customImage, "proxy.replicated.com/") {
+		repo = FamiliarImageName(RemoveTagFromImage(customImage))
+	} else {
+		repo = fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(customImage)))
+	}
+
 	return repo, tag, nil
 }
 
@@ -118,8 +136,10 @@ func (c *addonComponent) resolveApkoImageRepoAndTag(ctx context.Context, image s
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", builtImage, err)
 	}
+
 	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(builtImage), arch, digest)
 	repo := fmt.Sprintf("proxy.replicated.com/anonymous/%s", FamiliarImageName(RemoveTagFromImage(builtImage)))
+
 	return repo, tag, nil
 }
 
