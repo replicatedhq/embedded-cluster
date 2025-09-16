@@ -52,7 +52,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_REGISTRY_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest registry chart version")
-			latest, err := LatestChartVersion(hcli, registryRepo, "registry")
+			latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest registry chart version: %v", err)
 			}
