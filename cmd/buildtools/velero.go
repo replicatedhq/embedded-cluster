@@ -51,12 +51,7 @@ var veleroImageComponents = map[string]addonComponent{
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/kubectl"
-			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
-			if err != nil {
-				return "", fmt.Errorf("get greatest tag from registry: %w", err)
-			}
-			return fmt.Sprintf("%s:%s", ref, tag), nil
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
