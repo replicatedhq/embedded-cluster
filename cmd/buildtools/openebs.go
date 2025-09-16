@@ -51,12 +51,7 @@ var openebsImageComponents = map[string]addonComponent{
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/kubectl"
-			k0sVersion, err := getK0sVersion()
-			if err != nil {
-				return "", fmt.Errorf("get k0s version: %w", err)
-			}
-			constraints := mustParseSemverConstraints(latestPatchConstraint(k0sVersion))
-			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
