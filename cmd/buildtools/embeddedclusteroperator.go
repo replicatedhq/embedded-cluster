@@ -116,6 +116,8 @@ var updateOperatorImagesCommand = &cli.Command{
 }
 
 func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string, filteredImages []string) error {
+	chartURL = replaceReplicatedLibraryPrefix(chartURL)
+
 	newmeta := release.AddonMetadata{
 		Version:  chartVersion,
 		Location: chartURL,
