@@ -157,6 +157,9 @@ jobs:
   int-tests-kind:
     name: Integration tests (kind)
     runs-on: ubuntu-latest
+    needs:
+      - output-vars
+      - should-run-int-tests-kind
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
@@ -167,17 +170,20 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+        uses: helm/kind-action@50ea670a058121270d63a63b4f1e361d722932e4
+        with:
+          install_only: true
       - name: Run tests
         run: |
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration test-kind SHORT=true
 
   int-tests-kind-ha-registry:
     name: Integration tests (kind) HA registry
     runs-on: ubuntu-latest
+    needs:
+      - output-vars
+      - should-run-int-tests-kind
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
@@ -188,12 +194,12 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+        uses: helm/kind-action@50ea670a058121270d63a63b4f1e361d722932e4
+        with:
+          install_only: true
       - name: Run tests
         run: |
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap
 
   dryrun-tests:

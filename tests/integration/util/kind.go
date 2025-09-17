@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
-	"go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/yaml"
 )
 
 type KindClusterOptions struct {
