@@ -2077,6 +2077,8 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
 
+	downloadECRelease(t, tc, 0)
+
 	// install kots cli before starting the network report.
 	if err := tc.InstallKotsCLI(0); err != nil {
 		t.Fatalf("fail to install kots cli on node 0: %v", err)
@@ -2086,7 +2088,6 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to enable network reporting: %v", err)
 	}
 
-	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
 
 	if err := tc.BypassKurlProxy(); err != nil {
