@@ -3,7 +3,6 @@ package util
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -191,7 +190,6 @@ func writeKindClusterConfig(t *testing.T, config kind.Cluster) string {
 	if err != nil {
 		t.Fatalf("failed to marshal kind cluster config: %s", err)
 	}
-	fmt.Println(string(data))
 	return WriteTempFile(t, "kind-config-*.yaml", data, 0644)
 }
 

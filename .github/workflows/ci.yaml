@@ -175,7 +175,7 @@ jobs:
           install_only: true
       - name: Run tests
         run: |
-          export PACKAGE_VERSION=${{ needs.output-vars.outputs.ec_version }}
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration test-kind SHORT=true
 
   int-tests-kind-ha-registry:
@@ -199,7 +199,7 @@ jobs:
           install_only: true
       - name: Run tests
         run: |
-          export PACKAGE_VERSION=${{ needs.output-vars.outputs.ec_version }}
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap
 
   dryrun-tests:
