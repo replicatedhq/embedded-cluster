@@ -67,9 +67,6 @@ func NewCluster(in *ClusterInput) *Cluster {
 	}
 	c.t.Cleanup(c.Destroy)
 
-	// Register this cluster for global cleanup
-	registerClusterForGlobalCleanup(c)
-
 	nodes, err := NewNodes(in)
 	c.Nodes = nodes // set nodes to the cluster so we can clean up
 	if err != nil {
@@ -346,9 +343,6 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 
 func (c *Cluster) Destroy() {
 	c.cleanupOnce.Do(func() {
-		// Unregister from global cleanup
-		unregisterClusterForGlobalCleanup(c)
-
 		if os.Getenv("SKIP_CMX_CLEANUP") != "" {
 			c.t.Logf("Skipping CMX cleanup")
 			return
