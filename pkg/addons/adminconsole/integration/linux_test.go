@@ -35,7 +35,7 @@ func TestLinux_Airgap(t *testing.T) {
 		DataDir:          dataDir,
 		K0sDataDir:       filepath.Join(dataDir, "k0s"),
 
-		Password:      "password",
+		PasswordHash:  []byte("$2a$10$test.hash.for.password"),
 		TLSCertBytes:  []byte("cert"),
 		TLSKeyBytes:   []byte("key"),
 		Hostname:      "admin-console",

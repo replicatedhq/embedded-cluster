@@ -101,6 +101,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
+			kubernetesinfra.WithPasswordHash([]byte("$2a$10$test.hash.for.password")),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -280,6 +281,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithMetadataClient(fakeMcli),
 			kubernetesinfra.WithHelmClient(helmMock),
 			kubernetesinfra.WithLicense(assets.LicenseData),
+			kubernetesinfra.WithPasswordHash([]byte("$2a$10$test.hash.for.password")),
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{

@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,10 +59,15 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 }
 
 func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
+	// Generate bcrypt hash for the test password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("password"), 10)
+	require.NoError(t, err)
+
 	cfg := types.APIConfig{
-		Password:    "password",
-		ReleaseData: DefaultReleaseData(),
+		PasswordHash: passwordHash,
+		ReleaseData:  DefaultReleaseData(),
 	}
+
 	a, err := api.New(cfg, opts...)
 	require.NoError(t, err)
 	return a

@@ -59,7 +59,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithReleaseData(h.cfg.ReleaseData),
 			install.WithConfigValues(h.cfg.ConfigValues),
 			install.WithEndUserConfig(h.cfg.EndUserConfig),
-			install.WithPassword(h.cfg.Password),
+			install.WithPasswordHash(h.cfg.PasswordHash),
 			//nolint:staticcheck // QF1008 this is very ambiguous, we should re-think the config struct
 			install.WithInstallation(h.cfg.KubernetesConfig.Installation),
 		)

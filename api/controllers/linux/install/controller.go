@@ -53,7 +53,7 @@ type InstallController struct {
 	netUtils                  utils.NetUtils
 	metricsReporter           metrics.ReporterInterface
 	releaseData               *release.ReleaseData
-	password                  string
+	passwordHash              []byte
 	tlsConfig                 types.TLSConfig
 	license                   []byte
 	airgapBundle              string
@@ -109,9 +109,9 @@ func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
 	}
 }
 
-func WithPassword(password string) InstallControllerOption {
+func WithPasswordHash(passwordHash []byte) InstallControllerOption {
 	return func(c *InstallController) {
-		c.password = password
+		c.passwordHash = passwordHash
 	}
 }
 
@@ -277,7 +277,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.infraManager = infra.NewInfraManager(
 			infra.WithLogger(controller.logger),
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
-			infra.WithPassword(controller.password),
+			infra.WithPasswordHash(controller.passwordHash),
 			infra.WithTLSConfig(controller.tlsConfig),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),

@@ -11,7 +11,7 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
-	Password           string
+	PasswordHash       []byte // Bcrypt hash of the admin password for API authentication
 	TLSConfig          TLSConfig
 	License            []byte
 	AirgapBundle       string

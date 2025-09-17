@@ -28,7 +28,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: false,
-				AdminConsolePwd:         "password123",
+				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 3)
@@ -53,7 +53,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Empty(t, adminConsole.ServiceCIDR, "AdminConsole should not have a service CIDR")
-				assert.Equal(t, "password123", adminConsole.Password)
+				assert.Equal(t, []byte("$2a$10$test.hash.for.password123"), adminConsole.PasswordHash)
 			},
 		},
 		{
@@ -62,7 +62,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: false,
-				AdminConsolePwd:         "password123",
+				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
@@ -92,7 +92,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
-				assert.Equal(t, "password123", adminConsole.Password)
+				assert.Equal(t, []byte("$2a$10$test.hash.for.password123"), adminConsole.PasswordHash)
 			},
 		},
 		{
@@ -101,7 +101,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: true,
-				AdminConsolePwd:         "password123",
+				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
@@ -131,7 +131,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.False(t, adminConsole.IsHA, "AdminConsole should not be in high availability mode")
 				assert.Nil(t, adminConsole.Proxy, "AdminConsole should not have a proxy")
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
-				assert.Equal(t, "password123", adminConsole.Password)
+				assert.Equal(t, []byte("$2a$10$test.hash.for.password123"), adminConsole.PasswordHash)
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: true,
-				AdminConsolePwd:         "password123",
+				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 				ProxySpec: &ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
@@ -186,7 +186,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				assert.Equal(t, "https://proxy.example.com", adminConsole.Proxy.HTTPSProxy)
 				assert.Equal(t, "localhost,127.0.0.1", adminConsole.Proxy.NoProxy)
 				assert.Equal(t, "10.96.0.0/12", adminConsole.ServiceCIDR)
-				assert.Equal(t, "password123", adminConsole.Password)
+				assert.Equal(t, []byte("$2a$10$test.hash.for.password123"), adminConsole.PasswordHash)
 			},
 		},
 	}

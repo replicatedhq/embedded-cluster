@@ -32,7 +32,7 @@ func WithLogger(logger logrus.FieldLogger) Option {
 	}
 }
 
-func New(password string, opts ...Option) (*Handler, error) {
+func New(passwordHash []byte, opts ...Option) (*Handler, error) {
 	h := &Handler{}
 
 	for _, opt := range opts {
@@ -44,7 +44,7 @@ func New(password string, opts ...Option) (*Handler, error) {
 	}
 
 	if h.authController == nil {
-		authController, err := auth.NewAuthController(password)
+		authController, err := auth.NewAuthControllerFromHash(passwordHash)
 		if err != nil {
 			return nil, fmt.Errorf("new auth controller: %w", err)
 		}

@@ -51,6 +51,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/bcrypt"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -97,6 +98,7 @@ type installConfig struct {
 	clusterID    string
 	license      *kotsv1beta1.License
 	licenseBytes []byte
+	passwordHash []byte
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
@@ -697,7 +699,7 @@ func runManagerExperienceInstall(
 
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: flags.adminConsolePassword,
+			PasswordHash: flags.passwordHash,
 			TLSConfig: apitypes.TLSConfig{
 				CertBytes: flags.tlsCertBytes,
 				KeyBytes:  flags.tlsKeyBytes,
@@ -854,7 +856,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 
 	opts := &addons.InstallOptions{
 		ClusterID:               flags.clusterID,
-		AdminConsolePwd:         flags.adminConsolePassword,
+		AdminConsolePwdHash:     flags.passwordHash,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 flags.license,
 		IsAirgap:                flags.airgapBundle != "",
@@ -960,6 +962,12 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 
 				if validateAdminConsolePassword(promptA, promptB) {
 					flags.adminConsolePassword = promptA
+					// Generate bcrypt hash and store it in the installConfig
+					hash, err := generatePasswordHash(promptA)
+					if err != nil {
+						return fmt.Errorf("failed to hash password: %w", err)
+					}
+					flags.passwordHash = hash
 					return nil
 				}
 			}
@@ -970,6 +978,13 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 	if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
 		return NewErrorNothingElseToAdd(errors.New("password is not valid"))
 	}
+
+	// Generate bcrypt hash and store it in the installConfig
+	hash, err := generatePasswordHash(flags.adminConsolePassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	flags.passwordHash = hash
 
 	return nil
 }
@@ -1345,6 +1360,20 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
+}
+
+// generatePasswordHash creates a bcrypt hash from a plaintext password
+func generatePasswordHash(password string) ([]byte, error) {
+	if len(password) < minAdminPasswordLength {
+		return nil, fmt.Errorf("password must be at least %d characters", minAdminPasswordLength)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate password hash: %w", err)
+	}
+
+	return hash, nil
 }
 
 func replicatedAppURL() string {
