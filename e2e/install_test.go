@@ -2077,6 +2077,11 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
 
+	// install kots cli before starting the network report.
+	if err := tc.InstallKotsCLI(0); err != nil {
+		t.Fatalf("fail to install kots cli on node 0: %v", err)
+	}
+
 	if err := tc.SetNetworkReport(true); err != nil {
 		t.Fatalf("failed to enable network reporting: %v", err)
 	}
@@ -2110,10 +2115,6 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	allowedDomains := map[string]struct{}{
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
-
-		// these two appear due to the install_cots_cli function in single-node-install.sh
-		"kots.io":                              {},
-		"release-assets.githubusercontent.com": {},
 	}
 
 	seenAllowedDomains := map[string]struct{}{}
