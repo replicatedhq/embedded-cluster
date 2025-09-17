@@ -68,9 +68,9 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
 		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
-		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/anonymous/",
-		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/anonymous/",
-		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net/anonymous",
+		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/library/",
+		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/library/",
+		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net/library",
 	})
 
 	// embedded cluster operator
@@ -194,9 +194,9 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "fake-replicated-proxy.test.net/anonymous")
 	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "fake-replicated-proxy.test.net/anonymous")
 	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/library")
 }
 
 func TestCustomDataDir(t *testing.T) {
