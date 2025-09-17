@@ -3,6 +3,7 @@ package e2e
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -2072,60 +2073,72 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	if err := tc.NPMInstallPlaywright(); err != nil {
+		t.Fatalf("fail to setup playwright: %v", err)
+	}
+
 	if err := tc.SetNetworkReport(true); err != nil {
 		t.Fatalf("failed to enable network reporting: %v", err)
 	}
 
 	downloadECRelease(t, tc, 0)
 	installSingleNode(t, tc)
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+
+	if err := tc.BypassKurlProxy(); err != nil {
+		t.Fatalf("fail to bypass kurl-proxy: %v", err)
+	}
+
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
 	checkInstallationState(t, tc)
 	checkNodeJoinCommand(t, tc, 0)
 
+	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
+	time.Sleep(20 * time.Second)
+
 	if err := tc.SetNetworkReport(false); err != nil {
 		t.Fatalf("failed to disable network reporting: %v", err)
 	}
 
-	// TODO: network events can came a few seconds to flow from cluster-provisioner, should look into ways to signal when a report has finished
-	time.Sleep(5 * time.Second)
-
-	networkEvents, _, err := tc.CollectNetworkReport()
+	networkEvents, err := tc.CollectNetworkReport()
 	if err != nil {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
-	domainsByIps := make(map[string]map[string]struct{})
+	allowedDomains := map[string]struct{}{
+		"ec-e2e-proxy.testcluster.net":          {},
+		"ec-e2e-replicated-app.testcluster.net": {},
+
+		// these two appear due to the install_cots_cli function in single-node-install.sh
+		"kots.io":                              {},
+		"release-assets.githubusercontent.com": {},
+	}
+
+	seenAllowedDomains := map[string]struct{}{}
+	t.Log("Logged outbound external network accesses:")
 	for _, ne := range networkEvents {
-		// filter out local traffic
-		if ne.DstIP == "0.0.0.0" {
+		if ne.DNSQueryName == "" {
 			continue
 		}
 
-		domains := domainsByIps[ne.DstIP]
-		if domains == nil {
-			domains = make(map[string]struct{})
+		// TODO: currently cmx reporting will return an ip as a domain, remove this once fixed
+		if ip := net.ParseIP(ne.DNSQueryName); ip != nil {
+			continue
 		}
 
-		if len(strings.TrimSpace(ne.DNSQueryName)) > 0 {
-			domains[ne.DNSQueryName] = struct{}{}
-		}
-
-		domainsByIps[ne.DstIP] = domains
-	}
-
-	t.Log("Logged outbound external network accesses:\n")
-	for ip, domains := range domainsByIps {
-		domainOutput := ""
-		for domain := range domains {
-			domainOutput += fmt.Sprintf("\t- %v\n", domain)
-		}
-
-		t.Logf("IP: %v", ip)
-		if len(domainOutput) > 0 {
-			t.Logf("\n%v", domainOutput)
+		_, allowed := allowedDomains[ne.DNSQueryName]
+		// only print allowed domains once to reduce test output noise, but print every violation we see
+		if allowed {
+			if _, ok := seenAllowedDomains[ne.DNSQueryName]; !ok {
+				t.Logf("%v - ALLOWED", ne.DNSQueryName)
+				seenAllowedDomains[ne.DNSQueryName] = struct{}{}
+			}
+		} else {
+			t.Logf("%v - UNALLOWED\n", ne.DNSQueryName)
+			t.Logf("\tUnallowed event details: %+v", ne)
+			t.Fail()
 		}
 	}
 }
