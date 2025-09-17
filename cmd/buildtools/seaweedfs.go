@@ -22,8 +22,10 @@ var seaweedfsRepo = &repo.Entry{
 var seaweedfsImageComponents = map[string]addonComponent{
 	"docker.io/chrislusf/seaweedfs": {
 		name: "seaweedfs",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "seaweedfs"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/seaweedfs"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_SEAWEEDFS_VERSION",
 	},
