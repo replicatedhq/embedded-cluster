@@ -2,9 +2,11 @@ package dryrun
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	nodeutil "k8s.io/component-helpers/node/util"
 )
 
 func TestJoinControllerNode(t *testing.T) {
@@ -335,12 +338,17 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 	})
 
 	// --- validate commands --- //
+	// Get expected hostname to validate it's included in the kubelet args
+	expectedHostname, err := nodeutil.GetHostname("")
+	require.NoError(t, err, "should be able to get hostname")
+
 	assertCommands(t, dr.Commands,
 		[]interface{}{
 			"firewall-cmd --info-zone ec-net",
 			"firewall-cmd --add-source 10.2.0.0/17 --permanent --zone ec-net",
 			"firewall-cmd --add-source 10.2.128.0/17 --permanent --zone ec-net",
 			"firewall-cmd --reload",
+			regexp.MustCompile(fmt.Sprintf(`--kubelet-extra-args=--node-ip=.* --hostname-override=%s`, regexp.QuoteMeta(expectedHostname))),
 		},
 		false,
 	)

@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	nodeutil "k8s.io/component-helpers/node/util"
 )
 
 func TestDefaultInstallation(t *testing.T) {
@@ -116,9 +117,14 @@ func testDefaultInstallationImpl(t *testing.T) {
 	})
 
 	// --- validate commands --- //
+	// Get expected hostname to validate it's included in the kubelet args
+	expectedHostname, err := nodeutil.GetHostname("")
+	require.NoError(t, err, "could not get hostname")
+
 	assertCommands(t, dr.Commands,
 		[]interface{}{
 			regexp.MustCompile(`k0s install controller .* --data-dir /var/lib/embedded-cluster/k0s`),
+			regexp.MustCompile(fmt.Sprintf(`--kubelet-extra-args=--node-ip=.* --hostname-override=%s`, regexp.QuoteMeta(expectedHostname))),
 		},
 		false,
 	)
