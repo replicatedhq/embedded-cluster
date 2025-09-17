@@ -17,8 +17,9 @@ import (
 var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/coredns": {
 		name: "coredns",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "coredns"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/coredns"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 	"quay.io/k0sproject/calico-node": {
@@ -53,34 +54,33 @@ var k0sImageComponents = map[string]addonComponent{
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
 		name: "metrics-server",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "metrics-server"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/metrics-server"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 	"quay.io/k0sproject/metrics-server": {
 		name: "metrics-server",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return "metrics-server"
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/metrics-server"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 	"quay.io/k0sproject/kube-proxy": {
 		name: "kube-proxy",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			// latest patch version of the current minor version
+			ref := "registry.replicated.com/library/kube-proxy"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			tag, err := GetGreatestGitHubTag(opts.ctx, "kubernetes", "kubernetes", constraints)
-			if err != nil {
-				return "", fmt.Errorf("failed to get gh release: %w", err)
-			}
-			return fmt.Sprintf("registry.k8s.io/kube-proxy:%s", tag), nil
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 	},
 	"registry.k8s.io/pause":    pauseComponent,
 	"quay.io/k0sproject/pause": pauseComponent,
 	"quay.io/k0sproject/envoy-distroless": {
 		name: "envoy-distroless",
-		getWolfiPackageName: func(opts addonComponentOptions) string {
-			return fmt.Sprintf("envoy-%d.%d", opts.upstreamVersion.Major(), opts.upstreamVersion.Minor())
+		getCustomImageName: func(opts addonComponentOptions) (string, error) {
+			ref := "registry.replicated.com/library/envoy-distroless"
+			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 }
@@ -95,15 +95,9 @@ var pauseComponent = addonComponent{
 			return "", fmt.Errorf("failed to parse pause version: %w", err)
 		}
 
+		ref := "registry.replicated.com/library/pause"
 		constraints := mustParseSemverConstraints(latestPatchConstraint(sv))
-
-		// Search the registry for the latest patch version for this major.minor
-		latestTag, err := GetGreatestTagFromRegistry(opts.ctx, "registry.k8s.io/pause", constraints)
-		if err != nil {
-			return "", fmt.Errorf("failed to get latest pause image tag: %w", err)
-		}
-
-		return fmt.Sprintf("registry.k8s.io/pause:%s", latestTag), nil
+		return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 	},
 }
 
