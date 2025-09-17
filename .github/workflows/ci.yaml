@@ -169,11 +169,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-      - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - name: Install Kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
       - name: Run tests
         run: |
           export PACKAGE_VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -194,11 +193,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-      - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
+      - name: Install Kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
       - name: Run tests
         run: |
           export PACKAGE_VERSION=${{ needs.output-vars.outputs.ec_version }}
