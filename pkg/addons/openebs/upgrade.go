@@ -2,6 +2,7 @@ package openebs
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -61,11 +62,11 @@ func (o *OpenEBS) Upgrade(
 // ensurePostUpgradeHooksDeleted will delete helm hooks if for some reason they fail. It is
 // necessary if the hook does not have the "before-hook-creation" delete policy and instead has the
 // policy "hook-succeeded".
-func (a *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.Client) error {
+func (o *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.Client) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: a.Namespace(),
-			Name:      "openebs-pre-upgrade-hook",
+			Namespace: o.Namespace(),
+			Name:      fmt.Sprintf("%s-pre-upgrade-hook", o.ReleaseName()),
 		},
 	}
 	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
@@ -75,7 +76,7 @@ func (a *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.
 
 	crb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "openebs-pre-upgrade-hook",
+			Name: fmt.Sprintf("%s-pre-upgrade-hook", o.ReleaseName()),
 		},
 	}
 	err = kcli.Delete(ctx, crb)
@@ -85,7 +86,7 @@ func (a *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.
 
 	cr := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "openebs-pre-upgrade-hook",
+			Name: fmt.Sprintf("%s-pre-upgrade-hook", o.ReleaseName()),
 		},
 	}
 	err = kcli.Delete(ctx, cr)
@@ -95,8 +96,8 @@ func (a *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.
 
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: a.Namespace(),
-			Name:      "openebs-pre-upgrade-hook",
+			Namespace: o.Namespace(),
+			Name:      fmt.Sprintf("%s-pre-upgrade-hook", o.ReleaseName()),
 		},
 	}
 	err = kcli.Delete(ctx, sa)
