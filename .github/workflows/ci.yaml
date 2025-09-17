@@ -158,6 +158,7 @@ jobs:
     name: Integration tests (kind)
     runs-on: ubuntu-latest
     needs:
+      - output-vars
       - should-run-int-tests-kind
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
@@ -175,6 +176,7 @@ jobs:
           sudo mv ./kind /usr/local/bin/kind
       - name: Run tests
         run: |
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration test-kind SHORT=true
 
   int-tests-kind-ha-registry:
