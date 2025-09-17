@@ -28,7 +28,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: false,
-				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
+				AdminConsolePwdHash:     []byte("$2a$10$test.hash.for.password123"),
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
 				assert.Len(t, addons, 3)
@@ -62,7 +62,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: false,
-				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
+				AdminConsolePwdHash:     []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
@@ -101,7 +101,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                false,
 				DisasterRecoveryEnabled: true,
-				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
+				AdminConsolePwdHash:     []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 			},
 			verify: func(t *testing.T, addons []types.AddOn) {
@@ -140,7 +140,7 @@ func Test_getAddOnsForInstall(t *testing.T) {
 				ClusterID:               "123",
 				IsAirgap:                true,
 				DisasterRecoveryEnabled: true,
-				AdminConsolePwdHash: []byte("$2a$10$test.hash.for.password123"),
+				AdminConsolePwdHash:     []byte("$2a$10$test.hash.for.password123"),
 				ServiceCIDR:             "10.96.0.0/12",
 				ProxySpec: &ecv1beta1.ProxySpec{
 					HTTPProxy:  "http://proxy.example.com",
