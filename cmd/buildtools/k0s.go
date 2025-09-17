@@ -79,7 +79,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/envoy-distroless": {
 		name: "envoy-distroless",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/envoy-distroless"
+			ref := "registry.replicated.com/library/envoy"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
