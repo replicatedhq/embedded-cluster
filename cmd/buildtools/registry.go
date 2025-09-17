@@ -24,7 +24,7 @@ var registryImageComponents = map[string]addonComponent{
 	"docker.io/library/registry": {
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "proxy.replicated.com/library/registry"
+			ref := "registry.replicated.com/library/registry"
 			// TODO: unpin this
 			return fmt.Sprintf("%s:%s", ref, "2.8.3"), nil
 			// constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
@@ -73,8 +73,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
-		upstream = addProxyAnonymousPrefix(upstream)
-		withproto := fmt.Sprintf("oci://%s", upstream)
+		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
 		logrus.Infof("updating registry images")
 

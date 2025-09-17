@@ -13,8 +13,8 @@ localpv-provisioner:
 {{- if .ReplaceImages }}
   helperPod:
     image:
-      registry: proxy.replicated.com/library/
-      repository: '{{ TrimPrefix "proxy.replicated.com/library/" (index .Images "openebs-linux-utils").Repo }}'
+      registry: proxy.replicated.com/anonymous/
+      repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-linux-utils").Repo }}'
       tag: '{{ index (index .Images "openebs-linux-utils").Tag .GOARCH }}'
 {{- end }}
   hostpathClass:
@@ -23,8 +23,8 @@ localpv-provisioner:
   localpv:
 {{- if .ReplaceImages }}
     image:
-      registry: proxy.replicated.com/library/
-      repository: '{{ TrimPrefix "proxy.replicated.com/library/" (index .Images "openebs-provisioner-localpv").Repo }}'
+      registry: proxy.replicated.com/anonymous/
+      repository: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "openebs-provisioner-localpv").Repo }}'
       tag: '{{ index (index .Images "openebs-provisioner-localpv").Tag .GOARCH }}'
 {{- end }}
     basePath: "/var/lib/embedded-cluster/openebs-local"
@@ -42,8 +42,8 @@ mayastor:
 {{- if .ReplaceImages }}
 preUpgradeHook:
   image:
-    registry: proxy.replicated.com/library
-    repo: '{{ TrimPrefix "proxy.replicated.com/library/" (index .Images "kubectl").Repo }}'
+    registry: proxy.replicated.com/anonymous
+    repo: '{{ TrimPrefix "proxy.replicated.com/anonymous/" (index .Images "kubectl").Repo }}'
     tag: '{{ index (index .Images "kubectl").Tag .GOARCH }}'
 {{- end }}
 zfs-localpv:

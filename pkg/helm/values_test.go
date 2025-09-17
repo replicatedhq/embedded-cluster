@@ -117,7 +117,7 @@ func TestSetValue(t *testing.T) {
 						},
 						"localpv": map[string]interface{}{
 							"image": map[string]interface{}{
-								"registry": "proxy.replicated.com/library/",
+								"registry": "proxy.replicated.com/anonymous/",
 							},
 							"basePath": "/var/lib/embedded-cluster/openebs-local",
 						},
@@ -133,7 +133,7 @@ func TestSetValue(t *testing.T) {
 					},
 					"localpv": map[string]interface{}{
 						"image": map[string]interface{}{
-							"registry": "proxy.replicated.com/library/",
+							"registry": "proxy.replicated.com/anonymous/",
 						},
 						"basePath": "/var/ec/openebs-local",
 					},

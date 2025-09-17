@@ -28,7 +28,7 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico release: %w", err)
 			}
-			return fmt.Sprintf("proxy.replicated.com/library/calico-node:%s", tag), nil
+			return fmt.Sprintf("registry.replicated.com/library/calico-node:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-cni": {
@@ -38,7 +38,7 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
-			return fmt.Sprintf("proxy.replicated.com/library/calico-cni:%s", tag), nil
+			return fmt.Sprintf("registry.replicated.com/library/calico-cni:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-kube-controllers": {
@@ -48,7 +48,7 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
-			return fmt.Sprintf("proxy.replicated.com/library/calico-kube-controllers:%s", tag), nil
+			return fmt.Sprintf("registry.replicated.com/library/calico-kube-controllers:%s", tag), nil
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {

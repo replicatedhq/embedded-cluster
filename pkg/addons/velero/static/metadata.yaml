@@ -9,17 +9,17 @@ version: 10.1.2
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
-        repo: proxy.replicated.com/library/kubectl
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/kubectl
         tag:
             amd64: 1.33.2-amd64@sha256:0335dcd71c589163c3786abe96a9de7d0b8552686f449a596092ccaf89d60a41
             arm64: 1.33.2-arm64@sha256:3b5a1dbcd1c49f4569ad70c5bf84deefb3c5383ec00ea17bae1b88de6798067e
     velero:
-        repo: proxy.replicated.com/library/velero
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/velero
         tag:
             amd64: v1.16.2-amd64@sha256:1d691d1526a9f660be0cad21fb2dc500124fb40bca4fec8a57248116cb7a0440
             arm64: v1.16.2-arm64@sha256:554d97876450f963c81b72d345cb732e04fc59271a69572eccf3a8a8a618f209
     velero-plugin-for-aws:
-        repo: proxy.replicated.com/library/velero-plugin-for-aws
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/velero-plugin-for-aws
         tag:
             amd64: v1.12.2-amd64@sha256:ec58d5c45e85fd393762fb34df7475a5f79261e8d1e95ab6137386268e3fc28f
             arm64: v1.12.2-arm64@sha256:4e1fc9ee2ca0163b3a80c9e632f4c06a3e444d73591708b81184cca60ae92d32
