@@ -82,7 +82,7 @@ runs:
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
-      export CMX_NODE_NAME="ec-test-suite-$GITHUB_RUN_ID" # to identify the nodes in the admin dashboard
+      export CMX_NODE_NAME="ec-test-suite-$GITHUB_JOB"
       make e2e-test TEST_NAME=${{ inputs.test-name }}
 
   - name: Troubleshoot
@@ -95,4 +95,4 @@ runs:
     if: ${{ always() }}
     shell: bash
     run: |
-      replicated vm rm "ec-test-suite-$GITHUB_RUN_ID" || true
+      replicated vm rm "ec-test-suite-$GITHUB_JOB" || true
