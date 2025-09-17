@@ -21,5 +21,5 @@ images:
     velero-plugin-for-aws:
         repo: proxy.replicated.com/library/velero-plugin-for-aws
         tag:
-            amd64: v1.12.2-amd64@sha256:fe551a67071576a1b751694798a5784f1f12239c2fde5490ffa364c0ca35942f
-            arm64: v1.12.2-arm64@sha256:a336d58e0278ff4baaaec713593019bcbbd249f43c0b3b55d8a8d4e03204301c
+            amd64: v1.12.2-amd64@sha256:ec58d5c45e85fd393762fb34df7475a5f79261e8d1e95ab6137386268e3fc28f
+            arm64: v1.12.2-arm64@sha256:4e1fc9ee2ca0163b3a80c9e632f4c06a3e444d73591708b81184cca60ae92d32
