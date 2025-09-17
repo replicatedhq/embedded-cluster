@@ -90,7 +90,7 @@ func TestAdminConsole_EmbeddedCluster(t *testing.T) {
 		DataDir:          rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:       rc.EmbeddedClusterK0sSubDir(),
 
-		Password:     "password",
+		PasswordHash: []byte("$2a$10$test.hash.for.password"),
 		TLSCertBytes: certData,
 		TLSKeyBytes:  keyData,
 		Hostname:     "localhost",

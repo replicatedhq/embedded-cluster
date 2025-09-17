@@ -48,7 +48,7 @@ func TestAdminConsole_ExistingCluster(t *testing.T) {
 		Proxy:              ki.ProxySpec(),
 		AdminConsolePort:   ki.AdminConsolePort(),
 
-		Password:     "password",
+		PasswordHash: []byte("$2a$10$test.hash.for.password"),
 		TLSCertBytes: certData,
 		TLSKeyBytes:  keyData,
 		Hostname:     "localhost",
