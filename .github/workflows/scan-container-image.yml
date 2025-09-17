@@ -57,7 +57,7 @@ jobs:
       # Run Anchore vulnerability scanner on the specified image
       # Outputs findings in SARIF format for GitHub security dashboard
       - name: Scan image with Anchore
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         id: scan
         with:
           image: "${{ inputs.image }}"
