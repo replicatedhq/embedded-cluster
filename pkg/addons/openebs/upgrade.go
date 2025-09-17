@@ -64,7 +64,8 @@ func (o *OpenEBS) Upgrade(
 func (a *OpenEBS) ensurePreUpgradeHooksDeleted(ctx context.Context, kcli client.Client) error {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "openebs-pre-upgrade-hook",
+			Namespace: a.Namespace(),
+			Name:      "openebs-pre-upgrade-hook",
 		},
 	}
 	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
