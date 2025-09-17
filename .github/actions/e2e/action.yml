@@ -95,4 +95,4 @@ runs:
     if: ${{ always() }}
     shell: bash
     run: |
-      replicated vm rm "ec-test-suite-$GITHUB_RUN_ID"
+      replicated vm rm "ec-test-suite-$GITHUB_RUN_ID" || true
