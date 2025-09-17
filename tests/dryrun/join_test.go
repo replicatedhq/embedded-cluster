@@ -348,7 +348,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 			"firewall-cmd --add-source 10.2.0.0/17 --permanent --zone ec-net",
 			"firewall-cmd --add-source 10.2.128.0/17 --permanent --zone ec-net",
 			"firewall-cmd --reload",
-			regexp.MustCompile(fmt.Sprintf(`--kubelet-extra-args --node-ip=.* --hostname-override=%s`, regexp.QuoteMeta(expectedHostname))),
+			regexp.MustCompile(fmt.Sprintf(`k0s install .* --kubelet-extra-args --node-ip=.* --hostname-override=%s`, regexp.QuoteMeta(expectedHostname))),
 		},
 		false,
 	)
