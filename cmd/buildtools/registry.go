@@ -25,8 +25,10 @@ var registryImageComponents = map[string]addonComponent{
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/registry"
-			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
+			// TODO: unpin this
+			return fmt.Sprintf("%s:%s", ref, "2.8.3"), nil
+			// constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			// return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_REGISTRY_VERSION",
 	},
@@ -45,33 +47,32 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 		defer hcli.Close()
 
-		// TODO: unpin this
-		nextChartVersion := "2.8.3" // os.Getenv("INPUT_REGISTRY_CHART_VERSION")
+		nextChartVersion := os.Getenv("INPUT_REGISTRY_CHART_VERSION")
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_REGISTRY_CHART_VERSION: %s", nextChartVersion)
 		} else {
-			logrus.Infof("fetching the latest registry chart version")
-			latest, err := LatestChartVersion(hcli, registryRepo, "registry")
+			logrus.Infof("fetching the latest docker-registry chart version")
+			latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
 			if err != nil {
-				return fmt.Errorf("failed to get the latest registry chart version: %v", err)
+				return fmt.Errorf("failed to get the latest docker-registry chart version: %v", err)
 			}
 			nextChartVersion = latest
-			logrus.Printf("latest registry chart version: %s", latest)
+			logrus.Printf("latest docker-registry chart version: %s", latest)
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
 		current := registry.Metadata
 		if current.Version == nextChartVersion && !c.Bool("force") {
-			logrus.Infof("registry chart version is already up-to-date")
+			logrus.Infof("docker-registry chart version is already up-to-date")
 			return nil
 		}
 
-		logrus.Infof("mirroring registry chart version %s", nextChartVersion)
-		if err := MirrorChart(hcli, registryRepo, "registry", nextChartVersion); err != nil {
-			return fmt.Errorf("failed to mirror registry chart: %v", err)
+		logrus.Infof("mirroring docker-registry chart version %s", nextChartVersion)
+		if err := MirrorChart(hcli, registryRepo, "docker-registry", nextChartVersion); err != nil {
+			return fmt.Errorf("failed to mirror docker-registry chart: %v", err)
 		}
 
-		upstream := fmt.Sprintf("%s/registry", os.Getenv("CHARTS_DESTINATION"))
+		upstream := fmt.Sprintf("%s/docker-registry", os.Getenv("CHARTS_DESTINATION"))
 		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
 
 		logrus.Infof("updating registry images")

@@ -561,3 +561,10 @@ func getLatestImageNameAndTag(ctx context.Context, ref string, constraints *semv
 	}
 	return fmt.Sprintf("%s:%s", ref, tag), nil
 }
+
+func addProxyAnonymousPrefix(image string) string {
+	if strings.HasPrefix(image, "proxy.replicated.com/") {
+		return image
+	}
+	return fmt.Sprintf("proxy.replicated.com/anonymous/%s", image)
+}

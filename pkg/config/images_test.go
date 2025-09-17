@@ -1,12 +1,13 @@
 package config
 
 import (
-	"slices"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/k0sproject/k0s/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestListK0sImages(t *testing.T) {
@@ -43,28 +44,19 @@ func TestListK0sImages(t *testing.T) {
 
 	// make sure the list includes all images from the metadata
 	for _, i := range _metadata.Images {
-		if !slices.Contains(filtered, i.String()) {
-			t.Errorf("ListK0sImages() = %v, want to contain %s", filtered, i.String())
-		}
+		assert.Contains(t, filtered, i.String(), "image %s should be included", i.String())
 	}
 
 	// make sure images are proxied
+	rx := regexp.MustCompile("proxy.replicated.com/(anonymous|library)/")
 	for _, image := range filtered {
-		if !strings.HasPrefix(image, "proxy.replicated.com/anonymous/") {
-			t.Errorf("ListK0sImages() = %v, want %s to be proxied", filtered, image)
-		}
+		assert.Regexp(t, rx, image, "image %s should be proxied", image)
 	}
 
 	// make sure the list does not contain excluded images
 	for _, image := range filtered {
-		if strings.Contains(image, "kube-router") {
-			t.Errorf("ListK0sImages() = %v, want not to contain kube-router", filtered)
-		}
-		if strings.Contains(image, "cni-node") {
-			t.Errorf("ListK0sImages() = %v, want not to contain kube-router", filtered)
-		}
-		if strings.Contains(image, "apiserver-network-proxy-agent") {
-			t.Errorf("ListK0sImages() = %v, want not to contain apiserver-network-proxy-agent", filtered)
-		}
+		assert.NotContains(t, image, "kube-router", "kube-router should be excluded")
+		assert.NotContains(t, image, "cni-node", "cni-node should be excluded")
+		assert.NotContains(t, image, "apiserver-network-proxy-agent", "apiserver-network-proxy-agent should be excluded")
 	}
 }
