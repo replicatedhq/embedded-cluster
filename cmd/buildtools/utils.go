@@ -557,7 +557,7 @@ func GetSupportedArchs() []string {
 func getLatestImageNameAndTag(ctx context.Context, ref string, constraints *semver.Constraints) (string, error) {
 	tag, err := GetGreatestTagFromRegistry(ctx, ref, constraints)
 	if err != nil {
-		return "", fmt.Errorf("get greatest tag from registry: %w", err)
+		return "", fmt.Errorf("get greatest tag from ref %s: %w", ref, err)
 	}
 	return fmt.Sprintf("%s:%s", ref, tag), nil
 }

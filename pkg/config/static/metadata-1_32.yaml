@@ -32,17 +32,17 @@ images:
             amd64: 1.31.2-r0-amd64@sha256:f6032476349dc87c7c3755f3a981fc1a61036c1586abf065dde20603f6ebe716
             arm64: 1.31.2-r0-arm64@sha256:f818ce57852a92e5f9ca5dc408939793ea251786bfdb54689ca653138f0bb08d
     kube-proxy:
-        repo: proxy.replicated.com/anonymous/registry.k8s.io/kube-proxy
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.32.9-amd64@sha256:f52305944393b118398e590b62dc28e79508e257f59e63e735b87ad49fd8de5e
-            arm64: v1.32.9-arm64@sha256:6bb0e68629519db195016eda14ff8f1c56ae3a99e408033ccf011b0ae3fe7ff3
+            amd64: v1.32.9-amd64@sha256:40cd6aee94c6747ec9d9c90156c7b9fecea91cd861e2e19eca9c1bd35de1defe
+            arm64: v1.32.9-arm64@sha256:b3747dd3c3de7c1e47db8e82d097ce40585d9ed7458d7b5758c77d37b3966358
     metrics-server:
         repo: proxy.replicated.com/anonymous/replicated/ec-metrics-server
         tag:
             amd64: 0.8.0-r3-amd64@sha256:9f430c0b58d988361e4c5dc2436a26b7b60ff3d231b28ad131d33a6466e1998e
             arm64: 0.8.0-r3-arm64@sha256:b4a73a422fed4eaeee14d744f483aa2b53106e7f5a6f4c536f8b111ea92785bc
     pause:
-        repo: proxy.replicated.com/anonymous/registry.k8s.io/pause
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:8d4106c88ec0bd28001e34c975d65175d994072d65341f62a8ab0754b0fafe10
-            arm64: 3.9-arm64@sha256:3ec98b8452dc8ae265a6917dfb81587ac78849e520d5dbba6de524851d20eca6
+            amd64: 3.9-amd64@sha256:f7c38f17528a6598cda208c8d9515aa18cff9852449a331870a38e6b9b927635
+            arm64: 3.9-arm64@sha256:09386d65f02e0abd859aac6861cb2244f3d8102fd19d339f48a6b716c0c8d4ab
