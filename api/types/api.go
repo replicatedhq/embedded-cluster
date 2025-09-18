@@ -11,7 +11,8 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
-	Password           string
+	Password           string // Used by AdminConsole addon to create kotsadm-password secret and infrastructure operations in V2
+	PasswordHash       []byte // Used by auth controller for API authentication in V3
 	TLSConfig          TLSConfig
 	License            []byte
 	AirgapBundle       string

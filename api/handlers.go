@@ -21,7 +21,7 @@ type handlers struct {
 func (a *API) initHandlers() error {
 	// Auth handler
 	authHandler, err := authhandler.New(
-		a.cfg.Password,
+		a.cfg.PasswordHash,
 		authhandler.WithLogger(a.logger),
 		authhandler.WithAuthController(a.authController),
 	)

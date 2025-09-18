@@ -155,7 +155,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 			},
 		},
 		Data: map[string][]byte{
-			"passwordBcrypt": []byte(passwordBcrypt),
+			"passwordBcrypt": passwordBcrypt,
 		},
 	}
 
@@ -166,7 +166,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		err = kcli.Create(ctx, &kotsPasswordSecret)
+		err := kcli.Create(ctx, &kotsPasswordSecret)
 		if err != nil {
 			return errors.Wrap(err, "create kotsadm-password secret")
 		}

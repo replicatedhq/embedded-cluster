@@ -19,11 +19,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestAuthLoginAndTokenValidation(t *testing.T) {
-	// Create an auth controller
-	authController, err := auth.NewAuthController("password")
+	// Create an auth controller with bcrypt hashed password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("password"), 10)
+	require.NoError(t, err)
+	authController, err := auth.NewAuthController(passwordHash)
 	require.NoError(t, err)
 
 	// Create an install controller

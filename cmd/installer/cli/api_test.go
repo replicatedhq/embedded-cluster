@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Test_serveAPI(t *testing.T) {
@@ -55,9 +56,14 @@ func Test_serveAPI(t *testing.T) {
 	portInt, err := strconv.Atoi(port)
 	require.NoError(t, err)
 
+	password := "password"
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	require.NoError(t, err)
+
 	config := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: "password",
+			Password:     password,
+			PasswordHash: passwordHash,
 			ReleaseData: &release.ReleaseData{
 				Application: &kotsv1beta1.Application{
 					Spec: kotsv1beta1.ApplicationSpec{},
