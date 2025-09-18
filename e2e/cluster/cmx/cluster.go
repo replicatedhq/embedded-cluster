@@ -548,6 +548,15 @@ func (c *Cluster) SetNetworkReport(enabled bool) error {
 	return nil
 }
 
+func (c *Cluster) InstallKotsCLI(node int, envs ...map[string]string) error {
+	c.t.Logf("%s: installing kots cli on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"install-kots-cli.sh"}
+	if stdout, stderr, err := c.RunCommandOnNode(node, line, envs...); err != nil {
+		return fmt.Errorf("run command: %v: %s: %s", err, stdout, stderr)
+	}
+	return nil
+}
+
 func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.Duration) error {
 	timeout := time.After(timeoutDuration)
 	tick := time.Tick(2 * time.Second)
