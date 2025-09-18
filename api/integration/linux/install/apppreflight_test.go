@@ -168,17 +168,17 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockStrictStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create real app install controller
-		strictAppInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(strictAppPreflightManager),
-			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
-			appinstall.WithStore(mockStrictStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		strictAppController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(strictAppPreflightManager),
+			appcontroller.WithStateMachine(linuxinstall.NewStateMachine()),
+			appcontroller.WithStore(mockStrictStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller
 		strictInstallController, err := linuxinstall.NewInstallController(
-			linuxinstall.WithAppInstallController(strictAppInstallController),
+			linuxinstall.WithAppController(strictAppController),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)

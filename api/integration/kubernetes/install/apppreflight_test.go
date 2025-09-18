@@ -167,17 +167,17 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockStrictStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create real app install controller
-		strictAppInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(strictAppPreflightManager),
-			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
-			appinstall.WithStore(mockStrictStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		strictAppController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(strictAppPreflightManager),
+			appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
+			appcontroller.WithStore(mockStrictStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		strictInstallController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithAppInstallController(strictAppInstallController),
+			kubernetesinstall.WithAppController(strictAppController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)

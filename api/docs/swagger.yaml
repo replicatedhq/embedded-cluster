@@ -52,6 +52,13 @@ components:
         status:
           $ref: '#/components/schemas/types.Status'
       type: object
+    types.AppUpgrade:
+      properties:
+        logs:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
     types.AuthRequest:
       properties:
         password:
@@ -244,6 +251,11 @@ components:
       properties:
         values:
           $ref: '#/components/schemas/types.AppConfigValues'
+      type: object
+    types.UpgradeAppRequest:
+      properties:
+        ignoreAppPreflights:
+          type: boolean
       type: object
     v1beta1.ConfigChildItem:
       properties:
@@ -722,6 +734,57 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /kubernetes/upgrade/app/status:
+    get:
+      description: Get the current status of app upgrade
+      operationId: getKubernetesUpgradeAppStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppUpgrade'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app upgrade status
+      tags:
+      - kubernetes-upgrade
+  /kubernetes/upgrade/app/upgrade:
+    post:
+      description: Upgrade the app using current configuration
+      operationId: postKubernetesUpgradeApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.UpgradeAppRequest'
+        description: Upgrade App Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppUpgrade'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Upgrade the app
+      tags:
+      - kubernetes-upgrade
   /linux/install/app-preflights/run:
     post:
       description: Run install app preflight checks using current app configuration
@@ -1039,5 +1102,56 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - linux-install
+  /linux/upgrade/app/status:
+    get:
+      description: Get the current status of app upgrade
+      operationId: getLinuxUpgradeAppStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppUpgrade'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app upgrade status
+      tags:
+      - linux-upgrade
+  /linux/upgrade/app/upgrade:
+    post:
+      description: Upgrade the app using current configuration
+      operationId: postLinuxUpgradeApp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.UpgradeAppRequest'
+        description: Upgrade App Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppUpgrade'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Upgrade the app
+      tags:
+      - linux-upgrade
 servers:
 - url: /api
