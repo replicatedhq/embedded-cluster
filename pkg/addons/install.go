@@ -16,18 +16,18 @@ import (
 )
 
 type InstallOptions struct {
-	AdminConsolePwdHash []byte
-	AdminConsolePort    int
-	License             *kotsv1beta1.License
-	IsAirgap            bool
-	TLSCertBytes        []byte
-	TLSKeyBytes         []byte
-	Hostname            string
-	IsMultiNodeEnabled  bool
-	EmbeddedConfigSpec  *ecv1beta1.ConfigSpec
-	EndUserConfigSpec   *ecv1beta1.ConfigSpec
-	KotsInstaller       adminconsole.KotsInstaller
-	ProxySpec           *ecv1beta1.ProxySpec
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
 
 	// Linux only options
 	ClusterID               string
@@ -40,18 +40,18 @@ type InstallOptions struct {
 }
 
 type KubernetesInstallOptions struct {
-	AdminConsolePwdHash []byte
-	AdminConsolePort    int
-	License             *kotsv1beta1.License
-	IsAirgap            bool
-	TLSCertBytes        []byte
-	TLSKeyBytes         []byte
-	Hostname            string
-	IsMultiNodeEnabled  bool
-	EmbeddedConfigSpec  *ecv1beta1.ConfigSpec
-	EndUserConfigSpec   *ecv1beta1.ConfigSpec
-	KotsInstaller       adminconsole.KotsInstaller
-	ProxySpec           *ecv1beta1.ProxySpec
+	AdminConsolePwd    string
+	AdminConsolePort   int
+	License            *kotsv1beta1.License
+	IsAirgap           bool
+	TLSCertBytes       []byte
+	TLSKeyBytes        []byte
+	Hostname           string
+	IsMultiNodeEnabled bool
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+	EndUserConfigSpec  *ecv1beta1.ConfigSpec
+	KotsInstaller      adminconsole.KotsInstaller
+	ProxySpec          *ecv1beta1.ProxySpec
 }
 
 func (a *AddOns) Install(ctx context.Context, opts InstallOptions) error {
@@ -161,7 +161,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
 
-		PasswordHash:  opts.AdminConsolePwdHash,
+		Password:      opts.AdminConsolePwd,
 		TLSCertBytes:  opts.TLSCertBytes,
 		TLSKeyBytes:   opts.TLSKeyBytes,
 		Hostname:      opts.Hostname,
@@ -196,7 +196,7 @@ func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn 
 		Proxy:              opts.ProxySpec,
 		AdminConsolePort:   opts.AdminConsolePort,
 
-		PasswordHash:  opts.AdminConsolePwdHash,
+		Password:      opts.AdminConsolePwd,
 		TLSCertBytes:  opts.TLSCertBytes,
 		TLSKeyBytes:   opts.TLSKeyBytes,
 		Hostname:      opts.Hostname,

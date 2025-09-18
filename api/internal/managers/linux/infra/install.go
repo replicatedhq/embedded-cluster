@@ -281,7 +281,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
 	opts := addons.InstallOptions{
 		ClusterID:               m.clusterID,
-		AdminConsolePwdHash:     m.passwordHash,
+		AdminConsolePwd:         m.password,
 		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",

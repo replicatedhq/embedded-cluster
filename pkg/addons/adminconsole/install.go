@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"golang.org/x/crypto/bcrypt"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -134,6 +135,11 @@ func (a *AdminConsole) createNamespace(ctx context.Context, kcli client.Client) 
 }
 
 func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Client) error {
+	passwordBcrypt, err := bcrypt.GenerateFromPassword([]byte(a.Password), 10)
+	if err != nil {
+		return errors.Wrap(err, "generate bcrypt from password")
+	}
+
 	kotsPasswordSecret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
@@ -149,7 +155,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 			},
 		},
 		Data: map[string][]byte{
-			"passwordBcrypt": []byte(a.PasswordHash),
+			"passwordBcrypt": []byte(passwordBcrypt),
 		},
 	}
 
@@ -160,7 +166,7 @@ func (a *AdminConsole) createPasswordSecret(ctx context.Context, kcli client.Cli
 		}
 		a.dryRunManifests = append(a.dryRunManifests, b.Bytes())
 	} else {
-		err := kcli.Create(ctx, &kotsPasswordSecret)
+		err = kcli.Create(ctx, &kotsPasswordSecret)
 		if err != nil {
 			return errors.Wrap(err, "create kotsadm-password secret")
 		}

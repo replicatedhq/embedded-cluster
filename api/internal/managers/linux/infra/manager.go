@@ -30,7 +30,7 @@ type InfraManager interface {
 // infraManager is an implementation of the InfraManager interface
 type infraManager struct {
 	infraStore         infrastore.Store
-	passwordHash       []byte
+	password           string
 	tlsConfig          types.TLSConfig
 	license            []byte
 	airgapBundle       string
@@ -62,9 +62,9 @@ func WithInfraStore(store infrastore.Store) InfraManagerOption {
 	}
 }
 
-func WithPasswordHash(passwordHash []byte) InfraManagerOption {
+func WithPassword(password string) InfraManagerOption {
 	return func(c *infraManager) {
-		c.passwordHash = passwordHash
+		c.password = password
 	}
 }
 

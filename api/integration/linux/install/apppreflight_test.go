@@ -348,7 +348,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with runtime config in the API config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -398,7 +398,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with runtime config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},
@@ -442,7 +442,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with runtime config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			LinuxConfig: types.LinuxConfig{
 				RuntimeConfig: rc,
 			},

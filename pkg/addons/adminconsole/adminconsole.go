@@ -32,7 +32,7 @@ type AdminConsole struct {
 	K0sDataDir       string
 
 	// These options are only used during installation
-	PasswordHash  []byte
+	Password      string
 	TLSCertBytes  []byte
 	TLSKeyBytes   []byte
 	Hostname      string

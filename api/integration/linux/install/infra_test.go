@@ -130,7 +130,6 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinfra.WithMetadataClient(fakeMcli),
 			linuxinfra.WithHelmClient(helmMock),
 			linuxinfra.WithLicense(assets.LicenseData),
-			linuxinfra.WithPasswordHash([]byte("$2a$10$test.hash.for.password")),
 			linuxinfra.WithHostUtils(hostutilsMock),
 			linuxinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -668,7 +667,6 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			linuxinfra.WithK0s(k0sMock),
 			linuxinfra.WithHostUtils(hostutilsMock),
 			linuxinfra.WithLicense(assets.LicenseData),
-			linuxinfra.WithPasswordHash([]byte("$2a$10$test.hash.for.password")),
 		)
 
 		// Setup k0s mock expectations with failure

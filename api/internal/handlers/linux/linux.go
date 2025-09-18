@@ -72,7 +72,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			install.WithHostUtils(h.hostUtils),
 			install.WithMetricsReporter(h.metricsReporter),
 			install.WithReleaseData(h.cfg.ReleaseData),
-			install.WithPasswordHash(h.cfg.PasswordHash),
+			install.WithPassword(h.cfg.Password),
 			install.WithTLSConfig(h.cfg.TLSConfig),
 			install.WithLicense(h.cfg.License),
 			install.WithAirgapBundle(h.cfg.AirgapBundle),

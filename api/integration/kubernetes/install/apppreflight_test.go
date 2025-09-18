@@ -338,7 +338,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with kubernetes config in the API config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,
@@ -389,7 +389,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,
@@ -434,7 +434,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			KubernetesConfig: types.KubernetesConfig{
 				RESTClientGetter: &genericclioptions.ConfigFlags{},
 				Installation:     mockInstallation,

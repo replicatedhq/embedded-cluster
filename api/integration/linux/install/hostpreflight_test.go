@@ -224,7 +224,7 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			// Create the API with allow ignore host preflights flag
 			apiInstance, err := api.New(
 				types.APIConfig{
-					PasswordHash: []byte("$2a$10$test.hash.for.password"),
+					Password: "password",
 					LinuxConfig: types.LinuxConfig{
 						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
 					},

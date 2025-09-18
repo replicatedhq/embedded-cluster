@@ -146,17 +146,17 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 
 func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kubernetesinstallation.Installation) addons.KubernetesInstallOptions {
 	opts := addons.KubernetesInstallOptions{
-		AdminConsolePwdHash: m.passwordHash,
-		AdminConsolePort:    ki.AdminConsolePort(),
-		License:             license,
-		IsAirgap:            m.airgapBundle != "",
-		TLSCertBytes:        m.tlsConfig.CertBytes,
-		TLSKeyBytes:         m.tlsConfig.KeyBytes,
-		Hostname:            m.tlsConfig.Hostname,
-		IsMultiNodeEnabled:  license.Spec.IsEmbeddedClusterMultiNodeEnabled,
-		EmbeddedConfigSpec:  m.getECConfigSpec(),
-		EndUserConfigSpec:   m.getEndUserConfigSpec(),
-		ProxySpec:           ki.ProxySpec(),
+		AdminConsolePwd:    m.password,
+		AdminConsolePort:   ki.AdminConsolePort(),
+		License:            license,
+		IsAirgap:           m.airgapBundle != "",
+		TLSCertBytes:       m.tlsConfig.CertBytes,
+		TLSKeyBytes:        m.tlsConfig.KeyBytes,
+		Hostname:           m.tlsConfig.Hostname,
+		IsMultiNodeEnabled: license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		EmbeddedConfigSpec: m.getECConfigSpec(),
+		EndUserConfigSpec:  m.getEndUserConfigSpec(),
+		ProxySpec:          ki.ProxySpec(),
 	}
 
 	// TODO: no kots app install for now

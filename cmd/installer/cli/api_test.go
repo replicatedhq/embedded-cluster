@@ -57,7 +57,7 @@ func Test_serveAPI(t *testing.T) {
 
 	config := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			PasswordHash: []byte("$2a$10$test.hash.for.password"),
+			Password: "password",
 			ReleaseData: &release.ReleaseData{
 				Application: &kotsv1beta1.Application{
 					Spec: kotsv1beta1.ApplicationSpec{},

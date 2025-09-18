@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/client"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
@@ -21,6 +22,10 @@ import (
 )
 
 func TestAuthLoginAndTokenValidation(t *testing.T) {
+	// Create an auth controller
+	authController, err := auth.NewAuthController("password")
+	require.NoError(t, err)
+
 	// Create an install controller
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithInstallationManager(installation.NewInstallationManager(
@@ -30,8 +35,9 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	// Create the API without explicit auth controller (uses the default from API config)
+	// Create the API with the auth controller
 	apiInstance := integration.NewAPIWithReleaseData(t,
+		api.WithAuthController(authController),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
