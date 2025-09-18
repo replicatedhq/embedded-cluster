@@ -62,10 +62,16 @@ runs:
       cache-dependency-path: "**/*.sum"
 
   - name: E2E
+    id: e2e
     shell: bash
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
-      echo "${SHORT_SHA}"
+      echo "SHORT_SHA=${SHORT_SHA}"
+
+      export CMX_NODE_NAME="ec-test-suite-$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)"
+      echo "CMX_NODE_NAME=${CMX_NODE_NAME}"
+      echo "cmx_node_name=${CMX_NODE_NAME}" >> $GITHUB_OUTPUT
+
       export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
       export DR_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_S3_REGION=us-east-1
@@ -82,7 +88,6 @@ runs:
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
-      export CMX_NODE_NAME="ec-test-suite-$GITHUB_JOB"
       make e2e-test TEST_NAME=${{ inputs.test-name }}
 
   - name: Troubleshoot
@@ -97,4 +102,4 @@ runs:
     env:
       REPLICATED_API_TOKEN: ${{ inputs.cmx-api-token }}
     run: |
-      replicated vm rm "ec-test-suite-$GITHUB_JOB" || true
+      replicated vm rm "ec-test-suite-${{ steps.e2e.outputs.cmx_node_name }}" || true
