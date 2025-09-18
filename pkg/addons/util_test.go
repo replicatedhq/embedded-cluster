@@ -38,18 +38,18 @@ func Test_operatorImages(t *testing.T) {
 				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64@sha256:eeed01216b5d2192afbd90e2e1f70419a8758551d8708f9d4b4f50f41d106ce8",
 			},
 			domains: ecv1beta1.Domains{},
-			wantErr: "no ec-utils found in images",
+			wantErr: "no embedded-cluster-utils found in images",
 		},
 		{
 			name: "images but no sha256",
 			images: []string{
 				"docker.io/replicated/embedded-cluster-operator-image:latest-amd64",
-				"docker.io/replicated/ec-utils:latest-amd64",
+				"docker.io/replicated/embedded-cluster-utils:latest-amd64",
 			},
 			domains:        ecv1beta1.Domains{},
 			wantRepo:       "docker.io/replicated/embedded-cluster-operator-image",
 			wantTag:        "latest-amd64",
-			wantUtilsImage: "docker.io/replicated/ec-utils:latest-amd64",
+			wantUtilsImage: "docker.io/replicated/embedded-cluster-utils:latest-amd64",
 		},
 		{
 			name: "normal input",
@@ -70,7 +70,7 @@ func Test_operatorImages(t *testing.T) {
 				"proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv:4.1.1-r0-amd64@sha256:de7f0330f19d50d9f1f804ae44d388998a2d1d1eb11e45965005404463f0d0bd",
 				"proxy.replicated.com/anonymous/replicated/ec-registry:2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660",
 				"proxy.replicated.com/anonymous/replicated/ec-seaweedfs:3.71-r1-amd64@sha256:fe06f85b49d3cf35718a62851e4712617fbeca16fb9100fdd8bfd09c202b98dc",
-				"proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
+				"proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
 				"proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.10.1-r1-amd64@sha256:0766116b831d1028bfc8a47ed6c9c23a2890ae013592a5ef7eb613b9c70e5f97",
 				"proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:1.14.1-r1-amd64@sha256:aef818ef819274578240a8dfaf70546c762db98090d292ab3e8e44a6658fae95",
 				"proxy.replicated.com/anonymous/replicated/ec-velero:1.14.1-r1-amd64@sha256:9a3b8341b74cef8deadea4b3cbaa1d91a0cda06a57821a0dc376428ef44ddfe7",
@@ -80,20 +80,20 @@ func Test_operatorImages(t *testing.T) {
 			domains:        ecv1beta1.Domains{},
 			wantRepo:       "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image",
 			wantTag:        "v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
-			wantUtilsImage: "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
+			wantUtilsImage: "proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
 		},
 		{
 			name: "images with proxy registry",
 			images: []string{
 				"proxy.replicated.com/replicated/embedded-cluster-operator-image:latest-amd64",
-				"proxy.replicated.com/replicated/ec-utils:latest-amd64",
+				"proxy.replicated.com/replicated/embedded-cluster-utils:latest-amd64",
 			},
 			domains: ecv1beta1.Domains{
 				ProxyRegistryDomain: "myproxy.test",
 			},
 			wantRepo:       "myproxy.test/replicated/embedded-cluster-operator-image",
 			wantTag:        "latest-amd64",
-			wantUtilsImage: "myproxy.test/replicated/ec-utils:latest-amd64",
+			wantUtilsImage: "myproxy.test/replicated/embedded-cluster-utils:latest-amd64",
 		},
 		{
 			name: "normal input with proxy registry",
@@ -114,7 +114,7 @@ func Test_operatorImages(t *testing.T) {
 				"proxy.replicated.com/anonymous/replicated/ec-openebs-provisioner-localpv:4.1.1-r0-amd64@sha256:de7f0330f19d50d9f1f804ae44d388998a2d1d1eb11e45965005404463f0d0bd",
 				"proxy.replicated.com/anonymous/replicated/ec-registry:2.8.3-r0@sha256:5b76ebd0a362009e31a05ac487c690f5ece0e11f6c4d9261ca63a3f162b57660",
 				"proxy.replicated.com/anonymous/replicated/ec-seaweedfs:3.71-r1-amd64@sha256:fe06f85b49d3cf35718a62851e4712617fbeca16fb9100fdd8bfd09c202b98dc",
-				"proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
+				"proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
 				"proxy.replicated.com/anonymous/replicated/ec-velero-plugin-for-aws:1.10.1-r1-amd64@sha256:0766116b831d1028bfc8a47ed6c9c23a2890ae013592a5ef7eb613b9c70e5f97",
 				"proxy.replicated.com/anonymous/replicated/ec-velero-restore-helper:1.14.1-r1-amd64@sha256:aef818ef819274578240a8dfaf70546c762db98090d292ab3e8e44a6658fae95",
 				"proxy.replicated.com/anonymous/replicated/ec-velero:1.14.1-r1-amd64@sha256:9a3b8341b74cef8deadea4b3cbaa1d91a0cda06a57821a0dc376428ef44ddfe7",
@@ -126,7 +126,7 @@ func Test_operatorImages(t *testing.T) {
 			},
 			wantRepo:       "myproxy.test/anonymous/replicated/embedded-cluster-operator-image",
 			wantTag:        "v1.14.2-k8s-1.29-amd64@sha256:45a45e2ec6b73d2db029354cccfe7eb150dd7ef9dffe806db36de9b9ba0a66c6",
-			wantUtilsImage: "myproxy.test/anonymous/replicated/ec-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
+			wantUtilsImage: "myproxy.test/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:2f3c5d81565eae3aea22f408af9a8ee91cd4ba010612c50c6be564869390639f",
 		},
 	}
 	for _, tt := range tests {
