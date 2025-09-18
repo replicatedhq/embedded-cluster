@@ -52,8 +52,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 		}
 
 		// Create mock installer with detailed verification
-		mockInstaller := &MockKotsCLIInstaller{}
-		mockInstaller.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
 			// Verify basic install options
 			if opts.AppSlug != "test-app" {
 				t.Logf("AppSlug mismatch: expected 'test-app', got '%s'", opts.AppSlug)
@@ -112,7 +112,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
-			WithKotsCLI(mockInstaller),
+			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 		)
 		require.NoError(t, err)
@@ -121,13 +121,13 @@ func TestAppInstallManager_Install(t *testing.T) {
 		err = manager.Install(context.Background(), configValues)
 		require.NoError(t, err)
 
-		mockInstaller.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
 		// Create mock installer that succeeds
-		mockInstaller := &MockKotsCLIInstaller{}
-		mockInstaller.On("Install", mock.Anything).Return(nil)
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.Anything).Return(nil)
 
 		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
@@ -137,7 +137,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
-			WithKotsCLI(mockInstaller),
+			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -158,13 +158,13 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
 		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
-		mockInstaller.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
 		// Create mock installer that fails
-		mockInstaller := &MockKotsCLIInstaller{}
-		mockInstaller.On("Install", mock.Anything).Return(assert.AnError)
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.Anything).Return(assert.AnError)
 
 		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
@@ -174,7 +174,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
-			WithKotsCLI(mockInstaller),
+			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 		)
@@ -190,7 +190,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
 		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
 
-		mockInstaller.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("GetStatus returns current app install state", func(t *testing.T) {

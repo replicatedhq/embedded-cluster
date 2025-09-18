@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -13,6 +14,7 @@ import (
 type Handler struct {
 	cfg               types.APIConfig
 	installController install.Controller
+	upgradeController upgrade.Controller
 	logger            logrus.FieldLogger
 	metricsReporter   metrics.ReporterInterface
 }
@@ -22,6 +24,12 @@ type Option func(*Handler)
 func WithInstallController(controller install.Controller) Option {
 	return func(h *Handler) {
 		h.installController = controller
+	}
+}
+
+func WithUpgradeController(controller upgrade.Controller) Option {
+	return func(h *Handler) {
+		h.upgradeController = controller
 	}
 }
 
@@ -67,6 +75,22 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			return nil, fmt.Errorf("new install controller: %w", err)
 		}
 		h.installController = installController
+	}
+
+	// Initialize upgrade controller if upgrade is supported
+	if h.upgradeController == nil {
+		upgradeController, err := upgrade.NewUpgradeController(
+			upgrade.WithLogger(h.logger),
+			upgrade.WithRESTClientGetter(h.cfg.RESTClientGetter),
+			upgrade.WithReleaseData(h.cfg.ReleaseData),
+			upgrade.WithLicense(h.cfg.License),
+			upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
+			upgrade.WithConfigValues(h.cfg.ConfigValues),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("new upgrade controller: %w", err)
+		}
+		h.upgradeController = upgradeController
 	}
 
 	return h, nil

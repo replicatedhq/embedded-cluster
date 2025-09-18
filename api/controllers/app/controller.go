@@ -1,4 +1,4 @@
-package install
+package app
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
+	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -29,15 +30,18 @@ type Controller interface {
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
 	InstallApp(ctx context.Context, ignoreAppPreflights bool) error
 	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
+	UpgradeApp(ctx context.Context, ignoreAppPreflights bool) error
+	GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error)
 }
 
-var _ Controller = (*InstallController)(nil)
+var _ Controller = (*AppController)(nil)
 
-type InstallController struct {
+type AppController struct {
 	appConfigManager           appconfig.AppConfigManager
 	appInstallManager          appinstallmanager.AppInstallManager
 	appPreflightManager        apppreflightmanager.AppPreflightManager
 	appReleaseManager          appreleasemanager.AppReleaseManager
+	appUpgradeManager          appupgrademanager.AppUpgradeManager
 	stateMachine               statemachine.Interface
 	logger                     logrus.FieldLogger
 	license                    []byte
@@ -49,88 +53,94 @@ type InstallController struct {
 	privateCACertConfigMapName string
 }
 
-type InstallControllerOption func(*InstallController)
+type AppControllerOption func(*AppController)
 
-func WithLogger(logger logrus.FieldLogger) InstallControllerOption {
-	return func(c *InstallController) {
+func WithLogger(logger logrus.FieldLogger) AppControllerOption {
+	return func(c *AppController) {
 		c.logger = logger
 	}
 }
 
-func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) InstallControllerOption {
-	return func(c *InstallController) {
+func WithAppConfigManager(appConfigManager appconfig.AppConfigManager) AppControllerOption {
+	return func(c *AppController) {
 		c.appConfigManager = appConfigManager
 	}
 }
 
-func WithAppInstallManager(appInstallManager appinstallmanager.AppInstallManager) InstallControllerOption {
-	return func(c *InstallController) {
+func WithAppInstallManager(appInstallManager appinstallmanager.AppInstallManager) AppControllerOption {
+	return func(c *AppController) {
 		c.appInstallManager = appInstallManager
 	}
 }
 
-func WithStateMachine(stateMachine statemachine.Interface) InstallControllerOption {
-	return func(c *InstallController) {
+func WithStateMachine(stateMachine statemachine.Interface) AppControllerOption {
+	return func(c *AppController) {
 		c.stateMachine = stateMachine
 	}
 }
 
-func WithAppPreflightManager(appPreflightManager apppreflightmanager.AppPreflightManager) InstallControllerOption {
-	return func(c *InstallController) {
+func WithAppPreflightManager(appPreflightManager apppreflightmanager.AppPreflightManager) AppControllerOption {
+	return func(c *AppController) {
 		c.appPreflightManager = appPreflightManager
 	}
 }
 
-func WithAppReleaseManager(appReleaseManager appreleasemanager.AppReleaseManager) InstallControllerOption {
-	return func(c *InstallController) {
+func WithAppReleaseManager(appReleaseManager appreleasemanager.AppReleaseManager) AppControllerOption {
+	return func(c *AppController) {
 		c.appReleaseManager = appReleaseManager
 	}
 }
 
-func WithStore(store store.Store) InstallControllerOption {
-	return func(c *InstallController) {
+func WithStore(store store.Store) AppControllerOption {
+	return func(c *AppController) {
 		c.store = store
 	}
 }
 
-func WithLicense(license []byte) InstallControllerOption {
-	return func(c *InstallController) {
+func WithLicense(license []byte) AppControllerOption {
+	return func(c *AppController) {
 		c.license = license
 	}
 }
 
-func WithReleaseData(releaseData *release.ReleaseData) InstallControllerOption {
-	return func(c *InstallController) {
+func WithReleaseData(releaseData *release.ReleaseData) AppControllerOption {
+	return func(c *AppController) {
 		c.releaseData = releaseData
 	}
 }
 
-func WithConfigValues(configValues types.AppConfigValues) InstallControllerOption {
-	return func(c *InstallController) {
+func WithConfigValues(configValues types.AppConfigValues) AppControllerOption {
+	return func(c *AppController) {
 		c.configValues = configValues
 	}
 }
 
-func WithClusterID(clusterID string) InstallControllerOption {
-	return func(c *InstallController) {
+func WithClusterID(clusterID string) AppControllerOption {
+	return func(c *AppController) {
 		c.clusterID = clusterID
 	}
 }
 
-func WithAirgapBundle(airgapBundle string) InstallControllerOption {
-	return func(c *InstallController) {
+func WithAirgapBundle(airgapBundle string) AppControllerOption {
+	return func(c *AppController) {
 		c.airgapBundle = airgapBundle
 	}
 }
 
-func WithPrivateCACertConfigMapName(configMapName string) InstallControllerOption {
-	return func(c *InstallController) {
+func WithPrivateCACertConfigMapName(configMapName string) AppControllerOption {
+	return func(c *AppController) {
 		c.privateCACertConfigMapName = configMapName
 	}
 }
 
-func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
-	controller := &InstallController{
+func WithAppUpgradeManager(appUpgradeManager appupgrademanager.AppUpgradeManager) AppControllerOption {
+	return func(c *AppController) {
+		c.appUpgradeManager = appUpgradeManager
+	}
+}
+
+func NewAppController(opts ...AppControllerOption) (*AppController, error) {
+	controller := &AppController{
 		logger: logger.NewDiscardLogger(),
 	}
 
@@ -212,18 +222,33 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		controller.appInstallManager = appInstallManager
 	}
 
+	if controller.appUpgradeManager == nil {
+		appUpgradeManager, err := appupgrademanager.NewAppUpgradeManager(
+			appupgrademanager.WithLogger(controller.logger),
+			appupgrademanager.WithReleaseData(controller.releaseData),
+			appupgrademanager.WithLicense(controller.license),
+			appupgrademanager.WithClusterID(controller.clusterID),
+			appupgrademanager.WithAirgapBundle(controller.airgapBundle),
+			appupgrademanager.WithAppUpgradeStore(controller.store.AppUpgradeStore()),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create app upgrade manager: %w", err)
+		}
+		controller.appUpgradeManager = appUpgradeManager
+	}
+
 	return controller, nil
 }
 
-func (c *InstallController) validateInit() error {
+func (c *AppController) validateInit() error {
 	if c.stateMachine == nil {
-		return errors.New("stateMachine is required for App Install Controller")
+		return errors.New("stateMachine is required for App Controller")
 	}
 	if c.store == nil {
-		return errors.New("store is required for App Install Controller")
+		return errors.New("store is required for App Controller")
 	}
 	if c.releaseData == nil {
-		return errors.New("releaseData is required for App Install Controller")
+		return errors.New("releaseData is required for App Controller")
 	}
 	return nil
 }

@@ -55,6 +55,10 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 
 	installRouter.HandleFunc("/app/install", a.handlers.linux.PostInstallApp).Methods("POST")
 	installRouter.HandleFunc("/app/status", a.handlers.linux.GetAppInstallStatus).Methods("GET")
+
+	upgradeRouter := linuxRouter.PathPrefix("/upgrade").Subrouter()
+	upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.PostUpgradeApp).Methods("POST")
+	upgradeRouter.HandleFunc("/app/upgrade/status", a.handlers.linux.GetAppUpgradeStatus).Methods("GET")
 }
 
 func (a *API) registerKubernetesRoutes(router *mux.Router) {
@@ -77,6 +81,10 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 
 	installRouter.HandleFunc("/app/install", a.handlers.kubernetes.PostInstallApp).Methods("POST")
 	installRouter.HandleFunc("/app/status", a.handlers.kubernetes.GetAppInstallStatus).Methods("GET")
+
+	upgradeRouter := kubernetesRouter.PathPrefix("/upgrade").Subrouter()
+	upgradeRouter.HandleFunc("/app/upgrade", a.handlers.kubernetes.PostUpgradeApp).Methods("POST")
+	upgradeRouter.HandleFunc("/app/upgrade/status", a.handlers.kubernetes.GetAppUpgradeStatus).Methods("GET")
 }
 
 func (a *API) registerConsoleRoutes(router *mux.Router) {

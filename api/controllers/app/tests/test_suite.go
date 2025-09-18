@@ -1,16 +1,19 @@
-package install
+package tests
 
 import (
 	"errors"
 	"testing"
 	"time"
 
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
+	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	upgradeStates "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -22,13 +25,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type AppInstallControllerTestSuite struct {
+type AppControllerTestSuite struct {
 	suite.Suite
-	InstallType        string
-	CreateStateMachine func(initialState statemachine.State) statemachine.Interface
+	InstallType               string
+	CreateInstallStateMachine func(initialState statemachine.State) statemachine.Interface
+	CreateUpgradeStateMachine func(initialState statemachine.State) statemachine.Interface
 }
 
-func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
+func (s *AppControllerTestSuite) TestPatchAppConfigValues() {
 	tests := []struct {
 		name          string
 		values        types.AppConfigValues
@@ -131,16 +135,16 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			sm := s.CreateStateMachine(tt.currentState)
+			sm := s.CreateInstallStateMachine(tt.currentState)
 
-			controller, err := NewInstallController(
-				WithStateMachine(sm),
-				WithAppConfigManager(appConfigManager),
-				WithAppPreflightManager(appPreflightManager),
-				WithAppReleaseManager(appReleaseManager),
-				WithAppInstallManager(appInstallManager),
-				WithStore(&store.MockStore{}),
-				WithReleaseData(&release.ReleaseData{}),
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithAppInstallManager(appInstallManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -168,7 +172,7 @@ func (s *AppInstallControllerTestSuite) TestPatchAppConfigValues() {
 	}
 }
 
-func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
+func (s *AppControllerTestSuite) TestRunAppPreflights() {
 	expectedAPF := &troubleshootv1beta2.PreflightSpec{
 		Collectors: []*troubleshootv1beta2.Collect{
 			{
@@ -179,7 +183,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 
 	tests := []struct {
 		name          string
-		opts          RunAppPreflightOptions
+		opts          appcontroller.RunAppPreflightOptions
 		currentState  statemachine.State
 		expectedState statemachine.State
 		setupMocks    func(*apppreflightmanager.MockAppPreflightManager, *appreleasemanager.MockAppReleaseManager, *appconfig.MockAppConfigManager)
@@ -187,7 +191,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 	}{
 		{
 			name: "successful execution with passing preflights",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -213,7 +217,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "successful execution from execution failed state with passing preflights",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateAppPreflightsExecutionFailed,
@@ -239,7 +243,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "successful execution from failed state with passing preflights",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateAppPreflightsFailed,
@@ -265,7 +269,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "successful execution with failing preflights",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -291,7 +295,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "execution succeeded but failed to get preflight output",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -310,7 +314,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "successful execution with nil preflight output",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -329,7 +333,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "successful execution with preflight warnings",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -355,7 +359,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "failed to extract app preflight spec",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -370,7 +374,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "preflight execution failed",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
@@ -388,7 +392,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 		},
 		{
 			name: "invalid state transition",
-			opts: RunAppPreflightOptions{
+			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalling,
@@ -405,14 +409,14 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-			sm := s.CreateStateMachine(tt.currentState)
-			controller, err := NewInstallController(
-				WithStateMachine(sm),
-				WithAppConfigManager(appConfigManager),
-				WithAppPreflightManager(appPreflightManager),
-				WithAppReleaseManager(appReleaseManager),
-				WithStore(&store.MockStore{}),
-				WithReleaseData(&release.ReleaseData{}),
+			sm := s.CreateInstallStateMachine(tt.currentState)
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -442,7 +446,7 @@ func (s *AppInstallControllerTestSuite) TestRunAppPreflights() {
 	}
 }
 
-func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
+func (s *AppControllerTestSuite) TestGetAppInstallStatus() {
 	expectedAppInstall := types.AppInstall{
 		Status: types.Status{
 			State:       types.StateRunning,
@@ -479,16 +483,16 @@ func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			sm := s.CreateStateMachine(states.StateNew)
+			sm := s.CreateInstallStateMachine(states.StateNew)
 
-			controller, err := NewInstallController(
-				WithStateMachine(sm),
-				WithAppConfigManager(appConfigManager),
-				WithAppPreflightManager(appPreflightManager),
-				WithAppReleaseManager(appReleaseManager),
-				WithAppInstallManager(appInstallManager),
-				WithStore(&store.MockStore{}),
-				WithReleaseData(&release.ReleaseData{}),
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithAppInstallManager(appInstallManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -508,7 +512,7 @@ func (s *AppInstallControllerTestSuite) TestGetAppInstallStatus() {
 	}
 }
 
-func (s *AppInstallControllerTestSuite) TestInstallApp() {
+func (s *AppControllerTestSuite) TestInstallApp() {
 	tests := []struct {
 		name                string
 		ignoreAppPreflights bool
@@ -661,16 +665,16 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			sm := s.CreateStateMachine(tt.currentState)
+			sm := s.CreateInstallStateMachine(tt.currentState)
 
-			controller, err := NewInstallController(
-				WithStateMachine(sm),
-				WithAppConfigManager(appConfigManager),
-				WithAppPreflightManager(appPreflightManager),
-				WithAppReleaseManager(appReleaseManager),
-				WithAppInstallManager(appInstallManager),
-				WithStore(&store.MockStore{}),
-				WithReleaseData(&release.ReleaseData{}),
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithAppInstallManager(appInstallManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
@@ -694,6 +698,206 @@ func (s *AppInstallControllerTestSuite) TestInstallApp() {
 
 			appConfigManager.AssertExpectations(s.T())
 			appInstallManager.AssertExpectations(s.T())
+		})
+	}
+}
+
+func (s *AppControllerTestSuite) TestUpgradeApp() {
+	tests := []struct {
+		name                string
+		ignoreAppPreflights bool
+		currentState        statemachine.State
+		expectedState       statemachine.State
+		setupMocks          func(*appconfig.MockAppConfigManager, *appupgrademanager.MockAppUpgradeManager)
+		expectedErr         bool
+	}{
+		{
+			name:          "invalid state transition from succeeded state",
+			currentState:  upgradeStates.StateSucceeded,
+			expectedState: upgradeStates.StateSucceeded,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				// No mocks needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "invalid state transition from app upgrading state",
+			currentState:  upgradeStates.StateAppUpgrading,
+			expectedState: upgradeStates.StateAppUpgrading,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				// No mocks needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "invalid state transition from app upgrade failed state",
+			currentState:  upgradeStates.StateAppUpgradeFailed,
+			expectedState: upgradeStates.StateAppUpgradeFailed,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				// No mocks needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "successful app upgrade from new state",
+			currentState:  upgradeStates.StateNew,
+			expectedState: upgradeStates.StateSucceeded,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				mock.InOrder(
+					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
+						Spec: kotsv1beta1.ConfigValuesSpec{
+							Values: map[string]kotsv1beta1.ConfigValue{
+								"test-key": {Value: "test-value"},
+							},
+						},
+					}, nil),
+					aum.On("Upgrade", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
+						return cv.Spec.Values["test-key"].Value == "test-value"
+					})).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "get config values error",
+			currentState:  upgradeStates.StateNew,
+			expectedState: upgradeStates.StateNew,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "app upgrade manager error",
+			currentState:  upgradeStates.StateNew,
+			expectedState: upgradeStates.StateAppUpgradeFailed,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				mock.InOrder(
+					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
+						Spec: kotsv1beta1.ConfigValuesSpec{
+							Values: map[string]kotsv1beta1.ConfigValue{
+								"test-key": {Value: "test-value"},
+							},
+						},
+					}, nil),
+					aum.On("Upgrade", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
+						return cv.Spec.Values["test-key"].Value == "test-value"
+					})).Return(errors.New("upgrade error")),
+				)
+			},
+			expectedErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+			appInstallManager := &appinstallmanager.MockAppInstallManager{}
+			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
+			sm := s.CreateUpgradeStateMachine(tt.currentState)
+
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithAppInstallManager(appInstallManager),
+				appcontroller.WithAppUpgradeManager(appUpgradeManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
+			)
+			require.NoError(t, err, "failed to create app controller")
+
+			tt.setupMocks(appConfigManager, appUpgradeManager)
+			err = controller.UpgradeApp(t.Context(), tt.ignoreAppPreflights)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Wait for the goroutine to complete and state to transition
+			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, 2*time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, 2*time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+			appConfigManager.AssertExpectations(t)
+			appUpgradeManager.AssertExpectations(t)
+		})
+	}
+}
+
+func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
+	expectedAppUpgrade := types.AppUpgrade{
+		Status: types.Status{
+			State:       types.StateRunning,
+			Description: "Upgrading application",
+			LastUpdated: time.Now(),
+		},
+		Logs: "Upgrade logs\n",
+	}
+
+	tests := []struct {
+		name        string
+		setupMocks  func(*appupgrademanager.MockAppUpgradeManager)
+		expectedErr bool
+	}{
+		{
+			name: "successful status retrieval",
+			setupMocks: func(aum *appupgrademanager.MockAppUpgradeManager) {
+				aum.On("GetStatus").Return(expectedAppUpgrade, nil)
+			},
+			expectedErr: false,
+		},
+		{
+			name: "manager returns error",
+			setupMocks: func(aum *appupgrademanager.MockAppUpgradeManager) {
+				aum.On("GetStatus").Return(types.AppUpgrade{}, errors.New("status error"))
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+			appInstallManager := &appinstallmanager.MockAppInstallManager{}
+			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
+			sm := s.CreateUpgradeStateMachine(upgradeStates.StateNew)
+
+			controller, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithAppConfigManager(appConfigManager),
+				appcontroller.WithAppPreflightManager(appPreflightManager),
+				appcontroller.WithAppReleaseManager(appReleaseManager),
+				appcontroller.WithAppInstallManager(appInstallManager),
+				appcontroller.WithAppUpgradeManager(appUpgradeManager),
+				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithReleaseData(&release.ReleaseData{}),
+			)
+			require.NoError(t, err, "failed to create app controller")
+
+			tt.setupMocks(appUpgradeManager)
+			result, err := controller.GetAppUpgradeStatus(t.Context())
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Equal(t, types.AppUpgrade{}, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, expectedAppUpgrade, result)
+			}
+
+			appUpgradeManager.AssertExpectations(t)
 		})
 	}
 }

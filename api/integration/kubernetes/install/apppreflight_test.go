@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
@@ -68,17 +68,17 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 	// Create real app install controller
-	appInstallController, err := appinstall.NewInstallController(
-		appinstall.WithAppPreflightManager(appPreflightManager),
-		appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
-		appinstall.WithStore(mockStore),
-		appinstall.WithReleaseData(integration.DefaultReleaseData()),
+	appController, err := appcontroller.NewAppController(
+		appcontroller.WithAppPreflightManager(appPreflightManager),
+		appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
+		appcontroller.WithStore(mockStore),
+		appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
 	// Create Kubernetes install controller
 	installController, err := kubernetesinstall.NewInstallController(
-		kubernetesinstall.WithAppInstallController(appInstallController),
+		kubernetesinstall.WithAppController(appController),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
@@ -167,17 +167,17 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockStrictStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create real app install controller
-		strictAppInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(strictAppPreflightManager),
-			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
-			appinstall.WithStore(mockStrictStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		strictAppController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(strictAppPreflightManager),
+			appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
+			appcontroller.WithStore(mockStrictStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		strictInstallController, err := kubernetesinstall.NewInstallController(
-			kubernetesinstall.WithAppInstallController(strictAppInstallController),
+			kubernetesinstall.WithAppController(strictAppController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -319,19 +319,19 @@ func TestPostRunAppPreflights(t *testing.T) {
 		)
 
 		// Create real app install controller with proper state machine
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(appPreflightManager),
-			appinstall.WithAppReleaseManager(mockAppReleaseManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(appPreflightManager),
+			appcontroller.WithAppReleaseManager(mockAppReleaseManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)

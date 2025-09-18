@@ -247,12 +247,13 @@ func parseHelmChartCR(data []byte) (*kotsv1beta2.HelmChart, error) {
 
 // ChannelRelease contains information about a specific app release inside a channel.
 type ChannelRelease struct {
-	VersionLabel   string  `yaml:"versionLabel"`
-	ChannelID      string  `yaml:"channelID"`
-	ChannelSlug    string  `yaml:"channelSlug"`
-	AppSlug        string  `yaml:"appSlug"`
-	Airgap         bool    `yaml:"airgap"`
-	DefaultDomains Domains `yaml:"defaultDomains"`
+	VersionLabel    string  `yaml:"versionLabel"`
+	ChannelID       string  `yaml:"channelID"`
+	ChannelSequence int64   `yaml:"channelSequence"`
+	ChannelSlug     string  `yaml:"channelSlug"`
+	AppSlug         string  `yaml:"appSlug"`
+	Airgap          bool    `yaml:"airgap"`
+	DefaultDomains  Domains `yaml:"defaultDomains"`
 }
 
 type Domains struct {

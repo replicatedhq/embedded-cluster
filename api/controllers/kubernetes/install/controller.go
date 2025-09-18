@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -50,7 +50,7 @@ type InstallController struct {
 	stateMachine        statemachine.Interface
 	logger              logrus.FieldLogger
 	// App controller composition
-	*appcontroller.InstallController
+	*appcontroller.AppController
 }
 
 type InstallControllerOption func(*InstallController)
@@ -133,9 +133,9 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
-func WithAppInstallController(appInstallController *appcontroller.InstallController) InstallControllerOption {
+func WithAppController(appController *appcontroller.AppController) InstallControllerOption {
 	return func(c *InstallController) {
-		c.InstallController = appInstallController
+		c.AppController = appController
 	}
 }
 
@@ -182,8 +182,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	// Initialize the app controller with the state machine
-	if controller.InstallController == nil {
-		appInstallController, err := appcontroller.NewInstallController(
+	if controller.AppController == nil {
+		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(controller.stateMachine),
 			appcontroller.WithLogger(controller.logger),
 			appcontroller.WithStore(controller.store),
@@ -196,7 +196,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
 		}
-		controller.InstallController = appInstallController
+		controller.AppController = appController
 	}
 
 	if controller.infraManager == nil {

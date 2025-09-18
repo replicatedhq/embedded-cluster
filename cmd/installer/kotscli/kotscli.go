@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
@@ -52,22 +53,18 @@ func Install(opts InstallOptions) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
-	licenseFile, err := os.CreateTemp("", "license")
+	licenseFile, err := createLicenseFile(opts.License)
 	if err != nil {
-		return fmt.Errorf("unable to create temp file: %w", err)
+		return fmt.Errorf("create temp license file: %w", err)
 	}
-	defer os.Remove(licenseFile.Name())
-
-	if _, err := licenseFile.Write(opts.License); err != nil {
-		return fmt.Errorf("unable to write license to temp file: %w", err)
-	}
+	defer os.Remove(licenseFile)
 
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
 		upstreamURI,
 		"--license-file",
-		licenseFile.Name(),
+		licenseFile,
 		"--namespace",
 		opts.Namespace,
 		"--app-version-label",
@@ -283,4 +280,106 @@ func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string
 	}
 
 	return outBuffer.String(), nil
+}
+
+// DeployOptions represents options for deploying an application using the new kots deploy command
+type DeployOptions struct {
+	AppSlug               string
+	License               []byte
+	Namespace             string
+	ClusterID             string
+	AirgapBundle          string
+	ConfigValuesFile      string
+	ChannelID             string
+	ChannelSequence       int64
+	ReplicatedAppEndpoint string
+	SkipPreflights        bool
+	Stdout                io.Writer
+}
+
+// Deploy performs an application deployment using the new KOTS deploy command
+// This combines license sync, upstream update download, configuration, and deployment in a single atomic operation
+func Deploy(opts DeployOptions) error {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	deployArgs := []string{
+		"deploy",
+		opts.AppSlug,
+		"--config-values",
+		opts.ConfigValuesFile,
+	}
+
+	if opts.AirgapBundle != "" {
+		// Airgap deployment - add license file and airgap bundle
+		if len(opts.License) == 0 {
+			return fmt.Errorf("license is required for airgap deployments")
+		}
+
+		licenseFile, err := createLicenseFile(opts.License)
+		if err != nil {
+			return fmt.Errorf("create temp license file: %w", err)
+		}
+		defer os.Remove(licenseFile)
+
+		deployArgs = append(deployArgs, "--license", licenseFile)
+		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
+	} else {
+		// Online deployment - add channel info
+		if opts.ChannelID == "" {
+			return fmt.Errorf("channel id is required for online deployments")
+		}
+		if opts.ChannelSequence == 0 {
+			return fmt.Errorf("channel sequence is required for online deployments")
+		}
+
+		deployArgs = append(deployArgs, "--channel-id", opts.ChannelID)
+		deployArgs = append(deployArgs, "--channel-sequence", strconv.FormatInt(opts.ChannelSequence, 10))
+	}
+
+	if opts.Namespace != "" {
+		deployArgs = append(deployArgs, "--namespace", opts.Namespace)
+	}
+
+	if opts.SkipPreflights {
+		deployArgs = append(deployArgs, "--skip-preflights")
+	}
+
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, deployArgs...)
+	if err != nil {
+		return fmt.Errorf("run deploy command: %w", err)
+	}
+
+	return nil
+}
+
+func createLicenseFile(license []byte) (string, error) {
+	licenseFile, err := os.CreateTemp("", "license")
+	if err != nil {
+		return "", fmt.Errorf("create temp license file: %w", err)
+	}
+	defer licenseFile.Close()
+
+	if _, err := licenseFile.Write(license); err != nil {
+		_ = os.Remove(licenseFile.Name())
+		return "", fmt.Errorf("write license to temp file: %w", err)
+	}
+
+	return licenseFile.Name(), nil
 }

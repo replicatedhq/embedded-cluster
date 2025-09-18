@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
@@ -56,18 +56,18 @@ func TestGetAppInstallStatus(t *testing.T) {
 		mockStore := &store.MockStore{}
 
 		// Create real app install controller
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(appInstallManager),
-			appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(appInstallManager),
+			appcontroller.WithStateMachine(linuxinstall.NewStateMachine()),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller with runtime config
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine()),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -209,18 +209,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller with mock metrics reporter and embedded app controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithMetricsReporter(mockMetricsReporter),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -280,17 +280,17 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create simple app install controller
 		mockStore := &store.MockStore{}
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -354,18 +354,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller with mock metrics reporter and embedded app controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithMetricsReporter(mockMetricsReporter),
 			linuxinstall.WithStore(mockStore),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
@@ -474,19 +474,19 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -552,18 +552,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -630,18 +630,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)

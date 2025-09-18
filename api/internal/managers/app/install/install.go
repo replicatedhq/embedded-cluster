@@ -81,7 +81,7 @@ func (m *appInstallManager) createConfigValuesFile(configValues kotsv1beta1.Conf
 	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
 	data, err := kyaml.Marshal(configValues)
 	if err != nil {
-		return "", fmt.Errorf("marshaling config values: %w", err)
+		return "", fmt.Errorf("marshal config values: %w", err)
 	}
 
 	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")

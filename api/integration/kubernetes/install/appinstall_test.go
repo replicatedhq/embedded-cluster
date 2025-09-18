@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
@@ -54,18 +54,18 @@ func TestGetAppInstallStatus(t *testing.T) {
 		mockStore := &store.MockStore{}
 
 		// Create real app install controller
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(appInstallManager),
-			appinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(appInstallManager),
+			appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller with runtime config
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine()),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -199,18 +199,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller with embedded app controller (no metrics reporter)
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
@@ -263,17 +263,17 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create simple app install controller
 		mockStore := &store.MockStore{}
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -323,18 +323,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller with embedded app controller (no metrics reporter in k8s)
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -434,19 +434,19 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppInstallManager(mockAppInstallManager),
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppInstallManager(mockAppInstallManager),
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -512,18 +512,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
@@ -590,18 +590,18 @@ func TestPostInstallApp(t *testing.T) {
 		)
 
 		// Create real app install controller with mock app preflight manager
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(mockAppPreflightManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(mockAppPreflightManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Kubernetes install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithStateMachine(stateMachine),
-			kubernetesinstall.WithAppInstallController(appInstallController),
+			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
