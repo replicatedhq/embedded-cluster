@@ -69,6 +69,57 @@ func TestSend(t *testing.T) {
 			wantEventType: "InstallationFailed",
 		},
 		{
+			name: "UpgradeStarted",
+			event: types.UpgradeStarted{
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    "123",
+					Version:      "1.2.3",
+					EntryCommand: "upgrade",
+					Flags:        "--foo --bar --baz",
+					EventType:    "UpgradeStarted",
+				},
+				BinaryName:   "test-app",
+				LegacyType:   "centralized",
+				LicenseID:    "license-123",
+				AppChannelID: "channel-456",
+				AppVersion:   "v1.0.0",
+			},
+			wantURLPath:   "/embedded_cluster_metrics/UpgradeStarted",
+			wantEventType: "UpgradeStarted",
+		},
+		{
+			name: "UpgradeSucceeded",
+			event: types.UpgradeSucceeded{
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    "123",
+					Version:      "1.2.3",
+					EntryCommand: "upgrade",
+					Flags:        "--foo --bar --baz",
+					EventType:    "UpgradeSucceeded",
+				},
+			},
+			wantURLPath:   "/embedded_cluster_metrics/GenericEvent",
+			wantEventType: "UpgradeSucceeded",
+		},
+		{
+			name: "UpgradeFailed",
+			event: types.UpgradeFailed{
+				GenericEvent: types.GenericEvent{
+					ExecutionID:  "test-id",
+					ClusterID:    "123",
+					Version:      "1.2.3",
+					EntryCommand: "upgrade",
+					Flags:        "--foo --bar --baz",
+					Reason:       "upgrade error",
+					EventType:    "UpgradeFailed",
+				},
+			},
+			wantURLPath:   "/embedded_cluster_metrics/GenericEvent",
+			wantEventType: "UpgradeFailed",
+		},
+		{
 			name: "JoinStarted",
 			event: types.JoinStarted{
 				GenericEvent: types.GenericEvent{

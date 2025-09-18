@@ -32,6 +32,21 @@ func (m *MockReporter) ReportInstallationFailed(ctx context.Context, err error) 
 	m.Called(mock.Anything, err)
 }
 
+// ReportUpgradeStarted mocks the ReportUpgradeStarted method
+func (m *MockReporter) ReportUpgradeStarted(ctx context.Context, licenseID string, appSlug string) {
+	m.Called(mock.Anything, licenseID, appSlug)
+}
+
+// ReportUpgradeSucceeded mocks the ReportUpgradeSucceeded method
+func (m *MockReporter) ReportUpgradeSucceeded(ctx context.Context) {
+	m.Called(mock.Anything)
+}
+
+// ReportUpgradeFailed mocks the ReportUpgradeFailed method
+func (m *MockReporter) ReportUpgradeFailed(ctx context.Context, err error) {
+	m.Called(mock.Anything, err)
+}
+
 // ReportJoinStarted mocks the ReportJoinStarted method
 func (m *MockReporter) ReportJoinStarted(ctx context.Context) {
 	m.Called(mock.Anything)
