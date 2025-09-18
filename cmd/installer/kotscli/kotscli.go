@@ -53,26 +53,18 @@ func Install(opts InstallOptions) error {
 		upstreamURI = fmt.Sprintf("%s/%s", upstreamURI, channelSlug)
 	}
 
-	licenseFile, err := os.CreateTemp("", "license")
+	licenseFile, err := createLicenseFile(opts.License)
 	if err != nil {
-		return fmt.Errorf("unable to create temp file: %w", err)
+		return fmt.Errorf("create temp license file: %w", err)
 	}
-	defer os.Remove(licenseFile.Name())
-
-	if _, err := licenseFile.Write(opts.License); err != nil {
-		return fmt.Errorf("unable to write license to temp file: %w", err)
-	}
-
-	if err := licenseFile.Close(); err != nil {
-		return fmt.Errorf("unable to close license file: %w", err)
-	}
+	defer os.Remove(licenseFile)
 
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
 		upstreamURI,
 		"--license-file",
-		licenseFile.Name(),
+		licenseFile,
 		"--namespace",
 		opts.Namespace,
 		"--app-version-label",
@@ -327,21 +319,13 @@ func Deploy(opts DeployOptions) error {
 			return fmt.Errorf("license is required for airgap deployments")
 		}
 
-		licenseFile, err := os.CreateTemp("", "license")
+		licenseFile, err := createLicenseFile(opts.License)
 		if err != nil {
 			return fmt.Errorf("create temp license file: %w", err)
 		}
-		defer os.Remove(licenseFile.Name())
+		defer os.Remove(licenseFile)
 
-		if _, err := licenseFile.Write(opts.License); err != nil {
-			return fmt.Errorf("write license to temp file: %w", err)
-		}
-
-		if err := licenseFile.Close(); err != nil {
-			return fmt.Errorf("unable to close license file: %w", err)
-		}
-
-		deployArgs = append(deployArgs, "--license", licenseFile.Name())
+		deployArgs = append(deployArgs, "--license", licenseFile)
 		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
 	} else {
 		// Online deployment - add channel info
@@ -383,4 +367,19 @@ func Deploy(opts DeployOptions) error {
 	}
 
 	return nil
+}
+
+func createLicenseFile(license []byte) (string, error) {
+	licenseFile, err := os.CreateTemp("", "license")
+	if err != nil {
+		return "", fmt.Errorf("create temp license file: %w", err)
+	}
+	defer licenseFile.Close()
+
+	if _, err := licenseFile.Write(license); err != nil {
+		_ = os.Remove(licenseFile.Name())
+		return "", fmt.Errorf("write license to temp file: %w", err)
+	}
+
+	return licenseFile.Name(), nil
 }
