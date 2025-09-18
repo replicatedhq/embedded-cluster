@@ -62,10 +62,16 @@ runs:
       cache-dependency-path: "**/*.sum"
 
   - name: E2E
+    id: e2e
     shell: bash
     run: |
       export SHORT_SHA=${{ inputs.version-specifier }}
-      echo "${SHORT_SHA}"
+      echo "SHORT_SHA=${SHORT_SHA}"
+
+      export CMX_NODE_NAME="ec-test-suite-$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10)"
+      echo "CMX_NODE_NAME=${CMX_NODE_NAME}"
+      echo "cmx_node_name=${CMX_NODE_NAME}" >> $GITHUB_OUTPUT
+
       export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
       export DR_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_S3_REGION=us-east-1
@@ -89,3 +95,11 @@ runs:
     uses: ./.github/actions/e2e-troubleshoot
     with:
       test-name: ${{ inputs.test-name }}
+
+  - name: Cleanup CMX
+    if: ${{ always() }}
+    shell: bash
+    env:
+      REPLICATED_API_TOKEN: ${{ inputs.cmx-api-token }}
+    run: |
+      replicated vm rm "${{ steps.e2e.outputs.cmx_node_name }}" || true

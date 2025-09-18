@@ -30,6 +30,7 @@ type Cluster struct {
 	t                      *testing.T
 	network                *Network `json:"-"`
 	supportBundleNodeIndex int
+	cleanupOnce            sync.Once
 }
 
 type Node struct {
@@ -60,15 +61,19 @@ type NetworkEvent struct {
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
-	c := &Cluster{t: in.T, supportBundleNodeIndex: in.SupportBundleNodeIndex}
+	c := &Cluster{
+		t:                      in.T,
+		supportBundleNodeIndex: in.SupportBundleNodeIndex,
+	}
 	c.t.Cleanup(c.Destroy)
 
 	nodes, err := NewNodes(in)
+	c.Nodes = nodes // set nodes to the cluster so we can clean up
 	if err != nil {
 		in.T.Fatalf("failed to create nodes: %v", err)
 	}
+
 	in.T.Logf("cluster created with network ID %s", nodes[0].NetworkID)
-	c.Nodes = nodes
 	c.network = &Network{ID: nodes[0].NetworkID}
 
 	return c
@@ -77,9 +82,14 @@ func NewCluster(in *ClusterInput) *Cluster {
 func NewNodes(in *ClusterInput) ([]Node, error) {
 	in.T.Logf("%s: creating %s nodes", time.Now().Format(time.RFC3339), strconv.Itoa(in.Nodes))
 
+	name := "ec-test-suite"
+	if n := os.Getenv("CMX_NODE_NAME"); n != "" {
+		name = n
+	}
+
 	args := []string{
 		"vm", "create",
-		"--name", "ec-test-suite",
+		"--name", name,
 		"--count", strconv.Itoa(in.Nodes),
 		"--wait", "10m",
 		"-ojson",
@@ -100,15 +110,18 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		args = append(args, "--ssh-public-key", key)
 	}
 
+	var nodes []Node
+
 	output, err := exec.Command("replicated", args...).Output() // stderr can break json parsing
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("create nodes: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
+			// the command may return nodes, we return them so we can clean up
+			_ = json.Unmarshal(output, &nodes)
+			return nodes, fmt.Errorf("create nodes: %w: stderr: %s: stdout: %s", err, string(exitErr.Stderr), string(output))
 		}
 		return nil, fmt.Errorf("create nodes: %w: stdout: %s", err, string(output))
 	}
 
-	var nodes []Node
 	if err := json.Unmarshal(output, &nodes); err != nil {
 		return nil, fmt.Errorf("unmarshal node: %v: %s", err, string(output))
 	}
@@ -122,12 +135,12 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 
 		sshEndpoint, err := getSSHEndpoint(nodes[i].ID)
 		if err != nil {
-			return nil, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
+			return nodes, fmt.Errorf("get ssh endpoint for node %s: %v", nodes[i].ID, err)
 		}
 		nodes[i].sshEndpoint = sshEndpoint
 
 		if err := waitForSSH(nodes[i], in.T); err != nil {
-			return nil, fmt.Errorf("wait for ssh to be available on node %d: %v", i, err)
+			return nodes, fmt.Errorf("wait for ssh to be available on node %d: %v", i, err)
 		}
 
 		privateIP, err := discoverPrivateIP(nodes[i])
@@ -137,18 +150,18 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		nodes[i].privateIP = privateIP
 
 		if err := ensureAssetsDir(nodes[i]); err != nil {
-			return nil, fmt.Errorf("ensure assets dir on node %s: %v", nodes[i].ID, err)
+			return nodes, fmt.Errorf("ensure assets dir on node %s: %v", nodes[i].ID, err)
 		}
 
 		if err := copyScriptsToNode(nodes[i]); err != nil {
-			return nil, fmt.Errorf("copy scripts to node %s: %v", nodes[i].ID, err)
+			return nodes, fmt.Errorf("copy scripts to node %s: %v", nodes[i].ID, err)
 		}
 
 		if i == 0 {
 			in.T.Logf("exposing port 30003 on node %s", nodes[i].ID)
 			hostname, err := exposePort(nodes[i], "30003")
 			if err != nil {
-				return nil, fmt.Errorf("expose port: %v", err)
+				return nodes, fmt.Errorf("expose port: %v", err)
 			}
 			nodes[i].adminConsoleURL = fmt.Sprintf("http://%s", hostname)
 		}
@@ -329,14 +342,18 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 }
 
 func (c *Cluster) Destroy() {
-	if os.Getenv("SKIP_CMX_CLEANUP") != "" {
-		c.t.Logf("Skipping CMX cleanup")
-		return
-	}
+	c.cleanupOnce.Do(func() {
+		if os.Getenv("SKIP_CMX_CLEANUP") != "" {
+			c.t.Logf("Skipping CMX cleanup")
+			return
+		}
 
-	for _, node := range c.Nodes {
-		c.removeNode(node)
-	}
+		c.t.Logf("Destroying cluster with %d nodes", len(c.Nodes))
+		for _, node := range c.Nodes {
+			c.removeNode(node)
+		}
+		c.t.Logf("Cluster cleanup completed")
+	})
 }
 
 func (c *Cluster) removeNode(node Node) {
