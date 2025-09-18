@@ -389,6 +389,12 @@ func getJoinCIDRConfig(rc runtimeconfig.RuntimeConfig) (*newconfig.CIDRConfig, e
 }
 
 func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, jcmd *join.JoinCommandResponse, appSlug string, flags JoinCmdFlags, isWorker bool) error {
+	// Detect stable hostname early in join process
+	hostname, err := nodeutil.GetHostname("")
+	if err != nil {
+		return fmt.Errorf("unable to detect hostname: %w", err)
+	}
+
 	logrus.Debugf("saving token to disk")
 	if err := saveTokenToDisk(jcmd.K0sToken); err != nil {
 		return fmt.Errorf("unable to save token to disk: %w", err)
@@ -406,7 +412,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, isWorker); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, hostname, isWorker); err != nil {
 		return fmt.Errorf("unable to create systemd unit files: %w", err)
 	}
 
@@ -426,7 +432,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 	}
 
 	logrus.Debugf("joining node to cluster")
-	if err := runK0sInstallCommand(rc, flags.networkInterface, jcmd.K0sJoinCommand, profile); err != nil {
+	if err := runK0sInstallCommand(rc, flags.networkInterface, hostname, jcmd.K0sJoinCommand, profile); err != nil {
 		return fmt.Errorf("unable to join node to cluster: %w", err)
 	}
 
@@ -562,7 +568,7 @@ func getFirstDefinedProfile() (string, error) {
 }
 
 // runK0sInstallCommand runs the k0s install command as provided by the kots
-func runK0sInstallCommand(rc runtimeconfig.RuntimeConfig, networkInterface string, fullcmd string, profile string) error {
+func runK0sInstallCommand(rc runtimeconfig.RuntimeConfig, networkInterface string, hostname string, fullcmd string, profile string) error {
 	args := strings.Split(fullcmd, " ")
 	args = append(args, "--token-file", "/etc/k0s/join-token")
 
@@ -575,7 +581,7 @@ func runK0sInstallCommand(rc runtimeconfig.RuntimeConfig, networkInterface strin
 		args = append(args, "--profile", profile)
 	}
 
-	args = append(args, config.AdditionalInstallFlags(rc, nodeIP)...)
+	args = append(args, config.AdditionalInstallFlags(rc, nodeIP, hostname)...)
 
 	if strings.Contains(fullcmd, "controller") {
 		args = append(args, config.AdditionalInstallFlagsController()...)

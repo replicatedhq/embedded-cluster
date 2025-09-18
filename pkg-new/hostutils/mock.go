@@ -70,8 +70,8 @@ func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapB
 }
 
 // CreateSystemdUnitFiles mocks the CreateSystemdUnitFiles method
-func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, isWorker bool) error {
-	args := m.Called(ctx, logger, rc, isWorker)
+func (m *MockHostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error {
+	args := m.Called(ctx, logger, rc, hostname, isWorker)
 	return args.Error(0)
 }
 

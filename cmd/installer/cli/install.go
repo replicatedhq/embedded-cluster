@@ -1110,6 +1110,14 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
+
+	// Detect stable hostname early in installation
+	hostname, err := nodeutil.GetHostname("")
+	if err != nil {
+		loading.ErrorClosef("Failed to install node")
+		return nil, fmt.Errorf("unable to detect hostname: %w", err)
+	}
+
 	logrus.Debugf("creating k0s configuration file")
 
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
@@ -1124,13 +1132,13 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	}
 
 	logrus.Debugf("creating systemd unit files")
-	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, false); err != nil {
+	if err := hostutils.CreateSystemdUnitFiles(ctx, logrus.StandardLogger(), rc, hostname, false); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create systemd unit files: %w", err)
 	}
 
 	logrus.Debugf("installing k0s")
-	if err := k0s.Install(rc); err != nil {
+	if err := k0s.Install(rc, hostname); err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("install cluster: %w", err)
 	}

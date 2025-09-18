@@ -145,6 +145,7 @@ func TestInstallFlags(t *testing.T) {
 	tests := []struct {
 		name           string
 		nodeIP         string
+		hostname       string
 		releaseData    map[string][]byte
 		expectedFlags  []string
 		expectedError  bool
@@ -152,8 +153,29 @@ func TestInstallFlags(t *testing.T) {
 		k0sConfigPath  string
 	}{
 		{
-			name:          "default configuration",
+			name:          "default configuration with hostname",
 			nodeIP:        "192.168.1.10",
+			hostname:      "test-node",
+			k0sConfigPath: defaultTmpFile.Name(),
+			releaseData:   map[string][]byte{},
+			expectedFlags: []string{
+				"install",
+				"controller",
+				"--labels", "kots.io/embedded-cluster-role-0=controller,kots.io/embedded-cluster-role=total-1",
+				"--enable-worker",
+				"--no-taints",
+				"-c", runtimeconfig.K0sConfigPath,
+				"--kubelet-extra-args", "--node-ip=192.168.1.10 --hostname-override=test-node",
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
+				"--disable-components", "konnectivity-server",
+				"--enable-dynamic-config",
+			},
+			expectedError: false,
+		},
+		{
+			name:          "configuration with empty hostname",
+			nodeIP:        "192.168.1.10",
+			hostname:      "",
 			k0sConfigPath: defaultTmpFile.Name(),
 			releaseData:   map[string][]byte{},
 			expectedFlags: []string{
@@ -171,8 +193,9 @@ func TestInstallFlags(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name:          "custom controller role name with worker profile",
+			name:          "custom controller role name with worker profile and hostname",
 			nodeIP:        "192.168.1.10",
+			hostname:      "custom-node-name",
 			k0sConfigPath: profileTmpFile.Name(),
 			releaseData: map[string][]byte{
 				"cluster-config.yaml": []byte(`
@@ -196,7 +219,7 @@ spec:
 				"--no-taints",
 				"-c", runtimeconfig.K0sConfigPath,
 				"--profile=test-profile",
-				"--kubelet-extra-args", "--node-ip=192.168.1.10",
+				"--kubelet-extra-args", "--node-ip=192.168.1.10 --hostname-override=custom-node-name",
 				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
 				"--disable-components", "konnectivity-server",
 				"--enable-dynamic-config",
@@ -221,7 +244,7 @@ spec:
 			})
 
 			// Run test
-			flags, err := InstallFlags(rc, tt.nodeIP)
+			flags, err := InstallFlags(rc, tt.nodeIP, tt.hostname)
 			if tt.expectedError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrMsg)

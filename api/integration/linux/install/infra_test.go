@@ -155,8 +155,8 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
-			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false).Return(nil),
-			k0sMock.On("Install", rc).Return(nil),
+			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, hostname, false).Return(nil),
+			k0sMock.On("Install", rc, hostname).Return(nil),
 			k0sMock.On("WaitForK0s").Return(nil),
 			hostutilsMock.On("AddInsecureRegistry", mock.Anything).Return(nil),
 			helmMock.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil), // 4 addons
@@ -652,6 +652,9 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 			PodCIDR:          "10.244.0.0/16",
 		})
 
+		hostname, err := nodeutil.GetHostname("")
+		require.NoError(t, err)
+
 		// Create host preflights with successful status
 		hpf := types.HostPreflights{}
 		hpf.Status = types.Status{
@@ -674,8 +677,8 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
-			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, false).Return(nil),
-			k0sMock.On("Install", mock.Anything).Return(errors.New("failed to install k0s")),
+			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, hostname, false).Return(nil),
+			k0sMock.On("Install", rc, hostname).Return(errors.New("failed to install k0s")),
 		)
 
 		// Create an install controller
