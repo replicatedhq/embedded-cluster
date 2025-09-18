@@ -80,7 +80,8 @@ var k0sImageComponents = map[string]addonComponent{
 		name: "envoy-distroless",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/envoy"
-			return getLatestImageNameAndTag(opts.ctx, ref, nil)
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 	},
 }

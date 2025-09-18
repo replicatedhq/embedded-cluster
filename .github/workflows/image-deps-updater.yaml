@@ -145,8 +145,7 @@ jobs:
           if [ -n "${{ github.event.inputs.k0s_minor_version }}" ]; then
             k0s_minor_version="${{ github.event.inputs.k0s_minor_version }}"
           fi
-          ./scripts/k0s-update-images.sh "$k0s_minor_version" \
-            UPDATE_ALL_IMAGES=true
+          UPDATE_ALL_IMAGES=true ./scripts/k0s-update-images.sh "$k0s_minor_version"
 
       - name: Determine target branch
         id: determine-target
