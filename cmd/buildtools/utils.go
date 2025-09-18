@@ -568,3 +568,7 @@ func addProxyAnonymousPrefix(image string) string {
 	}
 	return fmt.Sprintf("proxy.replicated.com/anonymous/%s", image)
 }
+
+func replaceReplicatedLibraryPrefix(image string) string {
+	return strings.Replace(image, "proxy.replicated.com/library", "proxy.replicated.com/library", 1)
+}
