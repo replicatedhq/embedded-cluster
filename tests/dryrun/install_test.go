@@ -104,10 +104,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
-		"images.kotsadm":    "fake-replicated-proxy.test.net/library",
-		"images.kurlProxy":  "fake-replicated-proxy.test.net/library",
-		"images.migrations": "fake-replicated-proxy.test.net/library",
-		"images.rqlite":     "fake-replicated-proxy.test.net/library",
+		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
+		"images.kurlProxy":  "fake-replicated-proxy.test.net/anonymous",
+		"images.migrations": "fake-replicated-proxy.test.net/anonymous",
+		"images.rqlite":     "fake-replicated-proxy.test.net/anonymous",
 	})
 
 	// --- validate os env --- //
@@ -571,10 +571,10 @@ func TestNoDomains(t *testing.T) {
 		"kurlProxy.nodePort": float64(30000),
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
-		"images.kotsadm":    "proxy.staging.replicated.com/library",
-		"images.kurlProxy":  "proxy.staging.replicated.com/library",
-		"images.migrations": "proxy.staging.replicated.com/library",
-		"images.rqlite":     "proxy.staging.replicated.com/library",
+		"images.kotsadm":    "proxy.staging.replicated.com/anonymous",
+		"images.kurlProxy":  "proxy.staging.replicated.com/anonymous",
+		"images.migrations": "proxy.staging.replicated.com/anonymous",
+		"images.rqlite":     "proxy.staging.replicated.com/anonymous",
 	})
 
 	// --- validate installation object --- //
