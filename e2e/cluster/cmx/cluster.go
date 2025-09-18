@@ -149,7 +149,7 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 
 		privateIP, err := discoverPrivateIP(nodes[i])
 		if err != nil {
-			return nil, fmt.Errorf("discover node private IP: %v", err)
+			return nodes, fmt.Errorf("discover node private IP: %v", err)
 		}
 		nodes[i].privateIP = privateIP
 
