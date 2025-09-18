@@ -49,16 +49,6 @@ func (m *appUpgradeManager) upgrade(_ context.Context, configValues kotsv1beta1.
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
 		return fmt.Errorf("release data with app slug is required for upgrade")
 	}
-	if m.releaseData.ChannelRelease.ChannelID == "" {
-		return fmt.Errorf("release data with channel id is required for upgrade")
-	}
-	if m.releaseData.ChannelRelease.ChannelSequence == 0 {
-		return fmt.Errorf("release data with channel sequence is required for upgrade")
-	}
-
-	appSlug := m.releaseData.ChannelRelease.AppSlug
-	channelID := m.releaseData.ChannelRelease.ChannelID
-	channelSequence := m.releaseData.ChannelRelease.ChannelSequence
 
 	configValuesFile, err := m.createConfigValuesFile(configValues)
 	if err != nil {
@@ -67,14 +57,14 @@ func (m *appUpgradeManager) upgrade(_ context.Context, configValues kotsv1beta1.
 	defer os.Remove(configValuesFile)
 
 	deployOpts := kotscli.DeployOptions{
-		AppSlug:               appSlug,
+		AppSlug:               m.releaseData.ChannelRelease.AppSlug,
 		License:               m.license,
 		Namespace:             constants.KotsadmNamespace,
 		ClusterID:             m.clusterID,
 		AirgapBundle:          m.airgapBundle,
 		ConfigValuesFile:      configValuesFile,
-		ChannelID:             channelID,
-		ChannelSequence:       channelSequence,
+		ChannelID:             m.releaseData.ChannelRelease.ChannelID,
+		ChannelSequence:       m.releaseData.ChannelRelease.ChannelSequence,
 		ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
 		SkipPreflights: os.Getenv("ENABLE_V3") == "1",
@@ -106,7 +96,7 @@ func (m *appUpgradeManager) createConfigValuesFile(configValues kotsv1beta1.Conf
 	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
 	data, err := kyaml.Marshal(configValues)
 	if err != nil {
-		return "", fmt.Errorf("marshaling config values: %w", err)
+		return "", fmt.Errorf("marshal config values: %w", err)
 	}
 
 	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")

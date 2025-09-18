@@ -63,6 +63,10 @@ func Install(opts InstallOptions) error {
 		return fmt.Errorf("unable to write license to temp file: %w", err)
 	}
 
+	if err := licenseFile.Close(); err != nil {
+		return fmt.Errorf("unable to close license file: %w", err)
+	}
+
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
 		"install",
@@ -317,31 +321,39 @@ func Deploy(opts DeployOptions) error {
 		opts.ConfigValuesFile,
 	}
 
-	// Add license file for airgap deployments
 	if opts.AirgapBundle != "" {
-		if len(opts.License) > 0 {
-			licenseFile, err := os.CreateTemp("", "license")
-			if err != nil {
-				return fmt.Errorf("create temp license file: %w", err)
-			}
-			defer os.Remove(licenseFile.Name())
-
-			if _, err := licenseFile.Write(opts.License); err != nil {
-				return fmt.Errorf("write license to temp file: %w", err)
-			}
-			licenseFile.Close()
-
-			deployArgs = append(deployArgs, "--license", licenseFile.Name())
+		// Airgap deployment - add license file and airgap bundle
+		if len(opts.License) == 0 {
+			return fmt.Errorf("license is required for airgap deployments")
 		}
+
+		licenseFile, err := os.CreateTemp("", "license")
+		if err != nil {
+			return fmt.Errorf("create temp license file: %w", err)
+		}
+		defer os.Remove(licenseFile.Name())
+
+		if _, err := licenseFile.Write(opts.License); err != nil {
+			return fmt.Errorf("write license to temp file: %w", err)
+		}
+
+		if err := licenseFile.Close(); err != nil {
+			return fmt.Errorf("unable to close license file: %w", err)
+		}
+
+		deployArgs = append(deployArgs, "--license", licenseFile.Name())
 		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
 	} else {
 		// Online deployment - add channel info
-		if opts.ChannelID != "" {
-			deployArgs = append(deployArgs, "--channel-id", opts.ChannelID)
+		if opts.ChannelID == "" {
+			return fmt.Errorf("channel id is required for online deployments")
 		}
-		if opts.ChannelSequence != 0 {
-			deployArgs = append(deployArgs, "--channel-sequence", strconv.FormatInt(opts.ChannelSequence, 10))
+		if opts.ChannelSequence == 0 {
+			return fmt.Errorf("channel sequence is required for online deployments")
 		}
+
+		deployArgs = append(deployArgs, "--channel-id", opts.ChannelID)
+		deployArgs = append(deployArgs, "--channel-sequence", strconv.FormatInt(opts.ChannelSequence, 10))
 	}
 
 	if opts.Namespace != "" {
@@ -367,7 +379,7 @@ func Deploy(opts DeployOptions) error {
 
 	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, deployArgs...)
 	if err != nil {
-		return fmt.Errorf("deploy the application: %w", err)
+		return fmt.Errorf("run deploy command: %w", err)
 	}
 
 	return nil
