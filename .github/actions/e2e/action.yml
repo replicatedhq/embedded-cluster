@@ -102,4 +102,4 @@ runs:
     env:
       REPLICATED_API_TOKEN: ${{ inputs.cmx-api-token }}
     run: |
-      replicated vm rm "ec-test-suite-${{ steps.e2e.outputs.cmx_node_name }}" || true
+      replicated vm rm "${{ steps.e2e.outputs.cmx_node_name }}" || true
