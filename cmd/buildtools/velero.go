@@ -27,11 +27,7 @@ var veleroImageComponents = map[string]addonComponent{
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/velero"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
-			if err != nil {
-				return "", fmt.Errorf("get greatest tag from registry: %w", err)
-			}
-			return fmt.Sprintf("%s:%s", ref, tag), nil
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_VERSION",
 	},
@@ -40,11 +36,7 @@ var veleroImageComponents = map[string]addonComponent{
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "registry.replicated.com/library/velero-plugin-for-aws"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			tag, err := GetGreatestTagFromRegistry(opts.ctx, ref, constraints)
-			if err != nil {
-				return "", fmt.Errorf("get greatest tag from registry: %w", err)
-			}
-			return fmt.Sprintf("%s:%s", ref, tag), nil
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},

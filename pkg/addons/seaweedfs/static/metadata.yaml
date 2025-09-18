@@ -9,7 +9,7 @@ version: 4.0.393
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/seaweedfs
 images:
     seaweedfs:
-        repo: proxy.replicated.com/anonymous/replicated/ec-seaweedfs
+        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/seaweedfs
         tag:
-            amd64: 3.93-r0-amd64@sha256:535692b250a75b9a29d8e6d517dd297efa81653f06e7781e71338862dbff9828
-            arm64: 3.93-r0-arm64@sha256:72846bb476722c87af8618c1809d1b9597b1936d390aaddcc3daf6ef0181fdbb
+            amd64: 3.93-amd64@sha256:285a009ac1e2f5e56a7427a06853f3c3e992d2dbecbf45e0fafb21a02392bc4b
+            arm64: 3.93-arm64@sha256:abd588a3d1a7f486c39572fd29659c8091180b66819e1c14b74260da0dad3f48
