@@ -41,7 +41,7 @@ func (a *AddOns) operatorImages(images []string) (string, string, string, error)
 		if strings.Contains(image, "/embedded-cluster-operator-image:") {
 			ecOperatorImage = image
 		}
-		if strings.Contains(image, "/ec-utils:") {
+		if strings.Contains(image, "/embedded-cluster-utils:") {
 			ecUtilsImage = image
 		}
 	}
@@ -50,7 +50,7 @@ func (a *AddOns) operatorImages(images []string) (string, string, string, error)
 		return "", "", "", errors.New("no embedded-cluster-operator-image found in images")
 	}
 	if ecUtilsImage == "" {
-		return "", "", "", errors.New("no ec-utils found in images")
+		return "", "", "", errors.New("no embedded-cluster-utils found in images")
 	}
 
 	// the override images for operator during upgrades also need to be updated to use a whitelabeled proxy registry

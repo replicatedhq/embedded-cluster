@@ -18,8 +18,9 @@ var operatorImageComponents = map[string]addonComponent{
 		name:             "embedded-cluster-operator",
 		useUpstreamImage: true,
 	},
-	"docker.io/library/busybox": {
-		name: "utils",
+	"registry.replicated.com/library/embedded-cluster-utils": {
+		name:             "utils",
+		useUpstreamImage: true,
 	},
 	"registry.replicated.com/library/goldpinger": {
 		name:             "goldpinger",
@@ -135,7 +136,7 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 	}
 
 	// make sure we include the operator util and goldpinger images as they don't show up when rendering the helm chart.
-	images = append(images, "docker.io/library/busybox:latest")
+	images = append(images, "registry.replicated.com/library/embedded-cluster-utils:latest")
 	images = append(images, "registry.replicated.com/library/goldpinger:latest")
 
 	metaImages, err := UpdateImages(ctx, operatorImageComponents, embeddedclusteroperator.Metadata.Images, images, filteredImages)

@@ -29,7 +29,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 		},
 		Images: []string{
 			"proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image:1.22.0-k8s-1.30-amd64@sha256:929b6cb42add383a69e3b26790c06320bd4eac0ecd60b509212c1864d69c6a88",
-			"proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70",
+			"proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70",
 		},
 	}
 
@@ -63,7 +63,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				assert.Equal(t, "1.22.0+k8s-1.30", eco.ChartVersionOverride)
 				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image", eco.ImageRepoOverride)
 				assert.Equal(t, "1.22.0-k8s-1.30-amd64@sha256:929b6cb42add383a69e3b26790c06320bd4eac0ecd60b509212c1864d69c6a88", eco.ImageTagOverride)
-				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
+				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
 
 				adminConsole, ok := addons[2].(*adminconsole.AdminConsole)
 				require.True(t, ok, "third addon should be AdminConsole")
@@ -98,7 +98,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				assert.Equal(t, "1.22.0+k8s-1.30", eco.ChartVersionOverride)
 				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image", eco.ImageRepoOverride)
 				assert.Equal(t, "1.22.0-k8s-1.30-amd64@sha256:929b6cb42add383a69e3b26790c06320bd4eac0ecd60b509212c1864d69c6a88", eco.ImageTagOverride)
-				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
+				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
 
 				reg, ok := addons[2].(*registry.Registry)
 				require.True(t, ok, "third addon should be Registry")
@@ -139,7 +139,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				assert.Equal(t, "1.22.0+k8s-1.30", eco.ChartVersionOverride)
 				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image", eco.ImageRepoOverride)
 				assert.Equal(t, "1.22.0-k8s-1.30-amd64@sha256:929b6cb42add383a69e3b26790c06320bd4eac0ecd60b509212c1864d69c6a88", eco.ImageTagOverride)
-				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
+				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
 
 				vel, ok := addons[2].(*velero.Velero)
 				require.True(t, ok, "third addon should be Velero")
@@ -186,7 +186,7 @@ func Test_getAddOnsForUpgrade(t *testing.T) {
 				assert.Equal(t, "1.22.0+k8s-1.30", eco.ChartVersionOverride)
 				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-operator-image", eco.ImageRepoOverride)
 				assert.Equal(t, "1.22.0-k8s-1.30-amd64@sha256:929b6cb42add383a69e3b26790c06320bd4eac0ecd60b509212c1864d69c6a88", eco.ImageTagOverride)
-				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/ec-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
+				assert.Equal(t, "proxy.replicated.com/anonymous/replicated/embedded-cluster-utils:latest-amd64@sha256:f499ed26bd5899bc5a1ae14d9d13853d1fc615ae21bde86fe250960772fd2c70", eco.UtilsImageOverride)
 
 				reg, ok := addons[2].(*registry.Registry)
 				require.True(t, ok, "third addon should be Registry")
