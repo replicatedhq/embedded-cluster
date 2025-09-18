@@ -6,7 +6,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/auth"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
+	kubernetesupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
+	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -43,7 +45,9 @@ type API struct {
 	authController              auth.Controller
 	consoleController           console.Controller
 	linuxInstallController      linuxinstall.Controller
+	linuxUpgradeController      linuxupgrade.Controller
 	kubernetesInstallController kubernetesinstall.Controller
+	kubernetesUpgradeController kubernetesupgrade.Controller
 
 	handlers handlers
 }
@@ -72,10 +76,24 @@ func WithLinuxInstallController(linuxInstallController linuxinstall.Controller) 
 	}
 }
 
+// WithLinuxUpgradeController configures the linux upgrade controller for the API.
+func WithLinuxUpgradeController(linuxUpgradeController linuxupgrade.Controller) Option {
+	return func(a *API) {
+		a.linuxUpgradeController = linuxUpgradeController
+	}
+}
+
 // WithKubernetesInstallController configures the kubernetes install controller for the API.
 func WithKubernetesInstallController(kubernetesInstallController kubernetesinstall.Controller) Option {
 	return func(a *API) {
 		a.kubernetesInstallController = kubernetesInstallController
+	}
+}
+
+// WithKubernetesUpgradeController configures the kubernetes upgrade controller for the API.
+func WithKubernetesUpgradeController(kubernetesUpgradeController kubernetesupgrade.Controller) Option {
+	return func(a *API) {
+		a.kubernetesUpgradeController = kubernetesUpgradeController
 	}
 }
 

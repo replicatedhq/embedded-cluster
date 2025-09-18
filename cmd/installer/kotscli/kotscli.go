@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
@@ -283,4 +284,91 @@ func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string
 	}
 
 	return outBuffer.String(), nil
+}
+
+// DeployOptions represents options for deploying an application using the new kots deploy command
+type DeployOptions struct {
+	AppSlug               string
+	License               []byte
+	Namespace             string
+	ClusterID             string
+	AirgapBundle          string
+	ConfigValuesFile      string
+	ChannelID             string
+	ChannelSequence       int64
+	ReplicatedAppEndpoint string
+	SkipPreflights        bool
+	Stdout                io.Writer
+}
+
+// Deploy performs an application deployment using the new KOTS deploy command
+// This combines license sync, upstream update download, configuration, and deployment in a single atomic operation
+func Deploy(opts DeployOptions) error {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	deployArgs := []string{
+		"deploy",
+		opts.AppSlug,
+		"--config-values",
+		opts.ConfigValuesFile,
+	}
+
+	// Add license file for airgap deployments
+	if opts.AirgapBundle != "" {
+		if len(opts.License) > 0 {
+			licenseFile, err := os.CreateTemp("", "license")
+			if err != nil {
+				return fmt.Errorf("create temp license file: %w", err)
+			}
+			defer os.Remove(licenseFile.Name())
+
+			if _, err := licenseFile.Write(opts.License); err != nil {
+				return fmt.Errorf("write license to temp file: %w", err)
+			}
+			licenseFile.Close()
+
+			deployArgs = append(deployArgs, "--license", licenseFile.Name())
+		}
+		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
+	} else {
+		// Online deployment - add channel info
+		if opts.ChannelID != "" {
+			deployArgs = append(deployArgs, "--channel-id", opts.ChannelID)
+		}
+		if opts.ChannelSequence != 0 {
+			deployArgs = append(deployArgs, "--channel-sequence", strconv.FormatInt(opts.ChannelSequence, 10))
+		}
+	}
+
+	if opts.Namespace != "" {
+		deployArgs = append(deployArgs, "--namespace", opts.Namespace)
+	}
+
+	if opts.SkipPreflights {
+		deployArgs = append(deployArgs, "--skip-preflights")
+	}
+
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOptions.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, deployArgs...)
+	if err != nil {
+		return fmt.Errorf("deploy the application: %w", err)
+	}
+
+	return nil
 }

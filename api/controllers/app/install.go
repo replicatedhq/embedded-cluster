@@ -1,4 +1,4 @@
-package install
+package app
 
 import (
 	"context"
@@ -15,7 +15,7 @@ var (
 )
 
 // InstallApp triggers app installation with proper state transitions and panic handling
-func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -102,6 +102,6 @@ func (c *InstallController) InstallApp(ctx context.Context, ignoreAppPreflights 
 	return nil
 }
 
-func (c *InstallController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
+func (c *AppController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
 	return c.appInstallManager.GetStatus()
 }

@@ -9,7 +9,6 @@ import (
 	infrastore "github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -26,11 +25,6 @@ var _ InfraManager = &infraManager{}
 type InfraManager interface {
 	Get() (types.Infra, error)
 	Install(ctx context.Context, ki kubernetesinstallation.Installation) error
-}
-
-// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
-type KotsCLIInstaller interface {
-	Install(opts kotscli.InstallOptions) error
 }
 
 // infraManager is an implementation of the InfraManager interface

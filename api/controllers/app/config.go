@@ -1,4 +1,4 @@
-package install
+package app
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *InstallController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
+func (c *AppController) PatchAppConfigValues(ctx context.Context, values types.AppConfigValues) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -56,10 +56,10 @@ func (c *InstallController) PatchAppConfigValues(ctx context.Context, values typ
 	return nil
 }
 
-func (c *InstallController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
+func (c *AppController) TemplateAppConfig(ctx context.Context, values types.AppConfigValues, maskPasswords bool) (types.AppConfig, error) {
 	return c.appConfigManager.TemplateConfig(values, maskPasswords, true)
 }
 
-func (c *InstallController) GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
+func (c *AppController) GetAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
 	return c.appConfigManager.GetConfigValues()
 }

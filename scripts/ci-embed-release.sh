@@ -8,6 +8,7 @@ set -euo pipefail
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
+APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
 APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
 APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
@@ -56,10 +57,15 @@ function create_release_archive() {
     mkdir -p output/tmp
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
+    # get next channel sequence
+    local curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence')
+    local next_channel_sequence=$((curr_channel_sequence + 1))
+
     {
         echo "# channel release object"
         echo "channelID: \"${APP_CHANNEL_ID}\""
         echo "channelSlug: \"${APP_CHANNEL_SLUG}\""
+        echo "channelSequence: ${next_channel_sequence}"
         echo "appSlug: \"${REPLICATED_APP}\""
         echo "versionLabel: \"${APP_VERSION}\""
         echo "defaultDomains:"

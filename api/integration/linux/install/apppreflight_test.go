@@ -8,7 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api"
-	appinstall "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
@@ -69,17 +69,17 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 	// Create real app install controller
-	appInstallController, err := appinstall.NewInstallController(
-		appinstall.WithAppPreflightManager(appPreflightManager),
-		appinstall.WithStateMachine(linuxinstall.NewStateMachine()),
-		appinstall.WithStore(mockStore),
-		appinstall.WithReleaseData(integration.DefaultReleaseData()),
+	appController, err := appcontroller.NewAppController(
+		appcontroller.WithAppPreflightManager(appPreflightManager),
+		appcontroller.WithStateMachine(linuxinstall.NewStateMachine()),
+		appcontroller.WithStore(mockStore),
+		appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
 
 	// Create Linux install controller
 	installController, err := linuxinstall.NewInstallController(
-		linuxinstall.WithAppInstallController(appInstallController),
+		linuxinstall.WithAppController(appController),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
 	)
 	require.NoError(t, err)
@@ -319,19 +319,19 @@ func TestPostRunAppPreflights(t *testing.T) {
 		)
 
 		// Create real app install controller with proper state machine
-		appInstallController, err := appinstall.NewInstallController(
-			appinstall.WithAppPreflightManager(appPreflightManager),
-			appinstall.WithAppReleaseManager(mockAppReleaseManager),
-			appinstall.WithStateMachine(stateMachine),
-			appinstall.WithStore(mockStore),
-			appinstall.WithReleaseData(integration.DefaultReleaseData()),
+		appController, err := appcontroller.NewAppController(
+			appcontroller.WithAppPreflightManager(appPreflightManager),
+			appcontroller.WithAppReleaseManager(mockAppReleaseManager),
+			appcontroller.WithStateMachine(stateMachine),
+			appcontroller.WithStore(mockStore),
+			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 		)
 		require.NoError(t, err)
 
 		// Create Linux install controller with runtime config
 		installController, err := linuxinstall.NewInstallController(
 			linuxinstall.WithStateMachine(stateMachine),
-			linuxinstall.WithAppInstallController(appInstallController),
+			linuxinstall.WithAppController(appController),
 			linuxinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{

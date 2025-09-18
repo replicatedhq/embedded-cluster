@@ -3,7 +3,7 @@ package install
 import (
 	"context"
 
-	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app/install"
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/mock"
 )
@@ -118,4 +118,16 @@ func (m *MockController) InstallApp(ctx context.Context, ignoreAppPreflights boo
 func (m *MockController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(types.AppInstall), args.Error(1)
+}
+
+// UpgradeApp mocks the UpgradeApp method
+func (m *MockController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool) error {
+	args := m.Called(ctx, ignoreAppPreflights)
+	return args.Error(0)
+}
+
+// GetAppUpgradeStatus mocks the GetAppUpgradeStatus method
+func (m *MockController) GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(types.AppUpgrade), args.Error(1)
 }

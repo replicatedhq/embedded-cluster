@@ -14,11 +14,6 @@ import (
 
 var _ AppInstallManager = &appInstallManager{}
 
-// KotsCLIInstaller is an interface that wraps the Install method from the kotscli package
-type KotsCLIInstaller interface {
-	Install(opts kotscli.InstallOptions) error
-}
-
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
 	// Install installs the app with the provided config values
@@ -34,7 +29,7 @@ type appInstallManager struct {
 	license         []byte
 	clusterID       string
 	airgapBundle    string
-	kotsCLI         KotsCLIInstaller
+	kotsCLI         kotscli.KotsCLI
 	logger          logrus.FieldLogger
 }
 
@@ -76,7 +71,7 @@ func WithAirgapBundle(airgapBundle string) AppInstallManagerOption {
 	}
 }
 
-func WithKotsCLI(kotsCLI KotsCLIInstaller) AppInstallManagerOption {
+func WithKotsCLI(kotsCLI kotscli.KotsCLI) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kotsCLI = kotsCLI
 	}
