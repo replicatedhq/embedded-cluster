@@ -703,6 +703,7 @@ func runManagerExperienceInstall(
 
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
+			Password:     flags.adminConsolePassword,
 			PasswordHash: passwordHash,
 			TLSConfig: apitypes.TLSConfig{
 				CertBytes: flags.tlsCertBytes,
