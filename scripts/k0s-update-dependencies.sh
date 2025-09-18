@@ -49,7 +49,7 @@ function main() {
     sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION \?= .*$/K0S_MINOR_VERSION ?= $minor_version/" versions.mk
 
     # only update images and code if there has been a change to the versions.mk file
-    if git diff --exit-code --name-only versions.mk > /dev/null; then
+    if ! git diff --exit-code --name-only versions.mk > /dev/null; then
         # update images for all major.minor versions
         UPDATE_ALL_IMAGES=true ./scripts/k0s-update-images.sh "$minor_version"
 

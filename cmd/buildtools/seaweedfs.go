@@ -23,7 +23,7 @@ var seaweedfsImageComponents = map[string]addonComponent{
 	"docker.io/chrislusf/seaweedfs": {
 		name: "seaweedfs",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/seaweedfs"
+			ref := "proxy.replicated.com/library/seaweedfs"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -70,7 +70,8 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/seaweedfs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		upstream = addProxyAnonymousPrefix(upstream)
+		withproto := fmt.Sprintf("oci://%s", upstream)
 
 		logrus.Infof("updating seaweedfs images")
 
