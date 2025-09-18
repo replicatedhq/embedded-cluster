@@ -51,6 +51,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"golang.org/x/crypto/bcrypt"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
@@ -649,6 +650,11 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("unable to list all valid IP addresses: %w", err)
 	}
 
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(flags.adminConsolePassword), 10)
+	if err != nil {
+		return fmt.Errorf("failed to generate password hash: %w", err)
+	}
+
 	// For manager experience, generate self-signed cert if none provided, with user confirmation
 	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
@@ -697,7 +703,7 @@ func runManagerExperienceInstall(
 
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password: flags.adminConsolePassword,
+			PasswordHash: passwordHash,
 			TLSConfig: apitypes.TLSConfig{
 				CertBytes: flags.tlsCertBytes,
 				KeyBytes:  flags.tlsKeyBytes,
