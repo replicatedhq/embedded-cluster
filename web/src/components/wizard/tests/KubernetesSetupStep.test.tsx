@@ -6,29 +6,34 @@ import { renderWithProviders } from "../../../test/setup.tsx";
 import KubernetesSetupStep from "../setup/KubernetesSetupStep.tsx";
 import { MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY } from "../../../test/testData.ts";
 
-const server = setupServer(
-  // Mock install config endpoint
-  http.get("*/api/kubernetes/install/installation/config", () => {
+const createServer = (mode: 'install' | 'upgrade' = 'install') => setupServer(
+  // Mock config endpoint for both install and upgrade
+  http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
     return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
   }),
 
-  // Mock config submission endpoint
-  http.post("*/api/kubernetes/install/installation/configure", () => {
+  // Mock config submission endpoint for both modes
+  http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
     return HttpResponse.json({ success: true });
   }),
 
-  // Mock infrastructure setup endpoint
-  http.post("*/api/kubernetes/install/infra/setup", () => {
+  // Mock infrastructure setup endpoint for both modes
+  http.post(`*/api/kubernetes/${mode}/infra/setup`, () => {
     return HttpResponse.json({ success: true });
   })
 );
 
-describe("KubernetesSetupStep", () => {
+describe.each([
+  { mode: "install" as const, modeDisplayName: "Install Mode" },
+  { mode: "upgrade" as const, modeDisplayName: "Upgrade Mode" }
+])("KubernetesSetupStep - $modeDisplayName", ({ mode }) => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
   const mockUpdateConfig = vi.fn();
+  let server: ReturnType<typeof createServer>;
 
   beforeAll(() => {
+    server = createServer(mode);
     server.listen();
   });
 
@@ -51,6 +56,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -86,7 +92,7 @@ describe("KubernetesSetupStep", () => {
     it("handles form errors gracefully", async () => {
       server.use(
         // Mock config submission endpoint to return an error
-        http.post("*/api/kubernetes/install/installation/configure", () => {
+        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
           return new HttpResponse(JSON.stringify({ message: "Invalid configuration" }), { status: 400 });
         })
       );
@@ -95,6 +101,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -131,7 +138,7 @@ describe("KubernetesSetupStep", () => {
     it("handles field-specific errors gracefully", async () => {
       server.use(
         // Mock config submission endpoint to return field-specific errors
-        http.post("*/api/kubernetes/install/installation/configure", () => {
+        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
           return new HttpResponse(JSON.stringify({
             message: "Validation failed",
             errors: [
@@ -146,6 +153,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -186,7 +194,7 @@ describe("KubernetesSetupStep", () => {
     it("clears errors when re-submitting after previous failure", async () => {
       // First, set up server to return an error
       server.use(
-        http.post("*/api/kubernetes/install/installation/configure", () => {
+        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
           return new HttpResponse(JSON.stringify({ message: "Initial error" }), { status: 400 });
         })
       );
@@ -195,6 +203,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -220,7 +229,7 @@ describe("KubernetesSetupStep", () => {
 
       // Now change server to return success
       server.use(
-        http.post("*/api/kubernetes/install/installation/configure", () => {
+        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
           return HttpResponse.json({ success: true });
         })
       );
@@ -241,7 +250,7 @@ describe("KubernetesSetupStep", () => {
   describe("Input Validation and Edge Cases", () => {
     it("does not display zero values in port input fields", async () => {
       server.use(
-        http.get("*/api/kubernetes/install/installation/config", () => {
+        http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
           return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS);
         })
       );
@@ -250,6 +259,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -274,7 +284,7 @@ describe("KubernetesSetupStep", () => {
 
     it("handles empty config values correctly", async () => {
       server.use(
-        http.get("*/api/kubernetes/install/installation/config", () => {
+        http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
           return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY);
         })
       );
@@ -283,6 +293,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -312,6 +323,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -351,6 +363,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -386,6 +399,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -449,6 +463,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -513,7 +528,7 @@ describe("KubernetesSetupStep", () => {
           });
         }),
         // Mock infrastructure setup endpoint
-        http.post("*/api/kubernetes/install/infra/setup", () => {
+        http.post(`*/api/kubernetes/${mode}/infra/setup`, () => {
           return HttpResponse.json({ success: true });
         })
       );
@@ -522,6 +537,7 @@ describe("KubernetesSetupStep", () => {
         wrapperProps: {
           authenticated: true,
           target: "kubernetes",
+          mode,
           contextValues: {
             kubernetesConfigContext: {
               config: {},
@@ -567,4 +583,4 @@ describe("KubernetesSetupStep", () => {
       });
     });
   });
-});
+}); // end of mode describe

@@ -16,6 +16,7 @@ import { ChevronRight, Loader2 } from 'lucide-react';
 import { handleUnauthorized } from '../../../utils/auth';
 import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
+import { getApiBase } from '../../../utils/api-base';
 
 
 interface ConfigurationStepProps {
@@ -27,7 +28,7 @@ interface ConfigError extends Error {
 }
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
-  const { text, target } = useWizard();
+  const { text, target, mode } = useWizard();
   const { token } = useAuth();
   const { settings } = useSettings();
   const [activeTab, setActiveTab] = useState<string>('');
@@ -157,7 +158,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
     mutationFn: async () => {
-      const response = await fetch(`/api/${target}/install/app/config/values`, {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/app/config/values`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -5,6 +5,7 @@ import ConfigurationStep from "./config/ConfigurationStep";
 import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
 import InstallationStep from "./installation/InstallationStep";
+import UpgradeStep from "./installation/UpgradeStep";
 import LinuxCompletionStep from "./completion/LinuxCompletionStep";
 import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
@@ -13,18 +14,24 @@ import { useWizard } from "../../contexts/WizardModeContext";
 
 const InstallWizard: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
-  const { text, target } = useWizard();
+  const { text, target, mode } = useWizard();
+  let steps: WizardStep[] = []
 
-  const getSteps = (): WizardStep[] => {
-    if (target === "kubernetes") {
-      return ["welcome", "configuration", "kubernetes-setup", "installation", "kubernetes-completion"];
-    } else {
-      return ["welcome", "configuration", "linux-setup", "installation", "linux-completion"];
-    }
+  // TODO Upgrade
+  // Iteration 1:
+  // - Remove configuration step for upgrades for now
+  // - There's no setup step for upgrades
+  if (mode == "upgrade") {
+    steps = ["welcome", "installation", `${target}-completion`]
+  } else {
+    // install steps
+    steps = ["welcome", "configuration", `${target}-setup`, "installation", `${target}-completion`]
   }
 
+  console.log(mode)
+  console.log(steps)
+
   const goToNextStep = () => {
-    const steps = getSteps();
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {
       setCurrentStep(steps[currentIndex + 1]);
@@ -32,7 +39,6 @@ const InstallWizard: React.FC = () => {
   };
 
   const goToPreviousStep = () => {
-    const steps = getSteps();
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       setCurrentStep(steps[currentIndex - 1]);
@@ -50,6 +56,10 @@ const InstallWizard: React.FC = () => {
       case "kubernetes-setup":
         return <KubernetesSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "installation":
+        // TODO Upgrade use a dedicated upgrade component while we work on making the upgrade flow similar to installation
+        if (mode == "upgrade") {
+          return <UpgradeStep onNext={goToNextStep} onBack={goToPreviousStep} />;
+        }
         return <InstallationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "linux-completion":
         return <LinuxCompletionStep />;
@@ -80,7 +90,7 @@ const InstallWizard: React.FC = () => {
 
       <main className="grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <StepNavigation currentStep={currentStep} />
+          <StepNavigation currentStep={currentStep} enabledSteps={steps} />
           <div className="mt-8">{renderStep()}</div>
         </div>
       </main>

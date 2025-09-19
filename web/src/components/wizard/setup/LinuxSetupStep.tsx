@@ -12,6 +12,7 @@ import { handleUnauthorized } from "../../../utils/auth";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { LinuxConfig } from "../../../types";
+import { getApiBase } from '../../../utils/api-base';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -60,19 +61,20 @@ interface NetworkInterfacesResponse {
 
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { updateConfig } = useLinuxConfig(); // We need to make sure to update the global config
-  const { text } = useWizard();
+  const { text, target, mode } = useWizard();
   const { title } = useInitialState();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<LinuxConfig>({ dataDirectory: "" });
   const [configValues, setConfigValues] = useState<LinuxConfig>({ dataDirectory: "" });
   const { token } = useAuth();
+  const apiBase = getApiBase(target, mode);
 
   // Query for fetching install configuration
   const { isLoading: isConfigLoading } = useQuery<LinuxConfigResponse, Error>({
     queryKey: ["installConfig"],
     queryFn: async () => {
-      const response = await fetch("/api/linux/install/installation/config", {
+      const response = await fetch(`${apiBase}/installation/config`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -120,7 +122,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   // Mutation for submitting the configuration
   const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, LinuxConfig>({
     mutationFn: async (configData) => {
-      const response = await fetch("/api/linux/install/installation/configure", {
+      const response = await fetch(`${apiBase}/installation/configure`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

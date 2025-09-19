@@ -1,11 +1,13 @@
 import React from 'react';
 import { WizardStep } from '../../types';
+import { WizardMode } from '../../types/wizard-mode.ts';
 import { ClipboardList, Settings, Download, CheckCircle, Server } from 'lucide-react';
 import { useWizard } from '../../contexts/WizardModeContext';
 import { useSettings } from '../../contexts/SettingsContext';
 
 interface StepNavigationProps {
   currentStep: WizardStep;
+  enabledSteps: WizardStep[];
 }
 
 interface NavigationStep {
@@ -16,32 +18,30 @@ interface NavigationStep {
   parentId?: WizardStep;
 }
 
-const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentStepId }) => {
-  const { mode, target } = useWizard();
+const getNavigationSteps = (mode: WizardMode): NavigationStep[] => {
+  return [
+    { id: 'welcome', name: 'Welcome', icon: ClipboardList },
+    { id: 'configuration', name: 'Configuration', icon: Server },
+    { id: 'linux-setup', name: 'Setup', icon: Settings },
+    { id: 'kubernetes-setup', name: 'Setup', icon: Settings },
+    { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
+    { id: 'kubernetes-completion', name: 'Completion', icon: CheckCircle },
+    { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
+  ]
+}
+
+const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentStepId, enabledSteps }) => {
+  const { mode } = useWizard();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
-  const getSteps = (): NavigationStep[] => {
-    if (target === 'kubernetes') {
-      return [
-        { id: 'welcome', name: 'Welcome', icon: ClipboardList },
-        { id: 'configuration', name: 'Configuration', icon: Server },
-        { id: 'kubernetes-setup', name: 'Setup', icon: Settings },
-        { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'kubernetes-completion', name: 'Completion', icon: CheckCircle },
-      ];
-    } else {
-      return [
-        { id: 'welcome', name: 'Welcome', icon: ClipboardList },
-        { id: 'configuration', name: 'Configuration', icon: Server },
-        { id: 'linux-setup', name: 'Setup', icon: Settings },
-        { id: 'installation', name: mode === 'upgrade' ? 'Upgrade' : 'Installation', icon: Download },
-        { id: 'linux-completion', name: 'Completion', icon: CheckCircle },
-      ];
-    }
-  }
+  // Get the navigation steps for this wizard mode and then filter them, removing steps the wizard isn't
+  // configured to use
+  const steps = getNavigationSteps(mode)
+    .filter(({ id: navId }) => enabledSteps.includes(navId));
+  console.log(steps)
+  console.log(enabledSteps)
 
-  const steps = getSteps();
   const currentStep = steps.find(step => step.id === currentStepId);
 
   const getStepStatus = (step: NavigationStep) => {

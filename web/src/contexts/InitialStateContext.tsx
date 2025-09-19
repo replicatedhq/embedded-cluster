@@ -1,7 +1,13 @@
 import { createContext, useContext } from "react";
 import { InitialState } from "../types";
 
-export const InitialStateContext = createContext<InitialState>({ title: "My App", installTarget: "linux" });
+export const defaultInitialState: InitialState = {
+  title: "My App",
+  installTarget: "linux", // default to "linux" if not provided
+  mode: "upgrade", // default to "install" if not provided
+};
+
+export const InitialStateContext = createContext<InitialState>(defaultInitialState);
 
 export const useInitialState = () => {
   const context = useContext(InitialStateContext);

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import { InstallationTarget } from "../types/installation-target";
-import { WizardMode, WizardText } from "../types";
+import { WizardText } from "../types";
+import { WizardMode } from "../types/wizard-mode";
 
 interface WizardModeContextType {
   target: InstallationTarget;
