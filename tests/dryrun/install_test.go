@@ -69,9 +69,9 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
 		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
-		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/anonymous/",
-		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/anonymous/",
-		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net/anonymous",
+		"['localpv-provisioner'].helperPod.image.registry": "fake-replicated-proxy.test.net/",
+		"['localpv-provisioner'].localpv.image.registry":   "fake-replicated-proxy.test.net/",
+		"['preUpgradeHook'].image.registry":                "fake-replicated-proxy.test.net",
 	})
 
 	// embedded cluster operator
@@ -89,7 +89,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-		"image.repository":        "fake-replicated-proxy.test.net/anonymous/registry.replicated.com/library/velero",
+		"image.repository":        "fake-replicated-proxy.test.net/library/velero",
 	})
 
 	// admin console
@@ -195,13 +195,13 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "10.244.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
 	assert.Contains(t, k0sConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
 
-	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/library")
 }
 
 func TestCustomDataDir(t *testing.T) {
@@ -541,9 +541,9 @@ func TestNoDomains(t *testing.T) {
 	assert.Equal(t, "openebs", openebsOpts.ReleaseName)
 	assertHelmValues(t, openebsOpts.Values, map[string]interface{}{
 		"['localpv-provisioner'].localpv.basePath":         "/var/lib/embedded-cluster/openebs-local",
-		"['localpv-provisioner'].helperPod.image.registry": "proxy.staging.replicated.com/anonymous/",
-		"['localpv-provisioner'].localpv.image.registry":   "proxy.staging.replicated.com/anonymous/",
-		"['preUpgradeHook'].image.registry":                "proxy.staging.replicated.com/anonymous",
+		"['localpv-provisioner'].helperPod.image.registry": "proxy.staging.replicated.com/",
+		"['localpv-provisioner'].localpv.image.registry":   "proxy.staging.replicated.com/",
+		"['preUpgradeHook'].image.registry":                "proxy.staging.replicated.com",
 	})
 
 	// embedded cluster operator
@@ -560,7 +560,7 @@ func TestNoDomains(t *testing.T) {
 	assert.Equal(t, "velero", veleroOpts.ReleaseName)
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-		"image.repository":        "proxy.staging.replicated.com/anonymous/registry.replicated.com/library/velero",
+		"image.repository":        "proxy.staging.replicated.com/library/velero",
 	})
 
 	// admin console
@@ -594,13 +594,13 @@ func TestNoDomains(t *testing.T) {
 	// --- validate k0s cluster config --- //
 	k0sConfig := readK0sConfig(t)
 
-	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "proxy.staging.replicated.com/anonymous")
-	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "proxy.staging.replicated.com/anonymous")
+	assert.Contains(t, k0sConfig.Spec.Images.MetricsServer.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.KubeProxy.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.CoreDNS.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Pause.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "proxy.staging.replicated.com/library")
+	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "proxy.staging.replicated.com/library")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

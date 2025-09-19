@@ -18,7 +18,7 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/coredns": {
 		name: "coredns",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/coredns"
+			ref := "proxy.replicated.com/library/coredns"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
@@ -29,7 +29,7 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico release: %w", err)
 			}
-			return fmt.Sprintf("registry.replicated.com/library/calico-node:%s", tag), nil
+			return fmt.Sprintf("proxy.replicated.com/library/calico-node:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-cni": {
@@ -39,7 +39,7 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
-			return fmt.Sprintf("registry.replicated.com/library/calico-cni:%s", tag), nil
+			return fmt.Sprintf("proxy.replicated.com/library/calico-cni:%s", tag), nil
 		},
 	},
 	"quay.io/k0sproject/calico-kube-controllers": {
@@ -49,27 +49,27 @@ var k0sImageComponents = map[string]addonComponent{
 			if err != nil {
 				return "", fmt.Errorf("failed to get calico tag: %w", err)
 			}
-			return fmt.Sprintf("registry.replicated.com/library/calico-kube-controllers:%s", tag), nil
+			return fmt.Sprintf("proxy.replicated.com/library/calico-kube-controllers:%s", tag), nil
 		},
 	},
 	"registry.k8s.io/metrics-server/metrics-server": {
 		name: "metrics-server",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/metrics-server"
+			ref := "proxy.replicated.com/library/metrics-server"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 	"quay.io/k0sproject/metrics-server": {
 		name: "metrics-server",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/metrics-server"
+			ref := "proxy.replicated.com/library/metrics-server"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 	},
 	"quay.io/k0sproject/kube-proxy": {
 		name: "kube-proxy",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/kube-proxy"
+			ref := "proxy.replicated.com/library/kube-proxy"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -79,8 +79,9 @@ var k0sImageComponents = map[string]addonComponent{
 	"quay.io/k0sproject/envoy-distroless": {
 		name: "envoy-distroless",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/envoy"
-			return getLatestImageNameAndTag(opts.ctx, ref, nil)
+			ref := "proxy.replicated.com/library/envoy"
+			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 	},
 }
@@ -95,7 +96,7 @@ var pauseComponent = addonComponent{
 			return "", fmt.Errorf("failed to parse pause version: %w", err)
 		}
 
-		ref := "registry.replicated.com/library/pause"
+		ref := "proxy.replicated.com/library/pause"
 		constraints := mustParseSemverConstraints(latestPatchConstraint(sv))
 		return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 	},
