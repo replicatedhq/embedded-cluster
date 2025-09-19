@@ -271,11 +271,12 @@ describe.each([
   });
 
   it('sends correct upgrade request payload', async () => {
-    let receivedPayload: any = null;
+    type Payload = { ignoreAppPreflights: boolean } | null;
+    let receivedPayload: Payload = null;
 
     server.use(
       http.post(`*/api/${target}/upgrade/app/upgrade`, async ({ request }) => {
-        receivedPayload = await request.json();
+        receivedPayload = await request.json() as Payload;
         return HttpResponse.json({ success: true });
       })
     );
