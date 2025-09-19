@@ -28,9 +28,6 @@ const InstallWizard: React.FC = () => {
     steps = ["welcome", "configuration", `${target}-setup`, "installation", `${target}-completion`]
   }
 
-  console.log(mode)
-  console.log(steps)
-
   const goToNextStep = () => {
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex < steps.length - 1) {

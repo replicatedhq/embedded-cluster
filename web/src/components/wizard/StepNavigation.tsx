@@ -39,8 +39,6 @@ const StepNavigation: React.FC<StepNavigationProps> = ({ currentStep: currentSte
   // configured to use
   const steps = getNavigationSteps(mode)
     .filter(({ id: navId }) => enabledSteps.includes(navId));
-  console.log(steps)
-  console.log(enabledSteps)
 
   const currentStep = steps.find(step => step.id === currentStepId);
 
