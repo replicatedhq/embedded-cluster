@@ -58,11 +58,52 @@ const createServer = (target: string) => setupServer(
     return HttpResponse.json(templatedConfig);
   }),
 
+  // Mock kubernetes template app config endpoint for cross-target calls
+  http.post(`*/api/kubernetes/install/app/config/template`, async ({ request }) => {
+    const body = await request.json() as { values: AppConfigValues };
+    const mergedValues = { ...savedConfigValues, ...body.values };
+    const templatedConfig = createMockConfigWithValues(mergedValues);
+    return HttpResponse.json(templatedConfig);
+  }),
+
   // Mock config values submission endpoint - saves values
   http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
     savedConfigValues = body.values;
     return HttpResponse.json(body);
+  }),
+
+  // Mock installation config endpoint
+  http.get(`*/api/${target}/install/installation/config`, () => {
+    return HttpResponse.json({
+      defaults: { adminConsolePort: 8800 },
+      values: {}
+    });
+  }),
+
+  // Mock upgrade installation config endpoint
+  http.get(`*/api/${target}/upgrade/installation/config`, () => {
+    return HttpResponse.json({
+      defaults: { adminConsolePort: 8800 },
+      values: {}
+    });
+  }),
+
+  // Mock network interfaces endpoint
+  http.get(`*/api/console/available-network-interfaces`, () => {
+    return HttpResponse.json([]);
+  }),
+
+  // Mock app upgrade status endpoint
+  http.get(`*/api/${target}/upgrade/app/status`, () => {
+    return HttpResponse.json({
+      status: { state: 'Pending', description: 'Waiting to start upgrade...' }
+    });
+  }),
+
+  // Mock app upgrade start endpoint
+  http.post(`*/api/${target}/upgrade/app/upgrade`, () => {
+    return HttpResponse.json({ success: true });
   })
 );
 
@@ -205,5 +246,54 @@ describe.each([
 
     expect(appNameInputAfterBack).toHaveValue("Multi Field App");
     expect(enableFeatureCheckboxAfterBack).toBeChecked();
+  });
+
+  it("filters configuration step for upgrade mode", async () => {
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+        mode: "upgrade"
+      },
+    });
+
+    // In upgrade mode, should start at welcome step
+    await waitFor(() => {
+      expect(screen.getByText("Welcome")).toBeInTheDocument();
+    });
+
+    // Click next to go from welcome directly to installation (skipping configuration and setup)
+    const welcomeNextButton = screen.getByRole("button", { name: /next|get started|start/i });
+    fireEvent.click(welcomeNextButton);
+
+    // Should go directly to installation step, not configuration or setup
+    await waitFor(() => {
+      expect(screen.getByTestId("app-preflight-container")).toBeInTheDocument();
+    });
+
+    // Configuration and setup steps should not be accessible in upgrade mode
+    expect(screen.queryByTestId("configuration-step")).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`${target}-setup`)).not.toBeInTheDocument();
+  });
+
+  it("keeps all steps for install mode", async () => {
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+        mode: "install"
+      },
+    });
+
+    // Wait for welcome step
+    await waitFor(() => {
+      expect(screen.getByText("Welcome")).toBeInTheDocument();
+    });
+
+    // In install mode, the welcome step should lead to configuration step
+    // We need to wait for the form to load which means configuration step is being shown
+    await waitForForm();
+
+    expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
   });
 });

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../../common/Button";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { PreflightOutput, HostPreflightResponse, State } from "../../../../types";
+import { useWizard } from "../../../../contexts/WizardModeContext";
+import { useAuth } from "../../../../contexts/AuthContext";
+import { useSettings } from "../../../../contexts/SettingsContext";
+import { getApiBase } from '../../../../utils/api-base';
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -18,6 +20,7 @@ interface InstallationStatusResponse {
 }
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
+  const { target, mode } = useWizard();
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { settings } = useSettings();
@@ -41,10 +44,11 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     return "";
   };
 
+  const apiBase = getApiBase(target, mode);
   // Mutation to run preflight checks
   const { mutate: runPreflights, error: preflightsRunError } = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/linux/install/host-preflights/run", {
+      const response = await fetch(`${apiBase}/host-preflights/run`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -70,7 +74,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
     queryKey: ["installationStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/linux/install/installation/status", {
+      const response = await fetch(`${apiBase}/installation/status`, {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,
@@ -92,7 +96,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
     queryKey: ["preflightStatus"],
     queryFn: async () => {
-      const response = await fetch("/api/linux/install/host-preflights/status", {
+      const response = await fetch(`${apiBase}/host-preflights/status`, {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,

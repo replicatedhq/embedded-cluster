@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../../common/Button";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { PreflightOutput, AppPreflightResponse } from "../../../../types";
+import { getApiBase } from '../../../../utils/api-base';
 
 interface AppPreflightCheckProps {
   onRun: () => void;
@@ -15,7 +16,7 @@ interface AppPreflightCheckProps {
 const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
   const { settings } = useSettings();
-  const { target } = useWizard();
+  const { target, mode } = useWizard();
   const themeColor = settings.themeColor;
   const { token } = useAuth();
 
@@ -34,10 +35,11 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     return "";
   };
 
+  const apiBase = getApiBase(target, mode);
   // Mutation to run preflight checks
   const { mutate: runPreflights, error: preflightsRunError } = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/${target}/install/app-preflights/run`, {
+      const response = await fetch(`${apiBase}/app-preflights/run`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -63,7 +65,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const { data: preflightResponse } = useQuery<AppPreflightResponse, Error>({
     queryKey: ["appPreflightStatus"],
     queryFn: async () => {
-      const response = await fetch(`/api/${target}/install/app-preflights/status`, {
+      const response = await fetch(`${apiBase}/app-preflights/status`, {
         headers: {
           ...(localStorage.getItem("auth") && {
             Authorization: `Bearer ${localStorage.getItem("auth")}`,

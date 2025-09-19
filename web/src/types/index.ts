@@ -1,4 +1,5 @@
 import { InstallationTarget } from "./installation-target";
+import { WizardMode } from "./wizard-mode";
 
 // Window type with optional __INITIAL_STATE__ property
 export type WindowWithInitialState = typeof window & {
@@ -9,6 +10,7 @@ export interface InitialState {
   title: string;
   icon?: string;
   installTarget: InstallationTarget;
+  mode: WizardMode;
 }
 
 export type State = "Pending" | "Running" | "Succeeded" | "Failed";
@@ -50,9 +52,6 @@ export interface KubernetesConfig {
   noProxy?: string;
   installCommand?: string;
 }
-
-// WizardMode tells us in which mode the installer wizard is running, upgrade or install
-export type WizardMode = "install" | "upgrade";
 
 // WizardText type holds the text fields for the multiple wizard step text fields
 export interface WizardText {

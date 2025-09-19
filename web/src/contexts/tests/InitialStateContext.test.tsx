@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { InitialStateContext, useInitialState } from "../InitialStateContext";
 import { InitialStateProvider } from "../../providers/InitialStateProvider";
 import { InstallationTarget } from "../../types/installation-target";
+import { WizardMode } from "../../types/wizard-mode";
 
 // Window type with optional __INITIAL_STATE__ property
 type WindowWithInitialState = typeof window & {
@@ -32,6 +33,7 @@ describe("InitialStateContext", () => {
         title: "Test App",
         icon: "test-icon.png",
         installTarget: "linux" as InstallationTarget,
+        mode: "install" as WizardMode,
       };
 
       const TestComponent = () => {

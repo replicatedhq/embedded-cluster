@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
+import { useWizard } from '../../../../contexts/WizardModeContext';
 import { InfraStatusResponse, State } from '../../../../types';
 import InstallationProgress from '../shared/InstallationProgress';
 import LogViewer from '../shared/LogViewer';
 import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
+import { getApiBase } from '../../../../utils/api-base';
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;
@@ -20,6 +22,7 @@ interface KubernetesInstallationPhaseProps {
 const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
+  const { mode } = useWizard();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -27,9 +30,10 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
 
   // Query to poll infra status
   const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
-    queryKey: ["infraStatus"],
+    queryKey: ["infraStatus", mode],
     queryFn: async () => {
-      const response = await fetch("/api/kubernetes/install/infra/status", {
+      const apiBase = getApiBase("kubernetes", mode);
+      const response = await fetch(`${apiBase}/infra/status`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

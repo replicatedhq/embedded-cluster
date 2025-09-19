@@ -10,6 +10,7 @@ import { handleUnauthorized } from "../../../utils/auth";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { KubernetesConfig } from "../../../types";
+import { getApiBase } from '../../../utils/api-base';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -47,17 +48,18 @@ interface KubernetesConfigResponse {
 
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
   const { updateConfig } = useKubernetesConfig(); // We need to make sure to update the global config
-  const { text } = useWizard();
+  const { text, target, mode } = useWizard();
   const [error, setError] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<KubernetesConfig>({});
   const [configValues, setConfigValues] = useState<KubernetesConfig>({});
   const { token } = useAuth();
+  const apiBase = getApiBase(target, mode);
 
   // Query for fetching install configuration
   const { isLoading: isConfigLoading } = useQuery<KubernetesConfigResponse, Error>({
     queryKey: ["installConfig"],
     queryFn: async () => {
-      const response = await fetch("/api/kubernetes/install/installation/config", {
+      const response = await fetch(`${apiBase}/installation/config`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -84,7 +86,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   // Mutation for submitting the configuration
   const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, KubernetesConfig>({
     mutationFn: async (configData) => {
-      const response = await fetch("/api/kubernetes/install/installation/configure", {
+      const response = await fetch(`${apiBase}/installation/configure`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +121,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   // Mutation for starting the installation
   const { mutate: startInstallation } = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/kubernetes/install/infra/setup", {
+      const response = await fetch(`${apiBase}/infra/setup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

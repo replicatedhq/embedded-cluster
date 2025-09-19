@@ -8,13 +8,13 @@ import { withNextButtonOnly } from './TestWrapper.tsx';
 
 const TestAppInstallationPhase = withNextButtonOnly(AppInstallationPhase);
 
-const createServer = (target: 'linux' | 'kubernetes') => setupServer(
-  // Mock app installation status endpoint
-  http.get(`*/api/${target}/install/app/status`, () => {
+const createServer = (target: 'linux' | 'kubernetes', mode: 'install' | 'upgrade' = 'install') => setupServer(
+  // Mock app installation/upgrade status endpoint
+  http.get(`*/api/${target}/${mode}/app/status`, () => {
     return HttpResponse.json({
-      status: { 
-        state: 'Running', 
-        description: 'Installing application components...' 
+      status: {
+        state: 'Running',
+        description: mode === 'upgrade' ? 'Upgrading application components...' : 'Installing application components...'
       }
     });
   })
@@ -24,14 +24,18 @@ describe.each([
   { target: "kubernetes" as const, displayName: "Kubernetes" },
   { target: "linux" as const, displayName: "Linux" }
 ])('AppInstallationPhase - $displayName', ({ target }) => {
-  const mockOnNext = vi.fn();
-  const mockOnStateChange = vi.fn();
-  let server: ReturnType<typeof createServer>;
+  describe.each([
+    { mode: "install" as const, modeDisplayName: "Install Mode" },
+    { mode: "upgrade" as const, modeDisplayName: "Upgrade Mode" }
+  ])('$modeDisplayName', ({ mode }) => {
+    const mockOnNext = vi.fn();
+    const mockOnStateChange = vi.fn();
+    let server: ReturnType<typeof createServer>;
 
-  beforeAll(() => {
-    server = createServer(target);
-    server.listen();
-  });
+    beforeAll(() => {
+      server = createServer(target, mode);
+      server.listen();
+    });
 
   afterEach(() => {
     server.resetHandlers();
@@ -51,6 +55,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -64,7 +69,7 @@ describe.each([
 
   it('shows loading state during installation', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
           status: { 
             state: 'Running', 
@@ -82,6 +87,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -102,7 +108,7 @@ describe.each([
 
   it('shows success state when installation completes successfully', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
           status: { 
             state: 'Succeeded', 
@@ -120,6 +126,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -146,7 +153,7 @@ describe.each([
 
   it('shows error state when installation fails', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
           status: { 
             state: 'Failed', 
@@ -164,6 +171,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -191,7 +199,7 @@ describe.each([
 
   it('handles API error gracefully', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json(
           {
             statusCode: 500,
@@ -210,6 +218,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -229,7 +238,7 @@ describe.each([
 
   it('handles network error gracefully', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.error();
       })
     );
@@ -242,6 +251,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -261,7 +271,7 @@ describe.each([
 
   it('shows default loading state when no status is available', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({});
       })
     );
@@ -274,6 +284,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -294,7 +305,7 @@ describe.each([
   it('stops polling when installation succeeds', async () => {
     let callCount = 0;
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         callCount++;
         return HttpResponse.json({
           status: { 
@@ -313,6 +324,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -335,7 +347,7 @@ describe.each([
   it('stops polling when installation fails', async () => {
     let callCount = 0;
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         callCount++;
         return HttpResponse.json({
           status: { 
@@ -354,6 +366,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -377,7 +390,7 @@ describe.each([
     const customDescription = 'Configuring application settings and finalizing setup...';
     
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
           status: { 
             state: 'Running', 
@@ -395,6 +408,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -408,7 +422,7 @@ describe.each([
 
   it('displays fallback message when no status description is available', async () => {
     server.use(
-      http.get(`*/api/${target}/install/app/status`, () => {
+      http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
           status: { 
             state: 'Running'
@@ -425,6 +439,7 @@ describe.each([
       {
         wrapperProps: {
           target,
+          mode,
           authenticated: true
         }
       }
@@ -436,4 +451,5 @@ describe.each([
     });
   });
 
-});
+  }); // end of mode describe
+}); // end of target describe

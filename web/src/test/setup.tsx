@@ -5,8 +5,9 @@ import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-do
 import { vi } from "vitest";
 import { JSX } from "react/jsx-runtime";
 
-import { InitialState, LinuxConfig, KubernetesConfig, WizardMode, WizardText } from "../types";
+import { InitialState, LinuxConfig, KubernetesConfig, WizardText } from "../types";
 import { InstallationTarget } from "../types/installation-target";
+import { WizardMode } from "../types/wizard-mode";
 import { createQueryClient } from "../query-client";
 import { LinuxConfigContext } from "../contexts/LinuxConfigContext";
 import { KubernetesConfigContext } from "../contexts/KubernetesConfigContext";
@@ -98,6 +99,7 @@ interface RenderWithProvidersOptions extends RenderOptions {
     authenticated?: boolean;
     authToken?: string;
     target?: InstallationTarget;
+    mode?: WizardMode;
   };
   wrapper?: React.ComponentType<{ children: React.ReactNode }>;
 }
@@ -107,7 +109,7 @@ export const renderWithProviders = (
   options: RenderWithProvidersOptions = {},
 ) => {
   const defaultContextValues: MockProviderProps["contexts"] = {
-    initialStateContext: { title: "My App", installTarget: options.wrapperProps?.target || "linux" },
+    initialStateContext: { title: "My App", installTarget: options.wrapperProps?.target || "linux", mode: options.wrapperProps?.mode || "install" },
     linuxConfigContext: {
       config: {
         adminConsolePort: 8800,
@@ -132,7 +134,7 @@ export const renderWithProviders = (
     },
     wizardModeContext: {
       target: options.wrapperProps?.target || "linux",
-      mode: "install",
+      mode: options.wrapperProps?.mode || "install",
       text: {
         title: "My App",
         subtitle: "Installation Wizard",
