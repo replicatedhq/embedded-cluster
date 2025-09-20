@@ -3,12 +3,12 @@ package cli
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
+	"os"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
-	"github.com/stretchr/testify/assert"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -70,13 +70,12 @@ oxhVqyhpk86rf0rT5DcD/sBw
 -----END PRIVATE KEY-----`
 )
 
-func Test_readKotsadmPasswordSecret(t *testing.T) {
+func Test_readPasswordHash(t *testing.T) {
 	tests := []struct {
-		name           string
-		secret         *corev1.Secret
-		wantErr        string
-		expectPassword bool
-		passwordBcrypt []byte
+		name         string
+		secret       *corev1.Secret
+		wantErr      string
+		wantPassword []byte
 	}{
 		{
 			name: "valid password secret",
@@ -89,8 +88,7 @@ func Test_readKotsadmPasswordSecret(t *testing.T) {
 					"passwordBcrypt": []byte("$2a$10$hashedpassword"),
 				},
 			},
-			expectPassword: true,
-			passwordBcrypt: []byte("$2a$10$hashedpassword"),
+			wantPassword: []byte("$2a$10$hashedpassword"),
 		},
 		{
 			name: "secret missing passwordBcrypt data",
@@ -103,23 +101,47 @@ func Test_readKotsadmPasswordSecret(t *testing.T) {
 					"otherField": []byte("somevalue"),
 				},
 			},
-			wantErr:        "kotsadm-password secret is missing required passwordBcrypt data",
-			expectPassword: false,
+			wantErr: "kotsadm-password secret is missing required passwordBcrypt data",
 		},
 		{
-			name:           "secret not found",
-			secret:         nil,
-			wantErr:        "failed to read kotsadm-password secret from cluster",
-			expectPassword: false,
+			name:    "secret not found",
+			secret:  nil,
+			wantErr: "failed to read kotsadm-password secret from cluster",
+		},
+		{
+			name: "secret with empty passwordBcrypt",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kotsadm-password",
+					Namespace: constants.KotsadmNamespace,
+				},
+				Data: map[string][]byte{
+					"passwordBcrypt": []byte(""),
+				},
+			},
+			wantPassword: []byte(""),
+		},
+		{
+			name: "secret with nil data",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kotsadm-password",
+					Namespace: constants.KotsadmNamespace,
+				},
+				Data: nil,
+			},
+			wantErr: "kotsadm-password secret is missing required passwordBcrypt data",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
 			// Create a fake Kubernetes client
 			scheme := runtime.NewScheme()
 			err := corev1.AddToScheme(scheme)
-			require.NoError(t, err)
+			req.NoError(err)
 
 			var objects []client.Object
 			if tt.secret != nil {
@@ -131,102 +153,100 @@ func Test_readKotsadmPasswordSecret(t *testing.T) {
 				WithObjects(objects...).
 				Build()
 
-			// Mock kubeutils.KubeClient to return our fake client
-			// Since we can't easily mock kubeutils.KubeClient, we'll test the logic directly
-			// by simulating what readPasswordSecretFromCluster does
-
-			var passwordHash []byte
-			var testErr error
-
-			if tt.secret != nil {
-				passwordSecret := &corev1.Secret{}
-				testErr = fakeClient.Get(context.Background(), client.ObjectKey{
-					Namespace: constants.KotsadmNamespace,
-					Name:      "kotsadm-password",
-				}, passwordSecret)
-
-				if testErr == nil {
-					passwordBcryptData, hasPasswordBcrypt := passwordSecret.Data["passwordBcrypt"]
-					if !hasPasswordBcrypt {
-						testErr = assert.AnError // Simulate the error condition
-					} else {
-						passwordHash = passwordBcryptData
-					}
-				}
-			} else {
-				testErr = assert.AnError // Simulate secret not found
-			}
+			passwordHash, err := readPasswordHash(context.Background(), fakeClient)
 
 			if tt.wantErr != "" {
-				require.Error(t, testErr)
-				assert.Contains(t, tt.wantErr, "kotsadm-password secret")
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+				req.Nil(passwordHash)
 			} else {
-				require.NoError(t, testErr)
-			}
-
-			if tt.expectPassword {
-				assert.Equal(t, tt.passwordBcrypt, passwordHash)
+				req.NoError(err)
+				req.Equal(tt.wantPassword, passwordHash)
 			}
 		})
 	}
 }
 
-func Test_verifyExistingInstallation(t *testing.T) {
+func Test_getClusterID(t *testing.T) {
 	tests := []struct {
-		name         string
-		installation *ecv1beta1.Installation
-		wantErr      bool
-		appSlug      string
+		name          string
+		installation  *ecv1beta1.Installation
+		wantErr       string
+		wantClusterID string
 	}{
 		{
-			name: "existing installation found",
+			name: "valid installation with cluster ID",
 			installation: &ecv1beta1.Installation{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-installation",
 				},
 				Spec: ecv1beta1.InstallationSpec{
-					ClusterID: "test-cluster-id",
+					ClusterID: "test-cluster-id-123",
 				},
 			},
-			wantErr: false,
-			appSlug: "test-app",
+			wantClusterID: "test-cluster-id-123",
 		},
 		{
-			name:         "no existing installation",
+			name: "installation with empty cluster ID",
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Spec: ecv1beta1.InstallationSpec{
+					ClusterID: "",
+				},
+			},
+			wantErr: "existing installation has empty cluster ID",
+		},
+		{
+			name:         "no installation found",
 			installation: nil,
-			wantErr:      true,
-			appSlug:      "test-app",
+			wantErr:      "no installations found",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This test focuses on the logic since we can't easily mock kubeutils functions
-			// The actual function calls kubeutils.GetLatestInstallation which requires a real cluster
-			// For unit testing purposes, we test the expected behavior
+			req := require.New(t)
 
+			// Create a fake Kubernetes client
+			scheme := runtime.NewScheme()
+			err := ecv1beta1.AddToScheme(scheme)
+			req.NoError(err)
+
+			var objects []client.Object
 			if tt.installation != nil {
-				// In a real scenario with an existing installation, verifyExistingInstallation should pass
-				// We can't easily test this without a real cluster, so we just verify the structure is correct
-				assert.NotEmpty(t, tt.installation.Spec.ClusterID, "Installation should have a cluster ID")
+				objects = append(objects, tt.installation)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(objects...).
+				Build()
+
+			clusterID, err := getClusterID(context.Background(), fakeClient)
+
+			if tt.wantErr != "" {
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+				req.Empty(clusterID)
 			} else {
-				// In a real scenario with no installation, verifyExistingInstallation should fail
-				// and return an ErrorNothingElseToAdd
-				if tt.wantErr {
-					// This simulates the expected error behavior
-					assert.True(t, tt.wantErr, "Should expect an error when no installation exists")
-				}
+				req.NoError(err)
+				req.Equal(tt.wantClusterID, clusterID)
 			}
 		})
 	}
 }
 
-func Test_readKotsadmTLSSecret(t *testing.T) {
+func Test_readTLSConfig(t *testing.T) {
+	// Test certificate data
+
 	tests := []struct {
-		name      string
-		secret    *corev1.Secret
-		wantErr   string
-		expectTLS bool
+		name         string
+		secret       *corev1.Secret
+		wantErr      string
+		wantTLS      bool
+		wantHostname string
 	}{
 		{
 			name: "valid TLS secret",
@@ -239,51 +259,68 @@ func Test_readKotsadmTLSSecret(t *testing.T) {
 					"tls.crt": []byte(testCertData),
 					"tls.key": []byte(testKeyData),
 				},
+				StringData: map[string]string{
+					"hostname": "example.com",
+				},
 			},
-			expectTLS: true,
+			wantTLS:      true,
+			wantHostname: "example.com",
 		},
 		{
-			name: "secret missing tls.crt data",
+			name: "secret missing tls.crt",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
 					Namespace: constants.KotsadmNamespace,
 				},
 				Data: map[string][]byte{
-					"tls.key": []byte("-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgB1A7v3MNvGCU1QPE\nKpJyNZ4jxPBcUjKyPxiKsE4R2DKhRANCAASZ4sIg9RCZ8yPUDlQlGQ==\n-----END PRIVATE KEY-----"),
+					"tls.key": []byte(testKeyData),
 				},
 			},
-			wantErr:   "kotsadm-tls secret is missing required tls.crt or tls.key data",
-			expectTLS: false,
+			wantErr: "kotsadm-tls secret is missing required tls.crt or tls.key data",
 		},
 		{
-			name: "secret missing tls.key data",
+			name: "secret missing tls.key",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
 					Namespace: constants.KotsadmNamespace,
 				},
 				Data: map[string][]byte{
-					"tls.crt": []byte("-----BEGIN CERTIFICATE-----\nMIIBhTCCAS6gAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw\nDgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow\nEjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABD0d\n7VNhbWvZLWPuj/RtHFjvtJBEwOkhbN/BsSPF6k4zdK7A9w+9HO6HEGJz+8nV8BVk\nI+Hf7+zFf9B/6FJ+0AejUDBOMB0GA1UdDgQWBBTrNGjN8DFJF9JDHtUP9DwsPLjz\n3TAfBgNVHSMEGDAWgBTrNGjN8DFJF9JDHtUP9DwsPLjz3TAMBgNVHRMBAf8EAjAA\nMAoGCCqGSM49BAMCA0gAMEUCIDf9Hqm8pf5+HgsMjdkStNdJ+U0VUIgAhZDqyh4w\np8ePAiEA4BZXcDz2Ky+w=\n-----END CERTIFICATE-----"),
+					"tls.crt": []byte(testCertData),
 				},
 			},
-			wantErr:   "kotsadm-tls secret is missing required tls.crt or tls.key data",
-			expectTLS: false,
+			wantErr: "kotsadm-tls secret is missing required tls.crt or tls.key data",
 		},
 		{
-			name:      "secret not found",
-			secret:    nil,
-			wantErr:   "failed to read kotsadm-tls secret from cluster",
-			expectTLS: false,
+			name: "secret with empty certificate data",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "kotsadm-tls",
+					Namespace: constants.KotsadmNamespace,
+				},
+				Data: map[string][]byte{
+					"tls.crt": []byte(""),
+					"tls.key": []byte(""),
+				},
+			},
+			wantErr: "kotsadm-tls secret is missing required tls.crt or tls.key data",
+		},
+		{
+			name:    "secret not found",
+			secret:  nil,
+			wantErr: "failed to read kotsadm-tls secret from cluster",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
 			// Create a fake Kubernetes client
 			scheme := runtime.NewScheme()
 			err := corev1.AddToScheme(scheme)
-			require.NoError(t, err)
+			req.NoError(err)
 
 			var objects []client.Object
 			if tt.secret != nil {
@@ -295,93 +332,112 @@ func Test_readKotsadmTLSSecret(t *testing.T) {
 				WithObjects(objects...).
 				Build()
 
-			// Test the logic by simulating what readKotsadmTLSSecret does
-			flags := &UpgradeCmdFlags{}
-			var testErr error
-
-			if tt.secret != nil {
-				tlsSecret := &corev1.Secret{}
-				testErr = fakeClient.Get(context.Background(), client.ObjectKey{
-					Namespace: constants.KotsadmNamespace,
-					Name:      "kotsadm-tls",
-				}, tlsSecret)
-
-				if testErr == nil {
-					certData, hasCert := tlsSecret.Data["tls.crt"]
-					keyData, hasKey := tlsSecret.Data["tls.key"]
-
-					if !hasCert || !hasKey {
-						testErr = fmt.Errorf("kotsadm-tls secret is missing required tls.crt or tls.key data")
-					} else {
-						cert, err := tls.X509KeyPair(certData, keyData)
-						if err != nil {
-							testErr = fmt.Errorf("failed to load TLS certificate from kotsadm-tls secret: %w", err)
-						} else {
-							flags.tlsCert = cert
-							flags.tlsCertBytes = certData
-							flags.tlsKeyBytes = keyData
-						}
-					}
-				} else {
-					testErr = fmt.Errorf("failed to read kotsadm-tls secret from cluster: %w", testErr)
-				}
-			} else {
-				testErr = fmt.Errorf("failed to read kotsadm-tls secret from cluster: secrets \"kotsadm-tls\" not found")
-			}
+			tlsConfig, err := readTLSConfig(context.Background(), fakeClient)
 
 			if tt.wantErr != "" {
-				require.Error(t, testErr)
-				require.Contains(t, testErr.Error(), tt.wantErr)
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+				req.Empty(tlsConfig.CertBytes)
+				req.Empty(tlsConfig.KeyBytes)
 			} else {
-				require.NoError(t, testErr)
-			}
+				req.NoError(err)
+				if tt.wantTLS {
+					req.NotEmpty(tlsConfig.CertBytes)
+					req.NotEmpty(tlsConfig.KeyBytes)
+					req.Equal(tt.wantHostname, tlsConfig.Hostname)
 
-			if tt.expectTLS {
-				require.NotEmpty(t, flags.tlsCertBytes)
-				require.NotEmpty(t, flags.tlsKeyBytes)
-			} else {
-				require.Empty(t, flags.tlsCertBytes)
-				require.Empty(t, flags.tlsKeyBytes)
+					// Verify the certificate is actually valid
+					_, err := tls.X509KeyPair(tlsConfig.CertBytes, tlsConfig.KeyBytes)
+					req.NoError(err)
+				}
 			}
 		})
 	}
 }
 
-func Test_readKotsadmConfigMap(t *testing.T) {
+func Test_preRunUpgrade(t *testing.T) {
 	tests := []struct {
-		name      string
-		configMap *corev1.ConfigMap
-		wantErr   string
+		name          string
+		flags         UpgradeCmdFlags
+		installation  *ecv1beta1.Installation
+		dataDir       string
+		wantErr       string
+		wantClusterID string
 	}{
 		{
-			name: "valid config map",
-			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kotsadm-confg",
-					Namespace: constants.KotsadmNamespace,
-				},
-				Data: map[string]string{
-					"port": "8800",
-				},
+			name: "invalid target",
+			flags: UpgradeCmdFlags{
+				target: "kubernetes",
 			},
+			wantErr: `invalid --target (must be: "linux")`,
 		},
 		{
-			name:      "config map not found",
-			configMap: nil,
-			wantErr:   "failed to read kotsadm-confg configmap from cluster",
+			name: "no existing installation",
+			flags: UpgradeCmdFlags{
+				target: "linux",
+			},
+			installation: nil,
+			wantErr:      "could not get existing installation",
+		},
+		{
+			name: "installation missing cluster ID",
+			flags: UpgradeCmdFlags{
+				target: "linux",
+			},
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Spec: ecv1beta1.InstallationSpec{
+					ClusterID: "",
+				},
+			},
+			wantErr: "existing installation has empty cluster ID",
+		},
+		{
+			name: "missing data directory",
+			flags: UpgradeCmdFlags{
+				target: "linux",
+			},
+			installation: &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-installation",
+				},
+				Spec: ecv1beta1.InstallationSpec{
+					ClusterID: "test-cluster-123",
+				},
+			},
+			dataDir:       "/nonexistent/path",
+			wantClusterID: "test-cluster-123",
+			wantErr:       "upgrade requires existing data directory from previous installation",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a fake Kubernetes client
+			req := require.New(t)
+
+			// Create temporary data directory
+			tmpDir, err := os.MkdirTemp("", "prerunupgrade-test-*")
+			req.NoError(err)
+			defer os.RemoveAll(tmpDir)
+
+			// Set up data directory
+			dataDir := tt.dataDir
+			if dataDir == "" {
+				dataDir = tmpDir
+			}
+
+			// Create fake Kubernetes client
 			scheme := runtime.NewScheme()
-			err := corev1.AddToScheme(scheme)
-			require.NoError(t, err)
+			err = corev1.AddToScheme(scheme)
+			req.NoError(err)
+			err = ecv1beta1.AddToScheme(scheme)
+			req.NoError(err)
 
 			var objects []client.Object
-			if tt.configMap != nil {
-				objects = append(objects, tt.configMap)
+			if tt.installation != nil {
+				objects = append(objects, tt.installation)
 			}
 
 			fakeClient := fake.NewClientBuilder().
@@ -389,29 +445,27 @@ func Test_readKotsadmConfigMap(t *testing.T) {
 				WithObjects(objects...).
 				Build()
 
-			// Test the logic by simulating what readKotsadmConfigMap does
-			flags := &UpgradeCmdFlags{}
-			var testErr error
+			// Create mock runtime config
+			mockRC := &runtimeconfig.MockRuntimeConfig{}
+			mockRC.On("EmbeddedClusterHomeDirectory").Return(dataDir)
+			mockRC.On("ManagerPort").Return(8800)
 
-			configMap := &corev1.ConfigMap{}
-			testErr = fakeClient.Get(context.Background(), client.ObjectKey{
-				Namespace: constants.KotsadmNamespace,
-				Name:      "kotsadm-confg",
-			}, configMap)
+			// Create upgrade config
+			upgradeConfig := &upgradeConfig{}
 
-			if testErr != nil {
-				testErr = fmt.Errorf("failed to read kotsadm-confg configmap from cluster: %w", testErr)
-			} else {
-				// Parse admin console port from config if available
-				flags.adminConsolePort = ecv1beta1.DefaultAdminConsolePort // fallback for now
-			}
+			err = preRunUpgrade(context.Background(), tt.flags, upgradeConfig, mockRC, fakeClient)
 
 			if tt.wantErr != "" {
-				require.Error(t, testErr)
-				require.Contains(t, testErr.Error(), tt.wantErr)
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+				if tt.wantClusterID != "" {
+					req.Equal(tt.wantClusterID, upgradeConfig.clusterID)
+				}
 			} else {
-				require.NoError(t, testErr)
-				require.Equal(t, ecv1beta1.DefaultAdminConsolePort, flags.adminConsolePort)
+				req.NoError(err)
+				if tt.wantClusterID != "" {
+					req.Equal(tt.wantClusterID, upgradeConfig.clusterID)
+				}
 			}
 		})
 	}
