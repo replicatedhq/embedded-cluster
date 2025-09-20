@@ -106,6 +106,10 @@ func RootCmd(ctx context.Context) *cobra.Command {
 	}
 
 	cmd.AddCommand(InstallCmd(ctx, appSlug, appTitle))
+	// The upgrade command should only be visible in V3
+	if isV3Enabled() {
+		cmd.AddCommand(UpgradeCmd(ctx, appSlug, appTitle))
+	}
 	cmd.AddCommand(JoinCmd(ctx, appSlug, appTitle))
 	cmd.AddCommand(ShellCmd(ctx, appTitle))
 	cmd.AddCommand(NodeCmd(ctx, appSlug, appTitle))

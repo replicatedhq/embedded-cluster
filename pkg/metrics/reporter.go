@@ -121,6 +121,42 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 	})
 }
 
+// ReportUpgradeStarted reports that an upgrade has started.
+func (r *Reporter) ReportUpgradeStarted(ctx context.Context, licenseID string, appSlug string) {
+	rel := release.GetChannelRelease()
+	appChannel, appVersion := "", ""
+	if rel != nil {
+		appChannel = rel.ChannelID
+		appVersion = rel.VersionLabel
+	}
+
+	Send(ctx, r.baseURL, types.UpgradeStarted{
+		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeStarted, "", false),
+		BinaryName:   appSlug,
+		LegacyType:   "centralized",
+		LicenseID:    licenseID,
+		AppChannelID: appChannel,
+		AppVersion:   appVersion,
+	})
+}
+
+// ReportUpgradeSucceeded reports that an upgrade has succeeded.
+func (r *Reporter) ReportUpgradeSucceeded(ctx context.Context) {
+	Send(ctx, r.baseURL, types.UpgradeSucceeded{
+		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeSucceeded, "", true),
+	})
+}
+
+// ReportUpgradeFailed reports that an upgrade has failed.
+func (r *Reporter) ReportUpgradeFailed(ctx context.Context, err error) {
+	if errors.As(err, &ErrorNoFail{}) {
+		return
+	}
+	Send(ctx, r.baseURL, types.UpgradeFailed{
+		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeFailed, err.Error(), true),
+	})
+}
+
 // ReportJoinStarted reports that a join has started.
 func (r *Reporter) ReportJoinStarted(ctx context.Context) {
 	Send(ctx, r.baseURL, types.JoinStarted{

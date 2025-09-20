@@ -5,6 +5,9 @@ const (
 	EventTypeInstallationStarted     = "InstallationStarted"
 	EventTypeInstallationSucceeded   = "InstallationSucceeded"
 	EventTypeInstallationFailed      = "InstallationFailed"
+	EventTypeUpgradeStarted          = "UpgradeStarted"
+	EventTypeUpgradeSucceeded        = "UpgradeSucceeded"
+	EventTypeUpgradeFailed           = "UpgradeFailed"
 	EventTypeJoinStarted             = "JoinStarted"
 	EventTypeJoinSucceeded           = "JoinSucceeded"
 	EventTypeJoinFailed              = "JoinFailed"
@@ -99,6 +102,36 @@ type InstallationSucceeded struct {
 
 // InstallationFailed event is send back home when the installation fails.
 type InstallationFailed struct {
+	GenericEvent `json:",inline"`
+}
+
+// UpgradeStarted event is sent back home when an upgrade starts.
+type UpgradeStarted struct {
+	GenericEvent `json:",inline"`
+	BinaryName   string `json:"binaryName"`
+	LegacyType   string `json:"type"` // TODO(ethan): confirm if we can remove this
+	LicenseID    string `json:"licenseID"`
+	AppChannelID string `json:"appChannelID"`
+	AppVersion   string `json:"appVersion"`
+}
+
+// Title returns the name of the event.
+func (e UpgradeStarted) Title() string {
+	return EventTypeUpgradeStarted
+}
+
+// Type returns the type of the event.
+func (e UpgradeStarted) Type() string {
+	return EventTypeUpgradeStarted
+}
+
+// UpgradeSucceeded event is sent back home when an upgrade finishes successfully.
+type UpgradeSucceeded struct {
+	GenericEvent `json:",inline"`
+}
+
+// UpgradeFailed event is sent back home when an upgrade fails.
+type UpgradeFailed struct {
 	GenericEvent `json:",inline"`
 }
 
