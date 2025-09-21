@@ -9,18 +9,18 @@ images:
     calico-cni:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/calico-cni
         tag:
-            amd64: v3.28.5-amd64@sha256:696457212be683bccb965a472c3cdd96dbff41b94f5bb8bcf1c3ceb1c90302a3
-            arm64: v3.28.5-arm64@sha256:35adcf0cb6d64aeef0cb9bb947e8572e7b7ff4a4f32c6490a662ae1d68c75488
+            amd64: v3.28.5-amd64@sha256:3b784ed277522deca9a92b464685e077a86dcad4a95897928b3598b6ebc75e5a
+            arm64: v3.28.5-arm64@sha256:15bc091e0293451033566284967f17acb79360d72dd19f6a2624e4b280892087
     calico-kube-controllers:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.28.5-amd64@sha256:40550985a3421a2cdab2677ae8cee29eb394dc97d0feb1ffe0182fcae07618c8
-            arm64: v3.28.5-arm64@sha256:ea76ae2a1cb6e4cf7bbcd7ba5c411028917383d51ec52e4e2e1d355af7ce0ab6
+            amd64: v3.28.5-amd64@sha256:5fc2576d846389a2132f92350bb28965f5edb04adc50260ec5a5b4421c31df4d
+            arm64: v3.28.5-arm64@sha256:d8efad1d5fa1444285fd8db5193b2baad1f81edde46ce2e2e966431982b3d02d
     calico-node:
         repo: proxy.replicated.com/anonymous/registry.replicated.com/library/calico-node
         tag:
-            amd64: v3.28.5-amd64@sha256:e4a2be256c0e88d6425d73d5f366a17e6a4ddd4c9fe854b7bbb44a7c0b06f52c
-            arm64: v3.28.5-arm64@sha256:940c86fd5ca14788a42906c6058b5ea8c3f9cd1ca8e5448fbdc607a4f91345d6
+            amd64: v3.28.5-amd64@sha256:05682568c1e184f91fab40f1a01dc22bdec9f1acda1991f26078f8a11fd276f4
+            arm64: v3.28.5-arm64@sha256:331db2cff8075859402cc3479357126238c2953715c852f21a234913fe7f0f14
     coredns:
         repo: proxy.replicated.com/anonymous/replicated/ec-coredns
         tag:
