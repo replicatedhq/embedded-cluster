@@ -67,6 +67,7 @@ var updateOperatorAddonCommand = &cli.Command{
 		} else {
 			chartURL = "proxy.replicated.com/library/embedded-cluster-operator"
 		}
+		chartURL = addProxyAnonymousPrefix(chartURL)
 		chartURL = fmt.Sprintf("oci://%s", chartURL)
 
 		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
