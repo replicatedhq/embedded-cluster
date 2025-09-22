@@ -570,5 +570,5 @@ func addProxyAnonymousPrefix(image string) string {
 }
 
 func replaceReplicatedLibraryPrefix(image string) string {
-	return strings.Replace(image, "proxy.replicated.com/library", "proxy.replicated.com/library", 1)
+	return strings.Replace(image, "proxy.replicated.com/anonymous/registry.replicated.com/library", "proxy.replicated.com/library", 1)
 }
