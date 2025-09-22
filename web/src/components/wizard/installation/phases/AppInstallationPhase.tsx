@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { NextButtonConfig } from "../types";
 import { State, AppInstallStatus } from "../../../../types";
+import { getApiBase } from '../../../../utils/api-base';
 import ErrorMessage from "../shared/ErrorMessage";
 
 interface AppInstallationPhaseProps {
@@ -15,7 +16,7 @@ interface AppInstallationPhaseProps {
 }
 
 const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
-  const { text, target } = useWizard();
+  const { text, target, mode } = useWizard();
   const { settings } = useSettings();
   const { token } = useAuth();
   const [isPolling, setIsPolling] = useState(true);
@@ -27,7 +28,8 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const { data: appInstallStatus, error: appStatusError } = useQuery<AppInstallStatus, Error>({
     queryKey: ["appInstallationStatus"],
     queryFn: async () => {
-      const response = await fetch(`/api/${target}/install/app/status`, {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/app/status`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

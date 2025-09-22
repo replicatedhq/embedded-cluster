@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State } from "../../../../types";
+import { getApiBase } from '../../../../utils/api-base';
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;
@@ -18,7 +19,7 @@ interface LinuxPreflightPhaseProps {
 }
 
 const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
-  const { text } = useWizard();
+  const { text, target, mode } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreHostPreflights, setAllowIgnoreHostPreflights] = React.useState(false);
@@ -42,7 +43,8 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
 
   const { mutate: startInstallation } = useMutation({
     mutationFn: async ({ ignoreHostPreflights }: { ignoreHostPreflights: boolean }) => {
-      const response = await fetch("/api/linux/install/infra/setup", {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/infra/setup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

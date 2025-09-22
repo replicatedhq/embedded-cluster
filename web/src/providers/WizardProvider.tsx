@@ -1,7 +1,8 @@
 import React from "react";
-import { WizardText, WizardMode } from "../types";
+import { WizardText } from "../types";
 import { useInitialState } from "../contexts/InitialStateContext";
 import { WizardContext } from "../contexts/WizardModeContext";
+import { WizardMode } from "../types/wizard-mode";
 
 const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, WizardText> => ({
   install: {
@@ -47,8 +48,9 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     linuxValidationDescription: "Validating the host requirements",
     linuxInstallationTitle: "Infrastructure Upgrade",
     linuxInstallationDescription: "Upgrading infrastructure components",
-    appValidationTitle: `${title} Preflight Checks`,
-    appValidationDescription: "Validating the application requirements",
+    // TODO Upgrade we're using the app preflights phase to just confirm the upgrade for now. We need to change back the title and description once those are in place
+    appValidationTitle: `${title} Upgrade Confirmation`,
+    appValidationDescription: "Confirm the app upgrade",
     appInstallationTitle: `${title} Upgrade`,
     appInstallationDescription: `Upgrading ${title} components`,
     welcomeButtonText: "Start Upgrade",
@@ -57,8 +59,7 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
 });
 
 export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { title, installTarget } = useInitialState();
-  const mode = "install"; // TODO: get mode from initial state
+  const { title, installTarget, mode } = useInitialState();
   const isLinux = installTarget === "linux";
   const text = getTextVariations(isLinux, title)[mode];
 

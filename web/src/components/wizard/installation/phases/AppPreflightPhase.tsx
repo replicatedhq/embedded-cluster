@@ -8,6 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig } from "../types";
 import { State } from "../../../../types";
+import { getApiBase } from '../../../../utils/api-base';
 
 interface AppPreflightPhaseProps {
   onNext: () => void;
@@ -16,7 +17,7 @@ interface AppPreflightPhaseProps {
 }
 
 const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
-  const { text, target } = useWizard();
+  const { text, target, mode } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreAppPreflights, setAllowIgnoreAppPreflights] = React.useState(false);
@@ -43,7 +44,8 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
 
   const { mutate: startAppInstallation } = useMutation({
     mutationFn: async ({ ignoreAppPreflights }: { ignoreAppPreflights: boolean }) => {
-      const response = await fetch(`/api/${target}/install/app/install`, {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/app/${mode}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
