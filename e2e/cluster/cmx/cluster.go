@@ -615,7 +615,7 @@ func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("collect network report: %v, stdout: %s, stderr: %s", err, string(output), string(stderr.Bytes()))
+		return nil, fmt.Errorf("collect network report: %v, stdout: %s, stderr: %s", err, string(output), stderr.String())
 	}
 
 	type eventWrapper struct {
