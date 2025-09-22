@@ -275,7 +275,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 		apiInstance.RegisterRoutes(router)
 
 		// Create request
-		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/upgrade/status", nil)
+		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/status", nil)
 		req.Header.Set("Authorization", "Bearer TOKEN")
 		rec := httptest.NewRecorder()
 
@@ -316,7 +316,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 		apiInstance.RegisterRoutes(router)
 
 		// Create request with invalid token
-		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/upgrade/status", nil)
+		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/status", nil)
 		req.Header.Set("Authorization", "Bearer INVALID_TOKEN")
 		rec := httptest.NewRecorder()
 
