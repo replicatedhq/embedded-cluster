@@ -131,7 +131,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	if err := addUpgradeAdminConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
-	if err := addUpgradeManagementConsoleFlags(cmd, &flags, &upgradeConfig); err != nil {
+	if err := addUpgradeManagementConsoleFlags(cmd, &flags); err != nil {
 		panic(err)
 	}
 
@@ -196,9 +196,9 @@ func addUpgradeAdminConsoleFlags(cmd *cobra.Command, flags *UpgradeCmdFlags) err
 	return nil
 }
 
-func addUpgradeManagementConsoleFlags(cmd *cobra.Command, flags *UpgradeCmdFlags, upgradeConfig *upgradeConfig) error {
-	// default value is the manager port from the runtime config
-	cmd.Flags().IntVar(&flags.managerPort, "manager-port", upgradeConfig.managerPort, "Port on which the Manager will be served")
+func addUpgradeManagementConsoleFlags(cmd *cobra.Command, flags *UpgradeCmdFlags) error {
+	// default value of 0 indicates no user input - will use existing runtime config value
+	cmd.Flags().IntVar(&flags.managerPort, "manager-port", 0, "Port on which the Manager will be served")
 	return nil
 }
 
@@ -274,8 +274,14 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	// Set admin console and manager ports from runtime config
-	upgradeConfig.managerPort = rc.ManagerPort()
+	// Use the user-provided manager port if specified, otherwise use the existing runtime config value
+	if flags.managerPort != 0 {
+		// User provided a custom manager port
+		upgradeConfig.managerPort = flags.managerPort
+	} else {
+		// Use existing manager port from runtime config
+		upgradeConfig.managerPort = rc.ManagerPort()
+	}
 
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
