@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Upstream tag to be used as a base, patches will be applied on top of this tag, e.g. v1.30.0+k0s.0."
+        description: "Upstream tag to be used as a base, patches will be applied on top of this tag, e.g. v1.33.4+k0s.0."
         required: true
       patchDir:
-        description: "The directory (in this repository) to read the patches from, e.g. 'k0s-patches/release-1.30'."
+        description: "The directory (in this repository) to read the patches from, e.g. 'k0s-patches/release-1.33'."
         required: true
-        default: 'k0s-patches/release-1.30'
+        default: 'k0s-patches/release-1.33'
       versionSuffix:
         description: "The custom suffix for the compiled k0s version, e.g. ec.1."
         required: true
