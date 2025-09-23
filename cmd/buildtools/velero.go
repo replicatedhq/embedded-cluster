@@ -25,7 +25,7 @@ var veleroImageComponents = map[string]addonComponent{
 	"docker.io/velero/velero": {
 		name: "velero",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/velero"
+			ref := "proxy.replicated.com/library/velero"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -34,7 +34,7 @@ var veleroImageComponents = map[string]addonComponent{
 	"docker.io/velero/velero-plugin-for-aws": {
 		name: "velero-plugin-for-aws",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/velero-plugin-for-aws"
+			ref := "proxy.replicated.com/library/velero-plugin-for-aws"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -43,7 +43,7 @@ var veleroImageComponents = map[string]addonComponent{
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/kubectl"
+			ref := "proxy.replicated.com/library/kubectl"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
@@ -93,7 +93,8 @@ var updateVeleroAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/velero", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		upstream = addProxyAnonymousPrefix(upstream)
+		withproto := fmt.Sprintf("oci://%s", upstream)
 
 		veleroVersion, err := findVeleroVersionFromChart(c.Context, hcli, withproto, nextChartVersion)
 		if err != nil {

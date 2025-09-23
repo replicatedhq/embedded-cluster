@@ -24,7 +24,7 @@ var openebsImageComponents = map[string]addonComponent{
 	"docker.io/openebs/provisioner-localpv": {
 		name: "openebs-provisioner-localpv",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/openebs-provisioner-localpv"
+			ref := "proxy.replicated.com/library/openebs-provisioner-localpv"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -33,7 +33,7 @@ var openebsImageComponents = map[string]addonComponent{
 	"docker.io/openebs/linux-utils": {
 		name: "openebs-linux-utils",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/openebs-linux-utils"
+			ref := "proxy.replicated.com/library/openebs-linux-utils"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -42,7 +42,7 @@ var openebsImageComponents = map[string]addonComponent{
 	"docker.io/bitnamilegacy/kubectl": {
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/kubectl"
+			ref := "proxy.replicated.com/library/kubectl"
 			constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
@@ -51,7 +51,7 @@ var openebsImageComponents = map[string]addonComponent{
 	"docker.io/openebs/kubectl": {
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "registry.replicated.com/library/kubectl"
+			ref := "proxy.replicated.com/library/kubectl"
 			return getLatestImageNameAndTag(opts.ctx, ref, nil)
 		},
 		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
@@ -97,7 +97,8 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		upstream := fmt.Sprintf("%s/openebs", os.Getenv("CHARTS_DESTINATION"))
-		withproto := fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", upstream)
+		upstream = addProxyAnonymousPrefix(upstream)
+		withproto := fmt.Sprintf("oci://%s", upstream)
 
 		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(hcli, withproto, nextChartVersion)
 		if err != nil {

@@ -9,7 +9,7 @@ version: 3.0.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/docker-registry
 images:
     registry:
-        repo: proxy.replicated.com/anonymous/registry.replicated.com/library/registry
+        repo: proxy.replicated.com/library/registry
         tag:
             amd64: 2.8.3-amd64@sha256:17463f6aefd46554c4552187ceb569b04bc7c12e9e6dd614dcd5ae2ac257a2f1
             arm64: 2.8.3-arm64@sha256:3a71ff9a1b458a39a30444da7db3fa6ee0d99411e03ce6c3cb83aa49c161de61

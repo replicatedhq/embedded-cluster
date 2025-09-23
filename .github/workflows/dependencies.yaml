@@ -31,8 +31,7 @@ jobs:
           K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
         fi
         echo "k0s minor version: $K0S_MINOR_VERSION"
-        ./scripts/k0s-update-dependencies.sh "$K0S_MINOR_VERSION" \
-          UPDATE_ALL_IMAGES=true
+        ./scripts/k0s-update-dependencies.sh "$K0S_MINOR_VERSION"
 
     - name: Troubleshoot
       env:
