@@ -13,6 +13,7 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -103,7 +104,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli); err != nil {
+			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli, appSlug); err != nil {
 				return err
 			}
 			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New()); err != nil {
@@ -225,7 +226,7 @@ func addUpgradeManagementConsoleFlags(cmd *cobra.Command, flags *UpgradeCmdFlags
 	return nil
 }
 
-func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *upgradeConfig, rc runtimeconfig.RuntimeConfig, kcli client.Client) error {
+func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *upgradeConfig, rc runtimeconfig.RuntimeConfig, kcli client.Client, appSlug string) error {
 	// Verify an installation exists and get the cluster ID
 	clusterID, err := getClusterID(ctx, kcli)
 	if err != nil {
@@ -299,7 +300,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.endUserConfig = eucfg
 
-	cv, err := getCurrentConfigValues()
+	cv, err := getCurrentConfigValues(appSlug)
 	if err != nil {
 		return fmt.Errorf("failed to get current config values: %w", err)
 	}
@@ -341,9 +342,24 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 	return nil
 }
 
-func getCurrentConfigValues() (apitypes.AppConfigValues, error) {
-	// TODO: implement getting current config values from kots
-	return apitypes.AppConfigValues{}, nil
+func getCurrentConfigValues(appSlug string) (apitypes.AppConfigValues, error) {
+	// Get the kots config YAML using the kotscli package
+	configYaml, err := kotscli.GetConfigValues(kotscli.GetConfigValuesOptions{
+		AppSlug:   appSlug,
+		Namespace: "kotsadm",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the YAML using helpers
+	kotsConfigValues, err := helpers.ParseConfigValuesFromString(configYaml)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to AppConfigValues format
+	return apitypes.ConvertToAppConfigValues(kotsConfigValues), nil
 }
 
 // getClusterID gets the cluster ID from the latest installation in the cluster

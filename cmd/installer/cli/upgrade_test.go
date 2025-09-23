@@ -446,7 +446,7 @@ func Test_preRunUpgrade(t *testing.T) {
 			// Create upgrade config
 			upgradeConfig := &upgradeConfig{}
 
-			err = preRunUpgrade(context.Background(), tt.flags, upgradeConfig, mockRC, fakeClient)
+			err = preRunUpgrade(context.Background(), tt.flags, upgradeConfig, mockRC, fakeClient, "test-app")
 
 			if tt.wantErr != "" {
 				req.Error(err)
