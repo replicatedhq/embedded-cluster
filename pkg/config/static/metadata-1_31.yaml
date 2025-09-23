@@ -27,10 +27,10 @@ images:
             amd64: v1.12.3-amd64@sha256:8f5f7a0b7e43ba7efc18d3c2d1eb4a9b0d92969be27abb87af1c3bb1ffb5f359
             arm64: v1.12.3-arm64@sha256:27b89e34043cd283d36be797f36da6e18b22c01a6547cfbda5fe21d6a9ea8d39
     envoy-distroless:
-        repo: proxy.replicated.com/anonymous/replicated/ec-envoy-distroless
+        repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: 1.31.2-r0-amd64@sha256:f6032476349dc87c7c3755f3a981fc1a61036c1586abf065dde20603f6ebe716
-            arm64: 1.31.2-r0-arm64@sha256:f818ce57852a92e5f9ca5dc408939793ea251786bfdb54689ca653138f0bb08d
+            amd64: 1.31.2-amd64@sha256:6d243ea9bce274e50106eb5cd7e16a9a6d73fcb9e54879b2be53656adb50ec5c
+            arm64: 1.31.2-arm64@sha256:8394aba8c1cbe52bd27e276c8c1e7333cefaffde0ba7591f78525700d5005ad9
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
