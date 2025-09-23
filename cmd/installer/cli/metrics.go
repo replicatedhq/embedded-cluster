@@ -66,16 +66,16 @@ func newUpgradeReporter(baseURL string, cmd string, flags []string, licenseID st
 	}
 }
 
-func (ur *upgradeReporter) ReportUpgradeStarted(ctx context.Context) {
-	ur.reporter.ReportUpgradeStarted(ctx, ur.licenseID, ur.appSlug)
+func (ur *upgradeReporter) ReportUpgradeStarted(ctx context.Context, targetVersion string, initialVersion string) {
+	ur.reporter.ReportUpgradeStarted(ctx, ur.licenseID, ur.appSlug, targetVersion, initialVersion)
 }
 
-func (ur *upgradeReporter) ReportUpgradeSucceeded(ctx context.Context) {
-	ur.reporter.ReportUpgradeSucceeded(ctx)
+func (ur *upgradeReporter) ReportUpgradeSucceeded(ctx context.Context, targetVersion string, initialVersion string) {
+	ur.reporter.ReportUpgradeSucceeded(ctx, targetVersion, initialVersion)
 }
 
-func (ur *upgradeReporter) ReportUpgradeFailed(ctx context.Context, err error) {
-	ur.reporter.ReportUpgradeFailed(ctx, err)
+func (ur *upgradeReporter) ReportUpgradeFailed(ctx context.Context, err error, targetVersion string, initialVersion string) {
+	ur.reporter.ReportUpgradeFailed(ctx, err, targetVersion, initialVersion)
 }
 
 func (ur *upgradeReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {

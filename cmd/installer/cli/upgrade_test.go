@@ -106,7 +106,7 @@ func Test_readPasswordHash(t *testing.T) {
 		{
 			name:    "secret not found",
 			secret:  nil,
-			wantErr: "failed to read kotsadm-password secret from cluster",
+			wantErr: "read kotsadm-password secret from cluster",
 		},
 		{
 			name: "secret with empty passwordBcrypt",
@@ -309,7 +309,7 @@ func Test_readTLSConfig(t *testing.T) {
 		{
 			name:    "secret not found",
 			secret:  nil,
-			wantErr: "failed to read kotsadm-tls secret from cluster",
+			wantErr: "read kotsadm-tls secret from cluster",
 		},
 	}
 
@@ -377,7 +377,7 @@ func Test_preRunUpgrade(t *testing.T) {
 				target: "linux",
 			},
 			installation: nil,
-			wantErr:      "could not get existing installation",
+			wantErr:      "failed to get existing installation",
 		},
 		{
 			name: "installation missing cluster ID",
@@ -409,7 +409,7 @@ func Test_preRunUpgrade(t *testing.T) {
 			},
 			dataDir:       "/nonexistent/path",
 			wantClusterID: "test-cluster-123",
-			wantErr:       "upgrade requires existing data directory from previous installation",
+			wantErr:       "failed to stat data directory",
 		},
 	}
 

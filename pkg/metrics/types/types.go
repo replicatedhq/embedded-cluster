@@ -107,12 +107,14 @@ type InstallationFailed struct {
 
 // UpgradeStarted event is sent back home when an upgrade starts.
 type UpgradeStarted struct {
-	GenericEvent `json:",inline"`
-	BinaryName   string `json:"binaryName"`
-	LegacyType   string `json:"type"` // TODO(ethan): confirm if we can remove this
-	LicenseID    string `json:"licenseID"`
-	AppChannelID string `json:"appChannelID"`
-	AppVersion   string `json:"appVersion"`
+	GenericEvent   `json:",inline"`
+	BinaryName     string `json:"binaryName"`
+	LegacyType     string `json:"type"` // TODO(ethan): confirm if we can remove this
+	LicenseID      string `json:"licenseID"`
+	AppChannelID   string `json:"appChannelID"`
+	AppVersion     string `json:"appVersion"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
 }
 
 // Title returns the name of the event.
@@ -127,12 +129,16 @@ func (e UpgradeStarted) Type() string {
 
 // UpgradeSucceeded event is sent back home when an upgrade finishes successfully.
 type UpgradeSucceeded struct {
-	GenericEvent `json:",inline"`
+	GenericEvent   `json:",inline"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
 }
 
 // UpgradeFailed event is sent back home when an upgrade fails.
 type UpgradeFailed struct {
-	GenericEvent `json:",inline"`
+	GenericEvent   `json:",inline"`
+	TargetVersion  string `json:"targetVersion"`
+	InitialVersion string `json:"initialVersion"`
 }
 
 // JoinStarted event is send back home when a node join starts.

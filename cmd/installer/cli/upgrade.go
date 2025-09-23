@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -74,15 +75,13 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Set up kubeconfig from existing runtime config
+			// Set up environment variables from existing runtime config
 			existingRC, err := rcutil.GetRuntimeConfigFromCluster(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get runtime config from cluster: %w", err)
 			}
-			kubeconfig := existingRC.PathToKubeConfig()
-			if kubeconfig != "" {
-				os.Setenv("KUBECONFIG", kubeconfig)
-				logrus.Debugf("set KUBECONFIG to %s", kubeconfig)
+			if err := existingRC.SetEnv(); err != nil {
+				return fmt.Errorf("failed to set environment variables: %w", err)
 			}
 
 			// Set up kubernetes client
@@ -98,11 +97,21 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
+			targetVersion := versions.Version
+			initialVersion := ""
+			currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+			if err != nil {
+				return fmt.Errorf("get latest installation: %w", err)
+			}
+			if currentInstallation.Spec.Config != nil {
+				initialVersion = currentInstallation.Spec.Config.Version
+			}
+
 			metricsReporter := newUpgradeReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				upgradeConfig.license.Spec.LicenseID, upgradeConfig.clusterID, upgradeConfig.license.Spec.AppSlug,
 			)
-			metricsReporter.ReportUpgradeStarted(ctx)
+			metricsReporter.ReportUpgradeStarted(ctx, targetVersion, initialVersion)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
@@ -114,11 +123,11 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportUpgradeFailed(ctx, err)
+					metricsReporter.ReportUpgradeFailed(ctx, err, targetVersion, initialVersion)
 				}
 				return err
 			}
-			metricsReporter.ReportUpgradeSucceeded(ctx)
+			metricsReporter.ReportUpgradeSucceeded(ctx, targetVersion, initialVersion)
 
 			return nil
 		},
@@ -211,14 +220,14 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	// Verify an installation exists and get the cluster ID
 	clusterID, err := getClusterID(ctx, kcli)
 	if err != nil {
-		return fmt.Errorf("could not get existing installation: %w", err)
+		return fmt.Errorf("failed to get existing installation: %w", err)
 	}
 	upgradeConfig.clusterID = clusterID
 
 	// Verify that a data directory exists
 	dataDir := rc.EmbeddedClusterHomeDirectory()
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		return fmt.Errorf("upgrade requires existing data directory from previous installation")
+	if _, err := os.Stat(dataDir); err != nil {
+		return fmt.Errorf("failed to stat data directory: %w", err)
 	}
 
 	// Validate the license is indeed a license file
@@ -229,7 +238,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	upgradeConfig.license = license
 	data, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
-		return fmt.Errorf("unable to read license file: %w", err)
+		return fmt.Errorf("failed to read license file: %w", err)
 	}
 	upgradeConfig.licenseBytes = data
 
@@ -250,7 +259,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	// Read existing TLS certificates from kotsadm-tls secret in the cluster
 	tlsConfig, err := readTLSConfig(ctx, kcli)
 	if err != nil {
-		return fmt.Errorf("upgrade requires TLS certificates from existing installation: %w", err)
+		return fmt.Errorf("failed to read tls config: %w", err)
 	}
 	upgradeConfig.tlsConfig = tlsConfig
 	cert, err := tls.X509KeyPair(upgradeConfig.tlsConfig.CertBytes, upgradeConfig.tlsConfig.KeyBytes)
@@ -266,14 +275,6 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.passwordHash = pwdHash
 
-	if os.Getuid() != 0 {
-		return fmt.Errorf("upgrade command must be run as root")
-	}
-
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
-
 	// Use the user-provided manager port if specified, otherwise use the existing runtime config value
 	if flags.managerPort != 0 {
 		// User provided a custom manager port
@@ -285,7 +286,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
-		return fmt.Errorf("process overrides file: %w", err)
+		return fmt.Errorf("failed to process overrides file: %w", err)
 	}
 	upgradeConfig.endUserConfig = eucfg
 
@@ -294,6 +295,14 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return fmt.Errorf("failed to get current config values: %w", err)
 	}
 	upgradeConfig.configValues = cv
+
+	if os.Getuid() != 0 {
+		return fmt.Errorf("upgrade command must be run as root")
+	}
+
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
 
 	return nil
 }
@@ -340,7 +349,7 @@ func getCurrentConfigValues() (apitypes.AppConfigValues, error) {
 func getClusterID(ctx context.Context, kcli client.Client) (string, error) {
 	installation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get latest installation: %w", err)
 	}
 	if installation.Spec.ClusterID == "" {
 		return "", fmt.Errorf("existing installation has empty cluster ID")
@@ -359,7 +368,7 @@ func readTLSConfig(ctx context.Context, kcli client.Client) (apitypes.TLSConfig,
 		Name:      "kotsadm-tls",
 	}, tlsSecret)
 	if err != nil {
-		return tlsConfig, fmt.Errorf("failed to read kotsadm-tls secret from cluster: %w", err)
+		return tlsConfig, fmt.Errorf("read kotsadm-tls secret from cluster: %w", err)
 	}
 
 	certData, hasCert := tlsSecret.Data["tls.crt"]
@@ -385,7 +394,7 @@ func readPasswordHash(ctx context.Context, kcli client.Client) ([]byte, error) {
 		Name:      "kotsadm-password",
 	}, pwdSecret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read kotsadm-password secret from cluster: %w", err)
+		return nil, fmt.Errorf("read kotsadm-password secret from cluster: %w", err)
 	}
 
 	passwordBcryptData, hasData := pwdSecret.Data["passwordBcrypt"]
@@ -427,7 +436,7 @@ func runManagerExperienceUpgrade(
 	defer cancel()
 
 	if err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig, cancel); err != nil {
-		return fmt.Errorf("unable to start api: %w", err)
+		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",

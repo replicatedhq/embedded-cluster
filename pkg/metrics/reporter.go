@@ -122,7 +122,7 @@ func (r *Reporter) ReportInstallationFailed(ctx context.Context, err error) {
 }
 
 // ReportUpgradeStarted reports that an upgrade has started.
-func (r *Reporter) ReportUpgradeStarted(ctx context.Context, licenseID string, appSlug string) {
+func (r *Reporter) ReportUpgradeStarted(ctx context.Context, licenseID string, appSlug string, targetVersion string, initialVersion string) {
 	rel := release.GetChannelRelease()
 	appChannel, appVersion := "", ""
 	if rel != nil {
@@ -131,29 +131,35 @@ func (r *Reporter) ReportUpgradeStarted(ctx context.Context, licenseID string, a
 	}
 
 	Send(ctx, r.baseURL, types.UpgradeStarted{
-		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeStarted, "", false),
-		BinaryName:   appSlug,
-		LegacyType:   "centralized",
-		LicenseID:    licenseID,
-		AppChannelID: appChannel,
-		AppVersion:   appVersion,
+		GenericEvent:   r.newGenericEvent(types.EventTypeUpgradeStarted, "", false),
+		BinaryName:     appSlug,
+		LegacyType:     "centralized",
+		LicenseID:      licenseID,
+		AppChannelID:   appChannel,
+		AppVersion:     appVersion,
+		TargetVersion:  targetVersion,
+		InitialVersion: initialVersion,
 	})
 }
 
 // ReportUpgradeSucceeded reports that an upgrade has succeeded.
-func (r *Reporter) ReportUpgradeSucceeded(ctx context.Context) {
+func (r *Reporter) ReportUpgradeSucceeded(ctx context.Context, targetVersion string, initialVersion string) {
 	Send(ctx, r.baseURL, types.UpgradeSucceeded{
-		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeSucceeded, "", true),
+		GenericEvent:   r.newGenericEvent(types.EventTypeUpgradeSucceeded, "", true),
+		TargetVersion:  targetVersion,
+		InitialVersion: initialVersion,
 	})
 }
 
 // ReportUpgradeFailed reports that an upgrade has failed.
-func (r *Reporter) ReportUpgradeFailed(ctx context.Context, err error) {
+func (r *Reporter) ReportUpgradeFailed(ctx context.Context, err error, targetVersion string, initialVersion string) {
 	if errors.As(err, &ErrorNoFail{}) {
 		return
 	}
 	Send(ctx, r.baseURL, types.UpgradeFailed{
-		GenericEvent: r.newGenericEvent(types.EventTypeUpgradeFailed, err.Error(), true),
+		GenericEvent:   r.newGenericEvent(types.EventTypeUpgradeFailed, err.Error(), true),
+		TargetVersion:  targetVersion,
+		InitialVersion: initialVersion,
 	})
 }
 
