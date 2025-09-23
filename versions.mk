@@ -14,6 +14,7 @@ K0S_VERSION_1_29 = v1.29.15+k0s.0
 
 # Dynamic version selection
 K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
+K0S_GO_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 
 # Troubleshoot Version
 TROUBLESHOOT_VERSION = v0.122.0
@@ -33,7 +34,6 @@ KOTS_BINARY_URL_OVERRIDE =
 KOTS_BINARY_FILE_OVERRIDE =
 
 # K0S go version overrides go here
-K0S_GO_VERSION = $(K0S_VERSION)
 
 # K0S binary source overrides go here
 K0S_BINARY_SOURCE_OVERRIDE =
