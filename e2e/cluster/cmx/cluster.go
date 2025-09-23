@@ -612,9 +612,14 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 }
 
 func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
-	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID)).Output()
+	cmd := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID))
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("collect network report: %v", err)
+		return nil, fmt.Errorf("collect network report: %v, stdout: %s, stderr: %s", err, string(output), stderr.String())
 	}
 
 	report := NetworkReport{}
