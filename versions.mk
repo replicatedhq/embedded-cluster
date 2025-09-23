@@ -23,7 +23,9 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 # K0S Binary Source Overrides (optional)
 # These allow overriding the binary source used for specific K0S minor versions
 # Format: K0S_BINARY_SOURCE_OVERRIDE_<MINOR_VERSION>
-# Example: K0S_BINARY_SOURCE_OVERRIDE_32 = https://github.com/k0sproject/k0s/releases/download/v1.32.7+k0s.0/k0s-v1.32.7+k0s.0-amd64
+# Example: K0S_BINARY_SOURCE_OVERRIDE_31 = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.31.12%2Bk0s.0-ec.0-$(ARCH)
+
+K0S_BINARY_SOURCE_OVERRIDE_31 = https://tf-staging-embedded-cluster-bin.s3.amazonaws.com/custom-k0s-binaries/k0s-v1.31.12%2Bk0s.0-ec.0-$(ARCH)
 
 # Troubleshoot Version
 TROUBLESHOOT_VERSION = v0.122.0
