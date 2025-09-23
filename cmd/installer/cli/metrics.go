@@ -50,6 +50,50 @@ func (r *installReporter) ReportSignalAborted(ctx context.Context, sig os.Signal
 	r.reporter.ReportSignalAborted(ctx, sig)
 }
 
+type upgradeReporter struct {
+	reporter       metrics.ReporterInterface
+	licenseID      string
+	appSlug        string
+	targetVersion  string
+	initialVersion string
+}
+
+func newUpgradeReporter(baseURL string, cmd string, flags []string, licenseID string, clusterID string, appSlug string, targetVersion string, initialVersion string) *upgradeReporter {
+	executionID := uuid.New().String()
+	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
+	return &upgradeReporter{
+		reporter:       reporter,
+		licenseID:      licenseID,
+		appSlug:        appSlug,
+		targetVersion:  targetVersion,
+		initialVersion: initialVersion,
+	}
+}
+
+func (ur *upgradeReporter) ReportUpgradeStarted(ctx context.Context) {
+	ur.reporter.ReportUpgradeStarted(ctx, ur.licenseID, ur.appSlug, ur.targetVersion, ur.initialVersion)
+}
+
+func (ur *upgradeReporter) ReportUpgradeSucceeded(ctx context.Context) {
+	ur.reporter.ReportUpgradeSucceeded(ctx, ur.targetVersion, ur.initialVersion)
+}
+
+func (ur *upgradeReporter) ReportUpgradeFailed(ctx context.Context, err error) {
+	ur.reporter.ReportUpgradeFailed(ctx, err, ur.targetVersion, ur.initialVersion)
+}
+
+func (ur *upgradeReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	ur.reporter.ReportHostPreflightsFailed(ctx, output)
+}
+
+func (ur *upgradeReporter) ReportPreflightsBypassed(ctx context.Context, output *apitypes.PreflightsOutput) {
+	ur.reporter.ReportHostPreflightsBypassed(ctx, output)
+}
+
+func (ur *upgradeReporter) ReportSignalAborted(ctx context.Context, sig os.Signal) {
+	ur.reporter.ReportSignalAborted(ctx, sig)
+}
+
 type joinReporter struct {
 	reporter metrics.ReporterInterface
 }

@@ -18,6 +18,15 @@ type ReporterInterface interface {
 	// ReportInstallationFailed reports that the installation has failed
 	ReportInstallationFailed(ctx context.Context, err error)
 
+	// ReportUpgradeStarted reports that an upgrade has started
+	ReportUpgradeStarted(ctx context.Context, licenseID string, appSlug string, targetVersion string, initialVersion string)
+
+	// ReportUpgradeSucceeded reports that an upgrade has succeeded
+	ReportUpgradeSucceeded(ctx context.Context, targetVersion string, initialVersion string)
+
+	// ReportUpgradeFailed reports that an upgrade has failed
+	ReportUpgradeFailed(ctx context.Context, err error, targetVersion string, initialVersion string)
+
 	// ReportJoinStarted reports that a join has started
 	ReportJoinStarted(ctx context.Context)
 
