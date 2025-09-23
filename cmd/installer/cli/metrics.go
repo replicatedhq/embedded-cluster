@@ -51,31 +51,35 @@ func (r *installReporter) ReportSignalAborted(ctx context.Context, sig os.Signal
 }
 
 type upgradeReporter struct {
-	reporter  metrics.ReporterInterface
-	licenseID string
-	appSlug   string
+	reporter       metrics.ReporterInterface
+	licenseID      string
+	appSlug        string
+	targetVersion  string
+	initialVersion string
 }
 
-func newUpgradeReporter(baseURL string, cmd string, flags []string, licenseID string, clusterID string, appSlug string) *upgradeReporter {
+func newUpgradeReporter(baseURL string, cmd string, flags []string, licenseID string, clusterID string, appSlug string, targetVersion string, initialVersion string) *upgradeReporter {
 	executionID := uuid.New().String()
 	reporter := metrics.NewReporter(executionID, baseURL, clusterID, cmd, flags)
 	return &upgradeReporter{
-		reporter:  reporter,
-		licenseID: licenseID,
-		appSlug:   appSlug,
+		reporter:       reporter,
+		licenseID:      licenseID,
+		appSlug:        appSlug,
+		targetVersion:  targetVersion,
+		initialVersion: initialVersion,
 	}
 }
 
-func (ur *upgradeReporter) ReportUpgradeStarted(ctx context.Context, targetVersion string, initialVersion string) {
-	ur.reporter.ReportUpgradeStarted(ctx, ur.licenseID, ur.appSlug, targetVersion, initialVersion)
+func (ur *upgradeReporter) ReportUpgradeStarted(ctx context.Context) {
+	ur.reporter.ReportUpgradeStarted(ctx, ur.licenseID, ur.appSlug, ur.targetVersion, ur.initialVersion)
 }
 
-func (ur *upgradeReporter) ReportUpgradeSucceeded(ctx context.Context, targetVersion string, initialVersion string) {
-	ur.reporter.ReportUpgradeSucceeded(ctx, targetVersion, initialVersion)
+func (ur *upgradeReporter) ReportUpgradeSucceeded(ctx context.Context) {
+	ur.reporter.ReportUpgradeSucceeded(ctx, ur.targetVersion, ur.initialVersion)
 }
 
-func (ur *upgradeReporter) ReportUpgradeFailed(ctx context.Context, err error, targetVersion string, initialVersion string) {
-	ur.reporter.ReportUpgradeFailed(ctx, err, targetVersion, initialVersion)
+func (ur *upgradeReporter) ReportUpgradeFailed(ctx context.Context, err error) {
+	ur.reporter.ReportUpgradeFailed(ctx, err, ur.targetVersion, ur.initialVersion)
 }
 
 func (ur *upgradeReporter) ReportPreflightsFailed(ctx context.Context, output *apitypes.PreflightsOutput) {

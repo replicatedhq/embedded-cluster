@@ -101,7 +101,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			initialVersion := ""
 			currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 			if err != nil {
-				return fmt.Errorf("get latest installation: %w", err)
+				return fmt.Errorf("failed to get latest installation: %w", err)
 			}
 			if currentInstallation.Spec.Config != nil {
 				initialVersion = currentInstallation.Spec.Config.Version
@@ -110,8 +110,9 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			metricsReporter := newUpgradeReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				upgradeConfig.license.Spec.LicenseID, upgradeConfig.clusterID, upgradeConfig.license.Spec.AppSlug,
+				targetVersion, initialVersion,
 			)
-			metricsReporter.ReportUpgradeStarted(ctx, targetVersion, initialVersion)
+			metricsReporter.ReportUpgradeStarted(ctx)
 
 			// Setup signal handler with the metrics reporter cleanup function
 			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
@@ -123,11 +124,11 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
 				} else {
-					metricsReporter.ReportUpgradeFailed(ctx, err, targetVersion, initialVersion)
+					metricsReporter.ReportUpgradeFailed(ctx, err)
 				}
 				return err
 			}
-			metricsReporter.ReportUpgradeSucceeded(ctx, targetVersion, initialVersion)
+			metricsReporter.ReportUpgradeSucceeded(ctx)
 
 			return nil
 		},
@@ -217,6 +218,14 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return fmt.Errorf(`invalid --target (must be: "linux")`)
 	}
 
+	if os.Getuid() != 0 {
+		return fmt.Errorf("upgrade command must be run as root")
+	}
+
+	// set the umask to 022 so that we can create files/directories with 755 permissions
+	// this does not return an error - it returns the previous umask
+	_ = syscall.Umask(0o022)
+
 	// Verify an installation exists and get the cluster ID
 	clusterID, err := getClusterID(ctx, kcli)
 	if err != nil {
@@ -295,14 +304,6 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return fmt.Errorf("failed to get current config values: %w", err)
 	}
 	upgradeConfig.configValues = cv
-
-	if os.Getuid() != 0 {
-		return fmt.Errorf("upgrade command must be run as root")
-	}
-
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
 
 	return nil
 }
