@@ -430,6 +430,7 @@ func runManagerExperienceUpgrade(
 		},
 		ManagerPort:     upgradeConfig.managerPort,
 		InstallTarget:   flags.target,
+		Mode:            wizardUpgradeMode,
 		MetricsReporter: metricsReporter,
 	}
 

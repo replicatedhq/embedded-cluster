@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, XCircle, Loader2, Clock } from 'lucide-react';
 import { State } from '../../../types';
+import { useWizard } from "../../../contexts/WizardModeContext";
 
 export type InstallationPhaseId = 'linux-preflight' | 'linux-installation' | 'kubernetes-installation' | 'app-preflight' | 'app-installation';
 
@@ -27,6 +28,7 @@ const InstallationTimeline: React.FC<InstallationTimelineProps> = ({
   onPhaseClick,
   phaseOrder
 }) => {
+  const { text } = useWizard();
   const getStatusIcon = (status: State) => {
     switch (status) {
       case 'Succeeded':
@@ -43,7 +45,7 @@ const InstallationTimeline: React.FC<InstallationTimelineProps> = ({
 
   return (
     <div className="w-80 bg-gray-50 border-r border-gray-200 p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-6" data-testid="timeline-title">Installation Progress</h3>
+      <h3 className="text-lg font-medium text-gray-900 mb-6" data-testid="timeline-title">{text.timelineTitle}</h3>
 
       <div className="space-y-6">
         {phaseOrder.map((phaseKey) => {

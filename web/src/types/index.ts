@@ -59,6 +59,8 @@ export interface WizardText {
   subtitle: string;
   welcomeTitle: string;
   welcomeDescription: string;
+  welcomeButtonText: string;
+  timelineTitle: string;
   configurationTitle: string;
   configurationDescription: string;
   linuxSetupTitle: string;
@@ -75,7 +77,6 @@ export interface WizardText {
   appValidationDescription: string;
   appInstallationTitle: string;
   appInstallationDescription: string;
-  welcomeButtonText: string;
   nextButtonText: string;
 }
 

@@ -27,10 +27,14 @@ func init() {
 	}
 }
 
+// InitialState holds the initial information provided to the web server to be injected in the HTML doc rendered
 type InitialState struct {
-	Title         string `json:"title"`
-	Icon          string `json:"icon"`
+	Title string `json:"title"`
+	Icon  string `json:"icon"`
+	// The target of the installation, kubernetes or linux
 	InstallTarget string `json:"installTarget"`
+	// The mode the wizard will be running on, install or upgrade
+	Mode string `json:"mode"`
 }
 
 type Web struct {
