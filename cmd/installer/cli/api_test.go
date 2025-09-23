@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -66,7 +68,9 @@ func Test_serveAPI(t *testing.T) {
 			PasswordHash: passwordHash,
 			ReleaseData: &release.ReleaseData{
 				Application: &kotsv1beta1.Application{
-					Spec: kotsv1beta1.ApplicationSpec{},
+					Spec: kotsv1beta1.ApplicationSpec{
+						Title: "Test Application",
+					},
 				},
 				AppConfig: &kotsv1beta1.Config{
 					Spec: kotsv1beta1.ConfigSpec{},
@@ -74,9 +78,11 @@ func Test_serveAPI(t *testing.T) {
 			},
 			ClusterID: "123",
 		},
-		ManagerPort: portInt,
-		Logger:      apilogger.NewDiscardLogger(),
-		WebAssetsFS: webAssetsFS,
+		ManagerPort:   portInt,
+		InstallTarget: "linux",
+		Mode:          wizardInstallMode,
+		Logger:        apilogger.NewDiscardLogger(),
+		WebAssetsFS:   webAssetsFS,
 	}
 
 	go func() {
@@ -106,4 +112,119 @@ func Test_serveAPI(t *testing.T) {
 	cancel()
 	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
 	t.Logf("Install API exited")
+}
+
+func Test_serveAPIHTMLInjection(t *testing.T) {
+	tests := []struct {
+		name          string
+		installTarget string
+		mode          string
+		title         string
+	}{
+		{"linux install mode", "linux", wizardInstallMode, "Linux Install App"},
+		{"linux upgrade mode", "linux", wizardUpgradeMode, "Linux Upgrade App"},
+		{"kubernetes install mode", "kubernetes", wizardInstallMode, "K8s Install App"},
+		{"kubernetes upgrade mode", "kubernetes", wizardUpgradeMode, "K8s Upgrade App"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logrus.SetLevel(logrus.DebugLevel)
+
+			listener, err := net.Listen("tcp", ":0")
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				_ = listener.Close()
+			})
+
+			ctx, cancel := context.WithCancel(t.Context())
+			t.Cleanup(cancel)
+
+			errCh := make(chan error)
+
+			_, port, err := net.SplitHostPort(listener.Addr().String())
+			require.NoError(t, err)
+
+			cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
+			require.NoError(t, err)
+
+			certPool := x509.NewCertPool()
+			certPool.AddCert(cert.Leaf)
+
+			// Mock the web assets filesystem
+			webAssetsFS = fstest.MapFS{
+				"index.html": &fstest.MapFile{
+					Data: []byte(`<!DOCTYPE html><html><head><title>{{.Title}}</title></head><body><script>window.initialState = {{.InitialState}};</script></body></html>`),
+					Mode: 0644,
+				},
+			}
+
+			portInt, err := strconv.Atoi(port)
+			require.NoError(t, err)
+
+			password := "password"
+			passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+			require.NoError(t, err)
+
+			config := apiOptions{
+				APIConfig: apitypes.APIConfig{
+					Password:     password,
+					PasswordHash: passwordHash,
+					ReleaseData: &release.ReleaseData{
+						Application: &kotsv1beta1.Application{
+							Spec: kotsv1beta1.ApplicationSpec{
+								Title: tt.title,
+							},
+						},
+						AppConfig: &kotsv1beta1.Config{
+							Spec: kotsv1beta1.ConfigSpec{},
+						},
+					},
+					ClusterID: "123",
+				},
+				ManagerPort:   portInt,
+				InstallTarget: tt.installTarget,
+				Mode:          tt.mode,
+				Logger:        apilogger.NewDiscardLogger(),
+				WebAssetsFS:   webAssetsFS,
+			}
+
+			go func() {
+				err := serveAPI(ctx, listener, cert, config)
+				t.Logf("Install API exited with error: %v", err)
+				errCh <- err
+			}()
+
+			httpClient := http.Client{
+				Timeout: 2 * time.Second,
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						RootCAs: certPool,
+					},
+				},
+			}
+
+			// Test that the root HTML page contains the correct mode and install target
+			rootURL := "https://" + net.JoinHostPort("localhost", port) + "/"
+			rootResp, err := httpClient.Get(rootURL)
+			require.NoError(t, err)
+			defer rootResp.Body.Close()
+
+			assert.Equal(t, http.StatusOK, rootResp.StatusCode)
+
+			// Read the HTML response body
+			body, err := io.ReadAll(rootResp.Body)
+			require.NoError(t, err)
+			htmlStr := string(body)
+
+			// Verify the HTML contains the marshaled initial state with correct values
+			assert.Contains(t, htmlStr, fmt.Sprintf(`"mode":"%s"`, tt.mode))
+			assert.Contains(t, htmlStr, fmt.Sprintf(`"installTarget":"%s"`, tt.installTarget))
+			assert.Contains(t, htmlStr, fmt.Sprintf(`"title":"%s"`, tt.title))
+
+			cancel()
+			assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
+			t.Logf("Install API exited")
+		})
+	}
 }
