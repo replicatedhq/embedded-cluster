@@ -8,18 +8,6 @@ ARCH ?= $(shell go env GOARCH)
 
 APP_NAME = embedded-cluster
 
-ifdef K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION)
-K0S_GO_VERSION = $(K0S_GO_VERSION_OVERRIDE_$(K0S_MINOR_VERSION))
-else
-K0S_GO_VERSION = $(K0S_VERSION)
-endif
-
-ifdef K0S_BINARY_SOURCE_OVERRIDE_$(K0S_MINOR_VERSION)
-K0S_BINARY_SOURCE_OVERRIDE = $(K0S_BINARY_SOURCE_OVERRIDE_$(K0S_MINOR_VERSION))
-else
-K0S_BINARY_SOURCE_OVERRIDE =
-endif
-
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
 
 ifeq ($(findstring ttl.sh,$(KOTS_BINARY_URL_OVERRIDE)),ttl.sh)
@@ -65,7 +53,7 @@ split-underscore = $(word $2,$(subst _, ,$1))
 random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
-cmd/installer/goods/bins/k0s:
+cmd/installer/goods/bins/k0s: check-k0s-version
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/k0s-override ; \
