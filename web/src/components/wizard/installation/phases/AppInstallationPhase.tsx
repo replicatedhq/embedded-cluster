@@ -80,7 +80,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
       return (
         <div className="flex flex-col items-center justify-center py-12" data-testid="app-installation-loading">
           <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
-          <p className="text-lg font-medium text-gray-900">Installing application...</p>
+          <p className="text-lg font-medium text-gray-900">{text.appInstallaionLoadingTitle}</p>
           <p className="text-sm text-gray-500 mt-2" data-testid="app-installation-loading-description">
             {appInstallStatus?.status?.description || "Please wait while we install your application."}
           </p>
@@ -98,7 +98,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
           >
             <CheckCircle className="w-6 h-6" style={{ color: themeColor }} />
           </div>
-          <p className="text-lg font-medium text-gray-900">Application installed successfully!</p>
+          <p className="text-lg font-medium text-gray-900">{text.appInstallaionSuccessTitle}</p>
           <p className="text-sm text-gray-500 mt-2">Your application is now ready to use.</p>
         </div>
       );
@@ -111,7 +111,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
           <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
             <XCircle className="w-6 h-6 text-red-600" />
           </div>
-          <p className="text-lg font-medium text-gray-900">Application installation failed</p>
+          <p className="text-lg font-medium text-gray-900">{text.appInstallaionFailureTitle}</p>
           <p className="text-sm text-gray-500 mt-2" data-testid="app-installation-error-message">
             {appInstallStatus?.status?.description || "An error occurred during installation."}
           </p>
