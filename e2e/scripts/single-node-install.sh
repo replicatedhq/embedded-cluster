@@ -76,12 +76,12 @@ main() {
         echo "Running install with additional args: $additional_args"
     fi
 
-    if embedded-cluster install --no-prompt $additional_args 2>&1 | tee /tmp/log ; then
+    if embedded-cluster install --yes $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
     fi
 
-    if ! embedded-cluster install --no-prompt --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
+    if ! embedded-cluster install --yes --license /assets/license.yaml $additional_args 2>&1 | tee /tmp/log ; then
         echo "Failed to install embedded-cluster"
         kubectl get pods -A
         kubectl get storageclass -A
