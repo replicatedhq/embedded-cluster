@@ -1,15 +1,29 @@
-From 99879e26b2aa7515b5072dc8a059ad374725c74c Mon Sep 17 00:00:00 2001
+From 58c1f2bc21d2666ccc5110a2e8c0db5b1865020a Mon Sep 17 00:00:00 2001
 From: Ethan Mosbaugh <ethan@replicated.com>
 Date: Tue, 23 Sep 2025 10:19:35 -0700
 Subject: [PATCH] fix: controller worker upgrades fail with load balancer
 
 ---
+ cmd/controller/controller.go  |   1 +
  cmd/worker/worker.go          |  18 +++++-
- pkg/component/worker/utils.go | 108 ++++++++++++++++++++++++++++++++++
- 2 files changed, 125 insertions(+), 1 deletion(-)
+ pkg/component/worker/utils.go | 113 ++++++++++++++++++++++++++++++++++
+ pkg/config/cli.go             |   1 +
+ 4 files changed, 132 insertions(+), 1 deletion(-)
 
+diff --git a/cmd/controller/controller.go b/cmd/controller/controller.go
+index aa290a4e0..3099e9726 100644
+--- a/cmd/controller/controller.go
++++ b/cmd/controller/controller.go
+@@ -649,6 +649,7 @@ func (c *command) startWorker(ctx context.Context, profile string, nodeConfig *v
+ 	wc.TokenArg = bootstrapConfig
+ 	wc.WorkerProfile = profile
+ 	wc.Labels = append(wc.Labels, fmt.Sprintf("%s=control-plane", constant.K0SNodeRoleLabel))
++	wc.IsController = true
+ 	if !c.SingleNode && !c.NoTaints {
+ 		wc.Taints = append(wc.Taints, fmt.Sprintf("%s/master=:NoSchedule", constant.NodeRoleLabelNamespace))
+ 	}
 diff --git a/cmd/worker/worker.go b/cmd/worker/worker.go
-index 778f8a11f..0989577d4 100644
+index 778f8a11f..9efbf5d87 100644
 --- a/cmd/worker/worker.go
 +++ b/cmd/worker/worker.go
 @@ -119,6 +119,18 @@ func (c *Command) Start(ctx context.Context) error {
@@ -20,8 +34,8 @@ index 778f8a11f..0989577d4 100644
 +	// server address needs to be overridden to point to the local API server. This is needed so
 +	// that the kubelet will not connect to an API server that is running a previous version of
 +	// k0s which would violate the Kubernetes version skew policy.
-+	if controller != nil {
-+		directKubeconfigPath, err := worker.CreateDirectKubeletKubeconfig(ctx, c.K0sVars, nodeName)
++	if c.IsController {
++		directKubeconfigPath, err := worker.CreateDirectKubeletKubeconfig(ctx, c.K0sVars, &c.WorkerOptions)
 +		if err != nil {
 +			return fmt.Errorf("failed to create direct kubelet kubeconfig: %w", err)
 +		}
@@ -38,14 +52,14 @@ index 778f8a11f..0989577d4 100644
 -		kubeletKubeconfigPath = reconciler.GetKubeletKubeconfigPath()
 +		// If this is a worker only node, the kubelet should use the NLLB kubelet kubeconfig path
 +		// rather than the direct kubelet kubeconfig path in the controller+worker mode.
-+		if controller == nil {
++		if !c.IsController {
 +			kubeletKubeconfigPath = reconciler.GetKubeletKubeconfigPath()
 +		}
  		staticPods = sp
  
  		componentManager.Add(ctx, sp)
 diff --git a/pkg/component/worker/utils.go b/pkg/component/worker/utils.go
-index 5830e2195..e89a7d8d9 100644
+index 5830e2195..297db5d58 100644
 --- a/pkg/component/worker/utils.go
 +++ b/pkg/component/worker/utils.go
 @@ -21,10 +21,13 @@ import (
@@ -62,7 +76,7 @@ index 5830e2195..e89a7d8d9 100644
  	"time"
  
  	"github.com/k0sproject/k0s/internal/pkg/dir"
-@@ -219,3 +222,108 @@ func writeKubeletBootstrapKubeconfig(kubeconfig []byte) (string, error) {
+@@ -219,3 +222,113 @@ func writeKubeletBootstrapKubeconfig(kubeconfig []byte) (string, error) {
  
  	return bootstrapFile.Name(), nil
  }
@@ -70,7 +84,12 @@ index 5830e2195..e89a7d8d9 100644
 +// CreateDirectKubeletKubeconfig creates a kubelet kubeconfig that points directly to the local API
 +// server instead of using NLLB. This is used on controller+worker nodes where we want kubelet to
 +// connect directly to the local API server.
-+func CreateDirectKubeletKubeconfig(ctx context.Context, k0sVars *config.CfgVars, nodeName apitypes.NodeName) (string, error) {
++func CreateDirectKubeletKubeconfig(ctx context.Context, k0sVars *config.CfgVars, workerOpts *config.WorkerOptions) (string, error) {
++	nodeName, err := node.GetNodename(flags.Split(workerOpts.KubeletExtraArgs)["--hostname-override"])
++	if err != nil {
++		return "", fmt.Errorf("failed to determine node name: %w", err)
++	}
++
 +	log := logrus.WithFields(logrus.Fields{"component": "bootstrap-kubelet", "node_name": nodeName})
 +
 +	nodeConfig, err := k0sVars.NodeConfig()
@@ -171,6 +190,18 @@ index 5830e2195..e89a7d8d9 100644
 +
 +	return nil, fmt.Errorf("no loopback IPs found for localhost: %v", localIPs)
 +}
+diff --git a/pkg/config/cli.go b/pkg/config/cli.go
+index af9bb166a..cade9122b 100644
+--- a/pkg/config/cli.go
++++ b/pkg/config/cli.go
+@@ -85,6 +85,7 @@ type WorkerOptions struct {
+ 	TokenArg         string
+ 	WorkerProfile    string
+ 	IPTablesMode     string
++	IsController     bool
+ }
+ 
+ func (o *ControllerOptions) Normalize() error {
 -- 
 2.46.1
 
