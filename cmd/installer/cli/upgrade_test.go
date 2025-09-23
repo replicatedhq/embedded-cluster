@@ -365,13 +365,6 @@ func Test_preRunUpgrade(t *testing.T) {
 		wantClusterID string
 	}{
 		{
-			name: "invalid target",
-			flags: UpgradeCmdFlags{
-				target: "kubernetes",
-			},
-			wantErr: `invalid --target (must be: "linux")`,
-		},
-		{
 			name: "no existing installation",
 			flags: UpgradeCmdFlags{
 				target: "linux",

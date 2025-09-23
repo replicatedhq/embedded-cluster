@@ -75,6 +75,19 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO: Add check for kubernetes target when kubernetes support is added
+			if !slices.Contains([]string{"linux"}, flags.target) {
+				return fmt.Errorf(`invalid --target (must be: "linux")`)
+			}
+
+			if os.Getuid() != 0 {
+				return fmt.Errorf("upgrade command must be run as root")
+			}
+
+			// set the umask to 022 so that we can create files/directories with 755 permissions
+			// this does not return an error - it returns the previous umask
+			_ = syscall.Umask(0o022)
+
 			// Set up environment variables from existing runtime config
 			existingRC, err := rcutil.GetRuntimeConfigFromCluster(ctx)
 			if err != nil {
@@ -213,19 +226,6 @@ func addUpgradeManagementConsoleFlags(cmd *cobra.Command, flags *UpgradeCmdFlags
 }
 
 func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *upgradeConfig, rc runtimeconfig.RuntimeConfig, kcli client.Client) error {
-	// TODO: Add check for kubernetes target when kubernetes support is added
-	if !slices.Contains([]string{"linux"}, flags.target) {
-		return fmt.Errorf(`invalid --target (must be: "linux")`)
-	}
-
-	if os.Getuid() != 0 {
-		return fmt.Errorf("upgrade command must be run as root")
-	}
-
-	// set the umask to 022 so that we can create files/directories with 755 permissions
-	// this does not return an error - it returns the previous umask
-	_ = syscall.Umask(0o022)
-
 	// Verify an installation exists and get the cluster ID
 	clusterID, err := getClusterID(ctx, kcli)
 	if err != nil {
