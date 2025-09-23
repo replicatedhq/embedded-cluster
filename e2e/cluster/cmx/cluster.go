@@ -48,6 +48,10 @@ type Network struct {
 	ID string `json:"id"`
 }
 
+type NetworkReport struct {
+	Events []NetworkEvent `json:"events"`
+}
+
 type NetworkEvent struct {
 	Timestamp     time.Time `json:"timestamp"`
 	PID           int       `json:"pid"`
@@ -608,33 +612,15 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 }
 
 func (c *Cluster) CollectNetworkReport() ([]NetworkEvent, error) {
-	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID), "-ojson").Output()
+	output, err := exec.Command("replicated", "network", "report", fmt.Sprintf("--id=%v", c.network.ID)).Output()
 	if err != nil {
 		return nil, fmt.Errorf("collect network report: %v", err)
 	}
 
-	type eventWrapper struct {
-		EventData string `json:"event_data"`
-	}
-
-	type networkReport struct {
-		Events []eventWrapper `json:"events"`
-	}
-
-	report := networkReport{}
+	report := NetworkReport{}
 	if err := json.Unmarshal(output, &report); err != nil {
 		return nil, fmt.Errorf("unmarshal network events: %v", err)
 	}
 
-	networkEvents := make([]NetworkEvent, 0, len(report.Events))
-	for _, e := range report.Events {
-		ne := NetworkEvent{}
-		if err := json.Unmarshal([]byte(e.EventData), &ne); err != nil {
-			return nil, fmt.Errorf("unmarshal network event data: %v", err)
-		}
-
-		networkEvents = append(networkEvents, ne)
-	}
-
-	return networkEvents, nil
+	return report.Events, nil
 }
