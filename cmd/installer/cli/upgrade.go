@@ -354,7 +354,7 @@ func getCurrentConfigValues(appSlug string) (apitypes.AppConfigValues, error) {
 
 	// Return empty AppConfigValues if no config values were returned by kots
 	// It is valid for an app to have no config values
-	if configYaml == "" {
+	if strings.TrimSpace(configYaml) == "" {
 		return apitypes.AppConfigValues{}, nil
 	}
 
