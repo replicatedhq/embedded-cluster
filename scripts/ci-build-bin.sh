@@ -38,12 +38,14 @@ function deps() {
 
 function web() {
     local install_cmd="npm i"
+    local build_cmd="npm run build:dev"
     if [ "${CI:-}" = "true" ]; then
         install_cmd="npm ci"
+        build_cmd="npm run build"
     fi
     (set -x; cd web && \
         $install_cmd && \
-        npm run build)
+        $build_cmd)
 }
 
 function binary() {
