@@ -517,10 +517,11 @@ func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli clie
 
 	for _, job := range jobs {
 		err := cli.Delete(ctx, &job, client.PropagationPolicy(metav1.DeletePropagationBackground))
-		if err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			return fmt.Errorf("delete upgrade job %s: %w", job.Name, err)
+		} else if err == nil {
+			log.Info("Successfully deleted upgrade job", "name", job.Name)
 		}
-		log.Info("Successfully deleted upgrade job", "name", job.Name)
 	}
 
 	return nil
