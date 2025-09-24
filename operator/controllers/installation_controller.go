@@ -520,7 +520,7 @@ func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli clie
 		if client.IgnoreNotFound(err) != nil {
 			return fmt.Errorf("delete upgrade job %s: %w", job.Name, err)
 		} else if err == nil {
-			log.Info("Successfully deleted upgrade job", "name", job.Name)
+			log.Info("Successfully deleted upgrade job", "jobName", job.Name)
 		}
 	}
 
