@@ -23,12 +23,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Wizard modes
+const wizardUpgradeMode = "upgrade"
+const wizardInstallMode = "install"
+
 // apiOptions holds the configuration options for the API server
 type apiOptions struct {
 	apitypes.APIConfig
 
-	ManagerPort   int
+	ManagerPort int
+	// The target of the installation, kubernetes or linux
 	InstallTarget string
+	// The mode the wizard will be running on, install or upgrade
+	Mode string
 
 	Logger          logrus.FieldLogger
 	MetricsReporter metrics.ReporterInterface
@@ -87,6 +94,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		Title:         opts.ReleaseData.Application.Spec.Title,
 		Icon:          opts.ReleaseData.Application.Spec.Icon,
 		InstallTarget: opts.InstallTarget,
+		Mode:          opts.Mode,
 	}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
 	if err != nil {
 		return fmt.Errorf("new web server: %w", err)

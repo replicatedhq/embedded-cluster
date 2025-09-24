@@ -731,6 +731,7 @@ func runManagerExperienceInstall(
 
 		ManagerPort:     flags.managerPort,
 		InstallTarget:   flags.target,
+		Mode:            wizardInstallMode,
 		MetricsReporter: metricsReporter,
 	}
 

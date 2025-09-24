@@ -198,8 +198,10 @@ func TestNewWithNonExistentTemplate(t *testing.T) {
 
 func TestRootHandler(t *testing.T) {
 	initialState := InitialState{
-		Title: "Test Title",
-		Icon:  "test-icon.png",
+		Title:         "Test Title",
+		Icon:          "test-icon.png",
+		InstallTarget: "linux",
+		Mode:          "install",
 	}
 
 	// Create a test logger
@@ -231,6 +233,10 @@ func TestRootHandler(t *testing.T) {
 	// Check that the initial state JSON is in the response
 	stateJSON, _ := json.Marshal(initialState)
 	assert.Contains(t, body, string(stateJSON), "Response should contain initial state JSON")
+
+	// Check that specific fields are in the JSON
+	assert.Contains(t, body, `"installTarget":"linux"`, "Response should contain install target")
+	assert.Contains(t, body, `"mode":"install"`, "Response should contain mode")
 }
 
 func TestRootHandlerTemplateError(t *testing.T) {
@@ -417,4 +423,56 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 		// Check status code - should be 404 when file doesn't exist in local filesystem
 		assert.Equal(t, http.StatusNotFound, recorder.Code, "Should return 404 for non-existent file in dev mode")
 	})
+}
+
+func TestRootHandlerWithDifferentModes(t *testing.T) {
+	tests := []struct {
+		name          string
+		installTarget string
+		mode          string
+		title         string
+	}{
+		{"linux install", "linux", "install", "Linux Install App"},
+		{"linux upgrade", "linux", "upgrade", "Linux Upgrade App"},
+		{"kubernetes install", "kubernetes", "install", "K8s Install App"},
+		{"kubernetes upgrade", "kubernetes", "upgrade", "K8s Upgrade App"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initialState := InitialState{
+				Title:         tt.title,
+				Icon:          "test-icon.png",
+				InstallTarget: tt.installTarget,
+				Mode:          tt.mode,
+			}
+
+			// Create a test logger
+			logger, _ := logtest.NewNullLogger()
+
+			// Set the development environment variable to false
+			t.Setenv("EC_DEV_ENV", "false")
+
+			// Create a new Web instance
+			web, err := New(initialState, WithLogger(logger), WithAssetsFS(createMockFS()))
+			require.NoError(t, err, "Failed to create Web instance")
+
+			// Create a mock HTTP request
+			req := httptest.NewRequest("GET", "/", nil)
+			recorder := httptest.NewRecorder()
+
+			// Call the rootHandler
+			web.rootHandler(recorder, req)
+
+			// Check status code
+			assert.Equal(t, http.StatusOK, recorder.Code, "Should return status OK")
+
+			// Read the response body
+			body := recorder.Body.String()
+
+			// Verify the complete JSON is valid
+			stateJSON, _ := json.Marshal(initialState)
+			assert.Contains(t, body, string(stateJSON), "Response should contain initial state JSON")
+		})
+	}
 }
