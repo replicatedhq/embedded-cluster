@@ -511,6 +511,43 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 				require.True(t, k8serrors.IsNotFound(err), "job with older annotation should have been deleted")
 			},
 		},
+		{
+			name:         "skips active upgrade jobs",
+			installation: installation,
+			setupClient: func(t *testing.T) client.Client {
+				// Create an active job (Active > 0)
+				activeJob := createUpgradeJob("embedded-cluster-upgrade-install-active", "install-a")
+				activeJob.Status.Active = 1
+
+				// Create a completed job (Active = 0)
+				completedJob := createUpgradeJob("embedded-cluster-upgrade-install-completed", "install-a")
+				completedJob.Status.Active = 0
+
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace, activeJob, completedJob).
+					Build()
+			},
+			expectedErr: false,
+			validateFn: func(t *testing.T, cli client.Client) {
+				// Verify that the active job still exists (was not deleted)
+				activeJob := &batchv1.Job{}
+				err := cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-active",
+					Namespace: "kotsadm",
+				}, activeJob)
+				require.NoError(t, err, "active job should still exist")
+				assert.Equal(t, "embedded-cluster-upgrade-install-active", activeJob.Name)
+				assert.Equal(t, int32(1), activeJob.Status.Active)
+
+				// Verify that the completed job was deleted
+				completedJob := &batchv1.Job{}
+				err = cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-completed",
+					Namespace: "kotsadm",
+				}, completedJob)
+				require.True(t, k8serrors.IsNotFound(err), "completed job should have been deleted")
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -517,6 +517,11 @@ func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli clie
 	}
 
 	for _, job := range jobs {
+		// do not delete jobs that are in progress
+		if job.Status.Active > 0 {
+			continue
+		}
+
 		annotations := job.GetAnnotations()
 		installationName := annotations[artifacts.InstallationNameAnnotation]
 		// do not delete upgrade jobs for installations that are newer than the one we are reconciling
