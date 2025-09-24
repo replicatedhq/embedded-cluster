@@ -75,11 +75,11 @@ export interface WizardText {
   linuxInstallationDescription: string;
   appValidationTitle: string;
   appValidationDescription: string;
-  appInstallaionLoadingTitle: string;
+  appInstallationLoadingTitle: string;
   appInstallationTitle: string;
   appInstallationDescription: string;
-  appInstallaionFailureTitle: string;
-  appInstallaionSuccessTitle: string;
+  appInstallationFailureTitle: string;
+  appInstallationSuccessTitle: string;
   nextButtonText: string;
 }
 
