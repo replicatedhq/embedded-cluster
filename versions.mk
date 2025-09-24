@@ -26,6 +26,8 @@ FIO_VERSION = 3.41
 CONTROLLER_TOOLS_VERSION = v0.19.0
 KUSTOMIZE_VERSION = v5.7.1
 
+### Overrides ###
+
 # KOTS Version Overrides
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, KOTS_VERSION will be dynamically generated
 KOTS_BINARY_URL_OVERRIDE =
