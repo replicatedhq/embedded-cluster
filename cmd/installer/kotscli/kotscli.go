@@ -415,10 +415,5 @@ func GetConfigValues(opts GetConfigValuesOptions) (string, error) {
 		return "", fmt.Errorf("get current config values from kots: %w", err)
 	}
 
-	configYaml := outputBuffer.String()
-	if configYaml == "" {
-		return "", fmt.Errorf("no config values returned from kots get config command")
-	}
-
-	return configYaml, nil
+	return outputBuffer.String(), nil
 }
