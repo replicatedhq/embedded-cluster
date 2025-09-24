@@ -147,6 +147,9 @@ func CreateUpgradeJob(
 				"app.kubernetes.io/instance": "embedded-cluster-upgrade",
 				"app.kubernetes.io/name":     "embedded-cluster-upgrade",
 			},
+			Annotations: map[string]string{
+				artifacts.InstallationNameAnnotation: in.Name,
+			},
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: ptr.To[int32](6), // this is the default

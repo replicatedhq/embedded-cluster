@@ -28,6 +28,7 @@ import (
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelm "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
@@ -459,7 +460,7 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if in.Status.State == ecv1beta1.InstallationStateInstalled {
-		err := r.deleteUpgradeJobs(ctx, r.Client)
+		err := r.deleteUpgradeJobs(ctx, r.Client, in)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("failed to delete upgrade jobs: %w", err)
 		}
@@ -507,7 +508,7 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli client.Client) error {
+func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
 	log := ctrl.LoggerFrom(ctx)
 
 	jobs, err := upgrade.ListUpgradeJobs(ctx, cli)
@@ -516,6 +517,12 @@ func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli clie
 	}
 
 	for _, job := range jobs {
+		annotations := job.GetAnnotations()
+		installationName := annotations[artifacts.InstallationNameAnnotation]
+		// do not delete upgrade jobs for installations that are newer than the one we are reconciling
+		if installationName != "" && installationName > in.Name {
+			continue
+		}
 		err := cli.Delete(ctx, &job, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if client.IgnoreNotFound(err) != nil {
 			return fmt.Errorf("delete upgrade job %s: %w", job.Name, err)

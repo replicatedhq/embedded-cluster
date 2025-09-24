@@ -270,8 +270,8 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 	}
 
 	// Helper function to create upgrade jobs
-	createUpgradeJob := func(name string) *batchv1.Job {
-		return &batchv1.Job{
+	createUpgradeJob := func(name, installationName string) *batchv1.Job {
+		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: "kotsadm",
@@ -294,20 +294,36 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 				},
 			},
 		}
+		if installationName != "" {
+			if job.Annotations == nil {
+				job.Annotations = make(map[string]string)
+			}
+			job.Annotations["embedded-cluster.replicated.com/installation-name"] = installationName
+		}
+		return job
+	}
+
+	// Create test installation
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "install-b",
+		},
 	}
 
 	tests := []struct {
 		name           string
+		installation   *ecv1beta1.Installation
 		setupClient    func(t *testing.T) client.Client
 		expectedErr    bool
 		expectedErrMsg string
 		validateFn     func(t *testing.T, cli client.Client)
 	}{
 		{
-			name: "successfully deletes all upgrade jobs",
+			name:         "successfully deletes all upgrade jobs",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
-				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
-				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1", "install-a")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2", "install-b")
 				return clientfake.NewClientBuilder().
 					WithObjects(namespace, job1, job2).
 					Build()
@@ -315,7 +331,8 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "successfully handles no upgrade jobs found",
+			name:         "successfully handles no upgrade jobs found",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
 				return clientfake.NewClientBuilder().
 					WithObjects(namespace).
@@ -324,7 +341,8 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "returns error when list upgrade jobs fails",
+			name:         "returns error when list upgrade jobs fails",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
 				return &mockClient{
 					fake: clientfake.NewClientBuilder().WithObjects(namespace).Build(),
@@ -337,10 +355,11 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			expectedErrMsg: "list upgrade jobs: list failed",
 		},
 		{
-			name: "returns error when delete fails for first job",
+			name:         "returns error when delete fails for first job",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
-				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
-				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1", "install-a")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2", "install-b")
 				return &mockClient{
 					fake: clientfake.NewClientBuilder().
 						WithObjects(namespace, job1, job2).
@@ -358,10 +377,11 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			expectedErrMsg: "delete upgrade job embedded-cluster-upgrade-install-1: delete failed",
 		},
 		{
-			name: "returns error when delete fails for second job",
+			name:         "returns error when delete fails for second job",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
-				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
-				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1", "install-a")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2", "install-b")
 				return &mockClient{
 					fake: clientfake.NewClientBuilder().
 						WithObjects(namespace, job1, job2).
@@ -379,9 +399,10 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			expectedErrMsg: "delete upgrade job embedded-cluster-upgrade-install-2: delete failed",
 		},
 		{
-			name: "ignores jobs without upgrade labels",
+			name:         "ignores jobs without upgrade labels",
+			installation: installation,
 			setupClient: func(t *testing.T) client.Client {
-				upgradeJob := createUpgradeJob("embedded-cluster-upgrade-install-1")
+				upgradeJob := createUpgradeJob("embedded-cluster-upgrade-install-1", "install-a")
 				regularJob := &batchv1.Job{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "regular-job",
@@ -421,6 +442,75 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 				assert.Equal(t, "kotsadm", regularJob.Namespace)
 			},
 		},
+		{
+			name:         "skips deleting jobs from newer installations",
+			installation: installation, // install-b
+			setupClient: func(t *testing.T) client.Client {
+				olderJob := createUpgradeJob("embedded-cluster-upgrade-install-1", "install-a")
+				sameJob := createUpgradeJob("embedded-cluster-upgrade-install-2", "install-b")
+				newerJob := createUpgradeJob("embedded-cluster-upgrade-install-3", "install-c")
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace, olderJob, sameJob, newerJob).
+					Build()
+			},
+			expectedErr: false,
+			validateFn: func(t *testing.T, cli client.Client) {
+				// Verify that the newer job still exists (was not deleted)
+				newerJob := &batchv1.Job{}
+				err := cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-3",
+					Namespace: "kotsadm",
+				}, newerJob)
+				require.NoError(t, err, "newer installation job should still exist")
+				assert.Equal(t, "embedded-cluster-upgrade-install-3", newerJob.Name)
+				assert.Equal(t, "install-c", newerJob.Annotations["embedded-cluster.replicated.com/installation-name"])
+
+				// Verify that the older job was deleted
+				olderJob := &batchv1.Job{}
+				err = cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-1",
+					Namespace: "kotsadm",
+				}, olderJob)
+				require.True(t, k8serrors.IsNotFound(err), "older installation job should have been deleted")
+
+				// Verify that the same installation job was deleted
+				sameJob := &batchv1.Job{}
+				err = cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-2",
+					Namespace: "kotsadm",
+				}, sameJob)
+				require.True(t, k8serrors.IsNotFound(err), "same installation job should have been deleted")
+			},
+		},
+		{
+			name:         "deletes jobs without installation annotation",
+			installation: installation,
+			setupClient: func(t *testing.T) client.Client {
+				// Job without annotation should be deleted
+				jobWithoutAnnotation := createUpgradeJob("embedded-cluster-upgrade-install-1", "")
+				jobWithAnnotation := createUpgradeJob("embedded-cluster-upgrade-install-2", "install-a")
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace, jobWithoutAnnotation, jobWithAnnotation).
+					Build()
+			},
+			expectedErr: false,
+			validateFn: func(t *testing.T, cli client.Client) {
+				// Verify that both jobs were deleted (job without annotation gets deleted)
+				job1 := &batchv1.Job{}
+				err := cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-1",
+					Namespace: "kotsadm",
+				}, job1)
+				require.True(t, k8serrors.IsNotFound(err), "job without annotation should have been deleted")
+
+				job2 := &batchv1.Job{}
+				err = cli.Get(context.Background(), client.ObjectKey{
+					Name:      "embedded-cluster-upgrade-install-2",
+					Namespace: "kotsadm",
+				}, job2)
+				require.True(t, k8serrors.IsNotFound(err), "job with older annotation should have been deleted")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -440,7 +530,7 @@ func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 			ctx := logr.NewContext(context.Background(), logger)
 
 			// Execute
-			err := reconciler.deleteUpgradeJobs(ctx, cli)
+			err := reconciler.deleteUpgradeJobs(ctx, cli, tt.installation)
 
 			// Verify
 			if tt.expectedErr {
