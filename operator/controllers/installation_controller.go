@@ -30,6 +30,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -457,6 +458,13 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, fmt.Errorf("failed to ensure kotsadm CA configmap: %w", err)
 	}
 
+	if in.Status.State == ecv1beta1.InstallationStateInstalled {
+		err := r.deleteUpgradeJobs(ctx, r.Client)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("failed to delete upgrade jobs: %w", err)
+		}
+	}
+
 	log.Info("Installation reconciliation ended")
 	return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
@@ -497,4 +505,23 @@ func (r *InstallationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&apv1b2.Plan{}, &handler.EnqueueRequestForObject{}).
 		Watches(&k0shelm.Chart{}, &handler.EnqueueRequestForObject{}).
 		Complete(r)
+}
+
+func (r *InstallationReconciler) deleteUpgradeJobs(ctx context.Context, cli client.Client) error {
+	log := ctrl.LoggerFrom(ctx)
+
+	jobs, err := upgrade.ListUpgradeJobs(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("list upgrade jobs: %w", err)
+	}
+
+	for _, job := range jobs {
+		err := cli.Delete(ctx, &job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+		if err != nil {
+			return fmt.Errorf("delete upgrade job %s: %w", job.Name, err)
+		}
+		log.Info("Successfully deleted upgrade job %s", job.Name)
+	}
+
+	return nil
 }

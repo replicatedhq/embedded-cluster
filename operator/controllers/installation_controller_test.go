@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -260,6 +261,204 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	}
 }
 
+func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
+	// Create test namespace
+	namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kotsadm",
+		},
+	}
+
+	// Helper function to create upgrade jobs
+	createUpgradeJob := func(name string) *batchv1.Job {
+		return &batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "kotsadm",
+				Labels: map[string]string{
+					"app.kubernetes.io/instance": "embedded-cluster-upgrade",
+					"app.kubernetes.io/name":     "embedded-cluster-upgrade",
+				},
+			},
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "upgrade",
+								Image: "test-image",
+							},
+						},
+						RestartPolicy: corev1.RestartPolicyNever,
+					},
+				},
+			},
+		}
+	}
+
+	tests := []struct {
+		name           string
+		setupClient    func(t *testing.T) client.Client
+		expectedErr    bool
+		expectedErrMsg string
+		validateFn     func(t *testing.T, cli client.Client)
+	}{
+		{
+			name: "successfully deletes all upgrade jobs",
+			setupClient: func(t *testing.T) client.Client {
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace, job1, job2).
+					Build()
+			},
+			expectedErr: false,
+		},
+		{
+			name: "successfully handles no upgrade jobs found",
+			setupClient: func(t *testing.T) client.Client {
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace).
+					Build()
+			},
+			expectedErr: false,
+		},
+		{
+			name: "returns error when list upgrade jobs fails",
+			setupClient: func(t *testing.T) client.Client {
+				return &mockClient{
+					fake: clientfake.NewClientBuilder().WithObjects(namespace).Build(),
+					listFunc: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						return errors.New("list failed")
+					},
+				}
+			},
+			expectedErr:    true,
+			expectedErrMsg: "list upgrade jobs: list failed",
+		},
+		{
+			name: "returns error when delete fails for first job",
+			setupClient: func(t *testing.T) client.Client {
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				return &mockClient{
+					fake: clientfake.NewClientBuilder().
+						WithObjects(namespace, job1, job2).
+						Build(),
+					deleteFunc: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+						// Fail on first job deletion
+						if obj.GetName() == "embedded-cluster-upgrade-install-1" {
+							return errors.New("delete failed")
+						}
+						return nil
+					},
+				}
+			},
+			expectedErr:    true,
+			expectedErrMsg: "delete upgrade job embedded-cluster-upgrade-install-1: delete failed",
+		},
+		{
+			name: "returns error when delete fails for second job",
+			setupClient: func(t *testing.T) client.Client {
+				job1 := createUpgradeJob("embedded-cluster-upgrade-install-1")
+				job2 := createUpgradeJob("embedded-cluster-upgrade-install-2")
+				return &mockClient{
+					fake: clientfake.NewClientBuilder().
+						WithObjects(namespace, job1, job2).
+						Build(),
+					deleteFunc: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+						// Fail on second job deletion
+						if obj.GetName() == "embedded-cluster-upgrade-install-2" {
+							return errors.New("delete failed")
+						}
+						return nil
+					},
+				}
+			},
+			expectedErr:    true,
+			expectedErrMsg: "delete upgrade job embedded-cluster-upgrade-install-2: delete failed",
+		},
+		{
+			name: "ignores jobs without upgrade labels",
+			setupClient: func(t *testing.T) client.Client {
+				upgradeJob := createUpgradeJob("embedded-cluster-upgrade-install-1")
+				regularJob := &batchv1.Job{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "regular-job",
+						Namespace: "kotsadm",
+						Labels: map[string]string{
+							"app.kubernetes.io/name": "regular-app",
+						},
+					},
+					Spec: batchv1.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name:  "regular",
+										Image: "regular-image",
+									},
+								},
+								RestartPolicy: corev1.RestartPolicyNever,
+							},
+						},
+					},
+				}
+				return clientfake.NewClientBuilder().
+					WithObjects(namespace, upgradeJob, regularJob).
+					Build()
+			},
+			expectedErr: false,
+			validateFn: func(t *testing.T, cli client.Client) {
+				// Verify that the regular job still exists (was not deleted)
+				regularJob := &batchv1.Job{}
+				err := cli.Get(context.Background(), client.ObjectKey{
+					Name:      "regular-job",
+					Namespace: "kotsadm",
+				}, regularJob)
+				require.NoError(t, err, "regular job should still exist")
+				assert.Equal(t, "regular-job", regularJob.Name)
+				assert.Equal(t, "kotsadm", regularJob.Namespace)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			cli := tt.setupClient(t)
+			reconciler := &InstallationReconciler{
+				Client: cli,
+			}
+
+			// Create a mock logger
+			verbosity := 1
+			if os.Getenv("DEBUG") != "" {
+				verbosity = 10
+			}
+			logger := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+			ctx := logr.NewContext(context.Background(), logger)
+
+			// Execute
+			err := reconciler.deleteUpgradeJobs(ctx, cli)
+
+			// Verify
+			if tt.expectedErr {
+				require.Error(t, err)
+				if tt.expectedErrMsg != "" {
+					assert.Contains(t, err.Error(), tt.expectedErrMsg)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.validateFn != nil {
+				tt.validateFn(t, cli)
+			}
+		})
+	}
+}
+
 // mockClient implements client.Client interface with customizable behavior
 type mockClient struct {
 	fake       client.Client
@@ -267,6 +466,8 @@ type mockClient struct {
 	updateFunc func(context.Context, client.Object, ...client.UpdateOption) error
 	patchFunc  func(context.Context, client.Object, client.Patch, ...client.PatchOption) error
 	getFunc    func(context.Context, client.ObjectKey, client.Object, ...client.GetOption) error
+	listFunc   func(context.Context, client.ObjectList, ...client.ListOption) error
+	deleteFunc func(context.Context, client.Object, ...client.DeleteOption) error
 }
 
 func (m *mockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -277,6 +478,9 @@ func (m *mockClient) Get(ctx context.Context, key client.ObjectKey, obj client.O
 }
 
 func (m *mockClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	if m.listFunc != nil {
+		return m.listFunc(ctx, list, opts...)
+	}
 	return m.fake.List(ctx, list, opts...)
 }
 
@@ -288,6 +492,9 @@ func (m *mockClient) Create(ctx context.Context, obj client.Object, opts ...clie
 }
 
 func (m *mockClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	if m.deleteFunc != nil {
+		return m.deleteFunc(ctx, obj, opts...)
+	}
 	return m.fake.Delete(ctx, obj, opts...)
 }
 

@@ -286,6 +286,19 @@ func CreateUpgradeJob(
 	return nil
 }
 
+func ListUpgradeJobs(ctx context.Context, cli client.Client) ([]batchv1.Job, error) {
+	jobs := batchv1.JobList{}
+	err := cli.List(ctx, &jobs, client.InNamespace(upgradeJobNamespace), client.MatchingLabels{
+		"app.kubernetes.io/instance": "embedded-cluster-upgrade",
+		"app.kubernetes.io/name":     "embedded-cluster-upgrade",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list upgrade jobs: %w", err)
+	}
+
+	return jobs.Items, nil
+}
+
 func operatorImageName(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) (string, error) {
 	// determine the image to use for the upgrade job
 	meta, err := release.MetadataFor(ctx, in, cli)
