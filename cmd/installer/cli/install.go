@@ -414,7 +414,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 	if flags.licenseFile != "" {
 		b, err := os.ReadFile(flags.licenseFile)
 		if err != nil {
-			return fmt.Errorf("unable to read license file: %w", err)
+			return fmt.Errorf("failed to read license file: %w", err)
 		}
 		flags.licenseBytes = b
 
@@ -425,7 +425,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 				return fmt.Errorf("license file is not a valid license file")
 			}
 
-			return fmt.Errorf("unable to parse license file: %w", err)
+			return fmt.Errorf("failed to parse license file: %w", err)
 		}
 		flags.license = l
 	}
@@ -490,11 +490,11 @@ func processTLSConfig(flags *InstallCmdFlags) error {
 		}
 		certData, err := os.ReadFile(flags.tlsCertFile)
 		if err != nil {
-			return fmt.Errorf("unable to read tls cert file: %w", err)
+			return fmt.Errorf("failed to read tls cert file: %w", err)
 		}
 		keyData, err := os.ReadFile(flags.tlsKeyFile)
 		if err != nil {
-			return fmt.Errorf("unable to read tls key file: %w", err)
+			return fmt.Errorf("failed to read tls key file: %w", err)
 		}
 		flags.tlsCert = cert
 		flags.tlsCertBytes = certData
@@ -527,7 +527,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 
 	hostCABundlePath, err := findHostCABundle()
 	if err != nil {
-		return fmt.Errorf("unable to find host CA bundle: %w", err)
+		return fmt.Errorf("failed to find host CA bundle: %w", err)
 	}
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
@@ -557,7 +557,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 
 	k0sCfg, err := k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, eucfg, nil)
 	if err != nil {
-		return fmt.Errorf("unable to create k0s config: %w", err)
+		return fmt.Errorf("failed to create k0s config: %w", err)
 	}
 	networkSpec := helpers.NetworkSpecFromK0sConfig(k0sCfg)
 	networkSpec.NetworkInterface = flags.networkInterface
@@ -569,7 +569,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	// resolve datadir to absolute path
 	absoluteDataDir, err := filepath.Abs(flags.dataDir)
 	if err != nil {
-		return fmt.Errorf("unable to construct path for directory: %w", err)
+		return fmt.Errorf("failed to construct path for directory: %w", err)
 	}
 	rc.SetDataDir(absoluteDataDir)
 	rc.SetLocalArtifactMirrorPort(flags.localArtifactMirrorPort)
@@ -588,7 +588,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, _ kuberne
 		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
 			return fmt.Errorf("kubeconfig file does not exist: %s", flags.kubernetesEnvSettings.KubeConfig)
 		} else if err != nil {
-			return fmt.Errorf("unable to stat kubeconfig file: %w", err)
+			return fmt.Errorf("failed to stat kubeconfig file: %w", err)
 		}
 	}
 
@@ -633,7 +633,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	// parse the various cidr flags to make sure we have exactly what we want
 	cidrCfg, err := getCIDRConfig(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
+		return nil, fmt.Errorf("failed to determine pod and service CIDRs: %w", err)
 	}
 
 	return cidrCfg, nil
@@ -647,7 +647,7 @@ func runManagerExperienceInstall(
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
 	if err != nil {
-		return fmt.Errorf("unable to list all valid IP addresses: %w", err)
+		return fmt.Errorf("failed to list all valid IP addresses: %w", err)
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(flags.adminConsolePassword), 10)
@@ -689,16 +689,11 @@ func runManagerExperienceInstall(
 
 	var configValues apitypes.AppConfigValues
 	if flags.configValues != "" {
-		configValues = make(apitypes.AppConfigValues)
 		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
 		if err != nil {
 			return fmt.Errorf("parse config values file: %w", err)
 		}
-		if kotsConfigValues != nil {
-			for key, value := range kotsConfigValues.Spec.Values {
-				configValues[key] = apitypes.AppConfigValue{Value: value.Value}
-			}
-		}
+		configValues = apitypes.ConvertToAppConfigValues(kotsConfigValues)
 	}
 
 	apiConfig := apiOptions{
@@ -739,7 +734,7 @@ func runManagerExperienceInstall(
 	defer cancel()
 
 	if err := startAPI(ctx, flags.tlsCert, apiConfig, cancel); err != nil {
-		return fmt.Errorf("unable to start api: %w", err)
+		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
@@ -757,7 +752,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags, rc); err != nil {
-		return fmt.Errorf("unable to initialize install: %w", err)
+		return fmt.Errorf("failed to initialize install: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
@@ -765,21 +760,21 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
-		return fmt.Errorf("unable to run install preflights: %w", err)
+		return fmt.Errorf("failed to run install preflights: %w", err)
 	}
 
 	if _, err := installAndStartCluster(ctx, flags, rc, nil); err != nil {
-		return fmt.Errorf("unable to install cluster: %w", err)
+		return fmt.Errorf("failed to install cluster: %w", err)
 	}
 
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return fmt.Errorf("unable to create kube client: %w", err)
+		return fmt.Errorf("failed to create kube client: %w", err)
 	}
 
 	mcli, err := kubeutils.MetadataClient()
 	if err != nil {
-		return fmt.Errorf("unable to create metadata client: %w", err)
+		return fmt.Errorf("failed to create metadata client: %w", err)
 	}
 
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
@@ -787,11 +782,11 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	in, err := recordInstallation(ctx, kcli, flags, rc)
 	if err != nil {
-		return fmt.Errorf("unable to record installation: %w", err)
+		return fmt.Errorf("failed to record installation: %w", err)
 	}
 
 	if err := ecmetadata.CreateVersionMetadataConfigmap(ctx, kcli); err != nil {
-		return fmt.Errorf("unable to create version metadata configmap: %w", err)
+		return fmt.Errorf("failed to create version metadata configmap: %w", err)
 	}
 
 	// TODO (@salah): update installation status to reflect what's happening
@@ -799,10 +794,10 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	logrus.Debugf("adding insecure registry")
 	registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
 	if err != nil {
-		return fmt.Errorf("unable to get registry cluster IP: %w", err)
+		return fmt.Errorf("failed to get registry cluster IP: %w", err)
 	}
 	if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
-		return fmt.Errorf("unable to add insecure registry: %w", err)
+		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 
 	airgapChartsPath := ""
@@ -816,7 +811,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		AirgapPath: airgapChartsPath,
 	})
 	if err != nil {
-		return fmt.Errorf("unable to create helm client: %w", err)
+		return fmt.Errorf("failed to create helm client: %w", err)
 	}
 	defer hcli.Close()
 
@@ -827,15 +822,15 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	logrus.Debugf("installing extensions")
 	if err := installExtensions(ctx, hcli); err != nil {
-		return fmt.Errorf("unable to install extensions: %w", err)
+		return fmt.Errorf("failed to install extensions: %w", err)
 	}
 
 	if err := kubeutils.SetInstallationState(ctx, kcli, in, ecv1beta1.InstallationStateInstalled, "Installed"); err != nil {
-		return fmt.Errorf("unable to update installation: %w", err)
+		return fmt.Errorf("failed to update installation: %w", err)
 	}
 
 	if err = support.CreateHostSupportBundle(ctx, kcli); err != nil {
-		logrus.Warnf("Unable to create host support bundle: %v", err)
+		logrus.Warnf("failed to create host support bundle: %v", err)
 	}
 
 	isHeadlessInstall := flags.configValues != "" && flags.adminConsolePassword != ""
@@ -853,7 +848,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 
 	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
-		return nil, fmt.Errorf("unable to process overrides file: %w", err)
+		return nil, fmt.Errorf("failed to process overrides file: %w", err)
 	}
 	var euCfgSpec *ecv1beta1.ConfigSpec
 	if euCfg != nil {
@@ -1002,7 +997,7 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 
 	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+		return nil, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
@@ -1100,7 +1095,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 
 	licenseBytes, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
-		return fmt.Errorf("unable to read license file: %w", err)
+		return fmt.Errorf("failed to read license file: %w", err)
 	}
 
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
@@ -1123,7 +1118,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	hostname, err := nodeutil.GetHostname("")
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
-		return nil, fmt.Errorf("unable to detect hostname: %w", err)
+		return nil, fmt.Errorf("failed to detect hostname: %w", err)
 	}
 
 	logrus.Debugf("creating k0s configuration file")
@@ -1232,7 +1227,7 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 
 	if err := extensions.Install(ctx, hcli, progressChan); err != nil {
 		loading.ErrorClosef("Failed to install additional components")
-		return fmt.Errorf("unable to install extensions: %w", err)
+		return fmt.Errorf("failed to install extensions: %w", err)
 	}
 
 	loading.Closef("Additional components are ready")
@@ -1482,7 +1477,7 @@ func getAdminConsoleURL(hostname string, networkInterface string, port int) stri
 			var err error
 			ipaddr, err = netutils.FirstValidAddress(networkInterface)
 			if err != nil {
-				logrus.Errorf("Unable to determine node IP address: %v", err)
+				logrus.Errorf("failed to determine node IP address: %v", err)
 				ipaddr = "NODE-IP-ADDRESS"
 			}
 		}

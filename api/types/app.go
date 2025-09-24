@@ -6,10 +6,15 @@ import kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 // kotsv1beta1.ConfigSpec type.
 type AppConfig = kotsv1beta1.ConfigSpec
 
-// AppConfigValue represents a configuration value for te App with optional metadata
+// AppConfigValue represents a configuration value for the App with optional metadata
 type AppConfigValue struct {
-	Value    string `json:"value"`
-	Filename string `json:"filename,omitempty"`
+	Default        string `json:"default,omitempty"`
+	Value          string `json:"value"`
+	Data           string `json:"data,omitempty"`
+	ValuePlaintext string `json:"valuePlaintext,omitempty"`
+	DataPlaintext  string `json:"dataPlaintext,omitempty"`
+	Filename       string `json:"filename,omitempty"`
+	RepeatableItem string `json:"repeatableItem,omitempty"`
 }
 
 // AppConfigValues represents a map of configuration values for the App.

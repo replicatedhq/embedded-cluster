@@ -383,3 +383,37 @@ func createLicenseFile(license []byte) (string, error) {
 
 	return licenseFile.Name(), nil
 }
+
+// GetConfigValuesOptions holds options for getting config values
+type GetConfigValuesOptions struct {
+	AppSlug   string
+	Namespace string
+}
+
+// GetConfigValues executes the kots get config command and returns the YAML output
+func GetConfigValues(opts GetConfigValuesOptions) (string, error) {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return "", fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	// Build command arguments
+	args := []string{
+		"get", "config",
+		"--appslug", opts.AppSlug,
+		"--namespace", opts.Namespace,
+		"--current",
+		"--decrypt",
+	}
+
+	// Execute the command and capture output
+	var outputBuffer strings.Builder
+	runCommandOpts := helpers.RunCommandOptions{Stdout: &outputBuffer}
+
+	if err := helpers.RunCommandWithOptions(runCommandOpts, kotsBinPath, args...); err != nil {
+		return "", fmt.Errorf("get current config values from kots: %w", err)
+	}
+
+	return outputBuffer.String(), nil
+}

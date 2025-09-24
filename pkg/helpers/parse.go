@@ -21,11 +21,11 @@ func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
 	}
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read overrides file: %w", err)
+		return nil, fmt.Errorf("failed to read overrides file: %w", err)
 	}
 	var cfg embeddedclusterv1beta1.Config
 	if err := kyaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal overrides file: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal overrides file: %w", err)
 	}
 	return &cfg, nil
 }
@@ -34,7 +34,7 @@ func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
 func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read license file: %w", err)
+		return nil, fmt.Errorf("failed to read license file: %w", err)
 	}
 	var license kotsv1beta1.License
 	if err := kyaml.Unmarshal(data, &license); err != nil {
@@ -49,11 +49,20 @@ func ParseConfigValues(fpath string) (*kotsv1beta1.ConfigValues, error) {
 	}
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read config values file: %w", err)
+		return nil, fmt.Errorf("failed to read config values file: %w", err)
 	}
 	var configValues kotsv1beta1.ConfigValues
 	if err := kyaml.Unmarshal(data, &configValues); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal config values file: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal config values file: %w", err)
+	}
+	return &configValues, nil
+}
+
+// ParseConfigValuesFromString parses kots ConfigValues from a YAML string
+func ParseConfigValuesFromString(yamlContent string) (*kotsv1beta1.ConfigValues, error) {
+	var configValues kotsv1beta1.ConfigValues
+	if err := kyaml.Unmarshal([]byte(yamlContent), &configValues); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config values YAML: %w", err)
 	}
 	return &configValues, nil
 }
