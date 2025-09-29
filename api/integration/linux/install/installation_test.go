@@ -19,7 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinstallationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"

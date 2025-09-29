@@ -18,7 +18,7 @@ import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	appupgradestore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"

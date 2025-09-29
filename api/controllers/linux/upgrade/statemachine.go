@@ -2,14 +2,17 @@ package upgrade
 
 import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/sirupsen/logrus"
 )
 
 var validStateTransitions = map[statemachine.State][]statemachine.State{
-	states.StateNew:          {states.StateAppUpgrading},
-	states.StateAppUpgrading: {states.StateSucceeded, states.StateAppUpgradeFailed},
+	states.StateNew:                            {states.StateApplicationConfiguring},
+	states.StateApplicationConfiguring:         {states.StateApplicationConfigured, states.StateApplicationConfigurationFailed},
+	states.StateApplicationConfigurationFailed: {states.StateApplicationConfiguring},
+	states.StateApplicationConfigured:          {states.StateApplicationConfiguring, states.StateAppUpgrading},
+	states.StateAppUpgrading:                   {states.StateSucceeded, states.StateAppUpgradeFailed},
 	// final states
 	states.StateSucceeded:        {},
 	states.StateAppUpgradeFailed: {},

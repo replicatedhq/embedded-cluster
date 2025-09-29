@@ -16,7 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/assets"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	kubernetesinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"

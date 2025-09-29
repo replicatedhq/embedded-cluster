@@ -53,6 +53,10 @@ const (
 	StateAppInstalling statemachine.State = "AppInstalling"
 	// StateAppInstallFailed is a final state of the install process when the app failed to install
 	StateAppInstallFailed statemachine.State = "AppInstallFailed"
+	// StateAppUpgrading is the state of the upgrade process when the app is being upgraded
+	StateAppUpgrading statemachine.State = "AppUpgrading"
+	// StateAppUpgradeFailed is a final state of the upgrade process when the app failed to upgrade
+	StateAppUpgradeFailed statemachine.State = "AppUpgradeFailed"
 	// StateSucceeded is the final state of the install process when the install has succeeded
 	StateSucceeded statemachine.State = "Succeeded"
 )

@@ -12,8 +12,7 @@ import (
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
-	upgradeStates "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -713,8 +712,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
-			currentState:  upgradeStates.StateSucceeded,
-			expectedState: upgradeStates.StateSucceeded,
+			currentState:  states.StateSucceeded,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
@@ -722,8 +721,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "invalid state transition from app upgrading state",
-			currentState:  upgradeStates.StateAppUpgrading,
-			expectedState: upgradeStates.StateAppUpgrading,
+			currentState:  states.StateAppUpgrading,
+			expectedState: states.StateAppUpgrading,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
@@ -731,8 +730,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "invalid state transition from app upgrade failed state",
-			currentState:  upgradeStates.StateAppUpgradeFailed,
-			expectedState: upgradeStates.StateAppUpgradeFailed,
+			currentState:  states.StateAppUpgradeFailed,
+			expectedState: states.StateAppUpgradeFailed,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
@@ -740,8 +739,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "successful app upgrade from new state",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateSucceeded,
+			currentState:  states.StateNew,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
@@ -760,8 +759,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "get config values error",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateNew,
+			currentState:  states.StateNew,
+			expectedState: states.StateNew,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
@@ -769,8 +768,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "app upgrade manager error",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateAppUpgradeFailed,
+			currentState:  states.StateNew,
+			expectedState: states.StateAppUpgradeFailed,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
@@ -872,7 +871,7 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
-			sm := s.CreateUpgradeStateMachine(upgradeStates.StateNew)
+			sm := s.CreateUpgradeStateMachine(states.StateNew)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),

@@ -20,7 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	linuxinfra "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	linuxpreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"

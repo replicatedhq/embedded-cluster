@@ -17,9 +17,8 @@ import (
 )
 
 type Controller interface {
-	// App upgrade methods
-	UpgradeApp(ctx context.Context, ignoreAppPreflights bool) error
-	GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error)
+	// App controller methods
+	appcontroller.Controller
 }
 
 var _ Controller = (*UpgradeController)(nil)

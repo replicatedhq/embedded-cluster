@@ -10,7 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/kubernetes/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
