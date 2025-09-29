@@ -26,14 +26,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type AppUpgradeConfigTestSuite struct {
+type AppConfigTestSuite struct {
 	suite.Suite
 	installType string
 	createAPI   func(t *testing.T, configValues types.AppConfigValues, state statemachine.State, appConfig *kotsv1beta1.Config) *api.API
 	baseURL     string
 }
 
-func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
+func (s *AppConfigTestSuite) TestPatchAppConfigValues() {
 	t := s.T()
 
 	// Create an app config
@@ -86,8 +86,8 @@ func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
 
-	// Test PatchUpgradeAppConfigValues with partial update (not all fields)
-	t.Run("PatchUpgradeAppConfigValues partial update", func(t *testing.T) {
+	// Test PatchAppConfigValues with partial update (not all fields)
+	t.Run("PatchAppConfigValues partial update", func(t *testing.T) {
 		// Create config values with only some fields updated (required field not included, should keep existing value)
 		configValues := types.AppConfigValues{
 			"test-item": types.AppConfigValue{Value: "partially-updated-value"},
@@ -126,8 +126,8 @@ func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
 		assert.Equal(t, "file.txt", response.Values["file-item"].Filename, "file-item filename should retain initial value when not specified in patch")
 	})
 
-	// Test PatchUpgradeAppConfigValues with clearing required item
-	t.Run("PatchUpgradeAppConfigValues clear required", func(t *testing.T) {
+	// Test PatchAppConfigValues with clearing required item
+	t.Run("PatchAppConfigValues clear required", func(t *testing.T) {
 		// Try to clear the required item by setting it to empty
 		configValues := types.AppConfigValues{
 			"test-item":     types.AppConfigValue{Value: "updated-value"},
@@ -163,8 +163,8 @@ func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
 		assert.Equal(t, "Required Item is required", apiError.Errors[0].Message, "Error should indicate item is required")
 	})
 
-	// Test PatchUpgradeAppConfigValues with invalid state transition
-	t.Run("PatchUpgradeAppConfigValues invalid state", func(t *testing.T) {
+	// Test PatchAppConfigValues with invalid state transition
+	t.Run("PatchAppConfigValues invalid state", func(t *testing.T) {
 		// Create the API with the completed upgrade controller
 		completedAPIInstance := s.createAPI(t, initialConfigValues, states.StateSucceeded, &appConfig)
 
@@ -205,8 +205,8 @@ func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
 		assert.Contains(t, apiError.Message, "invalid transition", "Error should mention invalid transition")
 	})
 
-	// Test PatchUpgradeAppConfigValues with valid required field values
-	t.Run("PatchUpgradeAppConfigValues success", func(t *testing.T) {
+	// Test PatchAppConfigValues with valid required field values
+	t.Run("PatchAppConfigValues success", func(t *testing.T) {
 		// Create config values to update from initial values (keep required field populated)
 		configValues := types.AppConfigValues{
 			"test-item":     types.AppConfigValue{Value: "updated-value"},
@@ -246,7 +246,7 @@ func (s *AppUpgradeConfigTestSuite) TestPatchAppConfigValues() {
 	})
 }
 
-func (s *AppUpgradeConfigTestSuite) TestGetAppConfigValues() {
+func (s *AppConfigTestSuite) TestGetAppConfigValues() {
 	t := s.T()
 
 	// Create an app config
@@ -291,8 +291,8 @@ func (s *AppUpgradeConfigTestSuite) TestGetAppConfigValues() {
 	router := mux.NewRouter()
 	apiInstance.RegisterRoutes(router)
 
-	// Test GetUpgradeAppConfigValues
-	t.Run("GetUpgradeAppConfigValues", func(t *testing.T) {
+	// Test GetAppConfigValues
+	t.Run("GetAppConfigValues", func(t *testing.T) {
 		// Create request
 		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/config/values", nil)
 		req.Header.Set("Authorization", "Bearer TOKEN")
@@ -313,8 +313,8 @@ func (s *AppUpgradeConfigTestSuite) TestGetAppConfigValues() {
 		assert.Equal(t, existingConfigValues, response.Values, "app config values should be returned from store with existing values")
 	})
 
-	// Test GetUpgradeAppConfigValues with invalid token
-	t.Run("GetUpgradeAppConfigValues unauthorized", func(t *testing.T) {
+	// Test GetAppConfigValues with invalid token
+	t.Run("GetAppConfigValues unauthorized", func(t *testing.T) {
 		// Create request with invalid token
 		req := httptest.NewRequest(http.MethodGet, s.baseURL+"/app/config/values", nil)
 		req.Header.Set("Authorization", "Bearer INVALID_TOKEN")
@@ -334,7 +334,7 @@ func (s *AppUpgradeConfigTestSuite) TestGetAppConfigValues() {
 	})
 }
 
-func TestAppUpgradeConfigSuite(t *testing.T) {
+func TestAppConfigSuite(t *testing.T) {
 	installTypes := []struct {
 		name        string
 		installType string
@@ -385,7 +385,7 @@ func TestAppUpgradeConfigSuite(t *testing.T) {
 
 	for _, tt := range installTypes {
 		t.Run(tt.name, func(t *testing.T) {
-			testSuite := &AppUpgradeConfigTestSuite{
+			testSuite := &AppConfigTestSuite{
 				installType: tt.installType,
 				createAPI:   tt.createAPI,
 				baseURL:     tt.baseURL,

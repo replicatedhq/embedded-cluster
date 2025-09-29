@@ -1,11 +1,51 @@
-package kubernetes
+package upgrade
 
 import (
 	"net/http"
 
+	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/sirupsen/logrus"
 )
+
+type Handler struct {
+	cfg           types.APIConfig
+	controller    upgrade.Controller
+	appController *appcontroller.AppController
+	logger        logrus.FieldLogger
+}
+
+type Option func(*Handler)
+
+func WithController(controller upgrade.Controller) Option {
+	return func(h *Handler) {
+		h.controller = controller
+	}
+}
+
+func WithAppController(appController *appcontroller.AppController) Option {
+	return func(h *Handler) {
+		h.appController = appController
+	}
+}
+
+func WithLogger(logger logrus.FieldLogger) Option {
+	return func(h *Handler) {
+		h.logger = logger
+	}
+}
+
+func New(cfg types.APIConfig, opts ...Option) *Handler {
+	h := &Handler{
+		cfg: cfg,
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
 
 // PostUpgradeApp handler to upgrade the app
 //
@@ -26,7 +66,7 @@ func (h *Handler) PostUpgradeApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.upgradeController.UpgradeApp(r.Context(), req.IgnoreAppPreflights)
+	err := h.controller.UpgradeApp(r.Context(), req.IgnoreAppPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to upgrade app")
 		utils.JSONError(w, r, err, h.logger)
@@ -48,7 +88,7 @@ func (h *Handler) PostUpgradeApp(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	types.APIError
 //	@Router			/kubernetes/upgrade/app/status [get]
 func (h *Handler) GetAppUpgradeStatus(w http.ResponseWriter, r *http.Request) {
-	appUpgrade, err := h.upgradeController.GetAppUpgradeStatus(r.Context())
+	appUpgrade, err := h.controller.GetAppUpgradeStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app upgrade status")
 		utils.JSONError(w, r, err, h.logger)
@@ -58,7 +98,7 @@ func (h *Handler) GetAppUpgradeStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, appUpgrade, h.logger)
 }
 
-// PostUpgradeTemplateAppConfig handler to template app config for upgrade
+// PostTemplateAppConfig handler to template app config for upgrade
 //
 //	@ID				postKubernetesUpgradeAppConfigTemplate
 //	@Summary		Template app config for upgrade
@@ -71,13 +111,13 @@ func (h *Handler) GetAppUpgradeStatus(w http.ResponseWriter, r *http.Request) {
 //	@Success		200		{object}	types.AppConfig
 //	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/upgrade/app/config/template [post]
-func (h *Handler) PostUpgradeTemplateAppConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) {
 	var req types.TemplateAppConfigRequest
 	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
 	}
 
-	appConfig, err := h.upgradeController.TemplateAppConfig(r.Context(), req.Values, true)
+	appConfig, err := h.controller.TemplateAppConfig(r.Context(), req.Values, true)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to template app config for upgrade")
 		utils.JSONError(w, r, err, h.logger)
@@ -87,7 +127,7 @@ func (h *Handler) PostUpgradeTemplateAppConfig(w http.ResponseWriter, r *http.Re
 	utils.JSON(w, r, http.StatusOK, appConfig, h.logger)
 }
 
-// PatchUpgradeAppConfigValues handler to set the app config values for upgrade
+// PatchAppConfigValues handler to set the app config values for upgrade
 //
 //	@ID				patchKubernetesUpgradeAppConfigValues
 //	@Summary		Set the app config values for upgrade
@@ -100,23 +140,23 @@ func (h *Handler) PostUpgradeTemplateAppConfig(w http.ResponseWriter, r *http.Re
 //	@Success		200		{object}	types.AppConfigValuesResponse
 //	@Failure		400		{object}	types.APIError
 //	@Router			/kubernetes/upgrade/app/config/values [patch]
-func (h *Handler) PatchUpgradeAppConfigValues(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
 	var req types.PatchAppConfigValuesRequest
 	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
 		return
 	}
 
-	err := h.upgradeController.PatchAppConfigValues(r.Context(), req.Values)
+	err := h.controller.PatchAppConfigValues(r.Context(), req.Values)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to set app config values for upgrade")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	h.GetUpgradeAppConfigValues(w, r)
+	h.GetAppConfigValues(w, r)
 }
 
-// GetUpgradeAppConfigValues handler to get the app config values for upgrade
+// GetAppConfigValues handler to get the app config values for upgrade
 //
 //	@ID				getKubernetesUpgradeAppConfigValues
 //	@Summary		Get the app config values for upgrade
@@ -127,8 +167,8 @@ func (h *Handler) PatchUpgradeAppConfigValues(w http.ResponseWriter, r *http.Req
 //	@Success		200	{object}	types.AppConfigValuesResponse
 //	@Failure		400	{object}	types.APIError
 //	@Router			/kubernetes/upgrade/app/config/values [get]
-func (h *Handler) GetUpgradeAppConfigValues(w http.ResponseWriter, r *http.Request) {
-	values, err := h.upgradeController.GetAppConfigValues(r.Context())
+func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
+	values, err := h.controller.GetAppConfigValues(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config values for upgrade")
 		utils.JSONError(w, r, err, h.logger)

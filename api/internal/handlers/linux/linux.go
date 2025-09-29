@@ -5,6 +5,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
+	linuxinstall "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux/install"
+	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
@@ -13,6 +15,9 @@ import (
 )
 
 type Handler struct {
+	Install *linuxinstall.Handler
+	Upgrade *linuxupgrade.Handler
+
 	cfg               types.APIConfig
 	installController install.Controller
 	upgradeController upgrade.Controller
@@ -112,6 +117,21 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		}
 		h.upgradeController = upgradeController
 	}
+
+	// Initialize sub-handlers
+	h.Install = linuxinstall.New(
+		h.cfg,
+		linuxinstall.WithController(h.installController),
+		linuxinstall.WithLogger(h.logger),
+		linuxinstall.WithHostUtils(h.hostUtils),
+		linuxinstall.WithMetricsReporter(h.metricsReporter),
+	)
+
+	h.Upgrade = linuxupgrade.New(
+		h.cfg,
+		linuxupgrade.WithController(h.upgradeController),
+		linuxupgrade.WithLogger(h.logger),
+	)
 
 	return h, nil
 }

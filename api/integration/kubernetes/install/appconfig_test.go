@@ -96,7 +96,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err := c.PatchKubernetesAppConfigValues(configValues)
+		_, err := c.PatchKubernetesInstallAppConfigValues(configValues)
 		require.Error(t, err, "PatchKubernetesAppConfigValues should fail with missing required item")
 
 		// Check that the error is of correct type
@@ -145,7 +145,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err = completedClient.PatchKubernetesAppConfigValues(configValues)
+		_, err = completedClient.PatchKubernetesInstallAppConfigValues(configValues)
 		require.Error(t, err, "PatchKubernetesAppConfigValues should fail with invalid state transition")
 
 		// Check that the error is of correct type
@@ -165,7 +165,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		config, err := c.PatchKubernetesAppConfigValues(configValues)
+		config, err := c.PatchKubernetesInstallAppConfigValues(configValues)
 		require.NoError(t, err, "PatchKubernetesAppConfigValues should succeed")
 
 		// Verify the config values are returned
@@ -244,7 +244,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 	// Test GetKubernetesAppConfigValues
 	t.Run("GetKubernetesAppConfigValues", func(t *testing.T) {
 		// Get the app config values using the client
-		values, err := c.GetKubernetesAppConfigValues()
+		values, err := c.GetKubernetesInstallAppConfigValues()
 		require.NoError(t, err, "GetKubernetesAppConfigValues should succeed")
 
 		// Verify the app config values are returned from the store
@@ -257,7 +257,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 		invalidClient := apiclient.New(server.URL, apiclient.WithToken("INVALID_TOKEN"))
 
 		// Get the app config values using the client
-		_, err := invalidClient.GetKubernetesAppConfigValues()
+		_, err := invalidClient.GetKubernetesInstallAppConfigValues()
 		require.Error(t, err, "GetKubernetesAppConfigValues should fail with invalid token")
 
 		// Check that the error is of correct type

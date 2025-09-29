@@ -614,7 +614,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	values, err := c.GetLinuxAppConfigValues()
+	values, err := c.GetLinuxInstallAppConfigValues()
 	assert.NoError(t, err)
 	assert.Equal(t, expectedValues, values)
 
@@ -635,7 +635,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	defer authServer.Close()
 
 	c = New(authServer.URL)
-	values, err = c.GetLinuxAppConfigValues()
+	values, err = c.GetLinuxInstallAppConfigValues()
 	assert.Error(t, err)
 	assert.Nil(t, values)
 
@@ -655,7 +655,7 @@ func TestLinuxGetAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	values, err = c.GetLinuxAppConfigValues()
+	values, err = c.GetLinuxInstallAppConfigValues()
 	assert.Error(t, err)
 	assert.Nil(t, values)
 
@@ -690,7 +690,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	values, err := c.GetKubernetesAppConfigValues()
+	values, err := c.GetKubernetesInstallAppConfigValues()
 	assert.NoError(t, err)
 	assert.Equal(t, expectedValues, values)
 
@@ -711,7 +711,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	defer authServer.Close()
 
 	c = New(authServer.URL)
-	values, err = c.GetKubernetesAppConfigValues()
+	values, err = c.GetKubernetesInstallAppConfigValues()
 	assert.Error(t, err)
 	assert.Nil(t, values)
 
@@ -731,7 +731,7 @@ func TestKubernetesGetAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	values, err = c.GetKubernetesAppConfigValues()
+	values, err = c.GetKubernetesInstallAppConfigValues()
 	assert.Error(t, err)
 	assert.Nil(t, values)
 
@@ -779,7 +779,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 		"test-item":     types.AppConfigValue{Value: "new-value"},
 		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
-	config, err := c.PatchLinuxAppConfigValues(configValues)
+	config, err := c.PatchLinuxInstallAppConfigValues(configValues)
 	require.NoError(t, err)
 	assert.Equal(t, expectedValues, config)
 
@@ -794,7 +794,7 @@ func TestLinuxPatchAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	configValues, err = c.PatchLinuxAppConfigValues(configValues)
+	configValues, err = c.PatchLinuxInstallAppConfigValues(configValues)
 	assert.Error(t, err)
 	assert.Equal(t, types.AppConfigValues{}, configValues)
 
@@ -842,7 +842,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 		"test-item":     types.AppConfigValue{Value: "new-value"},
 		"required-item": types.AppConfigValue{Value: "required-value"},
 	}
-	configValuesResponse, err := c.PatchKubernetesAppConfigValues(configValues)
+	configValuesResponse, err := c.PatchKubernetesInstallAppConfigValues(configValues)
 	assert.NoError(t, err)
 	assert.Equal(t, expectedValues, configValuesResponse)
 
@@ -857,7 +857,7 @@ func TestKubernetesPatchAppConfigValues(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	configValuesResponse, err = c.PatchKubernetesAppConfigValues(configValues)
+	configValuesResponse, err = c.PatchKubernetesInstallAppConfigValues(configValues)
 	assert.Error(t, err)
 	assert.Equal(t, types.AppConfigValues{}, configValuesResponse)
 
@@ -907,7 +907,7 @@ func TestLinuxTemplateAppConfig(t *testing.T) {
 		"db_host": types.AppConfigValue{Value: "localhost"},
 	}
 
-	config, err := c.TemplateLinuxAppConfig(values)
+	config, err := c.TemplateLinuxInstallAppConfig(values)
 	require.NoError(t, err)
 	assert.Equal(t, "database", config.Groups[0].Name)
 	assert.Equal(t, "DATABASE CONFIGURATION", config.Groups[0].Title)
@@ -955,7 +955,7 @@ func TestKubernetesTemplateAppConfig(t *testing.T) {
 		"app_name": types.AppConfigValue{Value: "myapp"},
 	}
 
-	config, err := c.TemplateKubernetesAppConfig(values)
+	config, err := c.TemplateKubernetesInstallAppConfig(values)
 	require.NoError(t, err)
 	assert.Equal(t, "application", config.Groups[0].Name)
 	assert.Equal(t, "Application Settings", config.Groups[0].Title)
@@ -994,7 +994,7 @@ func TestRunLinuxAppPreflights(t *testing.T) {
 
 	// Test successful run
 	c := New(server.URL, WithToken("test-token"))
-	status, err := c.RunLinuxAppPreflights()
+	status, err := c.RunLinuxInstallAppPreflights()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateRunning, status.Status.State)
 	assert.Equal(t, "App preflights running", status.Status.Description)
@@ -1013,7 +1013,7 @@ func TestRunLinuxAppPreflights(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.RunLinuxAppPreflights()
+	status, err = c.RunLinuxInstallAppPreflights()
 	assert.Error(t, err)
 	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
 
@@ -1060,7 +1060,7 @@ func TestGetLinuxAppPreflightsStatus(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	status, err := c.GetLinuxAppPreflightsStatus()
+	status, err := c.GetLinuxInstallAppPreflightsStatus()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateSucceeded, status.Status.State)
 	assert.Equal(t, "App preflights succeeded", status.Status.Description)
@@ -1081,7 +1081,7 @@ func TestGetLinuxAppPreflightsStatus(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.GetLinuxAppPreflightsStatus()
+	status, err = c.GetLinuxInstallAppPreflightsStatus()
 	assert.Error(t, err)
 	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
 
@@ -1122,7 +1122,7 @@ func TestRunKubernetesAppPreflights(t *testing.T) {
 
 	// Test successful run
 	c := New(server.URL, WithToken("test-token"))
-	status, err := c.RunKubernetesAppPreflights()
+	status, err := c.RunKubernetesInstallAppPreflights()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateRunning, status.Status.State)
 	assert.Equal(t, "App preflights running on Kubernetes", status.Status.Description)
@@ -1141,7 +1141,7 @@ func TestRunKubernetesAppPreflights(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.RunKubernetesAppPreflights()
+	status, err = c.RunKubernetesInstallAppPreflights()
 	assert.Error(t, err)
 	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
 
@@ -1188,7 +1188,7 @@ func TestGetKubernetesAppPreflightsStatus(t *testing.T) {
 
 	// Test successful get
 	c := New(server.URL, WithToken("test-token"))
-	status, err := c.GetKubernetesAppPreflightsStatus()
+	status, err := c.GetKubernetesInstallAppPreflightsStatus()
 	assert.NoError(t, err)
 	assert.Equal(t, types.StateFailed, status.Status.State)
 	assert.Equal(t, "App preflights failed on Kubernetes", status.Status.Description)
@@ -1209,7 +1209,7 @@ func TestGetKubernetesAppPreflightsStatus(t *testing.T) {
 	defer errorServer.Close()
 
 	c = New(errorServer.URL, WithToken("test-token"))
-	status, err = c.GetKubernetesAppPreflightsStatus()
+	status, err = c.GetKubernetesInstallAppPreflightsStatus()
 	assert.Error(t, err)
 	assert.Equal(t, types.InstallAppPreflightsStatusResponse{}, status)
 
