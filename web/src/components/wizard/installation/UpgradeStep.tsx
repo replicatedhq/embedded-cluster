@@ -50,8 +50,8 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
     },
     'app-preflight': {
       status: 'Pending' as State,
-      title: text.appValidationTitle,
-      description: text.appValidationDescription,
+      title: "Confirm Upgrade",
+      description: "Execute app upgrade",
     },
     'app-installation': {
       status: 'Pending' as State,
