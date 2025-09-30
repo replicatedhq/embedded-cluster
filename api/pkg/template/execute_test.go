@@ -8,11 +8,13 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func TestEngine_BasicTemplating(t *testing.T) {
@@ -1457,4 +1459,82 @@ status: {}
 `
 
 	assert.YAMLEq(t, expectedYAML, result)
+}
+
+func TestEngine_FromJsonDigFailureScenario(t *testing.T) {
+	configYAML := `
+apiVersion: kots.io/v1beta1
+kind: Config
+spec:
+  groups:
+    - name: cert-settings
+      items:
+        - name: hostname
+          title: Hostname
+          help_text: Enter a DNS hostname to use as the cert's CN.
+          type: text
+
+        - name: tls_json
+          title: TLS JSON
+          type: textarea
+          hidden: true
+          default: |-
+            repl{{ $ca := genCA (ConfigOption "hostname") 365 }}
+            repl{{ $tls := dict "ca" $ca }}
+            repl{{ $cert := genSignedCert (ConfigOption "hostname") (list ) (list (ConfigOption "hostname")) 365 $ca }}
+            repl{{ $_ := set $tls "cert" $cert }}
+            repl{{ toJson $tls }}
+
+        - name: tls_cert
+          title: TLS Cert
+          type: textarea
+          default: repl{{ fromJson (ConfigOption "tls_json") | dig "cert" "Cert" "" }}
+`
+
+	var kotsConfig kotsv1beta1.Config
+	err := kyaml.Unmarshal([]byte(configYAML), &kotsConfig)
+	if err != nil {
+		t.Fatalf("Failed to parse config YAML: %v", err)
+	}
+
+	// Create config values YAML (simulating what kots would return)
+	// This represents a realistic scenario where:
+	// 1. hostname has a user-provided value
+	// 2. tls_json has a generated default (from template processing)
+	configValuesYAML := `
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    hostname:
+      value: "test.local"
+    tls_json:
+      default: |
+        {
+          "ca": {
+            "Cert": "-----BEGIN CERTIFICATE-----\nMIIDFTCCAf2gAwIBAgIQL/uXSg9Wo4LesdhlNZGsgDANBgkqhkiG9w0BAQsFADAV\nMRMwEQYDVQQDEwp0ZXN0LmxvY2FsMB4XDTI1MDkzMDE2NDY1NFoXDTI2MDkzMDE2\nNDY1NFowFTETMBEGA1UEAxMKdGVzdC5sb2NhbDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAPN237NoLRS183oE0dg1FaDY72yWa3x+Qr0UtDqjBeRXJOgr\ncIKGnifmMXNNBXUa9RatsESFUk8GcBDvZ61pJf1g9Gjc+UcAWfkceLl9mmpt9sYg\nSZKimfQqipH2Q3Vv7114zGC7MeLcnr5pXLYFANW6WNDwmHjegGEgrjrXwcFhs8so\nUdm6d1kK3/oAonS0i5s6bFICBVQ3N+dQnuqWdwZUldVS7YKWGi+e/VLTpaE7cAxt\nLQtVQCuoRCpfoI0/dohb6eZVylDKjl3Q0PxXIntMyhO61z6tc4Glucx+svFGlq0J\neZL/Aq+TXDSQ78Fdb902LpVbTgPXcqXkXflfXVsCAwEAAaNhMF8wDgYDVR0PAQH/\nBAQDAgKkMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAPBgNVHRMBAf8E\nBTADAQH/MB0GA1UdDgQWBBQGe/KwGX474QvDrnnz6lPhx/AEzTANBgkqhkiG9w0B\nAQsFAAOCAQEADrR3fez1YtxXAIfOglYCCEzuWdmgqm5Z9asgeBz7YQ7JWa7cmjOb\n2cej8qE83IQjGJGTuwc9MYsMel0HVqg/UNcRAgQ/EPRD/Usb1IOjXARJB1cg6OYh\nBqgnON4vML0Ifyv9I/rvsFL4VIcFNJbw/Vk5Hb5jm7IVy5wyJ8pdZd9ifYhMImP3\nheufNwDlFRv15TrSVfMfr7Tm8MWKq1XvNFTThqtNSbAdE+IBI5wtK2TEDWNynPr1\nlB9Rn/TTR1hnoTfRhxWl1unAqKb93Lik7x8V304POBmGG5t9jJvDHlEY/kbihUPS\niI1Y1eA7U5/ul+K/mb35edLH7ZT2ZJ03MA==\n-----END CERTIFICATE-----",
+            "Key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEoQIBAAKCAQEA83bfs2gtFLXzegTR2DUVoNjvbJZrfH5CvRS0OqMF5Fck6Ctw\ngoaeJ+Yxc00FdRr1Fq2wRIVSTwZwEO9nrWkl/WD0aNz5RwBZ+Rx4uX2aam32xiBJ\nkqKZ9CqKkfZDdW/vXXjMYLsx4tyevmlctgUA1bpY0PCYeN6AYSCuOtfBwWGzyyhR\n2bp3WQrf+gCidLSLmzpsUgIFVDc351Ce6pZ3BlSV1VLtgpYaL579UtOloTtwDG0t\nC1VAK6hEKl+gjT92iFvp5lXKUMqOXdDQ/Fcie0zKE7rXPq1zgaW5zH6y8UaWrQl5\nkv8Cr5NcNJDvwV1v3TYulVtOA9dypeRd+V9dWwIDAQABAoH/Rlf4weXouizHEscN\ndAzRXZ9yfOTXB24eUcehGBzgBd3SkFNSFQ8lgPtOcIH7K0mnMWZCB6xbiqzikiQz\ncppdzor5JEIr5i0rSU6j1ziM1AA17ve6jnjkE5+MWPVOVTEs71TeHq5d5jbYUZIw\nyGaYm2xmtIBpJwurLkLlJV+GxpQwqQbdVmLXWuLHxFoaIh072+zc/tAZImGWUzf8\n4cVE0MvDx7yOTVdj8vKUy+XBlIHNUNN2r69jnzXEHuWU43/0mkvxg0t8g6QX+pn5\n1OOXQq7w5I4GOzMH2axXJsEQcmr9u4k60jASAgrvTVYkQrB8dBLgeGW8rr6B/GCK\n6bEtAoGBAPbDC/1iV+xUENzLOj1B+uKyGCCyr/PksDrwkZMTKKUBNz1E73q+akaJ\nBqYuYfSoKqbzKZo2rvajG/HEmixlxOAdK7UD+5x4s0GjKG7sRRt5JOtxRKCdvZu0\nB6A1RzMjhUedqkRex+4g8jKw6ki1av4xBdze1/GmhxhMdk3yl3kFAoGBAPyUOTN6\nyS2pDOz28NeUCfQ4/pHPR9KgvsBf005oA0a0P62Oib2fCFHHzf8yBAaJofq+Qeof\nAhbc4m1nDaptVyHjkRIgLAjlJeyPLl2Qeu8SR+/Kn807N2McSOArBWAwdLBBWOCs\nQHRxKmqoNN1HmZCscWWiablN63CgbuMRY8rfAoGBAJ0S+S3YjOkldfpl7vORbVci\nUJN3yuLwPnG2MqQxPN0T0grRN7OlQ9cUYEQmIDpxVX0iKeg9SNA8cYxLPmxmd5TF\nXM4D9ATdHBX6+sDo6vCbA7JPToUDA+/6ACSt5V2bDbrRlNGil5dwJ1u3G9seiDW4\nFOhMfZ8YBsSj32astljVAoGAOFhomk9d6c24kHRWLgFcZxr/z09KWnZ5lzjJTsht\nUqyLOBCAMcj0din4jmF9/GdftywSUEQylx8XdAh1R/u0YF7/0edTa3iTCT63vS+p\n/QM7AQdWttXq+TUqHLf8LwUgQuGRDi3fAxrrt3dms6ZxX5DYiy+8HhZ/21Qu6IDM\nnkkCgYB3E/QRRftwZ2ZYuzV45fcqz1hLqP9ocYGINL0lbzuumqVVvYLnskjqGYON\n7yyMU/Z2leAh9DW0uHzqSQ+nl/tt/BWlYuz1HO/v0rCVAR5/c65d4VQU8IXFfSSg\nA0tIgzr4OMPaGG+/qwzTGM2eOGAXjLVGOYGlOrbCo3KaprBL+Q==\n-----END RSA PRIVATE KEY-----"
+          },
+          "cert": {
+            "Cert": "-----BEGIN CERTIFICATE-----\nMIIDCjCCAfKgAwIBAgIQE5UdzPtK5jR1F34xVt+vLDANBgkqhkiG9w0BAQsFADAV\nMRMwEQYDVQQDEwp0ZXN0LmxvY2FsMB4XDTI1MDkzMDE2NDY1NFoXDTI2MDkzMDE2\nNDY1NFowFTETMBEGA1UEAxMKdGVzdC5sb2NhbDCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAM5tN9sS6cuvTLwKjldUFnHkeCzpx+BiqjG/9WU2loX92KGo\n1c8XawzZKJsZbTppub2chLyz8UlA856+5tsOAP19de/tJMfW0kdWrklLfy+rYWLL\nAGuAcxVWPkv8KqFA543woGQqqCOdtG9X1U/fxhwh7+8wy3tECur+6HUU0U8BgKNv\nETI4tnaGyX84eNkEXbBUWt/5TzVImetLJG/of7BYgUCjr7BGwrVwnT7Y2NuTKCJ8\nWyq7IGxIa2ZzzVgpIndz0dTz7kCeyjYV+TcCsx446N+eekTovmn/X0ZRr9FKjBqq\nxZ+dB0oMQq2j9iWhkHbI99kNehlO5M1jYzzL0JsCAwEAAaNWMFQwDgYDVR0PAQH/\nBAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjAMBgNVHRMBAf8E\nAjAAMBUGA1UdEQQOMAyCCnRlc3QubG9jYWwwDQYJKoZIhvcNAQELBQADggEBABA7\nJb4mLPLjO3avlJH4RGh3tp1BDlFOJfgFSQgB2lVXMFDnQGa0A5KusZ3zEDWc3g2g\nFENgodR9XDr+dmIWdAcFjd0PlOsYP7JwbXeDQMj+ZbzZcvBg29fOUdRyR+9154Aa\n8M9pm4E+3zHo8nsdjngujC+1IbBvWXvllcHeZkgpwYA0a9fxM7K7nci2E/H1HIV2\nQKm7DZE1QOCRW07jX31hUFoWfbrwz8koMlR3KmHQkSVXeojZbUfnNJP02v9p8e3q\nanNGgGNc5kEWPhDBQNjK+4qylwYkQTUUxjrgWNnKR5VQx79aBrGGJF0QlJVvK1Xr\nYakJFvSiCsG8NlZS0oU=\n-----END CERTIFICATE-----",
+            "Key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAzm032xLpy69MvAqOV1QWceR4LOnH4GKqMb/1ZTaWhf3YoajV\nzxdrDNkomxltOmm5vZyEvLPxSUDznr7m2w4A/X117+0kx9bSR1auSUt/L6thYssA\na4BzFVY+S/wqoUDnjfCgZCqoI520b1fVT9/GHCHv7zDLe0QK6v7odRTRTwGAo28R\nMji2dobJfzh42QRdsFRa3/lPNUiZ60skb+h/sFiBQKOvsEbCtXCdPtjY25MoInxb\nKrsgbEhrZnPNWCkid3PR1PPuQJ7KNhX5NwKzHjjo3556ROi+af9fRlGv0UqMGqrF\nn50HSgxCraP2JaGQdsj32Q16GU7kzWNjPMvQmwIDAQABAoIBAFyiG3Imcx8x2+P4\ncrbSp73VUm6JPGY/sHNh2nvgerzHVMr6ynPD5QiffL7ZMrCHWFAz6EcMEueWC509\nurgreRtIDUAtMZeyGavkxJJknD8mj623Pkl/m2VETfFoSDMTvrVt+XPpxokxEJL0\nnedZmnvuaM70HSQEPUgGOwerX2AtlJsK90z4pbB52vVmHpstPT/sAq1w0/rmtSbR\nWTZrSNUIFUeAyT/D/D4UPPyD3SrgqUngYLZ94DYgVJRzAIienKhnmEiRjZHGpEWP\neeRffgQjd2y/gz1WpUgCtXgJBl6BauKaG1vZ5P402XCOPd0pGXGxhnd2VGAifKP1\nEGpmg90CgYEA5F+0kn8t6etWYfTT0xe7WlHzdg0kVT/dBhkad+Ub7pAd1cQ5jrAd\nJ1NIV1x1+aogreBGMal042qclibA4ROylCm8p2j7RRGoVWWcAr7Ew1MYYOzz95NZ\n/v9/NoHdY0LaKM/99dc7Rm6HQOC5Kt2bowFIRZdD6r62aKfGKdxkjNcCgYEA52XZ\npVyZ1S6Y3G7zdM0+DxjISplXhn94ZiFI/X9lYAzx2SZiv9+b/9N4dJq8KshL1yeQ\nrCnIb8fl4NhptmJsXnZqlJQBaqRSVE8yZLT60xxFrF7ov7/bJKm8XGWjg5ZJwwej\n9HpG6NUziwjmQ5SrCFGtzXI1dug55ubINXopPd0CgYBFJWEkFhPNxq6h/CICwSW9\n5CBF9xawJSUDyqgD8z+wzLvr1Hzk4hgBpyq5IMqrrEI2wzgdo0Q78zS0FcnCnFcu\nmzB+s7+Ymw8PxDMndaFXzpoMBtKbfGb8WVmoJEvm2P/66Xbob6GH4sFa+G+4Nd8A\nzMuYHoO22MWcDGholk1vgwKBgQDlbXudVDIGR7wyGyPx9CmK6GR2apF4flyOzoPD\nLBQEZvFH/6I7YecXgMHWwzC8LnnbqpPrz0W3ZviKtagiuHWAN2K3TAQXizNB+oAZ\nj8N9m3ONU1DsBbqvIEftSK0WI+WgpKuwE6jI49LGEJ3V9cqaZfmwUIOoENqQENQD\nCctoVQKBgB6Jem92GhqNkbRlJq3l5Idy1j4GwicKPEh0CkQOtkl4U0u7hg3H9uqN\n3H2CDRW2tsYKQqKFVHUFAd667Eu1nnCiARkQp+LBcveu5810QzoCSB6BdyNTc5Cq\nXSI96Nl5ZDjtA1A3OHTMCYrOVGVf4GGUUQHUpWE9FaV66bC1+HKo\n-----END RSA PRIVATE KEY-----"
+          }
+        }
+`
+
+	kotsConfigValues, err := helpers.ParseConfigValuesFromString(configValuesYAML)
+	if err != nil {
+		t.Fatalf("Failed to parse config values YAML: %v", err)
+	}
+
+	configValues := types.ConvertToAppConfigValues(kotsConfigValues)
+
+	engine := NewEngine(&kotsConfig, WithMode(ModeConfig))
+	result, err := engine.Execute(configValues)
+
+	if err != nil {
+		t.Errorf("Template execution should succeed with empty tls_json, but got error: %v", err)
+	} else {
+		t.Logf("Template execution succeeded with result length: %d", len(result))
+	}
 }

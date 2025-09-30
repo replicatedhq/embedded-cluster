@@ -386,8 +386,10 @@ func createLicenseFile(license []byte) (string, error) {
 
 // GetConfigValuesOptions holds options for getting config values
 type GetConfigValuesOptions struct {
-	AppSlug   string
-	Namespace string
+	AppSlug               string
+	Namespace             string
+	ClusterID             string
+	ReplicatedAppEndpoint string
 }
 
 // GetConfigValues executes the kots get config command and returns the YAML output
@@ -409,7 +411,15 @@ func GetConfigValues(opts GetConfigValuesOptions) (string, error) {
 
 	// Execute the command and capture output
 	var outputBuffer strings.Builder
-	runCommandOpts := helpers.RunCommandOptions{Stdout: &outputBuffer}
+	runCommandOpts := helpers.RunCommandOptions{
+		Stdout: &outputBuffer,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.ReplicatedAppEndpoint != "" {
+		runCommandOpts.Env["REPLICATED_APP_ENDPOINT"] = opts.ReplicatedAppEndpoint
+	}
 
 	if err := helpers.RunCommandWithOptions(runCommandOpts, kotsBinPath, args...); err != nil {
 		return "", fmt.Errorf("get current config values from kots: %w", err)

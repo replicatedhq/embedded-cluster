@@ -1,6 +1,10 @@
 package types
 
-import kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+import (
+	"strings"
+
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+)
 
 // AppConfig represents the configuration for an app. This is an alias for the
 // kotsv1beta1.ConfigSpec type.
@@ -24,4 +28,33 @@ type AppConfigValues map[string]AppConfigValue
 type AppInstall struct {
 	Status Status `json:"status"`
 	Logs   string `json:"logs"`
+}
+
+// ConvertToAppConfigValues converts kots ConfigValues to AppConfigValues format
+func ConvertToAppConfigValues(kotsConfigValues *kotsv1beta1.ConfigValues) AppConfigValues {
+	if kotsConfigValues == nil {
+		return nil
+	}
+
+	configValues := make(AppConfigValues)
+	for key, value := range kotsConfigValues.Spec.Values {
+		// Temporary fix for https://app.shortcut.com/replicated/story/129708/template-execution-fails-when-empty-user-config-values-override-generated-defaults
+		// TODO: Remove this block of code and add a unit test for this function once a fix has been implemented
+		temporaryFixValue := value.Value
+		if strings.HasSuffix(key, "_json") && temporaryFixValue == "" {
+			temporaryFixValue = "{}"
+		}
+
+		configValues[key] = AppConfigValue{
+			Default:        value.Default,
+			Value:          temporaryFixValue,
+			Data:           value.Data,
+			ValuePlaintext: value.ValuePlaintext,
+			DataPlaintext:  value.DataPlaintext,
+			Filename:       value.Filename,
+			RepeatableItem: value.RepeatableItem,
+		}
+	}
+
+	return configValues
 }
