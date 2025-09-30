@@ -17,8 +17,10 @@ const InstallWizard: React.FC = () => {
   const { text, target, mode } = useWizard();
   let steps: WizardStep[] = []
 
-  // Iteration 2: Include configuration step for upgrades
-  // Configuration step triggers upgrade, so we go directly to installation monitoring
+  // TODO Upgrade
+  // Iteration 2:
+  // - Remove preflights step for upgrades for now
+  // - There's no setup step for upgrades
   if (mode == "upgrade") {
     steps = ["welcome", "configuration", "installation", `${target}-completion`]
   } else {
