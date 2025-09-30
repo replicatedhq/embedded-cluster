@@ -125,6 +125,7 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
       onStateChange: handleStateChange(phase)
     };
 
+    // TODO: add unit tests similar to tests/InstallationStep.test.tsx when there is more than one phase
     switch (phase) {
       case 'app-installation':
         return <AppInstallationPhase {...commonProps} />;
