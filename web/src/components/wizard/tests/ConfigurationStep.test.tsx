@@ -121,9 +121,9 @@ const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
   return config;
 };
 
-const createServer = (target: string) => setupServer(
+const createServer = (target: string, mode: 'install' | 'upgrade' = 'install', options?: { onUpgrade?: () => void }) => setupServer(
   // Mock template app config endpoint
-  http.post(`*/api/${target}/install/app/config/template`, async ({ request }) => {
+  http.post(`*/api/${target}/${mode}/app/config/template`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
     // Apply any user values to the mock config and return it
     const templatedConfig = createMockConfigWithValues(body.values);
@@ -131,9 +131,17 @@ const createServer = (target: string) => setupServer(
   }),
 
   // Mock config values submission endpoint
-  http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+  http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
     return HttpResponse.json(body);
+  }),
+
+  // Mock upgrade endpoint (only called in upgrade mode)
+  http.post(`*/api/${target}/upgrade/app/upgrade`, async ({ request }) => {
+    const body = await request.json() as { ignoreAppPreflights: boolean };
+    expect(body.ignoreAppPreflights).toBe(false);
+    options?.onUpgrade?.();
+    return HttpResponse.json({});
   })
 );
 
@@ -152,19 +160,25 @@ const waitForForm = async () => {
 };
 
 describe.each([
-  { target: "kubernetes" as const, displayName: "Kubernetes" },
-  { target: "linux" as const, displayName: "Linux" }
-])("ConfigurationStep - $displayName", ({ target }) => {
+  { target: "kubernetes" as const, mode: "install" as const, displayName: "Kubernetes Install" },
+  { target: "linux" as const, mode: "install" as const, displayName: "Linux Install" },
+  { target: "kubernetes" as const, mode: "upgrade" as const, displayName: "Kubernetes Upgrade" },
+  { target: "linux" as const, mode: "upgrade" as const, displayName: "Linux Upgrade" }
+])("ConfigurationStep - $displayName", ({ target, mode }) => {
   const mockOnNext = vi.fn();
   let server: ReturnType<typeof createServer>;
+  let upgradeTriggered = false;
 
   beforeAll(() => {
-    server = createServer(target);
+    server = createServer(target, mode, {
+      onUpgrade: () => { upgradeTriggered = true; }
+    });
     server.listen();
   });
 
   beforeEach(() => {
     // No need to set localStorage token anymore as it's handled by the test setup
+    upgradeTriggered = false;
   });
 
   afterEach(() => {
@@ -181,6 +195,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -219,6 +234,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -228,7 +244,7 @@ describe.each([
 
   it("handles config fetch error gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
         return new HttpResponse(JSON.stringify({ message: "Failed to template configuration" }), { status: 500 });
       })
     );
@@ -237,6 +253,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -250,7 +267,7 @@ describe.each([
 
   it("handles template config error gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
         return new HttpResponse(JSON.stringify({ message: "Template processing failed" }), { status: 500 });
       })
     );
@@ -259,6 +276,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -273,7 +291,7 @@ describe.each([
 
   it("handles empty config gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
         return HttpResponse.json({ groups: [] });
       })
     );
@@ -282,6 +300,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -297,6 +316,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -333,6 +353,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -352,6 +373,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -371,6 +393,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -394,6 +417,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -413,7 +437,7 @@ describe.each([
 
   it("handles form submission error gracefully", async () => {
     server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, () => {
+      http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
         return new HttpResponse(JSON.stringify({ message: "Invalid configuration values" }), { status: 400 });
       })
     );
@@ -422,6 +446,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -446,7 +471,7 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
         // Verify auth header
         expect(request.headers.get("Authorization")).toBe("Bearer test-token");
         const body = await request.json() as { values: AppConfigValues };
@@ -459,6 +484,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -521,6 +547,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -535,7 +562,7 @@ describe.each([
 
   it("handles unauthorized error correctly", async () => {
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
         return new HttpResponse(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
       })
     );
@@ -544,6 +571,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -559,7 +587,7 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
         return HttpResponse.json(body);
@@ -570,6 +598,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -643,7 +672,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, async () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
         return HttpResponse.json(configWithEmptyValues);
       })
     );
@@ -652,6 +681,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -784,7 +814,7 @@ describe.each([
 
       // Override the server to return our comprehensive config
       server.use(
-        http.post(`*/api/${target}/install/app/config/template`, async () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
           return HttpResponse.json(comprehensiveConfig);
         })
       );
@@ -793,6 +823,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -864,7 +895,7 @@ describe.each([
       // Test form submission with radio button changes
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(body);
@@ -903,6 +934,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -940,6 +972,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -956,6 +989,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -978,6 +1012,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1013,6 +1048,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1042,7 +1078,7 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
 
       server.use(
-        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(body);
@@ -1053,6 +1089,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1143,7 +1180,7 @@ describe.each([
 
       // Override the server to return our comprehensive config as-is
       server.use(
-        http.post(`*/api/${target}/install/app/config/template`, async () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
           return HttpResponse.json(comprehensiveConfig);
         })
       );
@@ -1152,6 +1189,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1204,7 +1242,7 @@ describe.each([
       // Test form submission with checkbox changes
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(body);
@@ -1243,7 +1281,7 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
         const body = await request.json() as { values: AppConfigValues };
         submittedValues = body;
         return HttpResponse.json(body);
@@ -1254,6 +1292,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -1317,7 +1356,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, async () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
         return HttpResponse.json(configWithPassword);
       })
     );
@@ -1326,6 +1365,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -1376,7 +1416,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, async () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
         return HttpResponse.json(configWithPassword);
       })
     );
@@ -1385,6 +1425,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -1480,7 +1521,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/install/app/config/template`, async () => {
+      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
         return HttpResponse.json(configWithDefaults);
       })
     );
@@ -1489,6 +1530,7 @@ describe.each([
       wrapperProps: {
         authenticated: true,
         target: target,
+        mode: mode,
       },
     });
 
@@ -1519,6 +1561,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1535,6 +1578,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1595,7 +1639,7 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
 
       server.use(
-        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(body);
@@ -1606,6 +1650,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1705,7 +1750,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithFilename);
         })
       );
@@ -1714,6 +1759,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1768,7 +1814,7 @@ describe.each([
       // Test form submission with the new file
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/install/app/config/values`, async ({ request }) => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
           const body = await request.json() as { values: AppConfigValues };
           submittedValues = body;
           return HttpResponse.json(body);
@@ -1820,7 +1866,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithoutFilename);
         })
       );
@@ -1829,6 +1875,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1902,11 +1949,11 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required field
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithRequiredField);
         }),
         // Mock server validation error response
-        http.patch(`*/api/${target}/install/app/config/values`, () => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
             status_code: 400,
@@ -1924,6 +1971,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -1965,7 +2013,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -1999,11 +2047,11 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with multiple required fields
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithMultipleRequiredFields);
         }),
         // Mock server validation error response with multiple field errors
-        http.patch(`*/api/${target}/install/app/config/values`, () => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
             status_code: 400,
@@ -2013,7 +2061,7 @@ describe.each([
                 message: "First Required Field is required"
               },
               {
-                field: "second_required_field", 
+                field: "second_required_field",
                 message: "Second Required Field is required"
               }
             ]
@@ -2025,6 +2073,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -2068,7 +2117,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -2084,7 +2133,7 @@ describe.each([
           {
             name: "database",
             title: "Database",
-            description: "Configure database settings", 
+            description: "Configure database settings",
             items: [
               {
                 name: "db_required_field",
@@ -2095,7 +2144,7 @@ describe.each([
                 help_text: "This database field is required"
               },
               {
-                name: "db_optional_field", 
+                name: "db_optional_field",
                 title: "Database Optional Field",
                 type: "text",
                 value: "",
@@ -2109,11 +2158,11 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with multiple tabs and required fields
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithMultipleTabsAndRequiredFields);
         }),
         // Mock server validation error response
-        http.patch(`*/api/${target}/install/app/config/values`, () => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
             status_code: 400,
@@ -2131,6 +2180,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -2148,10 +2198,10 @@ describe.each([
       // Verify we're on the settings tab initially (first tab is active by default)
       const settingsTab = screen.getByTestId("config-tab-settings");
       const databaseTab = screen.getByTestId("config-tab-database");
-      
+
       // Settings tab should be active (has the blue color styling)
       expect(settingsTab).toHaveStyle("color: rgb(49, 109, 230)");
-      
+
       // Database tab should be inactive (has gray color)
       expect(databaseTab).toHaveStyle("color: rgb(107, 114, 128)");
 
@@ -2193,7 +2243,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -2211,11 +2261,11 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required field
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithRequiredField);
         }),
         // Mock server validation error response
-        http.patch(`*/api/${target}/install/app/config/values`, () => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
             status_code: 400,
@@ -2233,6 +2283,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -2247,7 +2298,7 @@ describe.each([
       });
 
       const requiredInput = screen.getByTestId("text-input-required_text_field");
-      
+
       // Initially, field should have normal gray border
       expect(requiredInput).toHaveClass("border-gray-300");
       expect(requiredInput).not.toHaveClass("border-red-500");
@@ -2277,7 +2328,7 @@ describe.each([
         groups: [
           {
             name: "settings",
-            title: "Settings", 
+            title: "Settings",
             description: "Configure application settings",
             items: [
               {
@@ -2293,7 +2344,7 @@ describe.each([
                     title: "Local Authentication"
                   },
                   {
-                    name: "auth_method_ldap", 
+                    name: "auth_method_ldap",
                     title: "LDAP Authentication"
                   }
                 ]
@@ -2305,11 +2356,11 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required radio field
-        http.post(`*/api/${target}/install/app/config/template`, () => {
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
           return HttpResponse.json(configWithRequiredRadioField);
         }),
         // Mock server validation error response
-        http.patch(`*/api/${target}/install/app/config/values`, () => {
+        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
             status_code: 400,
@@ -2327,6 +2378,7 @@ describe.each([
         wrapperProps: {
           authenticated: true,
           target: target,
+          mode: mode,
         },
       });
 
@@ -2364,5 +2416,33 @@ describe.each([
       // Verify onNext was not called due to validation error
       expect(mockOnNext).not.toHaveBeenCalled();
     });
+  });
+
+  // Iteration 2: Test upgrade trigger only in upgrade mode
+  // TODO: remove this skip if when iteration 3 is implemented
+  it.skipIf(mode === "install")("triggers upgrade after successful config submission", async () => {
+    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+        mode: mode,
+      },
+    });
+
+    // Wait for config to load
+    await waitForForm();
+
+    // Submit form
+    const nextButton = screen.getByTestId("config-next-button");
+    fireEvent.click(nextButton);
+
+    // Wait for the upgrade to be triggered and onNext to be called
+    await waitFor(
+      () => {
+        expect(upgradeTriggered).toBe(true);
+        expect(mockOnNext).toHaveBeenCalled();
+      },
+      { timeout: 3000 }
+    );
   });
 });
