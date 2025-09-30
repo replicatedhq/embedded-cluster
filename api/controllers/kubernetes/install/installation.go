@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 

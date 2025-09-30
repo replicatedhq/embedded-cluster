@@ -5,6 +5,8 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
+	k8sinstall "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes/install"
+	k8supgrade "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -12,6 +14,9 @@ import (
 )
 
 type Handler struct {
+	Install *k8sinstall.Handler
+	Upgrade *k8supgrade.Handler
+
 	cfg               types.APIConfig
 	installController install.Controller
 	upgradeController upgrade.Controller
@@ -92,6 +97,20 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		}
 		h.upgradeController = upgradeController
 	}
+
+	// Initialize sub-handlers
+	h.Install = k8sinstall.New(
+		h.cfg,
+		k8sinstall.WithController(h.installController),
+		k8sinstall.WithLogger(h.logger),
+		k8sinstall.WithMetricsReporter(h.metricsReporter),
+	)
+
+	h.Upgrade = k8supgrade.New(
+		h.cfg,
+		k8supgrade.WithController(h.upgradeController),
+		k8supgrade.WithLogger(h.logger),
+	)
 
 	return h, nil
 }

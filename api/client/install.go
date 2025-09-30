@@ -295,7 +295,7 @@ func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetLinuxAppConfigValues() (types.AppConfigValues, error) {
+func (c *client) GetLinuxInstallAppConfigValues() (types.AppConfigValues, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
@@ -322,7 +322,7 @@ func (c *client) GetLinuxAppConfigValues() (types.AppConfigValues, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
+func (c *client) PatchLinuxInstallAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
 	req := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
@@ -357,7 +357,7 @@ func (c *client) PatchLinuxAppConfigValues(values types.AppConfigValues) (types.
 	return config.Values, nil
 }
 
-func (c *client) GetKubernetesAppConfigValues() (types.AppConfigValues, error) {
+func (c *client) GetKubernetesInstallAppConfigValues() (types.AppConfigValues, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
@@ -384,7 +384,7 @@ func (c *client) GetKubernetesAppConfigValues() (types.AppConfigValues, error) {
 	return response.Values, nil
 }
 
-func (c *client) PatchKubernetesAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
+func (c *client) PatchKubernetesInstallAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
 	request := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
@@ -420,7 +420,7 @@ func (c *client) PatchKubernetesAppConfigValues(values types.AppConfigValues) (t
 	return config.Values, nil
 }
 
-func (c *client) TemplateLinuxAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) TemplateLinuxInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
 	request := types.TemplateAppConfigRequest{
 		Values: values,
 	}
@@ -456,7 +456,7 @@ func (c *client) TemplateLinuxAppConfig(values types.AppConfigValues) (types.App
 	return config, nil
 }
 
-func (c *client) TemplateKubernetesAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) TemplateKubernetesInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
 	request := types.TemplateAppConfigRequest{
 		Values: values,
 	}
@@ -492,7 +492,7 @@ func (c *client) TemplateKubernetesAppConfig(values types.AppConfigValues) (type
 	return config, nil
 }
 
-func (c *client) RunLinuxAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
+func (c *client) RunLinuxInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
 	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app-preflights/run", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
@@ -519,7 +519,7 @@ func (c *client) RunLinuxAppPreflights() (types.InstallAppPreflightsStatusRespon
 	return status, nil
 }
 
-func (c *client) GetLinuxAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
+func (c *client) GetLinuxInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app-preflights/status", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
@@ -546,7 +546,7 @@ func (c *client) GetLinuxAppPreflightsStatus() (types.InstallAppPreflightsStatus
 	return status, nil
 }
 
-func (c *client) RunKubernetesAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
+func (c *client) RunKubernetesInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
 	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app-preflights/run", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
@@ -573,7 +573,7 @@ func (c *client) RunKubernetesAppPreflights() (types.InstallAppPreflightsStatusR
 	return status, nil
 }
 
-func (c *client) GetKubernetesAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
+func (c *client) GetKubernetesInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
 	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app-preflights/status", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err

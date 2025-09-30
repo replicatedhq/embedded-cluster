@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/stretchr/testify/assert"
 )
 

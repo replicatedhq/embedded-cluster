@@ -18,7 +18,7 @@ import (
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	appupgradestore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -60,7 +60,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		mockStore := &store.MockStore{}
 
 		// Create state machine that will be shared between AppController and UpgradeController
-		stateMachine := s.createStateMachine(states.StateNew)
+		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
 		// Create app controller with mocked managers
 		appController, err := appcontroller.NewAppController(
@@ -118,7 +118,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 
 	s.T().Run("Authorization error", func(t *testing.T) {
 		// Create state machine
-		stateMachine := s.createStateMachine(states.StateNew)
+		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
 		// Create simple app controller for auth test
 		appController, err := appcontroller.NewAppController(
@@ -181,7 +181,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		mockStore := &store.MockStore{}
 
 		// Create state machine
-		stateMachine := s.createStateMachine(states.StateNew)
+		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
 		// Create app controller with mocked managers
 		appController, err := appcontroller.NewAppController(
@@ -257,7 +257,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 		)
 		require.NoError(t, err)
 
-		stateMachine := s.createStateMachine(states.StateNew)
+		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
 		// Create app controller with real upgrade manager
 		appController, err := appcontroller.NewAppController(
@@ -299,7 +299,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 
 	s.T().Run("Authorization error", func(t *testing.T) {
 		// Create state machine
-		stateMachine := s.createStateMachine(states.StateNew)
+		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
 		// Create simple app controller for auth test
 		appController, err := appcontroller.NewAppController(

@@ -12,8 +12,7 @@ import (
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
 	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
-	upgradeStates "github.com/replicatedhq/embedded-cluster/api/internal/states/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -33,141 +32,162 @@ type AppControllerTestSuite struct {
 }
 
 func (s *AppControllerTestSuite) TestPatchAppConfigValues() {
-	tests := []struct {
-		name          string
-		values        types.AppConfigValues
-		currentState  statemachine.State
-		expectedState statemachine.State
-		setupMocks    func(*appconfig.MockAppConfigManager)
-		expectedErr   bool
+	scenarios := []struct {
+		name     string
+		scenario string
+		createSM func(initialState statemachine.State) statemachine.Interface
 	}{
 		{
-			name: "successful set app config values",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "new-item"},
-			},
-			currentState:  states.StateNew,
-			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-				)
-			},
-			expectedErr: false,
+			name:     "install",
+			scenario: "install",
+			createSM: s.CreateInstallStateMachine,
 		},
 		{
-			name: "successful set app config values from application configuration failed state",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "new-item"},
-			},
-			currentState:  states.StateApplicationConfigurationFailed,
-			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "successful set app config values from application configured state",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "new-item"},
-			},
-			currentState:  states.StateApplicationConfigured,
-			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "validation error",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "invalid-value"},
-			},
-			currentState:  states.StateNew,
-			expectedState: states.StateApplicationConfigurationFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
-				)
-			},
-			expectedErr: true,
-		},
-		{
-			name: "set config values error",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "new-item"},
-			},
-			currentState:  states.StateNew,
-			expectedState: states.StateApplicationConfigurationFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
-					acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(errors.New("set config error")),
-				)
-			},
-			expectedErr: true,
-		},
-		{
-			name: "invalid state transition",
-			values: types.AppConfigValues{
-				"test-item": types.AppConfigValue{Value: "new-item"},
-			},
-			currentState:  states.StateInfrastructureInstalling,
-			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(acm *appconfig.MockAppConfigManager) {
-			},
-			expectedErr: true,
+			name:     "upgrade",
+			scenario: "upgrade",
+			createSM: s.CreateUpgradeStateMachine,
 		},
 	}
 
-	for _, tt := range tests {
-		s.T().Run(tt.name, func(t *testing.T) {
-
-			appConfigManager := &appconfig.MockAppConfigManager{}
-			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
-			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			sm := s.CreateInstallStateMachine(tt.currentState)
-
-			controller, err := appcontroller.NewAppController(
-				appcontroller.WithStateMachine(sm),
-				appcontroller.WithAppConfigManager(appConfigManager),
-				appcontroller.WithAppPreflightManager(appPreflightManager),
-				appcontroller.WithAppReleaseManager(appReleaseManager),
-				appcontroller.WithAppInstallManager(appInstallManager),
-				appcontroller.WithStore(&store.MockStore{}),
-				appcontroller.WithReleaseData(&release.ReleaseData{}),
-			)
-			require.NoError(t, err, "failed to create install controller")
-
-			tt.setupMocks(appConfigManager)
-			err = controller.PatchAppConfigValues(t.Context(), tt.values)
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
+	for _, scenario := range scenarios {
+		s.T().Run(scenario.name, func(t *testing.T) {
+			tests := []struct {
+				name          string
+				values        types.AppConfigValues
+				currentState  statemachine.State
+				expectedState statemachine.State
+				setupMocks    func(*appconfig.MockAppConfigManager)
+				expectedErr   bool
+			}{
+				{
+					name: "successful set app config values",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "new-item"},
+					},
+					currentState:  states.StateNew,
+					expectedState: states.StateApplicationConfigured,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+						mock.InOrder(
+							acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+							acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+						)
+					},
+					expectedErr: false,
+				},
+				{
+					name: "successful set app config values from application configuration failed state",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "new-item"},
+					},
+					currentState:  states.StateApplicationConfigurationFailed,
+					expectedState: states.StateApplicationConfigured,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+						mock.InOrder(
+							acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+							acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+						)
+					},
+					expectedErr: false,
+				},
+				{
+					name: "successful set app config values from application configured state",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "new-item"},
+					},
+					currentState:  states.StateApplicationConfigured,
+					expectedState: states.StateApplicationConfigured,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+						mock.InOrder(
+							acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+							acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+						)
+					},
+					expectedErr: false,
+				},
+				{
+					name: "validation error",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "invalid-value"},
+					},
+					currentState:  states.StateNew,
+					expectedState: states.StateApplicationConfigurationFailed,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+						mock.InOrder(
+							acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "invalid-value"}}).Return(errors.New("validation error")),
+						)
+					},
+					expectedErr: true,
+				},
+				{
+					name: "set config values error",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "new-item"},
+					},
+					currentState:  states.StateNew,
+					expectedState: states.StateApplicationConfigurationFailed,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+						mock.InOrder(
+							acm.On("ValidateConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(nil),
+							acm.On("PatchConfigValues", types.AppConfigValues{"test-item": types.AppConfigValue{Value: "new-item"}}).Return(errors.New("set config error")),
+						)
+					},
+					expectedErr: true,
+				},
+				{
+					name: "invalid state transition",
+					values: types.AppConfigValues{
+						"test-item": types.AppConfigValue{Value: "new-item"},
+					},
+					currentState:  states.StateInfrastructureInstalling,
+					expectedState: states.StateInfrastructureInstalling,
+					setupMocks: func(acm *appconfig.MockAppConfigManager) {
+					},
+					expectedErr: true,
+				},
 			}
 
-			// Wait for the goroutine to complete and state to transition
-			assert.Eventually(t, func() bool {
-				return sm.CurrentState() == tt.expectedState
-			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
 
-			assert.Eventually(t, func() bool {
-				return !sm.IsLockAcquired()
-			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+					appConfigManager := &appconfig.MockAppConfigManager{}
+					appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
+					appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+					appInstallManager := &appinstallmanager.MockAppInstallManager{}
+					sm := scenario.createSM(tt.currentState)
 
-			appConfigManager.AssertExpectations(s.T())
+					controller, err := appcontroller.NewAppController(
+						appcontroller.WithStateMachine(sm),
+						appcontroller.WithAppConfigManager(appConfigManager),
+						appcontroller.WithAppPreflightManager(appPreflightManager),
+						appcontroller.WithAppReleaseManager(appReleaseManager),
+						appcontroller.WithAppInstallManager(appInstallManager),
+						appcontroller.WithStore(&store.MockStore{}),
+						appcontroller.WithReleaseData(&release.ReleaseData{}),
+					)
+					require.NoError(t, err, "failed to create app controller")
 
+					tt.setupMocks(appConfigManager)
+					err = controller.PatchAppConfigValues(t.Context(), tt.values)
+
+					if tt.expectedErr {
+						assert.Error(t, err)
+					} else {
+						assert.NoError(t, err)
+					}
+
+					// Wait for the goroutine to complete and state to transition
+					assert.Eventually(t, func() bool {
+						return sm.CurrentState() == tt.expectedState
+					}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+					assert.Eventually(t, func() bool {
+						return !sm.IsLockAcquired()
+					}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+					appConfigManager.AssertExpectations(t)
+
+				})
+			}
 		})
 	}
 }
@@ -713,8 +733,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
-			currentState:  upgradeStates.StateSucceeded,
-			expectedState: upgradeStates.StateSucceeded,
+			currentState:  states.StateSucceeded,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
@@ -722,8 +742,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "invalid state transition from app upgrading state",
-			currentState:  upgradeStates.StateAppUpgrading,
-			expectedState: upgradeStates.StateAppUpgrading,
+			currentState:  states.StateAppUpgrading,
+			expectedState: states.StateAppUpgrading,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
@@ -731,17 +751,17 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "invalid state transition from app upgrade failed state",
-			currentState:  upgradeStates.StateAppUpgradeFailed,
-			expectedState: upgradeStates.StateAppUpgradeFailed,
+			currentState:  states.StateAppUpgradeFailed,
+			expectedState: states.StateAppUpgradeFailed,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
 		},
 		{
-			name:          "successful app upgrade from new state",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateSucceeded,
+			name:          "successful app upgrade from application configured state",
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
@@ -760,8 +780,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "get config values error",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateNew,
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateApplicationConfigured,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
@@ -769,8 +789,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "app upgrade manager error",
-			currentState:  upgradeStates.StateNew,
-			expectedState: upgradeStates.StateAppUpgradeFailed,
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateAppUpgradeFailed,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
@@ -872,7 +892,7 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
-			sm := s.CreateUpgradeStateMachine(upgradeStates.StateNew)
+			sm := s.CreateUpgradeStateMachine(states.StateNew)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),

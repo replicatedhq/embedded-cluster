@@ -1,4 +1,4 @@
-package linux
+package install
 
 import (
 	"net/http"
@@ -7,7 +7,59 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/sirupsen/logrus"
 )
+
+type Handler struct {
+	cfg             types.APIConfig
+	controller      install.Controller
+	appController   *appcontroller.AppController
+	logger          logrus.FieldLogger
+	hostUtils       interface{}
+	metricsReporter interface{}
+}
+
+type Option func(*Handler)
+
+func WithController(controller install.Controller) Option {
+	return func(h *Handler) {
+		h.controller = controller
+	}
+}
+
+func WithAppController(appController *appcontroller.AppController) Option {
+	return func(h *Handler) {
+		h.appController = appController
+	}
+}
+
+func WithLogger(logger logrus.FieldLogger) Option {
+	return func(h *Handler) {
+		h.logger = logger
+	}
+}
+
+func WithHostUtils(hostUtils interface{}) Option {
+	return func(h *Handler) {
+		h.hostUtils = hostUtils
+	}
+}
+
+func WithMetricsReporter(metricsReporter interface{}) Option {
+	return func(h *Handler) {
+		h.metricsReporter = metricsReporter
+	}
+}
+
+func New(cfg types.APIConfig, opts ...Option) *Handler {
+	h := &Handler{
+		cfg: cfg,
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
 
 // GetInstallationConfig handler to get the installation config
 //
@@ -20,7 +72,7 @@ import (
 //	@Success		200	{object}	types.LinuxInstallationConfigResponse
 //	@Router			/linux/install/installation/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
-	config, err := h.installController.GetInstallationConfig(r.Context())
+	config, err := h.controller.GetInstallationConfig(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get installation config")
 		utils.JSONError(w, r, err, h.logger)
@@ -49,7 +101,7 @@ func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.installController.ConfigureInstallation(r.Context(), config); err != nil {
+	if err := h.controller.ConfigureInstallation(r.Context(), config); err != nil {
 		utils.LogError(r, err, h.logger, "failed to set installation config")
 		utils.JSONError(w, r, err, h.logger)
 		return
@@ -69,7 +121,7 @@ func (h *Handler) PostConfigureInstallation(w http.ResponseWriter, r *http.Reque
 //	@Success		200	{object}	types.Status
 //	@Router			/linux/install/installation/status [get]
 func (h *Handler) GetInstallationStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.installController.GetInstallationStatus(r.Context())
+	status, err := h.controller.GetInstallationStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get installation status")
 		utils.JSONError(w, r, err, h.logger)
@@ -97,7 +149,7 @@ func (h *Handler) PostRunHostPreflights(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err := h.installController.RunHostPreflights(r.Context(), install.RunHostPreflightsOptions{
+	err := h.controller.RunHostPreflights(r.Context(), install.RunHostPreflightsOptions{
 		IsUI: req.IsUI,
 	})
 	if err != nil {
@@ -120,21 +172,21 @@ func (h *Handler) PostRunHostPreflights(w http.ResponseWriter, r *http.Request) 
 //	@Success		200	{object}	types.InstallHostPreflightsStatusResponse
 //	@Router			/linux/install/host-preflights/status [get]
 func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request) {
-	titles, err := h.installController.GetHostPreflightTitles(r.Context())
+	titles, err := h.controller.GetHostPreflightTitles(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install host preflight titles")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	output, err := h.installController.GetHostPreflightOutput(r.Context())
+	output, err := h.controller.GetHostPreflightOutput(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install host preflight output")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	status, err := h.installController.GetHostPreflightStatus(r.Context())
+	status, err := h.controller.GetHostPreflightStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install host preflight status")
 		utils.JSONError(w, r, err, h.logger)
@@ -163,14 +215,14 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	registrySettings, err := h.installController.CalculateRegistrySettings(r.Context())
+	registrySettings, err := h.controller.CalculateRegistrySettings(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	err = h.installController.RunAppPreflights(r.Context(), appcontroller.RunAppPreflightOptions{
+	err = h.controller.RunAppPreflights(r.Context(), appcontroller.RunAppPreflightOptions{
 		PreflightBinaryPath: h.cfg.RuntimeConfig.PathToEmbeddedClusterBinary("kubectl-preflight"),
 		ProxySpec:           h.cfg.RuntimeConfig.ProxySpec(),
 		RegistrySettings:    registrySettings,
@@ -197,21 +249,21 @@ func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app-preflights/status [get]
 func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
-	titles, err := h.installController.GetAppPreflightTitles(r.Context())
+	titles, err := h.controller.GetAppPreflightTitles(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install app preflight titles")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	output, err := h.installController.GetAppPreflightOutput(r.Context())
+	output, err := h.controller.GetAppPreflightOutput(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install app preflight output")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	status, err := h.installController.GetAppPreflightStatus(r.Context())
+	status, err := h.controller.GetAppPreflightStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install app preflight status")
 		utils.JSONError(w, r, err, h.logger)
@@ -252,7 +304,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.installController.SetupInfra(r.Context(), req.IgnoreHostPreflights)
+	err := h.controller.SetupInfra(r.Context(), req.IgnoreHostPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to setup infra")
 		utils.JSONError(w, r, err, h.logger)
@@ -273,7 +325,7 @@ func (h *Handler) PostSetupInfra(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	types.Infra
 //	@Router			/linux/install/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
-	infra, err := h.installController.GetInfra(r.Context())
+	infra, err := h.controller.GetInfra(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get install infra status")
 		utils.JSONError(w, r, err, h.logger)
@@ -302,7 +354,7 @@ func (h *Handler) PostTemplateAppConfig(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	appConfig, err := h.installController.TemplateAppConfig(r.Context(), req.Values, true)
+	appConfig, err := h.controller.TemplateAppConfig(r.Context(), req.Values, true)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to template app config")
 		utils.JSONError(w, r, err, h.logger)
@@ -331,7 +383,7 @@ func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.installController.PatchAppConfigValues(r.Context(), req.Values)
+	err := h.controller.PatchAppConfigValues(r.Context(), req.Values)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to set app config values")
 		utils.JSONError(w, r, err, h.logger)
@@ -353,7 +405,7 @@ func (h *Handler) PatchAppConfigValues(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app/config/values [get]
 func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
-	values, err := h.installController.GetAppConfigValues(r.Context())
+	values, err := h.controller.GetAppConfigValues(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app config values")
 		utils.JSONError(w, r, err, h.logger)
@@ -386,7 +438,7 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.installController.InstallApp(r.Context(), req.IgnoreAppPreflights)
+	err := h.controller.InstallApp(r.Context(), req.IgnoreAppPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)
@@ -408,7 +460,7 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/install/app/status [get]
 func (h *Handler) GetAppInstallStatus(w http.ResponseWriter, r *http.Request) {
-	appInstall, err := h.installController.GetAppInstallStatus(r.Context())
+	appInstall, err := h.controller.GetAppInstallStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get app install status")
 		utils.JSONError(w, r, err, h.logger)

@@ -744,6 +744,85 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /kubernetes/upgrade/app/config/template:
+    post:
+      description: Template the app configuration with values for upgrade
+      operationId: postKubernetesUpgradeAppConfigTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template app config for upgrade
+      tags:
+      - kubernetes-upgrade
+  /kubernetes/upgrade/app/config/values:
+    get:
+      description: Get the current app config values for upgrade
+      operationId: getKubernetesUpgradeAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values for upgrade
+      tags:
+      - kubernetes-upgrade
+    patch:
+      description: Set the app config values with partial updates for upgrade
+      operationId: patchKubernetesUpgradeAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Set the app config values for upgrade
+      tags:
+      - kubernetes-upgrade
   /kubernetes/upgrade/app/status:
     get:
       description: Get the current status of app upgrade
@@ -1112,6 +1191,85 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - linux-install
+  /linux/upgrade/app/config/template:
+    post:
+      description: Template the app configuration with values for upgrade
+      operationId: postLinuxUpgradeAppConfigTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+        description: Template App Config Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfig'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Template app config for upgrade
+      tags:
+      - linux-upgrade
+  /linux/upgrade/app/config/values:
+    get:
+      description: Get the current app config values for upgrade
+      operationId: getLinuxUpgradeAppConfigValues
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the app config values for upgrade
+      tags:
+      - linux-upgrade
+    patch:
+      description: Set the app config values with partial updates for upgrade
+      operationId: patchLinuxUpgradeAppConfigValues
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+        description: Patch App Config Values Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.AppConfigValuesResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Set the app config values for upgrade
+      tags:
+      - linux-upgrade
   /linux/upgrade/app/status:
     get:
       description: Get the current status of app upgrade

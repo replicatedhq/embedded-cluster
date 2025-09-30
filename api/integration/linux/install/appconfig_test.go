@@ -12,7 +12,7 @@ import (
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -96,7 +96,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err := c.PatchLinuxAppConfigValues(configValues)
+		_, err := c.PatchLinuxInstallAppConfigValues(configValues)
 		require.Error(t, err, "PatchLinuxAppConfigValues should fail with missing required item")
 
 		// Check that the error is of correct type
@@ -145,7 +145,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		_, err = completedClient.PatchLinuxAppConfigValues(configValues)
+		_, err = completedClient.PatchLinuxInstallAppConfigValues(configValues)
 		require.Error(t, err, "PatchLinuxAppConfigValues should fail with invalid state transition")
 
 		// Check that the error is of correct type
@@ -165,7 +165,7 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		}
 
 		// Set the app config values using the client
-		config, err := c.PatchLinuxAppConfigValues(configValues)
+		config, err := c.PatchLinuxInstallAppConfigValues(configValues)
 		require.NoError(t, err, "PatchLinuxAppConfigValues should succeed")
 
 		// Verify the app config values are returned from the store
@@ -244,7 +244,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 	// Test GetLinuxAppConfigValues
 	t.Run("GetLinuxAppConfigValues", func(t *testing.T) {
 		// Get the app config values using the client
-		values, err := c.GetLinuxAppConfigValues()
+		values, err := c.GetLinuxInstallAppConfigValues()
 		require.NoError(t, err, "GetLinuxAppConfigValues should succeed")
 
 		// Verify the app config values are returned from the store
@@ -257,7 +257,7 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 		invalidClient := apiclient.New(server.URL, apiclient.WithToken("INVALID_TOKEN"))
 
 		// Get the app config values using the client
-		_, err := invalidClient.GetLinuxAppConfigValues()
+		_, err := invalidClient.GetLinuxInstallAppConfigValues()
 		require.Error(t, err, "GetLinuxAppConfigValues should fail with invalid token")
 
 		// Check that the error is of correct type

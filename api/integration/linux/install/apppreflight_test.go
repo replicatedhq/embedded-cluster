@@ -14,7 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
-	states "github.com/replicatedhq/embedded-cluster/api/internal/states/install"
+	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	apppreflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
