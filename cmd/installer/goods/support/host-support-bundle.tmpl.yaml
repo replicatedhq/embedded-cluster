@@ -734,7 +734,7 @@ spec:
             message: "No antivirus or network security tools detected."
         - fail:
             message: |-
-              The following antivirus or network security tool(s) was detected:
+              The following antivirus or network security tools were detected:
               {{ "{{" }} .Detected {{ "}}" }}
 
               These types of tools have been known to interfere with Kubernetes operation in various ways. If an installation problem persists, you may need to disable these tools temporarily as part of the troubleshooting process to identify if any system administrator exceptions may be required to maintain necessary internal Kubernetes operations.
