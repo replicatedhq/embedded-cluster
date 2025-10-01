@@ -144,6 +144,45 @@ This step creates a release that is intended to be used for upgrades.
 It creates a release of the application using the manifests located in the `e2e/kots-release-upgrade` directory.
 The release will show up in the KOTS admin console as an available update.
 
+### Creating v3 releases
+
+Embedded Cluster supports v3 releases which provide an enhanced manager UI experience for installations and upgrades. V3 releases are enabled by setting the `ENABLE_V3` environment variable.
+
+#### Creating a v3 initial release
+
+To create a v3 initial release, run the following command:
+```bash
+make initial-release ENABLE_V3=1
+```
+
+This creates a release using the manifests located in the `e2e/kots-release-install-v3` directory.
+
+#### Creating a v3 upgrade release
+
+Not yet implemented. Can use the same command for creating a v3 initial release for now.
+
+#### Installing a v3 release
+
+When using v3 releases, the install and upgrade commands are different from the standard commands:
+
+**Install command:**
+```bash
+ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license <license-file> --target linux
+```
+
+**Upgrade command:**
+```bash
+ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license <license-file> --target linux
+```
+
+**Required environment variables:**
+- `ENABLE_V3=1` - **Required** to enable v3 functionality and manager UI experience
+- `EC_DEV_ENV=true` - **Optional** for development mode, enables dynamic asset loading from `./web/dist` instead of embedded assets. This allows you to test web UI changes by simply running `npm run build` in the `web/` directory and refreshing the browser, without needing to rebuild the entire embedded-cluster binary or building a new release.
+
+**Required flags:**
+- `--target` - **Required** to specify the target platform. Valid options are `linux` or `kubernetes`
+- `--license` - **Required** path to the license file
+
 ### Creating additional nodes
 
 To create additional nodes, run the following command:
