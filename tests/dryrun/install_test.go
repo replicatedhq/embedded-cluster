@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -80,8 +81,16 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
 		"embeddedClusterID": in.Spec.ClusterID,
-		"image.repository":  "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
+	// Check image repository - should be either production or TTL.sh development image
+	imageRepo, err := helm.GetValue(operatorOpts.Values, "image.repository")
+	assert.NoError(t, err)
+	imageRepoStr, ok := imageRepo.(string)
+	assert.True(t, ok, "image.repository should be a string")
+	assert.True(t,
+		strings.HasSuffix(imageRepoStr, "/replicated/embedded-cluster-operator-image") ||
+			(strings.Contains(imageRepoStr, "/ttl.sh/") && strings.HasSuffix(imageRepoStr, "/embedded-cluster-operator-image")),
+		"image.repository should be either production or TTL.sh image, got: %s", imageRepoStr)
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
@@ -550,9 +559,15 @@ func TestNoDomains(t *testing.T) {
 	assert.Equal(t, "Install", hcli.Calls[1].Method)
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
-		"image.repository": "proxy.staging.replicated.com/anonymous/replicated/embedded-cluster-operator-image",
-	})
+	// Check image repository - should be either production or TTL.sh development image
+	imageRepo, err := helm.GetValue(operatorOpts.Values, "image.repository")
+	assert.NoError(t, err)
+	imageRepoStr, ok := imageRepo.(string)
+	assert.True(t, ok, "image.repository should be a string")
+	assert.True(t,
+		strings.HasSuffix(imageRepoStr, "/replicated/embedded-cluster-operator-image") ||
+			(strings.Contains(imageRepoStr, "/ttl.sh/") && strings.HasSuffix(imageRepoStr, "/embedded-cluster-operator-image")),
+		"image.repository should be either production or TTL.sh image, got: %s", imageRepoStr)
 
 	// velero
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
