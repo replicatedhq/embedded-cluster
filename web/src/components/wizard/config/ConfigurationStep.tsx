@@ -55,7 +55,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     try {
       setGeneralError(null); // Clear any existing errors
 
-      const response = await debouncedFetch(`/api/${target}/install/app/config/template`, {
+      const apiBase = getApiBase(target, mode);
+      const response = await debouncedFetch(`${apiBase}/app/config/template`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +84,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     } catch (error) {
       setGeneralError(error instanceof Error ? error.message : String(error));
     }
-  }, [target, token, debouncedFetch]);
+  }, [target, mode, token, debouncedFetch]);
 
   // Fetch initial config on mount
   useEffect(() => {
@@ -155,6 +156,37 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     return itemErrors;
   };
 
+  // Mutation to trigger upgrade after config is saved (upgrade mode only)
+  // TODO: remove this mutation and trigger preflights instead when iteration 3 is implemented
+  const { mutate: startAppUpgrade } = useMutation<void, Error>({
+    mutationFn: async () => {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/app/${mode}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ ignoreAppPreflights: false }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          handleUnauthorized(errorData);
+          throw new Error('Session expired. Please log in again.');
+        }
+        throw new Error(errorData.message || 'Failed to start upgrade');
+      }
+    },
+    onSuccess: () => {
+      onNext();
+    },
+    onError: (error: Error) => {
+      setGeneralError(error?.message || 'Failed to start upgrade');
+    },
+  });
+
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
     mutationFn: async () => {
@@ -184,13 +216,20 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setGeneralError(null);
       setItemErrors({}); // Clear item errors
       setChangedValues({}); // Clear changed values after successful submission
-      onNext();
+
+      // Iteration 2: For upgrade mode, trigger the upgrade after config is saved (no preflights yet)
+      if (mode === 'upgrade') {
+        startAppUpgrade();
+      } else {
+        // For install mode, just proceed to next step
+        onNext();
+      }
     },
     onError: (error: ConfigError) => {
       const parsedItemErrors = parseServerErrors(error);
       setItemErrors(parsedItemErrors);
       setGeneralError(error?.message || 'Failed to save configuration');
-      
+
       // Focus on the first item with validation error
       const firstErrorItem = findFirstItemWithError(parsedItemErrors);
       if (firstErrorItem) {
@@ -510,7 +549,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
       <div className="flex justify-end">
         <Button onClick={submitConfigValues} icon={<ChevronRight className="w-5 h-5" />} dataTestId="config-next-button">
-          Next: Setup
+          {/* Iteration 2: update this text when iteration 3 is implemented */}
+          {mode === "upgrade" ? "Next: Upgrade" : "Next: Setup"}
         </Button>
       </div>
     </div>

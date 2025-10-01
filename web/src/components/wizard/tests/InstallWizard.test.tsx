@@ -73,6 +73,21 @@ const createServer = (target: string) => setupServer(
     return HttpResponse.json(body);
   }),
 
+  // Mock upgrade template app config endpoint
+  http.post(`*/api/${target}/upgrade/app/config/template`, async ({ request }) => {
+    const body = await request.json() as { values: AppConfigValues };
+    const mergedValues = { ...savedConfigValues, ...body.values };
+    const templatedConfig = createMockConfigWithValues(mergedValues);
+    return HttpResponse.json(templatedConfig);
+  }),
+
+  // Mock upgrade config values submission endpoint
+  http.patch(`*/api/${target}/upgrade/app/config/values`, async ({ request }) => {
+    const body = await request.json() as { values: AppConfigValues };
+    savedConfigValues = body.values;
+    return HttpResponse.json(body);
+  }),
+
   // Mock installation config endpoint
   http.get(`*/api/${target}/install/installation/config`, () => {
     return HttpResponse.json({
@@ -248,7 +263,7 @@ describe.each([
     expect(enableFeatureCheckboxAfterBack).toBeChecked();
   });
 
-  it("filters configuration step for upgrade mode", async () => {
+  it("includes configuration step in upgrade mode", async () => {
     renderWithProviders(<InstallWizard />, {
       wrapperProps: {
         authenticated: true,
@@ -257,22 +272,13 @@ describe.each([
       },
     });
 
-    // In upgrade mode, should start at welcome step
-    await waitFor(() => {
-      expect(screen.getByText("Welcome")).toBeInTheDocument();
-    });
+    // Wait for configuration step to load
+    await waitForForm();
 
-    // Click next to go from welcome directly to installation (skipping configuration and setup)
-    const welcomeNextButton = screen.getByRole("button", { name: /next|get started|start/i });
-    fireEvent.click(welcomeNextButton);
+    // Should show configuration step
+    expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
 
-    // Should go directly to installation step, not configuration or setup
-    await waitFor(() => {
-      expect(screen.getByTestId("app-preflight-container")).toBeInTheDocument();
-    });
-
-    // Configuration and setup steps should not be accessible in upgrade mode
-    expect(screen.queryByTestId("configuration-step")).not.toBeInTheDocument();
+    // Setup step should not be accessible in upgrade mode
     expect(screen.queryByTestId(`${target}-setup`)).not.toBeInTheDocument();
   });
 

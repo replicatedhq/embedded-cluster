@@ -7,7 +7,6 @@ import { State } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import InstallationTimeline, { InstallationPhaseId as InstallationPhase, PhaseStatus } from './InstallationTimeline';
 import AppInstallationPhase from './phases/AppInstallationPhase';
-import UpgradeConfirmationPhase from './phases/UpgradeConfirmationPhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
 
 interface InstallationStepProps {
@@ -21,7 +20,8 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   const themeColor = settings.themeColor;
 
   const getPhaseOrder = (): InstallationPhase[] => {
-    return ["app-preflight", "app-installation"];
+    // Iteration 2: Only app installation phase, skip preflights
+    return ["app-installation"];
   };
 
   const phaseOrder = getPhaseOrder();
@@ -125,9 +125,8 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
       onStateChange: handleStateChange(phase)
     };
 
+    // TODO: add unit tests similar to tests/InstallationStep.test.tsx when there is more than one phase
     switch (phase) {
-      case 'app-preflight':
-        return <UpgradeConfirmationPhase {...commonProps} />
       case 'app-installation':
         return <AppInstallationPhase {...commonProps} />;
       default:
