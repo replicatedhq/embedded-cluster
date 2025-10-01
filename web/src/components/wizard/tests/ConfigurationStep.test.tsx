@@ -121,7 +121,7 @@ const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
   return config;
 };
 
-const createServer = (target: string, mode: 'install' | 'upgrade' = 'install', options?: { onUpgrade?: () => void }) => setupServer(
+const createServer = (target: string, mode: 'install' | 'upgrade' = 'install') => setupServer(
   // Mock template app config endpoint
   http.post(`*/api/${target}/${mode}/app/config/template`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
@@ -134,14 +134,6 @@ const createServer = (target: string, mode: 'install' | 'upgrade' = 'install', o
   http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
     const body = await request.json() as { values: AppConfigValues };
     return HttpResponse.json(body);
-  }),
-
-  // Mock upgrade endpoint (only called in upgrade mode)
-  http.post(`*/api/${target}/upgrade/app/upgrade`, async ({ request }) => {
-    const body = await request.json() as { ignoreAppPreflights: boolean };
-    expect(body.ignoreAppPreflights).toBe(false);
-    options?.onUpgrade?.();
-    return HttpResponse.json({});
   })
 );
 
@@ -167,18 +159,14 @@ describe.each([
 ])("ConfigurationStep - $displayName", ({ target, mode }) => {
   const mockOnNext = vi.fn();
   let server: ReturnType<typeof createServer>;
-  let upgradeTriggered = false;
 
   beforeAll(() => {
-    server = createServer(target, mode, {
-      onUpgrade: () => { upgradeTriggered = true; }
-    });
+    server = createServer(target, mode);
     server.listen();
   });
 
   beforeEach(() => {
     // No need to set localStorage token anymore as it's handled by the test setup
-    upgradeTriggered = false;
   });
 
   afterEach(() => {
@@ -2416,33 +2404,5 @@ describe.each([
       // Verify onNext was not called due to validation error
       expect(mockOnNext).not.toHaveBeenCalled();
     });
-  });
-
-  // Iteration 2: Test upgrade trigger only in upgrade mode
-  // TODO: remove this skip if when iteration 3 is implemented
-  it.skipIf(mode === "install")("triggers upgrade after successful config submission", async () => {
-    renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
-      wrapperProps: {
-        authenticated: true,
-        target: target,
-        mode: mode,
-      },
-    });
-
-    // Wait for config to load
-    await waitForForm();
-
-    // Submit form
-    const nextButton = screen.getByTestId("config-next-button");
-    fireEvent.click(nextButton);
-
-    // Wait for the upgrade to be triggered and onNext to be called
-    await waitFor(
-      () => {
-        expect(upgradeTriggered).toBe(true);
-        expect(mockOnNext).toHaveBeenCalled();
-      },
-      { timeout: 3000 }
-    );
   });
 });
