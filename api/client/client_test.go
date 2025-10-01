@@ -1396,3 +1396,423 @@ func TestClient_AppInstallWithoutToken(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
 	})
 }
+
+func TestLinuxGetInstallationStatus(t *testing.T) {
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/install/installation/status", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.Status{
+			State:       types.StateSucceeded,
+			Description: "Installation successful",
+		})
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	status, err := c.GetLinuxInstallationStatus()
+	assert.NoError(t, err)
+	assert.Equal(t, types.StateSucceeded, status.State)
+	assert.Equal(t, "Installation successful", status.Description)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	status, err = c.GetLinuxInstallationStatus()
+	assert.Error(t, err)
+	assert.Equal(t, types.Status{}, status)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestLinuxGetUpgradeAppConfigValues(t *testing.T) {
+	// Define expected values once
+	expectedValues := types.AppConfigValues{
+		"upgrade-key1": types.AppConfigValue{Value: "upgrade-value1"},
+		"upgrade-key2": types.AppConfigValue{Value: "upgrade-value2"},
+		"upgrade-key3": types.AppConfigValue{Value: "upgrade-value3"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/upgrade/app/config/values", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		response := types.AppConfigValuesResponse{Values: expectedValues}
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	values, err := c.GetLinuxUpgradeAppConfigValues()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, values)
+
+	// Test authentication (without token)
+	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/linux/upgrade/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+
+		// Return unauthorized response
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Unauthorized",
+		})
+	}))
+	defer authServer.Close()
+
+	c = New(authServer.URL)
+	values, err = c.GetLinuxUpgradeAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+	assert.Equal(t, "Unauthorized", apiErr.Message)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	values, err = c.GetLinuxUpgradeAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok = err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestLinuxPatchUpgradeAppConfigValues(t *testing.T) {
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"upgrade-item":  types.AppConfigValue{Value: "new-upgrade-value"},
+		"required-item": types.AppConfigValue{Value: "required-upgrade-value"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "/api/linux/upgrade/app/config/values", r.URL.Path)
+
+		// Check headers
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Decode request body
+		var req types.PatchAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
+		assert.Equal(t, "new-upgrade-value", req.Values["upgrade-item"].Value)
+		assert.Equal(t, "required-upgrade-value", req.Values["required-item"].Value)
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
+	}))
+	defer server.Close()
+
+	// Test successful patch
+	c := New(server.URL, WithToken("test-token"))
+	configValues := types.AppConfigValues{
+		"upgrade-item":  types.AppConfigValue{Value: "new-upgrade-value"},
+		"required-item": types.AppConfigValue{Value: "required-upgrade-value"},
+	}
+	config, err := c.PatchLinuxUpgradeAppConfigValues(configValues)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues, config)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValues, err = c.PatchLinuxUpgradeAppConfigValues(configValues)
+	assert.Error(t, err)
+	assert.Equal(t, types.AppConfigValues{}, configValues)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
+}
+
+func TestLinuxTemplateUpgradeAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/linux/upgrade/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "upgrade-settings",
+					Title: "UPGRADE CONFIGURATION",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "upgrade_mode",
+							Title:   "Mode: automatic",
+							Type:    "text",
+							Default: multitype.FromString("automatic"),
+							Value:   multitype.FromString("automatic"),
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"upgrade_mode": types.AppConfigValue{Value: "automatic"},
+	}
+
+	config, err := c.TemplateLinuxUpgradeAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "upgrade-settings", config.Groups[0].Name)
+	assert.Equal(t, "UPGRADE CONFIGURATION", config.Groups[0].Title)
+	assert.Equal(t, "Mode: automatic", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "automatic", config.Groups[0].Items[0].Value.StrVal)
+}
+
+func TestKubernetesGetUpgradeAppConfigValues(t *testing.T) {
+	// Define expected values once
+	expectedValues := types.AppConfigValues{
+		"k8s-upgrade-key1": types.AppConfigValue{Value: "k8s-upgrade-value1"},
+		"k8s-upgrade-key2": types.AppConfigValue{Value: "k8s-upgrade-value2"},
+		"k8s-upgrade-key3": types.AppConfigValue{Value: "k8s-upgrade-value3"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/upgrade/app/config/values", r.URL.Path)
+
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		response := types.AppConfigValuesResponse{Values: expectedValues}
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	// Test successful get
+	c := New(server.URL, WithToken("test-token"))
+	values, err := c.GetKubernetesUpgradeAppConfigValues()
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, values)
+
+	// Test authentication (without token)
+	authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/api/kubernetes/upgrade/app/config/values", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Empty(t, r.Header.Get("Authorization"))
+
+		// Return unauthorized response
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusUnauthorized,
+			Message:    "Unauthorized",
+		})
+	}))
+	defer authServer.Close()
+
+	c = New(authServer.URL)
+	values, err = c.GetKubernetesUpgradeAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode)
+	assert.Equal(t, "Unauthorized", apiErr.Message)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusInternalServerError,
+			Message:    "Internal Server Error",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	values, err = c.GetKubernetesUpgradeAppConfigValues()
+	assert.Error(t, err)
+	assert.Nil(t, values)
+
+	apiErr, ok = err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusInternalServerError, apiErr.StatusCode)
+	assert.Equal(t, "Internal Server Error", apiErr.Message)
+}
+
+func TestKubernetesPatchUpgradeAppConfigValues(t *testing.T) {
+	// Define expected config values once
+	expectedValues := types.AppConfigValues{
+		"k8s-upgrade-item": types.AppConfigValue{Value: "new-k8s-upgrade-value"},
+		"required-item":    types.AppConfigValue{Value: "required-k8s-upgrade-value"},
+	}
+
+	// Create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check request method and path
+		assert.Equal(t, "PATCH", r.Method)
+		assert.Equal(t, "/api/kubernetes/upgrade/app/config/values", r.URL.Path)
+
+		// Check headers
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		// Decode request body
+		var req types.PatchAppConfigValuesRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err, "Failed to decode request body")
+
+		// Verify the request contains expected values
+		assert.Equal(t, "new-k8s-upgrade-value", req.Values["k8s-upgrade-item"].Value)
+		assert.Equal(t, "required-k8s-upgrade-value", req.Values["required-item"].Value)
+
+		// Return successful response
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(types.AppConfigValuesResponse{Values: expectedValues})
+	}))
+	defer server.Close()
+
+	// Test successful patch
+	c := New(server.URL, WithToken("test-token"))
+	configValues := types.AppConfigValues{
+		"k8s-upgrade-item": types.AppConfigValue{Value: "new-k8s-upgrade-value"},
+		"required-item":    types.AppConfigValue{Value: "required-k8s-upgrade-value"},
+	}
+	configValuesResponse, err := c.PatchKubernetesUpgradeAppConfigValues(configValues)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedValues, configValuesResponse)
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(types.APIError{
+			StatusCode: http.StatusBadRequest,
+			Message:    "Bad Request",
+		})
+	}))
+	defer errorServer.Close()
+
+	c = New(errorServer.URL, WithToken("test-token"))
+	configValuesResponse, err = c.PatchKubernetesUpgradeAppConfigValues(configValues)
+	assert.Error(t, err)
+	assert.Equal(t, types.AppConfigValues{}, configValuesResponse)
+
+	apiErr, ok := err.(*types.APIError)
+	require.True(t, ok, "Expected err to be of type *types.APIError")
+	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
+	assert.Equal(t, "Bad Request", apiErr.Message)
+}
+
+func TestKubernetesTemplateUpgradeAppConfig(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/api/kubernetes/upgrade/app/config/template", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+
+		var req types.TemplateAppConfigRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		// Mock server returns templated results (as if processed by the template engine)
+		config := types.AppConfig{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "k8s-upgrade-settings",
+					Title: "Kubernetes Upgrade Settings",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "k8s_upgrade_strategy",
+							Title:   "UPGRADE STRATEGY",
+							Type:    "text",
+							Default: multitype.FromString("rolling"),
+							Value:   multitype.FromString("rolling"),
+						},
+					},
+				},
+			},
+		}
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(config)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, WithToken("test-token"))
+	values := types.AppConfigValues{
+		"k8s_upgrade_strategy": types.AppConfigValue{Value: "rolling"},
+	}
+
+	config, err := c.TemplateKubernetesUpgradeAppConfig(values)
+	require.NoError(t, err)
+	assert.Equal(t, "k8s-upgrade-settings", config.Groups[0].Name)
+	assert.Equal(t, "Kubernetes Upgrade Settings", config.Groups[0].Title)
+	assert.Equal(t, "UPGRADE STRATEGY", config.Groups[0].Items[0].Title)
+	assert.Equal(t, "rolling", config.Groups[0].Items[0].Value.StrVal)
+}
