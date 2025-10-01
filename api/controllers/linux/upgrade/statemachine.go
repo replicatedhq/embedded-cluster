@@ -11,7 +11,12 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateNew:                            {states.StateApplicationConfiguring},
 	states.StateApplicationConfiguring:         {states.StateApplicationConfigured, states.StateApplicationConfigurationFailed},
 	states.StateApplicationConfigurationFailed: {states.StateApplicationConfiguring},
-	states.StateApplicationConfigured:          {states.StateApplicationConfiguring, states.StateAppUpgrading},
+	states.StateApplicationConfigured:          {states.StateApplicationConfiguring, states.StateAppPreflightsRunning},
+	states.StateAppPreflightsRunning:           {states.StateAppPreflightsSucceeded, states.StateAppPreflightsFailed, states.StateAppPreflightsExecutionFailed},
+	states.StateAppPreflightsExecutionFailed:   {states.StateAppPreflightsRunning},
+	states.StateAppPreflightsSucceeded:         {states.StateAppPreflightsRunning, states.StateAppUpgrading},
+	states.StateAppPreflightsFailed:            {states.StateAppPreflightsRunning, states.StateAppPreflightsFailedBypassed},
+	states.StateAppPreflightsFailedBypassed:    {states.StateAppPreflightsRunning, states.StateAppUpgrading},
 	states.StateAppUpgrading:                   {states.StateSucceeded, states.StateAppUpgradeFailed},
 	// final states
 	states.StateSucceeded:        {},

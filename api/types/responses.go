@@ -17,6 +17,15 @@ type InstallAppPreflightsStatusResponse struct {
 	AllowIgnoreAppPreflights      bool              `json:"allowIgnoreAppPreflights"`
 }
 
+// UpgradeAppPreflightsStatusResponse represents the response when polling upgrade app preflights status
+type UpgradeAppPreflightsStatusResponse struct {
+	Titles                        []string          `json:"titles"`
+	Output                        *PreflightsOutput `json:"output,omitempty"`
+	Status                        Status            `json:"status"`
+	HasStrictAppPreflightFailures bool              `json:"hasStrictAppPreflightFailures"`
+	AllowIgnoreAppPreflights      bool              `json:"allowIgnoreAppPreflights"`
+}
+
 // GetListAvailableNetworkInterfacesResponse represents the response when listing available network interfaces
 type GetListAvailableNetworkInterfacesResponse struct {
 	NetworkInterfaces []string `json:"networkInterfaces"`

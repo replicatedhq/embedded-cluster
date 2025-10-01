@@ -759,8 +759,17 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			expectedErr: true,
 		},
 		{
-			name:          "successful app upgrade from application configured state",
+			name:          "invalid state transition from app configured state",
 			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateApplicationConfigured,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+				// No mocks needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+		{
+			name:          "successful app upgrade from app preflights succeeded state",
+			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(
@@ -780,8 +789,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "get config values error",
-			currentState:  states.StateApplicationConfigured,
-			expectedState: states.StateApplicationConfigured,
+			currentState:  states.StateAppPreflightsSucceeded,
+			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
@@ -789,7 +798,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		},
 		{
 			name:          "app upgrade manager error",
-			currentState:  states.StateApplicationConfigured,
+			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppUpgradeFailed,
 			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
 				mock.InOrder(

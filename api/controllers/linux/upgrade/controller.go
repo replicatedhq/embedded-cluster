@@ -6,16 +6,21 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
 type Controller interface {
+	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 	// App controller methods
 	appcontroller.Controller
 }
@@ -23,14 +28,17 @@ type Controller interface {
 var _ Controller = (*UpgradeController)(nil)
 
 type UpgradeController struct {
-	releaseData  *release.ReleaseData
-	license      []byte
-	airgapBundle string
-	configValues types.AppConfigValues
-	clusterID    string
-	store        store.Store
-	stateMachine statemachine.Interface
-	logger       logrus.FieldLogger
+	installationManager installation.InstallationManager
+	hostUtils           hostutils.HostUtilsInterface
+	netUtils            utils.NetUtils
+	releaseData         *release.ReleaseData
+	license             []byte
+	airgapBundle        string
+	configValues        types.AppConfigValues
+	clusterID           string
+	store               store.Store
+	stateMachine        statemachine.Interface
+	logger              logrus.FieldLogger
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -40,6 +48,18 @@ type UpgradeControllerOption func(*UpgradeController)
 func WithLogger(logger logrus.FieldLogger) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.logger = logger
+	}
+}
+
+func WithHostUtils(hostUtils hostutils.HostUtilsInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.hostUtils = hostUtils
+	}
+}
+
+func WithNetUtils(netUtils utils.NetUtils) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.netUtils = netUtils
 	}
 }
 
@@ -91,6 +111,12 @@ func WithStore(store store.Store) UpgradeControllerOption {
 	}
 }
 
+func WithInstallationManager(installationManager installation.InstallationManager) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.installationManager = installationManager
+	}
+}
+
 func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, error) {
 	controller := &UpgradeController{
 		store:  store.NewMemoryStore(),
@@ -107,6 +133,28 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
+	}
+
+	if controller.hostUtils == nil {
+		controller.hostUtils = hostutils.New(
+			hostutils.WithLogger(controller.logger),
+		)
+	}
+
+	if controller.netUtils == nil {
+		controller.netUtils = utils.NewNetUtils()
+	}
+
+	if controller.installationManager == nil {
+		controller.installationManager = installation.NewInstallationManager(
+			installation.WithLogger(controller.logger),
+			installation.WithInstallationStore(controller.store.LinuxInstallationStore()),
+			installation.WithLicense(controller.license),
+			installation.WithAirgapBundle(controller.airgapBundle),
+			installation.WithReleaseData(controller.releaseData),
+			installation.WithHostUtils(controller.hostUtils),
+			installation.WithNetUtils(controller.netUtils),
+		)
 	}
 
 	// Initialize the app controller with the state machine first
@@ -149,4 +197,9 @@ func (c *UpgradeController) UpgradeApp(ctx context.Context, ignoreAppPreflights 
 // GetAppUpgradeStatus delegates to the app controller
 func (c *UpgradeController) GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error) {
 	return c.AppController.GetAppUpgradeStatus(ctx)
+}
+
+// CalculateRegistrySettings calculates registry settings for airgap installations
+func (c *UpgradeController) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
+	return c.installationManager.CalculateRegistrySettings(ctx, rc)
 }
