@@ -61,6 +61,9 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	upgradeRouter.HandleFunc("/app/config/values", a.handlers.linux.Upgrade.GetAppConfigValues).Methods("GET")
 	upgradeRouter.HandleFunc("/app/config/values", a.handlers.linux.Upgrade.PatchAppConfigValues).Methods("PATCH")
 
+	upgradeRouter.HandleFunc("/app-preflights/run", a.handlers.linux.Upgrade.PostRunAppPreflights).Methods("POST")
+	upgradeRouter.HandleFunc("/app-preflights/status", a.handlers.linux.Upgrade.GetAppPreflightsStatus).Methods("GET")
+
 	upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.Upgrade.PostUpgradeApp).Methods("POST")
 	upgradeRouter.HandleFunc("/app/status", a.handlers.linux.Upgrade.GetAppUpgradeStatus).Methods("GET")
 }
@@ -90,6 +93,9 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 	upgradeRouter.HandleFunc("/app/config/template", a.handlers.kubernetes.Upgrade.PostTemplateAppConfig).Methods("POST")
 	upgradeRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.Upgrade.GetAppConfigValues).Methods("GET")
 	upgradeRouter.HandleFunc("/app/config/values", a.handlers.kubernetes.Upgrade.PatchAppConfigValues).Methods("PATCH")
+
+	upgradeRouter.HandleFunc("/app-preflights/run", a.handlers.kubernetes.Upgrade.PostRunAppPreflights).Methods("POST")
+	upgradeRouter.HandleFunc("/app-preflights/status", a.handlers.kubernetes.Upgrade.GetAppPreflightsStatus).Methods("GET")
 
 	upgradeRouter.HandleFunc("/app/upgrade", a.handlers.kubernetes.Upgrade.PostUpgradeApp).Methods("POST")
 	upgradeRouter.HandleFunc("/app/status", a.handlers.kubernetes.Upgrade.GetAppUpgradeStatus).Methods("GET")

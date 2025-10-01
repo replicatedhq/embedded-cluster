@@ -262,6 +262,22 @@ components:
         values:
           $ref: '#/components/schemas/types.AppConfigValues'
       type: object
+    types.UpgradeAppPreflightsStatusResponse:
+      properties:
+        allowIgnoreAppPreflights:
+          type: boolean
+        hasStrictAppPreflightFailures:
+          type: boolean
+        output:
+          $ref: '#/components/schemas/types.PreflightsOutput'
+        status:
+          $ref: '#/components/schemas/types.Status'
+        titles:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      type: object
     types.UpgradeAppRequest:
       properties:
         ignoreAppPreflights:
@@ -744,6 +760,51 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - kubernetes-install
+  /kubernetes/upgrade/app-preflights/run:
+    post:
+      description: Run upgrade app preflight checks using current app configuration
+      operationId: postKubernetesUpgradeRunAppPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.UpgradeAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Run upgrade app preflight checks
+      tags:
+      - kubernetes-upgrade
+  /kubernetes/upgrade/app-preflights/status:
+    get:
+      description: Get the current status and results of app preflight checks for
+        upgrade
+      operationId: getKubernetesUpgradeAppPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.UpgradeAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app preflight status for upgrade
+      tags:
+      - kubernetes-upgrade
   /kubernetes/upgrade/app/config/template:
     post:
       description: Template the app configuration with values for upgrade
@@ -1191,6 +1252,51 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - linux-install
+  /linux/upgrade/app-preflights/run:
+    post:
+      description: Run upgrade app preflight checks using current app configuration
+      operationId: postLinuxUpgradeRunAppPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.UpgradeAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Run upgrade app preflight checks
+      tags:
+      - linux-upgrade
+  /linux/upgrade/app-preflights/status:
+    get:
+      description: Get the current status and results of app preflight checks for
+        upgrade
+      operationId: getLinuxUpgradeAppPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.UpgradeAppPreflightsStatusResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get app preflight status for upgrade
+      tags:
+      - linux-upgrade
   /linux/upgrade/app/config/template:
     post:
       description: Template the app configuration with values for upgrade

@@ -181,3 +181,85 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
+
+// PostRunAppPreflights handler to run upgrade app preflight checks
+//
+//	@ID				postKubernetesUpgradeRunAppPreflights
+//	@Summary		Run upgrade app preflight checks
+//	@Description	Run upgrade app preflight checks using current app configuration
+//	@Tags			kubernetes-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.UpgradeAppPreflightsStatusResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/kubernetes/upgrade/app-preflights/run [post]
+func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
+	preflightBinary, err := h.cfg.Installation.PathToEmbeddedBinary("kubectl-preflight")
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to materialize preflight binary")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	err = h.controller.RunAppPreflights(r.Context(), appcontroller.RunAppPreflightOptions{
+		PreflightBinaryPath: preflightBinary,
+		ProxySpec:           h.cfg.Installation.ProxySpec(),
+		CleanupBinary:       true,
+	})
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to run app preflights")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAppPreflightsStatus(w, r)
+}
+
+// GetAppPreflightsStatus handler to get app preflight status for upgrade
+//
+//	@ID				getKubernetesUpgradeAppPreflightsStatus
+//	@Summary		Get app preflight status for upgrade
+//	@Description	Get the current status and results of app preflight checks for upgrade
+//	@Tags			kubernetes-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.UpgradeAppPreflightsStatusResponse
+//	@Failure		400	{object}	types.APIError
+//	@Router			/kubernetes/upgrade/app-preflights/status [get]
+func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request) {
+	titles, err := h.controller.GetAppPreflightTitles(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get upgrade app preflight titles")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	output, err := h.controller.GetAppPreflightOutput(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get upgrade app preflight output")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	status, err := h.controller.GetAppPreflightStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get upgrade app preflight status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.UpgradeAppPreflightsStatusResponse{
+		Titles:                        titles,
+		Output:                        output,
+		Status:                        status,
+		HasStrictAppPreflightFailures: false,
+		AllowIgnoreAppPreflights:      true, // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
+	}
+
+	// Set hasStrictAppPreflightFailures based on app preflights output
+	if output != nil {
+		response.HasStrictAppPreflightFailures = output.HasStrictFailures()
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
+}
