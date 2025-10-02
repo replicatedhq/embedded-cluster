@@ -197,7 +197,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
-	// Empty strings are treated the same as missing values (both fall back to config value/default, this is the behavior in KOTS)
+	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
 	var userVal *string
 	if v, exists := e.configValues[name]; exists && v.Value != "" {
 		userVal = &v.Value
