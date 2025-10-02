@@ -49,17 +49,19 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 				return nil, err
 			}
 
-			// Apply user value if it exists, otherwise use the templated config value (but not the default)
+			// Apply user value if it exists and is non-empty, otherwise use the templated config value (but not the default)
+			// Empty strings are treated the same as missing values
 			var value string
-			if resolved.UserValue != nil {
+			if resolved.UserValue != nil && *resolved.UserValue != "" {
 				value = *resolved.UserValue
 			} else if resolved.Value != "" {
 				value = resolved.Value
 			}
 
-			// Apply user filename if it exists, otherwise use the templated config filename
+			// Apply user filename if it exists and is non-empty, otherwise use the templated config filename
+			// Empty strings are treated the same as missing values
 			var filename string
-			if resolved.UserFilename != nil {
+			if resolved.UserFilename != nil && *resolved.UserFilename != "" {
 				filename = *resolved.UserFilename
 			} else if resolved.Filename != "" {
 				filename = resolved.Filename
@@ -195,8 +197,9 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
+	// Empty strings are treated the same as missing values (both fall back to config value/default)
 	var userVal *string
-	if v, exists := e.configValues[name]; exists {
+	if v, exists := e.configValues[name]; exists && v.Value != "" {
 		userVal = &v.Value
 	}
 
@@ -209,7 +212,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	var userFilename *string
-	if v, exists := e.configValues[name]; exists {
+	if v, exists := e.configValues[name]; exists && v.Filename != "" {
 		userFilename = &v.Filename
 	}
 
