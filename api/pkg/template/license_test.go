@@ -214,6 +214,7 @@ func TestEngine_LicenseDockerCfg(t *testing.T) {
 			DefaultDomains: release.Domains{
 				ReplicatedAppDomain:      "my-app.example.com",
 				ReplicatedRegistryDomain: "registry.my-app.example.com",
+				ProxyRegistryDomain:      "proxy.my-app.example.com",
 			},
 		},
 	}
@@ -239,7 +240,7 @@ func TestEngine_LicenseDockerCfg(t *testing.T) {
 	require.True(t, ok, "auths should be a map")
 
 	// Check that both proxy and registry domains are present
-	proxyAuth, ok := auths["my-app.example.com"].(map[string]interface{})
+	proxyAuth, ok := auths["proxy.my-app.example.com"].(map[string]interface{})
 	require.True(t, ok, "proxy auth should exist")
 	require.Contains(t, proxyAuth, "auth")
 
@@ -322,12 +323,8 @@ func TestEngine_LicenseDockerCfgStagingEndpoint(t *testing.T) {
 	auths, ok := dockercfg["auths"].(map[string]interface{})
 	require.True(t, ok, "auths should be a map")
 
-	// With staging endpoint, should use staging domains:
-	// - Proxy: ReplicatedAppDomain (default: "replicated.app") - not affected by staging
-	// - Registry: ReplicatedRegistryDomain (default: "registry.replicated.com") - not affected by staging
-	// Note: The staging endpoint only affects the getRegistryProxyInfoFromLicense function,
-	// but when there's no release data, utils.GetDomains returns default domains
-	proxyAuth, ok := auths["replicated.app"].(map[string]interface{})
+	// The (staging) endpoint in license should not affect the domains being used
+	proxyAuth, ok := auths["proxy.replicated.com"].(map[string]interface{})
 	require.True(t, ok, "staging proxy auth should exist")
 	require.Contains(t, proxyAuth, "auth")
 
@@ -364,6 +361,7 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 			DefaultDomains: release.Domains{
 				ReplicatedAppDomain:      "staging-app.example.com",
 				ReplicatedRegistryDomain: "staging-registry.example.com",
+				ProxyRegistryDomain:      "staging-proxy.example.com",
 			},
 		},
 	}
@@ -388,15 +386,15 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 	auths, ok := dockercfg["auths"].(map[string]interface{})
 	require.True(t, ok, "auths should be a map")
 
-	// With staging endpoint and release data, should use release data domains:
-	// - Proxy: ReplicatedAppDomain from release data
+	// Domains should come from release data and not be affected by the staging endpoint in license:
+	// - Proxy: ProxyRegistryDomain from release data
 	// - Registry: ReplicatedRegistryDomain from release data
-	proxyAuth, ok := auths["staging-app.example.com"].(map[string]interface{})
-	require.True(t, ok, "staging proxy auth should exist")
+	proxyAuth, ok := auths["staging-proxy.example.com"].(map[string]interface{})
+	require.True(t, ok, "custom staging proxy auth should exist")
 	require.Contains(t, proxyAuth, "auth")
 
 	registryAuth, ok := auths["staging-registry.example.com"].(map[string]interface{})
-	require.True(t, ok, "staging registry auth should exist")
+	require.True(t, ok, "custom staging registry auth should exist")
 	require.Contains(t, registryAuth, "auth")
 
 	// Verify the auth value is base64 encoded license:license

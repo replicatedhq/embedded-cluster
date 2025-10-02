@@ -4,12 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/url"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
 func (e *Engine) licenseFieldValue(name string) string {
@@ -80,7 +78,7 @@ func (e *Engine) licenseDockerCfg() (string, error) {
 	auth := fmt.Sprintf("%s:%s", e.license.Spec.LicenseID, e.license.Spec.LicenseID)
 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
 
-	registryProxyInfo := getRegistryProxyInfo(e.license, e.releaseData)
+	registryProxyInfo := getRegistryProxyInfo(e.releaseData)
 
 	dockercfg := map[string]any{
 		"auths": map[string]any{
@@ -104,41 +102,12 @@ func (e *Engine) licenseDockerCfg() (string, error) {
 type registryProxyInfo struct {
 	Registry string
 	Proxy    string
-	Upstream string
 }
 
-func getRegistryProxyInfo(license *kotsv1beta1.License, releaseData *release.ReleaseData) *registryProxyInfo {
-	registryProxyInfo := getRegistryProxyInfoFromLicense(license)
-
+func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 	ecDomains := utils.GetDomains(releaseData)
-	registryProxyInfo.Proxy = ecDomains.ReplicatedAppDomain
-	registryProxyInfo.Registry = ecDomains.ReplicatedRegistryDomain
-	return registryProxyInfo
-}
-
-func getRegistryProxyInfoFromLicense(license *kotsv1beta1.License) *registryProxyInfo {
-	defaultInfo := &registryProxyInfo{
-		Upstream: "registry.replicated.com",
-		Registry: "registry.replicated.com",
-		Proxy:    "proxy.replicated.com",
+	return &registryProxyInfo{
+		Proxy:    ecDomains.ProxyRegistryDomain,
+		Registry: ecDomains.ReplicatedRegistryDomain,
 	}
-
-	if license == nil {
-		return defaultInfo
-	}
-
-	u, err := url.Parse(license.Spec.Endpoint)
-	if err != nil {
-		return defaultInfo
-	}
-
-	if u.Hostname() == "staging.replicated.app" {
-		return &registryProxyInfo{
-			Upstream: "registry.staging.replicated.com",
-			Registry: "registry.staging.replicated.com",
-			Proxy:    "proxy.staging.replicated.com",
-		}
-	}
-
-	return defaultInfo
 }
