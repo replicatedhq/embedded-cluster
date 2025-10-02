@@ -50,7 +50,7 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 			}
 
 			// Apply user value if it exists and is non-empty, otherwise use the templated config value (but not the default)
-			// Empty strings are treated the same as missing values
+			// Empty strings are treated the same as missing values (this is the behavior in KOTS)
 			var value string
 			if resolved.UserValue != nil && *resolved.UserValue != "" {
 				value = *resolved.UserValue
@@ -59,7 +59,7 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 			}
 
 			// Apply user filename if it exists and is non-empty, otherwise use the templated config filename
-			// Empty strings are treated the same as missing values
+			// Empty strings are treated the same as missing values (this is the behavior in KOTS)
 			var filename string
 			if resolved.UserFilename != nil && *resolved.UserFilename != "" {
 				filename = *resolved.UserFilename
@@ -197,7 +197,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
-	// Empty strings are treated the same as missing values (both fall back to config value/default)
+	// Empty strings are treated the same as missing values (both fall back to config value/default, this is the behavior in KOTS)
 	var userVal *string
 	if v, exists := e.configValues[name]; exists && v.Value != "" {
 		userVal = &v.Value
@@ -285,7 +285,8 @@ func (e *Engine) configValueChanged(itemName string) bool {
 
 func (e *Engine) getItemFilename(configItem *kotsv1beta1.ConfigItem) string {
 	// Priority: user value
-	if userVal, exists := e.configValues[configItem.Name]; exists {
+	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
+	if userVal, exists := e.configValues[configItem.Name]; exists && userVal.Filename != "" {
 		return userVal.Filename
 	}
 
