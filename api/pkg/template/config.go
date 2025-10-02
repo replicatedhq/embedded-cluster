@@ -131,7 +131,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 	}
 
 	// Only return user filename, not config filename for KOTS parity
-	if resolved.UserFilename != nil {
+	if resolved.UserFilename != nil && *resolved.UserFilename != "" {
 		return *resolved.UserFilename, nil
 	}
 	return "", nil
@@ -211,6 +211,7 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 		effectiveValue = templatedDefault
 	}
 
+	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
 	var userFilename *string
 	if v, exists := e.configValues[name]; exists && v.Filename != "" {
 		userFilename = &v.Filename
