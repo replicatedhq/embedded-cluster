@@ -305,6 +305,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     updateConfigValue(itemName, value, filename);
   };
 
+  const handleDropdownChange = (itemName: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateConfigValue(itemName, e.target.value);
+  };
+
   const renderConfigItem = (item: AppConfigItem) => {
     // Display item validation errors with priority over initial config errors
     const displayError = itemErrors[item.name] || item.error;
@@ -410,7 +414,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
               value={getEffectiveValue(item)}
               options={options}
               placeholder="Select an option"
-              onChange={(e) => updateConfigValue(item.name, e.target.value)}
+              onChange={(e) => handleDropdownChange(item.name, e)}
               dataTestId={`dropdown-input-${item.name}`}
               className="w-96"
             />
