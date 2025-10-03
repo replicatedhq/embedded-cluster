@@ -2405,4 +2405,435 @@ describe.each([
       expect(mockOnNext).not.toHaveBeenCalled();
     });
   });
+
+  describe("Config Frontend Parity - New Config Types", () => {
+    it("renders dropdown config type with items", async () => {
+      const configWithDropdown: AppConfig = {
+        groups: [{
+          name: 'database',
+          title: 'Database Settings',
+          items: [{
+            name: 'db_type',
+            type: 'dropdown',
+            title: 'Database Type',
+            help_text: 'Select your database type',
+            default: 'postgres',
+            items: [
+              { name: 'postgres', title: 'PostgreSQL' },
+              { name: 'mysql', title: 'MySQL' },
+              { name: 'mariadb', title: 'MariaDB' }
+            ]
+          }]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithDropdown);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      // Check dropdown renders
+      const dropdown = screen.getByTestId("dropdown-input-db_type");
+      expect(dropdown).toBeInTheDocument();
+      expect(dropdown).toBeInstanceOf(HTMLSelectElement);
+
+      // Check options are present
+      expect(screen.getByText('Select an option')).toBeInTheDocument();
+      expect(screen.getByText('PostgreSQL')).toBeInTheDocument();
+      expect(screen.getByText('MySQL')).toBeInTheDocument();
+      expect(screen.getByText('MariaDB')).toBeInTheDocument();
+    });
+
+    it("handles dropdown selection changes correctly", async () => {
+      const configWithDropdown: AppConfig = {
+        groups: [{
+          name: 'database',
+          title: 'Database Settings',
+          items: [{
+            name: 'db_type',
+            type: 'dropdown',
+            title: 'Database Type',
+            default: 'postgres',
+            items: [
+              { name: 'postgres', title: 'PostgreSQL' },
+              { name: 'mysql', title: 'MySQL' }
+            ]
+          }]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithDropdown);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      const dropdown = screen.getByTestId("dropdown-input-db_type") as HTMLSelectElement;
+
+      // Change selection
+      fireEvent.change(dropdown, { target: { value: 'mysql' } });
+
+      // Verify value changed
+      expect(dropdown.value).toBe('mysql');
+    });
+
+    it("renders select_one config type as radio buttons", async () => {
+      const configWithSelectOne: AppConfig = {
+        groups: [{
+          name: 'auth',
+          title: 'Authentication',
+          items: [{
+            name: 'auth_type',
+            type: 'select_one',
+            title: 'Authentication Type',
+            value: 'basic',
+            items: [
+              { name: 'basic', title: 'Basic Auth' },
+              { name: 'oauth', title: 'OAuth' },
+              { name: 'saml', title: 'SAML' }
+            ]
+          }]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithSelectOne);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      // Should render as radio buttons
+      expect(screen.getByTestId("radio-input-basic")).toBeInTheDocument();
+      expect(screen.getByTestId("radio-input-oauth")).toBeInTheDocument();
+      expect(screen.getByTestId("radio-input-saml")).toBeInTheDocument();
+
+      // Verify basic is selected
+      const basicRadio = screen.getByTestId("radio-input-basic") as HTMLInputElement;
+      expect(basicRadio).toBeChecked();
+    });
+
+    it("renders heading config type with ARIA attributes", async () => {
+      const configWithHeading: AppConfig = {
+        groups: [{
+          name: 'settings',
+          title: 'Settings',
+          items: [
+            {
+              name: 'section_1',
+              type: 'heading',
+              title: 'Database Settings'
+            },
+            {
+              name: 'db_host',
+              type: 'text',
+              title: 'Host',
+              value: 'localhost'
+            },
+            {
+              name: 'section_2',
+              type: 'heading',
+              title: 'Advanced Options'
+            },
+            {
+              name: 'debug',
+              type: 'bool',
+              title: 'Debug Mode',
+              value: '0'
+            }
+          ]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithHeading);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      // Check heading renders
+      const heading1 = screen.getByTestId("heading-section_1");
+      expect(heading1).toBeInTheDocument();
+      expect(heading1).toHaveTextContent('Database Settings');
+      expect(heading1).toHaveAttribute('role', 'heading');
+      expect(heading1).toHaveAttribute('aria-level', '3');
+
+      const heading2 = screen.getByTestId("heading-section_2");
+      expect(heading2).toBeInTheDocument();
+      expect(heading2).toHaveTextContent('Advanced Options');
+    });
+
+    it("renders readonly text fields as disabled", async () => {
+      const configWithReadonly: AppConfig = {
+        groups: [{
+          name: 'info',
+          title: 'Information',
+          items: [
+            {
+              name: 'cluster_id',
+              type: 'text',
+              title: 'Cluster ID',
+              value: 'cluster-12345',
+              readonly: true,
+              help_text: 'This value cannot be changed'
+            },
+            {
+              name: 'app_name',
+              type: 'text',
+              title: 'Application Name',
+              value: 'My App',
+              readonly: false
+            }
+          ]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithReadonly);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      // Check readonly field is disabled
+      const readonlyInput = screen.getByTestId("text-input-cluster_id") as HTMLInputElement;
+      expect(readonlyInput).toBeDisabled();
+      expect(readonlyInput).toHaveValue('cluster-12345');
+
+      // Check non-readonly field is not disabled
+      const editableInput = screen.getByTestId("text-input-app_name") as HTMLInputElement;
+      expect(editableInput).not.toBeDisabled();
+      expect(editableInput).toHaveValue('My App');
+    });
+
+    it("renders readonly checkbox as disabled", async () => {
+      const configWithReadonlyCheckbox: AppConfig = {
+        groups: [{
+          name: 'settings',
+          title: 'Settings',
+          items: [
+            {
+              name: 'feature_enabled',
+              type: 'bool',
+              title: 'Feature Enabled',
+              value: '1',
+              readonly: true
+            }
+          ]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithReadonlyCheckbox);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      const checkbox = screen.getByTestId("bool-input-feature_enabled") as HTMLInputElement;
+      expect(checkbox).toBeDisabled();
+      expect(checkbox).toBeChecked();
+    });
+
+    it("renders readonly radio buttons as disabled", async () => {
+      const configWithReadonlyRadio: AppConfig = {
+        groups: [{
+          name: 'settings',
+          title: 'Settings',
+          items: [
+            {
+              name: 'auth_type',
+              type: 'radio',
+              title: 'Authentication Type',
+              value: 'oauth',
+              readonly: true,
+              items: [
+                { name: 'basic', title: 'Basic' },
+                { name: 'oauth', title: 'OAuth' }
+              ]
+            }
+          ]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithReadonlyRadio);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      const basicRadio = screen.getByTestId("radio-input-basic") as HTMLInputElement;
+      const oauthRadio = screen.getByTestId("radio-input-oauth") as HTMLInputElement;
+
+      expect(basicRadio).toBeDisabled();
+      expect(oauthRadio).toBeDisabled();
+      expect(oauthRadio).toBeChecked();
+    });
+
+    it("renders readonly dropdown as disabled", async () => {
+      const configWithReadonlyDropdown: AppConfig = {
+        groups: [{
+          name: 'database',
+          title: 'Database',
+          items: [{
+            name: 'db_type',
+            type: 'dropdown',
+            title: 'Database Type',
+            value: 'postgres',
+            readonly: true,
+            items: [
+              { name: 'postgres', title: 'PostgreSQL' },
+              { name: 'mysql', title: 'MySQL' }
+            ]
+          }]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithReadonlyDropdown);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      const dropdown = screen.getByTestId("dropdown-input-db_type") as HTMLSelectElement;
+      expect(dropdown).toBeDisabled();
+      expect(dropdown.value).toBe('postgres');
+    });
+
+    it("submits dropdown values correctly", async () => {
+      let submittedValues: { values: AppConfigValues } | null = null;
+
+      const configWithDropdown: AppConfig = {
+        groups: [{
+          name: 'database',
+          title: 'Database',
+          items: [{
+            name: 'db_type',
+            type: 'dropdown',
+            title: 'Database Type',
+            default: 'postgres',
+            items: [
+              { name: 'postgres', title: 'PostgreSQL' },
+              { name: 'mysql', title: 'MySQL' }
+            ]
+          }]
+        }]
+      };
+
+      server.use(
+        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
+          return HttpResponse.json(configWithDropdown);
+        }),
+        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
+          const body = await request.json() as { values: AppConfigValues };
+          submittedValues = body;
+          return HttpResponse.json(body);
+        })
+      );
+
+      renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
+        wrapperProps: {
+          authenticated: true,
+          target: target,
+          mode: mode,
+        },
+      });
+
+      await waitForForm();
+
+      // Change dropdown value
+      const dropdown = screen.getByTestId("dropdown-input-db_type") as HTMLSelectElement;
+      fireEvent.change(dropdown, { target: { value: 'mysql' } });
+
+      // Submit form
+      const nextButton = screen.getByTestId("config-next-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
+      }, { timeout: 3000 });
+
+      // Verify submitted values
+      expect(submittedValues).not.toBeNull();
+      expect(submittedValues!.values.db_type).toEqual({ value: 'mysql' });
+    });
+  });
 });

@@ -268,12 +268,9 @@ spec:
           required: true
           help_text: "Help text of a **_Checkbox_** config item type **_marked required_**"
 
-        # TODO: uncomment when we support dropdowns in the UI
-        # - name: label_dropdown
-        #   type: label
-        #   title: |
-        #     ## Dropdown Items
-        #     ---
+        - name: heading_dropdown
+          type: heading
+          title: Dropdown Configuration
 
         - name: dropdown_simple
           title: Simple Dropdown
@@ -306,7 +303,35 @@ spec:
               title: Option 1
             - name: dropdown_required_opt2
               title: Option 2
-          default: dropdown_required_opt1 # temporarily set a default to get past the required validation until we support dropdowns in the UI
+
+        - name: heading_selectone
+          type: heading
+          title: Select One Configuration
+
+        - name: selectone_simple
+          title: Simple Select One (renders as radio)
+          type: select_one
+          help_text: "Help text of a simple **_Select One_** config item type (backward compatible with radio)"
+          items:
+            - name: selectone_simple_opt1
+              title: Option 1
+            - name: selectone_simple_opt2
+              title: Option 2
+
+        - name: selectone_with_default
+          title: Select One with default value
+          type: select_one
+          help_text: "Help text of a **_Select One_** config item type **_with default value_**"
+          items:
+            - name: selectone_with_default_opt1
+              title: Option 1
+            - name: selectone_with_default_opt2
+              title: Option 2
+          default: selectone_with_default_opt2
+
+        - name: heading_radio
+          type: heading
+          title: Radio Configuration
 
         - name: label_radio
           type: label
@@ -369,6 +394,55 @@ spec:
           type: file
           required: true
           help_text: "Help text of a **_File_** config item type **_marked required_**"
+
+        - name: heading_readonly
+          type: heading
+          title: ReadOnly Configuration
+
+        - name: readonly_text
+          title: ReadOnly Text Field
+          type: text
+          value: "This value cannot be changed"
+          readonly: true
+          help_text: "This is a **_readonly text field_** - you cannot edit it"
+
+        - name: readonly_textarea
+          title: ReadOnly Textarea
+          type: textarea
+          value: "This is a readonly textarea.\nIt has multiple lines.\nBut you cannot edit it."
+          readonly: true
+          help_text: "This is a **_readonly textarea_**"
+
+        - name: readonly_checkbox
+          title: ReadOnly Checkbox
+          type: bool
+          value: "1"
+          readonly: true
+          help_text: "This checkbox is checked and **_readonly_**"
+
+        - name: readonly_radio
+          title: ReadOnly Radio
+          type: radio
+          value: radio_readonly_opt2
+          readonly: true
+          help_text: "This radio group is **_readonly_** with option 2 selected"
+          items:
+            - name: radio_readonly_opt1
+              title: Option 1
+            - name: radio_readonly_opt2
+              title: Option 2
+
+        - name: readonly_dropdown
+          title: ReadOnly Dropdown
+          type: dropdown
+          value: dropdown_readonly_opt2
+          readonly: true
+          help_text: "This dropdown is **_readonly_** with Option 2 selected"
+          items:
+            - name: dropdown_readonly_opt1
+              title: Option 1
+            - name: dropdown_readonly_opt2
+              title: Option 2
 
         - name: hidden_required
           title: Hidden required
