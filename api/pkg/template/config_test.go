@@ -544,4 +544,3 @@ func TestEngine_ShouldInvalidateItem(t *testing.T) {
 	engine.depsTree = map[string][]string{}
 	assert.False(t, engine.shouldInvalidateItem("item1"), "should not invalidate item1 as it doesn't exist in either config values")
 }
-
