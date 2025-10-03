@@ -174,16 +174,16 @@ func TestEngine_ValuePriority(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "fallback_default", result)
 
-	// Test with empty user value (should use empty string, not fall back to config value)
+	// Test with empty user value - user cleared the value (differs from config value)
 	emptyConfigValues := types.AppConfigValues{
-		"database_host": {Value: ""}, // Empty user value should be used as-is
+		"database_host": {Value: ""}, // Empty differs from config value "db-internal.company.com" = user cleared it
 		"database_port": {Value: "5433"},
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(emptyConfigValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
-	assert.Equal(t, "postgres://:5433/app", result) // Empty host should result in empty string, not config fallback
+	assert.Equal(t, "postgres://:5433/app", result) // Empty host = user cleared it
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {
@@ -411,6 +411,13 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	}, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt", result)
+
+	// Test with user providing empty filename - should return empty string
+	result, err = engine.Execute(types.AppConfigValues{
+		"a_file": {Value: userContentEncoded, Filename: ""},
+	}, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
 
 	// Test with an unknown item - an error is returned and empty string is returned
 	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")

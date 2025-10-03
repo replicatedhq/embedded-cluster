@@ -195,8 +195,9 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
+	// User value is only used if it differs from the original config value (user made a change) - reason: sc-129708
 	var userVal *string
-	if v, exists := e.configValues[name]; exists {
+	if v, exists := e.configValues[name]; exists && v.Value != templatedValue {
 		userVal = &v.Value
 	}
 
@@ -208,8 +209,9 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 		effectiveValue = templatedDefault
 	}
 
+	// User filename is only used if it differs from the original config filename (user made a change) - reason: sc-129708
 	var userFilename *string
-	if v, exists := e.configValues[name]; exists {
+	if v, exists := e.configValues[name]; exists && v.Filename != templatedFilename {
 		userFilename = &v.Filename
 	}
 
@@ -277,19 +279,11 @@ func (e *Engine) configValueChanged(itemName string) bool {
 		return true
 	}
 
-	return prevVal.Value != currentVal.Value
-}
-
-func (e *Engine) getItemFilename(configItem *kotsv1beta1.ConfigItem) string {
-	// Priority: user value
-	if userVal, exists := e.configValues[configItem.Name]; exists {
-		return userVal.Filename
+	if prevVal.Filename != currentVal.Filename {
+		return true
 	}
 
-	// Do not use the config item's filename for KOTS parity
-
-	// If still empty, return empty string
-	return ""
+	return prevVal.Value != currentVal.Value
 }
 
 func (e *Engine) findConfigItem(name string) *kotsv1beta1.ConfigItem {

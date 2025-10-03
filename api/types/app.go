@@ -1,8 +1,6 @@
 package types
 
 import (
-	"strings"
-
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -38,16 +36,9 @@ func ConvertToAppConfigValues(kotsConfigValues *kotsv1beta1.ConfigValues) AppCon
 
 	configValues := make(AppConfigValues)
 	for key, value := range kotsConfigValues.Spec.Values {
-		// Temporary fix for https://app.shortcut.com/replicated/story/129708/template-execution-fails-when-empty-user-config-values-override-generated-defaults
-		// TODO: Remove this block of code and add a unit test for this function once a fix has been implemented
-		temporaryFixValue := value.Value
-		if strings.HasSuffix(key, "_json") && temporaryFixValue == "" {
-			temporaryFixValue = "{}"
-		}
-
 		configValues[key] = AppConfigValue{
 			Default:        value.Default,
-			Value:          temporaryFixValue,
+			Value:          value.Value,
 			Data:           value.Data,
 			ValuePlaintext: value.ValuePlaintext,
 			DataPlaintext:  value.DataPlaintext,
