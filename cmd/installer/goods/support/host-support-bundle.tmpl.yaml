@@ -394,7 +394,7 @@ spec:
   - run:
       collectorName: "ps-detect-antivirus-and-security-tools"
       command: "sh"
-      args: ["-c", "ps -eo args= | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | sed -E 's/.*(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp).*/\\1/' | sort -u"]
+      args: ["-c", "if command -v pgrep >/dev/null 2>&1; then pgrep -afi 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | grep -Eo 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | sort -u; else ps -eo args= | awk -v pat=\"(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)\" 'BEGIN{ IGNORECASE=1 } /(awk|grep|ps|sh -c)/{ next } { line=$0; while (match(line, pat)) { print substr(line, RSTART, RLENGTH); line=substr(line, RSTART+RLENGTH) } }' | sort -u; fi"]
   - systemPackages:
       collectorName: security-tools-packages
       ubuntu:
