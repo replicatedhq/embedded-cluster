@@ -371,7 +371,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         );
 
       case 'radio':
-      case 'select_one':
+      case 'select_one': // select_one renders as radio for backward compatibility
         if (item.items) {
           return (
             <Radio
