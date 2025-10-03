@@ -412,6 +412,13 @@ func TestEngine_ConfigOptionFilename(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "user_file.txt", result)
 
+	// Test with user providing empty filename - should return empty string
+	result, err = engine.Execute(types.AppConfigValues{
+		"a_file": {Value: userContentEncoded, Filename: ""},
+	}, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "", result)
+
 	// Test with an unknown item - an error is returned and empty string is returned
 	err = engine.Parse("{{repl ConfigOptionFilename \"notfound\" }}")
 	require.NoError(t, err)

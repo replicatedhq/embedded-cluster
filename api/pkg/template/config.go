@@ -279,20 +279,11 @@ func (e *Engine) configValueChanged(itemName string) bool {
 		return true
 	}
 
-	return prevVal.Value != currentVal.Value
-}
-
-func (e *Engine) getItemFilename(configItem *kotsv1beta1.ConfigItem) string {
-	// Priority: user value
-	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
-	if userVal, exists := e.configValues[configItem.Name]; exists && userVal.Filename != "" {
-		return userVal.Filename
+	if prevVal.Filename != currentVal.Filename {
+		return true
 	}
 
-	// Do not use the config item's filename for KOTS parity
-
-	// If still empty, return empty string
-	return ""
+	return prevVal.Value != currentVal.Value
 }
 
 func (e *Engine) findConfigItem(name string) *kotsv1beta1.ConfigItem {
