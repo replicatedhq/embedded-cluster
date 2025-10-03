@@ -248,9 +248,9 @@ func TestEngine_templateConfigItems(t *testing.T) {
 								{
 									Name:     "user_cleared",
 									Type:     "file",
-									Value:    multitype.FromString("user_cleared_content"), // Empty user value falls back to config value
+									Value:    multitype.FromString(""), // Empty differs from config value = user cleared it
 									Default:  multitype.FromString("user_cleared_default"),
-									Filename: "user_cleared.txt", // Empty user filename falls back to config filename
+									Filename: "", // Empty differs from config filename = user cleared it
 								},
 								{
 									Name:     "no_user_value",

@@ -174,16 +174,16 @@ func TestEngine_ValuePriority(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "fallback_default", result)
 
-	// Test with empty user value (should fall back to config value, not use empty string)
+	// Test with empty user value - user cleared the value (differs from config value)
 	emptyConfigValues := types.AppConfigValues{
-		"database_host": {Value: ""}, // Empty user value should fall back to config value
+		"database_host": {Value: ""}, // Empty differs from config value "db-internal.company.com" = user cleared it
 		"database_port": {Value: "5433"},
 	}
 	err = engine.Parse("{{repl ConfigOption \"database_url\" }}")
 	require.NoError(t, err)
 	result, err = engine.Execute(emptyConfigValues, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	require.NoError(t, err)
-	assert.Equal(t, "postgres://db-internal.company.com:5433/app", result) // Empty host should fall back to config value
+	assert.Equal(t, "postgres://:5433/app", result) // Empty host = user cleared it
 }
 
 func TestEngine_ConfigOptionEquals(t *testing.T) {

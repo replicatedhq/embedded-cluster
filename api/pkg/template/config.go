@@ -49,19 +49,17 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 				return nil, err
 			}
 
-			// Apply user value if it exists and is non-empty, otherwise use the templated config value (but not the default)
-			// Empty strings are treated the same as missing values (this is the behavior in KOTS)
+			// Apply user value if it exists, otherwise use the templated config value (but not the default)
 			var value string
-			if resolved.UserValue != nil && *resolved.UserValue != "" {
+			if resolved.UserValue != nil {
 				value = *resolved.UserValue
 			} else if resolved.Value != "" {
 				value = resolved.Value
 			}
 
-			// Apply user filename if it exists and is non-empty, otherwise use the templated config filename
-			// Empty strings are treated the same as missing values (this is the behavior in KOTS)
+			// Apply user filename if it exists, otherwise use the templated config filename
 			var filename string
-			if resolved.UserFilename != nil && *resolved.UserFilename != "" {
+			if resolved.UserFilename != nil {
 				filename = *resolved.UserFilename
 			} else if resolved.Filename != "" {
 				filename = resolved.Filename
@@ -131,7 +129,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 	}
 
 	// Only return user filename, not config filename for KOTS parity
-	if resolved.UserFilename != nil && *resolved.UserFilename != "" {
+	if resolved.UserFilename != nil {
 		return *resolved.UserFilename, nil
 	}
 	return "", nil
@@ -197,9 +195,9 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 	}
 
 	// Priority: user value > config value > config default
-	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
+	// User value is only used if it differs from the original config value (user made a change) - reason: sc-129708
 	var userVal *string
-	if v, exists := e.configValues[name]; exists && v.Value != "" {
+	if v, exists := e.configValues[name]; exists && v.Value != templatedValue {
 		userVal = &v.Value
 	}
 
@@ -211,9 +209,9 @@ func (e *Engine) resolveConfigItem(name string) (*resolvedConfigItem, error) {
 		effectiveValue = templatedDefault
 	}
 
-	// Empty strings are treated the same as missing values (this is the behavior in KOTS)
+	// User filename is only used if it differs from the original config filename (user made a change) - reason: sc-129708
 	var userFilename *string
-	if v, exists := e.configValues[name]; exists && v.Filename != "" {
+	if v, exists := e.configValues[name]; exists && v.Filename != templatedFilename {
 		userFilename = &v.Filename
 	}
 
