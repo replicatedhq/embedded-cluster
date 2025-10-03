@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -98,7 +99,8 @@ func executeCommand(shpath string, command string, rc runtimeconfig.RuntimeConfi
 	// Execute and return exit code
 	if err := shell.Run(); err != nil {
 		// Preserve exit code from the command
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			os.Exit(exitErr.ExitCode())
 		}
 		return err
