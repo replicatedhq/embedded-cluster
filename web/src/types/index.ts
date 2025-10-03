@@ -110,6 +110,7 @@ export interface AppConfigItem {
   help_text?: string;
   error?: string;
   required?: boolean;
+  readonly?: boolean;
   type: string;
   value?: string;
   default?: string;

@@ -6,6 +6,7 @@ import Input from '../../common/Input';
 import Textarea from '../../common/Textarea';
 import Checkbox from '../../common/Checkbox';
 import Radio from '../../common/Radio';
+import Select from '../../common/Select';
 import Label from '../../common/Label';
 import Markdown from '../../common/Markdown';
 import FileInput from '../../common/file';
@@ -304,16 +305,21 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     updateConfigValue(itemName, value, filename);
   };
 
+  const handleDropdownChange = (itemName: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateConfigValue(itemName, e.target.value);
+  };
+
   const renderConfigItem = (item: AppConfigItem) => {
-    // Display item validation errors with priority over initial config errors  
+    // Display item validation errors with priority over initial config errors
     const displayError = itemErrors[item.name] || item.error;
-    
+
     const sharedProps = {
       id: item.name,
       label: item.title,
       helpText: item.help_text,
       error: displayError,
       required: item.required,
+      disabled: item.readonly,
       ref: setRef(item.name),
     }
 
@@ -369,6 +375,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         );
 
       case 'radio':
+      case 'select_one': // select_one renders as radio for backward compatibility
         if (item.items) {
           return (
             <Radio
@@ -392,6 +399,41 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
             onChange={(value: string, filename: string) => handleFileChange(item.name, value, filename)}
             dataTestId={`file-input-${item.name}`}
           />
+        );
+
+      case 'dropdown':
+        if (item.items) {
+          const options = item.items.map(child => ({
+            value: child.name,
+            label: child.title
+          }));
+          return (
+            <Select
+              {...sharedProps}
+              defaultValue={item.default}
+              value={getEffectiveValue(item)}
+              options={options}
+              placeholder="Select an option"
+              onChange={(e) => handleDropdownChange(item.name, e)}
+              dataTestId={`dropdown-input-${item.name}`}
+              className="w-96"
+            />
+          );
+        }
+        return null;
+
+      case 'heading':
+        return (
+          <div className="pt-4 pb-2 border-b border-gray-200" role="group">
+            <h3
+              className="text-lg font-semibold text-gray-900"
+              data-testid={`heading-${item.name}`}
+              role="heading"
+              aria-level={3}
+            >
+              {item.title}
+            </h3>
+          </div>
         );
 
       case 'label':

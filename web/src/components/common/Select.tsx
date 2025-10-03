@@ -1,5 +1,6 @@
 import React from "react";
 import { useSettings } from "../../contexts/SettingsContext";
+import HelpText from "./HelpText";
 
 interface SelectOption {
   value: string;
@@ -16,13 +17,14 @@ interface SelectProps {
   disabled?: boolean;
   error?: string;
   helpText?: string;
+  defaultValue?: string;
   className?: string;
   labelClassName?: string;
   placeholder?: string;
   dataTestId?: string;
 }
 
-const Select: React.FC<SelectProps> = ({
+const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({
   id,
   label,
   value,
@@ -32,11 +34,12 @@ const Select: React.FC<SelectProps> = ({
   disabled = false,
   error,
   helpText,
+  defaultValue,
   className = "",
   labelClassName = "",
   placeholder,
   dataTestId,
-}) => {
+}, ref) => {
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
@@ -47,6 +50,7 @@ const Select: React.FC<SelectProps> = ({
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <select
+        ref={ref}
         id={id}
         value={value}
         onChange={onChange}
@@ -75,9 +79,11 @@ const Select: React.FC<SelectProps> = ({
         ))}
       </select>
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
-      {helpText && !error && <p className="mt-1 text-sm text-gray-500">{helpText}</p>}
+      <HelpText helpText={helpText} defaultValue={defaultValue} error={error} />
     </div>
   );
-};
+});
+
+Select.displayName = 'Select';
 
 export default Select;
