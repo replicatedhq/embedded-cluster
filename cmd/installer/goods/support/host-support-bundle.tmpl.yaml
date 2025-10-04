@@ -394,7 +394,28 @@ spec:
   - run:
       collectorName: "ps-detect-antivirus-and-security-tools"
       command: "sh"
-      args: [-c, "ps -ef | grep -E 'clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp' | grep -v grep"]
+      args:
+        - -c
+        - |
+          pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
+      
+          if command -v pgrep >/dev/null 2>&1; then
+            pgrep -afi "$pat"
+          else
+            ps -eo args=
+          fi \
+          | awk -v pat="$pat" '
+              BEGIN { IGNORECASE=1 }
+              /(awk|grep|pgrep|ps|sh -c)/ { next }
+              {
+                line=$0
+                while (match(line, pat)) {
+                  print tolower(substr(line, RSTART, RLENGTH))
+                  line=substr(line, RSTART+RLENGTH)
+                }
+              }
+            ' \
+          | sort -u
   - systemPackages:
       collectorName: security-tools-packages
       ubuntu:
@@ -726,15 +747,18 @@ spec:
   - textAnalyze:
       checkName: "Detect Threat Management and Network Security Tools"
       fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
-      regex: '\b(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)\b'
+      regexGroups: '(?ms)(?P<Detected>.*)'
       ignoreIfNoFiles: true
       outcomes:
-        - fail:
-            when: "true"
-            message: "Antivirus or network security tools detected. These tools are known to interfere with Kubernetes operation in various ways.  If problems persist, disable these tools, or consult with your organization's system administrator to ensure that exceptions are made for Kubernetes operation."
         - pass:
-            when: "false"
+            when: "Detected == ''"
             message: "No antivirus or network security tools detected."
+        - fail:
+            message: |-
+              The following antivirus or network security tools were detected:
+              {{ "{{" }} .Detected {{ "}}" }}
+
+              These types of tools have been known to interfere with Kubernetes operation in various ways. If an installation problem persists, you may need to disable these tools temporarily as part of the troubleshooting process to identify if any system administrator exceptions may be required to maintain necessary internal Kubernetes operations.
   - systemPackages:
       checkName: "Detected Security Packages"
       collectorName: security-tools-packages
