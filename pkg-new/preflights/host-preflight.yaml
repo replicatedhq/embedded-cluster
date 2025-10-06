@@ -220,6 +220,41 @@ spec:
               if [ ! "$bin_dir_type_label" = "bin_t" ]; then
                 echo "bin_dir_type_label $bin_dir_type_label"
               fi
+    - run:
+        collectorName: "ps-detect-antivirus-and-security-tools"
+        command: "sh"
+        args:
+          - -c
+          - |
+            pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
+
+            if command -v pgrep >/dev/null 2>&1; then
+              pgrep -afi "$pat"
+            else
+              ps -eo args=
+            fi \
+            | awk -v pat="$pat" '
+                BEGIN { IGNORECASE=1 }
+                /(awk|grep|pgrep|ps|sh -c)/ { next }
+                {
+                  line=$0
+                  while (match(line, pat)) {
+                    print tolower(substr(line, RSTART, RLENGTH))
+                    line=substr(line, RSTART+RLENGTH)
+                  }
+                }
+              ' \
+            | sort -u
+    - systemPackages:
+        collectorName: security-tools-packages
+        ubuntu:
+          - sdcss-kmod
+          - sdcss
+          - sdcss-scripts
+        rhel:
+          - sdcss-kmod
+          - sdcss
+          - sdcss-scripts
   analyzers:
     - cpu:
         checkName: CPU
@@ -1307,3 +1342,27 @@ spec:
                   The selinux type context label for the embedded cluster binary directory are incorrect. Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
           - pass:
               when: "false"
+    - textAnalyze:
+        checkName: "Detect Threat Management and Network Security Tools"
+        fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
+        regexGroups: '(?ms)(?P<Detected>.*)'
+        ignoreIfNoFiles: true
+        outcomes:
+          - pass:
+              when: "Detected == ''"
+              message: "No antivirus or network security tools detected."
+          - warn:
+              message: |-
+                The following antivirus or network security tools were detected:
+                {{ "{{" }} .Detected {{ "}}" }}
+
+                These types of tools have been known to interfere with Kubernetes operation in various ways. If you experience an installation problem, you may need to disable these tools temporarily as part of the troubleshooting process to identify if any system administrator exceptions may be required to maintain necessary internal Kubernetes operations.
+    - systemPackages:
+        checkName: "Detected Security Packages"
+        collectorName: security-tools-packages
+        outcomes:
+          - warn:
+              when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
+              message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
+          - pass:
+              message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
