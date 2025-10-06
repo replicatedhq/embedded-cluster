@@ -1362,7 +1362,7 @@ spec:
         collectorName: security-tools-packages
         outcomes:
           - warn:
-              when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
+              when: "IsInstalled"
               message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
           - pass:
               message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
