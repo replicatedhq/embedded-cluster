@@ -227,15 +227,14 @@ spec:
           - -c
           - |
             pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
-
             if command -v pgrep >/dev/null 2>&1; then
-              pgrep -afi "$pat"
+              pgrep -fli "$pat" | awk '{ $1=""; sub(/^ /,""); print }'
             else
-              ps -eo args=
+              # Fallback: list only command names (not full args)
+              ps -eo comm=
             fi \
             | awk -v pat="$pat" '
                 BEGIN { IGNORECASE=1 }
-                /(awk|grep|pgrep|ps|sh -c)/ { next }
                 {
                   line=$0
                   while (match(line, pat)) {
@@ -1362,7 +1361,7 @@ spec:
         collectorName: security-tools-packages
         outcomes:
           - warn:
-              when: "IsInstalled"
+              when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
               message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
           - pass:
               message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
