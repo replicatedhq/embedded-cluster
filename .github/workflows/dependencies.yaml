@@ -26,7 +26,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          K0S_MINOR_VERSION=$INPUT_K0S_MINOR_VERSION
+          K0S_MINOR_VERSION=${{ github.event.inputs.k0s_minor_version }}
           if [ -z "$K0S_MINOR_VERSION" ]; then
             K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
           fi
