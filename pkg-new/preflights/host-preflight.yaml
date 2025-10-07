@@ -254,6 +254,24 @@ spec:
           - sdcss-kmod
           - sdcss
           - sdcss-scripts
+    - run:
+        collectorName: security-tools-installed
+        command: sh
+        args:
+          - -c
+          - |
+            pkgs="sdcss-kmod sdcss sdcss-scripts"
+            installed=""
+            if command -v dpkg >/dev/null 2>&1; then
+              for p in $pkgs; do
+                dpkg -l "$p" >/dev/null 2>&1 && installed="$installed$p\n"
+              done
+            elif command -v rpm >/dev/null 2>&1; then
+              for p in $pkgs; do
+                rpm -q "$p" >/dev/null 2>&1 && installed="$installed$p\n"
+              done
+            fi
+            printf "%b" "$installed" | sed '/^$/d'
   analyzers:
     - cpu:
         checkName: CPU
@@ -1356,12 +1374,18 @@ spec:
                 {{ "{{" }} .Detected {{ "}}" }}
 
                 These types of tools have been known to interfere with Kubernetes operation in various ways. If you experience an installation problem, you may need to disable these tools temporarily as part of the troubleshooting process to identify if any system administrator exceptions may be required to maintain necessary internal Kubernetes operations.
-    - systemPackages:
+    - textAnalyze:
         checkName: "Detected Security Packages"
-        collectorName: security-tools-packages
+        fileName: host-collectors/run-host/security-tools-installed.txt
+        regexGroups: '(?ms)(?P<Installed>.*)'
+        ignoreIfNoFiles: true
         outcomes:
-          - warn:
-              when: '{{ "{{" }} .IsInstalled {{ "}}" }}'
-              message: Package {{ "{{" }} .Name {{ "}}" }} is installed. This tool can interfere with kubernetes operation. Ensure the tool is either disabled or configured to not interfere with kubernetes operation.
           - pass:
-              message: Package {{ "{{" }} .Name {{ "}}" }} is not installed
+              when: "Installed == ''"
+              message: "No security packages detected."
+          - warn:
+              message: |-
+                The following security packages were detected:
+                {{ "{{" }} .Installed {{ "}}" }}
+
+                These packages can interfere with Kubernetes operation. Ensure they are disabled or configured to not interfere with required Kubernetes traffic and processes.
