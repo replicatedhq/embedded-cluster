@@ -261,17 +261,15 @@ spec:
           - -c
           - |
             pkgs="sdcss-kmod sdcss sdcss-scripts"
-            installed=""
             if command -v dpkg >/dev/null 2>&1; then
               for p in $pkgs; do
-                dpkg -l "$p" >/dev/null 2>&1 && installed="$installed$p\n"
+                dpkg -l "$p" >/dev/null 2>&1 && printf '%s\n' "$p"
               done
             elif command -v rpm >/dev/null 2>&1; then
               for p in $pkgs; do
-                rpm -q "$p" >/dev/null 2>&1 && installed="$installed$p\n"
+                rpm -q "$p" >/dev/null 2>&1 && printf '%s\n' "$p"
               done
             fi
-            printf "%b" "$installed" | sed '/^$/d'
   analyzers:
     - cpu:
         checkName: CPU
