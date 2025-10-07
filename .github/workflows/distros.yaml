@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'dev/distros/**'
+      - '!.claude/**'
     branches:
       - main
   workflow_dispatch: {}

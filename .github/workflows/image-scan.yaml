@@ -10,6 +10,8 @@ on:
     #   - '**/metadata.yaml'
     branches:
       - main
+    paths-ignore:
+      - '.claude/**'
 
 permissions:
   security-events: write
