@@ -164,8 +164,8 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
   // Expand advanced settings if there is an error in an advanced field
   useEffect(() => {
-    if (submitError?.configErrors) {
-      if (submitError.configErrors.some(e => e.field === "networkInterface" || e.field === "globalCidr")) {
+    if (submitError?.fieldErrors) {
+      if (submitError.fieldErrors.some(e => e.field === "networkInterface" || e.field === "globalCidr")) {
         setShowAdvanced(true);
       }
     }
@@ -195,7 +195,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
   const getFieldError = (fieldName: string) => {
-    const fieldError = submitError?.configErrors?.find((err) => err.field === fieldName);
+    const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
     return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
@@ -349,7 +349,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 
             {error && (
               <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.configErrors && submitError.configErrors.length > 0
+                {submitError?.fieldErrors && submitError.fieldErrors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }
