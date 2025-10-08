@@ -49,6 +49,30 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
     refetchInterval: 2000,
   });
 
+  // Mutation for starting app preflights
+  const { mutate: startAppPreflights, error: startAppPreflightsError } = useMutation({
+    mutationFn: async () => {
+      const apiBase = getApiBase("kubernetes", mode);
+      const response = await fetch(`${apiBase}/app-preflights/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isUi: true }),
+      });
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+  });
+
+
   // Report that step is running when component mounts
   useEffect(() => {
     onStateChange('Running');
@@ -104,38 +128,11 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
         onToggle={() => setShowLogs(!showLogs)}
       />
 
+      {startAppPreflightsError && <ErrorMessage error={startAppPreflightsError?.message} />}
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>
   );
-
-  // Mutation for starting app preflights
-  const { mutate: startAppPreflights } = useMutation({
-    mutationFn: async () => {
-      const apiBase = getApiBase("kubernetes", mode);
-      const response = await fetch(`${apiBase}/app-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      onNext();
-    },
-    onError: (err: Error) => {
-      // Log error but still proceed to next step - preflight status will show the error
-      console.error("Failed to start app preflights:", err);
-      onNext();
-    },
-  });
 
   // Update next button configuration
   useEffect(() => {

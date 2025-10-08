@@ -15,6 +15,7 @@ import { SettingsContext, Settings } from "../contexts/SettingsContext";
 import { WizardContext } from "../contexts/WizardModeContext";
 import { InitialStateContext } from "../contexts/InitialStateContext";
 import { AuthContext } from "../contexts/AuthContext";
+import { InstallationProgressProvider } from "../providers/InstallationProgressProvider";
 
 // Mock localStorage for tests
 const mockLocalStorage = {
@@ -25,10 +26,48 @@ const mockLocalStorage = {
 };
 Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
 
+// Mock sessionStorage for tests
+const mockSessionStorage = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(window, "sessionStorage", { value: mockSessionStorage });
+
 // Mock scrollIntoView for all tests (JSDOM does not implement it)
 if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 }
+
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
 
 interface MockProviderProps {
   children: React.ReactNode;
@@ -77,13 +116,17 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
     <InitialStateContext.Provider value={contexts.initialStateContext}>
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
-          <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
-            <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
-              <SettingsContext.Provider value={contexts.settingsContext}>
-                <WizardContext.Provider value={contexts.wizardModeContext}>{children}</WizardContext.Provider>
-              </SettingsContext.Provider>
-            </KubernetesConfigContext.Provider>
-          </LinuxConfigContext.Provider>
+          <InstallationProgressProvider>
+            <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
+              <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
+                <SettingsContext.Provider value={contexts.settingsContext}>
+                  <WizardContext.Provider value={contexts.wizardModeContext}>
+                    {children}
+                  </WizardContext.Provider>
+                </SettingsContext.Provider>
+              </KubernetesConfigContext.Provider>
+            </LinuxConfigContext.Provider>
+          </InstallationProgressProvider>
         </AuthContext.Provider>
       </QueryClientProvider>
     </InitialStateContext.Provider>

@@ -36,10 +36,6 @@ interface Status {
   description?: string;
 }
 
-interface ConfigError extends Error {
-  errors?: { field: string; message: string }[];
-}
-
 interface KubernetesConfigResponse {
   values: KubernetesConfig;
   defaults: KubernetesConfig;
@@ -79,7 +75,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, KubernetesConfig>({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, KubernetesConfig>({
     mutationFn: async (configData) => {
       const response = await fetch(`${apiBase}/installation/configure`, {
         method: "POST",
@@ -102,9 +98,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       setError(null);
       startInstallation();
     },
-    onError: (err: ConfigError) => {
-      setError(err.message || "Failed to submit config");
-      return err;
+    onError: (err: ApiError) => {
+      setError(err.details || err.message);
     },
   });
 
@@ -128,8 +123,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start installation");
+    onError: (err: ApiError) => {
+      setError(err.details || err.message);
     },
   });
 
@@ -149,7 +144,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   };
 
   const getFieldError = (fieldName: string) => {
-    const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
+    const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
     return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
@@ -230,7 +225,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
             {error && (
               <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0
+                {submitError?.fieldErrors && submitError.fieldErrors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }

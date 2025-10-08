@@ -228,7 +228,11 @@ describe("LinuxSetupStep", () => {
         }),
         http.post("*/api/linux/install/installation/configure", () => {
           return new HttpResponse(JSON.stringify({ message: "Initial error" }), { status: 400 });
-        })
+        }),
+        // Mock preflight run endpoint
+        http.post('*/api/linux/install/host-preflights/run', () => {
+          return HttpResponse.json({ success: true });
+        }),
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -311,7 +315,7 @@ describe("LinuxSetupStep", () => {
       // Check that port inputs are empty (not displaying "0")
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
       const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
-      
+
       expect(adminPortInput.value).toBe("");
       expect(mirrorPortInput.value).toBe("");
     });
@@ -345,7 +349,7 @@ describe("LinuxSetupStep", () => {
       // Check that inputs show empty values appropriately
       const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       expect(dataDirectoryInput.value).toBe("");
       expect(adminPortInput.value).toBe("");
     });
@@ -371,18 +375,18 @@ describe("LinuxSetupStep", () => {
       });
 
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       // Clear the existing value first
       fireEvent.change(adminPortInput, { target: { value: "" } });
-      
+
       // Test that decimal values are rejected
       fireEvent.change(adminPortInput, { target: { value: "8080.5" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that non-numeric values are rejected
       fireEvent.change(adminPortInput, { target: { value: "abc" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that valid integer is accepted
       fireEvent.change(adminPortInput, { target: { value: "8080" } });
       expect(adminPortInput.value).toBe("8080");
@@ -490,7 +494,12 @@ describe("LinuxSetupStep", () => {
               "Content-Type": "application/json",
             },
           });
-        })
+        }),
+        // Mock preflight run endpoint
+        http.post('*/api/linux/install/host-preflights/run', () => {
+          return HttpResponse.json({ success: true });
+        }),
+
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -555,6 +564,59 @@ describe("LinuxSetupStep", () => {
         dataDirectory: "/var/lib/embedded-cluster",
         networkInterface: "eth0",
         globalCidr: "10.244.0.0/16",
+      });
+    });
+
+
+    it("handles preflight run error", async () => {
+      // Mock all required API endpoints
+      server.use(
+        // Mock install config endpoint
+        http.get("*/api/linux/install/installation/config", () => {
+          return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
+        }),
+        // Mock network interfaces endpoint
+        http.get("*/api/console/available-network-interfaces", () => {
+          return HttpResponse.json(MOCK_NETWORK_INTERFACES);
+        }),
+        // Mock config submission endpoint
+        http.post("*/api/linux/install/installation/configure", async () => {
+          return new HttpResponse(JSON.stringify({ success: true }), {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        }),
+        http.post("*/api/linux/install/host-preflights/run", () => {
+          return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: {
+                dataDirectory: "",
+              },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      // Get the next button and ensure it's not disabled
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      expect(nextButton).not.toBeDisabled();
+
+      // Submit form
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
       });
     });
   });

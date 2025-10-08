@@ -568,7 +568,7 @@ describe.each([
       expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
     });
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
-    expect(screen.getByText("Session expired. Please log in again.")).toBeInTheDocument();
+    expect(screen.getByText("Unauthorized")).toBeInTheDocument();
   });
 
   it("only submits changed values", async () => {

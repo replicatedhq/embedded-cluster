@@ -229,7 +229,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
           <li>• Re-run the validation once issues are addressed</li>
         </ul>
         <div className="mt-4">
-          <Button onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
+          <Button dataTestId="run-validation" onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
             Run Validation Again
           </Button>
         </div>

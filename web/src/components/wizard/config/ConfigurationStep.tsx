@@ -78,7 +78,13 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setAppConfig(config);
     } catch (error) {
       console.log(error)
-      setGeneralError(error instanceof Error ? error.message : String(error));
+      if (error instanceof ApiError) {
+        setGeneralError(error.details || error.message);
+      } else if (error instanceof Error) {
+        setGeneralError(error.message);
+      } else {
+        setGeneralError(String(error))
+      }
     }
   }, [target, mode, token, debouncedFetch]);
 

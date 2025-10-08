@@ -126,8 +126,8 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     onSuccess: () => {
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start preflights");
+    onError: (err: ApiError) => {
+      setError(err.details || err.message);
     },
   });
 
@@ -157,8 +157,8 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       startHostPreflights();
     },
     onError: (err: ApiError) => {
-      setError(err.message || "Failed to configure installation");
-      return err;
+      // share the error message from the API
+      setError(err.details || err.message);
     },
   });
 

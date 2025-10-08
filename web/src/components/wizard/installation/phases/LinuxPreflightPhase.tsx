@@ -19,6 +19,10 @@ interface LinuxPreflightPhaseProps {
   onStateChange: (status: State) => void;
 }
 
+interface StartInstallationRequest {
+  ignoreHostPreflights: boolean;
+}
+
 const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { text, target, mode } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
@@ -42,8 +46,8 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startInstallation } = useMutation({
-    mutationFn: async ({ ignoreHostPreflights }: { ignoreHostPreflights: boolean }) => {
+  const { mutate: startInstallation } = useMutation<unknown, ApiError, StartInstallationRequest>({
+    mutationFn: async ({ ignoreHostPreflights }) => {
       const apiBase = getApiBase(target, mode);
       const response = await fetch(`${apiBase}/infra/setup`, {
         method: "POST",
@@ -65,8 +69,9 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start installation");
+    onError: (err: ApiError) => {
+      // share the error message from the API
+      setError(err.details || err.message);
     },
   });
 

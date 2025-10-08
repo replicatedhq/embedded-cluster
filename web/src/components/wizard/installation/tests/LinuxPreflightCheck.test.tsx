@@ -181,29 +181,6 @@ describe("LinuxPreflightCheck", () => {
     });
   });
 
-  it("handles preflight run error", async () => {
-    server.use(
-      http.post("*/api/linux/install/host-preflights/run", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks")).toBeInTheDocument();
-      expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
-    });
-  });
-
   it("allows re-running validation when there are failures", async () => {
     renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {

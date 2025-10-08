@@ -17,6 +17,10 @@ interface AppPreflightPhaseProps {
   onStateChange: (status: State) => void;
 }
 
+interface StartAppInstallationRequest {
+  ignoreAppPreflights: boolean;
+}
+
 const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
   const { text, target, mode } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
@@ -43,8 +47,8 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startAppInstallation } = useMutation({
-    mutationFn: async ({ ignoreAppPreflights }: { ignoreAppPreflights: boolean }) => {
+  const { mutate: startAppInstallation } = useMutation<unknown, ApiError, StartAppInstallationRequest>({
+    mutationFn: async ({ ignoreAppPreflights }) => {
       const apiBase = getApiBase(target, mode);
       const response = await fetch(`${apiBase}/app/${mode}`, {
         method: "POST",
@@ -66,8 +70,9 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start application installation");
+    onError: (err: ApiError) => {
+      // share the error message from the API
+      setError(err.details || err.message);
     },
   });
 
