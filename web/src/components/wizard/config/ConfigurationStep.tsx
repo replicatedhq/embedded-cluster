@@ -77,7 +77,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       const config = await response.json();
       setAppConfig(config);
     } catch (error) {
-      console.log(error)
       if (error instanceof ApiError) {
         setGeneralError(error.details || error.message);
       } else if (error instanceof Error) {
