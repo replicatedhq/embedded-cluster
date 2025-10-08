@@ -1944,7 +1944,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_field",
@@ -2042,7 +2042,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "first_required_field",
@@ -2153,7 +2153,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "db_required_field",
@@ -2256,7 +2256,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_text_field",
@@ -2351,7 +2351,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "auth_method",

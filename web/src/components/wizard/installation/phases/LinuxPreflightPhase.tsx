@@ -9,6 +9,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;
@@ -56,8 +57,7 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start installation");
+        throw await ApiError.fromResponse(response, "Failed to start installation")
       }
       return response.json();
     },

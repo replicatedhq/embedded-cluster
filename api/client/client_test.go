@@ -566,7 +566,7 @@ func TestErrorFromResponse(t *testing.T) {
 	// Create a response with an error
 	resp := &http.Response{
 		StatusCode: http.StatusBadRequest,
-		Body:       io.NopCloser(bytes.NewBufferString(`{"status_code": 400, "message": "Bad Request"}`)),
+		Body:       io.NopCloser(bytes.NewBufferString(`{"statusCode": 400, "message": "Bad Request"}`)),
 	}
 
 	err := errorFromResponse(resp)

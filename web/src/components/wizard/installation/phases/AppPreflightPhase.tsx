@@ -9,6 +9,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig } from "../types";
 import { State } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface AppPreflightPhaseProps {
   onNext: () => void;
@@ -57,8 +58,7 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start application installation");
+        throw await ApiError.fromResponse(response, "Failed to start application installation")
       }
       return response.json();
     },

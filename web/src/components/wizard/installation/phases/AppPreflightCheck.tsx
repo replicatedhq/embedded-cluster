@@ -7,6 +7,7 @@ import Button from "../../../common/Button";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { PreflightOutput, AppPreflightResponse } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface AppPreflightCheckProps {
   onRun: () => void;
@@ -14,7 +15,7 @@ interface AppPreflightCheckProps {
 }
 
 const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete }) => {
-  const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
+  const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
   const { settings } = useSettings();
   const { target, mode } = useWizard();
   const themeColor = settings.themeColor;
@@ -47,8 +48,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
         body: JSON.stringify({ isUi: true }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to run application preflight checks");
+        throw await ApiError.fromResponse(response, "Failed to run application preflight checks")
       }
       return response.json() as Promise<AppPreflightResponse>;
     },
@@ -73,8 +73,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get application preflight status");
+        throw await ApiError.fromResponse(response, "Failed to get application preflight status")
       }
       return response.json() as Promise<AppPreflightResponse>;
     },
@@ -93,11 +92,6 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
       );
     }
   }, [preflightResponse]);
-
-  // Start app preflights immediately when component mounts
-  useEffect(() => {
-    runPreflights();
-  }, []);
 
   if (isPreflightsPolling) {
     return (

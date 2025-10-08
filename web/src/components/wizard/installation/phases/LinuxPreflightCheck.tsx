@@ -7,6 +7,7 @@ import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -21,7 +22,7 @@ interface InstallationStatusResponse {
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
   const { target, mode } = useWizard();
-  const [isPreflightsPolling, setIsPreflightsPolling] = useState(false);
+  const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
@@ -56,8 +57,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
         body: JSON.stringify({ isUi: true }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to run preflight checks");
+        throw await ApiError.fromResponse(response, "Failed to run preflight checks")
       }
       return response.json() as Promise<HostPreflightResponse>;
     },
@@ -82,8 +82,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get installation status");
+        throw await ApiError.fromResponse(response, "Failed to get installation status")
       }
       return response.json() as Promise<InstallationStatusResponse>;
     },
@@ -104,8 +103,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get preflight status");
+        throw await ApiError.fromResponse(response, "Failed to get preflight status")
       }
       return response.json() as Promise<HostPreflightResponse>;
     },
@@ -124,15 +122,14 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     }
   }, [preflightResponse]);
 
+  // Stop polling installation status once preflights start or if installation fails
   useEffect(() => {
     if (installationStatus?.state === "Failed") {
       setIsInstallationStatusPolling(false);
-      return; // Prevent running preflights if failed
+      setIsPreflightsPolling(false);
     }
     if (installationStatus?.state === "Succeeded") {
-      setIsPreflightsPolling(true);
       setIsInstallationStatusPolling(false);
-      runPreflights();
     }
   }, [installationStatus]);
 

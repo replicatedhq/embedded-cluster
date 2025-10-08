@@ -6,11 +6,11 @@ import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
-import { handleUnauthorized } from "../../../utils/auth";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { KubernetesConfig } from "../../../types";
 import { getApiBase } from '../../../utils/api-base';
+import { ApiError } from '../../../utils/api-error';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -65,12 +65,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw new Error(errorData.message || "Failed to fetch install configuration");
+        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
       }
       const configResponse = await response.json();
       // Update the global config with resolved config which includes user values and defaults.
@@ -96,12 +91,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw errorData;
+        throw await ApiError.fromResponse(response, "Failed to submit configuration")
       }
       return response.json();
     },
@@ -130,8 +120,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start installation");
+        throw await ApiError.fromResponse(response, "Failed to start installation")
       }
       return response.json();
     },

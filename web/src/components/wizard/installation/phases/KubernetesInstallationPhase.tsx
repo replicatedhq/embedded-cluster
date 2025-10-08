@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useWizard } from '../../../../contexts/WizardModeContext';
@@ -10,6 +10,7 @@ import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;
@@ -40,8 +41,7 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get infra status");
+        throw await ApiError.fromResponse(response, "Failed to get infra status")
       }
       return response.json() as Promise<InfraStatusResponse>;
     },
@@ -109,11 +109,39 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
     </div>
   );
 
+  // Mutation for starting app preflights
+  const { mutate: startAppPreflights } = useMutation({
+    mutationFn: async () => {
+      const apiBase = getApiBase("kubernetes", mode);
+      const response = await fetch(`${apiBase}/app-preflights/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isUi: true }),
+      });
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+    onError: (err: Error) => {
+      // Log error but still proceed to next step - preflight status will show the error
+      console.error("Failed to start app preflights:", err);
+      onNext();
+    },
+  });
+
   // Update next button configuration
   useEffect(() => {
     setNextButtonConfig({
       disabled: !installComplete,
-      onClick: onNext,
+      onClick: () => startAppPreflights(),
     });
   }, [installComplete]);
 

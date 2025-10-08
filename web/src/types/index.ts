@@ -83,6 +83,7 @@ export interface WizardText {
   nextButtonText: string;
 }
 
+// WizardStep type represents the different steps in the installation or upgrade wizard
 export type WizardStep =
   | "welcome"
   | "configuration"
@@ -91,6 +92,14 @@ export type WizardStep =
   | "installation"
   | "linux-completion"
   | "kubernetes-completion";
+
+// InstallationPhaseId type represents the different phases of the installation process
+export type InstallationPhaseId =
+  | "linux-preflight"
+  | "linux-installation"
+  | "kubernetes-installation"
+  | "app-preflight"
+  | "app-installation";
 
 // App Configuration Types
 export interface AppConfig {
@@ -179,4 +188,11 @@ export interface InstallationStatusResponse {
   description: string;
   lastUpdated: string;
   state: State;
+}
+
+export interface ApiErrorResponse {
+  statusCode: number;
+  message: string;
+  field: string;
+  errors?: { field: string; message: string }[];
 }
