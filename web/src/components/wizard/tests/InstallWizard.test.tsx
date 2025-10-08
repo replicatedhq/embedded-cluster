@@ -119,6 +119,57 @@ const createServer = (target: string) => setupServer(
   // Mock app upgrade start endpoint
   http.post(`*/api/${target}/upgrade/app/upgrade`, () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Mock installation status endpoint
+  http.get(`*/api/${target}/install/installation/status`, () => {
+    return HttpResponse.json({
+      state: 'Pending',
+      description: 'Waiting to start installation',
+      lastUpdated: new Date().toISOString()
+    });
+  }),
+
+  // Mock infra status endpoint
+  http.get(`*/api/${target}/install/infra/status`, () => {
+    return HttpResponse.json({
+      components: [],
+      status: {
+        state: 'Pending',
+        description: 'Waiting to start',
+        lastUpdated: new Date().toISOString()
+      },
+      logs: ''
+    });
+  }),
+
+  // Mock host preflights status endpoint
+  http.get(`*/api/${target}/install/host-preflights/status`, () => {
+    return HttpResponse.json({
+      titles: [],
+      status: {
+        state: 'Pending',
+        description: 'Waiting to start',
+        lastUpdated: new Date().toISOString()
+      },
+      output: { pass: [], warn: [], fail: [] },
+      allowIgnoreHostPreflights: false
+    });
+  }),
+
+  // Mock app preflights status endpoint
+  http.get(`*/api/${target}/install/app-preflights/status`, () => {
+    return HttpResponse.json({
+      titles: [],
+      status: {
+        state: 'Pending',
+        description: 'Waiting to start',
+        lastUpdated: new Date().toISOString()
+      },
+      output: { pass: [], warn: [], fail: [] },
+      allowIgnoreAppPreflights: false,
+      hasStrictAppPreflightFailures: false
+    });
   })
 );
 
@@ -301,5 +352,106 @@ describe.each([
     await waitForForm();
 
     expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
+  });
+
+  it("restores to configuration step from sessionStorage", async () => {
+    const STORAGE_KEY = "embedded-cluster-install-progress";
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        wizardStep: "configuration",
+        installationPhase: undefined,
+      })
+    );
+
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    await waitForForm();
+
+    expect(screen.getByTestId("configuration-step")).toBeInTheDocument();
+  });
+
+  it("restores to setup step from sessionStorage", async () => {
+    const STORAGE_KEY = "embedded-cluster-install-progress";
+    const setupStep = target === "linux" ? "linux-setup" : "kubernetes-setup";
+
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        wizardStep: setupStep,
+        installationPhase: undefined,
+      })
+    );
+
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId(`${target}-setup`)).toBeInTheDocument();
+    });
+  });
+
+  it("restores to installation step from sessionStorage", async () => {
+    const STORAGE_KEY = "embedded-cluster-install-progress";
+    const firstPhase = target === "kubernetes" ? "kubernetes-installation" : "linux-preflight";
+
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        wizardStep: "installation",
+        installationPhase: undefined,
+      })
+    );
+
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId(`${firstPhase}-container`)).toBeInTheDocument();
+    });
+  });
+
+  it("defaults to welcome step when sessionStorage has invalid data", async () => {
+    const STORAGE_KEY = "embedded-cluster-install-progress";
+    sessionStorage.setItem(STORAGE_KEY, "invalid-json{");
+
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Welcome")).toBeInTheDocument();
+    });
+  });
+
+  it("defaults to welcome step when no sessionStorage data exists", async () => {
+    sessionStorage.clear();
+
+    renderWithProviders(<InstallWizard />, {
+      wrapperProps: {
+        authenticated: true,
+        target: target,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Welcome")).toBeInTheDocument();
+    });
   });
 });

@@ -26,13 +26,23 @@ const mockLocalStorage = {
 };
 Object.defineProperty(window, "localStorage", { value: mockLocalStorage });
 
-// Mock sessionStorage for tests
-const mockSessionStorage = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+// Mock sessionStorage for tests with real storage functionality
+const createMockStorage = () => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] || null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+  };
 };
+const mockSessionStorage = createMockStorage();
 Object.defineProperty(window, "sessionStorage", { value: mockSessionStorage });
 
 // Mock scrollIntoView for all tests (JSDOM does not implement it)
