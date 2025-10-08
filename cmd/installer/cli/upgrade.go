@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -447,6 +448,7 @@ func runManagerExperienceUpgrade(
 			ReleaseData:        release.GetReleaseData(),
 			EndUserConfig:      upgradeConfig.endUserConfig,
 			ClusterID:          upgradeConfig.clusterID,
+			Mode:               apitypes.ModeUpgrade,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig: rc,
@@ -454,7 +456,7 @@ func runManagerExperienceUpgrade(
 		},
 		ManagerPort:     upgradeConfig.managerPort,
 		InstallTarget:   flags.target,
-		Mode:            wizardUpgradeMode,
+		WebMode:         web.ModeUpgrade,
 		MetricsReporter: metricsReporter,
 	}
 

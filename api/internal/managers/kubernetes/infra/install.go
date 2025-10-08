@@ -49,12 +49,12 @@ func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.In
 	return nil
 }
 
-func (m *infraManager) initComponentsList(license *kotsv1beta1.License, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) initInstallComponentsList() error {
 	components := []types.InfraComponent{}
 
-	addOns := addons.GetAddOnsForKubernetesInstall(m.getAddonInstallOpts(license, ki))
-	for _, addOn := range addOns {
-		components = append(components, types.InfraComponent{Name: addOn.Name()})
+	addOnsNames := addons.GetAddOnsNamesForKubernetesInstall()
+	for _, addOnName := range addOnsNames {
+		components = append(components, types.InfraComponent{Name: addOnName})
 	}
 
 	for _, component := range components {
@@ -71,7 +71,7 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initComponentsList(license, ki); err != nil {
+	if err := m.initInstallComponentsList(); err != nil {
 		return fmt.Errorf("init components: %w", err)
 	}
 

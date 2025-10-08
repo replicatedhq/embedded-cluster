@@ -20,10 +20,20 @@ func (m *MockInfraManager) Install(ctx context.Context, rc runtimeconfig.Runtime
 	return args.Error(0)
 }
 
+func (m *MockInfraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(ctx, rc)
+	return args.Error(0)
+}
+
 func (m *MockInfraManager) Get() (types.Infra, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
 		return types.Infra{}, args.Error(1)
 	}
 	return args.Get(0).(types.Infra), args.Error(1)
+}
+
+func (m *MockInfraManager) RequiresUpgrade(ctx context.Context) (bool, error) {
+	args := m.Called(ctx)
+	return args.Bool(0), args.Error(1)
 }

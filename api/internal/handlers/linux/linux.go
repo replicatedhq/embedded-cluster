@@ -77,61 +77,64 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		)
 	}
 
-	// TODO (@team): discuss which of these should / should not be pointers
-	if h.installController == nil {
-		installController, err := install.NewInstallController(
-			install.WithRuntimeConfig(h.cfg.RuntimeConfig),
-			install.WithLogger(h.logger),
-			install.WithHostUtils(h.hostUtils),
-			install.WithMetricsReporter(h.metricsReporter),
-			install.WithReleaseData(h.cfg.ReleaseData),
-			install.WithPassword(h.cfg.Password),
-			install.WithTLSConfig(h.cfg.TLSConfig),
-			install.WithLicense(h.cfg.License),
-			install.WithAirgapBundle(h.cfg.AirgapBundle),
-			install.WithAirgapMetadata(h.cfg.AirgapMetadata),
-			install.WithEmbeddedAssetsSize(h.cfg.EmbeddedAssetsSize),
-			install.WithConfigValues(h.cfg.ConfigValues),
-			install.WithEndUserConfig(h.cfg.EndUserConfig),
-			install.WithClusterID(h.cfg.ClusterID),
-			install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("new install controller: %w", err)
+	if h.cfg.Mode == types.ModeInstall {
+		// TODO (@team): discuss which of these should / should not be pointers
+		if h.installController == nil {
+			installController, err := install.NewInstallController(
+				install.WithRuntimeConfig(h.cfg.RuntimeConfig),
+				install.WithLogger(h.logger),
+				install.WithHostUtils(h.hostUtils),
+				install.WithMetricsReporter(h.metricsReporter),
+				install.WithReleaseData(h.cfg.ReleaseData),
+				install.WithPassword(h.cfg.Password),
+				install.WithTLSConfig(h.cfg.TLSConfig),
+				install.WithLicense(h.cfg.License),
+				install.WithAirgapBundle(h.cfg.AirgapBundle),
+				install.WithAirgapMetadata(h.cfg.AirgapMetadata),
+				install.WithEmbeddedAssetsSize(h.cfg.EmbeddedAssetsSize),
+				install.WithConfigValues(h.cfg.ConfigValues),
+				install.WithEndUserConfig(h.cfg.EndUserConfig),
+				install.WithClusterID(h.cfg.ClusterID),
+				install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("new install controller: %w", err)
+			}
+			h.installController = installController
 		}
-		h.installController = installController
-	}
 
-	// Initialize upgrade controller if upgrade is supported
-	if h.upgradeController == nil {
-		upgradeController, err := upgrade.NewUpgradeController(
-			upgrade.WithLogger(h.logger),
-			upgrade.WithReleaseData(h.cfg.ReleaseData),
-			upgrade.WithLicense(h.cfg.License),
-			upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
-			upgrade.WithConfigValues(h.cfg.ConfigValues),
-			upgrade.WithClusterID(h.cfg.ClusterID),
+		// Initialize sub-handler
+		h.Install = linuxinstall.New(
+			h.cfg,
+			linuxinstall.WithController(h.installController),
+			linuxinstall.WithLogger(h.logger),
+			linuxinstall.WithHostUtils(h.hostUtils),
+			linuxinstall.WithMetricsReporter(h.metricsReporter),
 		)
-		if err != nil {
-			return nil, fmt.Errorf("new upgrade controller: %w", err)
+	} else {
+		// Initialize upgrade controller if upgrade is supported
+		if h.upgradeController == nil {
+			upgradeController, err := upgrade.NewUpgradeController(
+				upgrade.WithLogger(h.logger),
+				upgrade.WithReleaseData(h.cfg.ReleaseData),
+				upgrade.WithLicense(h.cfg.License),
+				upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
+				upgrade.WithConfigValues(h.cfg.ConfigValues),
+				upgrade.WithClusterID(h.cfg.ClusterID),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("new upgrade controller: %w", err)
+			}
+			h.upgradeController = upgradeController
 		}
-		h.upgradeController = upgradeController
+
+		// Initialize sub-handler
+		h.Upgrade = linuxupgrade.New(
+			h.cfg,
+			linuxupgrade.WithController(h.upgradeController),
+			linuxupgrade.WithLogger(h.logger),
+		)
 	}
-
-	// Initialize sub-handlers
-	h.Install = linuxinstall.New(
-		h.cfg,
-		linuxinstall.WithController(h.installController),
-		linuxinstall.WithLogger(h.logger),
-		linuxinstall.WithHostUtils(h.hostUtils),
-		linuxinstall.WithMetricsReporter(h.metricsReporter),
-	)
-
-	h.Upgrade = linuxupgrade.New(
-		h.cfg,
-		linuxupgrade.WithController(h.upgradeController),
-		linuxupgrade.WithLogger(h.logger),
-	)
 
 	return h, nil
 }

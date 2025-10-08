@@ -64,6 +64,9 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 	upgradeRouter.HandleFunc("/app-preflights/run", a.handlers.linux.Upgrade.PostRunAppPreflights).Methods("POST")
 	upgradeRouter.HandleFunc("/app-preflights/status", a.handlers.linux.Upgrade.GetAppPreflightsStatus).Methods("GET")
 
+	upgradeRouter.HandleFunc("/infra/upgrade", a.handlers.linux.Upgrade.PostUpgradeInfra).Methods("POST")
+	upgradeRouter.HandleFunc("/infra/status", a.handlers.linux.Upgrade.GetInfraStatus).Methods("GET")
+
 	upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.Upgrade.PostUpgradeApp).Methods("POST")
 	upgradeRouter.HandleFunc("/app/status", a.handlers.linux.Upgrade.GetAppUpgradeStatus).Methods("GET")
 }

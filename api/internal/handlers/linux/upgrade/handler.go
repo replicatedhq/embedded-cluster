@@ -264,3 +264,52 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
+
+// PostUpgradeInfra handler to upgrade the infrastructure
+//
+//	@ID				postLinuxUpgradeInfra
+//	@Summary		Upgrade the infrastructure
+//	@Description	Upgrade the infrastructure (k0s, addons, extensions)
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	types.Infra
+//	@Failure		400	{object}	types.Error
+//	@Failure		401	{object}	types.Error
+//	@Failure		409	{object}	types.Error
+//	@Failure		500	{object}	types.Error
+//	@Router			/linux/upgrade/infra/upgrade [post]
+func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
+	err := h.controller.UpgradeInfra(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to upgrade infra")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetInfraStatus(w, r)
+}
+
+// GetInfraStatus handler to get the status of the infra upgrade
+//
+//	@ID				getLinuxUpgradeInfraStatus
+//	@Summary		Get the status of the infra upgrade
+//	@Description	Get the current status of the infrastructure upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Infra
+//	@Failure		401	{object}	types.Error
+//	@Failure		500	{object}	types.Error
+//	@Router			/linux/upgrade/infra/status [get]
+func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
+	infra, err := h.controller.GetInfra(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get upgrade infra status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, infra, h.logger)
+}

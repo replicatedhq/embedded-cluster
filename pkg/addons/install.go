@@ -121,6 +121,30 @@ func (a *AddOns) Restore(ctx context.Context, opts RestoreOptions) error {
 	return nil
 }
 
+// Convenience function for getting the names of the addons to install without having to provide the full install options
+func GetAddOnsNamesForInstall(isAirgap bool, disasterRecoveryEnabled bool) []string {
+	addOns := []types.AddOn{
+		&openebs.OpenEBS{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{},
+	}
+
+	if isAirgap {
+		addOns = append(addOns, &registry.Registry{})
+	}
+
+	if disasterRecoveryEnabled {
+		addOns = append(addOns, &velero.Velero{})
+	}
+
+	addOns = append(addOns, &adminconsole.AdminConsole{})
+
+	names := []string{}
+	for _, addOn := range addOns {
+		names = append(names, addOn.Name())
+	}
+	return names
+}
+
 func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 	addOns := []types.AddOn{
 		&openebs.OpenEBS{
@@ -184,6 +208,19 @@ func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 		},
 	}
 	return addOns
+}
+
+// Convenience function for getting the names of the addons to install without having to provide the full install options
+func GetAddOnsNamesForKubernetesInstall() []string {
+	addOns := []types.AddOn{
+		&adminconsole.AdminConsole{},
+	}
+
+	names := []string{}
+	for _, addOn := range addOns {
+		names = append(names, addOn.Name())
+	}
+	return names
 }
 
 func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn {

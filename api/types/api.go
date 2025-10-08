@@ -22,10 +22,18 @@ type APIConfig struct {
 	ReleaseData        *release.ReleaseData
 	EndUserConfig      *ecv1beta1.Config
 	ClusterID          string
+	Mode               Mode
 
 	LinuxConfig
 	KubernetesConfig
 }
+
+type Mode string
+
+const (
+	ModeUpgrade Mode = "upgrade"
+	ModeInstall Mode = "install"
+)
 
 type LinuxConfig struct {
 	RuntimeConfig             runtimeconfig.RuntimeConfig

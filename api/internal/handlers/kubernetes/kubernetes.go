@@ -63,54 +63,57 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		h.logger = logger.NewDiscardLogger()
 	}
 
-	// TODO (@team): discuss which of these should / should not be pointers
-	if h.installController == nil {
-		installController, err := install.NewInstallController(
-			install.WithLogger(h.logger),
-			install.WithMetricsReporter(h.metricsReporter),
-			install.WithRESTClientGetter(h.cfg.RESTClientGetter),
-			install.WithReleaseData(h.cfg.ReleaseData),
-			install.WithConfigValues(h.cfg.ConfigValues),
-			install.WithEndUserConfig(h.cfg.EndUserConfig),
-			install.WithPassword(h.cfg.Password),
-			//nolint:staticcheck // QF1008 this is very ambiguous, we should re-think the config struct
-			install.WithInstallation(h.cfg.KubernetesConfig.Installation),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("new install controller: %w", err)
+	if h.cfg.Mode == types.ModeInstall {
+		// TODO (@team): discuss which of these should / should not be pointers
+		if h.installController == nil {
+			installController, err := install.NewInstallController(
+				install.WithLogger(h.logger),
+				install.WithMetricsReporter(h.metricsReporter),
+				install.WithRESTClientGetter(h.cfg.RESTClientGetter),
+				install.WithReleaseData(h.cfg.ReleaseData),
+				install.WithConfigValues(h.cfg.ConfigValues),
+				install.WithEndUserConfig(h.cfg.EndUserConfig),
+				install.WithPassword(h.cfg.Password),
+				//nolint:staticcheck // QF1008 this is very ambiguous, we should re-think the config struct
+				install.WithInstallation(h.cfg.KubernetesConfig.Installation),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("new install controller: %w", err)
+			}
+			h.installController = installController
 		}
-		h.installController = installController
-	}
 
-	// Initialize upgrade controller if upgrade is supported
-	if h.upgradeController == nil {
-		upgradeController, err := upgrade.NewUpgradeController(
-			upgrade.WithLogger(h.logger),
-			upgrade.WithRESTClientGetter(h.cfg.RESTClientGetter),
-			upgrade.WithReleaseData(h.cfg.ReleaseData),
-			upgrade.WithLicense(h.cfg.License),
-			upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
-			upgrade.WithConfigValues(h.cfg.ConfigValues),
+		// Initialize sub-handler
+		h.Install = k8sinstall.New(
+			h.cfg,
+			k8sinstall.WithController(h.installController),
+			k8sinstall.WithLogger(h.logger),
+			k8sinstall.WithMetricsReporter(h.metricsReporter),
 		)
-		if err != nil {
-			return nil, fmt.Errorf("new upgrade controller: %w", err)
+	} else {
+		// Initialize upgrade controller if upgrade is supported
+		if h.upgradeController == nil {
+			upgradeController, err := upgrade.NewUpgradeController(
+				upgrade.WithLogger(h.logger),
+				upgrade.WithRESTClientGetter(h.cfg.RESTClientGetter),
+				upgrade.WithReleaseData(h.cfg.ReleaseData),
+				upgrade.WithLicense(h.cfg.License),
+				upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
+				upgrade.WithConfigValues(h.cfg.ConfigValues),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("new upgrade controller: %w", err)
+			}
+			h.upgradeController = upgradeController
 		}
-		h.upgradeController = upgradeController
+
+		// Initialize sub-handler
+		h.Upgrade = k8supgrade.New(
+			h.cfg,
+			k8supgrade.WithController(h.upgradeController),
+			k8supgrade.WithLogger(h.logger),
+		)
 	}
-
-	// Initialize sub-handlers
-	h.Install = k8sinstall.New(
-		h.cfg,
-		k8sinstall.WithController(h.installController),
-		k8sinstall.WithLogger(h.logger),
-		k8sinstall.WithMetricsReporter(h.metricsReporter),
-	)
-
-	h.Upgrade = k8supgrade.New(
-		h.cfg,
-		k8supgrade.WithController(h.upgradeController),
-		k8supgrade.WithLogger(h.logger),
-	)
 
 	return h, nil
 }

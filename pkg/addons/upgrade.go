@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/pkg/errors"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -45,12 +46,45 @@ func (a *AddOns) Upgrade(ctx context.Context, in *ecv1beta1.Installation, meta *
 	}
 
 	for _, addon := range addons {
+		a.sendProgress(addon.Name(), apitypes.StateRunning, "Upgrading")
+
 		if err := a.upgradeAddOn(ctx, in, addon); err != nil {
+			a.sendProgress(addon.Name(), apitypes.StateFailed, err.Error())
 			return errors.Wrapf(err, "addon %s", addon.Name())
 		}
+
+		a.sendProgress(addon.Name(), apitypes.StateSucceeded, "Upgraded")
 	}
 
 	return nil
+}
+
+// Convenience function for getting the names of the addons to upgrade without having to provide the full upgrade options
+func GetAddOnsNamesForUpgrade(isAirgap bool, disasterRecoveryEnabled bool, isHA bool) []string {
+	addOns := []types.AddOn{
+		&openebs.OpenEBS{},
+		&embeddedclusteroperator.EmbeddedClusterOperator{},
+	}
+
+	if isAirgap {
+		addOns = append(addOns, &registry.Registry{})
+
+		if isHA {
+			addOns = append(addOns, &seaweedfs.SeaweedFS{})
+		}
+	}
+
+	if disasterRecoveryEnabled {
+		addOns = append(addOns, &velero.Velero{})
+	}
+
+	addOns = append(addOns, &adminconsole.AdminConsole{})
+
+	names := []string{}
+	for _, addOn := range addOns {
+		names = append(names, addOn.Name())
+	}
+	return names
 }
 
 func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts UpgradeOptions) ([]types.AddOn, error) {

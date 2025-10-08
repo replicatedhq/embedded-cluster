@@ -47,6 +47,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -713,6 +714,7 @@ func runManagerExperienceInstall(
 			ReleaseData:        release.GetReleaseData(),
 			EndUserConfig:      eucfg,
 			ClusterID:          flags.clusterID,
+			Mode:               apitypes.ModeInstall,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig:             rc,
@@ -726,7 +728,7 @@ func runManagerExperienceInstall(
 
 		ManagerPort:     flags.managerPort,
 		InstallTarget:   flags.target,
-		Mode:            wizardInstallMode,
+		WebMode:         web.ModeInstall,
 		MetricsReporter: metricsReporter,
 	}
 

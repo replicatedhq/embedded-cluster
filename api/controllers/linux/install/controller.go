@@ -254,7 +254,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 		)
 	}
 
-	// Initialize the app controller with the state machine first
+	// Initialize the app controller with the state machine
 	if controller.AppController == nil {
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(controller.stateMachine),
