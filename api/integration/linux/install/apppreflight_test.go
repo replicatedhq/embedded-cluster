@@ -85,7 +85,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -184,7 +184,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		strictAPIInstance := integration.NewAPIWithReleaseData(t,
+		strictAPIInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(strictInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -239,7 +239,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockController.On("GetAppPreflightTitles", mock.Anything).Return([]string{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -353,6 +353,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				RuntimeConfig: rc,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetLinux,
 		},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -403,6 +405,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				RuntimeConfig: rc,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetLinux,
 		},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -447,6 +451,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				RuntimeConfig: rc,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetLinux,
 		},
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

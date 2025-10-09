@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
@@ -323,9 +324,14 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 		mockStore.AppConfigMockStore.AssertExpectations(t)
 		mockAppReleaseManager.AssertExpectations(t)
 
+		// Wait for the state machine to reach success state
+		// This ensures the goroutine has completed before we check mock expectations
 		assert.Eventually(t, func() bool {
-			return runner.AssertExpectations(t)
-		}, 2*time.Second, 100*time.Millisecond, "preflight runner should have been called")
+			return stateMachine.CurrentState() == states.StateAppPreflightsSucceeded
+		}, 5*time.Second, 100*time.Millisecond, "state machine should reach StateAppPreflightsSucceeded")
+
+		// Now verify the runner mock was called
+		runner.AssertExpectations(t)
 	})
 
 	s.T().Run("Invalid state", func(t *testing.T) {
@@ -417,8 +423,13 @@ func TestAppPreflightSuite(t *testing.T) {
 				rc := runtimeconfig.New(nil)
 				rc.SetDataDir(t.TempDir())
 
+				// Create mock infra manager to avoid filesystem access
+				mockInfraManager := &infra.MockInfraManager{}
+				mockInfraManager.On("RequiresUpgrade", mock.Anything, mock.Anything).Return(false, nil)
+
 				// Create Linux upgrade controller with app controller
 				controller, err := linuxupgrade.NewUpgradeController(
+					linuxupgrade.WithRuntimeConfig(rc),
 					linuxupgrade.WithStateMachine(stateMachine),
 					linuxupgrade.WithReleaseData(&release.ReleaseData{
 						EmbeddedClusterConfig: &ecv1beta1.Config{},
@@ -431,6 +442,7 @@ func TestAppPreflightSuite(t *testing.T) {
 						AppConfig: &kotsv1beta1.Config{},
 					}),
 					linuxupgrade.WithAppController(appController),
+					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
 				require.NoError(t, err)
 
@@ -441,10 +453,12 @@ func TestAppPreflightSuite(t *testing.T) {
 						RuntimeConfig: rc,
 					},
 					ReleaseData: rd,
+					Mode:        types.ModeUpgrade,
+					Target:      types.TargetLinux,
 				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithLogger(logger.NewDiscardLogger()), // Prevent permission errors from log file creation
 				)
 				require.NoError(t, err)
 				return apiInstance
@@ -479,6 +493,8 @@ func TestAppPreflightSuite(t *testing.T) {
 						Installation:     mockInstallation,
 					},
 					ReleaseData: rd,
+					Mode:        types.ModeUpgrade,
+					Target:      types.TargetKubernetes,
 				},
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

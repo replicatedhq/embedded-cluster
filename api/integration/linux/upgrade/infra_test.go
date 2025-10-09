@@ -346,8 +346,10 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 		rc.SetDataDir(t.TempDir())
 
 		// Setup mock expectations for successful upgrade
-		upgraderMock.On("CreateInstallation", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-			// CreateInstallation should actually create the Installation object in the fake k8s client
+		upgraderMock.On("CreateInstallation", mock.Anything, mock.MatchedBy(func(in *ecv1beta1.Installation) bool {
+			// Verify the installation has the new version
+			return in.Spec.Config != nil && in.Spec.Config.Version == "v1.1.0"
+		})).Run(func(args mock.Arguments) {
 			in := args.Get(1).(*ecv1beta1.Installation)
 			err := fakeKcli.Create(t.Context(), in)
 			require.NoError(t, err)
