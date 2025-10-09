@@ -53,7 +53,7 @@ func (m *infraManager) RequiresUpgrade(ctx context.Context, rc runtimeconfig.Run
 
 // Upgrade performs the infrastructure upgrade by orchestrating the upgrade steps
 func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
-	// TODO NOW: reporting
+	// TODO: reporting
 
 	if err := m.setStatus(types.StateRunning, ""); err != nil {
 		return fmt.Errorf("set status: %w", err)
