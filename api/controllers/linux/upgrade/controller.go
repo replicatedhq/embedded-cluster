@@ -16,6 +16,8 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -37,9 +39,12 @@ type UpgradeController struct {
 	infraManager         infra.InfraManager
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
+	metricsReporter      metrics.ReporterInterface
 	releaseData          *release.ReleaseData
 	license              []byte
 	airgapBundle         string
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
 	configValues         types.AppConfigValues
 	endUserConfig        *ecv1beta1.Config
 	clusterID            string
@@ -72,6 +77,12 @@ func WithNetUtils(netUtils utils.NetUtils) UpgradeControllerOption {
 	}
 }
 
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.metricsReporter = metricsReporter
+	}
+}
+
 func WithReleaseData(releaseData *release.ReleaseData) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.releaseData = releaseData
@@ -87,6 +98,18 @@ func WithLicense(license []byte) UpgradeControllerOption {
 func WithAirgapBundle(airgapBundle string) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithAirgapMetadata(airgapMetadata *airgap.AirgapMetadata) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.airgapMetadata = airgapMetadata
+	}
+}
+
+func WithEmbeddedAssetsSize(embeddedAssetsSize int64) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.embeddedAssetsSize = embeddedAssetsSize
 	}
 }
 
@@ -187,6 +210,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			infra.WithInfraStore(controller.store.LinuxInfraStore()),
 			infra.WithLicense(controller.license),
 			infra.WithAirgapBundle(controller.airgapBundle),
+			infra.WithAirgapMetadata(controller.airgapMetadata),
+			infra.WithEmbeddedAssetsSize(controller.embeddedAssetsSize),
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),

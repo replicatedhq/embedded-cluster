@@ -115,11 +115,17 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 		// Initialize upgrade controller
 		if h.upgradeController == nil {
 			upgradeController, err := upgrade.NewUpgradeController(
+				upgrade.WithRuntimeConfig(h.cfg.RuntimeConfig),
 				upgrade.WithLogger(h.logger),
+				upgrade.WithHostUtils(h.hostUtils),
+				upgrade.WithMetricsReporter(h.metricsReporter),
 				upgrade.WithReleaseData(h.cfg.ReleaseData),
 				upgrade.WithLicense(h.cfg.License),
 				upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
+				upgrade.WithAirgapMetadata(h.cfg.AirgapMetadata),
+				upgrade.WithEmbeddedAssetsSize(h.cfg.EmbeddedAssetsSize),
 				upgrade.WithConfigValues(h.cfg.ConfigValues),
+				upgrade.WithEndUserConfig(h.cfg.EndUserConfig),
 				upgrade.WithClusterID(h.cfg.ClusterID),
 			)
 			if err != nil {
