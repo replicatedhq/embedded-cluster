@@ -10,7 +10,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { LinuxConfig } from "../../../types";
+import { LinuxConfig, State } from "../../../types";
 import { getApiBase } from '../../../utils/api-base';
 import { ApiError } from '../../../utils/api-error';
 
@@ -51,6 +51,12 @@ interface LinuxConfigResponse {
   resolved: LinuxConfig;
 }
 
+interface InstallationStatusResponse {
+  description: string;
+  lastUpdated: string;
+  state: State;
+}
+
 interface NetworkInterfacesResponse {
   networkInterfaces: string[]
 }
@@ -59,6 +65,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { updateConfig } = useLinuxConfig(); // We need to make sure to update the global config
   const { text, target, mode } = useWizard();
   const { title } = useInitialState();
+  const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<LinuxConfig>({ dataDirectory: "" });
@@ -105,6 +112,26 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       return response.json();
     },
   });
+
+  // Query to poll installation status
+  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
+    queryKey: ["installationStatus"],
+    queryFn: async () => {
+      const response = await fetch(`${apiBase}/installation/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to get installation status")
+      }
+      return response.json() as Promise<InstallationStatusResponse>;
+    },
+    enabled: isInstallationStatusPolling,
+    refetchInterval: 1000,
+    gcTime: 0,
+  });
+
 
   // Mutation for starting host preflights
   const { mutate: startHostPreflights } = useMutation({
@@ -153,8 +180,8 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       updateConfig(configValues);
       // Clear any previous errors
       setError(null);
-      // Start host preflights after successful configuration
-      startHostPreflights();
+      // Start polling installation status
+      setIsInstallationStatusPolling(true);
     },
     onError: (err: ApiError) => {
       // share the error message from the API
@@ -171,6 +198,22 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     }
   }, [submitError]);
 
+
+  // Trigger host preflights when installation status polling finishes
+  useEffect(() => {
+    if (installationStatus?.state === "Failed") {
+      setIsInstallationStatusPolling(false);
+      setError(`Installation configuration failed with: ${installationStatus.description}`)
+      return; // Prevent running preflights if failed
+    }
+    if (installationStatus?.state === "Succeeded") {
+      setIsInstallationStatusPolling(false);
+      startHostPreflights();
+    }
+  }, [installationStatus]);
+
+
+  // Handle input changes for text and number inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     if (id === "adminConsolePort" || id === "localArtifactMirrorPort") {
@@ -191,13 +234,20 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     setConfigValues({ ...configValues, [id]: value });
   };
 
-  const isLoading = isConfigLoading || isInterfacesLoading;
+  const isLoading = isConfigLoading || isInterfacesLoading || isInstallationStatusPolling;
   const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
   const getFieldError = (fieldName: string) => {
     const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
     return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
+
+  const getLoadingText = () => {
+    if (isInstallationStatusPolling) {
+      return "Preparing the host."
+    }
+    return "Loading configuration..."
+  }
 
   return (
     <div className="space-y-6" data-testid="linux-setup">
@@ -208,9 +258,9 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
         </div>
 
         {isLoading ? (
-          <div className="py-4 text-center">
+          <div className="py-4 text-center" data-testid="linux-setup-loading">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading configuration...</p>
+            <p className="mt-2 text-gray-600" data-testid="linux-setup-loading-text">{getLoadingText()}</p>
           </div>
         ) : (
           <>
@@ -348,7 +398,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
             </div>
 
             {error && (
-              <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
+              <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md" data-testid="linux-setup-error">
                 {submitError?.fieldErrors && submitError.fieldErrors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error

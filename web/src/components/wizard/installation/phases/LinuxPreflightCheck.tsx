@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Button from "../../../common/Button";
-import { PreflightOutput, HostPreflightResponse, State } from "../../../../types";
+import { PreflightOutput, HostPreflightResponse } from "../../../../types";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
@@ -14,16 +14,9 @@ interface LinuxPreflightCheckProps {
   onComplete: (success: boolean, allowIgnoreHostPreflights: boolean) => void;
 }
 
-interface InstallationStatusResponse {
-  description: string;
-  lastUpdated: string;
-  state: State;
-}
-
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
   const { target, mode } = useWizard();
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
-  const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(true);
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
   const { token } = useAuth();
@@ -33,9 +26,6 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
-    if (installationStatus?.state === "Failed") {
-      return installationStatus?.description;
-    }
     if (preflightsRunError) {
       return preflightsRunError.message;
     }
@@ -70,27 +60,6 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     },
   });
 
-  // Query to poll installation status
-  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
-    queryKey: ["installationStatus"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/status`, {
-        headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get installation status")
-      }
-      return response.json() as Promise<InstallationStatusResponse>;
-    },
-    enabled: isInstallationStatusPolling,
-    refetchInterval: 1000,
-    gcTime: 0,
-  });
-
   // Query to poll preflight status
   const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
     queryKey: ["preflightStatus"],
@@ -121,27 +90,6 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
       onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreHostPreflights ?? false);
     }
   }, [preflightResponse]);
-
-  // Stop polling installation status once preflights start or if installation fails
-  useEffect(() => {
-    if (installationStatus?.state === "Failed") {
-      setIsInstallationStatusPolling(false);
-      setIsPreflightsPolling(false);
-    }
-    if (installationStatus?.state === "Succeeded") {
-      setIsInstallationStatusPolling(false);
-    }
-  }, [installationStatus]);
-
-  if (isInstallationStatusPolling) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" style={{ color: themeColor }} />
-        <p className="text-lg font-medium text-gray-900">Initializing...</p>
-        <p className="text-sm text-gray-500 mt-2">Preparing the host.</p>
-      </div>
-    );
-  }
 
   if (isPreflightsPolling) {
     return (
