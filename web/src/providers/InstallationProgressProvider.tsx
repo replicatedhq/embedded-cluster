@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { InstallationProgressContext, StoredInstallState } from "../contexts/InstallationProgressContext";
 import { WizardStep, InstallationPhaseId } from "../types";
-import { useInitialState } from "../contexts/InitialStateContext";
 
 const STORAGE_KEY = "embedded-cluster-install-progress";
 
 export const InstallationProgressProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { installTarget } = useInitialState();
-
   // Initialize state from sessionStorage or defaults
   const [wizardStep, setWizardStepState] = useState<WizardStep>(() => {
     try {
@@ -59,7 +56,7 @@ export const InstallationProgressProvider: React.FC<{ children: React.ReactNode 
     } catch (error) {
       console.error("Failed to save installation progress:", error);
     }
-  }, [wizardStep, installationPhase, installTarget]);
+  }, [wizardStep, installationPhase]);
 
   const value = {
     wizardStep,

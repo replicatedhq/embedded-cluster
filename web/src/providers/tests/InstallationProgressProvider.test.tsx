@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { InstallationProgressProvider } from "../InstallationProgressProvider";
 import { useInstallationProgress } from "../../contexts/InstallationProgressContext";
-import { InitialStateContext } from "../../contexts/InitialStateContext";
 
 const STORAGE_KEY = "embedded-cluster-install-progress";
 
@@ -13,9 +12,7 @@ describe("InstallationProgressProvider", () => {
   });
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <InitialStateContext.Provider value={{ title: "Test App", installTarget: "linux", mode: "install" }}>
-      <InstallationProgressProvider>{children}</InstallationProgressProvider>
-    </InitialStateContext.Provider>
+    <InstallationProgressProvider>{children}</InstallationProgressProvider>
   );
 
   describe("Initialization", () => {
@@ -58,7 +55,7 @@ describe("InstallationProgressProvider", () => {
 
     it("handles corrupted sessionStorage data gracefully", () => {
       sessionStorage.setItem(STORAGE_KEY, "invalid-json{");
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
 
       const { result } = renderHook(() => useInstallationProgress(), { wrapper });
 
@@ -180,7 +177,7 @@ describe("InstallationProgressProvider", () => {
 
   describe("Error Handling", () => {
     it("handles sessionStorage.setItem errors gracefully", () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
       const originalSetItem = sessionStorage.setItem;
 
       // Mock setItem to throw an error
