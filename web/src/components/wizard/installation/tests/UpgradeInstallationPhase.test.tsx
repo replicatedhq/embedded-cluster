@@ -64,12 +64,12 @@ describe('UpgradeInstallationPhase', () => {
 
   // API Call Tests
   it('calls app-preflights/run endpoint when Next is clicked', async () => {
-    let requestBody: any;
+    let requestBody: { isUi: boolean } | undefined;
     server.use(
       http.post('*/api/*/upgrade/app-preflights/run', async ({ request }) => {
         expect(request.headers.get('Authorization')).toBe('Bearer test-token');
         expect(request.headers.get('Content-Type')).toBe('application/json');
-        requestBody = await request.json();
+        requestBody = await request.json() as { isUi: boolean };
         return HttpResponse.json({ success: true });
       })
     );
