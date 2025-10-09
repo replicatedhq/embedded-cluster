@@ -112,7 +112,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 			linuxinstall.WithMetricsReporter(h.metricsReporter),
 		)
 	} else {
-		// Initialize upgrade controller if upgrade is supported
+		// Initialize upgrade controller
 		if h.upgradeController == nil {
 			upgradeController, err := upgrade.NewUpgradeController(
 				upgrade.WithLogger(h.logger),

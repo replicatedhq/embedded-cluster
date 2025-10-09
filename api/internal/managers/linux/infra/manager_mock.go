@@ -33,7 +33,7 @@ func (m *MockInfraManager) Get() (types.Infra, error) {
 	return args.Get(0).(types.Infra), args.Error(1)
 }
 
-func (m *MockInfraManager) RequiresUpgrade(ctx context.Context) (bool, error) {
-	args := m.Called(ctx)
+func (m *MockInfraManager) RequiresUpgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (bool, error) {
+	args := m.Called(ctx, rc)
 	return args.Bool(0), args.Error(1)
 }

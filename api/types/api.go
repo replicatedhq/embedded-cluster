@@ -22,11 +22,19 @@ type APIConfig struct {
 	ReleaseData        *release.ReleaseData
 	EndUserConfig      *ecv1beta1.Config
 	ClusterID          string
+	Target             Target
 	Mode               Mode
 
 	LinuxConfig
 	KubernetesConfig
 }
+
+type Target string
+
+const (
+	TargetLinux      Target = "linux"
+	TargetKubernetes Target = "kubernetes"
+)
 
 type Mode string
 

@@ -291,6 +291,33 @@ func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
 	h.GetInfraStatus(w, r)
 }
 
+// GetRequiresInfraUpgrade handler to check if infra upgrade is required
+//
+//	@ID				getLinuxRequiresInfraUpgrade
+//	@Summary		Check if infra upgrade is required
+//	@Description	Check if infrastructure upgrade is required before proceeding
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.RequiresInfraUpgradeResponse
+//	@Failure		401	{object}	types.Error
+//	@Failure		500	{object}	types.Error
+//	@Router			/linux/upgrade/infra/requires-upgrade [get]
+func (h *Handler) GetRequiresInfraUpgrade(w http.ResponseWriter, r *http.Request) {
+	requiresUpgrade, err := h.controller.RequiresInfraUpgrade(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to check if infra upgrade is required")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	response := types.RequiresInfraUpgradeResponse{
+		RequiresUpgrade: requiresUpgrade,
+	}
+
+	utils.JSON(w, r, http.StatusOK, response, h.logger)
+}
+
 // GetInfraStatus handler to get the status of the infra upgrade
 //
 //	@ID				getLinuxUpgradeInfraStatus

@@ -194,7 +194,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 	}
 
 	// Check if infra upgrade is required
-	requiresInfraUpgrade, err := controller.infraManager.RequiresUpgrade(context.TODO())
+	requiresInfraUpgrade, err := controller.infraManager.RequiresUpgrade(context.TODO(), controller.rc)
 	if err != nil {
 		return nil, fmt.Errorf("check if requires infra upgrade: %w", err)
 	}

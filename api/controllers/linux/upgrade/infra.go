@@ -10,7 +10,7 @@ import (
 )
 
 func (c *UpgradeController) RequiresInfraUpgrade(ctx context.Context) (bool, error) {
-	return c.infraManager.RequiresUpgrade(ctx)
+	return c.requiresInfraUpgrade, nil
 }
 
 func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
@@ -67,12 +67,5 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 }
 
 func (c *UpgradeController) GetInfra(ctx context.Context) (types.Infra, error) {
-	infra, err := c.infraManager.Get()
-	if err != nil {
-		return types.Infra{}, err
-	}
-
-	infra.RequiresUpgrade = c.requiresInfraUpgrade
-
-	return infra, nil
+	return c.infraManager.Get()
 }

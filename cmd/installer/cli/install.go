@@ -714,6 +714,7 @@ func runManagerExperienceInstall(
 			ReleaseData:        release.GetReleaseData(),
 			EndUserConfig:      eucfg,
 			ClusterID:          flags.clusterID,
+			Target:             apitypes.Target(flags.target),
 			Mode:               apitypes.ModeInstall,
 
 			LinuxConfig: apitypes.LinuxConfig{

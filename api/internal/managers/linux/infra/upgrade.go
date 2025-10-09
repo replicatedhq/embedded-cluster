@@ -25,7 +25,12 @@ import (
 // This is determined by checking that:
 // - The current embedded cluster config (as part of the Installation object) already exists in the cluster.
 // - The new embedded cluster configuration differs from the current embedded cluster configuration.
-func (m *infraManager) RequiresUpgrade(ctx context.Context) (bool, error) {
+func (m *infraManager) RequiresUpgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (bool, error) {
+	// ensure the manager's clients are initialized
+	if err := m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir()); err != nil {
+		return false, fmt.Errorf("setup clients: %w", err)
+	}
+
 	current, err := kubeutils.GetLatestInstallation(ctx, m.kcli)
 	if err != nil {
 		return false, fmt.Errorf("get current installation: %w", err)
@@ -77,7 +82,7 @@ func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 
 func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	if m.upgrader == nil {
-		// initialize the manager's helm and kube clients
+		// ensure the manager's clients are initialized
 		if err := m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir()); err != nil {
 			return fmt.Errorf("setup clients: %w", err)
 		}

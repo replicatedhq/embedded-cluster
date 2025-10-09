@@ -448,6 +448,7 @@ func runManagerExperienceUpgrade(
 			ReleaseData:        release.GetReleaseData(),
 			EndUserConfig:      upgradeConfig.endUserConfig,
 			ClusterID:          upgradeConfig.clusterID,
+			Target:             apitypes.Target(flags.target),
 			Mode:               apitypes.ModeUpgrade,
 
 			LinuxConfig: apitypes.LinuxConfig{
