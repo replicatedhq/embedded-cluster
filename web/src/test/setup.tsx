@@ -204,6 +204,7 @@ export const renderWithProviders = (
         kubernetesInstallationDescription: "Installing infrastructure components",
         linuxValidationTitle: "Validation",
         linuxValidationDescription: "Validate the host requirements before proceeding with installation.",
+        linuxInstallationHeader: "Installation",
         linuxInstallationTitle: "Infrastructure Installation",
         linuxInstallationDescription: "Installing infrastructure components",
         appValidationTitle: "App Validation",

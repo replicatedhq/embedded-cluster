@@ -23,7 +23,7 @@ interface LinuxInstallationPhaseProps {
 const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
-  const { mode } = useWizard();
+  const { mode, text } = useWizard();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -154,8 +154,8 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
-        <p className="text-gray-600 mt-1">Installing infrastructure components</p>
+        <h2 className="text-2xl font-bold text-gray-900">{text.linuxInstallationHeader}</h2>
+        <p className="text-gray-600 mt-1">{text.linuxInstallationDescription}</p>
       </div>
 
       {renderInfrastructurePhase()}

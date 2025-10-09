@@ -15,6 +15,7 @@ import (
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -261,8 +262,8 @@ func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.In
 	channelID := m.releaseData.ChannelRelease.ChannelID
 	appVersion := m.releaseData.ChannelRelease.VersionLabel
 
-	// TODO: configure when we support airgap
-	localArtifactMirrorImage := ""
+	// TODO: configure when we support airgap (note: we'll have to push the LAM image to the EC registry first somehow)
+	localArtifactMirrorImage := versions.LocalArtifactMirrorImage
 
 	return m.upgrader.DistributeArtifacts(ctx, in, localArtifactMirrorImage, license.Spec.LicenseID, appSlug, channelID, appVersion)
 }

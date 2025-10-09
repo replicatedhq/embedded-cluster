@@ -28,8 +28,12 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	authenticatedRouter := router.PathPrefix("/").Subrouter()
 	authenticatedRouter.Use(a.handlers.auth.Middleware)
 
-	a.registerLinuxRoutes(authenticatedRouter)
-	a.registerKubernetesRoutes(authenticatedRouter)
+	if a.cfg.Target == types.TargetLinux {
+		a.registerLinuxRoutes(authenticatedRouter)
+	} else {
+		a.registerKubernetesRoutes(authenticatedRouter)
+	}
+
 	a.registerConsoleRoutes(authenticatedRouter)
 }
 
