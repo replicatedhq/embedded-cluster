@@ -84,7 +84,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -183,7 +183,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		strictAPIInstance := integration.NewAPIWithReleaseData(t,
+		strictAPIInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
 			api.WithKubernetesInstallController(strictInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -238,7 +238,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockController.On("GetAppPreflightTitles", mock.Anything).Return([]string{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -344,6 +344,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				Installation:     mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -395,6 +397,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				Installation:     mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
@@ -440,6 +444,8 @@ func TestPostRunAppPreflights(t *testing.T) {
 				Installation:     mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
+			Mode:        types.ModeInstall,
+			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),

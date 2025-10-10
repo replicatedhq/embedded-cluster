@@ -182,7 +182,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -294,7 +294,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -357,7 +357,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -415,7 +415,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -480,7 +480,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -544,7 +544,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -608,7 +608,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -696,7 +696,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t,
+		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),

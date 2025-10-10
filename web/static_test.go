@@ -429,7 +429,7 @@ func TestRootHandlerWithDifferentModes(t *testing.T) {
 	tests := []struct {
 		name          string
 		installTarget string
-		mode          string
+		mode          Mode
 		title         string
 	}{
 		{"linux install", "linux", "install", "Linux Install App"},

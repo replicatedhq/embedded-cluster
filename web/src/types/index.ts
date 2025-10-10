@@ -71,6 +71,7 @@ export interface WizardText {
   kubernetesInstallationDescription: string;
   linuxValidationTitle: string;
   linuxValidationDescription: string;
+  linuxInstallationHeader: string;
   linuxInstallationTitle: string;
   linuxInstallationDescription: string;
   appValidationTitle: string;

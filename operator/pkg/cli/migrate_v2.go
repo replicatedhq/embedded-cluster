@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +43,8 @@ func MigrateV2Cmd() *cobra.Command {
 				return fmt.Errorf("failed to create kubernetes client: %w", err)
 			}
 
-			err = migratev2.Run(ctx, cli, installation)
+			logger := logrus.New()
+			err = migratev2.Run(ctx, cli, installation, logger)
 			if err != nil {
 				return fmt.Errorf("failed to run v2 migration: %w", err)
 			}

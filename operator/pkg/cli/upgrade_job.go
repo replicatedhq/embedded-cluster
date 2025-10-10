@@ -3,18 +3,18 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"runtime/debug"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/cli/migratev2"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/upgrade"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,8 +46,12 @@ func UpgradeJobCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			slog.Info("Upgrade job started", "version", versions.Version)
-			slog.Info("Upgrading to installation", "name", in.Name, "version", in.Spec.Config.Version)
+			logger := logrus.New()
+			logger.WithField("version", versions.Version).Info("Upgrade job started")
+			logger.WithFields(logrus.Fields{
+				"name":    in.Name,
+				"version": in.Spec.Config.Version,
+			}).Info("Upgrading to installation")
 
 			kcli, err := kubeutils.KubeClient()
 			if err != nil {
@@ -63,7 +67,7 @@ func UpgradeJobCmd() *cobra.Command {
 				K0sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
 				LogFn: func(format string, v ...interface{}) {
-					slog.Info(fmt.Sprintf(format, v...), "component", "helm")
+					logger.WithField("component", "helm").Infof(format, v...)
 				},
 			})
 			if err != nil {
@@ -71,15 +75,15 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 			defer hcli.Close()
 
-			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, rc, in); upgradeErr != nil {
+			if upgradeErr := performUpgrade(cmd.Context(), kcli, hcli, rc, in, logger); upgradeErr != nil {
 				// if this is the last attempt, mark the installation as failed
 				if err := maybeMarkAsFailed(cmd.Context(), kcli, in, upgradeErr); err != nil {
-					slog.Error("Failed to mark installation as failed", "error", err)
+					logger.WithError(err).Error("Failed to mark installation as failed")
 				}
 				return upgradeErr
 			}
 
-			slog.Info("Upgrade completed successfully")
+			logger.Info("Upgrade completed successfully")
 
 			return nil
 		},
@@ -99,18 +103,18 @@ func UpgradeJobCmd() *cobra.Command {
 	return cmd
 }
 
-func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) (finalErr error) {
+func performUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, logger logrus.FieldLogger) (finalErr error) {
 	defer func() {
 		if r := recover(); r != nil {
 			finalErr = fmt.Errorf("upgrade recovered from panic: %v: %s", r, string(debug.Stack()))
 		}
 	}()
 
-	if err := migratev2.Run(ctx, kcli, in); err != nil {
+	if err := migratev2.Run(ctx, kcli, in, logger); err != nil {
 		return fmt.Errorf("failed to run v2 migration: %w", err)
 	}
 
-	if err := upgrade.Upgrade(ctx, kcli, hcli, rc, in); err != nil {
+	if err := upgrade.Upgrade(ctx, kcli, hcli, rc, in, logger); err != nil {
 		return err
 	}
 	return nil

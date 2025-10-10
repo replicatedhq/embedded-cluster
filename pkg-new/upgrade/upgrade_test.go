@@ -7,6 +7,7 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,6 +17,10 @@ import (
 )
 
 func TestUpdateClusterConfig(t *testing.T) {
+	// Discard log messages
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
 	scheme := runtime.NewScheme()
 	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
@@ -290,7 +295,7 @@ config:
 				WithObjects(tt.currentConfig).
 				Build()
 
-			err := updateClusterConfig(context.Background(), cli, tt.installation)
+			err := updateClusterConfig(context.Background(), cli, tt.installation, logger)
 			require.NoError(t, err)
 
 			var updatedConfig k0sv1beta1.ClusterConfig

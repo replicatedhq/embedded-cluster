@@ -10,6 +10,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -25,6 +26,8 @@ var _ InfraManager = &infraManager{}
 type InfraManager interface {
 	Get() (types.Infra, error)
 	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
+	Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
+	RequiresUpgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (bool, error)
 }
 
 // infraManager is an implementation of the InfraManager interface
@@ -45,6 +48,7 @@ type infraManager struct {
 	mcli               metadata.Interface
 	hcli               helm.Client
 	hostUtils          hostutils.HostUtilsInterface
+	upgrader           upgrade.InfraUpgrader
 	mu                 sync.RWMutex
 }
 
@@ -143,6 +147,12 @@ func WithHelmClient(hcli helm.Client) InfraManagerOption {
 func WithHostUtils(hostUtils hostutils.HostUtilsInterface) InfraManagerOption {
 	return func(c *infraManager) {
 		c.hostUtils = hostUtils
+	}
+}
+
+func WithInfraUpgrader(upgrader upgrade.InfraUpgrader) InfraManagerOption {
+	return func(c *infraManager) {
+		c.upgrader = upgrader
 	}
 }
 
