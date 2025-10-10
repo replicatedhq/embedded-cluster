@@ -13,6 +13,9 @@ import (
 	"helm.sh/helm/v4/pkg/kube"
 )
 
+// Copied from https://github.com/helm/helm/blob/main/cmd/helm/helm.go
+// Should be close to identical.
+
 func HelmCmd(ctx context.Context) *cobra.Command {
 	// Setting the name of the app for managedFields in the Kubernetes client.
 	// It is set here to the full name of "helm" so that renaming of helm to
