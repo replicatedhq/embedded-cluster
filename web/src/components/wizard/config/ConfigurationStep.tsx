@@ -14,18 +14,15 @@ import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { handleUnauthorized } from '../../../utils/auth';
 import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
 import { getApiBase } from '../../../utils/api-base';
+import { ApiError } from '../../../utils/api-error';
+import { handleUnauthorized } from '../../../utils/auth';
 
 
 interface ConfigurationStepProps {
   onNext: () => void;
-}
-
-interface ConfigError extends Error {
-  errors?: { field: string; message: string }[];
 }
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
@@ -38,18 +35,18 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { debouncedFetch } = useDebouncedFetch({ debounceMs: 250 });
-  
+
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [itemToFocus, setItemToFocus] = useState<AppConfigItem | null>(null);
-  
+
   // Holds refs to each item by name for focusing
   const itemRefs = useRef<Record<string, HTMLElement | null>>({});
-  
+
   // Helper function to assign refs dynamically
   const setRef = (name: string) => (el: HTMLElement | null) => {
     itemRefs.current[name] = el;
   };
-  
+
   const themeColor = settings.themeColor;
 
   const templateConfig = useCallback(async (values: AppConfigValues) => {
@@ -72,18 +69,21 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error('Session expired. Please log in again.');
-        }
-        throw new Error(errorData.message || 'Failed to template configuration');
+        const apiErr = await ApiError.fromResponse(response, 'Failed to template configuration')
+        handleUnauthorized(apiErr)
+        throw apiErr
       }
 
       const config = await response.json();
       setAppConfig(config);
     } catch (error) {
-      setGeneralError(error instanceof Error ? error.message : String(error));
+      if (error instanceof ApiError) {
+        setGeneralError(error.details || error.message);
+      } else if (error instanceof Error) {
+        setGeneralError(error.message);
+      } else {
+        setGeneralError(String(error))
+      }
     }
   }, [target, mode, token, debouncedFetch]);
 
@@ -102,7 +102,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     if (!appConfig?.groups || Object.keys(itemErrors).length === 0) {
       return null;
     }
-    
+
     // Iterate through groups and items in DOM order to find first item with error
     for (const group of appConfig.groups) {
       for (const item of group.items) {
@@ -111,15 +111,15 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
         }
       }
     }
-    
+
     return null;
   };
 
   // Helper function to find which group/tab contains a specific item
   const findGroupForItem = (itemName: string): AppConfigGroup | null => {
     if (!appConfig?.groups) return null;
-    
-    return appConfig.groups.find(group => 
+
+    return appConfig.groups.find(group =>
       group.items.some(item => item.name === itemName)
     ) || null;
   };
@@ -127,38 +127,38 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Helper function to focus on an item with tab switching support
   const focusItemWithTabSupport = (item: AppConfigItem): void => {
     const targetGroup = findGroupForItem(item.name);
-    
+
     if (!targetGroup) {
       console.warn(`Could not find group for item: ${item.name}`);
       return;
     }
-    
+
     // Switch to the correct tab if item is in a different tab
     if (targetGroup.name !== activeTab) {
       setActiveTab(targetGroup.name);
     }
-    
+
     // Set the item to focus - useEffect will handle the actual focusing
     setItemToFocus(item);
   };
 
   // Helper function to parse server validation errors from API response
-  const parseServerErrors = (error: ConfigError): Record<string, string> => {
+  const parseServerErrors = (error: ApiError): Record<string, string> => {
     const itemErrors: Record<string, string> = {};
-    
+
     // Check if error has structured item errors
-    if (error.errors) {
-      error.errors.forEach((itemError) => {
+    if (error.fieldErrors) {
+      error.fieldErrors.forEach((itemError) => {
         // Pass through server error message directly - no client-side enhancement
         itemErrors[itemError.field] = itemError.message;
       });
     }
-    
+
     return itemErrors;
   };
 
   // Mutation to save config values
-  const { mutate: submitConfigValues } = useMutation<void, ConfigError>({
+  const { mutate: submitConfigValues } = useMutation<void, ApiError>({
     mutationFn: async () => {
       const apiBase = getApiBase(target, mode);
       const response = await fetch(`${apiBase}/app/config/values`, {
@@ -171,15 +171,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error('Session expired. Please log in again.');
-        }
-        // Re-throw with full error data for parsing in onError
-        const error = new Error(errorData.message || 'Failed to save configuration') as ConfigError;
-        error.errors = errorData.errors;
-        throw error;
+        throw await ApiError.fromResponse(response, "Failed to save configuration")
       }
     },
     onSuccess: () => {
@@ -190,10 +182,10 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       // Proceed to next step (preflights for both install and upgrade modes)
       onNext();
     },
-    onError: (error: ConfigError) => {
+    onError: (error: ApiError) => {
       const parsedItemErrors = parseServerErrors(error);
       setItemErrors(parsedItemErrors);
-      setGeneralError(error?.message || 'Failed to save configuration');
+      setGeneralError(error?.details || error?.message || 'Failed to save configuration');
 
       // Focus on the first item with validation error
       const firstErrorItem = findFirstItemWithError(parsedItemErrors);
@@ -216,11 +208,11 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
     // Use refs to get the focusable element directly
     let itemElement: HTMLElement | null = null;
-    
+
     // For all inputs including radio, use the main item ref
     // Radio component forwards ref to the first option automatically
     itemElement = itemRefs.current[itemToFocus.name];
-    
+
     if (itemElement) {
       itemElement.focus();
       // Scroll the element into view to ensure it's visible

@@ -726,17 +726,14 @@ describe.each([
     // Should call onStateChange with "Running" immediately on mount
     expect(mockOnStateChange).toHaveBeenCalledWith('Running');
 
-    // Clear the mock after the initial mount call
-    mockOnStateChange.mockClear();
-
     // Wait for preflights to complete and show success
     await waitFor(() => {
       expect(screen.getByText('Application validation successful!')).toBeInTheDocument();
     });
 
-    // Should call onStateChange exactly twice: once for onRun('Running') and once for final state
-    expect(mockOnStateChange).toHaveBeenCalledWith('Running'); // from onRun
-    expect(mockOnStateChange).toHaveBeenCalledWith('Succeeded'); // from onComplete
+    // Expect sequence: Running (mount), Succeeded (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Succeeded']);
     expect(mockOnStateChange).toHaveBeenCalledTimes(2);
   });
 
@@ -770,17 +767,14 @@ describe.each([
     // Should call onStateChange with "Running" immediately on mount
     expect(mockOnStateChange).toHaveBeenCalledWith('Running');
 
-    // Clear the mock after the initial mount call
-    mockOnStateChange.mockClear();
-
     // Wait for preflights to complete and show failures
     await waitFor(() => {
       expect(screen.getByText('Application Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Should call onStateChange exactly twice: once for onRun('Running') and once for final state
-    expect(mockOnStateChange).toHaveBeenCalledWith('Running'); // from onRun
-    expect(mockOnStateChange).toHaveBeenCalledWith('Failed'); // from onComplete
+    // Expect sequence: Running (mount), Failed (complete)
+    const calls = mockOnStateChange.mock.calls.map(args => args[0]);
+    expect(calls).toEqual(['Running', 'Failed']);
     expect(mockOnStateChange).toHaveBeenCalledTimes(2);
   });
 

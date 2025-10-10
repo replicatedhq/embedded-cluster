@@ -127,30 +127,6 @@ describe.each([
     expect(mockOnComplete).toHaveBeenCalledWith(true, false, false); // success: true, allowIgnore: false, hasStrictFailures: false
   });
 
-  it("handles preflight run error", async () => {
-    server.use(
-      http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ message: "Failed to run application preflight checks" }, { status: 500 });
-      })
-    );
-
-    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        target,
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete application requirement checks")).toBeInTheDocument();
-      expect(screen.getByText("Failed to run application preflight checks")).toBeInTheDocument();
-    });
-  });
-
   it("allows re-running validation when there are failures", async () => {
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -167,7 +143,7 @@ describe.each([
     // Clear the mock to isolate the button click action
     mockOnRun.mockClear();
 
-    const runValidationButton = screen.getByRole("button", { name: "Run Validation Again" });
+    const runValidationButton = screen.getByTestId("run-validation");
     expect(runValidationButton).toBeInTheDocument();
     fireEvent.click(runValidationButton);
 

@@ -8,15 +8,6 @@ import { http, HttpResponse } from "msw";
 const TEST_TOKEN = "test-auth-token";
 
 const server = setupServer(
-  // Mock installation status endpoint
-  http.get("*/api/linux/install/installation/status", ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({ state: "Succeeded" });
-  }),
-
   // Mock preflight status endpoint
   http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
     const authHeader = request.headers.get("Authorization");
@@ -57,27 +48,6 @@ describe("LinuxPreflightCheck", () => {
     vi.clearAllMocks();
   });
   afterAll(() => server.close());
-
-  it("shows initializing state when installation status is polling", async () => {
-    server.use(
-      http.get("*/api/linux/install/installation/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ state: "Running" });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    expect(screen.getByText("Initializing...")).toBeInTheDocument();
-    expect(screen.getByText("Preparing the host.")).toBeInTheDocument();
-  });
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
@@ -143,65 +113,6 @@ describe("LinuxPreflightCheck", () => {
       expect(screen.getByText("Host validation successful!")).toBeInTheDocument();
     });
     expect(mockOnComplete).toHaveBeenCalledWith(true, false); // success: true, allowIgnore: false (default)
-  });
-
-  it("handles installation status error", async () => {
-    server.use(
-      http.get("*/api/linux/install/installation/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          state: "Failed",
-          description: "Failed to configure the host",
-        });
-      }),
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          output: {},
-          status: { state: "Failed" },
-        });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks"));
-      expect(screen.getByText("Failed to configure the host")).toBeInTheDocument();
-    });
-  });
-
-  it("handles preflight run error", async () => {
-    server.use(
-      http.post("*/api/linux/install/host-preflights/run", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
-      })
-    );
-
-    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete system requirement checks")).toBeInTheDocument();
-      expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
-    });
   });
 
   it("allows re-running validation when there are failures", async () => {

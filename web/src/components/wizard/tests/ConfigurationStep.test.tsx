@@ -568,7 +568,7 @@ describe.each([
       expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
     });
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
-    expect(screen.getByText("Session expired. Please log in again.")).toBeInTheDocument();
+    expect(screen.getByText("Unauthorized")).toBeInTheDocument();
   });
 
   it("only submits changed values", async () => {
@@ -1944,7 +1944,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_field",
@@ -2042,7 +2042,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "first_required_field",
@@ -2153,7 +2153,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "db_required_field",
@@ -2256,7 +2256,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_text_field",
@@ -2351,7 +2351,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "auth_method",

@@ -20,6 +20,20 @@ const server = setupServer(
   // Mock config submission endpoint
   http.post("*/api/linux/install/installation/configure", () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Mock installation status endpoint
+  http.get("*/api/linux/install/installation/status", () => {
+    return HttpResponse.json({
+      state: "Succeeded",
+      description: "Installation configured successfully",
+      lastUpdated: new Date().toISOString()
+    });
+  }),
+
+  // Mock preflight run endpoint
+  http.post("*/api/linux/install/host-preflights/run", () => {
+    return HttpResponse.json({ success: true });
   })
 );
 
@@ -223,9 +237,6 @@ describe("LinuxSetupStep", () => {
     it("clears errors when re-submitting after previous failure", async () => {
       // First, set up server to return an error
       server.use(
-        http.get("*/api/console/available-network-interfaces", () => {
-          return HttpResponse.json(MOCK_NETWORK_INTERFACES);
-        }),
         http.post("*/api/linux/install/installation/configure", () => {
           return new HttpResponse(JSON.stringify({ message: "Initial error" }), { status: 400 });
         })
@@ -311,7 +322,7 @@ describe("LinuxSetupStep", () => {
       // Check that port inputs are empty (not displaying "0")
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
       const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
-      
+
       expect(adminPortInput.value).toBe("");
       expect(mirrorPortInput.value).toBe("");
     });
@@ -345,7 +356,7 @@ describe("LinuxSetupStep", () => {
       // Check that inputs show empty values appropriately
       const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       expect(dataDirectoryInput.value).toBe("");
       expect(adminPortInput.value).toBe("");
     });
@@ -371,18 +382,18 @@ describe("LinuxSetupStep", () => {
       });
 
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       // Clear the existing value first
       fireEvent.change(adminPortInput, { target: { value: "" } });
-      
+
       // Test that decimal values are rejected
       fireEvent.change(adminPortInput, { target: { value: "8080.5" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that non-numeric values are rejected
       fireEvent.change(adminPortInput, { target: { value: "abc" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that valid integer is accepted
       fireEvent.change(adminPortInput, { target: { value: "8080" } });
       expect(adminPortInput.value).toBe("8080");
@@ -556,6 +567,290 @@ describe("LinuxSetupStep", () => {
         networkInterface: "eth0",
         globalCidr: "10.244.0.0/16",
       });
+    });
+
+
+    it("handles preflight run error", async () => {
+      server.use(
+        http.post("*/api/linux/install/host-preflights/run", () => {
+          return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: {
+                dataDirectory: "",
+              },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      // Get the next button and ensure it's not disabled
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      expect(nextButton).not.toBeDisabled();
+
+      // Submit form
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Installation Status Polling", () => {
+    it("shows 'Preparing the host.' loading state when installation status is polling", async () => {
+      server.use(
+        http.get("*/api/linux/install/installation/status", () => {
+          return HttpResponse.json({
+            state: "Running",
+            description: "Configuring installation",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("linux-setup-loading-text")).toHaveTextContent("Preparing the host.");
+      });
+    });
+
+    it("triggers preflights after installation status succeeds", async () => {
+      let statusCallCount = 0;
+      server.use(
+        http.get("*/api/linux/install/installation/status", () => {
+          statusCallCount++;
+          if (statusCallCount === 1) {
+            return HttpResponse.json({
+              state: "Running",
+              description: "Configuring installation",
+              lastUpdated: new Date().toISOString()
+            });
+          }
+          return HttpResponse.json({
+            state: "Succeeded",
+            description: "Installation configured successfully",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
+      }, { timeout: 5000 });
+    });
+
+    it("handles installation status failure and shows error", async () => {
+      server.use(
+        http.get("*/api/linux/install/installation/status", () => {
+          return HttpResponse.json({
+            state: "Failed",
+            description: "Network configuration failed",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        const errorElement = screen.getByTestId("linux-setup-error");
+        expect(errorElement).toHaveTextContent("Installation configuration failed with: Network configuration failed");
+      });
+
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("stops polling installation status on failure", async () => {
+      let statusCallCount = 0;
+      server.use(
+        http.get("*/api/linux/install/installation/status", () => {
+          statusCallCount++;
+          return HttpResponse.json({
+            state: "Failed",
+            description: "Configuration error",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("linux-setup-error")).toBeInTheDocument();
+      });
+
+      const initialCallCount = statusCallCount;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      expect(statusCallCount).toBe(initialCallCount);
+    });
+
+    it("does not trigger preflights if installation status is still running", async () => {
+      server.use(
+        http.get("*/api/linux/install/installation/status", () => {
+          return HttpResponse.json({
+            state: "Running",
+            description: "Still configuring",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("linux-setup-loading-text")).toHaveTextContent("Preparing the host.");
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it("allows retry after installation status failure", async () => {
+      let submitCount = 0;
+      server.use(
+        http.post("*/api/linux/install/installation/configure", () => {
+          submitCount++;
+          return HttpResponse.json({ success: true });
+        }),
+        http.get("*/api/linux/install/installation/status", () => {
+          if (submitCount === 1) {
+            return HttpResponse.json({
+              state: "Failed",
+              description: "First attempt failed",
+              lastUpdated: new Date().toISOString()
+            });
+          }
+          return HttpResponse.json({
+            state: "Succeeded",
+            description: "Installation configured successfully",
+            lastUpdated: new Date().toISOString()
+          });
+        })
+      );
+
+      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+        wrapperProps: {
+          authenticated: true,
+          contextValues: {
+            linuxConfigContext: {
+              config: { dataDirectory: '' },
+              updateConfig: mockUpdateConfig,
+              resetConfig: vi.fn(),
+            },
+          },
+        },
+      });
+
+      await screen.findByText("Configure the installation settings.");
+
+      const nextButton = screen.getByTestId("linux-setup-submit-button");
+
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        const errorElement = screen.getByTestId("linux-setup-error");
+        expect(errorElement).toHaveTextContent("Installation configuration failed with: First attempt failed");
+      });
+
+      fireEvent.click(nextButton);
+
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalled();
+      }, { timeout: 5000 });
     });
   });
 });

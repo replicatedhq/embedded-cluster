@@ -18,7 +18,7 @@ components:
           type: string
         message:
           type: string
-        status_code:
+        statusCode:
           type: integer
       type: object
     types.AppConfig:

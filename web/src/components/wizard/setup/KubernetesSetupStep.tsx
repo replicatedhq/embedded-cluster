@@ -6,11 +6,11 @@ import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
-import { handleUnauthorized } from "../../../utils/auth";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 import { KubernetesConfig } from "../../../types";
 import { getApiBase } from '../../../utils/api-base';
+import { ApiError } from '../../../utils/api-error';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -34,10 +34,6 @@ interface KubernetesSetupStepProps {
 interface Status {
   state: string;
   description?: string;
-}
-
-interface ConfigError extends Error {
-  errors?: { field: string; message: string }[];
 }
 
 interface KubernetesConfigResponse {
@@ -65,12 +61,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw new Error(errorData.message || "Failed to fetch install configuration");
+        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
       }
       const configResponse = await response.json();
       // Update the global config with resolved config which includes user values and defaults.
@@ -84,7 +75,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ConfigError, KubernetesConfig>({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, KubernetesConfig>({
     mutationFn: async (configData) => {
       const response = await fetch(`${apiBase}/installation/configure`, {
         method: "POST",
@@ -96,12 +87,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 401) {
-          handleUnauthorized(errorData);
-          throw new Error("Session expired. Please log in again.");
-        }
-        throw errorData;
+        throw await ApiError.fromResponse(response, "Failed to submit configuration")
       }
       return response.json();
     },
@@ -112,9 +98,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       setError(null);
       startInstallation();
     },
-    onError: (err: ConfigError) => {
-      setError(err.message || "Failed to submit config");
-      return err;
+    onError: (err: ApiError) => {
+      setError(err.details || err.message);
     },
   });
 
@@ -130,8 +115,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start installation");
+        throw await ApiError.fromResponse(response, "Failed to start installation")
       }
       return response.json();
     },
@@ -139,8 +123,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start installation");
+    onError: (err: ApiError) => {
+      setError(err.details || err.message);
     },
   });
 
@@ -160,7 +144,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   };
 
   const getFieldError = (fieldName: string) => {
-    const fieldError = submitError?.errors?.find((err) => err.field === fieldName);
+    const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
     return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
   };
 
@@ -241,7 +225,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
 
             {error && (
               <div className="mt-6 p-3 bg-red-50 text-red-500 rounded-md">
-                {submitError?.errors && submitError.errors.length > 0
+                {submitError?.fieldErrors && submitError.fieldErrors.length > 0
                   ? "Please fix the errors in the form above before proceeding."
                   : error
                 }

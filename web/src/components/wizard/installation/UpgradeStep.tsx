@@ -3,12 +3,13 @@ import Card from '../../common/Card';
 import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
-import { State } from '../../../types';
+import { State, InstallationPhaseId as InstallationPhase } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import InstallationTimeline, { InstallationPhaseId as InstallationPhase, PhaseStatus } from './InstallationTimeline';
+import InstallationTimeline, { PhaseStatus } from './InstallationTimeline';
 import AppPreflightPhase from './phases/AppPreflightPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
+import UpgradeInstallationPhase from './phases/UpgradeInstallationPhase';
 
 interface InstallationStepProps {
   onNext: () => void;
@@ -16,13 +17,13 @@ interface InstallationStepProps {
 }
 
 const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
-  const { text } = useWizard();
+  const { text, target } = useWizard();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
   const getPhaseOrder = (): InstallationPhase[] => {
     // Iteration 3: Include app preflights before app installation
-    return ["app-preflight", "app-installation"];
+    return [`${target}-installation`, "app-preflight", "app-installation"];
   };
 
   const phaseOrder = getPhaseOrder();
@@ -127,6 +128,10 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
     };
 
     switch (phase) {
+      //TODO this is a temporary hack to have an initial phase to trigger the app preflights. Once we support these phases we can removed and delete this component.
+      case 'kubernetes-installation':
+      case 'linux-installation':
+        return <UpgradeInstallationPhase {...commonProps} />
       case 'app-preflight':
         return <AppPreflightPhase {...commonProps} />;
       case 'app-installation':

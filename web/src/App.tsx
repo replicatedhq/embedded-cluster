@@ -5,6 +5,7 @@ import { SettingsProvider } from "./providers/SettingsProvider";
 import { WizardProvider } from "./providers/WizardProvider";
 import { InitialStateProvider } from "./providers/InitialStateProvider";
 import { AuthProvider } from "./providers/AuthProvider";
+import { InstallationProgressProvider } from "./providers/InstallationProgressProvider";
 import ConnectionMonitor from "./components/common/ConnectionMonitor";
 import InstallWizard from "./components/wizard/InstallWizard";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -17,25 +18,27 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <SettingsProvider>
-            <LinuxConfigProvider>
-              <KubernetesConfigProvider>
-                <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
-                  <BrowserRouter>
-                    <Routes>
-                      <Route
-                        path="/"
-                        element={
-                          <WizardProvider>
-                            <InstallWizard />
-                          </WizardProvider>
-                        }
-                      />
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                  </BrowserRouter>
-                </div>
-              </KubernetesConfigProvider>
-            </LinuxConfigProvider>
+            <InstallationProgressProvider>
+              <LinuxConfigProvider>
+                <KubernetesConfigProvider>
+                  <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+                    <BrowserRouter>
+                      <Routes>
+                        <Route
+                          path="/"
+                          element={
+                            <WizardProvider>
+                              <InstallWizard />
+                            </WizardProvider>
+                          }
+                        />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </BrowserRouter>
+                  </div>
+                </KubernetesConfigProvider>
+              </LinuxConfigProvider>
+            </InstallationProgressProvider>
           </SettingsProvider>
         </AuthProvider>
         <ConnectionMonitor />

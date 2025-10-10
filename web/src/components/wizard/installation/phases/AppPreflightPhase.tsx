@@ -9,11 +9,16 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig } from "../types";
 import { State } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface AppPreflightPhaseProps {
   onNext: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
   onStateChange: (status: State) => void;
+}
+
+interface StartAppInstallationRequest {
+  ignoreAppPreflights: boolean;
 }
 
 const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
@@ -42,8 +47,8 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startAppInstallation } = useMutation({
-    mutationFn: async ({ ignoreAppPreflights }: { ignoreAppPreflights: boolean }) => {
+  const { mutate: startAppInstallation } = useMutation<unknown, ApiError, StartAppInstallationRequest>({
+    mutationFn: async ({ ignoreAppPreflights }) => {
       const apiBase = getApiBase(target, mode);
       const response = await fetch(`${apiBase}/app/${mode}`, {
         method: "POST",
@@ -57,8 +62,7 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start application installation");
+        throw await ApiError.fromResponse(response, "Failed to start application installation")
       }
       return response.json();
     },
@@ -66,8 +70,9 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start application installation");
+    onError: (err: ApiError) => {
+      // share the error message from the API
+      setError(err.details || err.message);
     },
   });
 
