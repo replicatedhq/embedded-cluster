@@ -24,11 +24,11 @@ import (
 
 func TestRequiresInfraUpgrade(t *testing.T) {
 	tests := []struct {
-		name             string
-		requiresUpgrade  bool
-		setupMocks       func(*infra.MockInfraManager)
-		expectedErr      bool
-		expectedValue    bool
+		name            string
+		requiresUpgrade bool
+		setupMocks      func(*infra.MockInfraManager)
+		expectedErr     bool
+		expectedValue   bool
 	}{
 		{
 			name:            "requires upgrade returns true",
