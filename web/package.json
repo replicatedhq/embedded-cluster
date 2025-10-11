@@ -29,7 +29,7 @@
     "@eslint/js": "^9.37.0",
     "@faker-js/faker": "^10.0.0",
     "@netlify/functions": "^4.2.7",
-    "@netlify/vite-plugin": "^2.6.1",
+    "@netlify/vite-plugin": "^2.7.0",
     "@tailwindcss/vite": "^4.1.14",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
