@@ -174,7 +174,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        uses: helm/kind-action@50ea670a058121270d63a63b4f1e361d722932e4
+        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
         with:
           install_only: true
       - name: Run tests
@@ -198,7 +198,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        uses: helm/kind-action@50ea670a058121270d63a63b4f1e361d722932e4
+        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
         with:
           install_only: true
       - name: Run tests
