@@ -97,7 +97,7 @@ jobs:
       # Upload the SARIF results to GitHub Security tab
       # Note: This uploads to the repository where the workflow runs, not the image source
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
           # Create a unique category for each image to separate findings
