@@ -184,7 +184,7 @@ jobs:
 
   int-tests-kind-ha-registry:
     name: Integration tests (kind) HA registry
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster # use a larger runner to avoid disk space issues
     needs:
       - output-vars
       - should-run-int-tests-kind
@@ -204,7 +204,11 @@ jobs:
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
-          make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap
+          make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap DEBUG=1
+      - name: Troubleshoot
+        if: ${{ !cancelled() }}
+        run: |
+          df -h
 
   dryrun-tests:
     name: Dryrun tests
