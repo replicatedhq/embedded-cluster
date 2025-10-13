@@ -55,6 +55,9 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 		installRouter.HandleFunc("/infra/setup", a.handlers.linux.Install.PostSetupInfra).Methods("POST")
 		installRouter.HandleFunc("/infra/status", a.handlers.linux.Install.GetInfraStatus).Methods("GET")
 
+		installRouter.HandleFunc("/airgap/process", a.handlers.linux.Install.PostProcessAirgap).Methods("POST")
+		installRouter.HandleFunc("/airgap/status", a.handlers.linux.Install.GetAirgapStatus).Methods("GET")
+
 		installRouter.HandleFunc("/app/config/template", a.handlers.linux.Install.PostTemplateAppConfig).Methods("POST")
 		installRouter.HandleFunc("/app/config/values", a.handlers.linux.Install.GetAppConfigValues).Methods("GET")
 		installRouter.HandleFunc("/app/config/values", a.handlers.linux.Install.PatchAppConfigValues).Methods("PATCH")
@@ -72,9 +75,11 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 		upgradeRouter.HandleFunc("/app-preflights/run", a.handlers.linux.Upgrade.PostRunAppPreflights).Methods("POST")
 		upgradeRouter.HandleFunc("/app-preflights/status", a.handlers.linux.Upgrade.GetAppPreflightsStatus).Methods("GET")
 
-		upgradeRouter.HandleFunc("/infra/requires-upgrade", a.handlers.linux.Upgrade.GetRequiresInfraUpgrade).Methods("GET")
 		upgradeRouter.HandleFunc("/infra/upgrade", a.handlers.linux.Upgrade.PostUpgradeInfra).Methods("POST")
 		upgradeRouter.HandleFunc("/infra/status", a.handlers.linux.Upgrade.GetInfraStatus).Methods("GET")
+
+		upgradeRouter.HandleFunc("/airgap/process", a.handlers.linux.Upgrade.PostProcessAirgap).Methods("POST")
+		upgradeRouter.HandleFunc("/airgap/status", a.handlers.linux.Upgrade.GetAirgapStatus).Methods("GET")
 
 		upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.Upgrade.PostUpgradeApp).Methods("POST")
 		upgradeRouter.HandleFunc("/app/status", a.handlers.linux.Upgrade.GetAppUpgradeStatus).Methods("GET")

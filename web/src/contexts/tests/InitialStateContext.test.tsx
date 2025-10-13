@@ -34,6 +34,8 @@ describe("InitialStateContext", () => {
         icon: "test-icon.png",
         installTarget: "linux" as InstallationTarget,
         mode: "install" as WizardMode,
+        isAirgap: false,
+        requiresInfraUpgrade: false,
       };
 
       const TestComponent = () => {

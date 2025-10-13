@@ -335,6 +335,50 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
 }
 
+// PostProcessAirgap handler to process the airgap bundle
+//
+//	@ID				postLinuxInstallProcessAirgap
+//	@Summary		Process the airgap bundle
+//	@Description	Process the airgap bundle for install
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Airgap
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/airgap/process [post]
+func (h *Handler) PostProcessAirgap(w http.ResponseWriter, r *http.Request) {
+	err := h.controller.ProcessAirgap(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to process airgap")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAirgapStatus(w, r)
+}
+
+// GetAirgapStatus handler to get the status of the airgap processing
+//
+//	@ID				getLinuxInstallAirgapStatus
+//	@Summary		Get the status of the airgap processing
+//	@Description	Get the current status of the airgap processing for install
+//	@Tags			linux-install
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Airgap
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/install/airgap/status [get]
+func (h *Handler) GetAirgapStatus(w http.ResponseWriter, r *http.Request) {
+	airgap, err := h.controller.GetAirgapStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get airgap status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, airgap, h.logger)
+}
+
 // PostTemplateAppConfig handler to template the app config with provided values
 //
 //	@ID				postLinuxInstallTemplateAppConfig

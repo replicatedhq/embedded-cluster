@@ -2,6 +2,7 @@ package installation
 
 import (
 	"sync"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/tiendc/go-deepcopy"
@@ -30,7 +31,14 @@ func WithInstallation(installation types.KubernetesInstallation) StoreOption {
 }
 
 func NewMemoryStore(opts ...StoreOption) *memoryStore {
-	s := &memoryStore{}
+	s := &memoryStore{
+		installation: types.KubernetesInstallation{
+			Status: types.Status{
+				State:       types.StatePending,
+				LastUpdated: time.Now(),
+			},
+		},
+	}
 
 	for _, opt := range opts {
 		opt(s)

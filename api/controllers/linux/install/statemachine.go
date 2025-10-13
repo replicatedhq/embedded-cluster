@@ -7,7 +7,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var validStateTransitions = map[statemachine.State][]statemachine.State{
+// Base state transitions that are common to both airgap and non-airgap installs
+var baseStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateNew: {states.StateApplicationConfiguring},
 	states.StateApplicationConfigurationFailed:  {states.StateApplicationConfiguring},
 	states.StateApplicationConfiguring:          {states.StateApplicationConfigured, states.StateApplicationConfigurationFailed},
@@ -24,7 +25,7 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateHostPreflightsSucceeded:         {states.StateApplicationConfiguring, states.StateInstallationConfiguring, states.StateHostConfiguring, states.StateHostPreflightsRunning, states.StateInfrastructureInstalling},
 	states.StateHostPreflightsFailedBypassed:    {states.StateApplicationConfiguring, states.StateInstallationConfiguring, states.StateHostConfiguring, states.StateHostPreflightsRunning, states.StateInfrastructureInstalling},
 	states.StateInfrastructureInstalling:        {states.StateInfrastructureInstalled, states.StateInfrastructureInstallFailed},
-	states.StateInfrastructureInstalled:         {states.StateAppPreflightsRunning},
+	states.StateInfrastructureInstalled:         {}, // Will add transitions based on airgap
 	states.StateAppPreflightsRunning:            {states.StateAppPreflightsSucceeded, states.StateAppPreflightsFailed, states.StateAppPreflightsExecutionFailed},
 	states.StateAppPreflightsExecutionFailed:    {states.StateAppPreflightsRunning},
 	states.StateAppPreflightsFailed:             {states.StateAppPreflightsRunning, states.StateAppPreflightsFailedBypassed},
@@ -37,9 +38,42 @@ var validStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateSucceeded:                   {},
 }
 
+// Airgap-specific state transitions
+var airgapStateTransitions = map[statemachine.State][]statemachine.State{
+	states.StateAirgapProcessing:       {states.StateAirgapProcessed, states.StateAirgapProcessingFailed},
+	states.StateAirgapProcessed:        {states.StateAppPreflightsRunning},
+	states.StateAirgapProcessingFailed: {},
+}
+
+// Build state transitions based on whether airgap is present
+func buildStateTransitions(isAirgap bool) map[statemachine.State][]statemachine.State {
+	transitions := make(map[statemachine.State][]statemachine.State)
+
+	// Copy base transitions
+	for k, v := range baseStateTransitions {
+		transitions[k] = append([]statemachine.State{}, v...)
+	}
+
+	// Add airgap-specific transitions if needed
+	if isAirgap {
+		for k, v := range airgapStateTransitions {
+			transitions[k] = append([]statemachine.State{}, v...)
+		}
+
+		// Add airgap processing as next state from InfrastructureInstalled
+		transitions[states.StateInfrastructureInstalled] = []statemachine.State{states.StateAirgapProcessing}
+	} else {
+		// Add app preflights as next state from InfrastructureInstalled
+		transitions[states.StateInfrastructureInstalled] = []statemachine.State{states.StateAppPreflightsRunning}
+	}
+
+	return transitions
+}
+
 type StateMachineOptions struct {
 	CurrentState statemachine.State
 	Logger       logrus.FieldLogger
+	IsAirgap     bool
 }
 
 type StateMachineOption func(*StateMachineOptions)
@@ -56,6 +90,12 @@ func WithStateMachineLogger(logger logrus.FieldLogger) StateMachineOption {
 	}
 }
 
+func WithIsAirgap(isAirgap bool) StateMachineOption {
+	return func(o *StateMachineOptions) {
+		o.IsAirgap = isAirgap
+	}
+}
+
 // NewStateMachine creates a new state machine starting in the New state
 func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 	options := &StateMachineOptions{
@@ -65,5 +105,8 @@ func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 	for _, opt := range opts {
 		opt(options)
 	}
+
+	validStateTransitions := buildStateTransitions(options.IsAirgap)
+
 	return statemachine.New(options.CurrentState, validStateTransitions, statemachine.WithLogger(options.Logger))
 }

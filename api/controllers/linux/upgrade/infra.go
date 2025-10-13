@@ -9,10 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *UpgradeController) RequiresInfraUpgrade(ctx context.Context) (bool, error) {
-	return c.requiresInfraUpgrade, nil
-}
-
 func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
@@ -56,7 +52,13 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 			}
 		}()
 
-		if err := c.infraManager.Upgrade(ctx, c.rc); err != nil {
+		// Get registry settings for airgap upgrades
+		registrySettings, err := c.GetRegistrySettings(ctx, c.rc)
+		if err != nil {
+			return fmt.Errorf("failed to get registry settings: %w", err)
+		}
+
+		if err := c.infraManager.Upgrade(ctx, c.rc, registrySettings); err != nil {
 			return fmt.Errorf("failed to upgrade infrastructure: %w", err)
 		}
 

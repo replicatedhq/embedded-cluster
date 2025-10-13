@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/airgap"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	apppreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
@@ -24,6 +25,7 @@ type MockStore struct {
 	AppPreflightMockStore           apppreflight.MockStore
 	AppInstallMockStore             appinstall.MockStore
 	AppUpgradeMockStore             appupgrade.MockStore
+	AirgapMockStore                 airgap.MockStore
 }
 
 // LinuxPreflightStore returns the mock linux preflight store
@@ -69,4 +71,9 @@ func (m *MockStore) AppInstallStore() appinstall.Store {
 // AppUpgradeStore returns the mock app upgrade store
 func (m *MockStore) AppUpgradeStore() appupgrade.Store {
 	return &m.AppUpgradeMockStore
+}
+
+// AirgapStore returns the mock airgap store
+func (m *MockStore) AirgapStore() airgap.Store {
+	return &m.AirgapMockStore
 }

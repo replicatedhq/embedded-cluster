@@ -7,6 +7,8 @@ interface WizardModeContextType {
   target: InstallationTarget;
   mode: WizardMode;
   text: WizardText;
+  isAirgap: boolean;
+  requiresInfraUpgrade: boolean;
 }
 
 export const WizardContext = createContext<WizardModeContextType | undefined>(undefined);

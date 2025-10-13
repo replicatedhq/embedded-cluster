@@ -14,6 +14,12 @@ type RegistrySettings struct {
 	// Namespace is the app-specific namespace for registry isolation
 	Namespace string `json:"namespace"`
 
+	// Username is the registry authentication username
+	Username string `json:"username"`
+
+	// Password is the registry authentication password
+	Password string `json:"password"`
+
 	// ImagePullSecretName is the standardized image pull secret name
 	ImagePullSecretName string `json:"imagePullSecretName"`
 

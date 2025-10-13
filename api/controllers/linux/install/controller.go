@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
@@ -34,6 +35,8 @@ type Controller interface {
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
 	SetupInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
+	ProcessAirgap(ctx context.Context) error
+	GetAirgapStatus(ctx context.Context) (types.Airgap, error)
 	CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error)
 	// App controller methods
 	appcontroller.Controller
@@ -49,6 +52,7 @@ type InstallController struct {
 	installationManager       installation.InstallationManager
 	hostPreflightManager      preflight.HostPreflightManager
 	infraManager              infra.InfraManager
+	airgapManager             airgapmanager.AirgapManager
 	hostUtils                 hostutils.HostUtilsInterface
 	netUtils                  utils.NetUtils
 	metricsReporter           metrics.ReporterInterface
@@ -187,6 +191,12 @@ func WithInfraManager(infraManager infra.InfraManager) InstallControllerOption {
 	}
 }
 
+func WithAirgapManager(airgapManager airgapmanager.AirgapManager) InstallControllerOption {
+	return func(c *InstallController) {
+		c.airgapManager = airgapManager
+	}
+}
+
 func WithAppController(appController *appcontroller.AppController) InstallControllerOption {
 	return func(c *InstallController) {
 		c.AppController = appController
@@ -221,7 +231,10 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 	}
 
 	if controller.stateMachine == nil {
-		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
+		controller.stateMachine = NewStateMachine(
+			WithStateMachineLogger(controller.logger),
+			WithIsAirgap(controller.airgapBundle != ""),
+		)
 	}
 
 	if controller.hostUtils == nil {
@@ -287,6 +300,19 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 		)
+	}
+
+	if controller.airgapManager == nil {
+		manager, err := airgapmanager.NewAirgapManager(
+			airgapmanager.WithLogger(controller.logger),
+			airgapmanager.WithAirgapStore(controller.store.AirgapStore()),
+			airgapmanager.WithAirgapBundle(controller.airgapBundle),
+			airgapmanager.WithClusterID(controller.clusterID),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create airgap manager: %w", err)
+		}
+		controller.airgapManager = manager
 	}
 
 	controller.registerReportingHandlers()

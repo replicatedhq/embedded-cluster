@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ InstallationManager = &installationManager{}
@@ -26,6 +27,7 @@ type InstallationManager interface {
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
+	GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 }
 
 // installationManager is an implementation of the InstallationManager interface
@@ -34,6 +36,7 @@ type installationManager struct {
 	license           []byte
 	airgapBundle      string
 	releaseData       *release.ReleaseData
+	kcli              client.Client
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
@@ -62,6 +65,12 @@ func WithLicense(license []byte) InstallationManagerOption {
 func WithAirgapBundle(airgapBundle string) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithKubeClient(kcli client.Client) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.kcli = kcli
 	}
 }
 

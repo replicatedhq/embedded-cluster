@@ -187,10 +187,10 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 upgrade-release: RANDOM_STRING = $(call random-string)
 upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
+upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
 upgrade-release: export V2_ENABLED = 0
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=1 \
-	RELEASE_YAML_DIR=e2e/kots-release-upgrade \
 		./scripts/build-and-release.sh
 
 .PHONY: go.mod

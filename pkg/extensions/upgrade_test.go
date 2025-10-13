@@ -2,11 +2,11 @@ package extensions
 
 import (
 	"context"
-	"log/slog"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -18,8 +18,8 @@ import (
 
 func TestUpgrade(t *testing.T) {
 	// Discard log messages
-	old := slog.SetLogLoggerLevel(slog.LevelError)
-	defer slog.SetLogLoggerLevel(old)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
 
 	scheme := runtime.NewScheme()
 	require.NoError(t, ecv1beta1.AddToScheme(scheme))
@@ -596,7 +596,7 @@ func TestUpgrade(t *testing.T) {
 				Build()
 			mockHelmCli := tt.setupMockHelmCli(t)
 
-			err := Upgrade(context.Background(), kcli, mockHelmCli, tt.prev, tt.in)
+			err := Upgrade(context.Background(), kcli, mockHelmCli, tt.prev, tt.in, logger)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

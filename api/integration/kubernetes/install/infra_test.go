@@ -165,10 +165,6 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&infra)
 		require.NoError(t, err)
 
-		// Verify that the status is not pending. We cannot check for an end state here because the hots config is async
-		// so the state might have moved from running to a final state before we get the response.
-		assert.NotEqual(t, types.StatePending, infra.Status.State)
-
 		// Helper function to get infra status
 		getInfraStatus := func() types.Infra {
 			// Create a request to get infra status
@@ -192,6 +188,12 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 			return infra
 		}
+
+		// Wait for the state to transition from Pending (async operation should start quickly)
+		assert.Eventually(t, func() bool {
+			infra := getInfraStatus()
+			return infra.Status.State != types.StatePending
+		}, 5*time.Second, 100*time.Millisecond, "Infrastructure setup state did not transition from Pending")
 
 		// The status should eventually be set to succeeded in a goroutine
 		assert.Eventually(t, func() bool {

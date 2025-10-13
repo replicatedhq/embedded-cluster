@@ -2,6 +2,7 @@ package preflight
 
 import (
 	"sync"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/tiendc/go-deepcopy"
@@ -32,7 +33,14 @@ func WithAppPreflight(appPreflight types.AppPreflights) StoreOption {
 }
 
 func NewMemoryStore(opts ...StoreOption) *memoryStore {
-	s := &memoryStore{}
+	s := &memoryStore{
+		appPreflight: types.AppPreflights{
+			Status: types.Status{
+				State:       types.StatePending,
+				LastUpdated: time.Now(),
+			},
+		},
+	}
 
 	for _, opt := range opts {
 		opt(s)

@@ -4,32 +4,23 @@ import { Modal } from "../../../common/Modal";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { AlertTriangle } from "lucide-react";
 import AppPreflightCheck from "./AppPreflightCheck";
-import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig } from "../types";
 import { State } from "../../../../types";
-import { getApiBase } from '../../../../utils/api-base';
-import { ApiError } from '../../../../utils/api-error';
 
 interface AppPreflightPhaseProps {
   onNext: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
   onStateChange: (status: State) => void;
+  setIgnoreAppPreflights: (ignore: boolean) => void;
 }
 
-interface StartAppInstallationRequest {
-  ignoreAppPreflights: boolean;
-}
-
-const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
-  const { text, target, mode } = useWizard();
+const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange, setIgnoreAppPreflights }) => {
+  const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreAppPreflights, setAllowIgnoreAppPreflights] = React.useState(false);
   const [hasStrictFailures, setHasStrictFailures] = React.useState(false);
   const [showPreflightModal, setShowPreflightModal] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const { token } = useAuth();
 
   const onRun = useCallback(() => {
     setPreflightComplete(false);
@@ -47,42 +38,13 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startAppInstallation } = useMutation<unknown, ApiError, StartAppInstallationRequest>({
-    mutationFn: async ({ ignoreAppPreflights }) => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app/${mode}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ignoreAppPreflights: ignoreAppPreflights
-        }),
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start application installation")
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      setError(null); // Clear any previous errors
-      onNext();
-    },
-    onError: (err: ApiError) => {
-      // share the error message from the API
-      setError(err.details || err.message);
-    },
-  });
-
   const handleNextClick = () => {
     // If preflights passed, proceed normally
     if (preflightSuccess) {
-      startAppInstallation({ ignoreAppPreflights: false }); // No need to ignore preflights
+      setIgnoreAppPreflights(false); // No need to ignore preflights
+      onNext();
       return;
     }
-
 
     // Show warning modal if app preflights failed, none are strict, and button is enabled (allowIgnoreAppPreflights is true)
     if (!hasStrictFailures && allowIgnoreAppPreflights) {
@@ -97,7 +59,8 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
 
   const handleConfirmProceed = () => {
     setShowPreflightModal(false);
-    startAppInstallation({ ignoreAppPreflights: true }); // User confirmed they want to ignore preflight failures
+    setIgnoreAppPreflights(true); // User confirmed they want to ignore preflight failures
+    onNext();
   };
 
   const canProceed = useMemo(() => {
@@ -141,8 +104,6 @@ const AppPreflightPhase: React.FC<AppPreflightPhaseProps> = ({ onNext, setNextBu
       </div>
 
       <AppPreflightCheck onRun={onRun} onComplete={onComplete} />
-
-      {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
 
       {showPreflightModal && (
         <Modal

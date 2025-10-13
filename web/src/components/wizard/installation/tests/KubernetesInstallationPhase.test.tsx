@@ -42,6 +42,7 @@ describe("KubernetesInstallationPhase", () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />, 
       {
         wrapperProps: {
@@ -99,6 +100,7 @@ describe("KubernetesInstallationPhase", () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />, 
       {
         wrapperProps: {
@@ -148,6 +150,7 @@ describe("KubernetesInstallationPhase", () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />, 
       {
         wrapperProps: {
@@ -200,6 +203,7 @@ describe("KubernetesInstallationPhase", () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />, 
       {
         wrapperProps: {
@@ -251,6 +255,7 @@ describe("KubernetesInstallationPhase", () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />, 
       {
         wrapperProps: {
@@ -317,6 +322,7 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -344,6 +350,7 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -379,6 +386,7 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
       <TestKubernetesInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreHostPreflights={false}
       />,
       { wrapperProps: { authenticated: true } }
     );

@@ -179,7 +179,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setItemErrors({}); // Clear item errors
       setChangedValues({}); // Clear changed values after successful submission
 
-      // Proceed to next step (preflights for both install and upgrade modes)
+      // Proceed to next step
       onNext();
     },
     onError: (error: ApiError) => {
@@ -547,6 +547,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
 
       <div className="flex justify-end">
         <Button onClick={submitConfigValues} icon={<ChevronRight className="w-5 h-5" />} dataTestId="config-next-button">
+          {/* TODO: centralize the logic for this text */}
           {mode === "upgrade" ? "Next: Validation" : "Next: Setup"}
         </Button>
       </div>

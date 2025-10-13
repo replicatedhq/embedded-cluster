@@ -11,6 +11,8 @@ export interface InitialState {
   icon?: string;
   installTarget: InstallationTarget;
   mode: WizardMode;
+  isAirgap: boolean;
+  requiresInfraUpgrade: boolean;
 }
 
 export type State = "Pending" | "Running" | "Succeeded" | "Failed";
@@ -98,6 +100,7 @@ export type WizardStep =
 export type InstallationPhaseId =
   | "linux-preflight"
   | "linux-installation"
+  | "airgap-processing"
   | "kubernetes-installation"
   | "app-preflight"
   | "app-installation";
@@ -178,6 +181,15 @@ export interface AppPreflightResponse {
 }
 
 export interface AppInstallStatus {
+  status: {
+    state: State;
+    description: string;
+    lastUpdated: string;
+  };
+  logs: string;
+}
+
+export interface Airgap {
   status: {
     state: State;
     description: string;

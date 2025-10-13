@@ -194,11 +194,23 @@ func (h *Handler) GetAppConfigValues(w http.ResponseWriter, r *http.Request) {
 //	@Failure		400	{object}	types.APIError
 //	@Router			/linux/upgrade/app-preflights/run [post]
 func (h *Handler) PostRunAppPreflights(w http.ResponseWriter, r *http.Request) {
-	registrySettings, err := h.controller.CalculateRegistrySettings(r.Context(), h.cfg.RuntimeConfig)
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
-		utils.JSONError(w, r, err, h.logger)
-		return
+	var registrySettings *types.RegistrySettings
+	var err error
+
+	if h.cfg.Mode == types.ModeInstall {
+		registrySettings, err = h.controller.CalculateRegistrySettings(r.Context(), h.cfg.RuntimeConfig)
+		if err != nil {
+			utils.LogError(r, err, h.logger, "failed to calculate registry settings")
+			utils.JSONError(w, r, err, h.logger)
+			return
+		}
+	} else {
+		registrySettings, err = h.controller.GetRegistrySettings(r.Context(), h.cfg.RuntimeConfig)
+		if err != nil {
+			utils.LogError(r, err, h.logger, "failed to get registry settings")
+			utils.JSONError(w, r, err, h.logger)
+			return
+		}
 	}
 
 	err = h.controller.RunAppPreflights(r.Context(), appcontroller.RunAppPreflightOptions{
@@ -291,33 +303,6 @@ func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
 	h.GetInfraStatus(w, r)
 }
 
-// GetRequiresInfraUpgrade handler to check if infra upgrade is required
-//
-//	@ID				getLinuxRequiresInfraUpgrade
-//	@Summary		Check if infra upgrade is required
-//	@Description	Check if infrastructure upgrade is required before proceeding
-//	@Tags			linux-upgrade
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.RequiresInfraUpgradeResponse
-//	@Failure		401	{object}	types.Error
-//	@Failure		500	{object}	types.Error
-//	@Router			/linux/upgrade/infra/requires-upgrade [get]
-func (h *Handler) GetRequiresInfraUpgrade(w http.ResponseWriter, r *http.Request) {
-	requiresUpgrade, err := h.controller.RequiresInfraUpgrade(r.Context())
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to check if infra upgrade is required")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	response := types.RequiresInfraUpgradeResponse{
-		RequiresUpgrade: requiresUpgrade,
-	}
-
-	utils.JSON(w, r, http.StatusOK, response, h.logger)
-}
-
 // GetInfraStatus handler to get the status of the infra upgrade
 //
 //	@ID				getLinuxUpgradeInfraStatus
@@ -339,4 +324,48 @@ func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSON(w, r, http.StatusOK, infra, h.logger)
+}
+
+// PostProcessAirgap handler to process the airgap bundle
+//
+//	@ID				postLinuxUpgradeProcessAirgap
+//	@Summary		Process the airgap bundle
+//	@Description	Process the airgap bundle for upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Airgap
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/upgrade/airgap/process [post]
+func (h *Handler) PostProcessAirgap(w http.ResponseWriter, r *http.Request) {
+	err := h.controller.ProcessAirgap(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to process airgap")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetAirgapStatus(w, r)
+}
+
+// GetAirgapStatus handler to get the status of the airgap processing
+//
+//	@ID				getLinuxUpgradeAirgapStatus
+//	@Summary		Get the status of the airgap processing
+//	@Description	Get the current status of the airgap processing for upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.Airgap
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/upgrade/airgap/status [get]
+func (h *Handler) GetAirgapStatus(w http.ResponseWriter, r *http.Request) {
+	airgap, err := h.controller.GetAirgapStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get airgap status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, airgap, h.logger)
 }

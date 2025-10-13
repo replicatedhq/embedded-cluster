@@ -12,6 +12,7 @@ import AppPreflightPhase from './phases/AppPreflightPhase';
 import LinuxInstallationPhase from './phases/LinuxInstallationPhase';
 import KubernetesInstallationPhase from './phases/KubernetesInstallationPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
+import AirgapPhase from './phases/AirgapPhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
 
 interface InstallationStepProps {
@@ -20,16 +21,46 @@ interface InstallationStepProps {
 }
 
 const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
-  const { target, text } = useWizard();
+  const { target, text, isAirgap, mode, requiresInfraUpgrade } = useWizard();
   const { settings } = useSettings();
   const { installationPhase: storedPhase, setInstallationPhase } = useInstallationProgress();
   const themeColor = settings.themeColor;
 
   const getPhaseOrder = (): InstallationPhase[] => {
+    // Upgrade mode
+    if (mode === 'upgrade') {
+      const phases: InstallationPhase[] = [];
+
+      // Add airgap processing if airgap
+      if (isAirgap) {
+        phases.push("airgap-processing");
+      }
+
+      // Add infrastructure upgrade if required
+      if (requiresInfraUpgrade) {
+        phases.push(`${target}-installation` as InstallationPhase);
+      }
+
+      // Always add app preflight and installation
+      phases.push("app-preflight", "app-installation");
+
+      return phases;
+    }
+
+    // Install mode
     if (target === 'kubernetes') {
       return ["kubernetes-installation", "app-preflight", "app-installation"];
     }
-    return ["linux-preflight", "linux-installation", "app-preflight", "app-installation"];
+
+    const phases: InstallationPhase[] = ["linux-preflight", "linux-installation"];
+
+    if (isAirgap) {
+      phases.push("airgap-processing");
+    }
+
+    phases.push("app-preflight", "app-installation");
+
+    return phases;
   };
 
   const phaseOrder = getPhaseOrder();
@@ -59,6 +90,8 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
   const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const [ignoreHostPreflights, setIgnoreHostPreflights] = useState(false);
+  const [ignoreAppPreflights, setIgnoreAppPreflights] = useState(false);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
     'linux-preflight': {
@@ -70,6 +103,11 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
       status: 'Pending' as State,
       title: text.linuxInstallationTitle,
       description: text.linuxInstallationDescription,
+    },
+    'airgap-processing': {
+      status: 'Pending' as State,
+      title: 'Air gap Bundle Processing',
+      description: 'Processing air gap bundle',
     },
     'kubernetes-installation': {
       status: 'Pending' as State,
@@ -155,15 +193,17 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
 
     switch (phase) {
       case 'linux-preflight':
-        return <LinuxPreflightPhase {...commonProps} />;
+        return <LinuxPreflightPhase {...commonProps} setIgnoreHostPreflights={setIgnoreHostPreflights} />;
       case 'linux-installation':
-        return <LinuxInstallationPhase {...commonProps} />;
+        return <LinuxInstallationPhase {...commonProps} ignoreHostPreflights={ignoreHostPreflights} />;
+      case 'airgap-processing':
+        return <AirgapPhase {...commonProps} />;
       case 'kubernetes-installation':
-        return <KubernetesInstallationPhase {...commonProps} />;
+        return <KubernetesInstallationPhase {...commonProps} ignoreHostPreflights={ignoreHostPreflights} />;
       case 'app-preflight':
-        return <AppPreflightPhase {...commonProps} />;
+        return <AppPreflightPhase {...commonProps} setIgnoreAppPreflights={setIgnoreAppPreflights} />;
       case 'app-installation':
-        return <AppInstallationPhase {...commonProps} />;
+        return <AppInstallationPhase {...commonProps} ignoreAppPreflights={ignoreAppPreflights} />;
       default:
         return (
           <div className="text-gray-600">

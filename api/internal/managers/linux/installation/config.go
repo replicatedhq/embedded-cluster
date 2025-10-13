@@ -3,17 +3,22 @@ package installation
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime/debug"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetConfig returns the resolved installation configuration, with the user provided values AND defaults applied
@@ -283,7 +288,7 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	return nil
 }
 
-// CalculateRegistrySettings calculates registry settings for airgap installations
+// CalculateRegistrySettings calculates registry settings for airgap installations (should be used for new installations)
 func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
 	// Only return registry settings for airgap installations
 	if m.airgapBundle == "" {
@@ -310,10 +315,14 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 	// Construct full registry address with namespace
 	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
 
+	// Get registry credentials
+	registryUsername := "embedded-cluster"
+	registryPassword := registry.GetRegistryPassword()
+
 	// Create image pull secret value using the same pattern as admin console
-	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
-	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
-		registryHost, registry.GetRegistryPassword(), authString)
+	authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", registryUsername, registryPassword)))
+	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "%s", "password": "%s", "auth": "%s"}}}`,
+		registryHost, registryUsername, registryPassword, authString)
 	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
 
 	return &types.RegistrySettings{
@@ -321,6 +330,95 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 		Host:                 registryHost,
 		Address:              registryAddress,
 		Namespace:            appNamespace,
+		Username:             registryUsername,
+		Password:             registryPassword,
+		ImagePullSecretName:  "embedded-cluster-registry",
+		ImagePullSecretValue: imagePullSecretValue,
+	}, nil
+}
+
+// GetRegistrySettings reads registry settings from the cluster for airgap installations (should be used for upgrades)
+func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
+	// If no airgap bundle, no registry settings needed
+	if m.airgapBundle == "" {
+		return nil, nil
+	}
+
+	if m.kcli == nil {
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{KubeConfigPath: rc.PathToKubeConfig()})
+		if err != nil {
+			return nil, fmt.Errorf("create kube client: %w", err)
+		}
+		m.kcli = kcli
+	}
+
+	// Read the registry-creds secret from kotsadm namespace
+	secret := &corev1.Secret{}
+	err := m.kcli.Get(ctx, client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: "registry-creds"}, secret)
+	if err != nil {
+		return nil, fmt.Errorf("get registry-creds secret: %w", err)
+	}
+
+	// Verify it's a docker config secret
+	if secret.Type != corev1.SecretTypeDockerConfigJson {
+		return nil, fmt.Errorf("registry-creds secret is not of type kubernetes.io/dockerconfigjson")
+	}
+
+	// Parse the dockerconfigjson
+	dockerJson, ok := secret.Data[".dockerconfigjson"]
+	if !ok {
+		return nil, fmt.Errorf("registry-creds secret missing .dockerconfigjson data")
+	}
+
+	type dockerRegistryAuth struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		Auth     string `json:"auth"`
+	}
+	dockerConfig := struct {
+		Auths map[string]dockerRegistryAuth `json:"auths"`
+	}{}
+
+	if err := json.Unmarshal(dockerJson, &dockerConfig); err != nil {
+		return nil, fmt.Errorf("parse dockerconfigjson: %w", err)
+	}
+
+	// Find the embedded-cluster registry auth
+	var registryHost string
+	var registryUsername string
+	var registryPassword string
+	for host, auth := range dockerConfig.Auths {
+		if auth.Username == "embedded-cluster" {
+			registryHost = host
+			registryUsername = auth.Username
+			registryPassword = auth.Password
+			break
+		}
+	}
+
+	if registryHost == "" {
+		return nil, fmt.Errorf("embedded-cluster username not found in registry-creds secret")
+	}
+
+	// Get app namespace from release data
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appNamespace := m.releaseData.ChannelRelease.AppSlug
+
+	// Construct full registry address with namespace
+	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
+
+	// Use the full dockerconfigjson as the image pull secret value
+	imagePullSecretValue := base64.StdEncoding.EncodeToString(dockerJson)
+
+	return &types.RegistrySettings{
+		HasLocalRegistry:     true,
+		Host:                 registryHost,
+		Address:              registryAddress,
+		Namespace:            appNamespace,
+		Username:             registryUsername,
+		Password:             registryPassword,
 		ImagePullSecretName:  "embedded-cluster-registry",
 		ImagePullSecretValue: imagePullSecretValue,
 	}, nil

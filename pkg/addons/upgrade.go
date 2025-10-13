@@ -3,7 +3,6 @@ package addons
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/pkg/errors"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
@@ -160,11 +159,11 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 func (a *AddOns) upgradeAddOn(ctx context.Context, in *ecv1beta1.Installation, addon types.AddOn) error {
 	// check if we already processed this addon
 	if kubeutils.CheckInstallationConditionStatus(in.Status, a.conditionName(addon)) == metav1.ConditionTrue {
-		slog.Info(addon.Name() + " is ready")
+		a.logf("%s is ready", addon.Name())
 		return nil
 	}
 
-	slog.Info("Upgrading addon", "name", addon.Name(), "version", addon.Version())
+	a.logf("Upgrading addon %s to version %s", addon.Name(), addon.Version())
 
 	// mark as processing
 	if err := a.setCondition(ctx, in, a.conditionName(addon), metav1.ConditionFalse, "Upgrading", ""); err != nil {
@@ -178,7 +177,7 @@ func (a *AddOns) upgradeAddOn(ctx context.Context, in *ecv1beta1.Installation, a
 	if err != nil {
 		message := helpers.CleanErrorMessage(err)
 		if err := a.setCondition(ctx, in, a.conditionName(addon), metav1.ConditionFalse, "UpgradeFailed", message); err != nil {
-			slog.Error("Failed to set condition upgrade failed", "error", err)
+			a.logf("Failed to set condition upgrade failed: %v", err)
 		}
 		return errors.Wrap(err, "upgrade addon")
 	}
@@ -188,7 +187,7 @@ func (a *AddOns) upgradeAddOn(ctx context.Context, in *ecv1beta1.Installation, a
 		return errors.Wrap(err, "set condition upgrade succeeded")
 	}
 
-	slog.Info(addon.Name() + " is ready")
+	a.logf("%s is ready", addon.Name())
 	return nil
 }
 

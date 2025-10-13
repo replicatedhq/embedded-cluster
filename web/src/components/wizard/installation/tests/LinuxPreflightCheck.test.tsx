@@ -215,4 +215,37 @@ describe("LinuxPreflightCheck", () => {
     // The component should call onComplete with success: false, allowIgnore: false
     expect(mockOnComplete).toHaveBeenCalledWith(false, false);
   });
+
+  it("handles preflight run error gracefully", async () => {
+    server.use(
+      // Mock status endpoint to return Pending state (which triggers the mutation)
+      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
+        const authHeader = request.headers.get("Authorization");
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          return new HttpResponse(null, { status: 401 });
+        }
+        return HttpResponse.json({
+          status: { state: "Pending" },
+        });
+      }),
+      // Mock run endpoint to return an error
+      http.post("*/api/linux/install/host-preflights/run", () => {
+        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
+      })
+    );
+
+    renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
+      wrapperProps: {
+        authToken: TEST_TOKEN,
+      },
+    });
+
+    // Should display error message when preflight run fails
+    await waitFor(() => {
+      expect(screen.getByText("Failed to start host preflight checks")).toBeInTheDocument();
+    });
+
+    // onRun should not be called when mutation fails
+    expect(mockOnRun).not.toHaveBeenCalled();
+  });
 });

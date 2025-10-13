@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -24,10 +25,12 @@ import (
 )
 
 type Controller interface {
-	RequiresInfraUpgrade(ctx context.Context) (bool, error)
 	UpgradeInfra(ctx context.Context) error
 	GetInfra(ctx context.Context) (types.Infra, error)
+	ProcessAirgap(ctx context.Context) error
+	GetAirgapStatus(ctx context.Context) (types.Airgap, error)
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
+	GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 	// App controller methods
 	appcontroller.Controller
 }
@@ -37,6 +40,7 @@ var _ Controller = (*UpgradeController)(nil)
 type UpgradeController struct {
 	installationManager  installation.InstallationManager
 	infraManager         infra.InfraManager
+	airgapManager        airgapmanager.AirgapManager
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
@@ -157,6 +161,12 @@ func WithInfraManager(infraManager infra.InfraManager) UpgradeControllerOption {
 	}
 }
 
+func WithAirgapManager(airgapManager airgapmanager.AirgapManager) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.airgapManager = airgapManager
+	}
+}
+
 func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.rc = rc
@@ -178,6 +188,12 @@ func WithTargetVersion(targetVersion string) UpgradeControllerOption {
 func WithInitialVersion(initialVersion string) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.initialVersion = initialVersion
+	}
+}
+
+func WithInfraUpgradeRequired(required bool) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.requiresInfraUpgrade = required
 	}
 }
 
@@ -232,18 +248,25 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 		)
 	}
 
-	// Check if infra upgrade is required
-	requiresInfraUpgrade, err := controller.infraManager.RequiresUpgrade(context.TODO(), controller.rc)
-	if err != nil {
-		return nil, fmt.Errorf("check if requires infra upgrade: %w", err)
+	if controller.airgapManager == nil {
+		manager, err := airgapmanager.NewAirgapManager(
+			airgapmanager.WithLogger(controller.logger),
+			airgapmanager.WithAirgapStore(controller.store.AirgapStore()),
+			airgapmanager.WithAirgapBundle(controller.airgapBundle),
+			airgapmanager.WithClusterID(controller.clusterID),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create airgap manager: %w", err)
+		}
+		controller.airgapManager = manager
 	}
-	controller.requiresInfraUpgrade = requiresInfraUpgrade
 
 	// Initialize the state machine
 	if controller.stateMachine == nil {
 		controller.stateMachine = NewStateMachine(
 			WithStateMachineLogger(controller.logger),
-			WithRequiresInfraUpgrade(requiresInfraUpgrade),
+			WithRequiresInfraUpgrade(controller.requiresInfraUpgrade),
+			WithIsAirgap(controller.airgapBundle != ""),
 		)
 	}
 
@@ -294,4 +317,9 @@ func (c *UpgradeController) GetAppUpgradeStatus(ctx context.Context) (types.AppU
 // CalculateRegistrySettings calculates registry settings for airgap installations
 func (c *UpgradeController) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
 	return c.installationManager.CalculateRegistrySettings(ctx, rc)
+}
+
+// GetRegistrySettings gets registry settings for airgap installations
+func (c *UpgradeController) GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
+	return c.installationManager.GetRegistrySettings(ctx, rc)
 }

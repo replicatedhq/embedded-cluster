@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -45,17 +47,18 @@ type UpgradeCmdFlags struct {
 
 // upgradeConfig holds configuration data gathered during upgrade preparation
 type upgradeConfig struct {
-	passwordHash       []byte
-	tlsConfig          apitypes.TLSConfig
-	tlsCert            tls.Certificate
-	license            *kotsv1beta1.License
-	licenseBytes       []byte
-	airgapMetadata     *airgap.AirgapMetadata
-	embeddedAssetsSize int64
-	configValues       apitypes.AppConfigValues
-	endUserConfig      *ecv1beta1.Config
-	clusterID          string
-	managerPort        int
+	passwordHash         []byte
+	tlsConfig            apitypes.TLSConfig
+	tlsCert              tls.Certificate
+	license              *kotsv1beta1.License
+	licenseBytes         []byte
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
+	configValues         apitypes.AppConfigValues
+	endUserConfig        *ecv1beta1.Config
+	clusterID            string
+	managerPort          int
+	requiresInfraUpgrade bool
 }
 
 // UpgradeCmd returns a cobra command for upgrading the embedded cluster application.
@@ -299,6 +302,13 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.configValues = cv
 
+	// Check if infrastructure upgrade is required
+	requiresInfraUpgrade, err := checkRequiresInfraUpgrade(ctx)
+	if err != nil {
+		return fmt.Errorf("check if infrastructure upgrade is required: %w", err)
+	}
+	upgradeConfig.requiresInfraUpgrade = requiresInfraUpgrade
+
 	return nil
 }
 
@@ -429,21 +439,22 @@ func runManagerExperienceUpgrade(
 ) (finalErr error) {
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password:           "", // Only PasswordHash is necessary for upgrades because the kotsadm-password secret has been created already
-			PasswordHash:       upgradeConfig.passwordHash,
-			TLSConfig:          upgradeConfig.tlsConfig,
-			License:            upgradeConfig.licenseBytes,
-			AirgapBundle:       flags.airgapBundle,
-			AirgapMetadata:     upgradeConfig.airgapMetadata,
-			EmbeddedAssetsSize: upgradeConfig.embeddedAssetsSize,
-			ConfigValues:       upgradeConfig.configValues,
-			ReleaseData:        release.GetReleaseData(),
-			EndUserConfig:      upgradeConfig.endUserConfig,
-			ClusterID:          upgradeConfig.clusterID,
-			Target:             apitypes.Target(flags.target),
-			Mode:               apitypes.ModeUpgrade,
-			TargetVersion:      targetVersion,
-			InitialVersion:     initialVersion,
+			Password:             "", // Only PasswordHash is necessary for upgrades because the kotsadm-password secret has been created already
+			PasswordHash:         upgradeConfig.passwordHash,
+			TLSConfig:            upgradeConfig.tlsConfig,
+			License:              upgradeConfig.licenseBytes,
+			AirgapBundle:         flags.airgapBundle,
+			AirgapMetadata:       upgradeConfig.airgapMetadata,
+			EmbeddedAssetsSize:   upgradeConfig.embeddedAssetsSize,
+			ConfigValues:         upgradeConfig.configValues,
+			ReleaseData:          release.GetReleaseData(),
+			EndUserConfig:        upgradeConfig.endUserConfig,
+			ClusterID:            upgradeConfig.clusterID,
+			Target:               apitypes.Target(flags.target),
+			Mode:                 apitypes.ModeUpgrade,
+			TargetVersion:        targetVersion,
+			InitialVersion:       initialVersion,
+			RequiresInfraUpgrade: upgradeConfig.requiresInfraUpgrade,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig: rc,
@@ -468,4 +479,40 @@ func runManagerExperienceUpgrade(
 	<-ctx.Done()
 
 	return nil
+}
+
+// checkRequiresInfraUpgrade determines if an infrastructure upgrade is required by comparing
+// the current installation's embedded cluster config with the target embedded cluster config.
+func checkRequiresInfraUpgrade(ctx context.Context) (bool, error) {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return false, fmt.Errorf("create kubernetes client: %w", err)
+	}
+
+	// Get current embedded cluster config spec from the cluster
+	currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return false, fmt.Errorf("get current installation: %w", err)
+	}
+	currentSpec := currentInstallation.Spec.Config
+
+	// Get target embedded cluster config spec from release data
+	releaseData := release.GetReleaseData()
+	if releaseData == nil || releaseData.EmbeddedClusterConfig == nil {
+		return false, fmt.Errorf("release data or embedded cluster config not found")
+	}
+	targetSpec := releaseData.EmbeddedClusterConfig.Spec
+
+	// Marshal both to JSON for comparison (this is the original logic)
+	currentJSON, err := json.Marshal(currentSpec)
+	if err != nil {
+		return false, fmt.Errorf("marshal current config: %w", err)
+	}
+
+	targetJSON, err := json.Marshal(targetSpec)
+	if err != nil {
+		return false, fmt.Errorf("marshal target config: %w", err)
+	}
+
+	return !bytes.Equal(currentJSON, targetJSON), nil
 }

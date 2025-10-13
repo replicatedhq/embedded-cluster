@@ -35,6 +35,10 @@ type InitialState struct {
 	InstallTarget string `json:"installTarget"`
 	// The mode the web will be running on, install or upgrade
 	Mode Mode `json:"mode"`
+	// Whether this is an airgap installation/upgrade
+	IsAirgap bool `json:"isAirgap"`
+	// Whether an infrastructure upgrade is required (only relevant for upgrades)
+	RequiresInfraUpgrade bool `json:"requiresInfraUpgrade"`
 }
 
 type Mode string

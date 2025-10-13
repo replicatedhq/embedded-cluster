@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from "@tanstack/react-query";
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useWizard } from '../../../../contexts/WizardModeContext';
@@ -11,6 +11,7 @@ import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { getApiBase } from '../../../../utils/api-base';
 import { ApiError } from '../../../../utils/api-error';
+import { useStartInfraSetup, useUpgradeInfra } from '../../../../mutations/useMutations';
 
 interface LinuxInstallationPhaseProps {
   onNext: () => void;
@@ -18,9 +19,10 @@ interface LinuxInstallationPhaseProps {
   setNextButtonConfig: (config: NextButtonConfig) => void;
   setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
+  ignoreHostPreflights: boolean;
 }
 
-const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
+const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange, ignoreHostPreflights }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const { mode, text } = useWizard();
@@ -28,6 +30,12 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
+  const startInfraSetup = useStartInfraSetup();
+  const upgradeInfra = useUpgradeInfra();
+  const mutationStarted = useRef(false);
+
+  // Use the appropriate mutation based on mode
+  const infraMutation = mode === 'upgrade' ? upgradeInfra : startInfraSetup;
 
   // Query to poll infra status
   const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
@@ -48,6 +56,25 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
     enabled: isInfraPolling,
     refetchInterval: 2000,
   });
+
+  // Handle mutation callbacks
+  useEffect(() => {
+    if (infraMutation.isSuccess) {
+      setIsInfraPolling(true);
+    }
+    if (infraMutation.isError) {
+      setIsInfraPolling(false);
+      onStateChange('Failed');
+    }
+  }, [infraMutation.isSuccess, infraMutation.isError]);
+
+  // Auto-trigger mutation when status is Pending
+  useEffect(() => {
+    if (infraStatusResponse?.status?.state === "Pending" && !mutationStarted.current) {
+      mutationStarted.current = true;
+      infraMutation.mutate({ ignoreHostPreflights });
+    }
+  }, [infraStatusResponse?.status?.state]);
 
   // Report that step is running when component mounts
   useEffect(() => {
@@ -77,34 +104,11 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
     return Math.round((completedComponents / components.length) * 100);
   }
 
-  // Mutation for starting app preflights
-  const { mutate: startAppPreflights, error: appPreflightError } = useMutation({
-    mutationFn: async () => {
-      const apiBase = getApiBase("linux", mode);
-      const response = await fetch(`${apiBase}/app-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      onNext();
-    },
-  });
-
   // Update next button configuration
   useEffect(() => {
     setNextButtonConfig({
       disabled: !installComplete,
-      onClick: () => startAppPreflights(),
+      onClick: onNext,
     });
   }, [installComplete]);
 
@@ -144,7 +148,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
         onToggle={() => setShowLogs(!showLogs)}
       />
 
-      {appPreflightError && <ErrorMessage error={appPreflightError?.message} />}
+      {infraMutation.error && <ErrorMessage error={infraMutation.error.message} />}
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Button from "../../../common/Button";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { PreflightOutput, AppPreflightResponse } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
 import { ApiError } from '../../../../utils/api-error';
+import { useRunAppPreflights } from "../../../../mutations/useMutations";
 
 interface AppPreflightCheckProps {
   onRun: () => void;
@@ -19,7 +19,8 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const { settings } = useSettings();
   const { target, mode } = useWizard();
   const themeColor = settings.themeColor;
-  const { token } = useAuth();
+  const runAppPreflights = useRunAppPreflights();
+  const mutationStarted = useRef(false);
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
@@ -27,8 +28,8 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const isSuccessful = (response?: AppPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
-    if (preflightsRunError) {
-      return preflightsRunError.message;
+    if (runAppPreflights.error) {
+      return runAppPreflights.error.message;
     }
     if (preflightResponse?.status?.state === "Failed") {
       return preflightResponse?.status?.description;
@@ -37,29 +38,17 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   };
 
   const apiBase = getApiBase(target, mode);
-  // Mutation to run preflight checks
-  const { mutate: runPreflights, error: preflightsRunError } = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`${apiBase}/app-preflights/run`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to run application preflight checks")
-      }
-      return response.json() as Promise<AppPreflightResponse>;
-    },
-    onSuccess: () => {
+
+  // Handle mutation callbacks
+  useEffect(() => {
+    if (runAppPreflights.isSuccess) {
       setIsPreflightsPolling(true);
       onRun();
-    },
-    onError: () => {
+    }
+    if (runAppPreflights.isError) {
       setIsPreflightsPolling(false);
-    },
-  });
+    }
+  }, [runAppPreflights.isSuccess, runAppPreflights.isError]);
 
   // Query to poll preflight status
   const { data: preflightResponse } = useQuery<AppPreflightResponse, Error>({
@@ -80,6 +69,14 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
   });
+
+  // Auto-trigger mutation when status is Pending
+  useEffect(() => {
+    if (preflightResponse?.status?.state === "Pending" && !mutationStarted.current) {
+      mutationStarted.current = true;
+      runAppPreflights.mutate();
+    }
+  }, [preflightResponse?.status?.state]);
 
   // Handle preflight status changes
   useEffect(() => {
@@ -229,7 +226,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
           <li>• Re-run the validation once issues are addressed</li>
         </ul>
         <div className="mt-4">
-          <Button dataTestId="run-validation" onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
+          <Button dataTestId="run-validation" onClick={() => runAppPreflights.mutate()} icon={<RefreshCw className="w-4 h-4" />}>
             Run Validation Again
           </Button>
         </div>
