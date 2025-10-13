@@ -203,6 +203,8 @@ jobs:
           date
           sudo rm -rf /usr/local/lib/android
           date
+          df -h
+          echo "after rm /usr/local/lib/android"
           sudo rm -rf \
             /opt/hostedtoolcache/CodeQL \
             /opt/hostedtoolcache/Python \
@@ -211,6 +213,8 @@ jobs:
             /opt/ghc \
             /opt/az
           date
+          df -h
+          echo "after rm /opt/hostedtoolcache/CodeQL"
           sudo rm -rf \
             /usr/share/swift \
             /usr/share/dotnet \
