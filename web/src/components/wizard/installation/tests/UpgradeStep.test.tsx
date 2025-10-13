@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { useEffect } from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import UpgradeStep from '../UpgradeStep.tsx';
@@ -80,8 +81,8 @@ const createPhaseMock = (phaseName: string, phaseKey: keyof typeof phaseMockConf
 };
 
 // Mock all the phase components
-vi.mock('../phases/UpgradeInstallationPhase', () => ({
-  default: (props: PhaseProps) => createPhaseMock('Upgrade Installation Phase', 'upgradeInstallation', 'upgrade-installation-phase')(props)
+vi.mock('../phases/InfraUpgradePhase', () => ({
+  default: (props: PhaseProps) => createPhaseMock('Infra Upgrade Phase', 'upgradeInstallation', 'upgrade-installation-phase')(props)
 }));
 
 vi.mock('../phases/AppPreflightPhase', () => ({
@@ -92,7 +93,12 @@ vi.mock('../phases/AppInstallationPhase', () => ({
   default: (props: PhaseProps) => createPhaseMock('App Installation Phase', 'appInstallation', 'app-installation-phase')(props)
 }));
 
-const server = setupServer();
+const server = setupServer(
+  // Default: infrastructure upgrade is required
+  http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+    return HttpResponse.json({ requiresUpgrade: true });
+  })
+);
 
 describe('UpgradeStep', () => {
   const mockOnNext = vi.fn();
@@ -133,8 +139,13 @@ describe('UpgradeStep', () => {
   };
 
   describe('Linux Target', () => {
-    it('renders correct phase order for Linux upgrade', () => {
+    it('renders correct phase order for Linux upgrade', async () => {
       renderUpgradeStep('linux');
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Should show timeline with correct phases
       expect(screen.getByTestId('timeline-title')).toBeInTheDocument();
@@ -148,6 +159,11 @@ describe('UpgradeStep', () => {
 
     it('progresses through all Linux phases in correct order', async () => {
       renderUpgradeStep('linux');
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Start with Upgrade Installation phase - button should be enabled by default
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
@@ -182,8 +198,13 @@ describe('UpgradeStep', () => {
   });
 
   describe('Kubernetes Target', () => {
-    it('renders correct phase order for Kubernetes upgrade', () => {
+    it('renders correct phase order for Kubernetes upgrade', async () => {
       renderUpgradeStep('kubernetes');
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Should show timeline with correct phases
       expect(screen.getByTestId('timeline-title')).toBeInTheDocument();
@@ -197,6 +218,11 @@ describe('UpgradeStep', () => {
 
     it('progresses through all Kubernetes phases in correct order', async () => {
       renderUpgradeStep('kubernetes');
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Start with Upgrade Installation phase - button should be enabled by default
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
@@ -234,6 +260,11 @@ describe('UpgradeStep', () => {
     it('updates timeline status when phases change state', async () => {
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Should show running icon initially
       await waitFor(() => {
         expect(screen.getByTestId('icon-running')).toBeInTheDocument();
@@ -250,6 +281,11 @@ describe('UpgradeStep', () => {
 
     it('keeps completed and current phases mounted when switching between phases', async () => {
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Start with Upgrade Installation phase - should be visible
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
@@ -289,6 +325,11 @@ describe('UpgradeStep', () => {
     it('allows clicking on completed phases to view them', async () => {
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Start with Upgrade Installation phase
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
 
@@ -308,8 +349,13 @@ describe('UpgradeStep', () => {
       });
     });
 
-    it('prevents clicking on pending phases', () => {
+    it('prevents clicking on pending phases', async () => {
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Pending phases should be disabled
       const appInstallButton = screen.getByTestId('timeline-app-installation');
@@ -323,6 +369,11 @@ describe('UpgradeStep', () => {
       phaseMockConfig.upgradeInstallation.outcome = 'failure';
 
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Should show running state initially and button should be enabled
       await waitFor(() => {
@@ -348,6 +399,11 @@ describe('UpgradeStep', () => {
       phaseMockConfig.appPreflight.outcome = 'failure';
 
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Complete first phase (upgrade installation) - should succeed and move to second phase
       fireEvent.click(screen.getByTestId('installation-next-button'));
@@ -390,6 +446,11 @@ describe('UpgradeStep', () => {
 
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Complete first phase successfully (upgrade installation)
       fireEvent.click(screen.getByTestId('installation-next-button'));
 
@@ -419,6 +480,11 @@ describe('UpgradeStep', () => {
     it('shows correct phase status icons for different states', async () => {
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Initially should show running (current) and pending states
       await waitFor(() => {
         // Running phase
@@ -444,6 +510,11 @@ describe('UpgradeStep', () => {
 
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Button should be disabled
       await waitFor(() => {
         expect(screen.getByTestId('installation-next-button')).toBeDisabled();
@@ -463,6 +534,11 @@ describe('UpgradeStep', () => {
       phaseMockConfig.appPreflight.buttonDisabled = true; // disabled
 
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // First phase button should be enabled
       await waitFor(() => {
@@ -486,6 +562,11 @@ describe('UpgradeStep', () => {
       phaseMockConfig.upgradeInstallation.autoStateChange = { delay: 100, state: 'Succeeded' };
 
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // Should start with Upgrade Installation phase
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
@@ -517,6 +598,11 @@ describe('UpgradeStep', () => {
 
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Should start with Upgrade Installation phase
       expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
       expect(screen.getByTestId('linux-installation-container')).toHaveClass('block');
@@ -547,6 +633,11 @@ describe('UpgradeStep', () => {
     it('back button is not present for upgrade flow', async () => {
       renderUpgradeStep();
 
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
       // Wait for phase to initialize
       await waitFor(() => {
         expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
@@ -558,6 +649,11 @@ describe('UpgradeStep', () => {
 
     it('back button remains hidden during all phases', async () => {
       renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
 
       // First phase
       await waitFor(() => {
@@ -573,6 +669,199 @@ describe('UpgradeStep', () => {
 
       // Back button should still not be present
       expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Infrastructure Upgrade Check', () => {
+    it('shows loading state while checking if infrastructure upgrade is required', async () => {
+      // Delay the response to see loading state
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', async () => {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          return HttpResponse.json({ requiresUpgrade: true });
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Should show checking requirements loading state
+      expect(screen.getByTestId('upgrade-step-checking-requirements')).toBeInTheDocument();
+      expect(screen.getByTestId('checking-requirements-spinner')).toBeInTheDocument();
+      expect(screen.getByTestId('checking-requirements-message')).toHaveTextContent('Checking upgrade requirements...');
+    });
+
+    it('includes infrastructure phase when upgrade is required', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.json({ requiresUpgrade: true });
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Wait for check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
+      // Should show infrastructure upgrade phase in timeline
+      expect(screen.getByTestId('timeline-linux-installation')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-app-preflight')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-app-installation')).toBeInTheDocument();
+
+      // Should start with infrastructure upgrade phase
+      expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
+    });
+
+    it('skips infrastructure phase when upgrade is not required', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.json({ requiresUpgrade: false });
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Wait for check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
+      // Should NOT show infrastructure upgrade phase in timeline
+      expect(screen.queryByTestId('timeline-linux-installation')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('timeline-kubernetes-installation')).not.toBeInTheDocument();
+
+      // Should show only app phases
+      expect(screen.getByTestId('timeline-app-preflight')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-app-installation')).toBeInTheDocument();
+
+      // Should start directly with app preflight phase
+      expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+    });
+
+    it('shows error state when infrastructure check fails', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.json(
+            {
+              statusCode: 500,
+              message: 'Failed to determine upgrade requirements'
+            },
+            { status: 500 }
+          );
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Should show error state
+      await waitFor(() => {
+        expect(screen.getByTestId('upgrade-step-check-error')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('check-error-icon')).toBeInTheDocument();
+      expect(screen.getByTestId('check-error-title')).toHaveTextContent('Failed to Check Upgrade Requirements');
+      expect(screen.getByTestId('check-error-message')).toBeInTheDocument();
+    });
+
+    it('handles network error during infrastructure check', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.error();
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Should show error state
+      await waitFor(() => {
+        expect(screen.getByTestId('upgrade-step-check-error')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('check-error-title')).toHaveTextContent('Failed to Check Upgrade Requirements');
+    });
+
+    it('progresses through all phases when infrastructure upgrade is required', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.json({ requiresUpgrade: true });
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
+      // Should start with infrastructure upgrade phase
+      expect(screen.getByTestId('upgrade-installation-phase')).toBeInTheDocument();
+
+      // Complete infrastructure phase
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Move to app preflight
+      await waitFor(() => {
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+      });
+
+      // Complete app preflight phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Move to app installation
+      await waitFor(() => {
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
+      });
+
+      // Complete app installation phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Should call onNext to go to completion step
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('progresses through only app phases when infrastructure upgrade is not required', async () => {
+      server.use(
+        http.get('*/api/*/upgrade/infra/requires-upgrade', () => {
+          return HttpResponse.json({ requiresUpgrade: false });
+        })
+      );
+
+      renderUpgradeStep();
+
+      // Wait for infrastructure check to complete
+      await waitFor(() => {
+        expect(screen.queryByTestId('upgrade-step-checking-requirements')).not.toBeInTheDocument();
+      });
+
+      // Should start directly with app preflight phase (skipping infrastructure)
+      expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+      expect(screen.queryByTestId('upgrade-installation-phase')).not.toBeInTheDocument();
+
+      // Complete app preflight phase
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Move to app installation
+      await waitFor(() => {
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
+      });
+
+      // Complete app installation phase
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Should call onNext to go to completion step
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalledTimes(1);
+      });
     });
   });
 });

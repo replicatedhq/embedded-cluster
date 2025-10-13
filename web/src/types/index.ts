@@ -191,6 +191,10 @@ export interface InstallationStatusResponse {
   state: State;
 }
 
+export interface RequiresInfraUpgradeResponse {
+  requiresUpgrade: boolean;
+}
+
 export interface ApiErrorResponse {
   statusCode: number;
   message: string;

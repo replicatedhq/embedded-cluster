@@ -1,15 +1,18 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Card from '../../common/Card';
 import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
-import { State, InstallationPhaseId as InstallationPhase } from '../../../types';
+import { useAuth } from '../../../contexts/AuthContext';
+import { State, InstallationPhaseId as InstallationPhase, RequiresInfraUpgradeResponse } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import InstallationTimeline, { PhaseStatus } from './InstallationTimeline';
 import AppPreflightPhase from './phases/AppPreflightPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
+import InfraUpgradePhase from './phases/InfraUpgradePhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
-import UpgradeInstallationPhase from './phases/UpgradeInstallationPhase';
+import { getApiBase } from '../../../utils/api-base';
+import { useQuery } from '@tanstack/react-query';
 
 interface InstallationStepProps {
   onNext: () => void;
@@ -17,22 +20,69 @@ interface InstallationStepProps {
 }
 
 const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
-  const { text, target } = useWizard();
+  const { text, target, mode } = useWizard();
   const { settings } = useSettings();
+  const { token } = useAuth();
   const themeColor = settings.themeColor;
+  const [requiresInfraUpgrade, setRequiresInfraUpgrade] = useState<boolean | null>(null);
 
-  const getPhaseOrder = (): InstallationPhase[] => {
-    // Iteration 3: Include app preflights before app installation
-    return [`${target}-installation`, "app-preflight", "app-installation"];
-  };
+  // Query to check if infrastructure upgrade is required
+  const { data: infraCheckData, isLoading: isCheckingInfraUpgrade, error: infraCheckError } = useQuery<RequiresInfraUpgradeResponse, Error>({
+    queryKey: ["requiresInfraUpgrade"],
+    queryFn: async () => {
+      const apiBase = getApiBase(target, mode);
+      const response = await fetch(`${apiBase}/infra/requires-upgrade`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to check if infrastructure upgrade is required");
+      }
+      return response.json() as Promise<RequiresInfraUpgradeResponse>;
+    },
+  });
 
-  const phaseOrder = getPhaseOrder();
-  const [currentPhase, setCurrentPhase] = useState<InstallationPhase>(phaseOrder[0]);
-  const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
+  // Update requiresInfraUpgrade state when data is available
+  useEffect(() => {
+    if (infraCheckData !== undefined) {
+      setRequiresInfraUpgrade(infraCheckData.requiresUpgrade);
+    }
+  }, [infraCheckData]);
+
+  const [phaseOrder, setPhaseOrder] = useState<InstallationPhase[]>([]);
+  const [currentPhase, setCurrentPhase] = useState<InstallationPhase | null>(null);
+  const [selectedPhase, setSelectedPhase] = useState<InstallationPhase | null>(null);
   const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
   const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Set phase order when requiresInfraUpgrade is determined
+  useEffect(() => {
+    if (requiresInfraUpgrade !== null) {
+      const phases: InstallationPhase[] = [];
+
+      // Add infra upgrade phase if required
+      if (requiresInfraUpgrade === true) {
+        phases.push(`${target}-installation`);
+      }
+
+      // Always add app preflight and installation phases
+      phases.push("app-preflight", "app-installation");
+
+      setPhaseOrder(phases);
+    }
+  }, [requiresInfraUpgrade, target]);
+
+  // Initialize current and selected phases when phaseOrder is set
+  useEffect(() => {
+    if (phaseOrder.length > 0 && currentPhase === null) {
+      setCurrentPhase(phaseOrder[0]);
+      setSelectedPhase(phaseOrder[0]);
+    }
+  }, [phaseOrder]);
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
     'linux-preflight': {
@@ -77,6 +127,8 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   }, [currentPhase]);
 
   const goToNextPhase = () => {
+    if (!currentPhase) return;
+
     // Mark current phase as completed
     setCompletedPhases(prev => new Set([...prev, currentPhase]));
 
@@ -93,6 +145,8 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   };
 
   const getNextButtonText = () => {
+    if (!currentPhase) return 'Next';
+
     const currentIndex = phaseOrder.indexOf(currentPhase);
     if (currentIndex < phaseOrder.length - 1) {
       const nextPhase = phaseOrder[currentIndex + 1];
@@ -128,10 +182,9 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
     };
 
     switch (phase) {
-      //TODO this is a temporary hack to have an initial phase to trigger the app preflights. Once we support these phases we can removed and delete this component.
       case 'kubernetes-installation':
       case 'linux-installation':
-        return <UpgradeInstallationPhase {...commonProps} />
+        return <InfraUpgradePhase {...commonProps} />
       case 'app-preflight':
         return <AppPreflightPhase {...commonProps} />;
       case 'app-installation':
@@ -166,6 +219,43 @@ const UpgradeStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
       );
     });
   };
+
+  // Show error state if check failed (check this before loading to handle errors properly)
+  if (infraCheckError) {
+    return (
+      <div className="space-y-6" data-testid="upgrade-step-check-error">
+        <Card className="p-6">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4" data-testid="check-error-icon">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2" data-testid="check-error-title">Failed to Check Upgrade Requirements</h3>
+            <p className="text-sm text-gray-600 text-center max-w-md" data-testid="check-error-message">
+              {infraCheckError.message || "An error occurred while checking if infrastructure upgrade is required."}
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show loading state while checking if infra upgrade is required
+  if (isCheckingInfraUpgrade || currentPhase == null || selectedPhase == null) {
+    return (
+      <div className="space-y-6" data-testid="upgrade-step-checking-requirements">
+        <Card className="p-0 overflow-hidden">
+          <div className="flex min-h-[600px] items-center justify-center">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4" data-testid="checking-requirements-spinner"></div>
+              <p className="text-gray-600" data-testid="checking-requirements-message">Checking upgrade requirements...</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
