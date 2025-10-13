@@ -197,24 +197,9 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-      - name: Free up runner disk space
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
         run: |
           df -h
-          date
-          sudo rm -rf /usr/local/lib/android
-          date
-          df -h
-          echo "after rm /usr/local/lib/android"
-          sudo rm -rf \
-            /opt/hostedtoolcache/CodeQL \
-            /opt/hostedtoolcache/Python \
-            /opt/hostedtoolcache/PyPy \
-            /opt/microsoft/powershell \
-            /opt/ghc \
-            /opt/az
-          date
-          df -h
-          echo "after rm /opt/hostedtoolcache/CodeQL"
           sudo rm -rf \
             /usr/share/swift \
             /usr/share/dotnet \
@@ -236,7 +221,6 @@ jobs:
             /usr/local/bin/stack \
             /usr/local/bin/terraform \
             /usr/local/bin/oc
-          date
           df -h
       - name: Install kind
         uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
