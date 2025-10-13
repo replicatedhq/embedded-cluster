@@ -36,8 +36,6 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		t.Skip("skipping test in short mode")
 	}
 
-	// a change
-
 	ctx := t.Context()
 
 	buildOperatorImage(t)
