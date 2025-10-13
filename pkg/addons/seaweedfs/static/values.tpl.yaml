@@ -13,6 +13,7 @@ master:
   nodeSelector: ~
   disableHttp: true
   volumeSizeLimitMB: 30000
+  raftHashicorp: true
   data:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
   logs:
