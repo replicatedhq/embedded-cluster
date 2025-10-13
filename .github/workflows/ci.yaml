@@ -200,8 +200,9 @@ jobs:
       - name: Free up runner disk space
         run: |
           df -h
-          sudo docker system prune -af
+          date
           sudo rm -rf /usr/local/lib/android
+          date
           sudo rm -rf \
             /opt/hostedtoolcache/CodeQL \
             /opt/hostedtoolcache/Python \
@@ -209,6 +210,7 @@ jobs:
             /opt/microsoft/powershell \
             /opt/ghc \
             /opt/az
+          date
           sudo rm -rf \
             /usr/share/swift \
             /usr/share/dotnet \
@@ -230,6 +232,7 @@ jobs:
             /usr/local/bin/stack \
             /usr/local/bin/terraform \
             /usr/local/bin/oc
+          date
           df -h
       - name: Install kind
         uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
