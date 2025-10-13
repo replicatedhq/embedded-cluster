@@ -127,6 +127,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithConfigValues(h.cfg.ConfigValues),
 				upgrade.WithEndUserConfig(h.cfg.EndUserConfig),
 				upgrade.WithClusterID(h.cfg.ClusterID),
+				upgrade.WithTargetVersion(h.cfg.TargetVersion),
+				upgrade.WithInitialVersion(h.cfg.InitialVersion),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new upgrade controller: %w", err)

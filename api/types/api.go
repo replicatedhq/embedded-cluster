@@ -24,6 +24,8 @@ type APIConfig struct {
 	ClusterID          string
 	Target             Target
 	Mode               Mode
+	TargetVersion      string // Used for upgrade metrics reporting
+	InitialVersion     string // Used for upgrade metrics reporting
 
 	LinuxConfig
 	KubernetesConfig
