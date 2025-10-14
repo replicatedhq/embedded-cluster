@@ -101,12 +101,12 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 				ve = types.AppendFieldError(ve, item.Name, ErrValueNotBase64Encoded)
 			}
 			// check regex validation for text, textarea, password types
-			if item.Validation != nil {
+			if item.Validation != nil && item.Validation.Regex != nil {
 				if isRegexValidatableType(item) {
 					if err := validateRegexPattern(item, configValue); err != nil {
 						ve = types.AppendFieldError(ve, item.Name, err)
 					}
-				} else if item.Validation.Regex != nil {
+				} else {
 					m.logger.Warnf("Config item %q has regex validation defined but type %q does not support regex validation (only text, textarea, and password types are supported)", item.Name, item.Type)
 				}
 			}
