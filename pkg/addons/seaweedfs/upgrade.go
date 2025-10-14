@@ -187,7 +187,7 @@ func (s *SeaweedFS) shouldDisableRaftHashicorp(ctx context.Context, kcli client.
 	// check if the seaweedfs container has the -raftHashicorp argument
 	for _, container := range sts.Spec.Template.Spec.Containers {
 		if container.Name == "seaweedfs" {
-			for _, arg := range container.Args {
+			for _, arg := range append(container.Command, container.Args...) {
 				if strings.Contains(arg, "-raftHashicorp") {
 					logrus.Debug("Raft hashicorp is enabled, do not disable it")
 					return false, nil
