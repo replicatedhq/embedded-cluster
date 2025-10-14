@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -98,6 +99,12 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 			// check value is base64 encoded for file items
 			if isFileType(item) && !isValueBase64Encoded(configValue) {
 				ve = types.AppendFieldError(ve, item.Name, ErrValueNotBase64Encoded)
+			}
+			// check regex validation for text, textarea, password types
+			if isRegexValidatableType(item) {
+				if err := validateRegexPattern(item, configValue); err != nil {
+					ve = types.AppendFieldError(ve, item.Name, err)
+				}
 			}
 		}
 	}
@@ -324,4 +331,52 @@ func isValueBase64Encoded(configValue kotsv1beta1.ConfigValue) bool {
 		return false
 	}
 	return true
+}
+
+// isRegexValidatableType checks if the item type supports regex validation
+func isRegexValidatableType(item kotsv1beta1.ConfigItem) bool {
+	return item.Type == "text" || item.Type == "textarea" || item.Type == "password"
+}
+
+// validateRegexPattern validates a config item value against its regex pattern
+func validateRegexPattern(item kotsv1beta1.ConfigItem, configValue kotsv1beta1.ConfigValue) error {
+	// Skip if no regex validation defined
+	if item.Validation == nil || item.Validation.Regex == nil {
+		return nil
+	}
+
+	// Skip validation for disabled items
+	if !isItemEnabled(item.When) {
+		return nil
+	}
+
+	// Get the value to validate (handle password vs non-password types)
+	var valueToValidate string
+	if item.Type == "password" {
+		valueToValidate = configValue.ValuePlaintext
+	} else {
+		valueToValidate = configValue.Value
+	}
+
+	// Skip empty values (optional fields) - only validate if user provided a value
+	if valueToValidate == "" {
+		return nil
+	}
+
+	// Compile and validate regex pattern
+	regex, err := regexp.Compile(item.Validation.Regex.Pattern)
+	if err != nil {
+		return fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	// Check if value matches pattern
+	if !regex.MatchString(valueToValidate) {
+		message := item.Validation.Regex.Message
+		if message == "" {
+			message = "Value does not match regex"
+		}
+		return fmt.Errorf("%s", message)
+	}
+
+	return nil
 }
