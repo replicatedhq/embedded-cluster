@@ -582,6 +582,9 @@ spec:
       title: Template Functions
       items:
         - name: template_function_is_airgap
-          title: Is Airgap
           type: label
-          default: "{{repl if IsAirgap }}Airgap{{repl else }}Online{{repl end }}"
+          title: |
+            ## Is Airgap
+            ---
+
+            {{repl if IsAirgap }}Yes{{repl else }}No{{repl end }}
