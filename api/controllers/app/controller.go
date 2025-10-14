@@ -200,6 +200,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
+			appreleasemanager.WithAirgapBundle(controller.airgapBundle),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
