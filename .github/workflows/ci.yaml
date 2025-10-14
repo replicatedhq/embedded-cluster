@@ -197,6 +197,31 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: |
+          df -h
+          sudo rm -rf \
+            /usr/share/swift \
+            /usr/share/dotnet \
+            /usr/lib/jvm \
+            /usr/local/share/boost \
+            /usr/local/lib/heroku \
+            /usr/local/julia* \
+            /usr/local/.ghcup \
+            /usr/local/share/powershell \
+            /usr/local/bin/aliyun \
+            /usr/local/bin/azcopy \
+            /usr/local/bin/bicep \
+            /usr/local/bin/cpack \
+            /usr/local/bin/hub \
+            /usr/local/bin/minikube \
+            /usr/local/bin/packer \
+            /usr/local/bin/pulumi* \
+            /usr/local/bin/sam \
+            /usr/local/bin/stack \
+            /usr/local/bin/terraform \
+            /usr/local/bin/oc
+          df -h
       - name: Install kind
         uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
         with:
