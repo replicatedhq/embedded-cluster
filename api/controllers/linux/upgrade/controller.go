@@ -53,6 +53,8 @@ type UpgradeController struct {
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
+	targetVersion        string
+	initialVersion       string
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -167,6 +169,18 @@ func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption 
 	}
 }
 
+func WithTargetVersion(targetVersion string) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.targetVersion = targetVersion
+	}
+}
+
+func WithInitialVersion(initialVersion string) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.initialVersion = initialVersion
+	}
+}
+
 func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, error) {
 	controller := &UpgradeController{
 		store:  store.NewMemoryStore(),
@@ -251,6 +265,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 		}
 		controller.AppController = appController
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }

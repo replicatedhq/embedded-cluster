@@ -28,8 +28,9 @@ var baseStateTransitions = map[statemachine.State][]statemachine.State{
 
 // Infrastructure-specific state transitions
 var infraStateTransitions = map[statemachine.State][]statemachine.State{
-	states.StateInfrastructureUpgrading:     {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
-	states.StateInfrastructureUpgraded:      {states.StateAppPreflightsRunning},
+	states.StateInfrastructureUpgrading: {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
+	states.StateInfrastructureUpgraded:  {states.StateAppPreflightsRunning},
+	// final states
 	states.StateInfrastructureUpgradeFailed: {},
 }
 
