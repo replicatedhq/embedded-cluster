@@ -2135,7 +2135,8 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		if allowed {
 			if _, ok := seenAllowedDomains[ne.DNSQueryName]; !ok {
 				t.Logf("%v - ALLOWED", ne.DNSQueryName)
-				seenAllowedDomains[ne.DNSQueryName] = struct{}{}
+				t.Logf("\tAllowed event details: %+v", ne)
+				//seenAllowedDomains[ne.DNSQueryName] = struct{}{}
 			}
 		} else {
 			t.Logf("%v - UNALLOWED\n", ne.DNSQueryName)
