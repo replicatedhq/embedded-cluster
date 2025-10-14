@@ -111,6 +111,7 @@ export interface AppConfigGroup {
   name: string;
   title: string;
   description?: string;
+  when?: string;
   items: AppConfigItem[];
 }
 
