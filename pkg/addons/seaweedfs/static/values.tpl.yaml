@@ -14,6 +14,7 @@ master:
   disableHttp: true
   volumeSizeLimitMB: 30000
   raftHashicorp: true
+  raftBootstrap: true
   data:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
   logs:

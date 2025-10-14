@@ -42,19 +42,6 @@ func (s *SeaweedFS) Upgrade(
 		return fmt.Errorf("generating helm values: %w", err)
 	}
 
-	// Check if we need to enable raftBootstrap (toggling raftHashicorp) for upgrades from
-	// versions <= 2.11.3
-	enableRaftBootstrap, err := s.needsRaftBootstrap(ctx, kcli)
-	if err != nil {
-		return fmt.Errorf("checking raft bootstrap need: %w", err)
-	}
-	if enableRaftBootstrap {
-		logrus.Debug("Setting master.raftBootstrap=true for upgrade from <= 2.11.3")
-		if err := helm.SetValue(values, "master.raftBootstrap", true); err != nil {
-			return fmt.Errorf("setting master.raftBootstrap: %w", err)
-		}
-	}
-
 	needsRestart, err := s.needsScalingRestart(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("checking scaling restart need: %w", err)
@@ -79,29 +66,6 @@ func (s *SeaweedFS) Upgrade(
 	}
 
 	return nil
-}
-
-// needsRaftBootstrap checks if this upgrade requires raftBootstrap=true as we are toggling
-// raftHashicorp when upgrading from versions <= 2.11.3
-func (s *SeaweedFS) needsRaftBootstrap(ctx context.Context, kcli client.Client) (bool, error) {
-	logrus.Debug("Checking if scaling fix is needed for upgrade from pre-2.7.3")
-
-	prevVersion, err := getPreviousECVersion(ctx, kcli)
-	if err != nil {
-		return false, fmt.Errorf("get previous installation: %w", err)
-	} else if prevVersion == nil {
-		logrus.Debug("No previous version found, no raftBootstrap needed")
-		return false, nil
-	}
-
-	// Only enable raftBootstrap if upgrading from <= 2.11.3
-	if lessThanOrEqualECVersion2113(prevVersion) {
-		logrus.Debugf("Previous version %s <= 2.11.3, raftBootstrap will be enabled", prevVersion)
-		return true, nil
-	}
-
-	logrus.Debugf("Previous version %s > 2.11.3, no raftBootstrap needed", prevVersion)
-	return false, nil
 }
 
 // needsScalingRestart checks if this upgrade requires SeaweedFS master pod restart
@@ -186,13 +150,6 @@ var version273 = semver.MustParse("2.7.3")
 // lessThanECVersion273 checks if a version is less than 2.7.3
 func lessThanECVersion273(ver *semver.Version) bool {
 	return ver.LessThan(version273)
-}
-
-var version2113 = semver.MustParse("2.11.3")
-
-// lessThanOrEqualECVersion2113 checks if a version is <= 2.11.3
-func lessThanOrEqualECVersion2113(ver *semver.Version) bool {
-	return ver.LessThanEqual(version2113)
 }
 
 // scaleStatefulSet directly scales the StatefulSet to the target replica count
