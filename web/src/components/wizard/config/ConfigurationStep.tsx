@@ -195,22 +195,9 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     },
   });
 
-  // Set active tab when config loads or when active tab becomes invalid
+  // Set active tab when config loads
   useEffect(() => {
-    if (!appConfig?.groups || appConfig.groups.length === 0) {
-      return;
-    }
-
-    // If no active tab is set, select the first group
-    if (!activeTab) {
-      setActiveTab(appConfig.groups[0].name);
-      return;
-    }
-
-    // If current active tab no longer exists in groups (filtered out by 'when' condition),
-    // switch to the first available group
-    const activeGroupExists = appConfig.groups.some(g => g.name === activeTab);
-    if (!activeGroupExists) {
+    if (appConfig?.groups && appConfig.groups.length > 0 && !activeTab) {
       setActiveTab(appConfig.groups[0].name);
     }
   }, [appConfig, activeTab]);
