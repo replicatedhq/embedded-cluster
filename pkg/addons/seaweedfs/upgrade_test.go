@@ -797,7 +797,7 @@ func Test_needsRaftBootstrap(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error - no installations",
+			name:    "error - no installations",
 			objects: []client.Object{
 				// No installations at all
 			},
