@@ -95,7 +95,8 @@ func WaitForPodComplete(t *testing.T, kubeconfig string, namespace string, name 
 		return isPodSucceeded(kubeconfig, namespace, name)
 	})
 	if err != nil {
-		K8sDescribe(t, kubeconfig, namespace, "pod", name)
+		out := K8sDescribe(t, kubeconfig, namespace, "pod", name)
+		t.Logf("describe pod %s:%s:\n%s", namespace, name, out)
 		t.Fatalf("failed to wait for pod %s:%s: %s", namespace, name, err)
 	}
 	t.Logf("pod %s:%s is succeeded", namespace, name)
@@ -204,7 +205,7 @@ func WaitForStorageClass(t *testing.T, kubeconfig string, name string, timeout t
 	t.Logf("storageclass %s exists", name)
 }
 
-func K8sDescribe(t *testing.T, kubeconfig string, namespace string, kind string, name string) {
+func K8sDescribe(t *testing.T, kubeconfig string, namespace string, kind string, name string) string {
 	cmd := exec.Command(
 		"kubectl", "--kubeconfig", kubeconfig, "describe", kind, name, "-n", namespace,
 	)
@@ -212,5 +213,5 @@ func K8sDescribe(t *testing.T, kubeconfig string, namespace string, kind string,
 	if err != nil {
 		t.Fatalf("failed to describe %s %s in namespace %s: %s", kind, name, namespace, err)
 	}
-	t.Logf("kubectl -n %s describe %s %s:\n%s", namespace, kind, name, out)
+	return string(out)
 }

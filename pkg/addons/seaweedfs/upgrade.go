@@ -3,6 +3,7 @@ package seaweedfs
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -50,6 +51,23 @@ func (s *SeaweedFS) Upgrade(
 		if err := s.performPreUpgradeStatefulSetRestart(ctx, kcli, logf); err != nil {
 			return fmt.Errorf("pre-upgrade statefulset restart: %w", err)
 		}
+	}
+
+	// When upgrading from a previous version, we need to disable hashicorp raft as a rolling
+	// update will fail if toggling raft implementation.
+	shouldDisableHashicorpRaft, err := s.shouldDisableRaftHashicorp(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("checking if raft hashicorp should be disabled: %w", err)
+	}
+	if shouldDisableHashicorpRaft {
+		logrus.Debug("Setting master.raftHashicorp=false and master.raftBootstrap=false")
+		if err := helm.SetValue(values, "master.raftHashicorp", false); err != nil {
+			return fmt.Errorf("setting master.raftHashicorp: %w", err)
+		}
+		if err := helm.SetValue(values, "master.raftBootstrap", false); err != nil {
+			return fmt.Errorf("setting master.raftBootstrap: %w", err)
+		}
+		logrus.Debug("master.raftHashicorp=false and master.raftBootstrap=false set")
 	}
 
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
@@ -120,6 +138,35 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 
 	logrus.Debugf("No scaling fix needed - StatefulSet has %d replicas with %d ready", currentReplicas, sts.Status.ReadyReplicas)
 	return false, nil
+}
+
+// shouldDisableRaftHashicorp checks to see if there is a previous statefulset without
+// -raftHashicorp argument
+func (s *SeaweedFS) shouldDisableRaftHashicorp(ctx context.Context, kcli client.Client) (bool, error) {
+	logrus.Debug("Checking if hashicorp raft should be disabled")
+
+	var sts appsv1.StatefulSet
+	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
+	if err := kcli.Get(ctx, nsn, &sts); client.IgnoreNotFound(err) != nil {
+		return false, fmt.Errorf("get seaweedfs master statefulset: %w", err)
+	} else if err != nil {
+		// not found, so no previous statefulset
+		logrus.Debug("No previous statefulset found, do not disable raft hashicorp")
+		return false, nil
+	}
+	// check if the seaweedfs container has the -raftHashicorp argument
+	for _, container := range sts.Spec.Template.Spec.Containers {
+		if container.Name == "seaweedfs" {
+			for _, arg := range container.Args {
+				if strings.Contains(arg, "-raftHashicorp") {
+					logrus.Debug("Raft hashicorp is enabled, do not disable it")
+					return false, nil
+				}
+			}
+		}
+	}
+	logrus.Debug("Raft hashicorp is disabled, disable it")
+	return true, nil
 }
 
 func getPreviousECVersion(ctx context.Context, kcli client.Client) (*semver.Version, error) {

@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -121,7 +122,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s pushing image to registry", formattedTime())
-	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
+	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.0")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
 	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
@@ -164,19 +165,209 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
 
 	t.Logf("%s enabling HA", formattedTime())
-	loading := newTestingSpinner(t)
-	func() {
-		defer loading.Close()
-		opts := addons.EnableHAOptions{
-			ClusterID:   "123",
-			ServiceCIDR: rc.ServiceCIDR(),
-			ProxySpec:   rc.ProxySpec(),
-		}
-		err = addOns.EnableHA(t.Context(), opts, loading)
-		require.NoError(t, err)
-	}()
+	err = enableHA(ctx, t, addOns, inSpec)
+	require.NoError(t, err, "failed to enable HA")
+
+	t.Logf("%s validating seaweedfs helm values", formattedTime())
+	describeOut := util.K8sDescribe(t, kubeconfig, "seaweedfs", "statefulset", "seaweedfs-master")
+	if !strings.Contains(describeOut, "raftHashicorp") {
+		t.Fatalf("seaweedfs helm values should contain raftHashicorp")
+	}
+	if !strings.Contains(describeOut, "raftBootstrap") {
+		t.Fatalf("seaweedfs helm values should contain raftBootstrap")
+	}
 
 	t.Logf("%s pushing a second image to registry", formattedTime())
+	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
+
+	t.Logf("%s running pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+
+	t.Logf("%s running second pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+}
+
+// If this function name is changed, the .github/workflows/ci.yaml file needs to be updated
+// to match the new function name.
+func TestRegistry_DisableHashiRaft(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode")
+	}
+
+	ctx := t.Context()
+
+	buildOperatorImage(t)
+
+	util.SetupCtrlLogging(t)
+
+	clusterName := util.GenerateClusterName(t)
+
+	kindConfig := util.NewKindClusterConfig(t, clusterName, &util.KindClusterOptions{
+		NumControlPlaneNodes: 3,
+	})
+
+	kindConfig.Nodes[0].ExtraPortMappings = append(kindConfig.Nodes[0].ExtraPortMappings, kind.PortMapping{
+		ContainerPort: 30500,
+	})
+
+	// data and k0s directories are required for the admin console addon
+	ecDataDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster",
+	}
+	k0sDirMount := kind.Mount{
+		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+		ContainerPath: "/var/lib/embedded-cluster/k0s",
+	}
+	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
+	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
+
+	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
+
+	kcli := util.CtrlClient(t, kubeconfig)
+	mcli := util.MetadataClient(t, kubeconfig)
+	kclient := util.KubeClient(t, kubeconfig)
+	hcli := util.HelmClient(t, kubeconfig)
+
+	rc := runtimeconfig.New(nil)
+	rc.SetNetworkSpec(ecv1beta1.NetworkSpec{
+		PodCIDR:     "10.85.0.0/12",
+		ServiceCIDR: "10.96.0.0/12",
+	})
+
+	domains := ecv1beta1.Domains{
+		ReplicatedAppDomain:      "replicated.app",
+		ProxyRegistryDomain:      "proxy.replicated.com",
+		ReplicatedRegistryDomain: "registry.replicated.com",
+	}
+
+	t.Logf("%s installing openebs", formattedTime())
+	addon := &openebs.OpenEBS{
+		OpenEBSDataDir: rc.EmbeddedClusterOpenEBSLocalSubDir(),
+	}
+	if err := addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
+		t.Fatalf("failed to install openebs: %v", err)
+	}
+
+	t.Logf("%s waiting for storageclass", formattedTime())
+	util.WaitForStorageClass(t, kubeconfig, "openebs-hostpath", 30*time.Second)
+
+	t.Logf("%s installing registry", formattedTime())
+	registryAddon := &registry.Registry{
+		ServiceCIDR: "10.96.0.0/12",
+		IsHA:        false,
+	}
+	require.NoError(t, registryAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
+
+	t.Logf("%s creating hostport service", formattedTime())
+	registryAddr := createHostPortService(t, clusterName, kubeconfig)
+
+	t.Logf("%s installing admin console", formattedTime())
+	adminConsoleAddon := &adminconsole.AdminConsole{
+		ClusterID:          "123",
+		IsAirgap:           true,
+		IsHA:               false,
+		Proxy:              rc.ProxySpec(),
+		ServiceCIDR:        "10.96.0.0/12",
+		IsMultiNodeEnabled: false,
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+		AdminConsolePort:   rc.AdminConsolePort(),
+	}
+	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
+
+	t.Logf("%s pushing image to registry", formattedTime())
+	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.0")
+
+	t.Logf("%s running pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+
+	t.Logf("%s creating installation with HA disabled", formattedTime())
+	util.EnsureInstallation(t, kcli, ecv1beta1.InstallationSpec{
+		HighAvailability: false,
+	})
+
+	inSpec := ecv1beta1.InstallationSpec{
+		AirGap: true,
+		Config: &ecv1beta1.ConfigSpec{
+			Domains: domains,
+			UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+				BuiltInExtensions: []ecv1beta1.BuiltInExtension{
+					{
+						Name:   "seaweedfs",
+						Values: "master:\n  raftHashicorp: false\n  raftBootstrap: false\n",
+					},
+				},
+			},
+		},
+		RuntimeConfig: rc.Get(),
+	}
+
+	addOns := addons.New(
+		addons.WithKubernetesClient(kcli),
+		addons.WithKubernetesClientSet(kclient),
+		addons.WithMetadataClient(mcli),
+		addons.WithHelmClient(hcli),
+		addons.WithDomains(domains),
+	)
+
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
+	)
+
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+		regexp.MustCompile(`Migrating data for high availability \(`),
+	)
+
+	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+		regexp.MustCompile(`Updating the Admin Console for high availability`),
+	)
+
+	canEnable, reason, err := addOns.CanEnableHA(t.Context())
+	require.NoError(t, err)
+	require.True(t, canEnable, "should be able to enable HA: %s", reason)
+
+	t.Logf("%s enabling HA", formattedTime())
+	err = enableHA(ctx, t, addOns, inSpec)
+	require.NoError(t, err, "failed to enable HA")
+
+	t.Logf("%s validating seaweedfs helm values", formattedTime())
+	describeOut := util.K8sDescribe(t, kubeconfig, "seaweedfs", "statefulset", "seaweedfs-master")
+	if strings.Contains(describeOut, "raftHashicorp") {
+		t.Fatalf("seaweedfs helm values should not contain raftHashicorp")
+	}
+	if strings.Contains(describeOut, "raftBootstrap") {
+		t.Fatalf("seaweedfs helm values should not contain raftBootstrap")
+	}
+
+	t.Logf("%s pushing a second image to registry", formattedTime())
+	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
+
+	t.Logf("%s running pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+
+	t.Logf("%s running second pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+
+	t.Logf("%s upgrading seaweedfs, raftHashicorp and raftBootstrap should stay disabled", formattedTime())
+	seaweedfsAddon := &seaweedfs.SeaweedFS{
+		ServiceCIDR:      rc.ServiceCIDR(),
+		SeaweedFSDataDir: rc.EmbeddedClusterSeaweedFSSubDir(),
+	}
+	require.NoError(t, seaweedfsAddon.Upgrade(t.Context(), t.Logf, kcli, mcli, hcli, domains, nil))
+
+	t.Logf("%s validating seaweedfs helm values", formattedTime())
+	describeOut = util.K8sDescribe(t, kubeconfig, "seaweedfs", "statefulset", "seaweedfs-master")
+	if strings.Contains(describeOut, "raftHashicorp") {
+		t.Fatalf("seaweedfs helm values should not contain raftHashicorp")
+	}
+	if strings.Contains(describeOut, "raftBootstrap") {
+		t.Fatalf("seaweedfs helm values should not contain raftBootstrap")
+	}
+
+	t.Logf("%s pushing a third image to registry", formattedTime())
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.37.0")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
@@ -184,6 +375,9 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
 	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+
+	t.Logf("%s running third pod to validate image pull", formattedTime())
+	runPodAndValidateImagePull(t, kubeconfig, "pod-3", "pod3.yaml")
 }
 
 func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
@@ -226,19 +420,25 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 		io.Copy(io.Discard, pr) // discard the rest of the output
 	}()
 
+	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
+	err = enableHA(ctx, t, addOns, inSpec)
+	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
+	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
+}
+
+func enableHA(ctx context.Context, t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec) error {
 	loading := newTestingSpinner(t)
 	defer loading.Close()
 
 	rc := runtimeconfig.New(inSpec.RuntimeConfig)
 
-	t.Logf("%s enabling HA and cancelling context on message", formattedTime())
 	opts := addons.EnableHAOptions{
 		ClusterID:          "123",
 		AdminConsolePort:   rc.AdminConsolePort(),
 		IsAirgap:           true,
 		IsMultiNodeEnabled: false,
 		EmbeddedConfigSpec: inSpec.Config,
-		EndUserConfigSpec:  inSpec.Config,
+		EndUserConfigSpec:  nil,
 		ProxySpec:          rc.ProxySpec(),
 		HostCABundlePath:   rc.HostCABundlePath(),
 		DataDir:            rc.EmbeddedClusterHomeDirectory(),
@@ -246,9 +446,7 @@ func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSp
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        inSpec.RuntimeConfig.Network.ServiceCIDR,
 	}
-	err = addOns.EnableHA(ctx, opts, loading)
-	require.ErrorIs(t, err, context.Canceled, "expected context to be cancelled")
-	t.Logf("%s cancelled context and got error: %v", formattedTime(), err)
+	return addOns.EnableHA(ctx, opts, loading)
 }
 
 func waitForMatchingMessage(t *testing.T, r io.Reader, re *regexp.Regexp) bool {
