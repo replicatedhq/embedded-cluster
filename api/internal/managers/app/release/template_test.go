@@ -368,6 +368,7 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 		configValues     types.AppConfigValues
 		proxySpec        *ecv1beta1.ProxySpec
 		registrySettings *types.RegistrySettings
+		isAirgap         bool
 		expected         []*kotsv1beta2.HelmChart
 		expectError      bool
 	}{
@@ -855,7 +856,8 @@ spec:
 			expectError: false,
 		},
 		{
-			name: "helm chart with IsAirgap template function - airgap mode",
+			name:     "helm chart with IsAirgap template function - airgap mode",
+			isAirgap: true,
 			helmChartCRs: [][]byte{
 				[]byte(`
 apiVersion: kots.io/v1beta2
@@ -920,7 +922,8 @@ spec:
 			expectError: false,
 		},
 		{
-			name: "helm chart with IsAirgap template function - online mode",
+			name:     "helm chart with IsAirgap template function - online mode",
+			isAirgap: false,
 			helmChartCRs: [][]byte{
 				[]byte(`
 apiVersion: kots.io/v1beta2
@@ -994,10 +997,16 @@ spec:
 				HelmChartCRs: tt.helmChartCRs,
 			}
 
+			airgapBundle := ""
+			if tt.isAirgap {
+				airgapBundle = "/path/to/bundle.airgap"
+			}
+
 			// Create manager
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithAirgapBundle(airgapBundle),
 			)
 			require.NoError(t, err)
 
