@@ -39,6 +39,7 @@ type Engine struct {
 	proxySpec                  *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
 	registrySettings           *types.RegistrySettings // Registry settings for registry template functions, if applicable
 	privateCACertConfigMapName string                  // ConfigMap name for private CA certificates, empty string if not available
+	isAirgapInstallation       bool                    // Whether the installation is an airgap installation
 	mtx                        sync.Mutex
 }
 
@@ -65,6 +66,12 @@ func WithReleaseData(releaseData *release.ReleaseData) EngineOption {
 func WithPrivateCACertConfigMapName(configMapName string) EngineOption {
 	return func(e *Engine) {
 		e.privateCACertConfigMapName = configMapName
+	}
+}
+
+func WithIsAirgap(isAirgap bool) EngineOption {
+	return func(e *Engine) {
+		e.isAirgapInstallation = isAirgap
 	}
 }
 

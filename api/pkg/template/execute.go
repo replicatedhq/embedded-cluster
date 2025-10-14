@@ -182,6 +182,9 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"LocalRegistryNamespace":       e.localRegistryNamespace,
 		"ImagePullSecretName":          e.imagePullSecretName,
 		"LocalRegistryImagePullSecret": e.localRegistryImagePullSecret,
+
+		// Release template functions
+		"IsAirgap": e.isAirgap,
 	}
 }
 

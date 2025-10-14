@@ -577,3 +577,11 @@ spec:
           title: Advanced Checkbox Option
           type: bool
           help_text: "This checkbox is only visible when advanced features are enabled"
+
+    - name: template-functions
+      title: Template Functions
+      items:
+        - name: template_function_is_airgap
+          title: Is Airgap
+          type: label
+          default: "{{repl if IsAirgap }}Airgap{{repl else }}Online{{repl end }}"

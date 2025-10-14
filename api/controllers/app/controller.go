@@ -167,6 +167,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 			appconfig.WithReleaseData(controller.releaseData),
 			appconfig.WithLicense(license),
+			appconfig.WithAirgapBundle(controller.airgapBundle),
 			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
