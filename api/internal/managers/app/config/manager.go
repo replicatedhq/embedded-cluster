@@ -33,9 +33,11 @@ type appConfigManager struct {
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
 	license                    *kotsv1beta1.License
-	logger                     logrus.FieldLogger
-	templateEngine             *apitemplate.Engine
+	isAirgap                   bool
 	privateCACertConfigMapName string
+
+	logger         logrus.FieldLogger
+	templateEngine *apitemplate.Engine
 }
 
 type AppConfigManagerOption func(*appConfigManager)
@@ -61,6 +63,12 @@ func WithReleaseData(releaseData *release.ReleaseData) AppConfigManagerOption {
 func WithLicense(license *kotsv1beta1.License) AppConfigManagerOption {
 	return func(c *appConfigManager) {
 		c.license = license
+	}
+}
+
+func WithIsAirgap(isAirgap bool) AppConfigManagerOption {
+	return func(c *appConfigManager) {
+		c.isAirgap = isAirgap
 	}
 }
 
@@ -92,8 +100,9 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 		manager.templateEngine = apitemplate.NewEngine(
 			&manager.rawConfig,
 			apitemplate.WithMode(apitemplate.ModeConfig),
-			apitemplate.WithLicense(manager.license),
 			apitemplate.WithReleaseData(manager.releaseData),
+			apitemplate.WithLicense(manager.license),
+			apitemplate.WithIsAirgap(manager.isAirgap),
 			apitemplate.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 	}

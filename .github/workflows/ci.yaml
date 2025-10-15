@@ -385,6 +385,7 @@ jobs:
         with:
           files: |
             e2e/**
+            !e2e/kots-release-install-v3/**
             api/*.go
             api/types/**
             api/pkg/**

@@ -368,6 +368,7 @@ func TestAppReleaseManager_templateHelmChartCRs(t *testing.T) {
 		configValues     types.AppConfigValues
 		proxySpec        *ecv1beta1.ProxySpec
 		registrySettings *types.RegistrySettings
+		isAirgap         bool
 		expected         []*kotsv1beta2.HelmChart
 		expectError      bool
 	}{
@@ -854,6 +855,136 @@ spec:
 			},
 			expectError: false,
 		},
+		{
+			name:     "helm chart with IsAirgap template function - airgap mode",
+			isAirgap: true,
+			helmChartCRs: [][]byte{
+				[]byte(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: airgap-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    installationMode: '{{repl IsAirgap | ternary "airgap" "online"}}'
+    downloadImages: '{{repl IsAirgap}}'
+    environment:
+      type: '{{repl if IsAirgap}}Airgap Installation{{repl else}}Online Installation{{repl end}}'
+  optionalValues:
+  - when: '{{repl IsAirgap}}'
+    values:
+      registry:
+        enabled: true
+        host: "local-registry.example.com"
+  - when: '{{repl if not IsAirgap}}true{{repl else}}false{{repl end}}'
+    values:
+      externalAccess:
+        enabled: true
+`),
+			},
+			configValues: types.AppConfigValues{},
+			proxySpec:    &ecv1beta1.ProxySpec{},
+			registrySettings: &types.RegistrySettings{
+				HasLocalRegistry: true,
+			},
+			expected: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: airgap-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    installationMode: airgap
+    downloadImages: "true"
+    environment:
+      type: Airgap Installation
+  optionalValues:
+  - when: "true"
+    values:
+      registry:
+        enabled: true
+        host: "local-registry.example.com"
+  - when: "false"
+    values:
+      externalAccess:
+        enabled: true
+`),
+			},
+			expectError: false,
+		},
+		{
+			name:     "helm chart with IsAirgap template function - online mode",
+			isAirgap: false,
+			helmChartCRs: [][]byte{
+				[]byte(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: online-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    installationMode: '{{repl IsAirgap | ternary "airgap" "online"}}'
+    downloadImages: '{{repl IsAirgap}}'
+    environment:
+      type: '{{repl if IsAirgap}}Airgap Installation{{repl else}}Online Installation{{repl end}}'
+  optionalValues:
+  - when: '{{repl IsAirgap}}'
+    values:
+      registry:
+        enabled: true
+  - when: '{{repl if not IsAirgap}}true{{repl else}}false{{repl end}}'
+    values:
+      externalAccess:
+        enabled: true
+        url: "https://external-api.example.com"
+`),
+			},
+			configValues:     types.AppConfigValues{},
+			proxySpec:        &ecv1beta1.ProxySpec{},
+			registrySettings: nil, // No registry settings means online mode
+			expected: []*kotsv1beta2.HelmChart{
+				createHelmChartCRFromYAML(`
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: online-chart
+  namespace: default
+spec:
+  chart:
+    name: nginx
+    chartVersion: "1.0.0"
+  values:
+    installationMode: online
+    downloadImages: "false"
+    environment:
+      type: Online Installation
+  optionalValues:
+  - when: "false"
+    values:
+      registry:
+        enabled: true
+  - when: "true"
+    values:
+      externalAccess:
+        enabled: true
+        url: "https://external-api.example.com"
+`),
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -870,6 +1001,7 @@ spec:
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
+				WithIsAirgap(tt.isAirgap),
 			)
 			require.NoError(t, err)
 
