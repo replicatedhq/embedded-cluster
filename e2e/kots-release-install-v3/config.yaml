@@ -199,6 +199,33 @@ spec:
           required: true
           help_text: "Help text of a **_Text_** config item type **_marked required_**"
 
+        - name: text_with_regex
+          title: Text with Email Validation
+          type: text
+          help_text: "Must be a valid email address"
+          validation:
+            regex:
+              pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              message: Please enter a valid email address
+
+        - name: text_required_with_regex
+          title: Required Email Address
+          type: text
+          required: true
+          help_text: "Required field with email validation"
+          validation:
+            regex:
+              pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              message: Please enter a valid email address
+
+        - name: text_with_regex_no_message
+          title: Text with Regex (Default Message)
+          type: text
+          help_text: "Must contain only lowercase letters"
+          validation:
+            regex:
+              pattern: '^[a-z]+$'
+
         - name: label_password
           type: label
           title: |
@@ -222,6 +249,15 @@ spec:
           required: true
           help_text: "Help text of a **_Password_** config item type **_marked required_**"
 
+        - name: password_with_regex
+          title: Strong Password
+          type: password
+          help_text: "Must be at least 8 characters with uppercase, lowercase, and number"
+          validation:
+            regex:
+              pattern: '^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$'
+              message: Password must be at least 8 characters with uppercase, lowercase, and number
+
         - name: label_textarea
           type: label
           title: |
@@ -244,6 +280,15 @@ spec:
           type: textarea
           required: true
           help_text: "Help text of a **_Textarea_** config item type **_marked required_**"
+
+        - name: textarea_with_regex
+          title: JSON Configuration
+          type: textarea
+          help_text: "Must be valid JSON format"
+          validation:
+            regex:
+              pattern: '^\{.*\}$'
+              message: Must be a valid JSON object
 
         - name: label_checkbox
           type: label
