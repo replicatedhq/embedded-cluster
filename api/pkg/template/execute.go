@@ -194,9 +194,6 @@ func (e *Engine) getFuncMap() template.FuncMap {
 
 		// Airgap template functions
 		"IsAirgap": e.isAirgap,
-
-		// Cluster template functions
-		"NodeCount": e.nodeCount,
 	}
 }
 
