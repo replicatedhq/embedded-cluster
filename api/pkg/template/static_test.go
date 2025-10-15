@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
@@ -892,4 +893,41 @@ func TestEngine_YamlEscape(t *testing.T) {
 			assert.True(t, tc.validate(result), "Result should be properly indented YAML")
 		})
 	}
+}
+
+func TestEngine_Distribution(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl Distribution }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "embedded-cluster", result)
+}
+
+func TestEngine_KotsVersion(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl KotsVersion }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, result)
+	assert.Regexp(t, `^\d+\.\d+\.\d+(-.+)?$`, result, "Result should not have a \"v\" prefix")
+
+	_, err = semver.NewVersion(result)
+	require.NoError(t, err, "Result should be a valid semver version")
 }

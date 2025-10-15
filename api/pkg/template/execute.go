@@ -10,6 +10,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -27,6 +28,13 @@ func WithProxySpec(proxySpec *ecv1beta1.ProxySpec) ExecOption {
 func WithRegistrySettings(registrySettings *types.RegistrySettings) ExecOption {
 	return func(e *Engine) {
 		e.registrySettings = registrySettings
+	}
+}
+
+// WithKubeClient is an ExecOption that sets the kube client for the engine.
+func WithKubeClient(kcli client.Client) ExecOption {
+	return func(e *Engine) {
+		e.kcli = kcli
 	}
 }
 
@@ -174,6 +182,8 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ParseUint":    e.parseUint,
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
+		"Distribution": e.distribution,
+		// "KotsVersion":  e.kotsVersion,
 
 		// Registry template functions
 		"HasLocalRegistry":             e.hasLocalRegistry,
@@ -183,8 +193,11 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ImagePullSecretName":          e.imagePullSecretName,
 		"LocalRegistryImagePullSecret": e.localRegistryImagePullSecret,
 
-		// Release template functions
+		// Airgap template functions
 		"IsAirgap": e.isAirgap,
+
+		// Cluster template functions
+		"NodeCount": e.nodeCount,
 	}
 }
 

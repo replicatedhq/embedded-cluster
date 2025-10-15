@@ -588,3 +588,19 @@ spec:
             ---
 
             {{repl if IsAirgap }}Yes{{repl else }}No{{repl end }}
+
+        - name: template_function_distribution
+          type: label
+          title: |
+            ## Distribution
+            ---
+
+            {{repl Distribution }}
+
+        - name: template_function_kots_version
+          type: label
+          title: |
+            ## Kots Version
+            ---
+
+            {{repl KotsVersion }}

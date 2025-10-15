@@ -17,6 +17,7 @@ import (
 	"time"
 
 	units "github.com/docker/go-units"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -283,6 +284,19 @@ func (e *Engine) yamlEscape(plain string) string {
 	// it is possible for this function to produce multiline yaml, so we indent it a bunch for safety
 	indented := indent(20, string(marshalled))
 	return indented
+}
+
+func (e *Engine) distribution() string {
+	return "embedded-cluster"
+}
+
+func (e *Engine) kotsVersion() string {
+	for k, v := range addons.Versions() {
+		if k == "AdminConsole" {
+			return strings.TrimPrefix(v, "v")
+		}
+	}
+	return ""
 }
 
 // copied from sprig
