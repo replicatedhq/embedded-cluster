@@ -10,7 +10,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Mode defines the operating mode of the template engine
@@ -34,7 +33,6 @@ type Engine struct {
 	// ExecOptions
 	proxySpec        *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
 	registrySettings *types.RegistrySettings // Registry settings for registry template functions, if applicable
-	kcli             client.Client
 
 	// Internal state
 	configValues     types.AppConfigValues
