@@ -770,6 +770,8 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 		return fmt.Errorf("failed to install cluster: %w", err)
 	}
 
+	// test
+
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("failed to create kube client: %w", err)
