@@ -143,8 +143,10 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionFilename":  e.configOptionFilename,
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
+		// License and release data template functions
 		"LicenseFieldValue": e.licenseFieldValue,
 		"LicenseDockerCfg":  e.licenseDockerCfg,
+		"VersionLabel":      e.versionLabel,
 
 		"HTTPProxy":  e.httpProxy,
 		"HTTPSProxy": e.httpsProxy,

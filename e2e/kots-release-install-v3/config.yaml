@@ -641,3 +641,11 @@ spec:
             ---
 
             {{repl Distribution }}
+
+        - name: template_function_version_label
+          type: label
+          title: |
+            ## Version Label
+            ---
+
+            {{repl VersionLabel }}
