@@ -161,6 +161,7 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     value={configValues.adminConsolePort && configValues.adminConsolePort.toString() || ""}
                     onChange={handleInputChange}
                     defaultValue={defaults.adminConsolePort?.toString()}
+                    helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
                     className="w-96"
                     dataTestId="admin-console-port-input"
