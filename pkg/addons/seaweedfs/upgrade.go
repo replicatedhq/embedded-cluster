@@ -3,6 +3,7 @@ package seaweedfs
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -52,6 +53,23 @@ func (s *SeaweedFS) Upgrade(
 		}
 	}
 
+	// When upgrading from a previous version, we need to disable hashicorp raft as a rolling
+	// update will fail if toggling raft implementation.
+	shouldDisableHashicorpRaft, err := s.shouldDisableRaftHashicorp(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("checking if raft hashicorp should be disabled: %w", err)
+	}
+	if shouldDisableHashicorpRaft {
+		logrus.Debug("Setting master.raftHashicorp=false and master.raftBootstrap=false")
+		if err := helm.SetValue(values, "master.raftHashicorp", false); err != nil {
+			return fmt.Errorf("setting master.raftHashicorp: %w", err)
+		}
+		if err := helm.SetValue(values, "master.raftBootstrap", false); err != nil {
+			return fmt.Errorf("setting master.raftBootstrap: %w", err)
+		}
+		logrus.Debug("master.raftHashicorp=false and master.raftBootstrap=false set")
+	}
+
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  s.ReleaseName(),
 		ChartPath:    s.ChartLocation(domains),
@@ -73,39 +91,20 @@ func (s *SeaweedFS) Upgrade(
 func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client) (bool, error) {
 	logrus.Debug("Checking if scaling fix is needed for upgrade from pre-2.7.3")
 
-	// Get the latest installation to use for getting the previous one
-	latest, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	prevVersion, err := getPreviousECVersion(ctx, kcli)
 	if err != nil {
-		return false, fmt.Errorf("getting latest installation: %w", err)
-	}
-
-	// Get the previous installation to check version
-	previous, err := kubeutils.GetPreviousInstallation(ctx, kcli, latest)
-	if err != nil {
-		var errNotFound kubeutils.ErrInstallationNotFound
-		if errors.As(err, &errNotFound) {
-			logrus.Debug("No previous installation found, no scaling fix needed")
-			return false, nil // No previous installation means no upgrade, no scaling fix needed
-		}
-		return false, fmt.Errorf("getting previous installation: %w", err)
-	}
-
-	if previous == nil || previous.Spec.Config == nil || previous.Spec.Config.Version == "" {
-		return false, errors.New("previous installation has no version config")
-	}
-
-	// Parse previous version
-	prevVersion, err := semver.NewVersion(previous.Spec.Config.Version)
-	if err != nil {
-		return false, fmt.Errorf("parsing previous version %s: %w", previous.Spec.Config.Version, err)
+		return false, fmt.Errorf("get previous installation: %w", err)
+	} else if prevVersion == nil {
+		logrus.Debug("No previous version found, no scaling fix needed")
+		return false, nil
 	}
 
 	// Only restart if upgrading from < 2.7.3
 	if !lessThanECVersion273(prevVersion) {
-		logrus.Debugf("Previous version %s >= 2.7.3, no scaling fix needed", prevVersion.String())
+		logrus.Debugf("Previous version %s >= 2.7.3, no scaling fix needed", prevVersion)
 		return false, nil
 	}
-	logrus.Debugf("Previous version %s < 2.7.3, checking StatefulSet configuration", prevVersion.String())
+	logrus.Debugf("Previous version %s < 2.7.3, checking StatefulSet configuration", prevVersion)
 
 	// Check if SeaweedFS StatefulSet exists and check current replica configuration
 	var sts appsv1.StatefulSet
@@ -141,10 +140,63 @@ func (s *SeaweedFS) needsScalingRestart(ctx context.Context, kcli client.Client)
 	return false, nil
 }
 
+func getPreviousECVersion(ctx context.Context, kcli client.Client) (*semver.Version, error) {
+	latest, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return nil, fmt.Errorf("get latest installation: %w", err)
+	}
+	previous, err := kubeutils.GetPreviousInstallation(ctx, kcli, latest)
+	if err != nil {
+		var errNotFound kubeutils.ErrInstallationNotFound
+		if errors.As(err, &errNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get previous installation: %w", err)
+	}
+	if previous.Spec.Config == nil || previous.Spec.Config.Version == "" {
+		return nil, errors.New("previous installation has no version config")
+	}
+	sv, err := semver.NewVersion(previous.Spec.Config.Version)
+	if err != nil {
+		return nil, fmt.Errorf("parse previous version %s: %w", previous.Spec.Config.Version, err)
+	}
+	return sv, nil
+}
+
+var version273 = semver.MustParse("2.7.3")
+
 // lessThanECVersion273 checks if a version is less than 2.7.3
 func lessThanECVersion273(ver *semver.Version) bool {
-	version273 := semver.MustParse("2.7.3")
 	return ver.LessThan(version273)
+}
+
+// shouldDisableRaftHashicorp checks to see if there is a previous statefulset without
+// -raftHashicorp argument
+func (s *SeaweedFS) shouldDisableRaftHashicorp(ctx context.Context, kcli client.Client) (bool, error) {
+	logrus.Debug("Checking if hashicorp raft should be disabled")
+
+	var sts appsv1.StatefulSet
+	nsn := client.ObjectKey{Namespace: s.Namespace(), Name: "seaweedfs-master"}
+	if err := kcli.Get(ctx, nsn, &sts); client.IgnoreNotFound(err) != nil {
+		return false, fmt.Errorf("get seaweedfs master statefulset: %w", err)
+	} else if err != nil {
+		// not found, so no previous statefulset
+		logrus.Debug("No previous statefulset found, do not disable raft hashicorp")
+		return false, nil
+	}
+	// check if the seaweedfs container has the -raftHashicorp argument
+	for _, container := range sts.Spec.Template.Spec.Containers {
+		if container.Name == "seaweedfs" {
+			for _, arg := range append(container.Command, container.Args...) {
+				if strings.Contains(arg, "-raftHashicorp") {
+					logrus.Debug("Raft hashicorp is enabled, do not disable it")
+					return false, nil
+				}
+			}
+		}
+	}
+	logrus.Debug("Raft hashicorp is disabled, disable it")
+	return true, nil
 }
 
 // scaleStatefulSet directly scales the StatefulSet to the target replica count

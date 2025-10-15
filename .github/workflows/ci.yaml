@@ -128,6 +128,7 @@ jobs:
       - int-tests-api
       - int-tests-kind
       - int-tests-kind-ha-registry
+      - int-tests-kind-ha-registry-disable-hashi-raft
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -139,6 +140,9 @@ jobs:
         run: exit 1
       - name: fail if int-tests-kind-ha-registry job was not successful
         if: needs.int-tests-kind-ha-registry.result != 'success' && needs.int-tests-kind-ha-registry.result != 'skipped'
+        run: exit 1
+      - name: fail if int-tests-kind-ha-registry-disable-hashi-raft job was not successful
+        if: needs.int-tests-kind-ha-registry-disable-hashi-raft.result != 'success' && needs.int-tests-kind-ha-registry-disable-hashi-raft.result != 'skipped'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Integration tests succeeded"
@@ -230,6 +234,55 @@ jobs:
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration/kind test-registry RUN=TestRegistry_EnableHAAirgap
+
+  int-tests-kind-ha-registry-disable-hashi-raft:
+    name: Integration tests (kind) HA registry migrate seaweed raft
+    runs-on: ubuntu-latest
+    needs:
+      - output-vars
+      - should-run-int-tests-kind
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: |
+          df -h
+          sudo rm -rf \
+            /usr/share/swift \
+            /usr/share/dotnet \
+            /usr/lib/jvm \
+            /usr/local/share/boost \
+            /usr/local/lib/heroku \
+            /usr/local/julia* \
+            /usr/local/.ghcup \
+            /usr/local/share/powershell \
+            /usr/local/bin/aliyun \
+            /usr/local/bin/azcopy \
+            /usr/local/bin/bicep \
+            /usr/local/bin/cpack \
+            /usr/local/bin/hub \
+            /usr/local/bin/minikube \
+            /usr/local/bin/packer \
+            /usr/local/bin/pulumi* \
+            /usr/local/bin/sam \
+            /usr/local/bin/stack \
+            /usr/local/bin/terraform \
+            /usr/local/bin/oc
+          df -h
+      - name: Install kind
+        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
+        with:
+          install_only: true
+      - name: Run tests
+        run: |
+          export VERSION=${{ needs.output-vars.outputs.ec_version }}
+          make -C tests/integration/kind test-registry RUN=TestRegistry_DisableHashiRaft
 
   dryrun-tests:
     name: Dryrun tests
