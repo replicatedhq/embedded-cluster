@@ -5,7 +5,7 @@ import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/vitest';
 
 // Mock the debounced fetch to remove timing issues in tests
 vi.mock("../../../utils/debouncedFetch", () => ({
