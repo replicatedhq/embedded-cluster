@@ -40,7 +40,6 @@ const server = setupServer(
 describe("LinuxSetupStep", () => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
-  const mockUpdateConfig = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -64,19 +63,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "/var/lib/embedded-cluster",
-                adminConsolePort: 8080,
-                localArtifactMirrorPort: 8081,
-                networkInterface: "eth0",
-                globalCidr: "10.244.0.0/16",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -128,15 +114,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -165,8 +142,6 @@ describe("LinuxSetupStep", () => {
 
       // Verify onNext was not called
       expect(mockOnNext).not.toHaveBeenCalled();
-      // Verify updateConfig was called only during initial load (once)
-      expect(mockUpdateConfig).toHaveBeenCalledTimes(1);
     });
 
     it("handles field-specific errors gracefully", async () => {
@@ -189,15 +164,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -230,8 +196,6 @@ describe("LinuxSetupStep", () => {
 
       // Verify onNext was not called
       expect(mockOnNext).not.toHaveBeenCalled();
-      // Verify updateConfig was called only during initial load (once)
-      expect(mockUpdateConfig).toHaveBeenCalledTimes(1);
     });
 
     it("clears errors when re-submitting after previous failure", async () => {
@@ -245,15 +209,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -303,13 +258,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -337,13 +285,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -365,13 +306,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -403,13 +337,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -438,13 +365,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -453,9 +373,6 @@ describe("LinuxSetupStep", () => {
       await waitFor(() => {
         expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
       });
-
-      // Verify that updateConfig was called with the resolved from the API response
-      expect(mockUpdateConfig).toHaveBeenCalledWith(MOCK_LINUX_INSTALL_CONFIG_RESPONSE.resolved);
 
       // Check that form shows the correct values
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
@@ -507,15 +424,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -558,15 +466,6 @@ describe("LinuxSetupStep", () => {
         },
         { timeout: 3000 }
       );
-
-      // Verify updateConfig was called with the correct values
-      expect(mockUpdateConfig).toHaveBeenCalledWith({
-        adminConsolePort: 8080,
-        localArtifactMirrorPort: 8081,
-        dataDirectory: "/var/lib/embedded-cluster",
-        networkInterface: "eth0",
-        globalCidr: "10.244.0.0/16",
-      });
     });
   });
 
@@ -585,13 +484,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -628,13 +520,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -662,13 +547,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -701,13 +579,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -740,13 +611,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -790,13 +654,6 @@ describe("LinuxSetupStep", () => {
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
         wrapperProps: {
           authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: { dataDirectory: '' },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 

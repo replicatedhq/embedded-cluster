@@ -46,6 +46,14 @@ export interface LinuxConfig {
   globalCidr?: string;
 }
 
+// Linux Configuration Response Type returned by the API
+export interface LinuxConfigResponse {
+  values: LinuxConfig;
+  defaults: LinuxConfig;
+  resolved: LinuxConfig;
+}
+
+
 // Kubernetes Configuration Type used during the setup step
 export interface KubernetesConfig {
   adminConsolePort?: number;
@@ -53,6 +61,13 @@ export interface KubernetesConfig {
   httpsProxy?: string;
   noProxy?: string;
   installCommand?: string;
+}
+
+// Kubernetes Configuration Response Type returned by the API
+export interface KubernetesConfigResponse {
+  values: KubernetesConfig;
+  defaults: KubernetesConfig;
+  resolved: KubernetesConfig;
 }
 
 // WizardText type holds the text fields for the multiple wizard step text fields

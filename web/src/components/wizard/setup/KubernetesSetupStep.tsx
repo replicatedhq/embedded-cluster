@@ -2,13 +2,12 @@ import React, { useState } from "react";
 import Input from "../../common/Input";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
-import { useKubernetesConfig } from "../../../contexts/KubernetesConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { KubernetesConfig } from "../../../types";
+import { KubernetesConfig, KubernetesConfigResponse } from "../../../types";
 import { getApiBase } from '../../../utils/api-base';
 import { ApiError } from '../../../utils/api-error';
 
@@ -36,14 +35,7 @@ interface Status {
   description?: string;
 }
 
-interface KubernetesConfigResponse {
-  values: KubernetesConfig;
-  defaults: KubernetesConfig;
-  resolved: KubernetesConfig;
-}
-
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
-  const { updateConfig } = useKubernetesConfig(); // We need to make sure to update the global config
   const { text, target, mode } = useWizard();
   const [error, setError] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<KubernetesConfig>({});
@@ -64,8 +56,6 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
         throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
       }
       const configResponse = await response.json();
-      // Update the global config with resolved config which includes user values and defaults.
-      updateConfig(configResponse.resolved);
       // Store defaults for display in help text
       setDefaults(configResponse.defaults);
       // Store the config values for display in the form inputs
@@ -92,8 +82,6 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       return response.json();
     },
     onSuccess: () => {
-      // Update the global (context) config we use accross the project
-      updateConfig(configValues);
       // Clear any previous errors
       setError(null);
       startInstallation();
@@ -173,7 +161,6 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
                     value={configValues.adminConsolePort && configValues.adminConsolePort.toString() || ""}
                     onChange={handleInputChange}
                     defaultValue={defaults.adminConsolePort?.toString()}
-                    helpText="Port for the Admin Console"
                     error={getFieldError("adminConsolePort")}
                     className="w-96"
                     dataTestId="admin-console-port-input"

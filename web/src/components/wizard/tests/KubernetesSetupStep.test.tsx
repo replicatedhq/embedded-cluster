@@ -29,7 +29,6 @@ describe.each([
 ])("KubernetesSetupStep - $modeDisplayName", ({ mode }) => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
-  const mockUpdateConfig = vi.fn();
   let server: ReturnType<typeof createServer>;
 
   beforeAll(() => {
@@ -57,13 +56,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -102,13 +94,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -131,8 +116,6 @@ describe.each([
 
       // Verify onNext was not called
       expect(mockOnNext).not.toHaveBeenCalled();
-      // Verify updateConfig was called only during initial load (once)
-      expect(mockUpdateConfig).toHaveBeenCalledTimes(1);
     });
 
     it("handles field-specific errors gracefully", async () => {
@@ -154,13 +137,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -187,8 +163,6 @@ describe.each([
 
       // Verify onNext was not called
       expect(mockOnNext).not.toHaveBeenCalled();
-      // Verify updateConfig was called only during initial load (once)
-      expect(mockUpdateConfig).toHaveBeenCalledTimes(1);
     });
 
     it("clears errors when re-submitting after previous failure", async () => {
@@ -204,13 +178,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -260,13 +227,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -278,7 +238,7 @@ describe.each([
 
       // Check that port input is empty (not displaying "0")
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       expect(adminPortInput.value).toBe("");
     });
 
@@ -294,13 +254,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -313,7 +266,7 @@ describe.each([
       // Check that inputs show empty values appropriately
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
       const httpProxyInput = screen.getByTestId("http-proxy-input") as HTMLInputElement;
-      
+
       expect(adminPortInput.value).toBe("");
       expect(httpProxyInput.value).toBe("");
     });
@@ -324,13 +277,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -341,18 +287,18 @@ describe.each([
       });
 
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      
+
       // Clear the existing value first
       fireEvent.change(adminPortInput, { target: { value: "" } });
-      
+
       // Test that decimal values are rejected
       fireEvent.change(adminPortInput, { target: { value: "30000.5" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that non-numeric values are rejected
       fireEvent.change(adminPortInput, { target: { value: "abc" } });
       expect(adminPortInput.value).toBe("");
-      
+
       // Test that valid integer is accepted
       fireEvent.change(adminPortInput, { target: { value: "30000" } });
       expect(adminPortInput.value).toBe("30000");
@@ -364,13 +310,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -382,11 +321,11 @@ describe.each([
 
       const httpProxyInput = screen.getByTestId("http-proxy-input") as HTMLInputElement;
       const httpsProxyInput = screen.getByTestId("https-proxy-input") as HTMLInputElement;
-      
+
       // Test that valid HTTP URLs are accepted
       fireEvent.change(httpProxyInput, { target: { value: "http://proxy.example.com:3128" } });
       expect(httpProxyInput.value).toBe("http://proxy.example.com:3128");
-      
+
       // Test that valid HTTPS URLs are accepted
       fireEvent.change(httpsProxyInput, { target: { value: "https://proxy.example.com:3128" } });
       expect(httpsProxyInput.value).toBe("https://proxy.example.com:3128");
@@ -400,13 +339,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -415,9 +347,6 @@ describe.each([
       await waitFor(() => {
         expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
       });
-
-      // Verify that updateConfig was called with the resolved from the API response
-      expect(mockUpdateConfig).toHaveBeenCalledWith(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE.resolved);
 
       // Check that form shows the correct values
       const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
@@ -464,13 +393,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -500,11 +422,6 @@ describe.each([
         },
         { timeout: 3000 }
       );
-
-      // Verify updateConfig was called with the correct values
-      expect(mockUpdateConfig).toHaveBeenCalledWith({
-        adminConsolePort: 30000,
-      });
     });
 
     it("submits form with proxy configuration", async () => {
@@ -538,13 +455,6 @@ describe.each([
           authenticated: true,
           target: "kubernetes",
           mode,
-          contextValues: {
-            kubernetesConfigContext: {
-              config: {},
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
         },
       });
 
@@ -572,14 +482,6 @@ describe.each([
       // Wait for success
       await waitFor(() => {
         expect(mockOnNext).toHaveBeenCalled();
-      });
-
-      // Verify updateConfig was called with all proxy values
-      expect(mockUpdateConfig).toHaveBeenCalledWith({
-        adminConsolePort: 30000,
-        httpProxy: "http://proxy.example.com:3128",
-        httpsProxy: "https://proxy.example.com:3128",
-        noProxy: "localhost,127.0.0.1,.internal",
       });
     });
   });
