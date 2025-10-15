@@ -174,6 +174,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ParseUint":    e.parseUint,
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
+		"Distribution": e.distribution,
 
 		// Registry template functions
 		"HasLocalRegistry":             e.hasLocalRegistry,
@@ -183,7 +184,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ImagePullSecretName":          e.imagePullSecretName,
 		"LocalRegistryImagePullSecret": e.localRegistryImagePullSecret,
 
-		// Release template functions
+		// Airgap template functions
 		"IsAirgap": e.isAirgap,
 	}
 }

@@ -893,3 +893,19 @@ func TestEngine_YamlEscape(t *testing.T) {
 		})
 	}
 }
+
+func TestEngine_Distribution(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl Distribution }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "embedded-cluster", result)
+}

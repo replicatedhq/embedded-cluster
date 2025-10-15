@@ -285,6 +285,10 @@ func (e *Engine) yamlEscape(plain string) string {
 	return indented
 }
 
+func (e *Engine) distribution() string {
+	return "embedded-cluster"
+}
+
 // copied from sprig
 func indent(spaces int, v string) string {
 	pad := strings.Repeat(" ", spaces)

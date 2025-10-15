@@ -23,24 +23,26 @@ const (
 )
 
 type Engine struct {
-	mode        Mode
-	config      *kotsv1beta1.Config
-	license     *kotsv1beta1.License
-	releaseData *release.ReleaseData
+	mode                       Mode
+	config                     *kotsv1beta1.Config
+	license                    *kotsv1beta1.License
+	releaseData                *release.ReleaseData
+	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
+	isAirgapInstallation       bool   // Whether the installation is an airgap installation
+
+	// ExecOptions
+	proxySpec        *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
+	registrySettings *types.RegistrySettings // Registry settings for registry template functions, if applicable
 
 	// Internal state
-	configValues               types.AppConfigValues
-	prevConfigValues           types.AppConfigValues
-	tmpl                       *template.Template
-	funcMap                    template.FuncMap
-	cache                      map[string]resolvedConfigItem
-	depsTree                   map[string][]string
-	stack                      []string
-	proxySpec                  *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
-	registrySettings           *types.RegistrySettings // Registry settings for registry template functions, if applicable
-	privateCACertConfigMapName string                  // ConfigMap name for private CA certificates, empty string if not available
-	isAirgapInstallation       bool                    // Whether the installation is an airgap installation
-	mtx                        sync.Mutex
+	configValues     types.AppConfigValues
+	prevConfigValues types.AppConfigValues
+	tmpl             *template.Template
+	funcMap          template.FuncMap
+	cache            map[string]resolvedConfigItem
+	depsTree         map[string][]string
+	stack            []string
+	mtx              sync.Mutex
 }
 
 type EngineOption func(*Engine)

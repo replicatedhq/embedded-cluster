@@ -633,3 +633,11 @@ spec:
             ---
 
             {{repl if IsAirgap }}Yes{{repl else }}No{{repl end }}
+
+        - name: template_function_distribution
+          type: label
+          title: |
+            ## Distribution
+            ---
+
+            {{repl Distribution }}
