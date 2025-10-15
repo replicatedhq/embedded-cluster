@@ -23,7 +23,7 @@ type appReleaseManager struct {
 	rawConfig                  kotsv1beta1.Config
 	releaseData                *release.ReleaseData
 	license                    *kotsv1beta1.License
-	airgapBundle               string
+	isAirgap                   bool
 	privateCACertConfigMapName string
 
 	templateEngine *template.Engine
@@ -56,9 +56,9 @@ func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
 	}
 }
 
-func WithAirgapBundle(airgapBundle string) AppReleaseManagerOption {
+func WithIsAirgap(isAirgap bool) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
-		m.airgapBundle = airgapBundle
+		m.isAirgap = isAirgap
 	}
 }
 
@@ -91,7 +91,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 			&manager.rawConfig,
 			template.WithReleaseData(manager.releaseData),
 			template.WithLicense(manager.license),
-			template.WithIsAirgap(manager.airgapBundle != ""),
+			template.WithIsAirgap(manager.isAirgap),
 			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 	}

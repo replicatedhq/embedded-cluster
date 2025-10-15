@@ -355,7 +355,7 @@ status: {}
 
 		// Test with airgap bundle set (airgap installation)
 		t.Run("with airgap bundle", func(t *testing.T) {
-			manager, err := NewAppConfigManager(airgapConfig, WithAirgapBundle("/path/to/bundle.airgap"))
+			manager, err := NewAppConfigManager(airgapConfig, WithIsAirgap(true))
 			require.NoError(t, err)
 			require.NotNil(t, manager)
 

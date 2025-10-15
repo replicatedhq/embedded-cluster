@@ -33,7 +33,7 @@ type appConfigManager struct {
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
 	license                    *kotsv1beta1.License
-	airgapBundle               string
+	isAirgap                   bool
 	privateCACertConfigMapName string
 
 	logger         logrus.FieldLogger
@@ -66,9 +66,9 @@ func WithLicense(license *kotsv1beta1.License) AppConfigManagerOption {
 	}
 }
 
-func WithAirgapBundle(airgapBundle string) AppConfigManagerOption {
+func WithIsAirgap(isAirgap bool) AppConfigManagerOption {
 	return func(c *appConfigManager) {
-		c.airgapBundle = airgapBundle
+		c.isAirgap = isAirgap
 	}
 }
 
@@ -102,7 +102,7 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithMode(apitemplate.ModeConfig),
 			apitemplate.WithReleaseData(manager.releaseData),
 			apitemplate.WithLicense(manager.license),
-			apitemplate.WithIsAirgap(manager.airgapBundle != ""),
+			apitemplate.WithIsAirgap(manager.isAirgap),
 			apitemplate.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 		)
 	}

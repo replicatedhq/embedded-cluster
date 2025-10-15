@@ -167,7 +167,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appconfig.WithAppConfigStore(controller.store.AppConfigStore()),
 			appconfig.WithReleaseData(controller.releaseData),
 			appconfig.WithLicense(license),
-			appconfig.WithAirgapBundle(controller.airgapBundle),
+			appconfig.WithIsAirgap(controller.airgapBundle != ""),
 			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {
@@ -200,7 +200,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appreleasemanager.WithLogger(controller.logger),
 			appreleasemanager.WithReleaseData(controller.releaseData),
 			appreleasemanager.WithLicense(license),
-			appreleasemanager.WithAirgapBundle(controller.airgapBundle),
+			appreleasemanager.WithIsAirgap(controller.airgapBundle != ""),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 		)
 		if err != nil {

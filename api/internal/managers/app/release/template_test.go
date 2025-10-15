@@ -997,16 +997,11 @@ spec:
 				HelmChartCRs: tt.helmChartCRs,
 			}
 
-			airgapBundle := ""
-			if tt.isAirgap {
-				airgapBundle = "/path/to/bundle.airgap"
-			}
-
 			// Create manager
 			manager, err := NewAppReleaseManager(
 				config,
 				WithReleaseData(releaseData),
-				WithAirgapBundle(airgapBundle),
+				WithIsAirgap(tt.isAirgap),
 			)
 			require.NoError(t, err)
 
