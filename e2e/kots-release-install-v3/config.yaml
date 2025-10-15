@@ -545,3 +545,35 @@ spec:
             ---
 
             This line contains a <u>custom underline</u> using raw HTML.
+
+    - name: conditional-group-settings
+      title: Conditional Group Settings
+      items:
+        - name: enable_advanced_features
+          title: Enable Advanced Features
+          type: bool
+          default: "0"
+          help_text: "Toggle this to show/hide the Advanced Features tab"
+
+    - name: advanced-features
+      title: Advanced Features
+      when: '{{repl ConfigOptionEquals "enable_advanced_features" "1"}}'
+      description: |
+        This group demonstrates conditional group display using the `when` property.
+
+        This tab only appears when "Enable Advanced Features" is checked in the "Conditional Group Settings" tab.
+      items:
+        - name: advanced_text_option
+          title: Advanced Text Option
+          type: text
+          help_text: "This field is only visible when advanced features are enabled"
+
+        - name: advanced_textarea_option
+          title: Advanced Textarea Option
+          type: textarea
+          help_text: "This textarea is only visible when advanced features are enabled"
+
+        - name: advanced_checkbox_option
+          title: Advanced Checkbox Option
+          type: bool
+          help_text: "This checkbox is only visible when advanced features are enabled"
