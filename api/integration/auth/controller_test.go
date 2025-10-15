@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -35,11 +36,12 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 			installation.WithNetUtils(&utils.MockNetUtils{}),
 		)),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithAuthController(authController),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -137,7 +139,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 func TestAPIClientLogin(t *testing.T) {
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 

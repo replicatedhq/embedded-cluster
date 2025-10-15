@@ -78,6 +78,7 @@ func (s *SeaweedFS) Upgrade(
 		Namespace:    s.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return fmt.Errorf("helm upgrade: %w", err)

@@ -3,6 +3,7 @@ package infra
 import (
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metadatafake "k8s.io/client-go/metadata/fake"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestInfraWithLogs(t *testing.T) {
-	manager, err := NewInfraManager(WithKubeClient(fake.NewFakeClient()), WithMetadataClient(metadatafake.NewSimpleMetadataClient(scheme.Scheme)))
+	manager, err := NewInfraManager(WithKubeClient(fake.NewFakeClient()), WithMetadataClient(metadatafake.NewSimpleMetadataClient(scheme.Scheme)), WithHelmClient(&helm.MockClient{}))
 	require.NoError(t, err)
 
 	// Add some logs through the internal logging mechanism

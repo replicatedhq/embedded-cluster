@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/require"
@@ -58,18 +59,48 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 	}
 }
 
-func NewAPIWithReleaseData(t *testing.T, mode types.Mode, target types.Target, opts ...api.Option) *api.API {
+func NewTargetLinuxAPIWithReleaseData(t *testing.T, mode types.Mode, opts ...api.Option) *api.API {
 	password := "password"
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	require.NoError(t, err)
+
 	cfg := types.APIConfig{
-		Password:     password,
-		PasswordHash: passwordHash,
-		ReleaseData:  DefaultReleaseData(),
-		Mode:         mode,
-		Target:       target,
+		InstallTarget: types.InstallTargetLinux,
+		Password:      password,
+		PasswordHash:  passwordHash,
+		ReleaseData:   DefaultReleaseData(),
+		Mode:          mode,
 	}
-	a, err := api.New(cfg, opts...)
+
+	// Add default options
+	optsWithDefaults := append([]api.Option{
+		api.WithHelmClient(&helm.MockClient{}),
+	}, opts...)
+
+	a, err := api.New(cfg, optsWithDefaults...)
+	require.NoError(t, err)
+	return a
+}
+
+func NewTargetKubernetesAPIWithReleaseData(t *testing.T, mode types.Mode, opts ...api.Option) *api.API {
+	password := "password"
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	require.NoError(t, err)
+
+	cfg := types.APIConfig{
+		InstallTarget: types.InstallTargetKubernetes,
+		Password:      password,
+		PasswordHash:  passwordHash,
+		ReleaseData:   DefaultReleaseData(),
+		Mode:          mode,
+	}
+
+	// Add default options
+	optsWithDefaults := append([]api.Option{
+		api.WithHelmClient(&helm.MockClient{}),
+	}, opts...)
+
+	a, err := api.New(cfg, optsWithDefaults...)
 	require.NoError(t, err)
 	return a
 }

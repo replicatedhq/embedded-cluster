@@ -168,6 +168,7 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(helmMock),
 			linuxupgrade.WithLicense(assets.LicenseData),
 		)
 		require.NoError(t, err)
@@ -177,16 +178,17 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -309,6 +311,7 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
@@ -317,16 +320,17 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -396,6 +400,7 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			linuxinfra.WithHelmClient(helmMock),
 		)
 
 		// Create an upgrade controller
@@ -415,6 +420,7 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
@@ -423,16 +429,17 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -522,6 +529,7 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -530,16 +538,17 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -616,6 +625,7 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -624,16 +634,17 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -672,6 +683,7 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 				ChannelRelease: &release.ChannelRelease{},
 				AppConfig:      &appConfig,
 			}),
+			linuxupgrade.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -680,16 +692,17 @@ func TestLinuxUpgradeProcessAirgap(t *testing.T) {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 		require.NoError(t, err)
 		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
+			InstallTarget: types.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
+			ReleaseData:   integration.DefaultReleaseData(),
+			Mode:          types.ModeUpgrade,
 		}
 		apiInstance, err := api.New(cfg,
 			api.WithLinuxUpgradeController(upgradeController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

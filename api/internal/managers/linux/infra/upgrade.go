@@ -56,7 +56,7 @@ func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) error {
 	if m.upgrader == nil {
 		// ensure the manager's clients are initialized
-		if err := m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir()); err != nil {
+		if err := m.setupClients(rc); err != nil {
 			return fmt.Errorf("setup clients: %w", err)
 		}
 

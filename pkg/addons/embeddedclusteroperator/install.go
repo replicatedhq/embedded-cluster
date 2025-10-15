@@ -28,6 +28,7 @@ func (e *EmbeddedClusterOperator) Install(
 		Values:       values,
 		Namespace:    e.Namespace(),
 		Labels:       getBackupLabels(),
+		LogFn:        helm.LogFn(logf),
 	}
 
 	if e.DryRun {

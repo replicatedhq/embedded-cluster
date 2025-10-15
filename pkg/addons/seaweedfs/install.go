@@ -44,6 +44,7 @@ func (s *SeaweedFS) Install(
 		Values:       values,
 		Namespace:    s.Namespace(),
 		Labels:       getBackupLabels(),
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

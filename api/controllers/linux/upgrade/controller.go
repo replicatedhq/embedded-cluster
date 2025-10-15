@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -54,6 +55,7 @@ type UpgradeController struct {
 	clusterID            string
 	store                store.Store
 	rc                   runtimeconfig.RuntimeConfig
+	hcli                 helm.Client
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
@@ -173,6 +175,12 @@ func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) UpgradeControllerOption {
 	}
 }
 
+func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.hcli = hcli
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.endUserConfig = endUserConfig
@@ -245,6 +253,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
+			infra.WithHelmClient(controller.hcli),
 		)
 	}
 
@@ -282,6 +291,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithClusterID(controller.clusterID),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux upgrades use the ConfigMap
+			appcontroller.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)
