@@ -183,7 +183,6 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
 		"Distribution": e.distribution,
-		// "KotsVersion":  e.kotsVersion,
 
 		// Registry template functions
 		"HasLocalRegistry":             e.hasLocalRegistry,

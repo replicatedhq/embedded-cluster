@@ -596,11 +596,3 @@ spec:
             ---
 
             {{repl Distribution }}
-
-        - name: template_function_kots_version
-          type: label
-          title: |
-            ## Kots Version
-            ---
-
-            {{repl KotsVersion }}
