@@ -3,6 +3,7 @@ package helm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -204,54 +205,29 @@ func (h *HelmClient) AddRepo(_ context.Context, repo *repo.Entry) error {
 	return nil
 }
 
-func (h *HelmClient) Latest(_ context.Context, reponame, chart string) (string, error) {
-	stableConstraint, err := semver.NewConstraint(">0.0.0") // search only for stable versions
+func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string, error) {
+	// Use helm search repo with JSON output to find the latest version
+	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}
+
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("create stable constraint: %w", err)
+		return "", fmt.Errorf("helm search repo: %w", err)
 	}
 
-	for _, repository := range h.repos {
-		if repository.Name != reponame {
-			continue
-		}
-		chrepo, err := repo.NewChartRepository(repository, getters)
-		if err != nil {
-			return "", fmt.Errorf("create chart repo: %w", err)
-		}
-		chrepo.CachePath = h.tmpdir
-		idx, err := chrepo.DownloadIndexFile()
-		if err != nil {
-			return "", fmt.Errorf("download index file: %w", err)
-		}
-
-		repoidx, err := repo.LoadIndexFile(idx)
-		if err != nil {
-			return "", fmt.Errorf("load index file: %w", err)
-		}
-
-		versions, ok := repoidx.Entries[chart]
-		if !ok {
-			return "", fmt.Errorf("chart %s not found", chart)
-		}
-
-		if len(versions) == 0 {
-			return "", fmt.Errorf("chart %s has no versions", chart)
-		}
-
-		for _, version := range versions {
-			v, err := semver.NewVersion(version.Version)
-			if err != nil {
-				continue
-			}
-
-			if stableConstraint.Check(v) {
-				return version.Version, nil
-			}
-		}
-
-		return "", fmt.Errorf("no stable version found for chart %s", chart)
+	// Parse JSON output
+	var results []struct {
+		Version string `json:"version"`
 	}
-	return "", fmt.Errorf("repository %s not found", reponame)
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		return "", fmt.Errorf("parse helm search json output: %w", err)
+	}
+
+	if len(results) == 0 {
+		return "", fmt.Errorf("no charts found for %s/%s", reponame, chart)
+	}
+
+	// Return the version of the first result (latest version due to --versions flag)
+	return results[0].Version, nil
 }
 
 func (h *HelmClient) PullByRefWithRetries(ctx context.Context, ref string, version string, tries int) (string, error) {
@@ -314,13 +290,23 @@ func (h *HelmClient) Push(_ context.Context, path, dst string) error {
 	return up.UploadTo(path, dst)
 }
 
-func (h *HelmClient) GetChartMetadata(_ context.Context, chartPath string, version string) (*chart.Metadata, error) {
-	chartRequested, err := loader.Load(chartPath)
-	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
+	// Use helm show chart to get chart metadata
+	args := []string{"show", "chart", ref}
+	if version != "" {
+		args = append(args, "--version", version)
 	}
 
-	return chartRequested.Metadata, nil
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	if err != nil {
+		return nil, fmt.Errorf("helm show chart: %w", err)
+	}
+
+	var metadata chart.Metadata
+	if err := k8syaml.Unmarshal([]byte(stdout), &metadata); err != nil {
+		return nil, fmt.Errorf("parse chart metadata YAML: %w", err)
+	}
+	return &metadata, nil
 }
 
 // reference: https://github.com/helm/helm/blob/0d66425d9a745d8a289b1a5ebb6ccc744436da95/cmd/helm/upgrade.go#L122-L125

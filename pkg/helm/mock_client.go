@@ -50,8 +50,8 @@ func (m *MockClient) Push(ctx context.Context, path, dst string) error {
 	return args.Error(0)
 }
 
-func (m *MockClient) GetChartMetadata(ctx context.Context, chartPath string, version string) (*chart.Metadata, error) {
-	args := m.Called(ctx, chartPath, version)
+func (m *MockClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
+	args := m.Called(ctx, ref, version)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
