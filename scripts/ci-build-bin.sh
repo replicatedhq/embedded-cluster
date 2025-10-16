@@ -60,7 +60,7 @@ function binary() {
         kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-$ARCH.tar.gz"
         operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
     fi
-    local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
+    local_artifact_mirror_image="proxy.replicated.com/library/$(cat local-artifact-mirror/build/image)"
 
     make "embedded-cluster-linux-$ARCH" \
         K0S_VERSION="$K0S_VERSION" \

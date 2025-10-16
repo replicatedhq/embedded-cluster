@@ -22,7 +22,7 @@ ADMIN_CONSOLE_MIGRATIONS_IMAGE_OVERRIDE =
 ADMIN_CONSOLE_KURL_PROXY_IMAGE_OVERRIDE =
 
 # TODO: move this to a manifest file
-LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/anonymous/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
+LOCAL_ARTIFACT_MIRROR_IMAGE ?= proxy.replicated.com/library/replicated/embedded-cluster-local-artifact-mirror:$(VERSION)
 # These are used to override the binary urls in dev and e2e tests
 METADATA_K0S_BINARY_URL_OVERRIDE =
 METADATA_KOTS_BINARY_URL_OVERRIDE =
@@ -296,7 +296,7 @@ build-ttl.sh:
 	$(MAKE) -C local-artifact-mirror build-ttl.sh \
 		IMAGE_NAME=$(CURRENT_USER)/embedded-cluster-local-artifact-mirror
 	make embedded-cluster-linux-$(ARCH) \
-		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/$(shell cat local-artifact-mirror/build/image)
+		LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/library/$(shell cat local-artifact-mirror/build/image)
 
 .PHONY: clean
 clean:
