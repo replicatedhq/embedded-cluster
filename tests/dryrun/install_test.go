@@ -128,7 +128,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile(fmt.Sprintf(`k0s install controller .* --kubelet-extra-args --node-ip=.* --hostname-override=%s .*--data-dir /var/lib/embedded-cluster/k0s`, regexp.QuoteMeta(expectedHostname))),
+			regexp.MustCompile(fmt.Sprintf(`k0s install controller .* --kubelet-extra-args --node-ip=.* --hostname-override=%s .*--data-dir /var/lib/embedded-cluster/k0s .*--disable-components konnectivity-server,update-prober`, regexp.QuoteMeta(expectedHostname))),
 		},
 		false,
 	)

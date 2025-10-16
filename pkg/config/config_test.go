@@ -143,14 +143,15 @@ func TestInstallFlags(t *testing.T) {
 	rc := runtimeconfig.New(nil)
 
 	tests := []struct {
-		name           string
-		nodeIP         string
-		hostname       string
-		releaseData    map[string][]byte
-		expectedFlags  []string
-		expectedError  bool
-		expectedErrMsg string
-		k0sConfigPath  string
+		name                string
+		nodeIP              string
+		hostname            string
+		releaseData         map[string][]byte
+		expectedFlags       []string
+		expectedError       bool
+		expectedErrMsg      string
+		disableUpdateProber bool
+		k0sConfigPath       string
 	}{
 		{
 			name:          "default configuration with hostname",
@@ -226,6 +227,27 @@ spec:
 			},
 			expectedError: false,
 		},
+		{
+			name:                "can disable update prober",
+			disableUpdateProber: true,
+			nodeIP:              "192.168.1.10",
+			hostname:            "test-node",
+			k0sConfigPath:       defaultTmpFile.Name(),
+			releaseData:         map[string][]byte{},
+			expectedFlags: []string{
+				"install",
+				"controller",
+				"--labels", "kots.io/embedded-cluster-role-0=controller,kots.io/embedded-cluster-role=total-1",
+				"--enable-worker",
+				"--no-taints",
+				"-c", runtimeconfig.K0sConfigPath,
+				"--kubelet-extra-args", "--node-ip=192.168.1.10 --hostname-override=test-node",
+				"--data-dir", rc.EmbeddedClusterK0sSubDir(),
+				"--disable-components", "konnectivity-server,update-prober",
+				"--enable-dynamic-config",
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -237,10 +259,15 @@ spec:
 			// Set the override for the k0s config path
 			k0sConfigPathOverride = tt.k0sConfigPath
 
+			// Keep original value of disableUpdateProber and restore after test
+			originalDisableUpdateProber := disableUpdateProber
+			disableUpdateProber = tt.disableUpdateProber
+
 			// Cleanup after test
 			t.Cleanup(func() {
 				release.SetReleaseDataForTests(nil)
 				k0sConfigPathOverride = ""
+				disableUpdateProber = originalDisableUpdateProber
 			})
 
 			// Run test
