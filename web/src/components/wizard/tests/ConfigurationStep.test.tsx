@@ -5,6 +5,7 @@ import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
+import '@testing-library/jest-dom/vitest';
 
 // Mock the debounced fetch to remove timing issues in tests
 vi.mock("../../../utils/debouncedFetch", () => ({
@@ -568,7 +569,7 @@ describe.each([
       expect(screen.getByTestId("configuration-step-error")).toBeInTheDocument();
     });
     expect(screen.getByText("Failed to load configuration")).toBeInTheDocument();
-    expect(screen.getByText("Session expired. Please log in again.")).toBeInTheDocument();
+    expect(screen.getByText("Unauthorized")).toBeInTheDocument();
   });
 
   it("only submits changed values", async () => {
@@ -1771,12 +1772,13 @@ describe.each([
       // Mock FileReader for new file upload
       const mockFileReader = {
         readAsDataURL: vi.fn().mockImplementation(() => {
+          // Use setTimeout with a small delay to simulate async file reading
           setTimeout(() => {
             if (mockFileReader.onload) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               mockFileReader.onload({ target: { result: 'data:text/plain;base64,bmV3IGNvbnRlbnQ=' } } as any);
             }
-          }, 0);
+          }, 10);
         }),
         result: 'data:text/plain;base64,bmV3IGNvbnRlbnQ=',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1791,10 +1793,13 @@ describe.each([
       // Upload new file
       fireEvent.change(configFileInput, { target: { files: [newFile] } });
 
-      // Wait for the new filename to appear
+      // Wait for the new filename to appear and file processing to complete
       await waitFor(() => {
         expect(screen.getByText("new-config.yml")).toBeInTheDocument();
       });
+
+      // Wait a bit more to ensure the file processing is fully complete
+      await new Promise(resolve => setTimeout(resolve, 20));
 
       // Verify the old filename is no longer displayed
       expect(screen.queryByText("config.yaml")).not.toBeInTheDocument();
@@ -1883,12 +1888,13 @@ describe.each([
       // Mock FileReader
       const mockFileReader = {
         readAsDataURL: vi.fn().mockImplementation(() => {
+          // Use setTimeout with a small delay to simulate async file reading
           setTimeout(() => {
             if (mockFileReader.onload) {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               mockFileReader.onload({ target: { result: 'data:text/plain;base64,Y29udGVudA==' } } as any);
             }
-          }, 0);
+          }, 10);
         }),
         result: 'data:text/plain;base64,Y29udGVudA==',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1903,10 +1909,13 @@ describe.each([
       // Upload file
       fireEvent.change(fileInput, { target: { files: [newFile] } });
 
-      // Wait for the filename to appear
+      // Wait for the filename to appear and file processing to complete
       await waitFor(() => {
         expect(screen.getByTestId("file-input-no_filename_file-filename")).toBeInTheDocument();
       });
+
+      // Wait a bit more to ensure the file processing is fully complete
+      await new Promise(resolve => setTimeout(resolve, 20));
 
       expect(screen.getByText("uploaded-file.txt")).toBeInTheDocument();
     });
@@ -1944,7 +1953,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_field",
@@ -2042,7 +2051,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "first_required_field",
@@ -2153,7 +2162,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "db_required_field",
@@ -2256,7 +2265,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "required_text_field",
@@ -2351,7 +2360,7 @@ describe.each([
         http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
           return new HttpResponse(JSON.stringify({
             message: "required fields not completed",
-            status_code: 400,
+            statusCode: 400,
             errors: [
               {
                 field: "auth_method",

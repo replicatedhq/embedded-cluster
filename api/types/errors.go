@@ -9,7 +9,7 @@ import (
 )
 
 type APIError struct {
-	StatusCode int         `json:"status_code,omitempty"`
+	StatusCode int         `json:"statusCode,omitempty"`
 	Message    string      `json:"message"`
 	Field      string      `json:"field,omitempty"`
 	Errors     []*APIError `json:"errors,omitempty"`

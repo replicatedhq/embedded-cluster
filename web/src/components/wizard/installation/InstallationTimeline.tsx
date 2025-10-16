@@ -1,9 +1,7 @@
 import React from 'react';
 import { CheckCircle, XCircle, Loader2, Clock } from 'lucide-react';
-import { State } from '../../../types';
+import { State, InstallationPhaseId } from '../../../types';
 import { useWizard } from "../../../contexts/WizardModeContext";
-
-export type InstallationPhaseId = 'linux-preflight' | 'linux-installation' | 'kubernetes-installation' | 'app-preflight' | 'app-installation';
 
 export interface PhaseStatus {
   status: State;

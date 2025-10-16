@@ -6,20 +6,27 @@ import (
 	"fmt"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
 
 type Controller interface {
+	RequiresInfraUpgrade(ctx context.Context) (bool, error)
+	UpgradeInfra(ctx context.Context) error
+	GetInfra(ctx context.Context) (types.Infra, error)
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 	// App controller methods
 	appcontroller.Controller
@@ -28,17 +35,26 @@ type Controller interface {
 var _ Controller = (*UpgradeController)(nil)
 
 type UpgradeController struct {
-	installationManager installation.InstallationManager
-	hostUtils           hostutils.HostUtilsInterface
-	netUtils            utils.NetUtils
-	releaseData         *release.ReleaseData
-	license             []byte
-	airgapBundle        string
-	configValues        types.AppConfigValues
-	clusterID           string
-	store               store.Store
-	stateMachine        statemachine.Interface
-	logger              logrus.FieldLogger
+	installationManager  installation.InstallationManager
+	infraManager         infra.InfraManager
+	hostUtils            hostutils.HostUtilsInterface
+	netUtils             utils.NetUtils
+	metricsReporter      metrics.ReporterInterface
+	releaseData          *release.ReleaseData
+	license              []byte
+	airgapBundle         string
+	airgapMetadata       *airgap.AirgapMetadata
+	embeddedAssetsSize   int64
+	configValues         types.AppConfigValues
+	endUserConfig        *ecv1beta1.Config
+	clusterID            string
+	store                store.Store
+	rc                   runtimeconfig.RuntimeConfig
+	stateMachine         statemachine.Interface
+	requiresInfraUpgrade bool
+	logger               logrus.FieldLogger
+	targetVersion        string
+	initialVersion       string
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -63,6 +79,12 @@ func WithNetUtils(netUtils utils.NetUtils) UpgradeControllerOption {
 	}
 }
 
+func WithMetricsReporter(metricsReporter metrics.ReporterInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.metricsReporter = metricsReporter
+	}
+}
+
 func WithReleaseData(releaseData *release.ReleaseData) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.releaseData = releaseData
@@ -78,6 +100,18 @@ func WithLicense(license []byte) UpgradeControllerOption {
 func WithAirgapBundle(airgapBundle string) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.airgapBundle = airgapBundle
+	}
+}
+
+func WithAirgapMetadata(airgapMetadata *airgap.AirgapMetadata) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.airgapMetadata = airgapMetadata
+	}
+}
+
+func WithEmbeddedAssetsSize(embeddedAssetsSize int64) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.embeddedAssetsSize = embeddedAssetsSize
 	}
 }
 
@@ -117,9 +151,40 @@ func WithInstallationManager(installationManager installation.InstallationManage
 	}
 }
 
+func WithInfraManager(infraManager infra.InfraManager) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.infraManager = infraManager
+	}
+}
+
+func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.rc = rc
+	}
+}
+
+func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.endUserConfig = endUserConfig
+	}
+}
+
+func WithTargetVersion(targetVersion string) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.targetVersion = targetVersion
+	}
+}
+
+func WithInitialVersion(initialVersion string) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.initialVersion = initialVersion
+	}
+}
+
 func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, error) {
 	controller := &UpgradeController{
 		store:  store.NewMemoryStore(),
+		rc:     runtimeconfig.New(nil),
 		logger: logger.NewDiscardLogger(),
 	}
 
@@ -129,10 +194,6 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 
 	if err := controller.validateReleaseData(); err != nil {
 		return nil, err
-	}
-
-	if controller.stateMachine == nil {
-		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
 	if controller.hostUtils == nil {
@@ -157,7 +218,36 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 		)
 	}
 
-	// Initialize the app controller with the state machine first
+	if controller.infraManager == nil {
+		controller.infraManager = infra.NewInfraManager(
+			infra.WithLogger(controller.logger),
+			infra.WithInfraStore(controller.store.LinuxInfraStore()),
+			infra.WithLicense(controller.license),
+			infra.WithAirgapBundle(controller.airgapBundle),
+			infra.WithAirgapMetadata(controller.airgapMetadata),
+			infra.WithEmbeddedAssetsSize(controller.embeddedAssetsSize),
+			infra.WithReleaseData(controller.releaseData),
+			infra.WithEndUserConfig(controller.endUserConfig),
+			infra.WithClusterID(controller.clusterID),
+		)
+	}
+
+	// Check if infra upgrade is required
+	requiresInfraUpgrade, err := controller.infraManager.RequiresUpgrade(context.TODO(), controller.rc)
+	if err != nil {
+		return nil, fmt.Errorf("check if requires infra upgrade: %w", err)
+	}
+	controller.requiresInfraUpgrade = requiresInfraUpgrade
+
+	// Initialize the state machine
+	if controller.stateMachine == nil {
+		controller.stateMachine = NewStateMachine(
+			WithStateMachineLogger(controller.logger),
+			WithRequiresInfraUpgrade(requiresInfraUpgrade),
+		)
+	}
+
+	// Initialize the app controller with the state machine
 	if controller.AppController == nil {
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(controller.stateMachine),
@@ -175,6 +265,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 		}
 		controller.AppController = appController
 	}
+
+	controller.registerReportingHandlers()
 
 	return controller, nil
 }

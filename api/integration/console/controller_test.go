@@ -29,7 +29,7 @@ func TestConsoleListAvailableNetworkInterfaces(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -73,7 +73,7 @@ func TestConsoleListAvailableNetworkInterfacesUnauthorized(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("VALID_TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -113,7 +113,7 @@ func TestConsoleListAvailableNetworkInterfacesError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithConsoleController(consoleController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),

@@ -10,3 +10,7 @@ type InfraComponent struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
 }
+
+type RequiresInfraUpgradeResponse struct {
+	RequiresUpgrade bool `json:"requiresUpgrade"`
+}

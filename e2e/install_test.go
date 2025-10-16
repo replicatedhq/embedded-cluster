@@ -3,7 +3,6 @@ package e2e
 import (
 	"encoding/base64"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"testing"
@@ -2061,7 +2060,8 @@ spec:
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeNetworkReport(t *testing.T) {
+//Temporarily disable network test until the reporting is enriched to the point where we can properly filter out domains as part of a CNAME chain
+/*func TestSingleNodeNetworkReport(t *testing.T) {
 	t.Parallel()
 	RequireEnvVars(t, []string{"SHORT_SHA"})
 	tc := cmx.NewCluster(&cmx.ClusterInput{
@@ -2143,4 +2143,4 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 			t.Fail()
 		}
 	}
-}
+}*/

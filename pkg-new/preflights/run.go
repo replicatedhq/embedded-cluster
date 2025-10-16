@@ -58,11 +58,7 @@ func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opt
 
 	// Execute preflight command
 	cmd := exec.Command(opts.PreflightBinaryPath, "--interactive=false", "--format=json", fpath)
-
-	cmdEnv := cmd.Environ()
-	cmdEnv = proxyEnv(cmdEnv, opts.ProxySpec)
-	cmdEnv = pathEnv(cmdEnv, opts.ExtraPaths)
-	cmd.Env = cmdEnv
+	cmd.Env = preparePreflightEnv(cmd.Environ(), opts)
 
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
@@ -203,4 +199,20 @@ func pathEnv(env []string, extraPaths []string) []string {
 		next = append(next, fmt.Sprintf("PATH=%s", strings.Join(extraPaths, ":")))
 	}
 	return next
+}
+
+// disableAutoUpdateEnv disables the auto-update feature of the preflight binary.
+// The troubleshoot binary can auto-update itself, but we want explicit version control in EC.
+// Reference: https://github.com/replicatedhq/troubleshoot/blob/73836dc6610746abf2978a2a11c06774a9c48a23/cmd/preflight/cli/root.go#L42-L59
+func disableAutoUpdateEnv(env []string) []string {
+	return append(env, "PREFLIGHT_AUTO_UPDATE=false")
+}
+
+// preparePreflightEnv prepares the environment variables for running the preflight binary.
+func preparePreflightEnv(env []string, opts RunOptions) []string {
+	env = proxyEnv(env, opts.ProxySpec)
+	env = pathEnv(env, opts.ExtraPaths)
+	env = disableAutoUpdateEnv(env)
+
+	return env
 }

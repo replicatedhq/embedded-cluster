@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useWizard } from '../../../../contexts/WizardModeContext';
@@ -10,6 +10,7 @@ import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface LinuxInstallationPhaseProps {
   onNext: () => void;
@@ -22,7 +23,7 @@ interface LinuxInstallationPhaseProps {
 const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
-  const { mode } = useWizard();
+  const { mode, text } = useWizard();
   const [isInfraPolling, setIsInfraPolling] = useState(true);
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
@@ -40,8 +41,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get infra status");
+        throw await ApiError.fromResponse(response, "Failed to get infra status")
       }
       return response.json() as Promise<InfraStatusResponse>;
     },
@@ -77,6 +77,46 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
     return Math.round((completedComponents / components.length) * 100);
   }
 
+  // Mutation for starting app preflights
+  const { mutate: startAppPreflights, error: appPreflightError } = useMutation({
+    mutationFn: async () => {
+      const apiBase = getApiBase("linux", mode);
+      const response = await fetch(`${apiBase}/app-preflights/run`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ isUi: true }),
+      });
+
+      if (!response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      onNext();
+    },
+  });
+
+  // Update next button configuration
+  useEffect(() => {
+    setNextButtonConfig({
+      disabled: !installComplete,
+      onClick: () => startAppPreflights(),
+    });
+  }, [installComplete]);
+
+  // Update back button configuration
+  useEffect(() => {
+    // Back button is hidden for linux-installation phase as the changes made in this phase are currently irreversible
+    setBackButtonConfig({
+      hidden: true,
+      onClick: onBack,
+    });
+  }, [setBackButtonConfig, onBack]);
+
   const renderInfrastructurePhase = () => (
     <div className="space-y-6">
       <InstallationProgress
@@ -104,33 +144,18 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
         onToggle={() => setShowLogs(!showLogs)}
       />
 
+      {appPreflightError && <ErrorMessage error={appPreflightError?.message} />}
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>
   );
 
-  // Update next button configuration
-  useEffect(() => {
-    setNextButtonConfig({
-      disabled: !installComplete,
-      onClick: onNext,
-    });
-  }, [installComplete]);
-
-  // Update back button configuration
-  useEffect(() => {
-    // Back button is hidden for linux-installation phase as the changes made in this phase are currently irreversible
-    setBackButtonConfig({
-      hidden: true,
-      onClick: onBack,
-    });
-  }, [setBackButtonConfig, onBack]);
 
   return (
     <div className="space-y-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Installation</h2>
-        <p className="text-gray-600 mt-1">Installing infrastructure components</p>
+        <h2 className="text-2xl font-bold text-gray-900">{text.linuxInstallationHeader}</h2>
+        <p className="text-gray-600 mt-1">{text.linuxInstallationDescription}</p>
       </div>
 
       {renderInfrastructurePhase()}

@@ -3,7 +3,6 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"reflect"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -22,14 +22,15 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Upgrade upgrades the embedded cluster to the version specified in the installation.
 // First the k0s cluster is upgraded, then addon charts are upgraded, and finally the installation is unlocked.
-func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
-	slog.Info("Upgrading Embedded Cluster", "version", in.Spec.Config.Version)
+func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
+	logger.WithField("version", in.Spec.Config.Version).Info("Upgrading Embedded Cluster")
 
 	// Augment the installation with data dirs that may not be present in the previous version.
 	// This is important to do ahead of updating the cluster config.
@@ -43,7 +44,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
-	err = upgradeK0s(ctx, cli, rc, in)
+	err = upgradeK0s(ctx, cli, rc, in, logger)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
@@ -51,18 +52,18 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// We must update the cluster config after we upgrade k0s as it is possible that the schema
 	// between versions has changed. One drawback of this is that the sandbox (pause) image does
 	// not get updated, and possibly others but I cannot confirm this.
-	err = updateClusterConfig(ctx, cli, in)
+	err = updateClusterConfig(ctx, cli, in, logger)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
 	}
 
-	slog.Info("Upgrading addons")
-	err = upgradeAddons(ctx, cli, hcli, rc, in)
+	logger.Info("Upgrading addons")
+	err = upgradeAddons(ctx, cli, hcli, rc, in, nil, logger)
 	if err != nil {
 		return fmt.Errorf("upgrade addons: %w", err)
 	}
 
-	slog.Info("Upgrading extensions")
+	logger.Info("Upgrading extensions")
 	err = upgradeExtensions(ctx, cli, hcli, in)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
@@ -70,7 +71,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 
 	err = support.CreateHostSupportBundle(ctx, cli)
 	if err != nil {
-		slog.Error("Failed to upgrade host support bundle", "error", err)
+		logger.WithError(err).Error("Failed to upgrade host support bundle")
 	}
 
 	err = kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalled, "Installed")
@@ -93,7 +94,7 @@ func maybeOverrideInstallationDataDirs(ctx context.Context, cli client.Client, i
 	return &next, nil
 }
 
-func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
+func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
 	meta, err := release.MetadataFor(ctx, in, cli)
 	if err != nil {
 		return fmt.Errorf("get release metadata: %w", err)
@@ -111,18 +112,18 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 		return nil
 	}
 
-	slog.Info("Upgrading k0s", "version", desiredVersion)
+	logger.WithField("version", desiredVersion).Info("Upgrading k0s")
 
 	if err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateInstalling, "Upgrading Kubernetes", ""); err != nil {
 		return fmt.Errorf("update installation status: %w", err)
 	}
 
 	// create an autopilot upgrade plan if one does not yet exist
-	if err := createAutopilotPlan(ctx, cli, rc, desiredVersion, in, meta); err != nil {
+	if err := createAutopilotPlan(ctx, cli, rc, desiredVersion, in, meta, logger); err != nil {
 		return fmt.Errorf("create autpilot upgrade plan: %w", err)
 	}
 
-	plan, err := waitForAutopilotPlan(ctx, cli)
+	plan, err := waitForAutopilotPlan(ctx, cli, logger)
 	if err != nil {
 		return fmt.Errorf("wait for autpilot plan: %w", err)
 	}
@@ -148,7 +149,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 		if err != nil {
 			return fmt.Errorf("delete autopilot plan: %w", err)
 		}
-		return upgradeK0s(ctx, cli, rc, in)
+		return upgradeK0s(ctx, cli, rc, in, logger)
 	}
 
 	match, err = clusterNodesMatchVersion(ctx, cli, desiredVersion)
@@ -160,7 +161,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 	}
 
 	// the plan has been completed, so we can move on - kubernetes is now upgraded
-	slog.Info("Upgrade completed successfully", "version", desiredVersion)
+	logger.WithField("version", desiredVersion).Info("Upgrade completed successfully")
 	if err := cli.Delete(ctx, &plan); err != nil {
 		return fmt.Errorf("delete successful upgrade plan: %w", err)
 	}
@@ -174,7 +175,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 }
 
 // updateClusterConfig updates the cluster config with the latest images.
-func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
 	var currentCfg k0sv1beta1.ClusterConfig
 	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
 	if err != nil {
@@ -247,12 +248,12 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}
-	slog.Info("Updated cluster config with new images")
+	logger.Info("Updated cluster config with new images")
 
 	return nil
 }
 
-func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
+func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation, progressChan chan addontypes.AddOnProgress, logger logrus.FieldLogger) error {
 	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading addons")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
@@ -277,11 +278,12 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 	domains := domains.GetDomains(in.Spec.Config, nil)
 
 	addOns := addons.New(
-		addons.WithLogFunc(slog.Info),
+		addons.WithLogFunc(logger.Infof),
 		addons.WithKubernetesClient(cli),
 		addons.WithMetadataClient(mcli),
 		addons.WithHelmClient(hcli),
 		addons.WithDomains(domains),
+		addons.WithProgressChannel(progressChan),
 	)
 
 	opts := addons.UpgradeOptions{
@@ -337,14 +339,14 @@ func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client,
 	return nil
 }
 
-func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata) error {
+func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, logger logrus.FieldLogger) error {
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
 	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("get upgrade plan: %w", err)
 	} else if errors.IsNotFound(err) {
 		// if the kubernetes version has changed we create an upgrade command
-		slog.Info("Starting k0s autopilot upgrade plan", "version", desiredVersion)
+		logger.WithField("version", desiredVersion).Info("Starting k0s autopilot upgrade plan")
 
 		// there is no autopilot plan in the cluster so we are free to
 		// start our own plan. here we link the plan to the installation
@@ -356,7 +358,7 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfi
 	return nil
 }
 
-func waitForAutopilotPlan(ctx context.Context, cli client.Client) (apv1b2.Plan, error) {
+func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
 	for {
 		var plan apv1b2.Plan
 		if err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan); err != nil {
@@ -365,7 +367,7 @@ func waitForAutopilotPlan(ctx context.Context, cli client.Client) (apv1b2.Plan, 
 		if autopilot.HasThePlanEnded(plan) {
 			return plan, nil
 		}
-		slog.Info("An autopilot upgrade is in progress", "plan_id", plan.Spec.ID)
+		logger.WithField("plan_id", plan.Spec.ID).Info("An autopilot upgrade is in progress")
 		time.Sleep(5 * time.Second)
 	}
 }

@@ -3539,6 +3539,313 @@ func TestValidateConfigValues(t *testing.T) {
 			wantErr:     true,
 			errorFields: []string{"required_file", "required_file_with_invalid_base64"},
 		},
+		{
+			name: "regex validation: valid email passes",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "email",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`,
+											Message: "Please enter a valid email address",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"email": types.AppConfigValue{Value: "test@example.com"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex validation: invalid input shows custom error message",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "email",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`,
+											Message: "Please enter a valid email address",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"email": types.AppConfigValue{Value: "invalid-email"},
+			},
+			wantErr:     true,
+			errorFields: []string{"email"},
+		},
+		{
+			name: "regex validation: invalid input shows default message when no custom message",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "code",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^[A-Z]{3}$`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"code": types.AppConfigValue{Value: "abc"},
+			},
+			wantErr:     true,
+			errorFields: []string{"code"},
+		},
+		{
+			name: "regex validation: empty values skip validation (optional fields)",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "optional_email",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"optional_email": types.AppConfigValue{Value: ""},
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex validation: password fields use ValuePlaintext",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "strong_password",
+									Type: "password",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).{8,}$`,
+											Message: "Password must be at least 8 characters with uppercase, lowercase, and number",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"strong_password": types.AppConfigValue{Value: "weak"},
+			},
+			wantErr:     true,
+			errorFields: []string{"strong_password"},
+		},
+		{
+			name: "regex validation: textarea type validates correctly",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "json_config",
+									Type: "textarea",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^\{.*\}$`,
+											Message: "Must be a valid JSON object",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"json_config": types.AppConfigValue{Value: `{"key": "value"}`},
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex validation: when=false items skip validation",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "disabled_field",
+									Type: "text",
+									When: "false",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^valid$`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"disabled_field": types.AppConfigValue{Value: "invalid"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex validation: unsupported types skip validation",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "bool_field",
+									Type: "bool",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^0$`,
+										},
+									},
+								},
+								{
+									Name: "file_field",
+									Type: "file",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^valid$`,
+										},
+									},
+								},
+								{
+									Name: "radio_field",
+									Type: "radio",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^valid$`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"bool_field":  types.AppConfigValue{Value: "1"},
+				"file_field":  types.AppConfigValue{Value: "aW52YWxpZA=="}, // base64 "invalid"
+				"radio_field": types.AppConfigValue{Value: "invalid"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex validation: multiple validation errors (required + regex)",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "email",
+									Type:     "text",
+									Required: true,
+								},
+								{
+									Name: "phone",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `^\d{3}-\d{3}-\d{4}$`,
+											Message: "Phone must be in format XXX-XXX-XXXX",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"email": types.AppConfigValue{Value: ""},
+				"phone": types.AppConfigValue{Value: "123-456"},
+			},
+			wantErr:     true,
+			errorFields: []string{"email", "phone"},
+		},
+		{
+			name: "regex validation: invalid regex pattern returns error",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name: "test",
+									Type: "text",
+									Validation: &kotsv1beta1.ConfigItemValidation{
+										Regex: &kotsv1beta1.RegexValidator{
+											Pattern: `[invalid(`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"test": types.AppConfigValue{Value: "value"},
+			},
+			wantErr:     true,
+			errorFields: []string{"test"},
+		},
 	}
 
 	for _, tt := range tests {

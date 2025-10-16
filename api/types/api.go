@@ -22,10 +22,28 @@ type APIConfig struct {
 	ReleaseData        *release.ReleaseData
 	EndUserConfig      *ecv1beta1.Config
 	ClusterID          string
+	Target             Target
+	Mode               Mode
+	TargetVersion      string // Used for upgrade metrics reporting
+	InitialVersion     string // Used for upgrade metrics reporting
 
 	LinuxConfig
 	KubernetesConfig
 }
+
+type Target string
+
+const (
+	TargetLinux      Target = "linux"
+	TargetKubernetes Target = "kubernetes"
+)
+
+type Mode string
+
+const (
+	ModeUpgrade Mode = "upgrade"
+	ModeInstall Mode = "install"
+)
 
 type LinuxConfig struct {
 	RuntimeConfig             runtimeconfig.RuntimeConfig

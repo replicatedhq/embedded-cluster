@@ -17,6 +17,7 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -77,10 +78,12 @@ func Test_serveAPI(t *testing.T) {
 				},
 			},
 			ClusterID: "123",
+			Target:    apitypes.TargetLinux,
+			Mode:      apitypes.ModeInstall,
 		},
 		ManagerPort:   portInt,
 		InstallTarget: "linux",
-		Mode:          wizardInstallMode,
+		WebMode:       web.ModeInstall,
 		Logger:        apilogger.NewDiscardLogger(),
 		WebAssetsFS:   webAssetsFS,
 	}
@@ -118,13 +121,13 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 	tests := []struct {
 		name          string
 		installTarget string
-		mode          string
+		mode          web.Mode
 		title         string
 	}{
-		{"linux install mode", "linux", wizardInstallMode, "Linux Install App"},
-		{"linux upgrade mode", "linux", wizardUpgradeMode, "Linux Upgrade App"},
-		{"kubernetes install mode", "kubernetes", wizardInstallMode, "K8s Install App"},
-		{"kubernetes upgrade mode", "kubernetes", wizardUpgradeMode, "K8s Upgrade App"},
+		{"linux install mode", "linux", web.ModeInstall, "Linux Install App"},
+		{"linux upgrade mode", "linux", web.ModeUpgrade, "Linux Upgrade App"},
+		{"kubernetes install mode", "kubernetes", web.ModeInstall, "K8s Install App"},
+		{"kubernetes upgrade mode", "kubernetes", web.ModeUpgrade, "K8s Upgrade App"},
 	}
 
 	for _, tt := range tests {
@@ -181,10 +184,12 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 						},
 					},
 					ClusterID: "123",
+					Target:    apitypes.TargetLinux,
+					Mode:      apitypes.ModeInstall,
 				},
 				ManagerPort:   portInt,
 				InstallTarget: tt.installTarget,
-				Mode:          tt.mode,
+				WebMode:       tt.mode,
 				Logger:        apilogger.NewDiscardLogger(),
 				WebAssetsFS:   webAssetsFS,
 			}

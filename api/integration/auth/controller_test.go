@@ -39,7 +39,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithAuthController(authController),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -137,7 +137,7 @@ func TestAuthLoginAndTokenValidation(t *testing.T) {
 
 func TestAPIClientLogin(t *testing.T) {
 	// Create the API with the auth controller
-	apiInstance := integration.NewAPIWithReleaseData(t,
+	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 		api.WithLogger(logger.NewDiscardLogger()),
 	)
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import StepNavigation from "./StepNavigation";
 import WelcomeStep from "./WelcomeStep";
 import ConfigurationStep from "./config/ConfigurationStep";
@@ -11,9 +11,10 @@ import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
 import { AppIcon } from "../common/Logo";
 import { useWizard } from "../../contexts/WizardModeContext";
+import { useInstallationProgress } from "../../contexts/InstallationProgressContext";
 
 const InstallWizard: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<WizardStep>("welcome");
+  const { wizardStep: currentStep, setWizardStep: setCurrentStep } = useInstallationProgress();
   const { text, target, mode } = useWizard();
   let steps: WizardStep[] = []
 

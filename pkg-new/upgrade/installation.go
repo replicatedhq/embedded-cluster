@@ -3,20 +3,20 @@ package upgrade
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1beta1.Installation) error {
+func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1beta1.Installation, logger logrus.FieldLogger) error {
 	in := original.DeepCopy()
 
 	// check if the installation already exists - this function can be called multiple times
 	// if the installation is already created, we can just return
 	if in, err := kubeutils.GetInstallation(ctx, cli, in.Name); err == nil {
-		slog.Info("Installation already exists", "name", in.Name)
+		logger.WithField("name", in.Name).Info("Installation already exists")
 		return nil
 	}
 
@@ -25,7 +25,7 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 		return fmt.Errorf("upgrade installation CRD: %w", err)
 	}
 
-	slog.Info("Creating installation", "name", in.Name)
+	logger.WithField("name", in.Name).Info("Creating installation")
 
 	err = kubeutils.CreateInstallation(ctx, cli, in)
 	if err != nil {
@@ -40,10 +40,10 @@ func CreateInstallation(ctx context.Context, cli client.Client, original *ecv1be
 	if err := disableOldInstallations(ctx, cli); err != nil {
 		// don't fail the upgrade if we can't disable old installations
 		// as this is not a critical operation
-		slog.Error("Failed to disable old installations", "error", err)
+		logger.WithError(err).Error("Failed to disable old installations")
 	}
 
-	slog.Info("Installation created", "name", in.Name)
+	logger.WithField("name", in.Name).Info("Installation created")
 
 	return nil
 }

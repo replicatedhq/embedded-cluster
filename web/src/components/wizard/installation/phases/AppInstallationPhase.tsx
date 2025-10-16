@@ -8,6 +8,7 @@ import { NextButtonConfig } from "../types";
 import { State, AppInstallStatus } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
 import ErrorMessage from "../shared/ErrorMessage";
+import { ApiError } from '../../../../utils/api-error';
 
 interface AppInstallationPhaseProps {
   onNext: () => void;
@@ -36,8 +37,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
         },
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to get app installation status");
+        throw await ApiError.fromResponse(response, "Failed to get app installation status")
       }
       return response.json() as Promise<AppInstallStatus>;
     },

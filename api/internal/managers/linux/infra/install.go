@@ -72,12 +72,12 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	return nil
 }
 
-func (m *infraManager) initComponentsList(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) initInstallComponentsList(license *kotsv1beta1.License) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOns := addons.GetAddOnsForInstall(m.getAddonInstallOpts(ctx, license, rc))
-	for _, addOn := range addOns {
-		components = append(components, types.InfraComponent{Name: addOn.Name()})
+	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.Spec.IsDisasterRecoverySupported)
+	for _, addOnName := range addOnsNames {
+		components = append(components, types.InfraComponent{Name: addOnName})
 	}
 
 	components = append(components, types.InfraComponent{Name: "Additional Components"})
@@ -96,7 +96,7 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initComponentsList(ctx, license, rc); err != nil {
+	if err := m.initInstallComponentsList(license); err != nil {
 		return fmt.Errorf("init components: %w", err)
 	}
 

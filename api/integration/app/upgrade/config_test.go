@@ -12,8 +12,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api"
 	kubernetesupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
 	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
-	"github.com/replicatedhq/embedded-cluster/api/integration"
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -22,6 +22,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -345,19 +346,34 @@ func TestAppConfigSuite(t *testing.T) {
 			name:        "linux upgrade config",
 			installType: "linux",
 			createAPI: func(t *testing.T, configValues types.AppConfigValues, state statemachine.State, appConfig *kotsv1beta1.Config) *api.API {
+				// Create mock infra manager to avoid filesystem access
+				mockInfraManager := &infra.MockInfraManager{}
+				mockInfraManager.On("RequiresUpgrade", mock.Anything, mock.Anything).Return(false, nil).Maybe()
+
+				releaseData := &release.ReleaseData{
+					AppConfig: appConfig,
+				}
+
 				controller, err := linuxupgrade.NewUpgradeController(
 					linuxupgrade.WithStateMachine(linuxupgrade.NewStateMachine(linuxupgrade.WithCurrentState(state))),
 					linuxupgrade.WithConfigValues(configValues),
-					linuxupgrade.WithReleaseData(&release.ReleaseData{
-						AppConfig: appConfig,
-					}),
+					linuxupgrade.WithReleaseData(releaseData),
+					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
 				require.NoError(t, err)
-				return integration.NewAPIWithReleaseData(t,
+
+				apiInstance, err := api.New(types.APIConfig{
+					Password:    "password",
+					ReleaseData: releaseData,
+					Mode:        types.ModeUpgrade,
+					Target:      types.TargetLinux,
+				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
 				)
+				require.NoError(t, err)
+				return apiInstance
 			},
 			baseURL: "/linux/upgrade",
 		},
@@ -365,19 +381,29 @@ func TestAppConfigSuite(t *testing.T) {
 			name:        "kubernetes upgrade config",
 			installType: "kubernetes",
 			createAPI: func(t *testing.T, configValues types.AppConfigValues, state statemachine.State, appConfig *kotsv1beta1.Config) *api.API {
+				releaseData := &release.ReleaseData{
+					AppConfig: appConfig,
+				}
+
 				controller, err := kubernetesupgrade.NewUpgradeController(
 					kubernetesupgrade.WithStateMachine(kubernetesupgrade.NewStateMachine(kubernetesupgrade.WithCurrentState(state))),
 					kubernetesupgrade.WithConfigValues(configValues),
-					kubernetesupgrade.WithReleaseData(&release.ReleaseData{
-						AppConfig: appConfig,
-					}),
+					kubernetesupgrade.WithReleaseData(releaseData),
 				)
 				require.NoError(t, err)
-				return integration.NewAPIWithReleaseData(t,
+
+				apiInstance, err := api.New(types.APIConfig{
+					Password:    "password",
+					ReleaseData: releaseData,
+					Mode:        types.ModeUpgrade,
+					Target:      types.TargetKubernetes,
+				},
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
 				)
+				require.NoError(t, err)
+				return apiInstance
 			},
 			baseURL: "/kubernetes/upgrade",
 		},

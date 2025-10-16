@@ -143,8 +143,10 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ConfigOptionFilename":  e.configOptionFilename,
 		"ConfigOptionNotEquals": e.configOptionNotEquals,
 
+		// License and release data template functions
 		"LicenseFieldValue": e.licenseFieldValue,
 		"LicenseDockerCfg":  e.licenseDockerCfg,
+		"VersionLabel":      e.versionLabel,
 
 		"HTTPProxy":  e.httpProxy,
 		"HTTPSProxy": e.httpsProxy,
@@ -174,6 +176,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"ParseUint":    e.parseUint,
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
+		"Distribution": e.distribution,
 
 		// Registry template functions
 		"HasLocalRegistry":             e.hasLocalRegistry,
@@ -182,6 +185,9 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"LocalRegistryNamespace":       e.localRegistryNamespace,
 		"ImagePullSecretName":          e.imagePullSecretName,
 		"LocalRegistryImagePullSecret": e.localRegistryImagePullSecret,
+
+		// Airgap template functions
+		"IsAirgap": e.isAirgap,
 	}
 }
 

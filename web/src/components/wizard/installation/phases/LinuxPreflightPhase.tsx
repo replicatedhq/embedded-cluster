@@ -9,6 +9,7 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
+import { ApiError } from '../../../../utils/api-error';
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;
@@ -16,6 +17,10 @@ interface LinuxPreflightPhaseProps {
   setNextButtonConfig: (config: NextButtonConfig) => void;
   setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
+}
+
+interface StartInstallationRequest {
+  ignoreHostPreflights: boolean;
 }
 
 const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
@@ -41,8 +46,8 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startInstallation } = useMutation({
-    mutationFn: async ({ ignoreHostPreflights }: { ignoreHostPreflights: boolean }) => {
+  const { mutate: startInstallation } = useMutation<unknown, ApiError, StartInstallationRequest>({
+    mutationFn: async ({ ignoreHostPreflights }) => {
       const apiBase = getApiBase(target, mode);
       const response = await fetch(`${apiBase}/infra/setup`, {
         method: "POST",
@@ -56,8 +61,7 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to start installation");
+        throw await ApiError.fromResponse(response, "Failed to start installation")
       }
       return response.json();
     },
@@ -65,8 +69,9 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
       setError(null); // Clear any previous errors
       onNext();
     },
-    onError: (err: Error) => {
-      setError(err.message || "Failed to start installation");
+    onError: (err: ApiError) => {
+      // share the error message from the API
+      setError(err.details || err.message);
     },
   });
 

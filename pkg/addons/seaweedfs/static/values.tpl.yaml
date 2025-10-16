@@ -13,6 +13,8 @@ master:
   nodeSelector: ~
   disableHttp: true
   volumeSizeLimitMB: 30000
+  raftHashicorp: true
+  raftBootstrap: true # masters would crash when raftHashicorp=true and raftBootstrap=false
   data:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
   logs:

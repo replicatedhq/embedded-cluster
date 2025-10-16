@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -479,6 +480,254 @@ func Test_needsScalingRestart(t *testing.T) {
 
 			s := &SeaweedFS{}
 			got, err := s.needsScalingRestart(context.Background(), cli)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, tt.want, got)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+func Test_shouldDisableRaftHashicorp(t *testing.T) {
+	scheme := scheme.Scheme
+	require.NoError(t, appsv1.AddToScheme(scheme))
+
+	tests := []struct {
+		name    string
+		objects []client.Object
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "should disable - no raftHashicorp arg in previous statefulset",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "seaweedfs",
+										Args: []string{
+											"master",
+											"-defaultReplication=001",
+											"-ip=seaweedfs-master-0",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "should not disable - raftHashicorp arg present in previous statefulset",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "seaweedfs",
+										Args: []string{
+											"master",
+											"-defaultReplication=001",
+											"-raftHashicorp=true",
+											"-ip=seaweedfs-master-0",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "should not disable - raftHashicorp arg present with false value",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "seaweedfs",
+										Args: []string{
+											"master",
+											"-raftHashicorp=false",
+											"-ip=seaweedfs-master-0",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "should disable - seaweedfs container not found",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "other-container",
+										Args: []string{
+											"some-arg",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:    "should not disable - no previous statefulset exists",
+			objects: []client.Object{
+				// No StatefulSet - SeaweedFS not yet installed
+			},
+			want: false,
+		},
+		{
+			name: "should disable - multiple containers with seaweedfs container without raftHashicorp",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "init-container",
+										Args: []string{"init"},
+									},
+									{
+										Name: "seaweedfs",
+										Args: []string{
+											"master",
+											"-defaultReplication=001",
+											"-ip=seaweedfs-master-0",
+										},
+									},
+									{
+										Name: "sidecar",
+										Args: []string{"sidecar"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "should not disable - multiple containers with seaweedfs container with raftHashicorp",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "init-container",
+										Args: []string{"init"},
+									},
+									{
+										Name: "seaweedfs",
+										Args: []string{
+											"master",
+											"-defaultReplication=001",
+											"-raftHashicorp",
+											"-ip=seaweedfs-master-0",
+										},
+									},
+									{
+										Name: "sidecar",
+										Args: []string{"sidecar"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "should disable - seaweedfs container with empty args",
+			objects: []client.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "seaweedfs-master",
+						Namespace: "seaweedfs",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Name: "seaweedfs",
+										Args: []string{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.objects...)
+
+			cli := builder.Build()
+
+			s := &SeaweedFS{}
+			got, err := s.shouldDisableRaftHashicorp(context.Background(), cli)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Equal(t, tt.want, got)

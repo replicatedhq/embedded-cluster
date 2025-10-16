@@ -26,8 +26,8 @@ func TestAPI_jsonError(t *testing.T) {
 			},
 			wantCode: http.StatusInternalServerError,
 			wantJSON: map[string]any{
-				"status_code": float64(http.StatusInternalServerError),
-				"message":     "invalid request",
+				"statusCode": float64(http.StatusInternalServerError),
+				"message":    "invalid request",
 			},
 		},
 		{
@@ -39,9 +39,9 @@ func TestAPI_jsonError(t *testing.T) {
 			},
 			wantCode: http.StatusBadRequest,
 			wantJSON: map[string]any{
-				"status_code": float64(http.StatusBadRequest),
-				"message":     "validation error",
-				"field":       "username",
+				"statusCode": float64(http.StatusBadRequest),
+				"message":    "validation error",
+				"field":      "username",
 			},
 		},
 		{
@@ -62,8 +62,8 @@ func TestAPI_jsonError(t *testing.T) {
 			},
 			wantCode: http.StatusBadRequest,
 			wantJSON: map[string]any{
-				"status_code": float64(http.StatusBadRequest),
-				"message":     "multiple validation errors",
+				"statusCode": float64(http.StatusBadRequest),
+				"message":    "multiple validation errors",
 				"errors": []any{
 					map[string]any{
 						"message": "field1 is required",

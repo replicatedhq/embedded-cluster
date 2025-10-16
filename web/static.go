@@ -33,9 +33,16 @@ type InitialState struct {
 	Icon  string `json:"icon"`
 	// The target of the installation, kubernetes or linux
 	InstallTarget string `json:"installTarget"`
-	// The mode the wizard will be running on, install or upgrade
-	Mode string `json:"mode"`
+	// The mode the web will be running on, install or upgrade
+	Mode Mode `json:"mode"`
 }
+
+type Mode string
+
+const (
+	ModeUpgrade Mode = "upgrade"
+	ModeInstall Mode = "install"
+)
 
 type Web struct {
 	// htmlTemplate is the parsed HTML template for the React app

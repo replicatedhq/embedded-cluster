@@ -58,7 +58,7 @@ func NewTestInterceptorFuncs() interceptor.Funcs {
 	}
 }
 
-func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
+func NewAPIWithReleaseData(t *testing.T, mode types.Mode, target types.Target, opts ...api.Option) *api.API {
 	password := "password"
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	require.NoError(t, err)
@@ -66,6 +66,8 @@ func NewAPIWithReleaseData(t *testing.T, opts ...api.Option) *api.API {
 		Password:     password,
 		PasswordHash: passwordHash,
 		ReleaseData:  DefaultReleaseData(),
+		Mode:         mode,
+		Target:       target,
 	}
 	a, err := api.New(cfg, opts...)
 	require.NoError(t, err)

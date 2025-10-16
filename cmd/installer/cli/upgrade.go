@@ -10,7 +10,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/AlecAivazis/survey/v2/terminal"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -25,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -128,21 +128,14 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			)
 			metricsReporter.ReportUpgradeStarted(ctx)
 
-			// Setup signal handler with the metrics reporter cleanup function
-			signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-				metricsReporter.ReportSignalAborted(ctx, sig)
-			})
-
-			if err := runManagerExperienceUpgrade(ctx, flags, upgradeConfig, existingRC, metricsReporter.reporter, appTitle); err != nil {
-				// Check if this is an interrupt error from the terminal
-				if errors.Is(err, terminal.InterruptErr) {
-					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
-				} else {
-					metricsReporter.ReportUpgradeFailed(ctx, err)
-				}
+			// Run the manager experience upgrade - the upgrade controller will handle
+			// reporting success/failure events through its event handlers
+			if err := runManagerExperienceUpgrade(
+				ctx, flags, upgradeConfig, existingRC, metricsReporter.reporter, appTitle,
+				targetVersion, initialVersion,
+			); err != nil {
 				return err
 			}
-			metricsReporter.ReportUpgradeSucceeded(ctx)
 
 			return nil
 		},
@@ -432,7 +425,7 @@ func readPasswordHash(ctx context.Context, kcli client.Client) ([]byte, error) {
 
 func runManagerExperienceUpgrade(
 	ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, rc runtimeconfig.RuntimeConfig,
-	metricsReporter metrics.ReporterInterface, appTitle string,
+	metricsReporter metrics.ReporterInterface, appTitle string, targetVersion string, initialVersion string,
 ) (finalErr error) {
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
@@ -447,6 +440,10 @@ func runManagerExperienceUpgrade(
 			ReleaseData:        release.GetReleaseData(),
 			EndUserConfig:      upgradeConfig.endUserConfig,
 			ClusterID:          upgradeConfig.clusterID,
+			Target:             apitypes.Target(flags.target),
+			Mode:               apitypes.ModeUpgrade,
+			TargetVersion:      targetVersion,
+			InitialVersion:     initialVersion,
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig: rc,
@@ -454,7 +451,7 @@ func runManagerExperienceUpgrade(
 		},
 		ManagerPort:     upgradeConfig.managerPort,
 		InstallTarget:   flags.target,
-		Mode:            wizardUpgradeMode,
+		WebMode:         web.ModeUpgrade,
 		MetricsReporter: metricsReporter,
 	}
 

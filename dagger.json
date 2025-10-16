@@ -1,6 +1,6 @@
 {
   "name": "embedded-cluster",
-  "engineVersion": "v0.18.16",
+  "engineVersion": "v0.19.2",
   "sdk": {
     "source": "go"
   },

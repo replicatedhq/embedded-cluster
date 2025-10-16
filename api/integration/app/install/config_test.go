@@ -1051,7 +1051,7 @@ func TestAppInstallSuite(t *testing.T) {
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t,
+				return integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
 					api.WithLinuxInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
@@ -1071,7 +1071,7 @@ func TestAppInstallSuite(t *testing.T) {
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t,
+				return integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
 					api.WithKubernetesInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),

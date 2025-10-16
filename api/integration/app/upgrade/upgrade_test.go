@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/integration/auth"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appupgrademanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
@@ -351,18 +352,31 @@ func TestAppUpgradeSuite(t *testing.T) {
 				return linuxupgrade.NewStateMachine(linuxupgrade.WithCurrentState(initialState))
 			},
 			createAPI: func(t *testing.T, stateMachine statemachine.Interface, rd *release.ReleaseData, appController *appcontroller.AppController) *api.API {
+				// Create mock infra manager to avoid filesystem access
+				mockInfraManager := &infra.MockInfraManager{}
+				mockInfraManager.On("RequiresUpgrade", mock.Anything, mock.Anything).Return(false, nil).Maybe()
+
 				// Create Linux upgrade controller with app controller
 				controller, err := linuxupgrade.NewUpgradeController(
 					linuxupgrade.WithStateMachine(stateMachine),
 					linuxupgrade.WithReleaseData(rd),
 					linuxupgrade.WithAppController(appController),
+					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
 				require.NoError(t, err)
-				return integration.NewAPIWithReleaseData(t,
+
+				apiInstance, err := api.New(types.APIConfig{
+					Password:    "password",
+					ReleaseData: rd,
+					Mode:        types.ModeUpgrade,
+					Target:      types.TargetLinux,
+				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
 				)
+				require.NoError(t, err)
+				return apiInstance
 			},
 			baseURL: "/linux/upgrade",
 		},
@@ -380,7 +394,7 @@ func TestAppUpgradeSuite(t *testing.T) {
 					kubernetesupgrade.WithAppController(appController),
 				)
 				require.NoError(t, err)
-				return integration.NewAPIWithReleaseData(t,
+				return integration.NewAPIWithReleaseData(t, types.ModeUpgrade, types.TargetKubernetes,
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),

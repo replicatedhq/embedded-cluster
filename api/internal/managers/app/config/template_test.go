@@ -316,4 +316,111 @@ status: {}
 		assert.NotEmpty(t, result1)
 		assert.NotEmpty(t, result2)
 	})
+
+	// Test IsAirgap template function
+	t.Run("IsAirgap template function", func(t *testing.T) {
+		airgapConfig := kotsv1beta1.Config{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "kots.io/v1beta1",
+				Kind:       "Config",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "airgap-test-config",
+			},
+			Spec: kotsv1beta1.ConfigSpec{
+				Groups: []kotsv1beta1.ConfigGroup{
+					{
+						Name:  "airgap_tests",
+						Title: "Airgap Tests",
+						Items: []kotsv1beta1.ConfigItem{
+							{
+								Name:    "airgap_mode",
+								Title:   "Airgap Mode",
+								Type:    "text",
+								Default: multitype.FromString(`{{repl IsAirgap | ternary "airgap" "online" }}`),
+								Value:   multitype.FromString(`{{repl IsAirgap }}`),
+							},
+							{
+								Name:    "installation_type",
+								Title:   "Installation Type",
+								Type:    "text",
+								Default: multitype.FromString(`{{repl if IsAirgap }}Airgap Installation{{repl else }}Online Installation{{repl end }}`),
+								Value:   multitype.FromString(`{{repl if IsAirgap }}Disconnected{{repl else }}Connected{{repl end }}`),
+							},
+						},
+					},
+				},
+			},
+		}
+
+		// Test with airgap bundle set (airgap installation)
+		t.Run("with airgap bundle", func(t *testing.T) {
+			manager, err := NewAppConfigManager(airgapConfig, WithIsAirgap(true))
+			require.NoError(t, err)
+			require.NotNil(t, manager)
+
+			result, err := manager.executeConfigTemplate(types.AppConfigValues{})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+
+			expectedYAML := `apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: airgap-test-config
+spec:
+  groups:
+  - items:
+    - default: airgap
+      name: airgap_mode
+      title: Airgap Mode
+      type: text
+      value: "true"
+    - default: Airgap Installation
+      name: installation_type
+      title: Installation Type
+      type: text
+      value: Disconnected
+    name: airgap_tests
+    title: Airgap Tests
+status: {}
+`
+
+			assert.Equal(t, expectedYAML, result)
+		})
+
+		// Test without airgap bundle (online installation)
+		t.Run("without airgap bundle", func(t *testing.T) {
+			manager, err := NewAppConfigManager(airgapConfig)
+			require.NoError(t, err)
+			require.NotNil(t, manager)
+
+			result, err := manager.executeConfigTemplate(types.AppConfigValues{})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+
+			expectedYAML := `apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: airgap-test-config
+spec:
+  groups:
+  - items:
+    - default: online
+      name: airgap_mode
+      title: Airgap Mode
+      type: text
+      value: "false"
+    - default: Online Installation
+      name: installation_type
+      title: Installation Type
+      type: text
+      value: Connected
+    name: airgap_tests
+    title: Airgap Tests
+status: {}
+`
+
+			assert.Equal(t, expectedYAML, result)
+		})
+	})
 }

@@ -60,10 +60,6 @@ affinity:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
 
-metrics:
-  enabled: false
-kubeProxyImage: gcr.io/kubebuilder/kube-rbac-proxy:v0.13.1
-
 crds:
   enabled: true
 

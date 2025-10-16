@@ -3,9 +3,10 @@ import Card from '../../common/Card';
 import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
-import { State } from '../../../types';
+import { useInstallationProgress } from '../../../contexts/InstallationProgressContext';
+import { State, InstallationPhaseId as InstallationPhase } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import InstallationTimeline, { InstallationPhaseId as InstallationPhase, PhaseStatus } from './InstallationTimeline';
+import InstallationTimeline, { PhaseStatus } from './InstallationTimeline';
 import LinuxPreflightPhase from './phases/LinuxPreflightPhase';
 import AppPreflightPhase from './phases/AppPreflightPhase';
 import LinuxInstallationPhase from './phases/LinuxInstallationPhase';
@@ -21,6 +22,7 @@ interface InstallationStepProps {
 const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   const { target, text } = useWizard();
   const { settings } = useSettings();
+  const { installationPhase: storedPhase, setInstallationPhase } = useInstallationProgress();
   const themeColor = settings.themeColor;
 
   const getPhaseOrder = (): InstallationPhase[] => {
@@ -31,9 +33,29 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   };
 
   const phaseOrder = getPhaseOrder();
-  const [currentPhase, setCurrentPhase] = useState<InstallationPhase>(phaseOrder[0]);
-  const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(phaseOrder[0]);
-  const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(new Set());
+  const completedPhaseSet = new Set<InstallationPhase>();
+
+  // If we have a stored phase then we need to set all the completed phases before too
+  if (storedPhase) {
+    const completedPhases = phaseOrder.slice(0, phaseOrder.indexOf(storedPhase))
+    completedPhases.forEach(phase => completedPhaseSet.add(phase))
+  }
+
+  // If we have a stored phase use it
+  const initialPhase = storedPhase || phaseOrder[0];
+
+  // Initialize currentPhase from context or default to first phase
+  const [currentPhase, setCurrentPhaseState] = useState<InstallationPhase>(initialPhase);
+
+  // Selected phase for UI (can be current or any completed phase)
+  const [selectedPhase, setSelectedPhase] = useState<InstallationPhase>(initialPhase);
+
+  // Wrapper for setCurrentPhase that also updates context
+  const setCurrentPhase = useCallback((phase: InstallationPhase) => {
+    setCurrentPhaseState(phase);
+    setInstallationPhase(phase);
+  }, [setInstallationPhase]);
+  const [completedPhases, setCompletedPhases] = useState<Set<InstallationPhase>>(completedPhaseSet);
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
   const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
