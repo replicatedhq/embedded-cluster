@@ -83,6 +83,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 				t.Logf("ConfigValuesFile is empty")
 				return false
 			}
+			if !opts.DisableImagePush {
+				t.Logf("DisableImagePush is false")
+				return false
+			}
 
 			// Verify config values file content
 			b, err := os.ReadFile(opts.ConfigValuesFile)

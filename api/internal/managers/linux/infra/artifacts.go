@@ -3,6 +3,7 @@ package infra
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -56,8 +57,8 @@ type ECArtifactOCIPathOptions struct {
 // newECOCIArtifactPath returns the OCI path for an embedded cluster artifact given
 // the artifact filename and details about the configured registry and channel release.
 func newECOCIArtifactPath(filename string, opts ECArtifactOCIPathOptions) *OCIArtifactPath {
-	name := filepath.Base(filename)
-	repository := filepath.Join("embedded-cluster", sanitizeRepo(name))
+	name := path.Base(filename)
+	repository := path.Join("embedded-cluster", sanitizeRepo(name))
 	tag := sanitizeTag(fmt.Sprintf("%s-%s-%s", opts.ChannelID, opts.UpdateCursor, opts.VersionLabel))
 	return &OCIArtifactPath{
 		Name:              name,

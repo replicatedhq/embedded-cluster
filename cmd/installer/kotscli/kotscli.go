@@ -31,6 +31,7 @@ type InstallOptions struct {
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
 	SkipPreflights        bool
+	DisableImagePush      bool
 	Stdout                io.Writer
 }
 
@@ -70,7 +71,9 @@ func Install(opts InstallOptions) error {
 		"--app-version-label",
 		appVersionLabel,
 		"--exclude-admin-console",
-		"--disable-image-push", // we push the images separately earlier in the install process
+	}
+	if opts.DisableImagePush {
+		installArgs = append(installArgs, "--disable-image-push")
 	}
 	if opts.AirgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
