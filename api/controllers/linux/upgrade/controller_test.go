@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -94,6 +95,7 @@ func TestUpgradeInfra(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -105,6 +107,7 @@ func TestUpgradeInfra(t *testing.T) {
 				WithAppController(appController),
 				WithStore(mockStore),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -192,6 +195,7 @@ func TestGetInfra(t *testing.T) {
 				WithInfraManager(mockInfraManager),
 				WithStore(mockStore),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -336,6 +340,7 @@ func TestReportingHandlers(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -348,6 +353,7 @@ func TestReportingHandlers(t *testing.T) {
 				WithTargetVersion(tt.targetVersion),
 				WithInitialVersion(tt.initialVersion),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -453,6 +459,7 @@ func TestProcessAirgap(t *testing.T) {
 				WithStore(mockStore),
 				WithInstallationManager(mockInstallationManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -523,6 +530,7 @@ func TestGetAirgapStatus(t *testing.T) {
 			controller, err := NewUpgradeController(
 				WithAirgapManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
