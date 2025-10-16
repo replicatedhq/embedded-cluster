@@ -1,13 +1,14 @@
 package infra
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"path"
 	"runtime/debug"
+	"strings"
 	"time"
 
+	"github.com/distribution/reference"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/upgrade"
@@ -22,37 +23,8 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-// RequiresUpgrade returns true if the embedded cluster is in a state that requires an infrastructure upgrade.
-// This is determined by checking that:
-// - The current embedded cluster config (as part of the Installation object) already exists in the cluster.
-// - The new embedded cluster configuration differs from the current embedded cluster configuration.
-func (m *infraManager) RequiresUpgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (bool, error) {
-	// ensure the manager's clients are initialized
-	if err := m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir()); err != nil {
-		return false, fmt.Errorf("setup clients: %w", err)
-	}
-
-	current, err := kubeutils.GetLatestInstallation(ctx, m.kcli)
-	if err != nil {
-		return false, fmt.Errorf("get current installation: %w", err)
-	}
-
-	curcfg := current.Spec.Config
-	newcfg := m.getECConfigSpec()
-
-	serializedCur, err := json.Marshal(curcfg)
-	if err != nil {
-		return false, fmt.Errorf("marshal current embedded cluster config: %w", err)
-	}
-	serializedNew, err := json.Marshal(newcfg)
-	if err != nil {
-		return false, fmt.Errorf("marshal new embedded cluster config: %w", err)
-	}
-	return !bytes.Equal(serializedCur, serializedNew), nil
-}
-
 // Upgrade performs the infrastructure upgrade by orchestrating the upgrade steps
-func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) (finalErr error) {
 	// TODO: reporting
 
 	if err := m.setStatus(types.StateRunning, ""); err != nil {
@@ -74,14 +46,14 @@ func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 		}
 	}()
 
-	if err := m.upgrade(ctx, rc); err != nil {
+	if err := m.upgrade(ctx, rc, registrySettings); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) error {
 	if m.upgrader == nil {
 		// ensure the manager's clients are initialized
 		if err := m.setupClients(rc.PathToKubeConfig(), rc.EmbeddedClusterChartsSubDir()); err != nil {
@@ -97,7 +69,7 @@ func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 		)
 	}
 
-	in, err := m.newInstallationObj(ctx)
+	in, err := m.newInstallationObj(ctx, registrySettings)
 	if err != nil {
 		return fmt.Errorf("new installation: %w", err)
 	}
@@ -112,7 +84,7 @@ func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("record upgrade: %w", err)
 	}
 
-	if err := m.upgradeK0s(ctx, in); err != nil {
+	if err := m.upgradeK0s(ctx, in, registrySettings); err != nil {
 		return fmt.Errorf("upgrade k0s: %w", err)
 	}
 
@@ -135,7 +107,7 @@ func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConf
 	return nil
 }
 
-func (m *infraManager) newInstallationObj(ctx context.Context) (*ecv1beta1.Installation, error) {
+func (m *infraManager) newInstallationObj(ctx context.Context, registrySettings *types.RegistrySettings) (*ecv1beta1.Installation, error) {
 	current, err := kubeutils.GetLatestInstallation(ctx, m.kcli)
 	if err != nil {
 		return nil, fmt.Errorf("get current installation: %w", err)
@@ -144,6 +116,11 @@ func (m *infraManager) newInstallationObj(ctx context.Context) (*ecv1beta1.Insta
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return nil, fmt.Errorf("parse license: %w", err)
+	}
+
+	artifacts, err := m.getECArtifacts(registrySettings)
+	if err != nil {
+		return nil, fmt.Errorf("get EC artifacts: %w", err)
 	}
 
 	in := &ecv1beta1.Installation{
@@ -159,8 +136,7 @@ func (m *infraManager) newInstallationObj(ctx context.Context) (*ecv1beta1.Insta
 		},
 		Spec: current.Spec,
 	}
-	// TODO: configure when we support airgap
-	// in.Spec.Artifacts = artifacts
+	in.Spec.Artifacts = artifacts
 	in.Spec.Config = m.getECConfigSpec()
 	in.Spec.LicenseInfo = &ecv1beta1.LicenseInfo{
 		IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
@@ -168,6 +144,43 @@ func (m *infraManager) newInstallationObj(ctx context.Context) (*ecv1beta1.Insta
 	}
 
 	return in, nil
+}
+
+// getECArtifacts returns the path of the different EC artifacts in the registry
+// reference from KOTS: https://github.com/replicatedhq/kots/blob/d26ebd2acaccc54313e7f7d5ca3ca580ae1a0bc5/pkg/upstream/fetch.go#L126-L151
+func (m *infraManager) getECArtifacts(registrySettings *types.RegistrySettings) (*ecv1beta1.ArtifactsLocation, error) {
+	if m.airgapBundle == "" {
+		// not an airgap installation
+		return nil, nil
+	}
+
+	if m.airgapMetadata == nil || m.airgapMetadata.AirgapInfo == nil {
+		return nil, fmt.Errorf("airgap metadata is nil")
+	}
+
+	airgapInfo := m.airgapMetadata.AirgapInfo
+
+	if airgapInfo.Spec.EmbeddedClusterArtifacts == nil {
+		return nil, nil
+	}
+
+	opts := ECArtifactOCIPathOptions{
+		RegistryHost:      registrySettings.Host,
+		RegistryNamespace: registrySettings.Namespace,
+		ChannelID:         airgapInfo.Spec.ChannelID,
+		UpdateCursor:      airgapInfo.Spec.UpdateCursor,
+		VersionLabel:      airgapInfo.Spec.VersionLabel,
+	}
+	return &ecv1beta1.ArtifactsLocation{
+		EmbeddedClusterBinary:   newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.BinaryAmd64, opts).String(),
+		HelmCharts:              newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.Charts, opts).String(),
+		Images:                  newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.ImagesAmd64, opts).String(),
+		EmbeddedClusterMetadata: newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.Metadata, opts).String(),
+		AdditionalArtifacts: map[string]string{
+			"kots":     newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.AdditionalArtifacts["kots"], opts).String(),
+			"operator": newECOCIArtifactPath(airgapInfo.Spec.EmbeddedClusterArtifacts.AdditionalArtifacts["operator"], opts).String(),
+		},
+	}, nil
 }
 
 func (m *infraManager) initUpgradeComponentsList(in *ecv1beta1.Installation) error {
@@ -204,7 +217,7 @@ func (m *infraManager) recordUpgrade(ctx context.Context, in *ecv1beta1.Installa
 	return nil
 }
 
-func (m *infraManager) upgradeK0s(ctx context.Context, in *ecv1beta1.Installation) (finalErr error) {
+func (m *infraManager) upgradeK0s(ctx context.Context, in *ecv1beta1.Installation, registrySettings *types.RegistrySettings) (finalErr error) {
 	componentName := K0sComponentName
 
 	if err := m.setComponentStatus(componentName, types.StateRunning, "Upgrading"); err != nil {
@@ -231,7 +244,7 @@ func (m *infraManager) upgradeK0s(ctx context.Context, in *ecv1beta1.Installatio
 	logFn := m.logFn("k0s")
 
 	logFn("distributing artifacts")
-	if err := m.distributeArtifacts(ctx, in); err != nil {
+	if err := m.distributeArtifacts(ctx, in, registrySettings); err != nil {
 		return fmt.Errorf("distribute artifacts: %w", err)
 	}
 
@@ -248,7 +261,7 @@ func (m *infraManager) upgradeK0s(ctx context.Context, in *ecv1beta1.Installatio
 	return nil
 }
 
-func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.Installation) error {
+func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.Installation, registrySettings *types.RegistrySettings) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
@@ -262,10 +275,35 @@ func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.In
 	channelID := m.releaseData.ChannelRelease.ChannelID
 	appVersion := m.releaseData.ChannelRelease.VersionLabel
 
-	// TODO: configure when we support airgap (note: we'll have to push the LAM image to the EC registry first somehow)
+	// Determine the local artifact mirror image path
 	localArtifactMirrorImage := versions.LocalArtifactMirrorImage
 
+	// For airgap installations, rewrite the LAM image to point to the EC registry
+	if registrySettings != nil && registrySettings.HasLocalRegistry {
+		destImage, err := destECImage(registrySettings, localArtifactMirrorImage)
+		if err != nil {
+			return fmt.Errorf("determine LAM image path in EC registry: %w", err)
+		}
+		localArtifactMirrorImage = destImage
+	}
+
 	return m.upgrader.DistributeArtifacts(ctx, in, localArtifactMirrorImage, license.Spec.LicenseID, appSlug, channelID, appVersion)
+}
+
+// destECImage returns the location to an EC image in the registry
+// reference from KOTS: https://github.com/replicatedhq/kots/blob/d26ebd2acaccc54313e7f7d5ca3ca580ae1a0bc5/pkg/imageutil/image.go#L105
+func destECImage(registrySettings *types.RegistrySettings, srcImage string) (string, error) {
+	// parsing as a docker reference strips the tag if both a tag and a digest are used
+	parsed, err := reference.ParseDockerRef(srcImage)
+	if err != nil {
+		return "", fmt.Errorf("failed to normalize source image %s: %w", srcImage, err)
+	}
+	srcImage = parsed.String()
+
+	imageParts := strings.Split(srcImage, "/")
+	lastPart := imageParts[len(imageParts)-1]
+
+	return path.Join(registrySettings.Host, registrySettings.Namespace, "embedded-cluster", lastPart), nil
 }
 
 func (m *infraManager) upgradeAddOns(ctx context.Context, in *ecv1beta1.Installation) error {

@@ -159,7 +159,12 @@ This creates a release using the manifests located in the `e2e/kots-release-inst
 
 #### Creating a v3 upgrade release
 
-Not yet implemented. Can use the same command for creating a v3 initial release for now.
+To create a v3 upgrade release, run the following command:
+```bash
+make upgrade-release ENABLE_V3=1
+```
+
+This creates a release using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
 
 #### Installing a v3 release
 

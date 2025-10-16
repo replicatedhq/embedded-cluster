@@ -21,6 +21,13 @@ components:
         statusCode:
           type: integer
       type: object
+    types.Airgap:
+      properties:
+        logs:
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      type: object
     types.AppConfig:
       properties:
         groups:
@@ -1022,11 +1029,6 @@ components:
         title:
           type: string
       type: object
-    types.RequiresInfraUpgradeResponse:
-      properties:
-        requiresUpgrade:
-          type: boolean
-      type: object
     types.State:
       enum:
       - Pending
@@ -1727,6 +1729,50 @@ paths:
       summary: Upgrade the app
       tags:
       - kubernetes-upgrade
+  /linux/install/airgap/process:
+    post:
+      description: Process the airgap bundle for install
+      operationId: postLinuxInstallProcessAirgap
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Airgap'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Process the airgap bundle
+      tags:
+      - linux-install
+  /linux/install/airgap/status:
+    get:
+      description: Get the current status of the airgap processing for install
+      operationId: getLinuxInstallAirgapStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Airgap'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the status of the airgap processing
+      tags:
+      - linux-install
   /linux/install/app-preflights/run:
     post:
       description: Run install app preflight checks using current app configuration
@@ -2044,6 +2090,50 @@ paths:
       summary: Get installation configuration status for install
       tags:
       - linux-install
+  /linux/upgrade/airgap/process:
+    post:
+      description: Process the airgap bundle for upgrade
+      operationId: postLinuxUpgradeProcessAirgap
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Airgap'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Process the airgap bundle
+      tags:
+      - linux-upgrade
+  /linux/upgrade/airgap/status:
+    get:
+      description: Get the current status of the airgap processing for upgrade
+      operationId: getLinuxUpgradeAirgapStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.Airgap'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get the status of the airgap processing
+      tags:
+      - linux-upgrade
   /linux/upgrade/app-preflights/run:
     post:
       description: Run upgrade app preflight checks using current app configuration
@@ -2217,34 +2307,6 @@ paths:
       security:
       - bearerauth: []
       summary: Upgrade the app
-      tags:
-      - linux-upgrade
-  /linux/upgrade/infra/requires-upgrade:
-    get:
-      description: Check if infrastructure upgrade is required before proceeding
-      operationId: getLinuxRequiresInfraUpgrade
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.RequiresInfraUpgradeResponse'
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Error'
-          description: Unauthorized
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.Error'
-          description: Internal Server Error
-      security:
-      - bearerauth: []
-      summary: Check if infra upgrade is required
       tags:
       - linux-upgrade
   /linux/upgrade/infra/status:

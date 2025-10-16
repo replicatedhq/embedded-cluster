@@ -32,6 +32,7 @@ const server = setupServer(
 describe('LinuxPreflightPhase', () => {
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  const mockSetIgnoreHostPreflights = vi.fn();
 
   beforeAll(() => {
     server.listen();
@@ -69,6 +70,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       {
         wrapperProps: {
@@ -112,6 +114,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       {
         wrapperProps: {
@@ -161,6 +164,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       {
         wrapperProps: {
@@ -225,6 +229,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       {
         wrapperProps: {
@@ -283,6 +288,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       {
         wrapperProps: {
@@ -349,6 +355,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -409,6 +416,7 @@ describe('LinuxPreflightPhase', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -440,285 +448,10 @@ describe('LinuxPreflightPhase - Error Handling & Edge Cases', () => {
 
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  const mockSetIgnoreHostPreflights = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('handles API error responses gracefully when starting installation', async () => {
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreHostPreflights: false
-        });
-      }),
-      // Mock infra setup endpoint to return API error
-      http.post('*/api/linux/install/infra/setup', () => {
-        return HttpResponse.json(
-          {
-            statusCode: 400,
-            message: 'Preflight checks failed. Cannot proceed with installation.'
-          },
-          { status: 400 }
-        );
-      })
-    );
-
-    renderWithProviders(
-      <TestLinuxPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
-    });
-
-    // Click Start Installation
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Should show error message instead of proceeding
-    await waitFor(() => {
-      expect(screen.getByText(/Preflight checks failed. Cannot proceed with installation./)).toBeInTheDocument();
-    });
-
-    // Should NOT proceed to next step
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-
-  it('handles network failure during installation start', async () => {
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreHostPreflights: false
-        });
-      }),
-      // Mock infra setup endpoint to return network error
-      http.post('*/api/linux/install/infra/setup', () => {
-        return HttpResponse.error();
-      })
-    );
-
-    renderWithProviders(
-      <TestLinuxPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
-    });
-
-    // Click Start Installation
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Should show network error message (matches actual fetch error)
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch/)).toBeInTheDocument();
-    });
-
-    // Should NOT proceed to next step
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-
-  it('handles button states during API interactions', async () => {
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreHostPreflights: false
-        });
-      }),
-      // Mock successful infra setup
-      http.post('*/api/linux/install/infra/setup', () => {
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(
-      <TestLinuxPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
-    });
-
-    // Button should be enabled initially
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-    });
-
-    // Click Start Installation - should succeed
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Should proceed to next step
-    await waitFor(() => {
-      expect(mockOnNext).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it('handles error when ignoring preflights without CLI flag', async () => {
-    // Mock preflight status endpoint - returns failures
-    server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: true
-        });
-      }),
-      // Mock infra setup endpoint to return CLI flag error
-      http.post('*/api/linux/install/infra/setup', () => {
-        return HttpResponse.json(
-          {
-            statusCode: 400,
-            message: 'preflight checks failed'
-          },
-          { status: 400 }
-        );
-      })
-    );
-
-    renderWithProviders(
-      <TestLinuxPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { authenticated: true } }
-    );
-
-    // Wait for failed state
-    await waitFor(() => {
-      expect(screen.getByText('Host Requirements Not Met')).toBeInTheDocument();
-    });
-
-    // Wait for button to be enabled and click it (should show modal)
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Confirm in modal
-    await waitFor(() => {
-      expect(screen.getByText('Proceed with Failed Checks?')).toBeInTheDocument();
-    });
-
-    const continueButton = screen.getByText('Continue Anyway');
-    fireEvent.click(continueButton);
-
-    // Should show the specific API error message
-    await waitFor(() => {
-      expect(screen.getByText(/preflight checks failed/)).toBeInTheDocument();
-    });
-
-    // Should NOT proceed to next step
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-
-  it('clears previous errors when new installation attempt succeeds', async () => {
-    let shouldFail = true;
-
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreHostPreflights: false
-        });
-      }),
-      // Mock infra setup endpoint that fails first, succeeds second
-      http.post('*/api/linux/install/infra/setup', () => {
-        if (shouldFail) {
-          shouldFail = false; // Succeed on next attempt
-          return HttpResponse.json(
-            { statusCode: 500, message: 'Internal server error' },
-            { status: 500 }
-          );
-        }
-        return HttpResponse.json({ success: true });
-      })
-    );
-
-    renderWithProviders(
-      <TestLinuxPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Host validation successful!')).toBeInTheDocument();
-    });
-
-    // First attempt - should fail
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Internal server error/)).toBeInTheDocument();
-    });
-
-    // Second attempt - should succeed and clear error
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    await waitFor(() => {
-      expect(mockOnNext).toHaveBeenCalledTimes(1);
-    });
-
-    // Error message should be gone
-    expect(screen.queryByText(/Internal server error/)).not.toBeInTheDocument();
   });
 
   it('properly handles modal cancellation flow', async () => {
@@ -742,6 +475,7 @@ describe('LinuxPreflightPhase - Error Handling & Edge Cases', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -788,6 +522,7 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
 
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  const mockSetIgnoreHostPreflights = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -810,6 +545,7 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -842,6 +578,7 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -883,6 +620,7 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );
@@ -922,6 +660,7 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
       <TestLinuxPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreHostPreflights={mockSetIgnoreHostPreflights}
       />,
       { wrapperProps: { authenticated: true } }
     );

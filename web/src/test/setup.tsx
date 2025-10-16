@@ -101,6 +101,8 @@ interface MockProviderProps {
     wizardModeContext: {
       target: InstallationTarget;
       mode: WizardMode;
+      isAirgap: boolean;
+      requiresInfraUpgrade: boolean;
       text: WizardText;
     };
     authContext: {
@@ -162,7 +164,13 @@ export const renderWithProviders = (
   options: RenderWithProvidersOptions = {},
 ) => {
   const defaultContextValues: MockProviderProps["contexts"] = {
-    initialStateContext: { title: "My App", installTarget: options.wrapperProps?.target || "linux", mode: options.wrapperProps?.mode || "install" },
+    initialStateContext: {
+      title: "My App",
+      installTarget: options.wrapperProps?.target || "linux",
+      mode: options.wrapperProps?.mode || "install",
+      isAirgap: false,
+      requiresInfraUpgrade: false
+    },
     linuxConfigContext: {
       config: {
         adminConsolePort: 8800,
@@ -188,6 +196,8 @@ export const renderWithProviders = (
     wizardModeContext: {
       target: options.wrapperProps?.target || "linux",
       mode: options.wrapperProps?.mode || "install",
+      isAirgap: false,
+      requiresInfraUpgrade: false,
       text: {
         title: "My App",
         subtitle: "Installation Wizard",

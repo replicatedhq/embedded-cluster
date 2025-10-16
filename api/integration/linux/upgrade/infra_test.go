@@ -41,239 +41,6 @@ import (
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-// Test the linux requires-upgrade endpoint
-func TestLinuxGetRequiresInfraUpgrade(t *testing.T) {
-	// Create schemes
-	scheme := runtime.NewScheme()
-	require.NoError(t, ecv1beta1.AddToScheme(scheme))
-	require.NoError(t, corev1.AddToScheme(scheme))
-	require.NoError(t, apiextensionsv1.AddToScheme(scheme))
-
-	metascheme := metadatafake.NewTestScheme()
-	require.NoError(t, metav1.AddMetaToScheme(metascheme))
-	require.NoError(t, corev1.AddToScheme(metascheme))
-
-	appConfig := kotsv1beta1.Config{
-		Spec: kotsv1beta1.ConfigSpec{
-			Groups: []kotsv1beta1.ConfigGroup{
-				{
-					Name:  "test-group",
-					Title: "Test Group",
-					Items: []kotsv1beta1.ConfigItem{
-						{
-							Name:    "test-item",
-							Type:    "text",
-							Title:   "Test Item",
-							Default: multitype.FromString("default"),
-							Value:   multitype.FromString("value"),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	hostname, err := nodeutil.GetHostname("")
-	require.NoError(t, err)
-
-	// Create an existing installation that will be used for the upgrade
-	existingInstallation := &ecv1beta1.Installation{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: ecv1beta1.GroupVersion.String(),
-			Kind:       "Installation",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "20250101000000",
-		},
-		Spec: ecv1beta1.InstallationSpec{
-			Config: &ecv1beta1.ConfigSpec{
-				Version: "v1.0.0",
-			},
-		},
-		Status: ecv1beta1.InstallationStatus{
-			State: ecv1beta1.InstallationStateInstalled,
-		},
-	}
-
-	t.Run("Requires upgrade returns true", func(t *testing.T) {
-		// Create fake k8s clients
-		fakeKcli := clientfake.NewClientBuilder().
-			WithScheme(scheme).
-			WithObjects(integration.NewTestControllerNode(hostname), existingInstallation).
-			WithStatusSubresource(&ecv1beta1.Installation{}, &apiextensionsv1.CustomResourceDefinition{}).
-			WithInterceptorFuncs(integration.NewTestInterceptorFuncs()).
-			Build()
-		fakeMcli := metadatafake.NewSimpleMetadataClient(metascheme)
-
-		helmMock := &helm.MockClient{}
-
-		// Create a runtime config
-		rc := runtimeconfig.New(nil)
-		rc.SetDataDir(t.TempDir())
-
-		// Create real infra manager with mocked components
-		infraManager := linuxinfra.NewInfraManager(
-			linuxinfra.WithKubeClient(fakeKcli),
-			linuxinfra.WithMetadataClient(fakeMcli),
-			linuxinfra.WithHelmClient(helmMock),
-			linuxinfra.WithLicense(assets.LicenseData),
-			linuxinfra.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{
-					Spec: ecv1beta1.ConfigSpec{
-						Version: "v1.1.0", // Different version means upgrade required
-					},
-				},
-				ChannelRelease: &release.ChannelRelease{},
-				AppConfig:      &appConfig,
-			}),
-		)
-
-		// Create an upgrade controller
-		upgradeController, err := linuxupgrade.NewUpgradeController(
-			linuxupgrade.WithRuntimeConfig(rc),
-			linuxupgrade.WithInfraManager(infraManager),
-			linuxupgrade.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{
-					Spec: ecv1beta1.ConfigSpec{
-						Version: "v1.1.0",
-					},
-				},
-				ChannelRelease: &release.ChannelRelease{},
-				AppConfig:      &appConfig,
-			}),
-		)
-		require.NoError(t, err)
-
-		// Create the API with Mode and Target set for upgrade routes
-		password := "password"
-		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
-		require.NoError(t, err)
-		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
-		}
-		apiInstance, err := api.New(cfg,
-			api.WithLinuxUpgradeController(upgradeController),
-			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-			api.WithLogger(logger.NewDiscardLogger()),
-		)
-		require.NoError(t, err)
-
-		// Create a router and register the API routes
-		router := mux.NewRouter()
-		apiInstance.RegisterRoutes(router)
-
-		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/linux/upgrade/infra/requires-upgrade", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
-		rec := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(rec, req)
-
-		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
-
-		// Parse the response body
-		var response types.RequiresInfraUpgradeResponse
-		err = json.NewDecoder(rec.Body).Decode(&response)
-		require.NoError(t, err)
-		assert.True(t, response.RequiresUpgrade)
-	})
-
-	t.Run("Requires upgrade returns false", func(t *testing.T) {
-		// Create fake k8s clients with same version
-		fakeKcli := clientfake.NewClientBuilder().
-			WithScheme(scheme).
-			WithObjects(integration.NewTestControllerNode(hostname), existingInstallation).
-			WithStatusSubresource(&ecv1beta1.Installation{}, &apiextensionsv1.CustomResourceDefinition{}).
-			WithInterceptorFuncs(integration.NewTestInterceptorFuncs()).
-			Build()
-		fakeMcli := metadatafake.NewSimpleMetadataClient(metascheme)
-
-		helmMock := &helm.MockClient{}
-
-		// Create a runtime config
-		rc := runtimeconfig.New(nil)
-		rc.SetDataDir(t.TempDir())
-
-		// Create real infra manager with same version
-		infraManager := linuxinfra.NewInfraManager(
-			linuxinfra.WithKubeClient(fakeKcli),
-			linuxinfra.WithMetadataClient(fakeMcli),
-			linuxinfra.WithHelmClient(helmMock),
-			linuxinfra.WithLicense(assets.LicenseData),
-			linuxinfra.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{
-					Spec: ecv1beta1.ConfigSpec{
-						Version: "v1.0.0", // Same version means no upgrade required
-					},
-				},
-				ChannelRelease: &release.ChannelRelease{},
-				AppConfig:      &appConfig,
-			}),
-		)
-
-		// Create an upgrade controller
-		upgradeController, err := linuxupgrade.NewUpgradeController(
-			linuxupgrade.WithRuntimeConfig(rc),
-			linuxupgrade.WithInfraManager(infraManager),
-			linuxupgrade.WithReleaseData(&release.ReleaseData{
-				EmbeddedClusterConfig: &ecv1beta1.Config{
-					Spec: ecv1beta1.ConfigSpec{
-						Version: "v1.0.0",
-					},
-				},
-				ChannelRelease: &release.ChannelRelease{},
-				AppConfig:      &appConfig,
-			}),
-		)
-		require.NoError(t, err)
-
-		// Create the API with Mode and Target set for upgrade routes
-		password := "password"
-		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
-		require.NoError(t, err)
-		cfg := types.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
-			ReleaseData:  integration.DefaultReleaseData(),
-			Mode:         types.ModeUpgrade,
-			Target:       types.TargetLinux,
-		}
-		apiInstance, err := api.New(cfg,
-			api.WithLinuxUpgradeController(upgradeController),
-			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
-			api.WithLogger(logger.NewDiscardLogger()),
-		)
-		require.NoError(t, err)
-
-		// Create a router and register the API routes
-		router := mux.NewRouter()
-		apiInstance.RegisterRoutes(router)
-
-		// Create a request
-		req := httptest.NewRequest(http.MethodGet, "/linux/upgrade/infra/requires-upgrade", nil)
-		req.Header.Set("Authorization", "Bearer TOKEN")
-		rec := httptest.NewRecorder()
-
-		// Serve the request
-		router.ServeHTTP(rec, req)
-
-		// Check the response
-		assert.Equal(t, http.StatusOK, rec.Code)
-
-		// Parse the response body
-		var response types.RequiresInfraUpgradeResponse
-		err = json.NewDecoder(rec.Body).Decode(&response)
-		require.NoError(t, err)
-		assert.False(t, response.RequiresUpgrade)
-	})
-}
-
 // Test the linux upgrade infra endpoint
 func TestLinuxPostUpgradeInfra(t *testing.T) {
 	// Create schemes
@@ -446,10 +213,6 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 		err = json.NewDecoder(rec.Body).Decode(&infra)
 		require.NoError(t, err)
 
-		// Verify that the status is not pending. We cannot check for an end state here because process is async
-		// so the state might have moved from running to a final state before we get the response.
-		assert.NotEqual(t, types.StatePending, infra.Status.State)
-
 		// Helper function to get infra status
 		getInfraStatus := func() types.Infra {
 			// Create a request to get infra status
@@ -473,6 +236,12 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 
 			return infra
 		}
+
+		// Wait for the state to transition from Pending (async operation should start quickly)
+		assert.Eventually(t, func() bool {
+			infra := getInfraStatus()
+			return infra.Status.State != types.StatePending
+		}, 5*time.Second, 100*time.Millisecond, "Infrastructure upgrade state did not transition from Pending")
 
 		// The status should eventually be set to succeeded in a goroutine
 		assert.Eventually(t, func() bool {
@@ -707,5 +476,244 @@ func TestLinuxPostUpgradeInfra(t *testing.T) {
 
 		// Verify that the mock expectations were met
 		upgraderMock.AssertExpectations(t)
+	})
+}
+
+// Test the linux upgrade airgap endpoints
+func TestLinuxUpgradeProcessAirgap(t *testing.T) {
+	appConfig := kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{
+				{
+					Name:  "test-group",
+					Title: "Test Group",
+					Items: []kotsv1beta1.ConfigItem{
+						{
+							Name:    "test-item",
+							Type:    "text",
+							Title:   "Test Item",
+							Default: multitype.FromString("default"),
+							Value:   multitype.FromString("value"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("PostProcessAirgap - Success", func(t *testing.T) {
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
+		// Create an upgrade controller with ApplicationConfigured state
+		upgradeController, err := linuxupgrade.NewUpgradeController(
+			linuxupgrade.WithRuntimeConfig(rc),
+			linuxupgrade.WithStateMachine(linuxupgrade.NewStateMachine(
+				linuxupgrade.WithCurrentState(states.StateApplicationConfigured),
+				linuxupgrade.WithIsAirgap(true),
+			)),
+			linuxupgrade.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{
+					Spec: ecv1beta1.ConfigSpec{
+						Version: "v1.1.0",
+					},
+				},
+				ChannelRelease: &release.ChannelRelease{},
+				AppConfig:      &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with Mode and Target set for upgrade routes
+		password := "password"
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		require.NoError(t, err)
+		cfg := types.APIConfig{
+			Password:     password,
+			PasswordHash: passwordHash,
+			ReleaseData:  integration.DefaultReleaseData(),
+			Mode:         types.ModeUpgrade,
+			Target:       types.TargetLinux,
+		}
+		apiInstance, err := api.New(cfg,
+			api.WithLinuxUpgradeController(upgradeController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to process airgap
+		req := httptest.NewRequest(http.MethodPost, "/linux/upgrade/airgap/process", bytes.NewReader([]byte("{}")))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		// Parse the response body
+		var airgap types.Airgap
+		err = json.NewDecoder(rec.Body).Decode(&airgap)
+		require.NoError(t, err)
+
+		// Helper function to get airgap status
+		getAirgapStatus := func() types.Airgap {
+			// Create a request to get airgap status
+			req := httptest.NewRequest(http.MethodGet, "/linux/upgrade/airgap/status", nil)
+			req.Header.Set("Authorization", "Bearer TOKEN")
+			rec := httptest.NewRecorder()
+
+			// Serve the request
+			router.ServeHTTP(rec, req)
+
+			// Check the response
+			assert.Equal(t, http.StatusOK, rec.Code)
+
+			// Parse the response body
+			var airgap types.Airgap
+			err = json.NewDecoder(rec.Body).Decode(&airgap)
+			require.NoError(t, err)
+
+			// Log the airgap status
+			t.Logf("Airgap Status: %s, Description: %s", airgap.Status.State, airgap.Status.Description)
+
+			return airgap
+		}
+
+		// Wait for the state to transition from Pending (async operation should start quickly)
+		assert.Eventually(t, func() bool {
+			airgap := getAirgapStatus()
+			return airgap.Status.State != types.StatePending
+		}, 5*time.Second, 100*time.Millisecond, "Airgap processing state did not transition from Pending")
+	})
+
+	t.Run("PostProcessAirgap - Invalid state transition", func(t *testing.T) {
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
+		// Create an upgrade controller with wrong state (already processing)
+		upgradeController, err := linuxupgrade.NewUpgradeController(
+			linuxupgrade.WithRuntimeConfig(rc),
+			linuxupgrade.WithStateMachine(linuxupgrade.NewStateMachine(
+				linuxupgrade.WithCurrentState(states.StateAirgapProcessing),
+				linuxupgrade.WithIsAirgap(true),
+			)),
+			linuxupgrade.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{
+					Spec: ecv1beta1.ConfigSpec{
+						Version: "v1.1.0",
+					},
+				},
+				ChannelRelease: &release.ChannelRelease{},
+				AppConfig:      &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with Mode and Target set for upgrade routes
+		password := "password"
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		require.NoError(t, err)
+		cfg := types.APIConfig{
+			Password:     password,
+			PasswordHash: passwordHash,
+			ReleaseData:  integration.DefaultReleaseData(),
+			Mode:         types.ModeUpgrade,
+			Target:       types.TargetLinux,
+		}
+		apiInstance, err := api.New(cfg,
+			api.WithLinuxUpgradeController(upgradeController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request
+		req := httptest.NewRequest(http.MethodPost, "/linux/upgrade/airgap/process", bytes.NewReader([]byte("{}")))
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		assert.Contains(t, rec.Body.String(), "invalid transition")
+	})
+
+	t.Run("GetAirgapStatus - Success", func(t *testing.T) {
+		// Create a runtime config
+		rc := runtimeconfig.New(nil)
+		rc.SetDataDir(t.TempDir())
+
+		// Create an upgrade controller
+		upgradeController, err := linuxupgrade.NewUpgradeController(
+			linuxupgrade.WithRuntimeConfig(rc),
+			linuxupgrade.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{
+					Spec: ecv1beta1.ConfigSpec{
+						Version: "v1.1.0",
+					},
+				},
+				ChannelRelease: &release.ChannelRelease{},
+				AppConfig:      &appConfig,
+			}),
+		)
+		require.NoError(t, err)
+
+		// Create the API with Mode and Target set for upgrade routes
+		password := "password"
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		require.NoError(t, err)
+		cfg := types.APIConfig{
+			Password:     password,
+			PasswordHash: passwordHash,
+			ReleaseData:  integration.DefaultReleaseData(),
+			Mode:         types.ModeUpgrade,
+			Target:       types.TargetLinux,
+		}
+		apiInstance, err := api.New(cfg,
+			api.WithLinuxUpgradeController(upgradeController),
+			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithLogger(logger.NewDiscardLogger()),
+		)
+		require.NoError(t, err)
+
+		// Create a router and register the API routes
+		router := mux.NewRouter()
+		apiInstance.RegisterRoutes(router)
+
+		// Create a request to get airgap status
+		req := httptest.NewRequest(http.MethodGet, "/linux/upgrade/airgap/status", nil)
+		req.Header.Set("Authorization", "Bearer TOKEN")
+		rec := httptest.NewRecorder()
+
+		// Serve the request
+		router.ServeHTTP(rec, req)
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		// Parse the response body
+		var airgap types.Airgap
+		err = json.NewDecoder(rec.Body).Decode(&airgap)
+		require.NoError(t, err)
+
+		// Verify we got a valid response
+		assert.NotNil(t, airgap)
 	})
 }

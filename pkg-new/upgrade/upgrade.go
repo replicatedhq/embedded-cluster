@@ -64,7 +64,7 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	}
 
 	logger.Info("Upgrading extensions")
-	err = upgradeExtensions(ctx, cli, hcli, in)
+	err = upgradeExtensions(ctx, cli, hcli, in, logger)
 	if err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
@@ -228,6 +228,11 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 			}
 		}
 
+		// Deduplicate API SANs before comparing configs. K0s cluster config does not allow duplicates.
+		if newCfg.Spec.API != nil && len(newCfg.Spec.API.SANs) > 0 {
+			newCfg.Spec.API.SANs = helpers.UniqueStringSlice(newCfg.Spec.API.SANs)
+		}
+
 		// check if the new config is different from the current config
 		if !reflect.DeepEqual(*newCfg, currentCfg) {
 			currentCfg = *newCfg
@@ -316,7 +321,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 	return nil
 }
 
-func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation) error {
+func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
 	err := kubeutils.SetInstallationState(ctx, cli, in, ecv1beta1.InstallationStateAddonsInstalling, "Upgrading extensions")
 	if err != nil {
 		return fmt.Errorf("set installation state: %w", err)
@@ -327,7 +332,7 @@ func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client,
 		return fmt.Errorf("get previous installation: %w", err)
 	}
 
-	if err := extensions.Upgrade(ctx, cli, hcli, previous, in); err != nil {
+	if err := extensions.Upgrade(ctx, cli, hcli, previous, in, logger); err != nil {
 		return fmt.Errorf("upgrade extensions: %w", err)
 	}
 

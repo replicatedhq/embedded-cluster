@@ -286,6 +286,69 @@ config:
 				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
 			},
 		},
+		{
+			name: "deduplicates API SANs when duplicates are present",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					API: &k0sv1beta1.APISpec{
+						Address: "192.168.1.1",
+						// Simulate duplicate SANs that might occur from k0s automatically adding node IPs
+						SANs: []string{
+							"192.168.1.1",
+							"fe80::ecee:eeff:feee:eeee",
+							"kubernetes.default.svc.cluster.local",
+							"fe80::ecee:eeff:feee:eeee", // duplicate IPv6 link-local address
+						},
+					},
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					Telemetry: &telemetryConfigEnabled,
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+						UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+							K0s: `
+config:
+  spec:
+    telemetry:
+      enabled: false
+`,
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				// Verify that duplicate SANs are removed
+				require.NotNil(t, updatedConfig.Spec.API)
+				assert.Len(t, updatedConfig.Spec.API.SANs, 3, "Should have 3 unique SANs")
+				assert.Contains(t, updatedConfig.Spec.API.SANs, "192.168.1.1")
+				assert.Contains(t, updatedConfig.Spec.API.SANs, "fe80::ecee:eeff:feee:eeee")
+				assert.Contains(t, updatedConfig.Spec.API.SANs, "kubernetes.default.svc.cluster.local")
+
+				// Verify order is preserved (first occurrence kept)
+				assert.Equal(t, "192.168.1.1", updatedConfig.Spec.API.SANs[0])
+				assert.Equal(t, "fe80::ecee:eeff:feee:eeee", updatedConfig.Spec.API.SANs[1])
+				assert.Equal(t, "kubernetes.default.svc.cluster.local", updatedConfig.Spec.API.SANs[2])
+
+				// Verify that the patch was applied
+				val, err := json.Marshal(updatedConfig.Spec.Telemetry.Enabled)
+				require.NoError(t, err)
+				assert.Equal(t, "false", string(val))
+
+				// Verify that image registries are still updated
+				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
+			},
+		},
 	}
 
 	for _, tt := range tests {

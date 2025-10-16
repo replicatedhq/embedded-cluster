@@ -41,7 +41,14 @@ func WithInfra(infra types.Infra) StoreOption {
 
 // NewMemoryStore creates a new memory store
 func NewMemoryStore(opts ...StoreOption) Store {
-	s := &memoryStore{}
+	s := &memoryStore{
+		infra: types.Infra{
+			Status: types.Status{
+				State:       types.StatePending,
+				LastUpdated: time.Now(),
+			},
+		},
+	}
 
 	for _, opt := range opts {
 		opt(s)

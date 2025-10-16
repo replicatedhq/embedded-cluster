@@ -11,21 +11,22 @@ import (
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
-	Password           string // Used by AdminConsole addon to create kotsadm-password secret and infrastructure operations in V2
-	PasswordHash       []byte // Used by auth controller for API authentication in V3
-	TLSConfig          TLSConfig
-	License            []byte
-	AirgapBundle       string
-	AirgapMetadata     *airgap.AirgapMetadata
-	EmbeddedAssetsSize int64
-	ConfigValues       AppConfigValues
-	ReleaseData        *release.ReleaseData
-	EndUserConfig      *ecv1beta1.Config
-	ClusterID          string
-	Target             Target
-	Mode               Mode
-	TargetVersion      string // Used for upgrade metrics reporting
-	InitialVersion     string // Used for upgrade metrics reporting
+	Password             string // Used by AdminConsole addon to create kotsadm-password secret and infrastructure operations in V2
+	PasswordHash         []byte // Used by auth controller for API authentication in V3
+	TLSConfig            TLSConfig
+	License              []byte
+	AirgapBundle         string
+	AirgapMetadata       *airgap.AirgapMetadata
+	EmbeddedAssetsSize   int64
+	ConfigValues         AppConfigValues
+	ReleaseData          *release.ReleaseData
+	EndUserConfig        *ecv1beta1.Config
+	ClusterID            string
+	Target               Target
+	Mode                 Mode
+	TargetVersion        string // Used for upgrade metrics reporting
+	InitialVersion       string // Used for upgrade metrics reporting
+	RequiresInfraUpgrade bool   // Whether an infrastructure upgrade is required (only relevant for upgrades)
 
 	LinuxConfig
 	KubernetesConfig

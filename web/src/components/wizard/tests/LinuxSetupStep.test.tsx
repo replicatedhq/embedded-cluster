@@ -568,41 +568,6 @@ describe("LinuxSetupStep", () => {
         globalCidr: "10.244.0.0/16",
       });
     });
-
-
-    it("handles preflight run error", async () => {
-      server.use(
-        http.post("*/api/linux/install/host-preflights/run", () => {
-          return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-          contextValues: {
-            linuxConfigContext: {
-              config: {
-                dataDirectory: "",
-              },
-              updateConfig: mockUpdateConfig,
-              resetConfig: vi.fn(),
-            },
-          },
-        },
-      });
-
-      // Get the next button and ensure it's not disabled
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      expect(nextButton).not.toBeDisabled();
-
-      // Submit form
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("Failed to run preflight checks")).toBeInTheDocument();
-      });
-    });
   });
 
   describe("Installation Status Polling", () => {

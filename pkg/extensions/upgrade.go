@@ -2,13 +2,13 @@ package extensions
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,7 +22,7 @@ const (
 
 type helmAction string
 
-func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ecv1beta1.Installation, in *ecv1beta1.Installation) error {
+func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ecv1beta1.Installation, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
 	// add new helm repos
 	if in.Spec.Config.Extensions.Helm != nil {
 		if err := addRepos(hcli, in.Spec.Config.Extensions.Helm.Repositories); err != nil {
@@ -45,7 +45,7 @@ func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ec
 	for i := len(results) - 1; i >= 0; i-- {
 		result := results[i]
 		if result.Action == actionUninstall {
-			if err := handleExtensionUninstall(ctx, kcli, hcli, in, result.Ext); err != nil {
+			if err := handleExtensionUninstall(ctx, kcli, hcli, in, result.Ext, logger); err != nil {
 				return errors.Wrapf(err, "uninstall extension %s", result.Ext.Name)
 			}
 		}
@@ -55,15 +55,15 @@ func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ec
 	for _, result := range results {
 		switch result.Action {
 		case actionInstall:
-			if err := handleExtensionInstall(ctx, kcli, hcli, in, result.Ext); err != nil {
+			if err := handleExtensionInstall(ctx, kcli, hcli, in, result.Ext, logger); err != nil {
 				return errors.Wrapf(err, "install extension %s", result.Ext.Name)
 			}
 		case actionUpgrade:
-			if err := handleExtensionUpgrade(ctx, kcli, hcli, in, result.Ext); err != nil {
+			if err := handleExtensionUpgrade(ctx, kcli, hcli, in, result.Ext, logger); err != nil {
 				return errors.Wrapf(err, "upgrade extension %s", result.Ext.Name)
 			}
 		case actionNoChange:
-			if err := handleExtensionNoop(ctx, kcli, in, result.Ext); err != nil {
+			if err := handleExtensionNoop(ctx, kcli, in, result.Ext, logger); err != nil {
 				return errors.Wrapf(err, "noop extension %s", result.Ext.Name)
 			}
 		case actionUninstall:
@@ -74,14 +74,14 @@ func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ec
 	return nil
 }
 
-func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
-	return handleExtension(ctx, kcli, in, ext, actionInstall, func() error {
+func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, logger logrus.FieldLogger) error {
+	return handleExtension(ctx, kcli, in, ext, actionInstall, logger, func() error {
 		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
 		if err != nil {
 			return errors.Wrap(err, "check if release exists")
 		}
 		if exists {
-			slog.Info("Extension already installed", "name", ext.Name)
+			logger.WithField("name", ext.Name).Info("Extension already installed")
 			return nil
 		}
 		if err := install(ctx, hcli, ext); err != nil {
@@ -91,14 +91,14 @@ func handleExtensionInstall(ctx context.Context, kcli client.Client, hcli helm.C
 	})
 }
 
-func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
-	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
+func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, logger logrus.FieldLogger) error {
+	return handleExtension(ctx, kcli, in, ext, actionUpgrade, logger, func() error {
 		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
 		if err != nil {
 			return errors.Wrap(err, "check if release exists")
 		}
 		if !exists {
-			slog.Info("Extension does not exist, installing instead of upgrading", "name", ext.Name)
+			logger.WithField("name", ext.Name).Info("Extension does not exist, installing instead of upgrading")
 			if err := install(ctx, hcli, ext); err != nil {
 				return errors.Wrap(err, "install")
 			}
@@ -111,21 +111,21 @@ func handleExtensionUpgrade(ctx context.Context, kcli client.Client, hcli helm.C
 	})
 }
 
-func handleExtensionNoop(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
-	return handleExtension(ctx, kcli, in, ext, actionUpgrade, func() error {
-		slog.Info("Extension is up to date", "name", ext.Name)
+func handleExtensionNoop(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, logger logrus.FieldLogger) error {
+	return handleExtension(ctx, kcli, in, ext, actionUpgrade, logger, func() error {
+		logger.WithField("name", ext.Name).Info("Extension is up to date")
 		return nil
 	})
 }
 
-func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart) error {
-	return handleExtension(ctx, kcli, in, ext, actionUninstall, func() error {
+func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, logger logrus.FieldLogger) error {
+	return handleExtension(ctx, kcli, in, ext, actionUninstall, logger, func() error {
 		exists, err := hcli.ReleaseExists(ctx, ext.TargetNS, ext.Name)
 		if err != nil {
 			return errors.Wrap(err, "check if release exists")
 		}
 		if !exists {
-			slog.Info("Extension already uninstalled", "name", ext.Name)
+			logger.WithField("name", ext.Name).Info("Extension already uninstalled")
 			return nil
 		}
 		if err := uninstall(ctx, hcli, ext); err != nil {
@@ -135,15 +135,18 @@ func handleExtensionUninstall(ctx context.Context, kcli client.Client, hcli helm
 	})
 }
 
-func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, processFn func() error) error {
-	slogArgs := slogArgs(ext, action)
+func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Installation, ext ecv1beta1.Chart, action helmAction, logger logrus.FieldLogger, processFn func() error) error {
+	log := logger.WithFields(logrus.Fields{
+		"name":   ext.Name,
+		"action": action,
+	})
 
 	if extensionAlreadyProcessed(in, ext) {
-		slog.Info("Extension already processed", slogArgs...)
+		log.Info("Extension already processed")
 		return nil
 	}
 
-	slog.Info("Extension processing", slogArgs...)
+	log.Info("Extension processing")
 
 	if action != actionNoChange {
 		err := markExtensionAsProcessing(ctx, kcli, in, ext, action)
@@ -155,7 +158,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 	err := processFn()
 	if err != nil {
 		if err := markExtensionAsFailed(ctx, kcli, in, ext, action, err); err != nil {
-			slog.Error("Failed to mark extension as failed", append(slogArgs, "error", err)...)
+			log.WithError(err).Error("Failed to mark extension as failed")
 		}
 		return errors.Wrap(err, "process extension")
 	}
@@ -165,7 +168,7 @@ func handleExtension(ctx context.Context, kcli client.Client, in *ecv1beta1.Inst
 		return errors.Wrap(err, "mark extension as processed")
 	}
 
-	slog.Info("Extension is ready", slogArgs...)
+	log.Info("Extension is ready")
 
 	return nil
 }
@@ -218,8 +221,4 @@ func setCondition(ctx context.Context, kcli client.Client, in *ecv1beta1.Install
 		Reason:  reason,
 		Message: message,
 	})
-}
-
-func slogArgs(ext ecv1beta1.Chart, action helmAction) []any {
-	return []any{"name", ext.Name, "action", action}
 }

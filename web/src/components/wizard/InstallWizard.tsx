@@ -5,7 +5,6 @@ import ConfigurationStep from "./config/ConfigurationStep";
 import LinuxSetupStep from "./setup/LinuxSetupStep";
 import KubernetesSetupStep from "./setup/KubernetesSetupStep";
 import InstallationStep from "./installation/InstallationStep";
-import UpgradeStep from "./installation/UpgradeStep";
 import LinuxCompletionStep from "./completion/LinuxCompletionStep";
 import KubernetesCompletionStep from "./completion/KubernetesCompletionStep";
 import { WizardStep } from "../../types";
@@ -18,10 +17,8 @@ const InstallWizard: React.FC = () => {
   const { text, target, mode } = useWizard();
   let steps: WizardStep[] = []
 
-  // Upgrade workflow (Iteration 3):
-  // - Includes configuration and preflights (handled as phases in UpgradeStep)
-  // - No setup step for upgrades
   if (mode == "upgrade") {
+    // - No setup step for upgrades
     steps = ["welcome", "configuration", "installation", `${target}-completion`]
   } else {
     // install steps
@@ -53,10 +50,6 @@ const InstallWizard: React.FC = () => {
       case "kubernetes-setup":
         return <KubernetesSetupStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "installation":
-        // TODO Upgrade use a dedicated upgrade component while we work on making the upgrade flow similar to installation
-        if (mode == "upgrade") {
-          return <UpgradeStep onNext={goToNextStep} onBack={goToPreviousStep} />;
-        }
         return <InstallationStep onNext={goToNextStep} onBack={goToPreviousStep} />;
       case "linux-completion":
         return <LinuxCompletionStep />;

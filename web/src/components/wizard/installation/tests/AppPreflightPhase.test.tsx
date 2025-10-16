@@ -25,6 +25,7 @@ describe.each([
 ])('AppPreflightPhase - $displayName', ({ target }) => {
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  const mockSetIgnoreAppPreflights = vi.fn();
   let server: ReturnType<typeof createServer>;
 
   beforeAll(() => {
@@ -64,6 +65,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -108,6 +110,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -158,6 +161,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -223,6 +227,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -282,6 +287,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -349,6 +355,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );
@@ -409,6 +416,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );
@@ -457,6 +465,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -502,6 +511,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       {
         wrapperProps: {
@@ -527,127 +537,6 @@ describe.each([
   });
 });
 
-// Additional robust frontend tests for error handling and edge cases
-describe.each([
-  { target: "kubernetes" as const, displayName: "Kubernetes" },
-  { target: "linux" as const, displayName: "Linux" }
-])('AppPreflightPhase - Error Handling & Edge Cases - $displayName', ({ target }) => {
-  let server: ReturnType<typeof createServer>;
-
-  beforeAll(() => {
-    server = createServer(target);
-    server.listen();
-  });
-
-  afterEach(() => server.resetHandlers());
-  afterAll(() => server.close());
-
-  const mockOnNext = vi.fn();
-  const mockOnStateChange = vi.fn();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('handles API error responses gracefully when starting installation', async () => {
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreAppPreflights: false
-        });
-      }),
-      // Mock app install endpoint to return API error
-      http.post(`*/api/${target}/install/app/install`, () => {
-        return HttpResponse.json(
-          {
-            statusCode: 400,
-            message: 'Application preflight checks failed. Cannot proceed with installation.'
-          },
-          { status: 400 }
-        );
-      })
-    );
-
-    renderWithProviders(
-      <TestAppPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { target, authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Application validation successful!')).toBeInTheDocument();
-    });
-
-    // Click Start Installation
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Should show error message instead of proceeding
-    await waitFor(() => {
-      expect(screen.getByText(/Application preflight checks failed. Cannot proceed with installation./)).toBeInTheDocument();
-    });
-
-    // Should NOT proceed to next step
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-
-  it('handles network failure during installation start', async () => {
-    // Mock preflight status endpoint - returns success
-    server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: { fail: [], warn: [], pass: [{ title: 'Test', message: 'Pass' }] },
-          allowIgnoreAppPreflights: false
-        });
-      }),
-      // Mock app install endpoint to return network error
-      http.post(`*/api/${target}/install/app/install`, () => {
-        return HttpResponse.error();
-      })
-    );
-
-    renderWithProviders(
-      <TestAppPreflightPhase
-        onNext={mockOnNext}
-        onStateChange={mockOnStateChange}
-      />,
-      { wrapperProps: { target, authenticated: true } }
-    );
-
-    // Wait for success state
-    await waitFor(() => {
-      expect(screen.getByText('Application validation successful!')).toBeInTheDocument();
-    });
-
-    // Click Start Installation
-    await waitFor(() => {
-      const nextButton = screen.getByTestId('next-button');
-      expect(nextButton).not.toBeDisabled();
-      fireEvent.click(nextButton);
-    });
-
-    // Should show network error message (matches actual fetch error)
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch/)).toBeInTheDocument();
-    });
-
-    // Should NOT proceed to next step
-    expect(mockOnNext).not.toHaveBeenCalled();
-  });
-});
-
 // Tests specifically for onStateChange callback
 describe.each([
   { target: "kubernetes" as const, displayName: "Kubernetes" },
@@ -665,6 +554,7 @@ describe.each([
 
   const mockOnNext = vi.fn();
   const mockOnStateChange = vi.fn();
+  const mockSetIgnoreAppPreflights = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -687,6 +577,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );
@@ -719,6 +610,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );
@@ -760,6 +652,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );
@@ -803,6 +696,7 @@ describe.each([
       <TestAppPreflightPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        setIgnoreAppPreflights={mockSetIgnoreAppPreflights}
       />,
       { wrapperProps: { target, authenticated: true } }
     );

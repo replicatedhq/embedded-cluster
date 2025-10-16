@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
+	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
 	appreleasemanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/release"
@@ -1311,4 +1312,171 @@ func (e *testEnvSetter) Setenv(key string, val string) error {
 	}
 	e.env[key] = val
 	return nil
+}
+
+func TestProcessAirgap(t *testing.T) {
+	tests := []struct {
+		name          string
+		currentState  statemachine.State
+		expectedState statemachine.State
+		setupMocks    func(*airgapmanager.MockAirgapManager, *installation.MockInstallationManager, *types.RegistrySettings, runtimeconfig.RuntimeConfig)
+		expectedErr   bool
+	}{
+		{
+			name:          "successful airgap processing",
+			currentState:  states.StateInfrastructureInstalled,
+			expectedState: states.StateAirgapProcessed,
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
+				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
+				am.On("Process", mock.Anything, rs).Return(nil)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "airgap processing error",
+			currentState:  states.StateInfrastructureInstalled,
+			expectedState: states.StateAirgapProcessingFailed,
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
+				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
+				am.On("Process", mock.Anything, rs).Return(errors.New("processing error"))
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "airgap processing panic",
+			currentState:  states.StateInfrastructureInstalled,
+			expectedState: states.StateAirgapProcessingFailed,
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
+				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
+				am.On("Process", mock.Anything, rs).Panic("this is a panic")
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "invalid state transition",
+			currentState:  states.StateHostConfigured,
+			expectedState: states.StateHostConfigured,
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
+				// No mock setup needed for invalid state transition
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+			rc.SetManagerPort(9001)
+
+			sm := NewStateMachine(
+				WithCurrentState(tt.currentState),
+				WithIsAirgap(true),
+			)
+
+			mockAirgapManager := &airgapmanager.MockAirgapManager{}
+			mockStore := &store.MockStore{}
+			mockInstallationManager := &installation.MockInstallationManager{}
+
+			// Setup expected registry settings
+			expectedRegistrySettings := &types.RegistrySettings{
+				Host:             "registry.local:5000",
+				HasLocalRegistry: true,
+			}
+
+			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc)
+
+			controller, err := NewInstallController(
+				WithRuntimeConfig(rc),
+				WithStateMachine(sm),
+				WithAirgapManager(mockAirgapManager),
+				WithStore(mockStore),
+				WithInstallationManager(mockInstallationManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
+			require.NoError(t, err)
+
+			err = controller.ProcessAirgap(t.Context())
+
+			if tt.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Wait for the goroutine to complete and state to transition
+			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+			mockAirgapManager.AssertExpectations(t)
+			mockInstallationManager.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetAirgapStatus(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupMock     func(*airgapmanager.MockAirgapManager)
+		expectedErr   bool
+		expectedValue types.Airgap
+	}{
+		{
+			name: "successful get status",
+			setupMock: func(m *airgapmanager.MockAirgapManager) {
+				airgapStatus := types.Airgap{
+					Status: types.Status{
+						State:       types.StateSucceeded,
+						Description: "Airgap processing completed",
+					},
+				}
+				m.On("GetStatus").Return(airgapStatus, nil)
+			},
+			expectedErr: false,
+			expectedValue: types.Airgap{
+				Status: types.Status{
+					State:       types.StateSucceeded,
+					Description: "Airgap processing completed",
+				},
+			},
+		},
+		{
+			name: "get status error",
+			setupMock: func(m *airgapmanager.MockAirgapManager) {
+				m.On("GetStatus").Return(nil, errors.New("get status error"))
+			},
+			expectedErr:   true,
+			expectedValue: types.Airgap{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockManager := &airgapmanager.MockAirgapManager{}
+			tt.setupMock(mockManager)
+
+			controller, err := NewInstallController(
+				WithAirgapManager(mockManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+			)
+			require.NoError(t, err)
+
+			result, err := controller.GetAirgapStatus(t.Context())
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Equal(t, types.Airgap{}, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedValue, result)
+			}
+
+			mockManager.AssertExpectations(t)
+		})
+	}
 }

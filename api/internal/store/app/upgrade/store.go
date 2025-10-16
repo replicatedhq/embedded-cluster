@@ -3,6 +3,7 @@ package appupgrade
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/tiendc/go-deepcopy"
@@ -38,7 +39,14 @@ func WithAppUpgrade(appUpgrade types.AppUpgrade) StoreOption {
 
 // NewMemoryStore creates a new memory store
 func NewMemoryStore(opts ...StoreOption) Store {
-	s := &memoryStore{}
+	s := &memoryStore{
+		appUpgrade: types.AppUpgrade{
+			Status: types.Status{
+				State:       types.StatePending,
+				LastUpdated: time.Now(),
+			},
+		},
+	}
 
 	for _, opt := range opts {
 		opt(s)

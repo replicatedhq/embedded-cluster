@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { useAuth } from "../../../../contexts/AuthContext";
@@ -9,14 +9,16 @@ import { State, AppInstallStatus } from "../../../../types";
 import { getApiBase } from '../../../../utils/api-base';
 import ErrorMessage from "../shared/ErrorMessage";
 import { ApiError } from '../../../../utils/api-error';
+import { useStartAppInstallation } from '../../../../mutations/useMutations';
 
 interface AppInstallationPhaseProps {
   onNext: () => void;
   setNextButtonConfig: (config: NextButtonConfig) => void;
   onStateChange: (status: State) => void;
+  ignoreAppPreflights: boolean;
 }
 
-const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
+const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange, ignoreAppPreflights }) => {
   const { text, target, mode } = useWizard();
   const { settings } = useSettings();
   const { token } = useAuth();
@@ -24,6 +26,8 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const [installationComplete, setInstallationComplete] = useState(false);
   const [installationSuccess, setInstallationSuccess] = useState(false);
   const themeColor = settings.themeColor;
+  const startAppInstallation = useStartAppInstallation();
+  const mutationStarted = useRef(false);
 
   // Query to poll app installation status
   const { data: appInstallStatus, error: appStatusError } = useQuery<AppInstallStatus, Error>({
@@ -44,6 +48,25 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
     enabled: isPolling,
     refetchInterval: 2000,
   });
+
+  // Handle mutation callbacks
+  useEffect(() => {
+    if (startAppInstallation.isSuccess) {
+      setIsPolling(true);
+    }
+    if (startAppInstallation.isError) {
+      setIsPolling(false);
+      onStateChange('Failed');
+    }
+  }, [startAppInstallation.isSuccess, startAppInstallation.isError]);
+
+  // Auto-trigger mutation when status is Pending
+  useEffect(() => {
+    if (appInstallStatus?.status?.state === "Pending" && !mutationStarted.current) {
+      mutationStarted.current = true;
+      startAppInstallation.mutate({ ignoreAppPreflights });
+    }
+  }, [appInstallStatus?.status?.state]);
 
   const handleInstallationComplete = useCallback((success: boolean) => {
     setInstallationComplete(true);
@@ -137,6 +160,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
 
       {renderInstallationStatus()}
 
+      {startAppInstallation.error && <ErrorMessage error={startAppInstallation.error.message} />}
       {appStatusError && <ErrorMessage error={appStatusError?.message} />}
     </div>
   );

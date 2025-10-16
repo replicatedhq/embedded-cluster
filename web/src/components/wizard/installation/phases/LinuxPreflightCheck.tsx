@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Button from "../../../common/Button";
 import { PreflightOutput, HostPreflightResponse } from "../../../../types";
 import { useWizard } from "../../../../contexts/WizardModeContext";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { getApiBase } from '../../../../utils/api-base';
 import { ApiError } from '../../../../utils/api-error';
+import { useRunHostPreflights } from "../../../../mutations/useMutations";
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -19,15 +19,16 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
-  const { token } = useAuth();
+  const runHostPreflights = useRunHostPreflights();
+  const mutationStarted = useRef(false);
 
   const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
   const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
-    if (preflightsRunError) {
-      return preflightsRunError.message;
+    if (runHostPreflights.error) {
+      return runHostPreflights.error.message;
     }
     if (preflightResponse?.status?.state === "Failed") {
       return preflightResponse?.status?.description;
@@ -36,29 +37,17 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   };
 
   const apiBase = getApiBase(target, mode);
-  // Mutation to run preflight checks
-  const { mutate: runPreflights, error: preflightsRunError } = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`${apiBase}/host-preflights/run`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to run preflight checks")
-      }
-      return response.json() as Promise<HostPreflightResponse>;
-    },
-    onSuccess: () => {
+
+  // Handle mutation callbacks
+  useEffect(() => {
+    if (runHostPreflights.isSuccess) {
       setIsPreflightsPolling(true);
       onRun();
-    },
-    onError: () => {
+    }
+    if (runHostPreflights.isError) {
       setIsPreflightsPolling(false);
-    },
-  });
+    }
+  }, [runHostPreflights.isSuccess, runHostPreflights.isError]);
 
   // Query to poll preflight status
   const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
@@ -82,6 +71,14 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     // the button doesn't incorrectly appear enabled due to stale cached data.
     gcTime: 0,
   });
+
+  // Auto-trigger mutation when status is Pending
+  useEffect(() => {
+    if (preflightResponse?.status?.state === "Pending" && !mutationStarted.current) {
+      mutationStarted.current = true;
+      runHostPreflights.mutate();
+    }
+  }, [preflightResponse?.status?.state]);
 
   // Handle preflight status changes
   useEffect(() => {
@@ -210,7 +207,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
           <li>• Re-run the validation once issues are addressed</li>
         </ul>
         <div className="mt-4">
-          <Button onClick={() => runPreflights()} icon={<RefreshCw className="w-4 h-4" />}>
+          <Button onClick={() => runHostPreflights.mutate()} icon={<RefreshCw className="w-4 h-4" />}>
             Run Validation Again
           </Button>
         </div>

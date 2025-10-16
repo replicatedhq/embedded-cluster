@@ -201,8 +201,13 @@ func TestKubernetesConfigureInstallation(t *testing.T) {
 				err = json.NewDecoder(rec.Body).Decode(&status)
 				require.NoError(t, err)
 
-				// Verify that the status is not pending
-				assert.NotEqual(t, types.StatePending, status.State)
+				// Wait for the state to transition from Pending (async operation should start quickly)
+				assert.Eventually(t, func() bool {
+					status, err := installController.GetInstallationStatus(t.Context())
+					require.NoError(t, err)
+					t.Logf("Installation Status: %s", status.State)
+					return status.State != types.StatePending
+				}, 5*time.Second, 100*time.Millisecond, "Installation configuration state did not transition from Pending")
 			}
 
 			// We might not have an expected status if the test is expected to fail before running the controller logic

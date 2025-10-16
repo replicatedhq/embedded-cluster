@@ -173,3 +173,18 @@ func (m *MockController) GetAppUpgradeStatus(ctx context.Context) (types.AppUpgr
 	args := m.Called(ctx)
 	return args.Get(0).(types.AppUpgrade), args.Error(1)
 }
+
+// ProcessAirgap mocks the ProcessAirgap method
+func (m *MockController) ProcessAirgap(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+// GetAirgapStatus mocks the GetAirgapStatus method
+func (m *MockController) GetAirgapStatus(ctx context.Context) (types.Airgap, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return types.Airgap{}, args.Error(1)
+	}
+	return args.Get(0).(types.Airgap), args.Error(1)
+}

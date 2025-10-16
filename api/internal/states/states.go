@@ -39,6 +39,12 @@ const (
 	StateInfrastructureInstallFailed statemachine.State = "InfrastructureInstallFailed"
 	// StateInfrastructureInstalled is the state of the install process when the infrastructure install has succeeded
 	StateInfrastructureInstalled statemachine.State = "InfrastructureInstalled"
+	// StateAirgapProcessing is the state when the airgap bundle is being processed
+	StateAirgapProcessing statemachine.State = "AirgapProcessing"
+	// StateAirgapProcessed is the state when the airgap bundle has been successfully processed
+	StateAirgapProcessed statemachine.State = "AirgapProcessed"
+	// StateAirgapProcessingFailed is a final state when the airgap bundle processing failed
+	StateAirgapProcessingFailed statemachine.State = "AirgapProcessingFailed"
 	// StateInfrastructureUpgrading is the state of the upgrade process when the infrastructure is being upgraded
 	StateInfrastructureUpgrading statemachine.State = "InfrastructureUpgrading"
 	// StateInfrastructureUpgradeFailed is a final state of the upgrade process when the infrastructure failed to upgrade

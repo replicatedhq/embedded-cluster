@@ -68,9 +68,13 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
 });
 
 export const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { title, installTarget, mode } = useInitialState();
+  const { title, installTarget, mode, isAirgap, requiresInfraUpgrade } = useInitialState();
   const isLinux = installTarget === "linux";
   const text = getTextVariations(isLinux, title)[mode];
 
-  return <WizardContext.Provider value={{ mode, target: installTarget, text }}>{children}</WizardContext.Provider>;
+  return (
+    <WizardContext.Provider value={{ mode, target: installTarget, text, isAirgap, requiresInfraUpgrade }}>
+      {children}
+    </WizardContext.Provider>
+  );
 };

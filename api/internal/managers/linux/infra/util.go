@@ -3,6 +3,8 @@ package infra
 import (
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -12,6 +14,27 @@ import (
 	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// logWriter is an io.Writer that captures output and feeds it to the logs
+type logWriter struct {
+	manager   *infraManager
+	component string
+}
+
+func (m *infraManager) newLogWriter(component string) io.Writer {
+	return &logWriter{
+		manager:   m,
+		component: component,
+	}
+}
+
+func (lw *logWriter) Write(p []byte) (n int, err error) {
+	output := strings.TrimSpace(string(p))
+	if output != "" {
+		lw.manager.addLogs(lw.component, "%s", output)
+	}
+	return len(p), nil
+}
 
 func (m *infraManager) waitForNode(ctx context.Context, kcli client.Client) error {
 	nodename, err := nodeutil.GetHostname("")

@@ -4,12 +4,8 @@ import { Modal } from "../../../common/Modal";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
-import { useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../../../contexts/AuthContext";
 import { NextButtonConfig, BackButtonConfig } from "../types";
 import { State } from "../../../../types";
-import { getApiBase } from '../../../../utils/api-base';
-import { ApiError } from '../../../../utils/api-error';
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;
@@ -17,20 +13,15 @@ interface LinuxPreflightPhaseProps {
   setNextButtonConfig: (config: NextButtonConfig) => void;
   setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
+  setIgnoreHostPreflights: (ignore: boolean) => void;
 }
 
-interface StartInstallationRequest {
-  ignoreHostPreflights: boolean;
-}
-
-const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
-  const { text, target, mode } = useWizard();
+const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange, setIgnoreHostPreflights }) => {
+  const { text } = useWizard();
   const [preflightComplete, setPreflightComplete] = React.useState(false);
   const [preflightSuccess, setPreflightSuccess] = React.useState(false);
   const [allowIgnoreHostPreflights, setAllowIgnoreHostPreflights] = React.useState(false);
   const [showPreflightModal, setShowPreflightModal] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const { token } = useAuth();
 
   const onRun = useCallback(() => {
     setPreflightComplete(false);
@@ -46,39 +37,11 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
     onStateChange(success ? 'Succeeded' : 'Failed');
   }, []);
 
-  const { mutate: startInstallation } = useMutation<unknown, ApiError, StartInstallationRequest>({
-    mutationFn: async ({ ignoreHostPreflights }) => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/infra/setup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ignoreHostPreflights: ignoreHostPreflights
-        }),
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start installation")
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      setError(null); // Clear any previous errors
-      onNext();
-    },
-    onError: (err: ApiError) => {
-      // share the error message from the API
-      setError(err.details || err.message);
-    },
-  });
-
   const handleNextClick = () => {
     // If preflights passed, proceed normally
     if (preflightSuccess) {
-      startInstallation({ ignoreHostPreflights: false }); // No need to ignore preflights
+      setIgnoreHostPreflights(false); // No need to ignore preflights
+      onNext();
       return;
     }
 
@@ -95,7 +58,8 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
 
   const handleConfirmProceed = () => {
     setShowPreflightModal(false);
-    startInstallation({ ignoreHostPreflights: true }); // User confirmed they want to ignore preflight failures
+    setIgnoreHostPreflights(true); // User confirmed they want to ignore preflight failures
+    onNext();
   };
 
   const canProceed = useMemo(() => {
@@ -144,8 +108,6 @@ const LinuxPreflightPhase: React.FC<LinuxPreflightPhaseProps> = ({ onNext, onBac
       </div>
 
       <LinuxPreflightCheck onRun={onRun} onComplete={onComplete} />
-
-      {error && <div className="mt-4 p-3 bg-red-50 text-red-500 rounded-md">{error}</div>}
 
       {showPreflightModal && (
         <Modal

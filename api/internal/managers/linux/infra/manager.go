@@ -26,8 +26,7 @@ var _ InfraManager = &infraManager{}
 type InfraManager interface {
 	Get() (types.Infra, error)
 	Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
-	Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
-	RequiresUpgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig) (bool, error)
+	Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) error
 }
 
 // infraManager is an implementation of the InfraManager interface

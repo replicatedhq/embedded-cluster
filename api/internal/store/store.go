@@ -1,6 +1,7 @@
 package store
 
 import (
+	"github.com/replicatedhq/embedded-cluster/api/internal/store/airgap"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	apppreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
@@ -41,6 +42,9 @@ type Store interface {
 
 	// AppUpgradeStore provides access to app upgrade operations
 	AppUpgradeStore() appupgrade.Store
+
+	// AirgapStore provides access to airgap operations
+	AirgapStore() airgap.Store
 }
 
 // StoreOption is a function that configures a store
@@ -102,6 +106,13 @@ func WithAppUpgradeStore(store appupgrade.Store) StoreOption {
 	}
 }
 
+// WithAirgapStore sets the airgap store
+func WithAirgapStore(store airgap.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.airgapStore = store
+	}
+}
+
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
@@ -115,6 +126,7 @@ type memoryStore struct {
 	appPreflightStore apppreflight.Store
 	appInstallStore   appinstall.Store
 	appUpgradeStore   appupgrade.Store
+	airgapStore       airgap.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -161,6 +173,10 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.appUpgradeStore = appupgrade.NewMemoryStore()
 	}
 
+	if s.airgapStore == nil {
+		s.airgapStore = airgap.NewMemoryStore()
+	}
+
 	return s
 }
 
@@ -198,4 +214,8 @@ func (s *memoryStore) AppInstallStore() appinstall.Store {
 
 func (s *memoryStore) AppUpgradeStore() appupgrade.Store {
 	return s.appUpgradeStore
+}
+
+func (s *memoryStore) AirgapStore() airgap.Store {
+	return s.airgapStore
 }

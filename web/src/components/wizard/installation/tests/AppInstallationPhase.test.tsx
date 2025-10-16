@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -51,6 +51,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -83,6 +84,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -122,6 +124,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -167,6 +170,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -214,6 +218,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -247,6 +252,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -280,6 +286,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -320,6 +327,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -362,6 +370,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -404,6 +413,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -424,7 +434,7 @@ describe.each([
     server.use(
       http.get(`*/api/${target}/${mode}/app/status`, () => {
         return HttpResponse.json({
-          status: { 
+          status: {
             state: 'Running'
           }
         });
@@ -435,6 +445,7 @@ describe.each([
       <TestAppInstallationPhase
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
+        ignoreAppPreflights={false}
       />,
       {
         wrapperProps: {
@@ -453,3 +464,107 @@ describe.each([
 
   }); // end of mode describe
 }); // end of target describe
+
+// Tests for mutation behavior (errors, success, validation)
+describe.each([
+  { target: "kubernetes" as const, displayName: "Kubernetes" },
+  { target: "linux" as const, displayName: "Linux" }
+])('AppInstallationPhase - Mutation Behavior - $displayName', ({ target }) => {
+  describe.each([
+    { mode: "install" as const, modeDisplayName: "Install Mode" },
+    { mode: "upgrade" as const, modeDisplayName: "Upgrade Mode" }
+  ])('$modeDisplayName', ({ mode }) => {
+    let server: ReturnType<typeof createServer>;
+
+    beforeAll(() => {
+      server = createServer(target, mode);
+      server.listen();
+    });
+
+    afterEach(() => server.resetHandlers());
+    afterAll(() => server.close());
+
+    const mockOnNext = vi.fn();
+    const mockOnStateChange = vi.fn();
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('handles API error responses gracefully when starting installation', async () => {
+      // Mock app status endpoint to return Pending state to trigger mutation
+      server.use(
+        http.get(`*/api/${target}/${mode}/app/status`, () => {
+          return HttpResponse.json({
+            status: { state: 'Pending', description: 'Waiting to start...' }
+          });
+        }),
+        // Mock app install/upgrade endpoint to return API error
+        http.post(`*/api/${target}/${mode}/app/${mode}`, () => {
+          return HttpResponse.json(
+            {
+              statusCode: 400,
+              message: 'Application preflight checks failed. Cannot proceed with installation.'
+            },
+            { status: 400 }
+          );
+        })
+      );
+
+      renderWithProviders(
+        <TestAppInstallationPhase
+          onNext={mockOnNext}
+          onStateChange={mockOnStateChange}
+          ignoreAppPreflights={false}
+        />,
+        { wrapperProps: { target, mode, authenticated: true } }
+      );
+
+      // Should show error message when mutation fails
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toBeInTheDocument();
+      });
+
+      // Should call onStateChange with "Failed"
+      expect(mockOnStateChange).toHaveBeenCalledWith('Failed');
+
+      // Should NOT proceed to next step
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+
+    it('handles network failure during installation start', async () => {
+      // Mock app status endpoint to return Pending state to trigger mutation
+      server.use(
+        http.get(`*/api/${target}/${mode}/app/status`, () => {
+          return HttpResponse.json({
+            status: { state: 'Pending', description: 'Waiting to start...' }
+          });
+        }),
+        // Mock app install/upgrade endpoint to return network error
+        http.post(`*/api/${target}/${mode}/app/${mode}`, () => {
+          return HttpResponse.error();
+        })
+      );
+
+      renderWithProviders(
+        <TestAppInstallationPhase
+          onNext={mockOnNext}
+          onStateChange={mockOnStateChange}
+          ignoreAppPreflights={false}
+        />,
+        { wrapperProps: { target, mode, authenticated: true } }
+      );
+
+      // Should show error message when network fails
+      await waitFor(() => {
+        expect(screen.getByTestId('error-message')).toBeInTheDocument();
+      });
+
+      // Should call onStateChange with "Failed"
+      expect(mockOnStateChange).toHaveBeenCalledWith('Failed');
+
+      // Should NOT proceed to next step
+      expect(mockOnNext).not.toHaveBeenCalled();
+    });
+  });
+});

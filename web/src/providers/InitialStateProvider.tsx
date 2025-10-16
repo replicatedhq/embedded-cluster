@@ -30,6 +30,8 @@ export const InitialStateProvider: React.FC<{ children: React.ReactNode }> = ({
     icon: initialState.icon,
     installTarget: parseInstallationTarget(initialState.installTarget || defaultInitialState.installTarget),
     mode: parseWizardMode(initialState.mode || defaultInitialState.mode),
+    isAirgap: initialState.isAirgap ?? defaultInitialState.isAirgap,
+    requiresInfraUpgrade: initialState.requiresInfraUpgrade ?? defaultInitialState.requiresInfraUpgrade,
   };
 
   return (

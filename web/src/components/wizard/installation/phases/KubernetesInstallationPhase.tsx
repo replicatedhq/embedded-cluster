@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation } from "@tanstack/react-query";
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery } from "@tanstack/react-query";
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useWizard } from '../../../../contexts/WizardModeContext';
@@ -11,6 +11,7 @@ import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { getApiBase } from '../../../../utils/api-base';
 import { ApiError } from '../../../../utils/api-error';
+import { useStartInfraSetup } from '../../../../mutations/useMutations';
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;
@@ -18,9 +19,10 @@ interface KubernetesInstallationPhaseProps {
   setNextButtonConfig: (config: NextButtonConfig) => void;
   setBackButtonConfig: (config: BackButtonConfig) => void;
   onStateChange: (status: State) => void;
+  ignoreHostPreflights: boolean;
 }
 
-const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange }) => {
+const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = ({ onNext, onBack, setNextButtonConfig, setBackButtonConfig, onStateChange, ignoreHostPreflights }) => {
   const { token } = useAuth();
   const { settings } = useSettings();
   const { mode } = useWizard();
@@ -28,6 +30,8 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
+  const startInfraSetup = useStartInfraSetup();
+  const mutationStarted = useRef(false);
 
   // Query to poll infra status
   const { data: infraStatusResponse, error: infraStatusError } = useQuery<InfraStatusResponse, Error>({
@@ -49,29 +53,24 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
     refetchInterval: 2000,
   });
 
-  // Mutation for starting app preflights
-  const { mutate: startAppPreflights, error: startAppPreflightsError } = useMutation({
-    mutationFn: async () => {
-      const apiBase = getApiBase("kubernetes", mode);
-      const response = await fetch(`${apiBase}/app-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
+  // Handle mutation callbacks
+  useEffect(() => {
+    if (startInfraSetup.isSuccess) {
+      setIsInfraPolling(true);
+    }
+    if (startInfraSetup.isError) {
+      setIsInfraPolling(false);
+      onStateChange('Failed');
+    }
+  }, [startInfraSetup.isSuccess, startInfraSetup.isError]);
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start app preflight checks")
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      onNext();
-    },
-  });
-
+  // Auto-trigger mutation when status is Pending
+  useEffect(() => {
+    if (infraStatusResponse?.status?.state === "Pending" && !mutationStarted.current) {
+      mutationStarted.current = true;
+      startInfraSetup.mutate({ ignoreHostPreflights });
+    }
+  }, [infraStatusResponse?.status?.state]);
 
   // Report that step is running when component mounts
   useEffect(() => {
@@ -128,7 +127,7 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
         onToggle={() => setShowLogs(!showLogs)}
       />
 
-      {startAppPreflightsError && <ErrorMessage error={startAppPreflightsError?.message} />}
+      {startInfraSetup.error && <ErrorMessage error={startInfraSetup.error.message} />}
       {infraStatusError && <ErrorMessage error={infraStatusError?.message} />}
       {infraStatusResponse?.status?.state === 'Failed' && <ErrorMessage error={infraStatusResponse?.status?.description} />}
     </div>
@@ -138,9 +137,9 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
   useEffect(() => {
     setNextButtonConfig({
       disabled: !installComplete,
-      onClick: () => startAppPreflights(),
+      onClick: onNext,
     });
-  }, [installComplete]);
+  }, [installComplete, onNext]);
 
   // Update back button configuration
   useEffect(() => {

@@ -58,7 +58,9 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 		ClusterID:    m.clusterID,
 		AirgapBundle: m.airgapBundle,
 		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
-		SkipPreflights:        os.Getenv("ENABLE_V3") == "1",
+		SkipPreflights: true,
+		// Skip pushing images to the registry since we do it separately earlier in the install process
+		DisableImagePush:      true,
 		ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		Stdout:                m.newLogWriter(),
 	}

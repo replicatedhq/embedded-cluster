@@ -31,6 +31,7 @@ type InstallOptions struct {
 	ConfigValuesFile      string
 	ReplicatedAppEndpoint string
 	SkipPreflights        bool
+	DisableImagePush      bool
 	Stdout                io.Writer
 }
 
@@ -70,6 +71,9 @@ func Install(opts InstallOptions) error {
 		"--app-version-label",
 		appVersionLabel,
 		"--exclude-admin-console",
+	}
+	if opts.DisableImagePush {
+		installArgs = append(installArgs, "--disable-image-push")
 	}
 	if opts.AirgapBundle != "" {
 		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
@@ -327,6 +331,8 @@ func Deploy(opts DeployOptions) error {
 
 		deployArgs = append(deployArgs, "--license", licenseFile)
 		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
+		// Disable image push since we handle it separately earlier in the install / upgrade process
+		deployArgs = append(deployArgs, "--disable-image-push")
 	} else {
 		// Online deployment - add channel info
 		if opts.ChannelID == "" {
@@ -364,6 +370,53 @@ func Deploy(opts DeployOptions) error {
 	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, deployArgs...)
 	if err != nil {
 		return fmt.Errorf("run deploy command: %w", err)
+	}
+
+	return nil
+}
+
+// PushImagesOptions represents options for pushing images to a registry
+type PushImagesOptions struct {
+	AirgapBundle     string
+	RegistryAddress  string
+	RegistryUsername string
+	RegistryPassword string
+	ClusterID        string
+	Stdout           io.Writer
+}
+
+// PushImages pushes application images to a registry using kots admin-console push-images
+func PushImages(opts PushImagesOptions) error {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	pushArgs := []string{
+		"admin-console",
+		"push-images",
+		opts.AirgapBundle,
+		opts.RegistryAddress,
+		"--registry-username",
+		opts.RegistryUsername,
+		"--registry-password",
+		opts.RegistryPassword,
+	}
+
+	runCommandOptions := helpers.RunCommandOptions{
+		LogOnSuccess: true,
+		Env: map[string]string{
+			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+		},
+	}
+	if opts.Stdout != nil {
+		runCommandOptions.Stdout = opts.Stdout
+	}
+
+	err = helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, pushArgs...)
+	if err != nil {
+		return fmt.Errorf("push images: %w", err)
 	}
 
 	return nil

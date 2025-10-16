@@ -132,32 +132,6 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     gcTime: 0,
   });
 
-
-  // Mutation for starting host preflights
-  const { mutate: startHostPreflights } = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`${apiBase}/host-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, 'Failed to start preflight checks')
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      onNext();
-    },
-    onError: (err: ApiError) => {
-      setError(err.details || err.message);
-    },
-  });
-
   // Mutation for submitting the configuration
   const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, LinuxConfig>({
     mutationFn: async (configData) => {
@@ -199,18 +173,18 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   }, [submitError]);
 
 
-  // Trigger host preflights when installation status polling finishes
+  // Trigger next step when installation status polling finishes
   useEffect(() => {
     if (installationStatus?.state === "Failed") {
       setIsInstallationStatusPolling(false);
       setError(`Installation configuration failed with: ${installationStatus.description}`)
-      return; // Prevent running preflights if failed
+      return;
     }
     if (installationStatus?.state === "Succeeded") {
       setIsInstallationStatusPolling(false);
-      startHostPreflights();
+      onNext();
     }
-  }, [installationStatus]);
+  }, [installationStatus, onNext]);
 
 
   // Handle input changes for text and number inputs

@@ -83,3 +83,12 @@ func (m *MockInstallationManager) CalculateRegistrySettings(ctx context.Context,
 	}
 	return args.Get(0).(*types.RegistrySettings), args.Error(1)
 }
+
+// GetRegistrySettings mocks the GetRegistrySettings method
+func (m *MockInstallationManager) GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
+	args := m.Called(ctx, rc)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.RegistrySettings), args.Error(1)
+}

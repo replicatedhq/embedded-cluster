@@ -9,12 +9,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Base state transitions that are common to both upgrade flows regardless of whether infra upgrade is required or not
+// Base state transitions that are common to all upgrade flows
 var baseStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateNew:                            {states.StateApplicationConfiguring},
 	states.StateApplicationConfiguring:         {states.StateApplicationConfigured, states.StateApplicationConfigurationFailed},
 	states.StateApplicationConfigurationFailed: {states.StateApplicationConfiguring},
-	states.StateApplicationConfigured:          {states.StateApplicationConfiguring}, // Common transition, will add more based on infra requirement
+	states.StateApplicationConfigured:          {states.StateApplicationConfiguring}, // Will add more based on airgap/infra requirements
 	states.StateAppPreflightsRunning:           {states.StateAppPreflightsSucceeded, states.StateAppPreflightsFailed, states.StateAppPreflightsExecutionFailed},
 	states.StateAppPreflightsExecutionFailed:   {states.StateAppPreflightsRunning},
 	states.StateAppPreflightsSucceeded:         {states.StateAppPreflightsRunning, states.StateAppUpgrading},
@@ -26,6 +26,13 @@ var baseStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateAppUpgradeFailed: {},
 }
 
+// Airgap-specific state transitions
+var airgapStateTransitions = map[statemachine.State][]statemachine.State{
+	states.StateAirgapProcessing:       {states.StateAirgapProcessed, states.StateAirgapProcessingFailed},
+	states.StateAirgapProcessed:        {}, // Will add transitions based on infra requirement
+	states.StateAirgapProcessingFailed: {},
+}
+
 // Infrastructure-specific state transitions
 var infraStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateInfrastructureUpgrading: {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
@@ -34,28 +41,47 @@ var infraStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateInfrastructureUpgradeFailed: {},
 }
 
-// Build state transitions based on whether infra upgrade is required
-func buildStateTransitions(requiresInfraUpgrade bool) map[statemachine.State][]statemachine.State {
+// Build state transitions based on whether infra upgrade is required and whether airgap is present
+func buildStateTransitions(requiresInfraUpgrade bool, isAirgap bool) map[statemachine.State][]statemachine.State {
 	transitions := make(map[statemachine.State][]statemachine.State)
 
 	// Copy base transitions
 	maps.Copy(transitions, baseStateTransitions)
 
+	// Add airgap-specific transitions if needed
+	if isAirgap {
+		maps.Copy(transitions, airgapStateTransitions)
+
+		// Add airgap processing as next state from ApplicationConfigured
+		transitions[states.StateApplicationConfigured] = append(
+			transitions[states.StateApplicationConfigured],
+			states.StateAirgapProcessing,
+		)
+
+		// Add next state from AirgapProcessed based on infra requirement
+		if requiresInfraUpgrade {
+			transitions[states.StateAirgapProcessed] = []statemachine.State{states.StateInfrastructureUpgrading}
+		} else {
+			transitions[states.StateAirgapProcessed] = []statemachine.State{states.StateAppPreflightsRunning}
+		}
+	} else {
+		// No airgap, add transitions based on infra requirement
+		if requiresInfraUpgrade {
+			transitions[states.StateApplicationConfigured] = append(
+				transitions[states.StateApplicationConfigured],
+				states.StateInfrastructureUpgrading,
+			)
+		} else {
+			transitions[states.StateApplicationConfigured] = append(
+				transitions[states.StateApplicationConfigured],
+				states.StateAppPreflightsRunning,
+			)
+		}
+	}
+
 	// Add infrastructure-specific transitions if needed
 	if requiresInfraUpgrade {
 		maps.Copy(transitions, infraStateTransitions)
-
-		// Add infrastructure upgrade as next state from ApplicationConfigured
-		transitions[states.StateApplicationConfigured] = append(
-			transitions[states.StateApplicationConfigured],
-			states.StateInfrastructureUpgrading,
-		)
-	} else {
-		// Add app preflights as next state from ApplicationConfigured
-		transitions[states.StateApplicationConfigured] = append(
-			transitions[states.StateApplicationConfigured],
-			states.StateAppPreflightsRunning,
-		)
 	}
 
 	return transitions
@@ -65,6 +91,7 @@ type StateMachineOptions struct {
 	CurrentState         statemachine.State
 	Logger               logrus.FieldLogger
 	RequiresInfraUpgrade bool
+	IsAirgap             bool
 }
 
 type StateMachineOption func(*StateMachineOptions)
@@ -87,6 +114,12 @@ func WithRequiresInfraUpgrade(requiresInfraUpgrade bool) StateMachineOption {
 	}
 }
 
+func WithIsAirgap(isAirgap bool) StateMachineOption {
+	return func(o *StateMachineOptions) {
+		o.IsAirgap = isAirgap
+	}
+}
+
 // NewStateMachine creates a new state machine starting in the New state
 func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 	options := &StateMachineOptions{
@@ -97,7 +130,7 @@ func NewStateMachine(opts ...StateMachineOption) statemachine.Interface {
 		opt(options)
 	}
 
-	validStateTransitions := buildStateTransitions(options.RequiresInfraUpgrade)
+	validStateTransitions := buildStateTransitions(options.RequiresInfraUpgrade, options.IsAirgap)
 
 	return statemachine.New(options.CurrentState, validStateTransitions, statemachine.WithLogger(options.Logger))
 }

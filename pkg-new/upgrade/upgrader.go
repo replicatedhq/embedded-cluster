@@ -106,7 +106,7 @@ func (u *infraUpgrader) UpgradeAddons(ctx context.Context, in *ecv1beta1.Install
 
 // UpgradeExtensions upgrades all extensions
 func (u *infraUpgrader) UpgradeExtensions(ctx context.Context, in *ecv1beta1.Installation) error {
-	return upgradeExtensions(ctx, u.kubeClient, u.helmClient, in)
+	return upgradeExtensions(ctx, u.kubeClient, u.helmClient, in, u.logger)
 }
 
 // CreateHostSupportBundle creates a host support bundle after upgrade
