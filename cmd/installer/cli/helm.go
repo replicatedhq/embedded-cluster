@@ -2,10 +2,10 @@ package cli
 
 import (
 	"context"
-	"log/slog"
 	"os"
 
 	// Import to initialize client auth plugins.
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -23,11 +23,20 @@ func HelmCmd(ctx context.Context) *cobra.Command {
 	// manager as picked up by the automated name detection.
 	kube.ManagedFieldsManager = "helm"
 
-	cmd, err := helmcmd.NewRootCmd(os.Stdout, os.Args[1:], helmcmd.SetupLogging)
+	// Strip off "<app-name> helm" from the args and pass the rest of the args to HelmCmd
+	if len(os.Args) < 2 {
+		logrus.Fatalf("insufficient arguments for helm command: %v", os.Args)
+	}
+	osArgs := os.Args[2:]
+
+	cmd, err := helmcmd.NewRootCmd(os.Stdout, osArgs, helmcmd.SetupLogging)
 	if err != nil {
-		slog.Warn("command failed", slog.Any("error", err))
+		logrus.Infof("command failed: %v", err)
 		os.Exit(1)
 	}
 
+	// Hide the helm subcommand from the help output.
+	// We wrap it inside a script that's accessible in the shell.
+	cmd.Hidden = true
 	return cmd
 }

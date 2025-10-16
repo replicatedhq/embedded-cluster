@@ -163,6 +163,11 @@ func openInteractiveShell(shpath string, rc runtimeconfig.RuntimeConfig) error {
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
+		helmcomppath := rc.PathToEmbeddedClusterBinary("helm_completion_bash.sh")
+		config = fmt.Sprintf("source <(cat %s)\n", helmcomppath)
+		_, _ = shellpty.WriteString(config)
+		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
 		config = "source /etc/bash_completion\n"
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

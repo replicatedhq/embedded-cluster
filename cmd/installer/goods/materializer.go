@@ -90,6 +90,9 @@ func (m *Materializer) Materialize() error {
 	if err := m.Kubectl(); err != nil {
 		return fmt.Errorf("unable to materialize kubectl: %w", err)
 	}
+	if err := m.Helm(); err != nil {
+		return fmt.Errorf("unable to materialize helm: %w", err)
+	}
 	if err := m.SupportFiles(); err != nil {
 		return fmt.Errorf("unable to materialize embedded support files: %w", err)
 	}
@@ -226,6 +229,7 @@ func (m *Materializer) Binaries() error {
 
 const (
 	kubectlScript = "#!/bin/sh\nexec %s kubectl \"$@\""
+	helmScript    = "#!/bin/sh\nexec %s helm \"$@\""
 )
 
 func (m *Materializer) Kubectl() error {
@@ -248,6 +252,27 @@ func (m *Materializer) Kubectl() error {
 	}
 	if err := os.WriteFile(dstpath, contentBytes, 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
+	}
+	return nil
+}
+
+func (m *Materializer) Helm() error {
+	dstpath := m.rc.PathToEmbeddedClusterBinary("helm")
+	_ = os.RemoveAll(dstpath)
+	installerPath := m.rc.PathToEmbeddedClusterBinary(runtimeconfig.AppSlug())
+	content := fmt.Sprintf(helmScript, installerPath)
+	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
+		return fmt.Errorf("write helm script: %w", err)
+	}
+
+	dstpath = m.rc.PathToEmbeddedClusterBinary("helm_completion_bash.sh")
+	_ = os.RemoveAll(dstpath)
+	contentBytes, err := completionAliasBash("helm", fmt.Sprintf("%s helm", installerPath))
+	if err != nil {
+		return fmt.Errorf("generate helm completion: %w", err)
+	}
+	if err := os.WriteFile(dstpath, contentBytes, 0755); err != nil {
+		return fmt.Errorf("write helm completion: %w", err)
 	}
 	return nil
 }
