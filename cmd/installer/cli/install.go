@@ -644,6 +644,9 @@ func runManagerExperienceInstall(
 	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) (finalErr error) {
+	// Set the KotsadmNamespace to the appSlug for new installations
+	constants.KotsadmNamespace = flags.license.Spec.AppSlug
+
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()

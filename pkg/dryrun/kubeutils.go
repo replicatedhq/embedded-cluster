@@ -64,8 +64,12 @@ func (k *KubeUtils) WaitForNodes(ctx context.Context, cli client.Client) error {
 	return nil
 }
 
-func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error {
+func (k *KubeUtils) WaitForNode(ctx context.Context, cli client.Client, name string, isWorker bool) error {
 	return nil
+}
+
+func (k *KubeUtils) NamespaceExists(ctx context.Context, cli client.Client, ns string) (bool, error) {
+	return true, nil
 }
 
 func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {

@@ -7,6 +7,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,7 +72,7 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 	// Get the job that was created
 	job := &batchv1.Job{}
 	err = cli.Get(context.Background(), client.ObjectKey{
-		Namespace: upgradeJobNamespace,
+		Namespace: constants.KotsadmNamespace,
 		Name:      "embedded-cluster-upgrade-test-installation",
 	}, job)
 	require.NoError(t, err)
@@ -151,7 +152,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: upgradeJobNamespace,
+			Namespace: constants.KotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)
@@ -260,7 +261,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: upgradeJobNamespace,
+			Namespace: constants.KotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)

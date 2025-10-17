@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,7 +38,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		Group:    "",
 		Version:  "v1",
 		Resource: "configmaps",
-	}).Namespace(_namespace).Get(ctx, PrivateCASConfigMapName, metav1.GetOptions{})
+	}).Namespace(constants.KotsadmNamespace).Get(ctx, PrivateCASConfigMapName, metav1.GetOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("get configmap metadata: %w", err)
 	}
@@ -118,7 +119,7 @@ func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      PrivateCASConfigMapName,
-			Namespace: _namespace,
+			Namespace: constants.KotsadmNamespace,
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",

@@ -354,6 +354,19 @@ func (k *KubeUtils) WaitForNode(ctx context.Context, kcli client.Client, name st
 	return nil
 }
 
+// NamespaceExists returns true if the namespace exists, false if it doesn't exist.
+// Returns an error only if there's an issue other than NotFound.
+func (k *KubeUtils) NamespaceExists(ctx context.Context, cli client.Client, ns string) (bool, error) {
+	if err := cli.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{}); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get namespace %s: %w", ns, err)
+	}
+
+	return true, nil
+}
+
 func (k *KubeUtils) IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {
 	var namespace corev1.Namespace
 	if err := cli.Get(ctx, client.ObjectKey{Name: ns}, &namespace); err != nil {

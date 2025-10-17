@@ -248,6 +248,11 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.licenseBytes = data
 
+	// Continue using "kotsadm" namespace if it exists for backwards compatibility, otherwise use the appSlug
+	if err := setKotsadmNamespace(ctx, kcli, appSlug); err != nil {
+		return fmt.Errorf("failed to set kotsadm namespace: %w", err)
+	}
+
 	if flags.airgapBundle != "" {
 		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
 		if err != nil {
@@ -431,6 +436,21 @@ func readPasswordHash(ctx context.Context, kcli client.Client) ([]byte, error) {
 	}
 
 	return passwordBcryptData, nil
+}
+
+// setKotsadmNamespace sets the KotsadmNamespace variable based on whether the kotsadm namespace exists
+// If the "kotsadm" namespace exists, keep using it for backwards compatibility, otherwise use the appSlug
+func setKotsadmNamespace(ctx context.Context, kcli client.Client, appSlug string) error {
+	constants.KotsadmNamespace = appSlug
+	exists, err := kubeutils.NamespaceExists(ctx, kcli, "kotsadm")
+	if err != nil {
+		return fmt.Errorf("check if kotsadm namespace exists: %w", err)
+	}
+	if exists {
+		constants.KotsadmNamespace = "kotsadm"
+	}
+
+	return nil
 }
 
 func runManagerExperienceUpgrade(

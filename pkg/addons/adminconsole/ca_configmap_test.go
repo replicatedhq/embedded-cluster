@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -33,7 +34,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      PrivateCASConfigMapName,
-				Namespace: _namespace,
+				Namespace: constants.KotsadmNamespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
 				},
@@ -66,7 +67,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: constants.KotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				assert.True(t, k8serrors.IsNotFound(err), "ConfigMap should not exist")
@@ -89,7 +90,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: constants.KotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -120,7 +121,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: constants.KotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -152,7 +153,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: constants.KotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
