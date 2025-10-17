@@ -191,7 +191,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			kcli, mcli := tt.initClients(t)
 
 			logf := func(format string, args ...any) {} // discard logs
-			err := EnsureCAConfigmap(context.Background(), logf, kcli, mcli, caPath)
+			err := EnsureCAConfigmap(context.Background(), logf, kcli, mcli, constants.KotsadmNamespace, caPath)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("EnsureCAConfigmap() error = %v, wantErr %v", err, tt.wantErr)
 			}

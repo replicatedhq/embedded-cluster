@@ -33,6 +33,7 @@ type EmbeddedClusterOperator struct {
 	IsAirgap         bool
 	Proxy            *ecv1beta1.ProxySpec
 	HostCABundlePath string
+	KotsadmNamespace string
 
 	ChartLocationOverride string
 	ChartVersionOverride  string

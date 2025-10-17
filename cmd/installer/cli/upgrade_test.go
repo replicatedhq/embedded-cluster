@@ -355,6 +355,73 @@ func Test_readTLSConfig(t *testing.T) {
 	}
 }
 
+func Test_setKotsadmNamespace(t *testing.T) {
+	tests := []struct {
+		name             string
+		appSlug          string
+		kotsadmNamespace *corev1.Namespace
+		wantNamespace    string
+		wantErr          string
+	}{
+		{
+			name:    "kotsadm namespace exists - use kotsadm for backwards compatibility",
+			appSlug: "my-app",
+			kotsadmNamespace: &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "kotsadm",
+				},
+			},
+			wantNamespace: "kotsadm",
+		},
+		{
+			name:             "kotsadm namespace does not exist - use appSlug",
+			appSlug:          "my-app",
+			kotsadmNamespace: nil,
+			wantNamespace:    "my-app",
+		},
+		{
+			name:             "kotsadm namespace does not exist and no appSlug - defaults to kotsadm",
+			appSlug:          "",
+			kotsadmNamespace: nil,
+			wantNamespace:    "kotsadm",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			// Reset the namespace before each test
+			constants.KotsadmNamespace = "kotsadm"
+
+			// Create fake Kubernetes client
+			scheme := runtime.NewScheme()
+			err := corev1.AddToScheme(scheme)
+			req.NoError(err)
+
+			var objects []client.Object
+			if tt.kotsadmNamespace != nil {
+				objects = append(objects, tt.kotsadmNamespace)
+			}
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(objects...).
+				Build()
+
+			err = setKotsadmNamespace(context.Background(), fakeClient, tt.appSlug)
+
+			if tt.wantErr != "" {
+				req.Error(err)
+				req.Contains(err.Error(), tt.wantErr)
+			} else {
+				req.NoError(err)
+				req.Equal(tt.wantNamespace, constants.KotsadmNamespace)
+			}
+		})
+	}
+}
+
 func Test_preRunUpgrade(t *testing.T) {
 	tests := []struct {
 		name          string

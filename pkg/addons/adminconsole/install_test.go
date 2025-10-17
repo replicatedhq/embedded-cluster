@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -43,7 +44,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      PrivateCASConfigMapName,
-				Namespace: _namespace,
+				Namespace: constants.KotsadmNamespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
 				},

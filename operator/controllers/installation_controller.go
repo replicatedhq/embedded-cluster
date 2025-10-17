@@ -478,19 +478,25 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 		return nil
 	}
 
-	err := r.Get(ctx, types.NamespacedName{Name: "kotsadm"}, &corev1.Namespace{})
-	if k8serrors.IsNotFound(err) {
-		// if the namespace has not been created yet, we don't need to reconcile the CA configmap
+	kotsadmNamespace := os.Getenv("KOTSADM_NAMESPACE")
+	if kotsadmNamespace == "" {
+		kotsadmNamespace = "kotsadm" // fallback for backwards compatibility
+	}
+
+	// if the namespace has not been created yet, we don't need to reconcile the CA configmap
+	exists, err := kubeutils.NamespaceExists(ctx, r.Client, kotsadmNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to check if kotsadm namespace exists: %w", err)
+	}
+	if !exists {
 		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to get kotsadm namespace: %w", err)
 	}
 
 	logger := ctrl.LoggerFrom(ctx)
 	logf := func(format string, args ...interface{}) {
 		logger.Info(fmt.Sprintf(format, args...))
 	}
-	err = adminconsole.EnsureCAConfigmap(ctx, logf, r.Client, r.MetadataClient, caPathInContainer)
+	err = adminconsole.EnsureCAConfigmap(ctx, logf, r.Client, r.MetadataClient, kotsadmNamespace, caPathInContainer)
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		logger.Error(err, "Failed to reconcile host ca bundle")
 		return nil

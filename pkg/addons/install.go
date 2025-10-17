@@ -33,6 +33,7 @@ type InstallOptions struct {
 	ClusterID               string
 	DisasterRecoveryEnabled bool
 	HostCABundlePath        string
+	KotsadmNamespace        string
 	DataDir                 string
 	K0sDataDir              string
 	OpenEBSDataDir          string
@@ -155,6 +156,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
+			KotsadmNamespace: opts.KotsadmNamespace,
 		},
 	}
 

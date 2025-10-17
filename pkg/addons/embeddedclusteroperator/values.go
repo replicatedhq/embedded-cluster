@@ -102,6 +102,13 @@ func (e *EmbeddedClusterOperator) GenerateHelmValues(ctx context.Context, kcli c
 		}...)
 	}
 
+	if e.KotsadmNamespace != "" {
+		extraEnvVars = append(extraEnvVars, map[string]any{
+			"name":  "KOTSADM_NAMESPACE",
+			"value": e.KotsadmNamespace,
+		})
+	}
+
 	copiedValues["extraEnv"] = extraEnvVars
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts

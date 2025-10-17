@@ -441,13 +441,13 @@ func readPasswordHash(ctx context.Context, kcli client.Client) ([]byte, error) {
 // setKotsadmNamespace sets the KotsadmNamespace variable based on whether the kotsadm namespace exists
 // If the "kotsadm" namespace exists, keep using it for backwards compatibility, otherwise use the appSlug
 func setKotsadmNamespace(ctx context.Context, kcli client.Client, appSlug string) error {
-	constants.KotsadmNamespace = appSlug
+	constants.KotsadmNamespace = "kotsadm"
 	exists, err := kubeutils.NamespaceExists(ctx, kcli, "kotsadm")
 	if err != nil {
 		return fmt.Errorf("check if kotsadm namespace exists: %w", err)
 	}
-	if exists {
-		constants.KotsadmNamespace = "kotsadm"
+	if !exists && appSlug != "" {
+		constants.KotsadmNamespace = appSlug
 	}
 
 	return nil
