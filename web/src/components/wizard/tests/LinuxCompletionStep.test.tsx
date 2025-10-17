@@ -1,7 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxCompletionStep from "../completion/LinuxCompletionStep.tsx";
+import { LinuxConfigResponse } from "../../../types";
+
+const MOCK_CONFIG: LinuxConfigResponse = {
+  values: {
+    adminConsolePort: 8800,
+    dataDirectory: "/var/lib/embedded-cluster",
+  },
+  defaults: {
+    adminConsolePort: 8800,
+    dataDirectory: "/var/lib/embedded-cluster",
+  },
+  resolved: {
+    adminConsolePort: 8800,
+    dataDirectory: "/var/lib/embedded-cluster",
+  },
+};
+
+const createServer = () => setupServer(
+  http.get(`*/api/linux/install/installation/config`, () => {
+    return HttpResponse.json(MOCK_CONFIG);
+  })
+);
 
 // Mock window.open
 const mockOpen = vi.fn();
@@ -11,36 +35,175 @@ Object.defineProperty(window, 'open', {
 });
 
 describe("LinuxCompletionStep", () => {
-  beforeEach(() => {
-    mockOpen.mockClear();
-    // Mock window.location.hostname
-    Object.defineProperty(window, 'location', {
-      value: { hostname: 'localhost' },
-      writable: true,
-    });
+  let server: ReturnType<typeof createServer>;
+
+  beforeAll(() => {
+    server = createServer();
+    server.listen();
   });
 
-  it("renders completion message and button", () => {
+  beforeEach(() => {
+    mockOpen.mockClear();
+  });
+
+  afterEach(() => {
+    server.resetHandlers();
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    server.close();
+  });
+
+  it("shows loading state initially", () => {
     renderWithProviders(<LinuxCompletionStep />, {
       wrapperProps: {
         authenticated: true,
+        target: "linux",
+        mode: "install",
       },
+    });
+
+    expect(screen.getByTestId("linux-completion-loading")).toBeInTheDocument();
+    expect(screen.getByText("Loading installation configuration...")).toBeInTheDocument();
+  });
+
+  it("renders completion message and button after loading", async () => {
+    renderWithProviders(<LinuxCompletionStep />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "linux",
+        mode: "install",
+      },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("linux-completion-loading")).not.toBeInTheDocument();
     });
 
     expect(screen.getByTestId("completion-message")).toBeInTheDocument();
     expect(screen.getByTestId("admin-console-button")).toBeInTheDocument();
   });
 
-  it("opens admin console when button is clicked", () => {
+  it("opens admin console when button is clicked", async () => {
     renderWithProviders(<LinuxCompletionStep />, {
       wrapperProps: {
         authenticated: true,
+        target: "linux",
+        mode: "install",
       },
+    });
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByTestId("linux-completion-loading")).not.toBeInTheDocument();
     });
 
     const button = screen.getByTestId("admin-console-button");
     fireEvent.click(button);
 
-    expect(mockOpen).toHaveBeenCalledWith("http://localhost:8800", "_blank");
+    // Verify window.open was called with the correct port (hostname will vary in tests)
+    expect(mockOpen).toHaveBeenCalledTimes(1);
+    const [url, target] = mockOpen.mock.calls[0];
+    expect(url).toContain(`:${MOCK_CONFIG.resolved.adminConsolePort}`);
+    expect(target).toBe("_blank");
   });
-}); 
+
+  it("displays error state when API returns ApiError with details", async () => {
+    server.use(
+      http.get("*/api/linux/install/installation/config", () => {
+        return HttpResponse.json(
+          { message: "Internal server error" },
+          { status: 500 }
+        );
+      })
+    );
+
+    renderWithProviders(<LinuxCompletionStep />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "linux",
+        mode: "install",
+      },
+    });
+
+    // Wait for error state to appear
+    await waitFor(() => {
+      expect(screen.getByTestId("linux-completion-error")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
+    expect(screen.getByText("Internal server error")).toBeInTheDocument();
+  });
+
+  it("displays error state with generic error message when no details provided", async () => {
+    server.use(
+      http.get("*/api/linux/install/installation/config", () => {
+        return HttpResponse.json(
+          { error: "Failed to fetch configuration" },
+          { status: 500 }
+        );
+      })
+    );
+
+    renderWithProviders(<LinuxCompletionStep />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "linux",
+        mode: "install",
+      },
+    });
+
+    // Wait for error state to appear
+    await waitFor(() => {
+      expect(screen.getByTestId("linux-completion-error")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
+    expect(screen.getByText("Failed to fetch install configuration")).toBeInTheDocument();
+  });
+
+  it("displays error state when API returns 401 unauthorized", async () => {
+    server.use(
+      http.get("*/api/linux/install/installation/config", () => {
+        return HttpResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      })
+    );
+
+    renderWithProviders(<LinuxCompletionStep />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "linux",
+        mode: "install",
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("linux-completion-error")).toBeInTheDocument();
+    });
+  });
+
+  it("displays error state with network error message", async () => {
+    server.use(
+      http.get("*/api/linux/install/installation/config", () => {
+        return HttpResponse.error();
+      })
+    );
+
+    renderWithProviders(<LinuxCompletionStep />, {
+      wrapperProps: {
+        authenticated: true,
+        target: "linux",
+        mode: "install",
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("linux-completion-error")).toBeInTheDocument();
+    });
+  });
+});

@@ -4,13 +4,12 @@ import Select from "../../common/Select";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
 import { useInitialState } from "../../../contexts/InitialStateContext";
-import { useLinuxConfig } from "../../../contexts/LinuxConfigContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { LinuxConfig, State } from "../../../types";
+import { LinuxConfigResponse, LinuxConfig, State } from "../../../types";
 import { getApiBase } from '../../../utils/api-base';
 import { ApiError } from '../../../utils/api-error';
 
@@ -45,12 +44,6 @@ interface Status {
   description?: string;
 }
 
-interface LinuxConfigResponse {
-  values: LinuxConfig;
-  defaults: LinuxConfig;
-  resolved: LinuxConfig;
-}
-
 interface InstallationStatusResponse {
   description: string;
   lastUpdated: string;
@@ -62,7 +55,6 @@ interface NetworkInterfacesResponse {
 }
 
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
-  const { updateConfig } = useLinuxConfig(); // We need to make sure to update the global config
   const { text, target, mode } = useWizard();
   const { title } = useInitialState();
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(false);
@@ -86,8 +78,6 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
         throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
       }
       const configResponse = await response.json();
-      // Update the global config with resolved config which includes user values and defaults.
-      updateConfig(configResponse.resolved);
       // Store defaults for display in help text
       setDefaults(configResponse.defaults);
       // Store the config values for display in the form inputs
@@ -150,8 +140,6 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       return response.json();
     },
     onSuccess: () => {
-      // Update the global (context) config we use accross the project
-      updateConfig(configValues);
       // Clear any previous errors
       setError(null);
       // Start polling installation status

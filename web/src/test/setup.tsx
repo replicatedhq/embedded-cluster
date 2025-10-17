@@ -5,12 +5,10 @@ import { createMemoryRouter, RouterProvider, RouteObject } from "react-router-do
 import { vi } from "vitest";
 import { JSX } from "react/jsx-runtime";
 
-import { InitialState, LinuxConfig, KubernetesConfig, WizardText } from "../types";
+import { InitialState, WizardText } from "../types";
 import { InstallationTarget } from "../types/installation-target";
 import { WizardMode } from "../types/wizard-mode";
 import { createQueryClient } from "../query-client";
-import { LinuxConfigContext } from "../contexts/LinuxConfigContext";
-import { KubernetesConfigContext } from "../contexts/KubernetesConfigContext";
 import { SettingsContext, Settings } from "../contexts/SettingsContext";
 import { WizardContext } from "../contexts/WizardModeContext";
 import { InitialStateContext } from "../contexts/InitialStateContext";
@@ -84,16 +82,6 @@ interface MockProviderProps {
   queryClient: ReturnType<typeof createQueryClient>;
   contexts: {
     initialStateContext: InitialState
-    linuxConfigContext: {
-      config: LinuxConfig;
-      updateConfig: (newConfig: Partial<LinuxConfig>) => void;
-      resetConfig: () => void;
-    };
-    kubernetesConfigContext: {
-      config: KubernetesConfig;
-      updateConfig: (newConfig: Partial<KubernetesConfig>) => void;
-      resetConfig: () => void;
-    };
     settingsContext: {
       settings: Settings;
       updateSettings: (newSettings: Partial<Settings>) => void;
@@ -129,15 +117,11 @@ const MockProvider = ({ children, queryClient, contexts }: MockProviderProps) =>
       <QueryClientProvider client={queryClient}>
         <AuthContext.Provider value={{ ...contexts.authContext, isLoading: false }}>
           <InstallationProgressProvider>
-            <LinuxConfigContext.Provider value={contexts.linuxConfigContext}>
-              <KubernetesConfigContext.Provider value={contexts.kubernetesConfigContext}>
-                <SettingsContext.Provider value={contexts.settingsContext}>
-                  <WizardContext.Provider value={contexts.wizardModeContext}>
-                    {children}
-                  </WizardContext.Provider>
-                </SettingsContext.Provider>
-              </KubernetesConfigContext.Provider>
-            </LinuxConfigContext.Provider>
+            <SettingsContext.Provider value={contexts.settingsContext}>
+              <WizardContext.Provider value={contexts.wizardModeContext}>
+                {children}
+              </WizardContext.Provider>
+            </SettingsContext.Provider>
           </InstallationProgressProvider>
         </AuthContext.Provider>
       </QueryClientProvider>
@@ -170,22 +154,6 @@ export const renderWithProviders = (
       mode: options.wrapperProps?.mode || "install",
       isAirgap: false,
       requiresInfraUpgrade: false
-    },
-    linuxConfigContext: {
-      config: {
-        adminConsolePort: 8800,
-        dataDirectory: "/var/lib/embedded-cluster",
-      },
-      updateConfig: vi.fn(),
-      resetConfig: vi.fn(),
-    },
-    kubernetesConfigContext: {
-      config: {
-        adminConsolePort: 8080,
-        installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
-      },
-      updateConfig: vi.fn(),
-      resetConfig: vi.fn(),
     },
     settingsContext: {
       settings: {
@@ -237,8 +205,6 @@ export const renderWithProviders = (
 
   const mergedContextValues: MockProviderProps["contexts"] = {
     initialStateContext: { ...defaultContextValues.initialStateContext, ...options.wrapperProps?.contextValues?.initialStateContext },
-    linuxConfigContext: { ...defaultContextValues.linuxConfigContext, ...options.wrapperProps?.contextValues?.linuxConfigContext },
-    kubernetesConfigContext: { ...defaultContextValues.kubernetesConfigContext, ...options.wrapperProps?.contextValues?.kubernetesConfigContext },
     settingsContext: { ...defaultContextValues.settingsContext, ...options.wrapperProps?.contextValues?.settingsContext },
     wizardModeContext: { ...defaultContextValues.wizardModeContext, ...options.wrapperProps?.contextValues?.wizardModeContext },
     authContext: { ...defaultContextValues.authContext, ...options.wrapperProps?.contextValues?.authContext },
