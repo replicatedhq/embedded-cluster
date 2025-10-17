@@ -188,6 +188,9 @@ func (e *Engine) getFuncMap() template.FuncMap {
 
 		// Airgap template functions
 		"IsAirgap": e.isAirgap,
+
+		// App template functions
+		"Namespace": e.namespace,
 	}
 }
 

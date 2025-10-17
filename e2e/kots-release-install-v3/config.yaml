@@ -649,3 +649,11 @@ spec:
             ---
 
             {{repl VersionLabel }}
+
+        - name: template_function_namespace
+          type: label
+          title: |
+            ## Namespace
+            ---
+
+            {{repl Namespace }}
