@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -44,14 +45,15 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 		charts := metadata.Configs.Charts
 
 		hcli, err := helm.NewClient(helm.HelmOptions{
-			K0sVersion: metadata.Versions["Kubernetes"],
+			HelmPath:   "helm", // use the helm binary in PATH
+			K8sVersion: metadata.Versions["Kubernetes"],
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create helm client: %w", err)
 		}
 		defer hcli.Close()
 
-		images, err := extractImagesFromHelmExtensions(hcli, repos, charts)
+		images, err := extractImagesFromHelmExtensions(c.Context, hcli, repos, charts)
 		if err != nil {
 			return fmt.Errorf("failed to extract images from helm extensions: %w", err)
 		}
@@ -79,7 +81,7 @@ func readMetadataFromFile(path string) (*types.ReleaseMetadata, error) {
 	return &metadata, nil
 }
 
-func extractImagesFromHelmExtensions(hcli helm.Client, repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart) ([]string, error) {
+func extractImagesFromHelmExtensions(ctx context.Context, hcli helm.Client, repos []k0sv1beta1.Repository, charts []embeddedclusterv1beta1.Chart) ([]string, error) {
 	for _, entry := range repos {
 		log.Printf("Adding helm repository %s", entry.Name)
 		repo := &repo.Entry{
@@ -94,7 +96,7 @@ func extractImagesFromHelmExtensions(hcli helm.Client, repos []k0sv1beta1.Reposi
 		if entry.Insecure != nil {
 			repo.InsecureSkipTLSverify = *entry.Insecure
 		}
-		err := hcli.AddRepo(repo)
+		err := hcli.AddRepo(ctx, repo)
 		if err != nil {
 			return nil, fmt.Errorf("add helm repository %s: %w", entry.Name, err)
 		}

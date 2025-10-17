@@ -10,10 +10,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 type Controller interface {
@@ -24,14 +24,15 @@ type Controller interface {
 var _ Controller = (*UpgradeController)(nil)
 
 type UpgradeController struct {
-	restClientGetter genericclioptions.RESTClientGetter
-	releaseData      *release.ReleaseData
-	license          []byte
-	airgapBundle     string
-	configValues     types.AppConfigValues
-	store            store.Store
-	stateMachine     statemachine.Interface
-	logger           logrus.FieldLogger
+	kubernetesEnvSettings *helmcli.EnvSettings
+	hcli                  helm.Client
+	releaseData           *release.ReleaseData
+	license               []byte
+	airgapBundle          string
+	configValues          types.AppConfigValues
+	store                 store.Store
+	stateMachine          statemachine.Interface
+	logger                logrus.FieldLogger
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -44,9 +45,15 @@ func WithLogger(logger logrus.FieldLogger) UpgradeControllerOption {
 	}
 }
 
-func WithRESTClientGetter(restClientGetter genericclioptions.RESTClientGetter) UpgradeControllerOption {
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) UpgradeControllerOption {
 	return func(c *UpgradeController) {
-		c.restClientGetter = restClientGetter
+		c.kubernetesEnvSettings = envSettings
+	}
+}
+
+func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.hcli = hcli
 	}
 }
 
@@ -110,9 +117,9 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 		controller.stateMachine = NewStateMachine(WithStateMachineLogger(controller.logger))
 	}
 
-	// If none is provided, use the default env settings from helm to create a RESTClientGetter
-	if controller.restClientGetter == nil {
-		controller.restClientGetter = helmcli.New().RESTClientGetter()
+	// If none is provided, use the default env settings from helm
+	if controller.kubernetesEnvSettings == nil {
+		controller.kubernetesEnvSettings = helmcli.New()
 	}
 
 	// Initialize the app controller with the state machine
@@ -126,6 +133,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithConfigValues(controller.configValues),
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
+			appcontroller.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

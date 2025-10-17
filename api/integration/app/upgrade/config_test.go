@@ -18,6 +18,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -25,6 +26,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 type AppConfigTestSuite struct {
@@ -358,19 +360,21 @@ func TestAppConfigSuite(t *testing.T) {
 					linuxupgrade.WithStateMachine(linuxupgrade.NewStateMachine(linuxupgrade.WithCurrentState(state))),
 					linuxupgrade.WithConfigValues(configValues),
 					linuxupgrade.WithReleaseData(releaseData),
+					linuxupgrade.WithHelmClient(&helm.MockClient{}),
 					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
 				require.NoError(t, err)
 
 				apiInstance, err := api.New(types.APIConfig{
-					Password:    "password",
-					ReleaseData: releaseData,
-					Mode:        types.ModeUpgrade,
-					Target:      types.TargetLinux,
+					InstallTarget: types.InstallTargetLinux,
+					Password:      "password",
+					ReleaseData:   releaseData,
+					Mode:          types.ModeUpgrade,
 				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				return apiInstance
@@ -389,18 +393,21 @@ func TestAppConfigSuite(t *testing.T) {
 					kubernetesupgrade.WithStateMachine(kubernetesupgrade.NewStateMachine(kubernetesupgrade.WithCurrentState(state))),
 					kubernetesupgrade.WithConfigValues(configValues),
 					kubernetesupgrade.WithReleaseData(releaseData),
+					kubernetesupgrade.WithHelmClient(&helm.MockClient{}),
+					kubernetesupgrade.WithKubernetesEnvSettings(helmcli.New()),
 				)
 				require.NoError(t, err)
 
 				apiInstance, err := api.New(types.APIConfig{
-					Password:    "password",
-					ReleaseData: releaseData,
-					Mode:        types.ModeUpgrade,
-					Target:      types.TargetKubernetes,
+					InstallTarget: types.InstallTargetKubernetes,
+					Password:      "password",
+					ReleaseData:   releaseData,
+					Mode:          types.ModeUpgrade,
 				},
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				return apiInstance

@@ -51,6 +51,7 @@ func (o *OpenEBS) Upgrade(
 		Values:       values,
 		Namespace:    o.Namespace(),
 		Force:        false,
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

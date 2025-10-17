@@ -41,6 +41,14 @@ jobs:
         echo "troubleshoot version: $version"
         sed -i "/^TROUBLESHOOT_VERSION/c\TROUBLESHOOT_VERSION = $version" versions.mk
 
+    - name: Helm
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        version=$(gh release list --repo helm/helm --json tagName,isLatest | jq -r '.[] | select(.isLatest) | .tagName')
+        echo "helm version: $version"
+        sed -i "/^HELM_VERSION/c\HELM_VERSION = $version" versions.mk
+
     - name: FIO
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

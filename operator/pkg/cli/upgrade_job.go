@@ -64,11 +64,8 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
-				K0sVersion: versions.K0sVersion,
+				K8sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
-				LogFn: func(format string, v ...interface{}) {
-					logger.WithField("component", "helm").Infof(format, v...)
-				},
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create helm client: %w", err)

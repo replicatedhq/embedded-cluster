@@ -22,6 +22,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -71,11 +72,12 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	installController, err := linuxinstall.NewInstallController(
 		linuxinstall.WithHostPreflightManager(manager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -140,7 +142,7 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 		mockController.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -218,23 +220,25 @@ func TestGetHostPreflightsStatusWithIgnoreFlag(t *testing.T) {
 			installController, err := linuxinstall.NewInstallController(
 				linuxinstall.WithHostPreflightManager(manager),
 				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+				linuxinstall.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
 			// Create the API with allow ignore host preflights flag
 			apiInstance, err := api.New(
 				types.APIConfig{
-					Password: "password",
+					InstallTarget: types.InstallTargetLinux,
+					Password:      "password",
 					LinuxConfig: types.LinuxConfig{
 						AllowIgnoreHostPreflights: tt.allowIgnoreHostPreflights,
 					},
 					ReleaseData: integration.DefaultReleaseData(),
 					Mode:        types.ModeInstall,
-					Target:      types.TargetLinux,
 				},
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
+				api.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -306,6 +310,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 				},
 				AppConfig: &kotsv1beta1.Config{},
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
@@ -341,7 +346,7 @@ func TestPostRunHostPreflights(t *testing.T) {
 		)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -404,12 +409,13 @@ func TestPostRunHostPreflights(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -461,12 +467,13 @@ func TestPostRunHostPreflights(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -519,12 +526,13 @@ func TestPostRunHostPreflights(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -590,12 +598,13 @@ func TestPostRunHostPreflights(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &kotsv1beta1.Config{},
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),

@@ -616,9 +616,10 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 	hcli, err := helm.NewClient(helm.HelmOptions{
-		KubeConfig: rc.PathToKubeConfig(),
-		K0sVersion: versions.K0sVersion,
-		AirgapPath: airgapChartsPath,
+		HelmPath:              rc.PathToEmbeddedClusterBinary("helm"),
+		KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
+		K8sVersion:            versions.K0sVersion,
+		AirgapPath:            airgapChartsPath,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to create helm client: %w", err)

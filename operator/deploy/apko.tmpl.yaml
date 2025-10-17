@@ -8,6 +8,7 @@ contents:
   packages:
     - ec-operator  # This is expected to be built locally by `melange`.
     - ca-certificates-bundle
+    - helm
 
 accounts:
   groups:

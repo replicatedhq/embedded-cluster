@@ -117,7 +117,7 @@ func TestNewKubeClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process kubernetes config for kube client",
+			errorContains: "invalid kubeconfig path",
 		},
 		{
 			name: "error with invalid kubeconfig content",
@@ -128,7 +128,7 @@ func TestNewKubeClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process kubernetes config for kube client",
+			errorContains: "invalid kubeconfig path",
 		},
 		{
 			name: "error with RESTClientGetter returning error",
@@ -140,7 +140,7 @@ func TestNewKubeClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process rest client config for kube client",
+			errorContains: "invalid rest client getter",
 		},
 	}
 
@@ -214,7 +214,7 @@ func TestNewMetadataClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process kubernetes config for kube client",
+			errorContains: "invalid kubeconfig path",
 		},
 		{
 			name: "error with invalid kubeconfig content",
@@ -225,7 +225,7 @@ func TestNewMetadataClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process kubernetes config for kube client",
+			errorContains: "invalid kubeconfig path",
 		},
 		{
 			name: "error with RESTClientGetter returning error",
@@ -237,7 +237,7 @@ func TestNewMetadataClient(t *testing.T) {
 				}
 			},
 			expectedError: true,
-			errorContains: "unable to process rest client config for kube client",
+			errorContains: "invalid rest client getter",
 		},
 	}
 

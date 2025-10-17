@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -46,6 +47,7 @@ type AppController struct {
 	logger                     logrus.FieldLogger
 	license                    []byte
 	releaseData                *release.ReleaseData
+	hcli                       helm.Client
 	store                      store.Store
 	configValues               types.AppConfigValues
 	clusterID                  string
@@ -106,6 +108,12 @@ func WithLicense(license []byte) AppControllerOption {
 func WithReleaseData(releaseData *release.ReleaseData) AppControllerOption {
 	return func(c *AppController) {
 		c.releaseData = releaseData
+	}
+}
+
+func WithHelmClient(hcli helm.Client) AppControllerOption {
+	return func(c *AppController) {
+		c.hcli = hcli
 	}
 }
 
@@ -202,6 +210,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appreleasemanager.WithLicense(license),
 			appreleasemanager.WithIsAirgap(controller.airgapBundle != ""),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
+			appreleasemanager.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)

@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -27,6 +28,7 @@ type appReleaseManager struct {
 	privateCACertConfigMapName string
 
 	templateEngine *template.Engine
+	hcli           helm.Client
 	logger         logrus.FieldLogger
 }
 
@@ -47,6 +49,12 @@ func WithReleaseData(releaseData *release.ReleaseData) AppReleaseManagerOption {
 func WithTemplateEngine(templateEngine *template.Engine) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.templateEngine = templateEngine
+	}
+}
+
+func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.hcli = hcli
 	}
 }
 
@@ -80,6 +88,10 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 
 	if manager.releaseData == nil {
 		return nil, fmt.Errorf("release data not found")
+	}
+
+	if manager.hcli == nil {
+		return nil, fmt.Errorf("helm client is required")
 	}
 
 	if manager.logger == nil {

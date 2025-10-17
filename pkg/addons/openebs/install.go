@@ -27,6 +27,7 @@ func (o *OpenEBS) Install(
 		ChartVersion: Metadata.Version,
 		Values:       values,
 		Namespace:    o.Namespace(),
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

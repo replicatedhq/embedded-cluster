@@ -54,6 +54,30 @@ func InternalBinary(name string) (string, error) {
 	return dstpath.Name(), nil
 }
 
+// Binary materializes a binary from inside bins directory
+// and writes it to a tmp file. It returns the path to the materialized binary.
+// The binary should be deleted after it is used.
+// This is primarily intended for short-lived, internal-use binaries.
+func Binary(name string) (string, error) {
+	srcpath := fmt.Sprintf("bins/%s", name)
+	srcfile, err := binfs.ReadFile(srcpath)
+	if err != nil {
+		return "", fmt.Errorf("unable to read asset: %w", err)
+	}
+	dstpath, err := os.CreateTemp("", fmt.Sprintf("embedded-cluster-%s-bin-", name))
+	if err != nil {
+		return "", fmt.Errorf("unable to create temp file: %w", err)
+	}
+	defer dstpath.Close()
+	if _, err := dstpath.Write(srcfile); err != nil {
+		return "", fmt.Errorf("unable to write file: %w", err)
+	}
+	if err := dstpath.Chmod(0755); err != nil {
+		return "", fmt.Errorf("unable to set executable permissions: %w", err)
+	}
+	return dstpath.Name(), nil
+}
+
 // LocalArtifactMirrorUnitFile writes to disk the local-artifact-mirror systemd unit file.
 func (m *Materializer) LocalArtifactMirrorUnitFile() error {
 	content, err := systemdfs.ReadFile("systemd/local-artifact-mirror.service")

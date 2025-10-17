@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -303,11 +304,12 @@ func TestLinuxConfigureInstallation(t *testing.T) {
 				linuxinstall.WithHostUtils(tc.mockHostUtils),
 				linuxinstall.WithNetUtils(tc.mockNetUtils),
 				linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+				linuxinstall.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
 			// Create the API with the install controller
-			apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+			apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 				api.WithLinuxInstallController(installController),
 				api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 				api.WithLogger(logger.NewDiscardLogger()),
@@ -399,11 +401,12 @@ func TestLinuxConfigureInstallationValidation(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -459,10 +462,11 @@ func TestLinuxConfigureInstallationBadRequest(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostConfigured))),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -494,7 +498,7 @@ func TestLinuxConfigureInstallationControllerError(t *testing.T) {
 	mockController.On("ConfigureInstallation", mock.Anything, mock.Anything).Return(assert.AnError)
 
 	// Create the API with the mock controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLinuxInstallController(mockController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -549,6 +553,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		linuxinstall.WithRuntimeConfig(rc),
 		linuxinstall.WithInstallationManager(installationManager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -564,7 +569,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithLinuxInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -628,11 +633,12 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithInstallationManager(emptyInstallationManager),
 			linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		emptyAPI := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		emptyAPI := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(emptyInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -706,7 +712,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		mockController.On("GetInstallationConfig", mock.Anything).Return(types.LinuxInstallationConfigResponse{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -760,6 +766,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateApplicationConfigured))),
 		linuxinstall.WithInstallationManager(installationManager),
 		linuxinstall.WithReleaseData(integration.DefaultReleaseData()),
+		linuxinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -783,7 +790,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the API with controllers
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+	apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLinuxInstallController(installController),
 		api.WithLogger(logger.NewDiscardLogger()),

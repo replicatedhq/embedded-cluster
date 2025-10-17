@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
@@ -65,11 +66,12 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -116,11 +118,12 @@ func TestInstallController_PatchAppConfigValuesWithAPIClient(t *testing.T) {
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				AppConfig: &appConfig,
 			}),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the completed install controller
-		completedAPIInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		completedAPIInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithKubernetesInstallController(completedInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -219,11 +222,12 @@ func TestInstallController_GetAppConfigValuesWithAPIClient(t *testing.T) {
 		kubernetesinstall.WithReleaseData(&release.ReleaseData{
 			AppConfig: &appConfig,
 		}),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),

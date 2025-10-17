@@ -50,7 +50,7 @@ func (a *API) initHandlers() error {
 	}
 	a.handlers.health = healthHandler
 
-	if a.cfg.Target == types.TargetLinux {
+	if a.cfg.InstallTarget == types.InstallTargetLinux {
 		// Linux handler
 		linuxHandler, err := linuxhandler.New(
 			a.cfg,
@@ -58,6 +58,7 @@ func (a *API) initHandlers() error {
 			linuxhandler.WithMetricsReporter(a.metricsReporter),
 			linuxhandler.WithInstallController(a.linuxInstallController),
 			linuxhandler.WithUpgradeController(a.linuxUpgradeController),
+			linuxhandler.WithHelmClient(a.hcli),
 		)
 		if err != nil {
 			return fmt.Errorf("new linux handler: %w", err)
@@ -70,6 +71,7 @@ func (a *API) initHandlers() error {
 			kuberneteshandler.WithLogger(a.logger),
 			kuberneteshandler.WithInstallController(a.kubernetesInstallController),
 			kuberneteshandler.WithUpgradeController(a.kubernetesUpgradeController),
+			kuberneteshandler.WithHelmClient(a.hcli),
 		)
 		if err != nil {
 			return fmt.Errorf("new kubernetes handler: %w", err)
