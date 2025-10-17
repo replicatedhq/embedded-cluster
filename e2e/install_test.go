@@ -418,6 +418,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
+	// Previous stable EC version with a -1 minor k0s version
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
@@ -480,7 +481,8 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 
 	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
 		version: initialVersion,
@@ -704,7 +706,8 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
@@ -775,7 +778,8 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
@@ -861,7 +865,8 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
@@ -1233,7 +1238,8 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
@@ -1375,8 +1381,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
+	testArgs := []string{upgradeVersion}
 
 	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
@@ -1384,7 +1389,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after noop upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", appUpgradeVersion, k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1395,8 +1400,7 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
 	}
 
-	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
+	testArgs = []string{upgrade2Version}
 
 	t.Logf("%s: upgrading cluster a second time", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
@@ -1774,7 +1778,8 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
@@ -1975,7 +1980,8 @@ func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
+	// Previous stable EC version with a -1 minor k0s version
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
