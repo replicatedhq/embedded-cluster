@@ -11,8 +11,6 @@ import (
 
 const (
 	_releaseName = "admin-console"
-
-	_namespace = constants.KotsadmNamespace
 )
 
 var _ types.AddOn = (*AdminConsole)(nil)
@@ -61,7 +59,7 @@ func (a *AdminConsole) ReleaseName() string {
 }
 
 func (a *AdminConsole) Namespace() string {
-	return _namespace
+	return constants.KotsadmNamespace
 }
 
 func getBackupLabels() map[string]string {

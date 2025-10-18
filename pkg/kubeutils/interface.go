@@ -33,7 +33,8 @@ type KubeUtilsInterface interface {
 	WaitForPodDeleted(ctx context.Context, cli client.Client, ns, name string, opts *WaitOptions) error
 	WaitForInstallation(ctx context.Context, cli client.Client, writer *spinner.MessageWriter) error
 	WaitForNodes(ctx context.Context, cli client.Client) error
-	WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error
+	WaitForNode(ctx context.Context, cli client.Client, name string, isWorker bool) error
+	NamespaceExists(ctx context.Context, cli client.Client, ns string) (bool, error)
 	IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error)
 	IsDeploymentReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
 	IsStatefulSetReady(ctx context.Context, cli client.Client, ns, name string) (bool, error)
@@ -100,8 +101,12 @@ func WaitForNodes(ctx context.Context, cli client.Client) error {
 	return kb.WaitForNodes(ctx, cli)
 }
 
-func WaitForNode(ctx context.Context, kcli client.Client, name string, isWorker bool) error {
-	return kb.WaitForNode(ctx, kcli, name, isWorker)
+func WaitForNode(ctx context.Context, cli client.Client, name string, isWorker bool) error {
+	return kb.WaitForNode(ctx, cli, name, isWorker)
+}
+
+func NamespaceExists(ctx context.Context, cli client.Client, ns string) (bool, error) {
+	return kb.NamespaceExists(ctx, cli, ns)
 }
 
 func IsNamespaceReady(ctx context.Context, cli client.Client, ns string) (bool, error) {

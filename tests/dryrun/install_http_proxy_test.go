@@ -79,6 +79,10 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 				"name":  "PRIVATE_CA_BUNDLE_PATH",
 				"value": "/certs/ca-certificates.crt",
 			},
+			{
+				"name":  "KOTSADM_NAMESPACE",
+				"value": "kotsadm",
+			},
 		},
 		"extraVolumes": []map[string]any{{
 			"name": "host-ca-bundle",

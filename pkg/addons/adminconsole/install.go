@@ -274,7 +274,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		if err != nil {
 			return fmt.Errorf("calculate checksum: %w", err)
 		}
-		new, err := newCAConfigMap(a.HostCABundlePath, checksum)
+		new, err := newCAConfigMap(a.HostCABundlePath, a.Namespace(), checksum)
 		if err != nil {
 			return fmt.Errorf("create map: %w", err)
 		}
@@ -286,7 +286,7 @@ func (a *AdminConsole) ensureCAConfigmap(ctx context.Context, logf types.LogFunc
 		return nil
 	}
 
-	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, a.HostCABundlePath)
+	err := EnsureCAConfigmap(ctx, logf, kcli, mcli, a.Namespace(), a.HostCABundlePath)
 
 	if k8serrors.IsRequestEntityTooLargeError(err) || errors.Is(err, fs.ErrNotExist) {
 		// This can result in issues installing in environments with a MITM HTTP proxy.
