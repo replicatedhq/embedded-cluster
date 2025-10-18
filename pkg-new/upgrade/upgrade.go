@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -23,7 +24,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -347,9 +349,9 @@ func upgradeExtensions(ctx context.Context, cli client.Client, hcli helm.Client,
 func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, desiredVersion string, in *ecv1beta1.Installation, meta *ectypes.ReleaseMetadata, logger logrus.FieldLogger) error {
 	var plan apv1b2.Plan
 	okey := client.ObjectKey{Name: "autopilot"}
-	if err := cli.Get(ctx, okey, &plan); err != nil && !errors.IsNotFound(err) {
+	if err := cli.Get(ctx, okey, &plan); err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("get upgrade plan: %w", err)
-	} else if errors.IsNotFound(err) {
+	} else if k8serrors.IsNotFound(err) {
 		// if the kubernetes version has changed we create an upgrade command
 		logger.WithField("version", desiredVersion).Info("Starting k0s autopilot upgrade plan")
 
@@ -364,15 +366,43 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfi
 }
 
 func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
-	for {
-		var plan apv1b2.Plan
-		if err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan); err != nil {
-			return plan, fmt.Errorf("get upgrade plan: %w", err)
-		}
-		if autopilot.HasThePlanEnded(plan) {
-			return plan, nil
-		}
-		logger.WithField("plan_id", plan.Spec.ID).Info("An autopilot upgrade is in progress")
-		time.Sleep(5 * time.Second)
+	backoff := wait.Backoff{
+		Duration: time.Second,
+		Factor:   2.0,
+		Steps:    75, // ~25 minutes with exponential backoff (1s, 2s, 4s, 8s, 16s, then 20s capped)
+		Cap:      20 * time.Second,
 	}
+
+	var plan apv1b2.Plan
+	var lastErr error
+
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+		if err != nil {
+			lastErr = fmt.Errorf("get autopilot plan: %w", err)
+			return false, nil
+		}
+
+		if autopilot.HasThePlanEnded(plan) {
+			return true, nil
+		}
+
+		logger.WithField("plan_id", plan.Spec.ID).Info("An autopilot upgrade is in progress")
+		return false, nil
+	})
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lastErr != nil {
+				err = errors.Join(err, lastErr)
+			}
+			return apv1b2.Plan{}, err
+		} else if lastErr != nil {
+			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan: %w", lastErr)
+		} else {
+			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan")
+		}
+	}
+
+	return plan, nil
 }
