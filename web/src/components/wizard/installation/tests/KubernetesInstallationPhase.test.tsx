@@ -4,21 +4,19 @@ import { renderWithProviders } from "../../../../test/setup.tsx";
 import KubernetesInstallationPhase from "../phases/KubernetesInstallationPhase.tsx";
 import { withTestButton } from "./TestWrapper.tsx";
 import { setupServer } from "msw/node";
-import { http, HttpResponse } from "msw";
+import { mockHandlers } from "../../../../test/mockHandlers.ts";
 
 const TestKubernetesInstallationPhase = withTestButton(KubernetesInstallationPhase);
 
 const server = setupServer(
-  // Mock installation status endpoint
-  http.get("*/api/kubernetes/install/infra/status", () => {
-    return HttpResponse.json({
-      status: { state: "Running", description: "Installing..." },
-      components: [
-        { name: "Admin Console", status: { state: "Pending" } },
-        { name: "Disaster Recovery", status: { state: "Pending" } }
-      ]
-    });
-  })
+  mockHandlers.infra.getStatus({
+    state: "Running",
+    description: "Installing...",
+    components: [
+      { name: "Admin Console", status: { state: "Pending" } },
+      { name: "Disaster Recovery", status: { state: "Pending" } }
+    ]
+  }, 'kubernetes', 'install')
 );
 
 describe("KubernetesInstallationPhase", () => {
@@ -43,7 +41,7 @@ describe("KubernetesInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -62,13 +60,13 @@ describe("KubernetesInstallationPhase", () => {
     await waitFor(() => {
       expect(screen.getByText("Installing...")).toBeInTheDocument();
     });
-    
+
     // Verify Admin Console component
     const adminConsoleContainer = screen.getByTestId("status-indicator-admin-console");
     expect(adminConsoleContainer).toBeInTheDocument();
     expect(within(adminConsoleContainer).getByTestId("status-title")).toHaveTextContent("Admin Console");
     expect(within(adminConsoleContainer).getByTestId("status-text")).toHaveTextContent("Pending");
-    
+
     // Verify Disaster Recovery component
     const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
     expect(drContainer).toBeInTheDocument();
@@ -84,16 +82,14 @@ describe("KubernetesInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/kubernetes/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { state: "InProgress", description: "Installing components..." },
-          components: [
-            { name: "Admin Console", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Running" } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: "Running",
+        description: "Installing components...",
+        components: [
+          { name: "Admin Console", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Running" } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -101,7 +97,7 @@ describe("KubernetesInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -134,16 +130,14 @@ describe("KubernetesInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/kubernetes/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { state: "Succeeded", description: "Installation complete" },
-          components: [
-            { name: "Admin Console", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Succeeded" } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: "Succeeded",
+        description: "Installation complete",
+        components: [
+          { name: "Admin Console", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Succeeded" } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -151,7 +145,7 @@ describe("KubernetesInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -166,7 +160,7 @@ describe("KubernetesInstallationPhase", () => {
 
     // Verify final state
     expect(screen.getByText("Installation complete")).toBeInTheDocument();
-    
+
     // Verify Admin Console component
     const adminConsoleContainer = screen.getByTestId("status-indicator-admin-console");
     expect(adminConsoleContainer).toBeInTheDocument();
@@ -184,19 +178,14 @@ describe("KubernetesInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/kubernetes/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { 
-            state: "Failed", 
-            description: "Installation failed: Disaster Recovery setup failed" 
-          },
-          components: [
-            { name: "Admin Console", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Failed" } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: "Failed",
+        description: "Installation failed: Disaster Recovery setup failed",
+        components: [
+          { name: "Admin Console", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Failed" } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -204,7 +193,7 @@ describe("KubernetesInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -239,16 +228,15 @@ describe("KubernetesInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/kubernetes/install/infra/status", () => {
-        return HttpResponse.json({
-          status: { state: "Running", description: "Installing..." },
-          components: [
-            { name: "Admin Console", status: { state: "Pending" } },
-            { name: "Disaster Recovery", status: { state: "Pending" } }
-          ],
-          logs: "[k0s] creating k0s configuration file\n[k0s] creating systemd unit files"
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: "Running",
+        description: "Installing...",
+        components: [
+          { name: "Admin Console", status: { state: "Pending" } },
+          { name: "Disaster Recovery", status: { state: "Pending" } }
+        ],
+        logs: "[k0s] creating k0s configuration file\n[k0s] creating systemd unit files"
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -256,7 +244,7 @@ describe("KubernetesInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -307,15 +295,14 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Running" immediately when component mounts', async () => {
     // Mock infra status endpoint - returns running state
     server.use(
-      http.get('*/api/kubernetes/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Running', description: 'Installing...' },
-          components: [
-            { name: 'Runtime', status: { state: 'Running' } },
-            { name: 'Disaster Recovery', status: { state: 'Pending' } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: 'Running',
+        description: 'Installing...',
+        components: [
+          { name: 'Runtime', status: { state: 'Running' } },
+          { name: 'Disaster Recovery', status: { state: 'Pending' } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -335,15 +322,14 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Succeeded" when installation completes successfully', async () => {
     // Mock infra status endpoint - returns success
     server.use(
-      http.get('*/api/kubernetes/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Succeeded', description: 'Installation completed successfully' },
-          components: [
-            { name: 'Runtime', status: { state: 'Succeeded' } },
-            { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: 'Succeeded',
+        description: 'Installation completed successfully',
+        components: [
+          { name: 'Runtime', status: { state: 'Succeeded' } },
+          { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(
@@ -371,15 +357,14 @@ describe('KubernetesInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Failed" when installation fails', async () => {
     // Mock infra status endpoint - returns failure
     server.use(
-      http.get('*/api/kubernetes/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Failed', description: 'Installation failed' },
-          components: [
-            { name: 'Runtime', status: { state: 'Failed' } },
-            { name: 'Disaster Recovery', status: { state: 'Pending' } }
-          ]
-        });
-      })
+      mockHandlers.infra.getStatus({
+        state: 'Failed',
+        description: 'Installation failed',
+        components: [
+          { name: 'Runtime', status: { state: 'Failed' } },
+          { name: 'Disaster Recovery', status: { state: 'Pending' } }
+        ]
+      }, 'kubernetes', 'install')
     );
 
     renderWithProviders(

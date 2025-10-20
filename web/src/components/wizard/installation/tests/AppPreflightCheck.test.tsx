@@ -3,37 +3,21 @@ import { renderWithProviders } from "../../../../test/setup.tsx";
 import AppPreflightCheck from "../phases/AppPreflightCheck";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
-import { http, HttpResponse } from "msw";
+import { mockHandlers, preflightPresets } from "../../../../test/mockHandlers.ts";
 
 const TEST_TOKEN = "test-auth-token";
 
 const createServer = (target: 'linux' | 'kubernetes') => setupServer(
-  // Mock preflight status endpoint
-  http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({
-      titles: ["Test"],
-      output: {
-        pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-        warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
-        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-      },
-      status: { state: "Failed" },
-      allowIgnoreAppPreflights: false,
-    });
-  }),
-
-  // Mock preflight run endpoint
-  http.post(`*/api/${target}/install/app-preflights/run`, ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({ success: true });
-  })
+  mockHandlers.preflights.app.getStatus({
+    status: { state: "Failed" },
+    output: {
+      pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+      warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
+      fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+    },
+    allowIgnoreAppPreflights: false,
+  }, target, 'install'),
+  mockHandlers.preflights.app.run(true, target, 'install')
 );
 
 describe.each([
@@ -60,13 +44,10 @@ describe.each([
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ state: "Running" });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Running" },
+        output: { fail: [], warn: [], pass: [] },
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -100,18 +81,10 @@ describe.each([
 
   it("shows success state when all preflights pass", async () => {
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-          },
-          status: { state: "Succeeded" },
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Succeeded" },
+        output: preflightPresets.success(),
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -160,22 +133,15 @@ describe.each([
   it("receives allowIgnoreAppPreflights field in preflight response", async () => {
     // Mock preflight status endpoint with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-            warn: [],
-            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-          },
-          status: { state: "Failed" },
-          allowIgnoreAppPreflights: true, // Test that this field is properly received
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Failed" },
+        output: {
+          pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+          warn: [],
+          fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+        },
+        allowIgnoreAppPreflights: true,
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -197,22 +163,15 @@ describe.each([
   it("passes allowIgnoreAppPreflights false to onComplete callback", async () => {
     // Mock preflight status endpoint with allowIgnoreAppPreflights: false
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-            warn: [],
-            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-          },
-          status: { state: "Failed" },
-          allowIgnoreAppPreflights: false, // Test that this field is properly received
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Failed" },
+        output: {
+          pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+          warn: [],
+          fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+        },
+        allowIgnoreAppPreflights: false,
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -235,26 +194,19 @@ describe.each([
   it("displays strict failures with visual distinction", async () => {
     // Mock preflight status endpoint with strict and non-strict failures
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [],
-            warn: [],
-            fail: [
-              { title: "Critical Security Check", message: "Security requirement not met", strict: true },
-              { title: "Disk Space", message: "Insufficient disk space", strict: false }
-            ],
-          },
-          status: { state: "Failed" },
-          allowIgnoreAppPreflights: true,
-          hasStrictAppPreflightFailures: true,
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Failed" },
+        output: {
+          pass: [],
+          warn: [],
+          fail: [
+            { title: "Critical Security Check", message: "Security requirement not met", strict: true },
+            { title: "Disk Space", message: "Insufficient disk space", strict: false }
+          ],
+        },
+        allowIgnoreAppPreflights: true,
+        hasStrictAppPreflightFailures: true,
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -282,25 +234,18 @@ describe.each([
   it("shows appropriate guidance for strict failures in What's Next section", async () => {
     // Mock preflight status endpoint with strict failures
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [],
-            warn: [],
-            fail: [
-              { title: "Critical Security Check", message: "Security requirement not met", strict: true }
-            ],
-          },
-          status: { state: "Failed" },
-          allowIgnoreAppPreflights: true,
-          hasStrictAppPreflightFailures: true,
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Failed" },
+        output: {
+          pass: [],
+          warn: [],
+          fail: [
+            { title: "Critical Security Check", message: "Security requirement not met", strict: true }
+          ],
+        },
+        allowIgnoreAppPreflights: true,
+        hasStrictAppPreflightFailures: true,
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
@@ -319,25 +264,18 @@ describe.each([
   it("passes hasStrictAppPreflightFailures from API response to onComplete", async () => {
     // Mock preflight status endpoint with hasStrictAppPreflightFailures field
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [],
-            warn: [],
-            fail: [
-              { title: "Regular Check", message: "Regular failure", strict: false }
-            ],
-          },
-          status: { state: "Failed" },
-          allowIgnoreAppPreflights: true,
-          hasStrictAppPreflightFailures: true, // Backend says there are strict failures
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: "Failed" },
+        output: {
+          pass: [],
+          warn: [],
+          fail: [
+            { title: "Regular Check", message: "Regular failure", strict: false }
+          ],
+        },
+        allowIgnoreAppPreflights: true,
+        hasStrictAppPreflightFailures: true,
+      }, target, 'install')
     );
 
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {

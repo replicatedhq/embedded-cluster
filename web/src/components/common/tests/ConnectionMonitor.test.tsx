@@ -1,16 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { mockHandlers, createHandler } from '../../../test/mockHandlers';
 import ConnectionMonitor from '../ConnectionMonitor';
 
 const server = setupServer(
-  http.get('*/api/health', () => {
-    return new HttpResponse(JSON.stringify({ status: 'ok' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  })
+  mockHandlers.health.check(true)
 );
 
 describe('ConnectionMonitor', () => {
@@ -33,9 +28,7 @@ describe('ConnectionMonitor', () => {
 
   it('should show modal when health check fails', async () => {
     server.use(
-      http.get('*/api/health', () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.health.check(false)
     );
 
     render(<ConnectionMonitor />);
@@ -46,22 +39,10 @@ describe('ConnectionMonitor', () => {
   }, 6000);
 
   it('should handle automatic retry', async () => {
-    let retryCount = 0;
-    
+    const callCounter = { callCount: 0 };
+
     server.use(
-      http.get('*/api/health', () => {
-        retryCount++;
-        
-        // Fail first time, succeed on second automatic retry
-        if (retryCount === 1) {
-          return HttpResponse.error();
-        }
-        
-        return new HttpResponse(JSON.stringify({ status: 'ok' }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      })
+      createHandler.healthRetrySuccess(callCounter)
     );
 
     render(<ConnectionMonitor />);
@@ -85,9 +66,7 @@ describe('ConnectionMonitor', () => {
 
   it('should show retry countdown timer', async () => {
     server.use(
-      http.get('*/api/health', () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.health.check(false)
     );
 
     render(<ConnectionMonitor />);

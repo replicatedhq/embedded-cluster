@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
+import { mockHandlers, type Target, type Mode } from "../../../test/mockHandlers.ts";
 import '@testing-library/jest-dom/vitest';
 
 // Mock the debounced fetch to remove timing issues in tests
@@ -122,20 +122,15 @@ const createMockConfigWithValues = (values: AppConfigValues): AppConfig => {
   return config;
 };
 
-const createServer = (target: string, mode: 'install' | 'upgrade' = 'install') => setupServer(
-  // Mock template app config endpoint
-  http.post(`*/api/${target}/${mode}/app/config/template`, async ({ request }) => {
-    const body = await request.json() as { values: AppConfigValues };
-    // Apply any user values to the mock config and return it
-    const templatedConfig = createMockConfigWithValues(body.values);
-    return HttpResponse.json(templatedConfig);
-  }),
+const createServer = (target: Target, mode: Mode = 'install') => setupServer(
+  // Mock template app config endpoint - dynamically applies values
+  mockHandlers.appConfig.getTemplate((body: Record<string, unknown>) => {
+    const values = body.values as AppConfigValues;
+    return createMockConfigWithValues(values);
+  }, target, mode),
 
   // Mock config values submission endpoint
-  http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-    const body = await request.json() as { values: AppConfigValues };
-    return HttpResponse.json(body);
-  })
+  mockHandlers.appConfig.updateValues(true, target, mode)
 );
 
 // Helper function to wait for configuration to fully load with config items
@@ -233,9 +228,7 @@ describe.each([
 
   it("handles config fetch error gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Failed to template configuration" }), { status: 500 });
-      })
+      mockHandlers.appConfig.getTemplate({ error: { message: "Failed to template configuration" } }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -256,9 +249,7 @@ describe.each([
 
   it("handles template config error gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Template processing failed" }), { status: 500 });
-      })
+      mockHandlers.appConfig.getTemplate({ error: { message: "Template processing failed" } }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -280,9 +271,7 @@ describe.each([
 
   it("handles empty config gracefully", async () => {
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-        return HttpResponse.json({ groups: [] });
-      })
+      mockHandlers.appConfig.getTemplate({ groups: [] }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -426,9 +415,7 @@ describe.each([
 
   it("handles form submission error gracefully", async () => {
     server.use(
-      http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Invalid configuration values" }), { status: 400 });
-      })
+      mockHandlers.appConfig.updateValues({ error: { message: "Invalid configuration values" } }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -460,13 +447,13 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-        // Verify auth header
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        const body = await request.json() as { values: AppConfigValues };
-        submittedValues = body;
-        return HttpResponse.json(body);
-      })
+      mockHandlers.appConfig.updateValues({
+        captureRequest: (body: Record<string, unknown>, headers: Headers) => {
+          // Verify auth header
+          expect(headers.get("Authorization")).toBe("Bearer test-token");
+          submittedValues = body as { values: AppConfigValues };
+        }
+      }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -551,9 +538,7 @@ describe.each([
 
   it("handles unauthorized error correctly", async () => {
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-        return new HttpResponse(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
-      })
+      mockHandlers.appConfig.getTemplate({ error: { message: "Unauthorized", statusCode: 401 } }, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -576,10 +561,8 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: AppConfigValues };
-        submittedValues = body;
-        return HttpResponse.json(body);
+      mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
       })
     );
 
@@ -661,9 +644,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-        return HttpResponse.json(configWithEmptyValues);
-      })
+      mockHandlers.appConfig.getTemplate(configWithEmptyValues, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -803,9 +784,7 @@ describe.each([
 
       // Override the server to return our comprehensive config
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-          return HttpResponse.json(comprehensiveConfig);
-        })
+        mockHandlers.appConfig.getTemplate(comprehensiveConfig, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -884,11 +863,9 @@ describe.each([
       // Test form submission with radio button changes
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       // Change a radio button selection
@@ -1067,11 +1044,9 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
 
       server.use(
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1169,9 +1144,7 @@ describe.each([
 
       // Override the server to return our comprehensive config as-is
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-          return HttpResponse.json(comprehensiveConfig);
-        })
+        mockHandlers.appConfig.getTemplate(comprehensiveConfig, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1231,11 +1204,9 @@ describe.each([
       // Test form submission with checkbox changes
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       // Change a checkbox
@@ -1270,10 +1241,8 @@ describe.each([
     let submittedValues: { values: AppConfigValues } | null = null;
 
     server.use(
-      http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-        const body = await request.json() as { values: AppConfigValues };
-        submittedValues = body;
-        return HttpResponse.json(body);
+      mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
       })
     );
 
@@ -1345,9 +1314,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-        return HttpResponse.json(configWithPassword);
-      })
+      mockHandlers.appConfig.getTemplate(configWithPassword, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1405,9 +1372,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-        return HttpResponse.json(configWithPassword);
-      })
+      mockHandlers.appConfig.getTemplate(configWithPassword, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1510,9 +1475,7 @@ describe.each([
     };
 
     server.use(
-      http.post(`*/api/${target}/${mode}/app/config/template`, async () => {
-        return HttpResponse.json(configWithDefaults);
-      })
+      mockHandlers.appConfig.getTemplate(configWithDefaults, target, mode)
     );
 
     renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1628,11 +1591,9 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
 
       server.use(
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1739,9 +1700,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithFilename);
-        })
+        mockHandlers.appConfig.getTemplate(configWithFilename, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1807,11 +1766,9 @@ describe.each([
       // Test form submission with the new file
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       const nextButton = screen.getByTestId("config-next-button");
@@ -1859,9 +1816,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithoutFilename);
-        })
+        mockHandlers.appConfig.getTemplate(configWithoutFilename, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1946,22 +1901,23 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required field
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithRequiredField);
-        }),
-        // Mock server validation error response
-        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-          return new HttpResponse(JSON.stringify({
-            message: "required fields not completed",
-            statusCode: 400,
-            errors: [
-              {
-                field: "required_field",
-                message: "Required Field is required"
-              }
-            ]
-          }), { status: 400 });
-        })
+        mockHandlers.appConfig.getTemplate(configWithRequiredField, target, mode),
+        // Mock server validation error response with field-level errors
+        mockHandlers.appConfig.updateValues(
+          {
+            error: {
+              message: "required fields not completed",
+              errors: [
+                {
+                  field: "required_field",
+                  message: "Required Field is required"
+                }
+              ]
+            }
+          },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2044,26 +2000,27 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with multiple required fields
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithMultipleRequiredFields);
-        }),
+        mockHandlers.appConfig.getTemplate(configWithMultipleRequiredFields, target, mode),
         // Mock server validation error response with multiple field errors
-        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-          return new HttpResponse(JSON.stringify({
-            message: "required fields not completed",
-            statusCode: 400,
-            errors: [
-              {
-                field: "first_required_field",
-                message: "First Required Field is required"
-              },
-              {
-                field: "second_required_field",
-                message: "Second Required Field is required"
-              }
-            ]
-          }), { status: 400 });
-        })
+        mockHandlers.appConfig.updateValues(
+          {
+            error: {
+              message: "required fields not completed",
+              errors: [
+                {
+                  field: "first_required_field",
+                  message: "First Required Field is required"
+                },
+                {
+                  field: "second_required_field",
+                  message: "Second Required Field is required"
+                }
+              ]
+            }
+          },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2155,22 +2112,23 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with multiple tabs and required fields
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithMultipleTabsAndRequiredFields);
-        }),
+        mockHandlers.appConfig.getTemplate(configWithMultipleTabsAndRequiredFields, target, mode),
         // Mock server validation error response
-        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-          return new HttpResponse(JSON.stringify({
-            message: "required fields not completed",
-            statusCode: 400,
-            errors: [
-              {
-                field: "db_required_field",
-                message: "Database Required Field is required"
-              }
-            ]
-          }), { status: 400 });
-        })
+        mockHandlers.appConfig.updateValues(
+          {
+            error: {
+              message: "required fields not completed",
+              errors: [
+                {
+                  field: "db_required_field",
+                  message: "Database Required Field is required"
+                }
+              ]
+            }
+          },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2258,22 +2216,23 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required field
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithRequiredField);
-        }),
-        // Mock server validation error response
-        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-          return new HttpResponse(JSON.stringify({
-            message: "required fields not completed",
-            statusCode: 400,
-            errors: [
-              {
-                field: "required_text_field",
-                message: "Required Text Field is required"
-              }
-            ]
-          }), { status: 400 });
-        })
+        mockHandlers.appConfig.getTemplate(configWithRequiredField, target, mode),
+        // Mock server validation error response with field-level errors
+        mockHandlers.appConfig.updateValues(
+          {
+            error: {
+              message: "required fields not completed",
+              errors: [
+                {
+                  field: "required_text_field",
+                  message: "Required Text Field is required"
+                }
+              ]
+            }
+          },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2353,22 +2312,23 @@ describe.each([
 
       server.use(
         // Mock template endpoint to return config with required radio field
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithRequiredRadioField);
-        }),
+        mockHandlers.appConfig.getTemplate(configWithRequiredRadioField, target, mode),
         // Mock server validation error response
-        http.patch(`*/api/${target}/${mode}/app/config/values`, () => {
-          return new HttpResponse(JSON.stringify({
-            message: "required fields not completed",
-            statusCode: 400,
-            errors: [
-              {
-                field: "auth_method",
-                message: "Authentication Method is required"
-              }
-            ]
-          }), { status: 400 });
-        })
+        mockHandlers.appConfig.updateValues(
+          {
+            error: {
+              message: "required fields not completed",
+              errors: [
+                {
+                  field: "auth_method",
+                  message: "Authentication Method is required"
+                }
+              ]
+            }
+          },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2437,9 +2397,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithDropdown);
-        })
+        mockHandlers.appConfig.getTemplate(configWithDropdown, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2483,9 +2441,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithDropdown);
-        })
+        mockHandlers.appConfig.getTemplate(configWithDropdown, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2527,9 +2483,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithSelectOne);
-        })
+        mockHandlers.appConfig.getTemplate(configWithSelectOne, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2585,9 +2539,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithHeading);
-        })
+        mockHandlers.appConfig.getTemplate(configWithHeading, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2638,9 +2590,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithReadonly);
-        })
+        mockHandlers.appConfig.getTemplate(configWithReadonly, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2682,9 +2632,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithReadonlyCheckbox);
-        })
+        mockHandlers.appConfig.getTemplate(configWithReadonlyCheckbox, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2724,9 +2672,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithReadonlyRadio);
-        })
+        mockHandlers.appConfig.getTemplate(configWithReadonlyRadio, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2767,9 +2713,7 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithReadonlyDropdown);
-        })
+        mockHandlers.appConfig.getTemplate(configWithReadonlyDropdown, target, mode)
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -2808,14 +2752,10 @@ describe.each([
       };
 
       server.use(
-        http.post(`*/api/${target}/${mode}/app/config/template`, () => {
-          return HttpResponse.json(configWithDropdown);
-        }),
-        http.patch(`*/api/${target}/${mode}/app/config/values`, async ({ request }) => {
-          const body = await request.json() as { values: AppConfigValues };
-          submittedValues = body;
-          return HttpResponse.json(body);
-        })
+        mockHandlers.appConfig.getTemplate(configWithDropdown, target, mode),
+        mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
+        submittedValues = body as { values: AppConfigValues };
+      })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
