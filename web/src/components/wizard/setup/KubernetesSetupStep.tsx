@@ -94,7 +94,8 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   // Mutation for starting the installation
   const { mutate: startInstallation } = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`${apiBase}/infra/setup`, {
+      const endpoint = mode === 'install' ? 'infra/setup' : 'infra/upgrade';
+      const response = await fetch(`${apiBase}/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

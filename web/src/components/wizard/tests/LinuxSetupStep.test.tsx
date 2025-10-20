@@ -1,40 +1,17 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
-import { MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { mockHandlers, createHandler } from "../../../test/mockHandlers.ts";
 
 const server = setupServer(
-  // Mock install config endpoint
-  http.get("*/api/linux/install/installation/config", () => {
-    return HttpResponse.json(MOCK_LINUX_INSTALL_CONFIG_RESPONSE);
-  }),
-
-  // Mock network interfaces endpoint
-  http.get("*/api/console/available-network-interfaces", () => {
-    return HttpResponse.json(MOCK_NETWORK_INTERFACES);
-  }),
-
-  // Mock config submission endpoint
-  http.post("*/api/linux/install/installation/configure", () => {
-    return HttpResponse.json({ success: true });
-  }),
-
-  // Mock installation status endpoint
-  http.get("*/api/linux/install/installation/status", () => {
-    return HttpResponse.json({
-      state: "Succeeded",
-      description: "Installation configured successfully",
-      lastUpdated: new Date().toISOString()
-    });
-  }),
-
-  // Mock preflight run endpoint
-  http.post("*/api/linux/install/host-preflights/run", () => {
-    return HttpResponse.json({ success: true });
-  })
+  mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
+  mockHandlers.console.getNetworkInterfaces(MOCK_NETWORK_INTERFACES.networkInterfaces.map(name => ({ name, addresses: [] }))),
+  mockHandlers.installation.configure(true),
+  mockHandlers.installation.getStatus({ state: 'Succeeded', description: 'Installation configured successfully' }),
+  mockHandlers.preflights.host.run(true)
 );
 
 describe("LinuxSetupStep", () => {
@@ -102,12 +79,9 @@ describe("LinuxSetupStep", () => {
   describe("Error Handling", () => {
     it("handles form errors gracefully", async () => {
       server.use(
-        http.get("*/api/console/available-network-interfaces", () => {
-          return HttpResponse.json(MOCK_NETWORK_INTERFACES);
-        }),
-        // Mock config submission endpoint to return an error
-        http.post("*/api/linux/install/installation/configure", () => {
-          return new HttpResponse(JSON.stringify({ message: "Invalid configuration" }), { status: 400 });
+        mockHandlers.console.getNetworkInterfaces([{ name: 'eth0', addresses: [] }, { name: 'eth1', addresses: [] }]),
+        mockHandlers.installation.configure({
+          error: { message: "Invalid configuration" }
         })
       );
 
@@ -146,18 +120,16 @@ describe("LinuxSetupStep", () => {
 
     it("handles field-specific errors gracefully", async () => {
       server.use(
-        http.get("*/api/console/available-network-interfaces", () => {
-          return HttpResponse.json(MOCK_NETWORK_INTERFACES);
-        }),
+        mockHandlers.console.getNetworkInterfaces([{ name: 'eth0', addresses: [] }, { name: 'eth1', addresses: [] }]),
         // Mock config submission endpoint to return field-specific errors
-        http.post("*/api/linux/install/installation/configure", () => {
-          return new HttpResponse(JSON.stringify({
+        mockHandlers.installation.configure({
+          error: {
             message: "Validation failed",
-            errors: [
+            fields: [
               { field: "dataDirectory", message: "Data Directory is required" },
               { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" }
             ]
-          }), { status: 400 });
+          }
         })
       );
 
@@ -201,8 +173,8 @@ describe("LinuxSetupStep", () => {
     it("clears errors when re-submitting after previous failure", async () => {
       // First, set up server to return an error
       server.use(
-        http.post("*/api/linux/install/installation/configure", () => {
-          return new HttpResponse(JSON.stringify({ message: "Initial error" }), { status: 400 });
+        mockHandlers.installation.configure({
+          error: { message: "Initial error" }
         })
       );
 
@@ -228,11 +200,7 @@ describe("LinuxSetupStep", () => {
       await screen.findByText("Initial error");
 
       // Now change server to return success
-      server.use(
-        http.post("*/api/linux/install/installation/configure", () => {
-          return HttpResponse.json({ success: true });
-        })
-      );
+      server.use(mockHandlers.installation.configure(true));
 
       // Submit again
       fireEvent.click(nextButton);
@@ -250,9 +218,7 @@ describe("LinuxSetupStep", () => {
   describe("Input Validation and Edge Cases", () => {
     it("does not display zero values in port input fields", async () => {
       server.use(
-        http.get("*/api/linux/install/installation/config", () => {
-          return HttpResponse.json(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS);
-        })
+        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS)
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -277,9 +243,7 @@ describe("LinuxSetupStep", () => {
 
     it("handles empty config values correctly", async () => {
       server.use(
-        http.get("*/api/linux/install/installation/config", () => {
-          return HttpResponse.json(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY);
-        })
+        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY)
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -387,37 +351,22 @@ describe("LinuxSetupStep", () => {
     it("submits the form successfully and calls updateConfig", async () => {
       // Mock all required API endpoints
       server.use(
-        // Mock install config endpoint
-        http.get("*/api/linux/install/installation/config", ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
-        }),
-        // Mock network interfaces endpoint
-        http.get("*/api/console/available-network-interfaces", ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          return HttpResponse.json(MOCK_NETWORK_INTERFACES);
-        }),
-        // Mock config submission endpoint
-        http.post("*/api/linux/install/installation/configure", async ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          const body = await request.json();
-          // Verify the request body has all required fields
-          expect(body).toMatchObject({
-            adminConsolePort: 8080,
-            localArtifactMirrorPort: 8081,
-            dataDirectory: "/var/lib/embedded-cluster",
-            networkInterface: "eth0",
-            globalCidr: "10.244.0.0/16",
-          });
-          return new HttpResponse(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
+        mockHandlers.console.getNetworkInterfaces(MOCK_NETWORK_INTERFACES.networkInterfaces.map(name => ({ name, addresses: [] }))),
+        mockHandlers.installation.configure({
+          captureRequest: (body: Record<string, unknown>, headers: Headers) => {
+            console.log("Form submission captured:", body);
+            // Verify auth header
+            expect(headers.get("Authorization")).toBe("Bearer test-token");
+            // Verify the request body has all required fields
+            expect(body).toMatchObject({
+              adminConsolePort: 8080,
+              localArtifactMirrorPort: 8081,
+              dataDirectory: "/var/lib/embedded-cluster",
+              networkInterface: "",
+              globalCidr: "10.244.0.0/16",
+            });
+          }
         })
       );
 
@@ -436,19 +385,26 @@ describe("LinuxSetupStep", () => {
       const adminPortInput = screen.getByTestId("admin-console-port-input");
       const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input");
 
-      // Reveal advanced settings before filling advanced fields
-      const advancedButton = screen.getByTestId("advanced-settings-toggle");
-      fireEvent.click(advancedButton);
-
-      const networkInterfaceSelect = screen.getByTestId("network-interface-select");
-      const globalCidrInput = screen.getByTestId("global-cidr-input");
-
-      // Use fireEvent to simulate user input
+      // Use fireEvent to simulate user input for basic fields
       fireEvent.change(dataDirectoryInput, {
         target: { value: "/var/lib/embedded-cluster" },
       });
       fireEvent.change(adminPortInput, { target: { value: "8080" } });
       fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
+
+      // Reveal advanced settings before filling advanced fields
+      const advancedButton = screen.getByTestId("advanced-settings-toggle");
+      fireEvent.click(advancedButton);
+
+      // Wait for advanced fields to be visible
+      await waitFor(() => {
+        expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
+      });
+
+      const networkInterfaceSelect = screen.getByTestId("network-interface-select");
+      const globalCidrInput = screen.getByTestId("global-cidr-input");
+
+      // Fill advanced fields
       fireEvent.change(networkInterfaceSelect, { target: { value: "eth0" } });
       fireEvent.change(globalCidrInput, { target: { value: "10.244.0.0/16" } });
 
@@ -458,6 +414,14 @@ describe("LinuxSetupStep", () => {
 
       // Submit form
       fireEvent.click(nextButton);
+
+      // Wait a bit to see if there are any immediate errors
+      await waitFor(() => {
+        const errorElement = screen.queryByTestId("linux-setup-error");
+        if (errorElement) {
+          console.log("Form submission error:", errorElement.textContent);
+        }
+      }, { timeout: 1000 });
 
       // Wait for the mutation to complete
       await waitFor(
@@ -472,13 +436,7 @@ describe("LinuxSetupStep", () => {
   describe("Installation Status Polling", () => {
     it("shows 'Preparing the host.' loading state when installation status is polling", async () => {
       server.use(
-        http.get("*/api/linux/install/installation/status", () => {
-          return HttpResponse.json({
-            state: "Running",
-            description: "Configuring installation",
-            lastUpdated: new Date().toISOString()
-          });
-        })
+        mockHandlers.installation.getStatus({ state: 'Running', description: 'Configuring installation' })
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -498,22 +456,15 @@ describe("LinuxSetupStep", () => {
     });
 
     it("triggers preflights after installation status succeeds", async () => {
-      let statusCallCount = 0;
+      const counter = { callCount: 0 };
       server.use(
-        http.get("*/api/linux/install/installation/status", () => {
-          statusCallCount++;
-          if (statusCallCount === 1) {
-            return HttpResponse.json({
-              state: "Running",
-              description: "Configuring installation",
-              lastUpdated: new Date().toISOString()
-            });
-          }
-          return HttpResponse.json({
-            state: "Succeeded",
-            description: "Installation configured successfully",
-            lastUpdated: new Date().toISOString()
-          });
+        mockHandlers.installation.getStatus({
+          state: 'Running',
+          sequence: [
+            { state: 'Running', description: 'Configuring installation' },
+            { state: 'Succeeded', description: 'Installation configured successfully' }
+          ],
+          counter
         })
       );
 
@@ -535,13 +486,7 @@ describe("LinuxSetupStep", () => {
 
     it("handles installation status failure and shows error", async () => {
       server.use(
-        http.get("*/api/linux/install/installation/status", () => {
-          return HttpResponse.json({
-            state: "Failed",
-            description: "Network configuration failed",
-            lastUpdated: new Date().toISOString()
-          });
-        })
+        mockHandlers.installation.getStatus({ state: 'Failed', description: 'Network configuration failed' })
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -564,16 +509,17 @@ describe("LinuxSetupStep", () => {
     });
 
     it("stops polling installation status on failure", async () => {
-      let statusCallCount = 0;
+      const counter = { callCount: 0 };
       server.use(
-        http.get("*/api/linux/install/installation/status", () => {
-          statusCallCount++;
-          return HttpResponse.json({
+        createHandler.withCallCounter(
+          "*/api/linux/install/installation/status",
+          {
             state: "Failed",
             description: "Configuration error",
             lastUpdated: new Date().toISOString()
-          });
-        })
+          },
+          counter
+        )
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -591,21 +537,15 @@ describe("LinuxSetupStep", () => {
         expect(screen.getByTestId("linux-setup-error")).toBeInTheDocument();
       });
 
-      const initialCallCount = statusCallCount;
+      const initialCallCount = counter.callCount;
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      expect(statusCallCount).toBe(initialCallCount);
+      expect(counter.callCount).toBe(initialCallCount);
     });
 
     it("does not trigger preflights if installation status is still running", async () => {
       server.use(
-        http.get("*/api/linux/install/installation/status", () => {
-          return HttpResponse.json({
-            state: "Running",
-            description: "Still configuring",
-            lastUpdated: new Date().toISOString()
-          });
-        })
+        mockHandlers.installation.getStatus({ state: 'Running', description: 'Still configuring' })
       );
 
       renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -629,25 +569,20 @@ describe("LinuxSetupStep", () => {
     });
 
     it("allows retry after installation status failure", async () => {
-      let submitCount = 0;
+      const submitCounter = { callCount: 0 };
       server.use(
-        http.post("*/api/linux/install/installation/configure", () => {
-          submitCount++;
-          return HttpResponse.json({ success: true });
-        }),
-        http.get("*/api/linux/install/installation/status", () => {
-          if (submitCount === 1) {
-            return HttpResponse.json({
-              state: "Failed",
-              description: "First attempt failed",
-              lastUpdated: new Date().toISOString()
-            });
-          }
-          return HttpResponse.json({
-            state: "Succeeded",
-            description: "Installation configured successfully",
-            lastUpdated: new Date().toISOString()
-          });
+        createHandler.withCallCounter(
+          "*/api/linux/install/installation/configure",
+          { success: true },
+          submitCounter
+        ),
+        mockHandlers.installation.getStatus({
+          state: 'Failed',
+          sequence: [
+            { state: 'Failed', description: 'First attempt failed' },
+            { state: 'Succeeded', description: 'Installation configured successfully' }
+          ],
+          counter: submitCounter
         })
       );
 

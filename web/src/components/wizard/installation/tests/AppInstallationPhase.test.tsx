@@ -1,23 +1,15 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import AppInstallationPhase from '../phases/AppInstallationPhase.tsx';
 import { withNextButtonOnly } from './TestWrapper.tsx';
+import { mockHandlers, createHandler, type Target, type Mode } from '../../../../test/mockHandlers.ts';
 
 const TestAppInstallationPhase = withNextButtonOnly(AppInstallationPhase);
 
-const createServer = (target: 'linux' | 'kubernetes', mode: 'install' | 'upgrade' = 'install') => setupServer(
-  // Mock app installation/upgrade status endpoint
-  http.get(`*/api/${target}/${mode}/app/status`, () => {
-    return HttpResponse.json({
-      status: {
-        state: 'Running',
-        description: mode === 'upgrade' ? 'Upgrading application components...' : 'Installing application components...'
-      }
-    });
-  })
+const createServer = (target: Target, mode: Mode = 'install') => setupServer(
+  mockHandlers.app.getStatus('Running', target, mode)
 );
 
 describe.each([
@@ -70,14 +62,7 @@ describe.each([
 
   it('shows loading state during installation', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({
-          status: { 
-            state: 'Running', 
-            description: 'Installing application components...' 
-          }
-        });
-      })
+      mockHandlers.app.getStatus('Running', target, mode)
     );
 
     renderWithProviders(
@@ -110,14 +95,7 @@ describe.each([
 
   it('shows success state when installation completes successfully', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({
-          status: { 
-            state: 'Succeeded', 
-            description: 'Application installed successfully' 
-          }
-        });
-      })
+      mockHandlers.app.getStatus('Succeeded', target, mode)
     );
 
     renderWithProviders(
@@ -146,7 +124,7 @@ describe.each([
       expect(nextButton).not.toBeDisabled();
     });
 
-    // Should call onStateChange with "Succeeded" 
+    // Should call onStateChange with "Succeeded"
     await waitFor(() => {
       const calls = mockOnStateChange.mock.calls.map(args => args[0]);
       expect(calls).toEqual(['Running', 'Succeeded']);
@@ -156,14 +134,7 @@ describe.each([
 
   it('shows error state when installation fails', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({
-          status: { 
-            state: 'Failed', 
-            description: 'Installation failed due to insufficient resources' 
-          }
-        });
-      })
+      mockHandlers.app.getStatus('Failed', target, mode)
     );
 
     renderWithProviders(
@@ -203,15 +174,11 @@ describe.each([
 
   it('handles API error gracefully', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json(
-          {
-            statusCode: 500,
-            message: 'Internal server error'
-          },
-          { status: 500 }
-        );
-      })
+      mockHandlers.app.getStatus(
+        { error: { statusCode: 500, message: 'Internal server error' } },
+        target,
+        mode
+      )
     );
 
     renderWithProviders(
@@ -243,9 +210,7 @@ describe.each([
 
   it('handles network error gracefully', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.app.getStatus({ networkError: true }, target, mode)
     );
 
     renderWithProviders(
@@ -277,9 +242,7 @@ describe.each([
 
   it('shows default loading state when no status is available', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({});
-      })
+      mockHandlers.app.getStatus({ empty: true }, target, mode)
     );
 
     renderWithProviders(
@@ -310,17 +273,13 @@ describe.each([
   });
 
   it('stops polling when installation succeeds', async () => {
-    let callCount = 0;
+    const callCounter = { callCount: 0 };
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        callCount++;
-        return HttpResponse.json({
-          status: { 
-            state: 'Succeeded', 
-            description: 'Application installed successfully' 
-          }
-        });
-      })
+      createHandler.withCallCounter(
+        `*/api/${target}/${mode}/app/status`,
+        { status: { state: 'Succeeded' } },
+        callCounter
+      )
     );
 
     renderWithProviders(
@@ -343,27 +302,23 @@ describe.each([
       expect(screen.getByTestId('app-installation-success')).toBeInTheDocument();
     });
 
-    const initialCallCount = callCount;
-    
+    const initialCallCount = callCounter.callCount;
+
     // Wait a bit more and ensure no additional calls are made
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     // Should not make additional API calls after success
-    expect(callCount).toBeLessThanOrEqual(initialCallCount + 1); // Allow for one potential additional call due to timing
+    expect(callCounter.callCount).toBeLessThanOrEqual(initialCallCount + 1); // Allow for one potential additional call due to timing
   });
 
   it('stops polling when installation fails', async () => {
-    let callCount = 0;
+    const callCounter = { callCount: 0 };
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        callCount++;
-        return HttpResponse.json({
-          status: { 
-            state: 'Failed', 
-            description: 'Installation failed' 
-          }
-        });
-      })
+      createHandler.withCallCounter(
+        `*/api/${target}/${mode}/app/status`,
+        { status: { state: 'Failed' } },
+        callCounter
+      )
     );
 
     renderWithProviders(
@@ -386,27 +341,24 @@ describe.each([
       expect(screen.getByTestId('app-installation-error')).toBeInTheDocument();
     });
 
-    const initialCallCount = callCount;
-    
+    const initialCallCount = callCounter.callCount;
+
     // Wait a bit more and ensure no additional calls are made
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     // Should not make additional API calls after failure
-    expect(callCount).toBeLessThanOrEqual(initialCallCount + 1); // Allow for one potential additional call due to timing
+    expect(callCounter.callCount).toBeLessThanOrEqual(initialCallCount + 1); // Allow for one potential additional call due to timing
   });
 
   it('displays custom status description when available', async () => {
     const customDescription = 'Configuring application settings and finalizing setup...';
-    
+
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({
-          status: { 
-            state: 'Running', 
-            description: customDescription 
-          }
-        });
-      })
+      mockHandlers.app.getStatus(
+        { state: 'Running', description: customDescription },
+        target,
+        mode
+      )
     );
 
     renderWithProviders(
@@ -432,13 +384,7 @@ describe.each([
 
   it('displays fallback message when no status description is available', async () => {
     server.use(
-      http.get(`*/api/${target}/${mode}/app/status`, () => {
-        return HttpResponse.json({
-          status: {
-            state: 'Running'
-          }
-        });
-      })
+      mockHandlers.app.getStatus({ state: 'Running' }, target, mode)
     );
 
     renderWithProviders(
@@ -494,21 +440,13 @@ describe.each([
     it('handles API error responses gracefully when starting installation', async () => {
       // Mock app status endpoint to return Pending state to trigger mutation
       server.use(
-        http.get(`*/api/${target}/${mode}/app/status`, () => {
-          return HttpResponse.json({
-            status: { state: 'Pending', description: 'Waiting to start...' }
-          });
-        }),
+        mockHandlers.app.getStatus('Pending', target, mode),
         // Mock app install/upgrade endpoint to return API error
-        http.post(`*/api/${target}/${mode}/app/${mode}`, () => {
-          return HttpResponse.json(
-            {
-              statusCode: 400,
-              message: 'Application preflight checks failed. Cannot proceed with installation.'
-            },
-            { status: 400 }
-          );
-        })
+        mockHandlers.app.start(
+          { error: { statusCode: 400, message: 'Application preflight checks failed. Cannot proceed with installation.' } },
+          target,
+          mode
+        )
       );
 
       renderWithProviders(
@@ -535,15 +473,9 @@ describe.each([
     it('handles network failure during installation start', async () => {
       // Mock app status endpoint to return Pending state to trigger mutation
       server.use(
-        http.get(`*/api/${target}/${mode}/app/status`, () => {
-          return HttpResponse.json({
-            status: { state: 'Pending', description: 'Waiting to start...' }
-          });
-        }),
+        mockHandlers.app.getStatus('Pending', target, mode),
         // Mock app install/upgrade endpoint to return network error
-        http.post(`*/api/${target}/${mode}/app/${mode}`, () => {
-          return HttpResponse.error();
-        })
+        mockHandlers.app.start({ networkError: true }, target, mode)
       );
 
       renderWithProviders(

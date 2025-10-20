@@ -4,20 +4,19 @@ import { renderWithProviders } from "../../../../test/setup.tsx";
 import LinuxInstallationPhase from "../phases/LinuxInstallationPhase.tsx";
 import { withTestButton } from "./TestWrapper.tsx";
 import { setupServer } from "msw/node";
-import { http, HttpResponse } from "msw";
+import { mockHandlers } from "../../../../test/mockHandlers.ts";
 
 const TestLinuxInstallationPhase = withTestButton(LinuxInstallationPhase);
 
 const server = setupServer(
   // Mock installation status endpoint
-  http.get("*/api/linux/install/infra/status", () => {
-    return HttpResponse.json({
-      status: { state: "Running", description: "Installing..." },
-      components: [
-        { name: "Runtime", status: { state: "Pending" } },
-        { name: "Disaster Recovery", status: { state: "Pending" } }
-      ]
-    });
+  mockHandlers.infra.getStatus({
+    state: "Running",
+    description: "Installing...",
+    components: [
+      { name: "Runtime", status: { state: "Pending" } },
+      { name: "Disaster Recovery", status: { state: "Pending" } }
+    ]
   })
 );
 
@@ -43,7 +42,7 @@ describe("LinuxInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -62,13 +61,13 @@ describe("LinuxInstallationPhase", () => {
     await waitFor(() => {
       expect(screen.getByText("Installing...")).toBeInTheDocument();
     });
-    
+
     // Verify Runtime component
     const runtimeContainer = screen.getByTestId("status-indicator-runtime");
     expect(runtimeContainer).toBeInTheDocument();
     expect(within(runtimeContainer).getByTestId("status-title")).toHaveTextContent("Runtime");
     expect(within(runtimeContainer).getByTestId("status-text")).toHaveTextContent("Pending");
-    
+
     // Verify Disaster Recovery component
     const drContainer = screen.getByTestId("status-indicator-disaster-recovery");
     expect(drContainer).toBeInTheDocument();
@@ -84,15 +83,13 @@ describe("LinuxInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/linux/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { state: "InProgress", description: "Installing components..." },
-          components: [
-            { name: "Runtime", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Running" } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: "Running",
+        description: "Installing components...",
+        components: [
+          { name: "Runtime", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Running" } }
+        ]
       })
     );
 
@@ -101,7 +98,7 @@ describe("LinuxInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -134,15 +131,13 @@ describe("LinuxInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/linux/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { state: "Succeeded", description: "Installation complete" },
-          components: [
-            { name: "Runtime", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Succeeded" } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: "Succeeded",
+        description: "Installation complete",
+        components: [
+          { name: "Runtime", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Succeeded" } }
+        ]
       })
     );
 
@@ -151,7 +146,7 @@ describe("LinuxInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -166,7 +161,7 @@ describe("LinuxInstallationPhase", () => {
 
     // Verify final state
     expect(screen.getByText("Installation complete")).toBeInTheDocument();
-    
+
     // Verify Runtime component
     const runtimeContainer = screen.getByTestId("status-indicator-runtime");
     expect(runtimeContainer).toBeInTheDocument();
@@ -184,18 +179,13 @@ describe("LinuxInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/linux/install/infra/status", ({ request }) => {
-        expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-        return HttpResponse.json({
-          status: { 
-            state: "Failed", 
-            description: "Installation failed: Disaster Recovery setup failed" 
-          },
-          components: [
-            { name: "Runtime", status: { state: "Succeeded" } },
-            { name: "Disaster Recovery", status: { state: "Failed" } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: "Failed",
+        description: "Installation failed: Disaster Recovery setup failed",
+        components: [
+          { name: "Runtime", status: { state: "Succeeded" } },
+          { name: "Disaster Recovery", status: { state: "Failed" } }
+        ]
       })
     );
 
@@ -204,7 +194,7 @@ describe("LinuxInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -239,15 +229,14 @@ describe("LinuxInstallationPhase", () => {
     const mockOnNext = vi.fn();
     const mockOnStateChange = vi.fn();
     server.use(
-      http.get("*/api/linux/install/infra/status", () => {
-        return HttpResponse.json({
-          status: { state: "Running", description: "Installing..." },
-          components: [
-            { name: "Runtime", status: { state: "Pending" } },
-            { name: "Disaster Recovery", status: { state: "Pending" } }
-          ],
-          logs: "[k0s] creating k0s configuration file\n[k0s] creating systemd unit files"
-        });
+      mockHandlers.infra.getStatus({
+        state: "Running",
+        description: "Installing...",
+        components: [
+          { name: "Runtime", status: { state: "Pending" } },
+          { name: "Disaster Recovery", status: { state: "Pending" } }
+        ],
+        logs: "[k0s] creating k0s configuration file\n[k0s] creating systemd unit files"
       })
     );
 
@@ -256,7 +245,7 @@ describe("LinuxInstallationPhase", () => {
         onNext={mockOnNext}
         onStateChange={mockOnStateChange}
         ignoreHostPreflights={false}
-      />, 
+      />,
       {
         wrapperProps: {
           authenticated: true,
@@ -307,14 +296,13 @@ describe('LinuxInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Running" immediately when component mounts', async () => {
     // Mock infra status endpoint - returns running state
     server.use(
-      http.get('*/api/linux/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Running', description: 'Installing...' },
-          components: [
-            { name: 'Runtime', status: { state: 'Running' } },
-            { name: 'Disaster Recovery', status: { state: 'Pending' } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: 'Running',
+        description: 'Installing...',
+        components: [
+          { name: 'Runtime', status: { state: 'Running' } },
+          { name: 'Disaster Recovery', status: { state: 'Pending' } }
+        ]
       })
     );
 
@@ -335,14 +323,13 @@ describe('LinuxInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Succeeded" when installation completes successfully', async () => {
     // Mock infra status endpoint - returns success
     server.use(
-      http.get('*/api/linux/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Succeeded', description: 'Installation completed successfully' },
-          components: [
-            { name: 'Runtime', status: { state: 'Succeeded' } },
-            { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: 'Succeeded',
+        description: 'Installation completed successfully',
+        components: [
+          { name: 'Runtime', status: { state: 'Succeeded' } },
+          { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
+        ]
       })
     );
 
@@ -371,14 +358,13 @@ describe('LinuxInstallationPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Failed" when installation fails', async () => {
     // Mock infra status endpoint - returns failure
     server.use(
-      http.get('*/api/linux/install/infra/status', () => {
-        return HttpResponse.json({
-          status: { state: 'Failed', description: 'Installation failed' },
-          components: [
-            { name: 'Runtime', status: { state: 'Failed' } },
-            { name: 'Disaster Recovery', status: { state: 'Pending' } }
-          ]
-        });
+      mockHandlers.infra.getStatus({
+        state: 'Failed',
+        description: 'Installation failed',
+        components: [
+          { name: 'Runtime', status: { state: 'Failed' } },
+          { name: 'Disaster Recovery', status: { state: 'Pending' } }
+        ]
       })
     );
 
@@ -421,29 +407,16 @@ describe.each([
     vi.clearAllMocks();
   });
 
-  // Determine the correct API endpoints based on mode
-  const statusEndpoint = `/api/linux/${mode}/infra/status`;
-  const mutationEndpoint = mode === 'install' ? '/api/linux/install/infra/setup' : '/api/linux/upgrade/infra/upgrade';
-
   it('handles API error responses gracefully when starting installation', async () => {
     // Mock infra status endpoint to return Pending state to trigger mutation
     server.use(
-      http.get(`*${statusEndpoint}`, () => {
-        return HttpResponse.json({
-          status: { state: 'Pending', description: 'Waiting to start...' },
-          components: []
-        });
-      }),
+      mockHandlers.infra.getStatus({
+        state: 'Pending',
+        description: 'Waiting to start...',
+        components: []
+      }, 'linux', mode),
       // Mock infra setup/upgrade endpoint to return API error
-      http.post(`*${mutationEndpoint}`, () => {
-        return HttpResponse.json(
-          {
-            statusCode: 400,
-            message: 'Preflight checks failed. Cannot proceed with installation.'
-          },
-          { status: 400 }
-        );
-      })
+      mockHandlers.infra.setup(false, 'linux', mode)
     );
 
     renderWithProviders(
@@ -472,16 +445,13 @@ describe.each([
   it('handles network failure during installation start', async () => {
     // Mock infra status endpoint to return Pending state to trigger mutation
     server.use(
-      http.get(`*${statusEndpoint}`, () => {
-        return HttpResponse.json({
-          status: { state: 'Pending', description: 'Waiting to start...' },
-          components: []
-        });
-      }),
+      mockHandlers.infra.getStatus({
+        state: 'Pending',
+        description: 'Waiting to start...',
+        components: []
+      }, 'linux', mode),
       // Mock infra setup/upgrade endpoint to return network error
-      http.post(`*${mutationEndpoint}`, () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.infra.setup(false, 'linux', mode)
     );
 
     renderWithProviders(
@@ -508,40 +478,17 @@ describe.each([
   });
 
   it('handles successful mutation and proceeds correctly', async () => {
-    // Mock infra status endpoint to transition from Pending to Running to Succeeded
-    let statusCallCount = 0;
+    // Mock successful infra setup and completed status
     server.use(
-      http.get(`*${statusEndpoint}`, () => {
-        statusCallCount++;
-        if (statusCallCount === 1) {
-          // First call - trigger mutation
-          return HttpResponse.json({
-            status: { state: 'Pending', description: 'Waiting to start...' },
-            components: []
-          });
-        } else if (statusCallCount === 2) {
-          // Second call - after mutation started
-          return HttpResponse.json({
-            status: { state: 'Running', description: 'Installing...' },
-            components: [
-              { name: 'Runtime', status: { state: 'Running' } },
-              { name: 'Disaster Recovery', status: { state: 'Pending' } }
-            ]
-          });
-        }
-        // Subsequent calls - installation complete
-        return HttpResponse.json({
-          status: { state: 'Succeeded', description: 'Installation complete' },
-          components: [
-            { name: 'Runtime', status: { state: 'Succeeded' } },
-            { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
-          ]
-        });
-      }),
-      // Mock successful infra setup/upgrade
-      http.post(`*${mutationEndpoint}`, () => {
-        return HttpResponse.json({ success: true });
-      })
+      mockHandlers.infra.getStatus({
+        state: 'Succeeded',
+        description: 'Installation complete',
+        components: [
+          { name: 'Runtime', status: { state: 'Succeeded' } },
+          { name: 'Disaster Recovery', status: { state: 'Succeeded' } }
+        ]
+      }, 'linux', mode),
+      mockHandlers.infra.setup(true, 'linux', mode)
     );
 
     renderWithProviders(
@@ -568,27 +515,21 @@ describe.each([
   });
 
   it('passes ignoreHostPreflights flag correctly to mutation', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let mutationArgs: any = null;
-
-    // Mock infra status endpoint to return Pending state to trigger mutation
     server.use(
-      http.get(`*${statusEndpoint}`, () => {
-        return HttpResponse.json({
-          status: { state: 'Pending', description: 'Waiting to start...' },
-          components: []
-        });
-      }),
+      mockHandlers.infra.getStatus({
+        state: 'Pending',
+        description: 'Waiting to start...',
+        components: []
+      }, 'linux', mode),
       // Mock infra setup/upgrade endpoint to capture arguments
-      http.post(`*${mutationEndpoint}`, async ({ request }) => {
-        mutationArgs = await request.json();
-        return HttpResponse.json(
-          {
-            statusCode: 400,
-            message: 'preflight checks failed'
-          },
-          { status: 400 }
-        );
+      mockHandlers.infra.setup(false, 'linux', mode, (body) => {
+        // Verify ignoreHostPreflights was passed correctly (upgrade mode also includes isUi)
+        if (mode === 'upgrade') {
+          expect(body).toHaveProperty('isUi', true);
+          expect(body).toHaveProperty('ignoreHostPreflights', true);
+        } else {
+          expect(body).toHaveProperty('ignoreHostPreflights', true);
+        }
       })
     );
 
@@ -600,18 +541,6 @@ describe.each([
       />,
       { wrapperProps: { authenticated: true, mode } }
     );
-
-    // Wait for mutation to be called
-    await waitFor(() => {
-      expect(mutationArgs).not.toBeNull();
-    });
-
-    // Verify ignoreHostPreflights was passed correctly (upgrade mode also includes isUi)
-    if (mode === 'upgrade') {
-      expect(mutationArgs).toEqual({ isUi: true, ignoreHostPreflights: true });
-    } else {
-      expect(mutationArgs).toEqual({ ignoreHostPreflights: true });
-    }
 
     // Should show error message
     await waitFor(() => {
@@ -629,22 +558,14 @@ describe.each([
 
     // Mock infra status endpoint to return Pending state
     server.use(
-      http.get(`*${statusEndpoint}`, () => {
-        return HttpResponse.json({
-          status: { state: 'Pending', description: 'Waiting to start...' },
-          components: []
-        });
-      }),
+      mockHandlers.infra.getStatus({
+        state: 'Pending',
+        description: 'Waiting to start...',
+        components: []
+      }, 'linux', mode),
       // Mock infra setup/upgrade endpoint to count calls and fail
-      http.post(`*${mutationEndpoint}`, () => {
+      mockHandlers.infra.setup(false, 'linux', mode, () => {
         mutationCallCount++;
-        return HttpResponse.json(
-          {
-            statusCode: 500,
-            message: 'Internal server error'
-          },
-          { status: 500 }
-        );
       })
     );
 

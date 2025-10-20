@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import KubernetesCompletionStep from "../completion/KubernetesCompletionStep.tsx";
 import { KubernetesConfigResponse } from "../../../types";
+import { mockHandlers } from "../../../test/mockHandlers.ts";
 
 const MOCK_CONFIG: KubernetesConfigResponse = {
   values: {
@@ -19,9 +19,7 @@ const MOCK_CONFIG: KubernetesConfigResponse = {
 };
 
 const createServer = () => setupServer(
-  http.get(`*/api/kubernetes/install/installation/config`, () => {
-    return HttpResponse.json(MOCK_CONFIG);
-  })
+  mockHandlers.installation.getConfig(MOCK_CONFIG as unknown as Record<string, unknown>, 'kubernetes', 'install')
 );
 
 describe("KubernetesCompletionStep", () => {
@@ -109,12 +107,7 @@ describe("KubernetesCompletionStep", () => {
   it("displays error state when API returns ApiError with details", async () => {
     // Override the server handler to return an ApiError with details
     server.use(
-      http.get("*/api/kubernetes/install/installation/config", () => {
-        return HttpResponse.json(
-          { message: "Network error occurred" },
-          { status: 500 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Network error occurred" } }, 'kubernetes', 'install')
     );
 
     renderWithProviders(<KubernetesCompletionStep />, {
@@ -137,12 +130,7 @@ describe("KubernetesCompletionStep", () => {
   it("displays error state with generic error message when no details provided", async () => {
     // Override the server handler to return an error without details
     server.use(
-      http.get("*/api/kubernetes/install/installation/config", () => {
-        return HttpResponse.json(
-          { error: "Failed to fetch configuration" },
-          { status: 500 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Failed to fetch configuration" } }, 'kubernetes', 'install')
     );
 
     renderWithProviders(<KubernetesCompletionStep />, {
@@ -159,17 +147,12 @@ describe("KubernetesCompletionStep", () => {
     });
 
     expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch install configuration")).toBeInTheDocument();
+    expect(screen.getByText("Failed to fetch configuration")).toBeInTheDocument();
   });
 
   it("displays error state when API returns 404", async () => {
     server.use(
-      http.get("*/api/kubernetes/install/installation/config", () => {
-        return HttpResponse.json(
-          { error: "Not found" },
-          { status: 404 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 404, message: "Not found" } }, 'kubernetes', 'install')
     );
 
     renderWithProviders(<KubernetesCompletionStep />, {
@@ -187,9 +170,7 @@ describe("KubernetesCompletionStep", () => {
 
   it("displays error state with network error message", async () => {
     server.use(
-      http.get("*/api/kubernetes/install/installation/config", () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.installation.getConfig({ networkError: true }, 'kubernetes', 'install')
     );
 
     renderWithProviders(<KubernetesCompletionStep />, {

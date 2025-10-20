@@ -1,32 +1,18 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
+import { mockHandlers, preflightPresets } from '../../../../test/mockHandlers.ts';
 import LinuxPreflightPhase from '../phases/LinuxPreflightPhase.tsx';
 import { withTestButton } from './TestWrapper.tsx';
 
 const TestLinuxPreflightPhase = withTestButton(LinuxPreflightPhase);
 
+// Setup server with default handlers
 const server = setupServer(
-  // Mock installation status endpoint
-  http.get('*/api/linux/install/installation/status', () => {
-    return HttpResponse.json({
-      state: 'Succeeded',
-      description: 'Installation initialized',
-      lastUpdated: '2024-01-01T00:00:00Z',
-    });
-  }),
-
-  // Mock preflight run endpoint
-  http.post('*/api/linux/install/host-preflights/run', () => {
-    return HttpResponse.json({ success: true });
-  }),
-
-  // Mock start installation endpoint
-  http.post('*/api/linux/install/infra/setup', () => {
-    return HttpResponse.json({ success: true });
-  }),
+  mockHandlers.installation.getStatus({ state: 'Succeeded', description: 'Installation initialized' }),
+  mockHandlers.preflights.host.run(true),
+  mockHandlers.infra.setup(true, 'linux', 'install'),
 );
 
 describe('LinuxPreflightPhase', () => {
@@ -50,19 +36,10 @@ describe('LinuxPreflightPhase', () => {
   it('enables Start Installation button when allowIgnoreHostPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: true
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreHostPreflights: true,
       })
     );
 
@@ -94,19 +71,10 @@ describe('LinuxPreflightPhase', () => {
   it('disables Start Installation button when allowIgnoreHostPreflights is false and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: false
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -144,19 +112,10 @@ describe('LinuxPreflightPhase', () => {
   it('shows modal when Start Installation clicked and allowIgnoreHostPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: true
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreHostPreflights: true,
       })
     );
 
@@ -209,19 +168,10 @@ describe('LinuxPreflightPhase', () => {
   it('proceeds automatically when allowIgnoreHostPreflights is true and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreHostPreflights: true
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreHostPreflights: true
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreHostPreflights: true,
       })
     );
 
@@ -268,19 +218,10 @@ describe('LinuxPreflightPhase', () => {
   it('proceeds normally when allowIgnoreHostPreflights is false and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreHostPreflights: false
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -328,26 +269,14 @@ describe('LinuxPreflightPhase', () => {
   it('sends ignoreHostPreflights parameter when starting installation with failed preflights', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space available' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: true
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreHostPreflights: true,
       }),
-      // Mock infra setup endpoint to capture request body
-      http.post('*/api/linux/install/infra/setup', async ({ request }) => {
-        const body = await request.json();
-
-        // Verify the request includes ignoreHostPreflights parameter
+      // Mock infra setup endpoint to capture and verify request body
+      mockHandlers.infra.setup(true, 'linux', 'install', (body) => {
         expect(body).toHaveProperty('ignoreHostPreflights', true);
-
-        return HttpResponse.json({ success: true });
       })
     );
 
@@ -389,26 +318,14 @@ describe('LinuxPreflightPhase', () => {
   it('sends ignoreHostPreflights false when starting installation with passed preflights', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [{ title: 'Disk Space', message: 'Sufficient disk space available' }]
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreHostPreflights: false,
       }),
-      // Mock infra setup endpoint to capture request body
-      http.post('*/api/linux/install/infra/setup', async ({ request }) => {
-        const body = await request.json();
-
-        // Verify the request includes ignoreHostPreflights parameter as false
+      // Mock infra setup endpoint to capture and verify request body
+      mockHandlers.infra.setup(true, 'linux', 'install', (body) => {
         expect(body).toHaveProperty('ignoreHostPreflights', false);
-
-        return HttpResponse.json({ success: true });
       })
     );
 
@@ -457,17 +374,10 @@ describe('LinuxPreflightPhase - Error Handling & Edge Cases', () => {
   it('properly handles modal cancellation flow', async () => {
     // Mock preflight status endpoint - returns failures
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: true
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space'),
+        allowIgnoreHostPreflights: true,
       })
     );
 
@@ -531,13 +441,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Running" immediately when component mounts', async () => {
     // Mock preflight status endpoint - returns running state initially
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Running' },
-          output: { fail: [], warn: [], pass: [] },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Running' },
+        output: { fail: [], warn: [], pass: [] },
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -558,19 +465,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Succeeded" when preflights complete successfully', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -600,19 +498,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
     // Mock preflight status endpoint - returns failures
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -642,17 +531,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
     // Mock preflight status to show failures initially
     server.use(
-      http.get('*/api/linux/install/host-preflights/status', () => {
-        return HttpResponse.json({
-          titles: ['Host Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreHostPreflights: false
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space'),
+        allowIgnoreHostPreflights: false,
       })
     );
 

@@ -1,26 +1,20 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
+import { mockHandlers } from "../../../test/mockHandlers";
 import KubernetesSetupStep from "../setup/KubernetesSetupStep.tsx";
 import { MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY } from "../../../test/testData.ts";
 
 const createServer = (mode: 'install' | 'upgrade' = 'install') => setupServer(
   // Mock config endpoint for both install and upgrade
-  http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
-    return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
-  }),
+  mockHandlers.installation.getConfig(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, 'kubernetes', mode),
 
   // Mock config submission endpoint for both modes
-  http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
-    return HttpResponse.json({ success: true });
-  }),
+  mockHandlers.installation.configure(true, 'kubernetes', mode),
 
   // Mock infrastructure setup endpoint for both modes
-  http.post(`*/api/kubernetes/${mode}/infra/setup`, () => {
-    return HttpResponse.json({ success: true });
-  })
+  mockHandlers.infra.setup(true, 'kubernetes', mode)
 );
 
 describe.each([
@@ -84,9 +78,9 @@ describe.each([
     it("handles form errors gracefully", async () => {
       server.use(
         // Mock config submission endpoint to return an error
-        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
-          return new HttpResponse(JSON.stringify({ message: "Invalid configuration" }), { status: 400 });
-        })
+        mockHandlers.installation.configure({
+          error: { message: "Invalid configuration" }
+        }, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -121,15 +115,15 @@ describe.each([
     it("handles field-specific errors gracefully", async () => {
       server.use(
         // Mock config submission endpoint to return field-specific errors
-        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
-          return new HttpResponse(JSON.stringify({
+        mockHandlers.installation.configure({
+          error: { 
             message: "Validation failed",
-            errors: [
+            fields: [
               { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" },
               { field: "httpProxy", message: "HTTP Proxy must be a valid URL" }
             ]
-          }), { status: 400 });
-        })
+          }
+        }, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -168,9 +162,9 @@ describe.each([
     it("clears errors when re-submitting after previous failure", async () => {
       // First, set up server to return an error
       server.use(
-        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
-          return new HttpResponse(JSON.stringify({ message: "Initial error" }), { status: 400 });
-        })
+        mockHandlers.installation.configure({
+          error: { message: "Initial error" }
+        }, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -196,9 +190,7 @@ describe.each([
 
       // Now change server to return success
       server.use(
-        http.post(`*/api/kubernetes/${mode}/installation/configure`, () => {
-          return HttpResponse.json({ success: true });
-        })
+        mockHandlers.installation.configure(true, 'kubernetes', mode)
       );
 
       // Submit again
@@ -217,9 +209,7 @@ describe.each([
   describe("Input Validation and Edge Cases", () => {
     it("does not display zero values in port input fields", async () => {
       server.use(
-        http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
-          return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS);
-        })
+        mockHandlers.installation.getConfig(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -244,9 +234,7 @@ describe.each([
 
     it("handles empty config values correctly", async () => {
       server.use(
-        http.get(`*/api/kubernetes/${mode}/installation/config`, () => {
-          return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY);
-        })
+        mockHandlers.installation.getConfig(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE_EMPTY, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -359,33 +347,20 @@ describe.each([
       // Mock all required API endpoints
       server.use(
         // Mock install config endpoint
-        http.get("*/api/kubernetes/install/installation/config", ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          return HttpResponse.json(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE);
-        }),
-        // Mock config submission endpoint
-        http.post("*/api/kubernetes/install/installation/configure", async ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          const body = await request.json();
-          // Verify the request body has required fields
-          expect(body).toMatchObject({
-            adminConsolePort: 30000,
-          });
-          return new HttpResponse(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-        }),
+        mockHandlers.installation.getConfig(MOCK_KUBERNETES_INSTALL_CONFIG_RESPONSE, 'kubernetes', mode),
+        // Mock config submission endpoint with capture
+        mockHandlers.installation.configure({
+          captureRequest: (body: Record<string, unknown>, headers: Headers) => {
+            // Verify auth header
+            expect(headers.get("Authorization")).toBe("Bearer test-token");
+            // Verify the request body has required fields
+            expect(body).toMatchObject({
+              adminConsolePort: 30000,
+            });
+          }
+        }, 'kubernetes', mode),
         // Mock infrastructure setup endpoint
-        http.post("*/api/kubernetes/install/infra/setup", ({ request }) => {
-          // Verify auth header
-          expect(request.headers.get("Authorization")).toBe("Bearer test-token");
-          return HttpResponse.json({ success: true });
-        })
+        mockHandlers.infra.setup(true, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
@@ -427,27 +402,20 @@ describe.each([
     it("submits form with proxy configuration", async () => {
       // Mock all required API endpoints
       server.use(
-        // Mock config submission endpoint
-        http.post("*/api/kubernetes/install/installation/configure", async ({ request }) => {
-          const body = await request.json();
-          // Verify the request body includes proxy configuration
-          expect(body).toMatchObject({
-            adminConsolePort: 30000,
-            httpProxy: "http://proxy.example.com:3128",
-            httpsProxy: "https://proxy.example.com:3128",
-            noProxy: "localhost,127.0.0.1,.internal",
-          });
-          return new HttpResponse(JSON.stringify({ success: true }), {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-        }),
+        // Mock config submission endpoint with capture
+        mockHandlers.installation.configure({
+          captureRequest: (body: Record<string, unknown>) => {
+            // Verify the request body includes proxy configuration
+            expect(body).toMatchObject({
+              adminConsolePort: 30000,
+              httpProxy: "http://proxy.example.com:3128",
+              httpsProxy: "https://proxy.example.com:3128",
+              noProxy: "localhost,127.0.0.1,.internal",
+            });
+          }
+        }, 'kubernetes', mode),
         // Mock infrastructure setup endpoint
-        http.post(`*/api/kubernetes/${mode}/infra/setup`, () => {
-          return HttpResponse.json({ success: true });
-        })
+        mockHandlers.infra.setup(true, 'kubernetes', mode)
       );
 
       renderWithProviders(<KubernetesSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {

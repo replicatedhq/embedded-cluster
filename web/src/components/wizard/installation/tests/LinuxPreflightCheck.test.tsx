@@ -3,37 +3,21 @@ import { renderWithProviders } from "../../../../test/setup.tsx";
 import LinuxPreflightCheck from "../phases/LinuxPreflightCheck";
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { setupServer } from "msw/node";
-import { http, HttpResponse } from "msw";
+import { mockHandlers, preflightPresets } from "../../../../test/mockHandlers.ts";
 
 const TEST_TOKEN = "test-auth-token";
 
 const server = setupServer(
-  // Mock preflight status endpoint
-  http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({
-      titles: ["Test"],
-      output: {
-        pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-        warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
-        fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-      },
-      status: { state: "Failed" },
-      allowIgnoreHostPreflights: false,
-    });
+  mockHandlers.preflights.host.getStatus({
+    status: { state: "Failed" },
+    output: {
+      pass: [{ title: "CPU Check", message: "CPU requirements met" }],
+      warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
+      fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
+    },
+    allowIgnoreHostPreflights: false,
   }),
-
-  // Mock preflight run endpoint
-  http.post("*/api/linux/install/host-preflights/run", ({ request }) => {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new HttpResponse(null, { status: 401 });
-    }
-    return HttpResponse.json({ success: true });
-  })
+  mockHandlers.preflights.host.run(true)
 );
 
 describe("LinuxPreflightCheck", () => {
@@ -51,12 +35,9 @@ describe("LinuxPreflightCheck", () => {
 
   it("shows validating state when preflights are polling", async () => {
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({ state: "Running" });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: "Running" },
+        output: { fail: [], warn: [], pass: [] },
       })
     );
 
@@ -89,17 +70,9 @@ describe("LinuxPreflightCheck", () => {
 
   it("shows success state when all preflights pass", async () => {
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-          },
-          status: { state: "Succeeded" },
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: "Succeeded" },
+        output: preflightPresets.success(),
       })
     );
 
@@ -147,21 +120,10 @@ describe("LinuxPreflightCheck", () => {
   it("receives allowIgnoreHostPreflights field in preflight response", async () => {
     // Mock preflight status endpoint with allowIgnoreHostPreflights: true
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-            warn: [],
-            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-          },
-          status: { state: "Failed" },
-          allowIgnoreHostPreflights: true, // Test that this field is properly received
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: "Failed" },
+        output: preflightPresets.failed("Insufficient disk space"),
+        allowIgnoreHostPreflights: true,
       })
     );
 
@@ -183,21 +145,10 @@ describe("LinuxPreflightCheck", () => {
   it("passes allowIgnoreHostPreflights false to onComplete callback", async () => {
     // Mock preflight status endpoint with allowIgnoreHostPreflights: false
     server.use(
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          titles: ["Test"],
-          output: {
-            pass: [{ title: "CPU Check", message: "CPU requirements met" }],
-            warn: [],
-            fail: [{ title: "Disk Space", message: "Insufficient disk space" }],
-          },
-          status: { state: "Failed" },
-          allowIgnoreHostPreflights: false, // Test that this field is properly received
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: "Failed" },
+        output: preflightPresets.failed("Insufficient disk space"),
+        allowIgnoreHostPreflights: false,
       })
     );
 
@@ -219,19 +170,12 @@ describe("LinuxPreflightCheck", () => {
   it("handles preflight run error gracefully", async () => {
     server.use(
       // Mock status endpoint to return Pending state (which triggers the mutation)
-      http.get("*/api/linux/install/host-preflights/status", ({ request }) => {
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-          return new HttpResponse(null, { status: 401 });
-        }
-        return HttpResponse.json({
-          status: { state: "Pending" },
-        });
+      mockHandlers.preflights.host.getStatus({
+        status: { state: "Pending" },
+        output: { fail: [], warn: [], pass: [] },
       }),
       // Mock run endpoint to return an error
-      http.post("*/api/linux/install/host-preflights/run", () => {
-        return HttpResponse.json({ message: "Failed to run preflight checks" }, { status: 500 });
-      })
+      mockHandlers.preflights.host.run(false)
     );
 
     renderWithProviders(<LinuxPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
