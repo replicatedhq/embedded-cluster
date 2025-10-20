@@ -3,9 +3,13 @@ package upgrade
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
+	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -368,4 +372,150 @@ config:
 			tt.validate(t, &updatedConfig)
 		})
 	}
+}
+
+func TestWaitForAutopilotPlan_Success(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+
+	plan := &apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Status: apv1b2.PlanStatus{
+			State: core.PlanCompleted,
+		},
+	}
+
+	cli := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(plan).
+		Build()
+
+	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", result.Name)
+}
+
+func TestWaitForAutopilotPlan_RetriesOnTransientErrors(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+
+	// Plan that starts completed
+	plan := &apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Status: apv1b2.PlanStatus{
+			State: core.PlanCompleted,
+		},
+	}
+
+	// Mock client that fails first 3 times, then succeeds
+	var callCount atomic.Int32
+	cli := &mockClientWithRetries{
+		Client:       fake.NewClientBuilder().WithScheme(scheme).WithObjects(plan).Build(),
+		failCount:    3,
+		currentCount: &callCount,
+	}
+
+	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", result.Name)
+	assert.Equal(t, int32(4), callCount.Load(), "Should have retried 3 times before succeeding")
+}
+
+func TestWaitForAutopilotPlan_ContextCanceled(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // Cancel immediately
+
+	cli := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	_, err := waitForAutopilotPlan(ctx, cli, logger)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context canceled")
+}
+
+func TestWaitForAutopilotPlan_WaitsForCompletion(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+
+	// Plan that starts in progress, then completes after some time
+	plan := &apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Spec: apv1b2.PlanSpec{
+			ID: "test-plan",
+		},
+		Status: apv1b2.PlanStatus{
+			State: core.PlanSchedulable,
+		},
+	}
+
+	cli := &mockClientWithStateChange{
+		Client:     fake.NewClientBuilder().WithScheme(scheme).WithObjects(plan).Build(),
+		plan:       plan,
+		callsUntil: 3, // Will complete after 3 calls
+	}
+
+	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", result.Name)
+	assert.Equal(t, core.PlanCompleted, result.Status.State)
+}
+
+// Mock client that fails N times before succeeding
+type mockClientWithRetries struct {
+	client.Client
+	failCount    int
+	currentCount *atomic.Int32
+}
+
+func (m *mockClientWithRetries) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	count := m.currentCount.Add(1)
+	if count <= int32(m.failCount) {
+		return fmt.Errorf("connection refused")
+	}
+	return m.Client.Get(ctx, key, obj, opts...)
+}
+
+// Mock client that changes plan state after N calls
+type mockClientWithStateChange struct {
+	client.Client
+	plan       *apv1b2.Plan
+	callCount  int
+	callsUntil int
+}
+
+func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	m.callCount++
+	err := m.Client.Get(ctx, key, obj, opts...)
+	if err != nil {
+		return err
+	}
+
+	// After N calls, mark the plan as completed
+	if m.callCount >= m.callsUntil {
+		if plan, ok := obj.(*apv1b2.Plan); ok {
+			plan.Status.State = core.PlanCompleted
+		}
+	}
+
+	return nil
 }
