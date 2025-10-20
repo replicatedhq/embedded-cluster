@@ -212,16 +212,35 @@ export const mockHandlers = {
      * @param mode - Operation mode
      */
     getConfig: (
-      config: Record<string, unknown> | { values?: Record<string, unknown>; defaults?: Record<string, unknown>; resolved?: Record<string, unknown> } = {},
+      config:
+        | Record<string, unknown>
+        | { values?: Record<string, unknown>; defaults?: Record<string, unknown>; resolved?: Record<string, unknown> }
+        | { error: { statusCode: number; message: string } }
+        | { networkError: true }
+        = {},
       target: Target = 'linux',
       mode: Mode = 'install'
     ) =>
       http.get(apiPath('/installation/config', target, mode), () => {
+        // Handle network error
+        if ('networkError' in config) {
+          return HttpResponse.error();
+        }
+
+        // Handle API error
+        if ('error' in config) {
+          const errorConfig = config as { error: { statusCode: number; message: string } };
+          return HttpResponse.json(
+            { message: errorConfig.error.message },
+            { status: errorConfig.error.statusCode }
+          );
+        }
+
         // Check if this is a full config response with values/defaults/resolved
         if ('values' in config || 'defaults' in config || 'resolved' in config) {
-          // Return as-is, it's already in the correct format
           return HttpResponse.json(config);
         }
+
         // Otherwise, treat it as simple values and wrap it
         return HttpResponse.json({
           values: config,
