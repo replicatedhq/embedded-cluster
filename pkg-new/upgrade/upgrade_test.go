@@ -480,6 +480,39 @@ func TestWaitForAutopilotPlan_WaitsForCompletion(t *testing.T) {
 	assert.Equal(t, core.PlanCompleted, result.Status.State)
 }
 
+func TestWaitForAutopilotPlan_LongRunningUpgrade(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+
+	// Simulate a long-running upgrade that takes more than 5 attempts
+	// This represents a real k0s infrastructure upgrade that takes several minutes
+	plan := &apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Spec: apv1b2.PlanSpec{
+			ID: "long-running-upgrade",
+		},
+		Status: apv1b2.PlanStatus{
+			State: core.PlanSchedulable,
+		},
+	}
+
+	cli := &mockClientWithStateChange{
+		Client:     fake.NewClientBuilder().WithScheme(scheme).WithObjects(plan).Build(),
+		plan:       plan,
+		callsUntil: 10, // Will complete after 10 calls - exceeds buggy 5-attempt limit
+	}
+
+	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	require.NoError(t, err, "Should not timeout for long-running upgrades")
+	assert.Equal(t, "autopilot", result.Name)
+	assert.Equal(t, core.PlanCompleted, result.Status.State)
+}
+
 // Mock client that fails N times before succeeding
 type mockClientWithRetries struct {
 	client.Client
