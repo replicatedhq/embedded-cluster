@@ -3,13 +3,13 @@ name: CI
 on:
   pull_request:
     paths-ignore:
-      - '.claude/**'
+      - ".claude/**"
 
   push:
     branches:
       - main
     paths-ignore:
-      - '.claude/**'
+      - ".claude/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -556,17 +556,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          previous_release_gap="5" # How many versions behind of EC we want to use
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
           previous_k0s_minor_version=$(($k0s_minor_version - 1))
           k0s_majmin_version="1.${previous_k0s_minor_version}"
-          if [ "$k0s_majmin_version" == "1.28" ]; then
-            k0s_majmin_version="1.29"
-          fi
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
-            --exclude-drafts --exclude-pre-releases --json name \
-            --jq '.[] | .name' \
-            | grep "k8s-${k0s_majmin_version}" \
-            | head -n1)"
+           --exclude-drafts --exclude-pre-releases --json name --order desc \
+           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | .[${previous_release_gap}] | .name")"
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
@@ -738,7 +734,7 @@ jobs:
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
-          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          # promote a release containing a previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
           export RELEASE_YAML_DIR=e2e/kots-release-install-stable
