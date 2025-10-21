@@ -498,7 +498,7 @@ func TestUpgradeFromReplicatedApp(t *testing.T) {
 
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version:    initialVersion,
-		k8sVersion: k8sVersionPrevious(1),
+		k8sVersion: k8sVersionPreviousStable(),
 	})
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -738,7 +738,7 @@ func TestSingleNodeAirgapUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -825,7 +825,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"/usr/local/bin/check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"/usr/local/bin/check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -897,7 +897,7 @@ func TestSingleNodeAirgapUpgradeCustomCIDR(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
@@ -1278,7 +1278,7 @@ func TestMultiNodeAirgapUpgrade(t *testing.T) {
 	waitForNodes(t, tc, 2, nil)
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1868,7 +1868,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	waitForNodes(t, tc, 5, nil)
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -2031,7 +2031,7 @@ spec:
 	})
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPrevious(1)}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
