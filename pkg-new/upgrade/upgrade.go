@@ -368,7 +368,7 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfi
 func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
 	backoff := wait.Backoff{
 		Duration: 20 * time.Second, // 20-second polling interval
-		Steps:    75,               // 75 attempts × 20s = 1500s = 25 minutes
+		Steps:    90,               // 90 attempts × 20s = 1800s = 30 minutes
 	}
 
 	var plan apv1b2.Plan
