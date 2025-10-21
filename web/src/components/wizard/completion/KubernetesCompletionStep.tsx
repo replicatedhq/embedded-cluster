@@ -1,38 +1,19 @@
 import React, { useState } from "react";
 import Card from "../../common/Card";
 import Button from "../../common/Button";
-import { useQuery } from "@tanstack/react-query";
 import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useSettings } from "../../../contexts/SettingsContext";
-import { useAuth } from "../../../contexts/AuthContext";
 import { CheckCircle, ClipboardCheck, Copy, Terminal, Loader2, XCircle } from "lucide-react";
-import { KubernetesConfigResponse } from "../../../types";
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import { ApiError } from '../../../api/error';
+import { useInstallConfig } from '../../../queries/useQueries';
 
 const KubernetesCompletionStep: React.FC = () => {
   const [copied, setCopied] = useState(false);
-  const { title, installTarget, mode } = useInitialState();
+  const { title } = useInitialState();
   const { settings: { themeColor } } = useSettings();
-  const { token } = useAuth();
 
-  const apiBase = getApiBase(installTarget, mode);
   // Query for fetching install configuration
-  const { isLoading, error, data: config } = useQuery<KubernetesConfigResponse, Error>({
-    queryKey: ["installConfig"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
-      }
-      const configResponse = await response.json() as KubernetesConfigResponse;
-      return configResponse;
-    },
-  });
+  const { isLoading, error, data: config } = useInstallConfig();
 
   const copyInstallCommand = () => {
     if (config?.resolved.installCommand) {

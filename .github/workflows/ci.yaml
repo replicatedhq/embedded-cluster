@@ -75,12 +75,9 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-      - name: Run web lint
+      - name: Run web tests (types check, lint, and unit tests)
         run: |
-          npm run lint
-      - name: Run web unit tests
-        run: |
-          npm run test:unit
+          npm run test
       - name: Build web
         run: |
           npm run build

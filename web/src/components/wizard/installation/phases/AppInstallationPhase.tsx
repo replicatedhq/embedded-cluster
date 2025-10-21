@@ -1,15 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
-import { useAuth } from "../../../../contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { NextButtonConfig } from "../types";
-import { State, AppInstallStatus } from "../../../../types";
-import { getApiBase } from '../../../../utils/api-base';
+import { State } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
-import { ApiError } from '../../../../utils/api-error';
 import { useStartAppInstallation } from '../../../../mutations/useMutations';
+import { useAppInstallStatus } from '../../../../queries/useQueries';
 
 interface AppInstallationPhaseProps {
   onNext: () => void;
@@ -19,9 +16,8 @@ interface AppInstallationPhaseProps {
 }
 
 const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange, ignoreAppPreflights }) => {
-  const { text, target, mode } = useWizard();
+  const { text } = useWizard();
   const { settings } = useSettings();
-  const { token } = useAuth();
   const [isPolling, setIsPolling] = useState(true);
   const [installationComplete, setInstallationComplete] = useState(false);
   const [installationSuccess, setInstallationSuccess] = useState(false);
@@ -30,21 +26,7 @@ const AppInstallationPhase: React.FC<AppInstallationPhaseProps> = ({ onNext, set
   const mutationStarted = useRef(false);
 
   // Query to poll app installation status
-  const { data: appInstallStatus, error: appStatusError } = useQuery<AppInstallStatus, Error>({
-    queryKey: ["appInstallationStatus"],
-    queryFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app/status`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get app installation status")
-      }
-      return response.json() as Promise<AppInstallStatus>;
-    },
+  const { data: appInstallStatus, error: appStatusError } = useAppInstallStatus({
     enabled: isPolling,
     refetchInterval: 2000,
   });

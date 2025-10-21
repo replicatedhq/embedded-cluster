@@ -1,15 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Input from "../../common/Input";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
 import { useWizard } from "../../../contexts/WizardModeContext";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { KubernetesConfig, KubernetesConfigResponse } from "../../../types";
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import { KubernetesConfig } from "../../../types";
+import { getApiBasePath } from '../../../api/client';
+import { ApiError } from '../../../api/error';
+import { useInstallConfig } from '../../../queries/useQueries';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -41,28 +42,18 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   const [defaults, setDefaults] = useState<KubernetesConfig>({});
   const [configValues, setConfigValues] = useState<KubernetesConfig>({});
   const { token } = useAuth();
-  const apiBase = getApiBase(target, mode);
+  const apiBase = getApiBasePath(target, mode);
 
   // Query for fetching install configuration
-  const { isLoading: isConfigLoading } = useQuery<KubernetesConfigResponse, Error>({
-    queryKey: ["installConfig"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
-      }
-      const configResponse = await response.json();
-      // Store defaults for display in help text
+  const { data: configResponse, isLoading: isConfigLoading } = useInstallConfig();
+
+  // Store defaults and config values when config loads
+  useEffect(() => {
+    if (configResponse) {
       setDefaults(configResponse.defaults);
-      // Store the config values for display in the form inputs
-      setConfigValues(configResponse.values)
-      return configResponse;
-    },
-  });
+      setConfigValues(configResponse.values);
+    }
+  }, [configResponse]);
 
   // Mutation for submitting the configuration
   const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, KubernetesConfig>({

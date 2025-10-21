@@ -5,13 +5,14 @@ import Button from "../../common/Button";
 import Card from "../../common/Card";
 import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { LinuxConfigResponse, LinuxConfig, State } from "../../../types";
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import { LinuxConfig } from "../../../types";
+import { getApiBasePath } from '../../../api/client';
+import { ApiError } from '../../../api/error';
+import { useInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -44,16 +45,6 @@ interface Status {
   description?: string;
 }
 
-interface InstallationStatusResponse {
-  description: string;
-  lastUpdated: string;
-  state: State;
-}
-
-interface NetworkInterfacesResponse {
-  networkInterfaces: string[]
-}
-
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const { text, target, mode } = useWizard();
   const { title } = useInitialState();
@@ -63,60 +54,24 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   const [defaults, setDefaults] = useState<LinuxConfig>({ dataDirectory: "" });
   const [configValues, setConfigValues] = useState<LinuxConfig>({ dataDirectory: "" });
   const { token } = useAuth();
-  const apiBase = getApiBase(target, mode);
+  const apiBase = getApiBasePath(target, mode);
 
   // Query for fetching install configuration
-  const { isLoading: isConfigLoading } = useQuery<LinuxConfigResponse, Error>({
-    queryKey: ["installConfig"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
-      }
-      const configResponse = await response.json();
-      // Store defaults for display in help text
+  const { data: configResponse, isLoading: isConfigLoading } = useInstallConfig();
+
+  // Store defaults and config values when config loads
+  useEffect(() => {
+    if (configResponse) {
       setDefaults(configResponse.defaults);
-      // Store the config values for display in the form inputs
-      setConfigValues(configResponse.values)
-      return configResponse;
-    },
-  });
+      setConfigValues(configResponse.values);
+    }
+  }, [configResponse]);
 
   // Query for fetching network interfaces
-  const { data: networkInterfacesData, isLoading: isInterfacesLoading } = useQuery<NetworkInterfacesResponse, Error>({
-    queryKey: ["networkInterfaces"],
-    queryFn: async () => {
-      const response = await fetch("/api/console/available-network-interfaces", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch network interfaces")
-      }
-      return response.json();
-    },
-  });
+  const { data: networkInterfacesData, isLoading: isInterfacesLoading } = useNetworkInterfaces();
 
   // Query to poll installation status
-  const { data: installationStatus } = useQuery<InstallationStatusResponse, Error>({
-    queryKey: ["installationStatus"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/status`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get installation status")
-      }
-      return response.json() as Promise<InstallationStatusResponse>;
-    },
+  const { data: installationStatus } = useInstallationStatus({
     enabled: isInstallationStatusPolling,
     refetchInterval: 1000,
     gcTime: 0,

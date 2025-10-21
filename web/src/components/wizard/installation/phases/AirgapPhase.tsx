@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
-import { useAuth } from "../../../../contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
 import { NextButtonConfig } from "../types";
-import { State, Airgap } from "../../../../types";
-import { getApiBase } from '../../../../utils/api-base';
+import { State } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
-import { ApiError } from '../../../../utils/api-error';
 import { useProcessAirgap } from '../../../../mutations/useMutations';
+import { useAirgapStatus } from '../../../../queries/useQueries';
 
 interface AirgapPhaseProps {
   onNext: () => void;
@@ -18,9 +14,7 @@ interface AirgapPhaseProps {
 }
 
 const AirgapPhase: React.FC<AirgapPhaseProps> = ({ onNext, setNextButtonConfig, onStateChange }) => {
-  const { target, mode } = useWizard();
   const { settings } = useSettings();
-  const { token } = useAuth();
   const [isPolling, setIsPolling] = useState(true);
   const [processingComplete, setProcessingComplete] = useState(false);
   const [processingSuccess, setProcessingSuccess] = useState(false);
@@ -29,21 +23,7 @@ const AirgapPhase: React.FC<AirgapPhaseProps> = ({ onNext, setNextButtonConfig, 
   const mutationStarted = useRef(false);
 
   // Query to poll airgap processing status
-  const { data: airgapStatus, error: airgapStatusError } = useQuery<Airgap, Error>({
-    queryKey: ["airgapStatus"],
-    queryFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/airgap/status`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get airgap processing status")
-      }
-      return response.json() as Promise<Airgap>;
-    },
+  const { data: airgapStatus, error: airgapStatusError } = useAirgapStatus({
     enabled: isPolling,
     refetchInterval: 2000,
   });

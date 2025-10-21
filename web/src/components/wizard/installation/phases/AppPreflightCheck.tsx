@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSettings } from "../../../../contexts/SettingsContext";
-import { useWizard } from "../../../../contexts/WizardModeContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import Button from "../../../common/Button";
 import { PreflightOutput, AppPreflightResponse } from "../../../../types";
-import { getApiBase } from '../../../../utils/api-base';
-import { ApiError } from '../../../../utils/api-error';
 import { useRunAppPreflights } from "../../../../mutations/useMutations";
+import { useAppPreflightStatus } from "../../../../queries/useQueries";
 
 interface AppPreflightCheckProps {
   onRun: () => void;
@@ -17,7 +14,6 @@ interface AppPreflightCheckProps {
 const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete }) => {
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
   const { settings } = useSettings();
-  const { target, mode } = useWizard();
   const themeColor = settings.themeColor;
   const runAppPreflights = useRunAppPreflights();
   const mutationStarted = useRef(false);
@@ -37,8 +33,6 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     return "";
   };
 
-  const apiBase = getApiBase(target, mode);
-
   // Handle mutation callbacks
   useEffect(() => {
     if (runAppPreflights.isSuccess) {
@@ -51,21 +45,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   }, [runAppPreflights.isSuccess, runAppPreflights.isError]);
 
   // Query to poll preflight status
-  const { data: preflightResponse } = useQuery<AppPreflightResponse, Error>({
-    queryKey: ["appPreflightStatus"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/app-preflights/status`, {
-        headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get application preflight status")
-      }
-      return response.json() as Promise<AppPreflightResponse>;
-    },
+  const { data: preflightResponse } = useAppPreflightStatus({
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
   });

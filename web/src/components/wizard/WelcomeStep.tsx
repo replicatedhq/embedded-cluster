@@ -7,6 +7,7 @@ import { ChevronRight, Lock } from "lucide-react";
 import { useWizard } from "../../contexts/WizardModeContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
+import { apiClient } from "../../api/client";
 
 interface WelcomeStepProps {
   onNext: () => void;
@@ -43,24 +44,19 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
       return failureCount < 1;
     },
     mutationFn: async (password: string) => {
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ password }),
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const { data, error, response } = await apiClient.POST("/auth/login", {
+        body: { password },
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
+      if (error) {
+        if (response?.status === 401) {
           throw new Error(INCORRECT_PASSWORD_ERROR);
         } else {
-          throw new Error(`Login failed: ${response.statusText}`);
+          throw new Error(`Login failed: ${response?.statusText || "Unknown error"}`);
         }
       }
 
-      return response.json();
+      return data;
     },
     onSuccess: (data) => {
       setToken(data.token);

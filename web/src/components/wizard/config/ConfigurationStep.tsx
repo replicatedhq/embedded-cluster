@@ -16,9 +16,9 @@ import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
 import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import { ApiError } from '../../../api/error';
 import { handleUnauthorized } from '../../../utils/auth';
+import { createAuthedClient, getApiBasePath } from '../../../api/client';
 
 
 interface ConfigurationStepProps {
@@ -53,7 +53,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     try {
       setGeneralError(null); // Clear any existing errors
 
-      const apiBase = getApiBase(target, mode);
+      const apiBase = getApiBasePath(target, mode);
       const response = await debouncedFetch(`${apiBase}/app/config/template`, {
         method: 'POST',
         headers: {
@@ -160,19 +160,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<void, ApiError>({
     mutationFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app/config/values`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ values: changedValues }),
+      const client = createAuthedClient(token);
+      const apiBase = getApiBasePath(target, mode);
+
+      const { error } = await client.PATCH(`${apiBase}/app/config/values`, {
+        body: { values: changedValues },
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to save configuration")
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       setGeneralError(null);
