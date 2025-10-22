@@ -154,12 +154,8 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 		return upgradeK0s(ctx, cli, rc, in, logger)
 	}
 
-	match, err = clusterNodesMatchVersion(ctx, cli, desiredVersion)
-	if err != nil {
-		return fmt.Errorf("check cluster nodes match version after plan completion: %w", err)
-	}
-	if !match {
-		return fmt.Errorf("cluster nodes did not match version after upgrade")
+	if err := waitForClusterNodesMatchVersion(ctx, cli, desiredVersion, logger); err != nil {
+		return fmt.Errorf("wait for cluster nodes to match version: %w", err)
 	}
 
 	// the plan has been completed, so we can move on - kubernetes is now upgraded
@@ -403,4 +399,45 @@ func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.
 	}
 
 	return plan, nil
+}
+
+func waitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Steps:    60, // 60 attempts × 5s = 300s = 5 minutes
+		Factor:   1.0,
+		Jitter:   0.1,
+	}
+
+	var lastErr error
+
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		match, err := clusterNodesMatchVersion(ctx, cli, desiredVersion)
+		if err != nil {
+			lastErr = fmt.Errorf("check cluster nodes match version: %w", err)
+			return false, nil
+		}
+
+		if !match {
+			logger.WithField("version", desiredVersion).Debug("Waiting for cluster nodes to report updated version")
+			return false, nil
+		}
+
+		return true, nil
+	})
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lastErr != nil {
+				err = errors.Join(err, lastErr)
+			}
+			return err
+		} else if lastErr != nil {
+			return fmt.Errorf("timed out waiting for cluster nodes to match version %s: %w", desiredVersion, lastErr)
+		} else {
+			return fmt.Errorf("cluster nodes did not match version %s after upgrade", desiredVersion)
+		}
+	}
+
+	return nil
 }

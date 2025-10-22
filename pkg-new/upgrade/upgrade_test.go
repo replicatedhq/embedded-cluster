@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -547,6 +548,219 @@ func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKe
 	if m.callCount >= m.callsUntil {
 		if plan, ok := obj.(*apv1b2.Plan); ok {
 			plan.Status.State = core.PlanCompleted
+		}
+	}
+
+	return nil
+}
+
+func TestWaitForClusterNodesMatchVersion(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	tests := []struct {
+		name          string
+		nodes         *corev1.NodeList
+		targetVersion string
+		mockClient    func(*corev1.NodeList) client.Client
+		expectError   bool
+		errorContains string
+		validate      func(t *testing.T, cli client.Client)
+	}{
+		{
+			name: "all nodes already match version",
+			nodes: &corev1.NodeList{
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node1"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.30.0+k0s",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node2"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.30.0+k0s",
+							},
+						},
+					},
+				},
+			},
+			targetVersion: "v1.30.0+k0s",
+			mockClient: func(nodes *corev1.NodeList) client.Client {
+				return fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build()
+			},
+			expectError: false,
+		},
+		{
+			name: "nodes update after retries",
+			nodes: &corev1.NodeList{
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node1"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.29.0+k0s",
+							},
+						},
+					},
+				},
+			},
+			targetVersion: "v1.30.0+k0s",
+			mockClient: func(nodes *corev1.NodeList) client.Client {
+				return &mockClientWithNodeVersionUpdate{
+					Client:         fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build(),
+					callsUntil:     3,
+					targetVersion:  "v1.30.0+k0s",
+					initialVersion: "v1.29.0+k0s",
+				}
+			},
+			expectError: false,
+			validate: func(t *testing.T, cli client.Client) {
+				if mock, ok := cli.(*mockClientWithNodeVersionUpdate); ok {
+					assert.Equal(t, 3, mock.callCount, "Should have retried until nodes reported correct version")
+				}
+			},
+		},
+		{
+			name: "multi-node staggered updates",
+			nodes: &corev1.NodeList{
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node1"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.29.0+k0s",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node2"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.29.0+k0s",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node3"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.29.0+k0s",
+							},
+						},
+					},
+				},
+			},
+			targetVersion: "v1.30.0+k0s",
+			mockClient: func(nodes *corev1.NodeList) client.Client {
+				return &mockClientWithStaggeredNodeUpdates{
+					Client:        fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build(),
+					targetVersion: "v1.30.0+k0s",
+				}
+			},
+			expectError: false,
+			validate: func(t *testing.T, cli client.Client) {
+				if mock, ok := cli.(*mockClientWithStaggeredNodeUpdates); ok {
+					assert.GreaterOrEqual(t, mock.callCount, 3, "Should have waited for all nodes to update")
+				}
+			},
+		},
+		{
+			name: "timeout when nodes never match",
+			nodes: &corev1.NodeList{
+				Items: []corev1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{Name: "node1"},
+						Status: corev1.NodeStatus{
+							NodeInfo: corev1.NodeSystemInfo{
+								KubeletVersion: "v1.29.0+k0s",
+							},
+						},
+					},
+				},
+			},
+			targetVersion: "v1.30.0+k0s",
+			mockClient: func(nodes *corev1.NodeList) client.Client {
+				return fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build()
+			},
+			expectError:   true,
+			errorContains: "cluster nodes did not match version v1.30.0+k0s after upgrade",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli := tt.mockClient(tt.nodes)
+			err := waitForClusterNodesMatchVersion(context.Background(), cli, tt.targetVersion, logger)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					assert.Contains(t, err.Error(), tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+				if tt.validate != nil {
+					tt.validate(t, cli)
+				}
+			}
+		})
+	}
+}
+
+// Mock client that updates node versions after N calls
+type mockClientWithNodeVersionUpdate struct {
+	client.Client
+	callCount      int
+	callsUntil     int
+	targetVersion  string
+	initialVersion string
+}
+
+func (m *mockClientWithNodeVersionUpdate) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	m.callCount++
+	err := m.Client.List(ctx, list, opts...)
+	if err != nil {
+		return err
+	}
+
+	if m.callCount >= m.callsUntil {
+		if nodeList, ok := list.(*corev1.NodeList); ok {
+			for i := range nodeList.Items {
+				nodeList.Items[i].Status.NodeInfo.KubeletVersion = m.targetVersion
+			}
+		}
+	}
+
+	return nil
+}
+
+// Mock client that updates nodes one at a time to simulate staggered upgrades
+type mockClientWithStaggeredNodeUpdates struct {
+	client.Client
+	callCount     int
+	targetVersion string
+}
+
+func (m *mockClientWithStaggeredNodeUpdates) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	m.callCount++
+	err := m.Client.List(ctx, list, opts...)
+	if err != nil {
+		return err
+	}
+
+	if nodeList, ok := list.(*corev1.NodeList); ok {
+		for i := range nodeList.Items {
+			if m.callCount > i {
+				nodeList.Items[i].Status.NodeInfo.KubeletVersion = m.targetVersion
+			}
 		}
 	}
 
