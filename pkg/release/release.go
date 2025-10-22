@@ -310,7 +310,7 @@ func (r *ReleaseData) parse() error {
 			// Split multi-document YAML files
 			documents, err = splitYAMLDocuments(content.Bytes())
 			if err != nil {
-				// log only and do not fail here to preserve the previous behaviour
+				// log only and do not fail here to preserve the previous behavior
 				log.Printf("Failed to parse YAML document from release data %s: %v", header.Name, err)
 			}
 		}
