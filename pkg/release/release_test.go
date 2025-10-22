@@ -34,6 +34,14 @@ func Test_newReleaseDataFrom(t *testing.T) {
 	assert.Nil(t, cfg)
 }
 
+func TestGetChannelRelease(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
+	release, err := newReleaseDataFrom(testReleaseData)
+	require.NoError(t, err)
+	channel := release.ChannelRelease
+	assert.NotNil(t, channel)
+}
+
 func TestGetApplication(t *testing.T) {
 	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)

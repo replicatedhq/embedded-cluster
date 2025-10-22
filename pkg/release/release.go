@@ -305,31 +305,68 @@ func (r *ReleaseData) parse() error {
 			return fmt.Errorf("failed to copy file out of tar: %w", err)
 		}
 
-		var documents [][]byte
-		if strings.HasSuffix(header.Name, ".yaml") || strings.HasSuffix(header.Name, ".yml") {
+		// we process special files without splitting YAML documents as either they are not yaml or
+		// they are the release data itself which is identified by a comment at the beginning of
+		// the file
+		if err := r.processDocument(content.Bytes(), header.Name); err != nil {
+			return err
+		}
+
+		if !strings.HasPrefix(header.Name, ".") && (strings.HasSuffix(header.Name, ".yaml") || strings.HasSuffix(header.Name, ".yml")) {
 			// Split multi-document YAML files
-			documents, err = splitYAMLDocuments(content.Bytes())
+			documents, err := splitYAMLDocuments(content.Bytes())
 			if err != nil {
 				// log only and do not fail here to preserve the previous behavior
 				log.Printf("Failed to parse YAML document from release data %s: %v", header.Name, err)
+			} else {
+				// Process each document
+				for _, doc := range documents {
+					if err := r.processYAMLDocument(doc, header.Name); err != nil {
+						return err
+					}
+				}
+				// no need to process the document further
+				continue
 			}
-		}
-		if len(documents) == 0 {
-			// Not a YAML file, treat as single document (e.g., .tgz files)
-			documents = [][]byte{content.Bytes()}
 		}
 
-		// Process each document
-		for _, doc := range documents {
-			if err := r.parseYAMLDocument(doc, header.Name); err != nil {
-				return err
-			}
+		// for backward compatibility, process files again as YAML documents that failed to parse
+		// or do not have the yaml extension
+		if err := r.processYAMLDocument(content.Bytes(), header.Name); err != nil {
+			return err
 		}
 	}
 }
 
-// parseYAMLDocument processes a single YAML document and updates the ReleaseData accordingly.
-func (r *ReleaseData) parseYAMLDocument(content []byte, headerName string) error {
+// processDocument processes a single non-YAML document and updates the ReleaseData accordingly.
+func (r *ReleaseData) processDocument(content []byte, headerName string) error {
+	var err error
+
+	switch {
+	case bytes.Contains(content, []byte("# channel release object")):
+		r.ChannelRelease, err = parseChannelRelease(content)
+		if err != nil {
+			return fmt.Errorf("failed to parse channel release: %w", err)
+		}
+
+	case strings.HasSuffix(headerName, ".tgz"):
+		// Skip system files (like macOS ._* files)
+		if isSystemFile(headerName) {
+			break
+		}
+
+		// This is a chart archive (.tgz file)
+		if r.HelmChartArchives == nil {
+			r.HelmChartArchives = [][]byte{}
+		}
+		r.HelmChartArchives = append(r.HelmChartArchives, content)
+	}
+
+	return nil
+}
+
+// processYAMLDocument processes a single YAML document and updates the ReleaseData accordingly.
+func (r *ReleaseData) processYAMLDocument(content []byte, headerName string) error {
 	var err error
 
 	switch {
@@ -397,24 +434,6 @@ func (r *ReleaseData) parseYAMLDocument(content []byte, headerName string) error
 			}
 			r.HelmChartCRs = append(r.HelmChartCRs, content)
 		}
-
-	case bytes.Contains(content, []byte("# channel release object")):
-		r.ChannelRelease, err = parseChannelRelease(content)
-		if err != nil {
-			return fmt.Errorf("failed to parse channel release: %w", err)
-		}
-
-	case strings.HasSuffix(headerName, ".tgz"):
-		// Skip system files (like macOS ._* files)
-		if isSystemFile(headerName) {
-			break
-		}
-
-		// This is a chart archive (.tgz file)
-		if r.HelmChartArchives == nil {
-			r.HelmChartArchives = [][]byte{}
-		}
-		r.HelmChartArchives = append(r.HelmChartArchives, content)
 	}
 
 	return nil
