@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -304,8 +305,15 @@ func (r *ReleaseData) parse() error {
 			return fmt.Errorf("failed to copy file out of tar: %w", err)
 		}
 
-		// Split multi-document YAML files
-		documents := splitYAMLDocuments(content.Bytes())
+		var documents [][]byte
+		if strings.HasSuffix(header.Name, ".yaml") || strings.HasSuffix(header.Name, ".yml") {
+			// Split multi-document YAML files
+			documents, err = splitYAMLDocuments(content.Bytes())
+			if err != nil {
+				// log only and do not fail here to preserve the previous behaviour
+				log.Printf("Failed to split YAML document from release data %s: %v", header.Name, err)
+			}
+		}
 		if len(documents) == 0 {
 			// Not a YAML file, treat as single document (e.g., .tgz files)
 			documents = [][]byte{content.Bytes()}
@@ -413,31 +421,26 @@ func (r *ReleaseData) parseYAMLDocument(content []byte, headerName string) error
 }
 
 // splitYAMLDocuments splits a multi-document YAML file into individual documents.
-// Documents are separated by "---" on its own line.
-func splitYAMLDocuments(data []byte) [][]byte {
-	if len(data) == 0 {
-		return nil
-	}
+func splitYAMLDocuments(data []byte) ([][]byte, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
 
-	// Split by YAML document separator
-	separator := []byte("\n---\n")
-	docs := bytes.Split(data, separator)
-
-	var result [][]byte
-	for _, doc := range docs {
-		// Trim whitespace
-		trimmed := bytes.TrimSpace(doc)
-		if len(trimmed) == 0 {
-			continue
+	var res [][]byte
+	for {
+		var value interface{}
+		err := dec.Decode(&value)
+		if err == io.EOF {
+			break
 		}
-		// Skip if it's just a comment
-		if bytes.HasPrefix(trimmed, []byte("#")) && !bytes.Contains(trimmed, []byte("apiVersion:")) {
-			continue
+		if err != nil {
+			return nil, fmt.Errorf("decode YAML document: %w", err)
 		}
-		result = append(result, trimmed)
+		valueBytes, err := yaml.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("marshal YAML document: %w", err)
+		}
+		res = append(res, valueBytes)
 	}
-
-	return result
+	return res, nil
 }
 
 // isSystemFile returns true if the filename represents a system file that should be ignored

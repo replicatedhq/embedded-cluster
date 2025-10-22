@@ -268,6 +268,54 @@ func TestParseMultipleHelmChartCRsInSingleFile(t *testing.T) {
 	assert.Equal(t, "chart-2", metadata2["name"])
 }
 
+func TestSplitYAMLDocuments(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int // number of expected documents
+	}{
+		{
+			name:     "empty input",
+			input:    "",
+			expected: 0,
+		},
+		{
+			name:     "single document without separator",
+			input:    "apiVersion: v1\nkind: Test",
+			expected: 1,
+		},
+		{
+			name:     "separator at start of file",
+			input:    "---\napiVersion: v1\nkind: Test1\n---\napiVersion: v1\nkind: Test2",
+			expected: 2,
+		},
+		{
+			name:     "separator with no surrounding newlines (original bug)",
+			input:    "apiVersion: v1\nkind: Test1\n---\napiVersion: v1\nkind: Test2",
+			expected: 2,
+		},
+		{
+			name:     "multiple separators",
+			input:    "---\napiVersion: v1\nkind: Test1\n---\napiVersion: v1\nkind: Test2\n---\napiVersion: v1\nkind: Test3",
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := splitYAMLDocuments([]byte(tt.input))
+			assert.NoError(t, err)
+			assert.Len(t, result, tt.expected, "Expected %d documents but got %d", tt.expected, len(result))
+
+			// Verify each document is valid (non-empty and trimmed)
+			for i, doc := range result {
+				assert.NotEmpty(t, doc, "Document %d should not be empty", i)
+				assert.Equal(t, string(bytes.TrimSpace(doc)), string(bytes.TrimSpace(doc)), "Document %d should be trimmed", i)
+			}
+		})
+	}
+}
+
 func generateReleaseTGZ(t *testing.T, content []byte) []byte {
 	parsed := map[string]string{}
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
