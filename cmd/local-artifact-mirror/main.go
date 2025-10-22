@@ -7,6 +7,7 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/replicatedhq/embedded-cluster/cmd/local-artifact-mirror/cli"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +25,7 @@ func main() {
 	// we do this before calling cli.InitAndExecute so that it is set before the process forks
 	_ = syscall.Umask(0o022)
 
-	cli := NewCLI(name)
-	err := RootCmd(cli).ExecuteContext(ctx)
+	c := cli.NewCLI(name)
+	err := cli.RootCmd(c).ExecuteContext(ctx)
 	cobra.CheckErr(err)
 }

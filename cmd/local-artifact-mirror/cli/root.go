@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
