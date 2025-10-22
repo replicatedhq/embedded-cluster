@@ -30,14 +30,25 @@ const APP_INSTALL_PATHS = {
 } as const;
 
 /**
- * Returns base API path for wizard operations
+ * Returns base path for wizard operations
+ * Dynamically builds the path based on installation target and wizard mode
+ */
+export function getWizardBasePath<
+  T extends InstallationTarget,
+  M extends WizardMode,
+>(target: T, mode: M): (typeof API_BASE_PATHS)[T][M] {
+  return API_BASE_PATHS[target][mode];
+}
+
+/**
+ * Returns API base path
  * Dynamically builds the path based on installation target and wizard mode
  */
 export function getApiBasePath<
   T extends InstallationTarget,
   M extends WizardMode,
->(target: T, mode: M): (typeof API_BASE_PATHS)[T][M] {
-  return API_BASE_PATHS[target][mode];
+>(target: T, mode: M): `/api${(typeof API_BASE_PATHS)[T][M]}` {
+  return `/api${getWizardBasePath(target, mode)}` as `/api${(typeof API_BASE_PATHS)[T][M]}`;
 }
 
 /**
@@ -52,11 +63,28 @@ export function getAppInstallPath<
 }
 
 /**
+ * Helper to get the base URL
+ * In tests (Node.js), we need absolute URLs because Node's fetch doesn't support relative URLs
+ */
+function getBaseUrl(): string {
+  // In test environment (vitest), use absolute URL
+  if (typeof window !== "undefined" && window.location) {
+    const origin =
+      window.location.origin ||
+      `${window.location.protocol}//${window.location.host}`;
+    return `${origin}/api`;
+  }
+
+  // Fallback, use relative URL
+  return "/api";
+}
+
+/**
  * Default API client configured with base URL
  * Use this for unauthenticated requests or when auth is handled externally
  */
 export const apiClient = createClient<paths>({
-  baseUrl: "/api",
+  baseUrl: getBaseUrl(),
 });
 
 // Middleware: Automatic error handling
@@ -94,7 +122,7 @@ export function createAuthedClient(token: string | null | undefined) {
   }
 
   const client = createClient<paths>({
-    baseUrl: "/api",
+    baseUrl: getBaseUrl(),
   });
 
   // Add auth middleware

@@ -5,6 +5,7 @@ import { PreflightOutput, HostPreflightResponse } from "../../../../types";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { useRunHostPreflights } from "../../../../mutations/useMutations";
 import { useHostPreflightStatus } from "../../../../queries/useQueries";
+import { ApiError } from '../../../../api/error';
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -24,6 +25,9 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
 
   const getErrorMessage = () => {
     if (runHostPreflights.error) {
+      if (runHostPreflights.error instanceof ApiError) {
+        return runHostPreflights.error.details || runHostPreflights.error.message;
+      }
       return runHostPreflights.error.message;
     }
     if (preflightResponse?.status?.state === "Failed") {

@@ -4,6 +4,8 @@ components:
       properties:
         status:
           type: string
+      required:
+      - status
       type: object
     github_com_replicatedhq_kotskinds_multitype.BoolOrString:
       type: object
@@ -20,6 +22,8 @@ components:
           type: string
         statusCode:
           type: integer
+      required:
+      - message
       type: object
     types.Airgap:
       properties:
@@ -27,6 +31,9 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
+      required:
+      - logs
+      - status
       type: object
     types.AppConfig:
       properties:
@@ -35,6 +42,8 @@ components:
             $ref: '#/components/schemas/v1beta1.ConfigGroup'
           type: array
           uniqueItems: false
+      required:
+      - groups
       type: object
     types.AppConfigValue:
       properties:
@@ -52,6 +61,8 @@ components:
           type: string
         valuePlaintext:
           type: string
+      required:
+      - value
       type: object
     types.AppConfigValues:
       additionalProperties:
@@ -61,6 +72,8 @@ components:
       properties:
         values:
           $ref: '#/components/schemas/types.AppConfigValues'
+      required:
+      - values
       type: object
     types.AppInstall:
       properties:
@@ -68,6 +81,9 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
+      required:
+      - logs
+      - status
       type: object
     types.AppUpgrade:
       properties:
@@ -75,16 +91,23 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
+      required:
+      - logs
+      - status
       type: object
     types.AuthRequest:
       properties:
         password:
           type: string
+      required:
+      - password
       type: object
     types.AuthResponse:
       properties:
         token:
           type: string
+      required:
+      - token
       type: object
     types.Error:
       properties:
@@ -880,6 +903,8 @@ components:
             type: string
           type: array
           uniqueItems: false
+      required:
+      - networkInterfaces
       type: object
     types.Infra:
       properties:
@@ -892,6 +917,10 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
+      required:
+      - components
+      - logs
+      - status
       type: object
     types.InfraComponent:
       properties:
@@ -899,6 +928,9 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
+      required:
+      - name
+      - status
       type: object
     types.InstallAppPreflightsStatusResponse:
       properties:
@@ -915,11 +947,18 @@ components:
             type: string
           type: array
           uniqueItems: false
+      required:
+      - allowIgnoreAppPreflights
+      - hasStrictAppPreflightFailures
+      - status
+      - titles
       type: object
     types.InstallAppRequest:
       properties:
         ignoreAppPreflights:
           type: boolean
+      required:
+      - ignoreAppPreflights
       type: object
     types.InstallHostPreflightsStatusResponse:
       properties:
@@ -934,6 +973,9 @@ components:
             type: string
           type: array
           uniqueItems: false
+      required:
+      - allowIgnoreHostPreflights
+      - titles
       type: object
     types.KubernetesInstallationConfig:
       properties:
@@ -954,11 +996,17 @@ components:
           $ref: '#/components/schemas/types.KubernetesInstallationConfig'
         values:
           $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+      required:
+      - defaults
+      - resolved
+      - values
       type: object
     types.LinuxInfraSetupRequest:
       properties:
         ignoreHostPreflights:
           type: boolean
+      required:
+      - ignoreHostPreflights
       type: object
     types.LinuxInstallationConfig:
       properties:
@@ -991,16 +1039,24 @@ components:
           $ref: '#/components/schemas/types.LinuxInstallationConfig'
         values:
           $ref: '#/components/schemas/types.LinuxInstallationConfig'
+      required:
+      - defaults
+      - resolved
+      - values
       type: object
     types.PatchAppConfigValuesRequest:
       properties:
         values:
           $ref: '#/components/schemas/types.AppConfigValues'
+      required:
+      - values
       type: object
     types.PostInstallRunHostPreflightsRequest:
       properties:
         isUi:
           type: boolean
+      required:
+      - isUi
       type: object
     types.PreflightsOutput:
       properties:
@@ -1019,6 +1075,10 @@ components:
             $ref: '#/components/schemas/types.PreflightsRecord'
           type: array
           uniqueItems: false
+      required:
+      - fail
+      - pass
+      - warn
       type: object
     types.PreflightsRecord:
       properties:
@@ -1028,6 +1088,10 @@ components:
           type: boolean
         title:
           type: string
+      required:
+      - message
+      - strict
+      - title
       type: object
     types.State:
       enum:
@@ -1050,11 +1114,17 @@ components:
           type: string
         state:
           $ref: '#/components/schemas/types.State'
+      required:
+      - description
+      - lastUpdated
+      - state
       type: object
     types.TemplateAppConfigRequest:
       properties:
         values:
           $ref: '#/components/schemas/types.AppConfigValues'
+      required:
+      - values
       type: object
     types.UpgradeAppPreflightsStatusResponse:
       properties:
@@ -1071,11 +1141,18 @@ components:
             type: string
           type: array
           uniqueItems: false
+      required:
+      - allowIgnoreAppPreflights
+      - hasStrictAppPreflightFailures
+      - status
+      - titles
       type: object
     types.UpgradeAppRequest:
       properties:
         ignoreAppPreflights:
           type: boolean
+      required:
+      - ignoreAppPreflights
       type: object
     v1beta1.ConfigChildItem:
       properties:
@@ -1089,6 +1166,12 @@ components:
           type: string
         value:
           $ref: '#/components/schemas/github_com_replicatedhq_kotskinds_multitype.BoolOrString'
+      required:
+      - default
+      - name
+      - recommended
+      - title
+      - value
       type: object
     v1beta1.ConfigGroup:
       properties:
@@ -1105,6 +1188,12 @@ components:
           type: string
         when:
           type: string
+      required:
+      - description
+      - items
+      - name
+      - title
+      - when
       type: object
     v1beta1.ConfigItem:
       properties:
@@ -1169,11 +1258,39 @@ components:
           type: string
         write_once:
           type: boolean
+      required:
+      - affix
+      - countByGroup
+      - data
+      - default
+      - error
+      - filename
+      - help_text
+      - hidden
+      - items
+      - minimumCount
+      - multi_value
+      - multiple
+      - name
+      - readonly
+      - recommended
+      - repeatable
+      - required
+      - templates
+      - title
+      - type
+      - validation
+      - value
+      - valuesByGroup
+      - when
+      - write_once
       type: object
     v1beta1.ConfigItemValidation:
       properties:
         regex:
           $ref: '#/components/schemas/v1beta1.RegexValidator'
+      required:
+      - regex
       type: object
     v1beta1.GroupValues:
       additionalProperties:
@@ -1185,6 +1302,9 @@ components:
           type: string
         pattern:
           type: string
+      required:
+      - message
+      - pattern
       type: object
     v1beta1.RepeatTemplate:
       properties:
@@ -1198,6 +1318,12 @@ components:
           type: string
         yamlPath:
           type: string
+      required:
+      - apiVersion
+      - kind
+      - name
+      - namespace
+      - yamlPath
       type: object
     v1beta1.ValuesByGroup:
       additionalProperties:

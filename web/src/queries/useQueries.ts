@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useWizard } from "../contexts/WizardModeContext";
 import { useAuth } from "../contexts/AuthContext";
-import { getApiBasePath, createAuthedClient } from "../api/client";
+import { getWizardBasePath, createAuthedClient } from "../api/client";
 
 /**
  * Query hook to fetch airgap status
@@ -18,7 +18,7 @@ export function useAirgapStatus(options?: {
     queryKey: ["airgapStatus", mode],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", mode);
+      const apiBase = getWizardBasePath("linux", mode);
 
       const { data, error } = await client.GET(`${apiBase}/airgap/status`);
 
@@ -45,7 +45,7 @@ export function useHostPreflightStatus(options?: {
     queryKey: ["hostPreflightStatus"],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", "install");
 
       const { data, error } = await client.GET(
         `${apiBase}/host-preflights/status`,
@@ -75,7 +75,7 @@ export function useAppPreflightStatus(options?: {
     queryKey: ["appPreflightStatus", target, mode],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, mode);
+      const apiBase = getWizardBasePath(target, mode);
 
       const { data, error } = await client.GET(
         `${apiBase}/app-preflights/status`,
@@ -90,10 +90,10 @@ export function useAppPreflightStatus(options?: {
 }
 
 /**
- * Query hook to fetch infra status
+ * Query hook to fetch linux infra status
  * Used to poll infrastructure installation/upgrade status
  */
-export function useInfraStatus(options?: {
+export function useLinuxInfraStatus(options?: {
   enabled?: boolean;
   refetchInterval?: number;
 }) {
@@ -101,10 +101,36 @@ export function useInfraStatus(options?: {
   const { mode } = useWizard();
 
   return useQuery({
-    queryKey: ["infraStatus", mode],
+    queryKey: ["infraStatus", "linux", mode],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", mode);
+      const apiBase = getWizardBasePath("linux", mode);
+
+      const { data, error } = await client.GET(`${apiBase}/infra/status`);
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
+/**
+ * Query hook to fetch kubernetes infra status
+ * Used to poll infrastructure installation/upgrade status
+ */
+export function useKubernetesInfraStatus(options?: {
+  enabled?: boolean;
+  refetchInterval?: number;
+}) {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["infraStatus", "kubernetes", "install"],
+    queryFn: async () => {
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("kubernetes", "install");
 
       const { data, error } = await client.GET(`${apiBase}/infra/status`);
 
@@ -131,7 +157,7 @@ export function useAppInstallStatus(options?: {
     queryKey: ["appInstallationStatus", target, mode],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, mode);
+      const apiBase = getWizardBasePath(target, mode);
 
       const { data, error } = await client.GET(`${apiBase}/app/status`);
 
@@ -144,18 +170,40 @@ export function useAppInstallStatus(options?: {
 }
 
 /**
- * Query hook to fetch installation config
+ * Query hook to fetch linux installation config
  * Used to get installation configuration for setup forms
  */
-export function useInstallConfig() {
+export function useLinuxInstallConfig() {
   const { token } = useAuth();
-  const { target } = useWizard();
 
   return useQuery({
-    queryKey: ["installConfig", target],
+    queryKey: ["installConfig", "linux"],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, "install");
+      const apiBase = getWizardBasePath("linux", "install");
+
+      const { data, error } = await client.GET(
+        `${apiBase}/installation/config`,
+      );
+
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+/**
+ * Query hook to fetch kubernetes installation config
+ * Used to get installation configuration for setup forms
+ */
+export function useKubernetesInstallConfig() {
+  const { token } = useAuth();
+
+  return useQuery({
+    queryKey: ["installConfig", "kubernetes"],
+    queryFn: async () => {
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("kubernetes", "install");
 
       const { data, error } = await client.GET(
         `${apiBase}/installation/config`,
@@ -183,7 +231,7 @@ export function useInstallationStatus(options?: {
     queryKey: ["installationStatus", target],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, "install");
+      const apiBase = getWizardBasePath(target, "install");
 
       const { data, error } = await client.GET(
         `${apiBase}/installation/status`,

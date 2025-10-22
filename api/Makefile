@@ -6,7 +6,7 @@ include ../versions.mk
 .PHONY: swagger
 swagger: swag
 	swag fmt -g api.go
-	swag init --parseDependency --v3.1 -g api.go
+	swag init --parseDependency --requiredByDefault --v3.1 -g api.go
 
 .PHONY: swag
 swag:

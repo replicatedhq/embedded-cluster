@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { handleUnauthorized } from "../utils/auth";
 import { useInitialState } from "../contexts/InitialStateContext";
 import { AuthContext } from "../contexts/AuthContext";
-import { createAuthedClient, getApiBasePath } from "../api/client";
+import { createAuthedClient, getWizardBasePath } from "../api/client";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setTokenState] = useState<string | null>(() => {
@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       // Make a request to any authenticated endpoint to check token validity
       // Use the correct target-specific endpoint based on installation target
-      const apiPath = getApiBasePath(installTarget, "install");
+      const apiPath = getWizardBasePath(installTarget, "install");
       const client = createAuthedClient(token);
 
       client.GET(`${apiPath}/installation/config`)

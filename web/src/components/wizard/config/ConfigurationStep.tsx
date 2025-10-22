@@ -18,7 +18,7 @@ import { useDebouncedFetch } from '../../../utils/debouncedFetch';
 import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
 import { ApiError } from '../../../api/error';
 import { handleUnauthorized } from '../../../utils/auth';
-import { createAuthedClient, getApiBasePath } from '../../../api/client';
+import { createAuthedClient, getApiBasePath, getWizardBasePath } from '../../../api/client';
 
 
 interface ConfigurationStepProps {
@@ -161,7 +161,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { mutate: submitConfigValues } = useMutation<void, ApiError>({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, mode);
+      const apiBase = getWizardBasePath(target, mode);
 
       const { error } = await client.PATCH(`${apiBase}/app/config/values`, {
         body: { values: changedValues },

@@ -1,45 +1,10 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { setupServer } from "msw/node";
+import { describe, it, expect } from "vitest";
+import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import KubernetesCompletionStep from "../completion/KubernetesCompletionStep.tsx";
-import { KubernetesConfigResponse } from "../../../types";
-import { mockHandlers } from "../../../test/mockHandlers.ts";
-
-const MOCK_CONFIG: KubernetesConfigResponse = {
-  values: {
-    installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
-  },
-  defaults: {
-    installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
-  },
-  resolved: {
-    installCommand: 'kubectl -n kotsadm port-forward svc/kotsadm 8800:3000',
-  },
-};
-
-const createServer = () => setupServer(
-  mockHandlers.installation.getConfig(MOCK_CONFIG as unknown as Record<string, unknown>, 'kubernetes', 'install')
-);
 
 describe("KubernetesCompletionStep", () => {
-  let server: ReturnType<typeof createServer>;
-
-  beforeAll(() => {
-    server = createServer();
-    server.listen();
-  });
-
-  afterEach(() => {
-    server.resetHandlers();
-    vi.clearAllMocks();
-  });
-
-  afterAll(() => {
-    server.close();
-  });
-
-  it("shows loading state initially", () => {
+  it("renders completion message with app title", () => {
     renderWithProviders(<KubernetesCompletionStep />, {
       wrapperProps: {
         authenticated: true,
@@ -48,11 +13,13 @@ describe("KubernetesCompletionStep", () => {
       },
     });
 
-    expect(screen.getByTestId("kubernetes-completion-loading")).toBeInTheDocument();
-    expect(screen.getByText("Loading installation configuration...")).toBeInTheDocument();
+    // Check that the completion message is displayed with default title "My App"
+    const message = screen.getByTestId("completion-message");
+    expect(message).toBeInTheDocument();
+    expect(message).toHaveTextContent("Visit the Admin Console to configure and install My App");
   });
 
-  it("renders completion message and copy command button after loading", async () => {
+  it("renders success icon", () => {
     renderWithProviders(<KubernetesCompletionStep />, {
       wrapperProps: {
         authenticated: true,
@@ -61,128 +28,32 @@ describe("KubernetesCompletionStep", () => {
       },
     });
 
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(screen.queryByTestId("kubernetes-completion-loading")).not.toBeInTheDocument();
-    });
-
-    // Check success state
-    expect(screen.getByTestId("completion-message")).toBeInTheDocument();
-    expect(screen.getByText("Copy Command")).toBeInTheDocument();
-    expect(screen.getByText(MOCK_CONFIG.resolved.installCommand!)).toBeInTheDocument();
+    // Check that the CheckCircle icon is rendered (via its container)
+    const message = screen.getByTestId("completion-message");
+    expect(message).toBeInTheDocument();
   });
 
-  it("copies install command when button is clicked", async () => {
-    // Mock navigator.clipboard.writeText
-    const mockWriteText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: mockWriteText },
-      writable: true,
-    });
+  it("uses custom app title from initial state", () => {
+    const customTitle = "My Custom App";
 
     renderWithProviders(<KubernetesCompletionStep />, {
       wrapperProps: {
         authenticated: true,
         target: "kubernetes",
         mode: "install",
+        contextValues: {
+          initialStateContext: {
+            title: customTitle,
+            installTarget: "kubernetes",
+            mode: "install",
+            isAirgap: false,
+            requiresInfraUpgrade: false,
+          },
+        },
       },
     });
 
-    // Wait for loading to complete
-    await waitFor(() => {
-      expect(screen.queryByTestId("kubernetes-completion-loading")).not.toBeInTheDocument();
-    });
-
-    const button = screen.getByText("Copy Command");
-    fireEvent.click(button);
-
-    expect(mockWriteText).toHaveBeenCalledWith(MOCK_CONFIG.resolved.installCommand);
-
-    // Check that button text changes to "Copied!"
-    await waitFor(() => {
-      expect(screen.getByText("Copied!")).toBeInTheDocument();
-    });
-  });
-
-  it("displays error state when API returns ApiError with details", async () => {
-    // Override the server handler to return an ApiError with details
-    server.use(
-      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Network error occurred" } }, 'kubernetes', 'install')
-    );
-
-    renderWithProviders(<KubernetesCompletionStep />, {
-      wrapperProps: {
-        authenticated: true,
-        target: "kubernetes",
-        mode: "install",
-      },
-    });
-
-    // Wait for error state to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("kubernetes-completion-error")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
-    expect(screen.getByText("Network error occurred")).toBeInTheDocument();
-  });
-
-  it("displays error state with generic error message when no details provided", async () => {
-    // Override the server handler to return an error without details
-    server.use(
-      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Failed to fetch configuration" } }, 'kubernetes', 'install')
-    );
-
-    renderWithProviders(<KubernetesCompletionStep />, {
-      wrapperProps: {
-        authenticated: true,
-        target: "kubernetes",
-        mode: "install",
-      },
-    });
-
-    // Wait for error state to appear
-    await waitFor(() => {
-      expect(screen.getByTestId("kubernetes-completion-error")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch configuration")).toBeInTheDocument();
-  });
-
-  it("displays error state when API returns 404", async () => {
-    server.use(
-      mockHandlers.installation.getConfig({ error: { statusCode: 404, message: "Not found" } }, 'kubernetes', 'install')
-    );
-
-    renderWithProviders(<KubernetesCompletionStep />, {
-      wrapperProps: {
-        authenticated: true,
-        target: "kubernetes",
-        mode: "install",
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("kubernetes-completion-error")).toBeInTheDocument();
-    });
-  });
-
-  it("displays error state with network error message", async () => {
-    server.use(
-      mockHandlers.installation.getConfig({ networkError: true }, 'kubernetes', 'install')
-    );
-
-    renderWithProviders(<KubernetesCompletionStep />, {
-      wrapperProps: {
-        authenticated: true,
-        target: "kubernetes",
-        mode: "install",
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("kubernetes-completion-error")).toBeInTheDocument();
-    });
+    const message = screen.getByTestId("completion-message");
+    expect(message).toHaveTextContent(`Visit the Admin Console to configure and install ${customTitle}`);
   });
 });

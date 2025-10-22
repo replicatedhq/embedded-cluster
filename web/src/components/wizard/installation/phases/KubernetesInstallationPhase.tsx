@@ -7,7 +7,7 @@ import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { useStartInfraSetup } from '../../../../mutations/useMutations';
-import { useInfraStatus } from '../../../../queries/useQueries';
+import { useKubernetesInfraStatus } from '../../../../queries/useQueries';
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;
@@ -24,11 +24,11 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
-  const startInfraSetup = useStartInfraSetup();
+  const startInfraSetup = useStartInfraSetup({ ignoreHostPreflights });
   const mutationStarted = useRef(false);
 
   // Query to poll infra status
-  const { data: infraStatusResponse, error: infraStatusError } = useInfraStatus({
+  const { data: infraStatusResponse, error: infraStatusError } = useKubernetesInfraStatus({
     enabled: isInfraPolling,
     refetchInterval: 2000,
   });
@@ -48,7 +48,7 @@ const KubernetesInstallationPhase: React.FC<KubernetesInstallationPhaseProps> = 
   useEffect(() => {
     if (infraStatusResponse?.status?.state === "Pending" && !mutationStarted.current) {
       mutationStarted.current = true;
-      startInfraSetup.mutate({ ignoreHostPreflights });
+      startInfraSetup.mutate();
     }
   }, [infraStatusResponse?.status?.state]);
 

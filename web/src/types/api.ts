@@ -925,21 +925,21 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         "github_com_replicatedhq_embedded-cluster_api_types.Health": {
-            status?: string;
+            status: string;
         };
         "github_com_replicatedhq_kotskinds_multitype.BoolOrString": Record<string, never>;
         "types.APIError": {
             errors?: components["schemas"]["types.APIError"][];
             field?: string;
-            message?: string;
+            message: string;
             statusCode?: number;
         };
         "types.Airgap": {
-            logs?: string;
-            status?: components["schemas"]["types.Status"];
+            logs: string;
+            status: components["schemas"]["types.Status"];
         };
         "types.AppConfig": {
-            groups?: components["schemas"]["v1beta1.ConfigGroup"][];
+            groups: components["schemas"]["v1beta1.ConfigGroup"][];
         };
         "types.AppConfigValue": {
             data?: string;
@@ -947,28 +947,28 @@ export interface components {
             default?: string;
             filename?: string;
             repeatableItem?: string;
-            value?: string;
+            value: string;
             valuePlaintext?: string;
         };
         "types.AppConfigValues": {
             [key: string]: components["schemas"]["types.AppConfigValue"];
         };
         "types.AppConfigValuesResponse": {
-            values?: components["schemas"]["types.AppConfigValues"];
+            values: components["schemas"]["types.AppConfigValues"];
         };
         "types.AppInstall": {
-            logs?: string;
-            status?: components["schemas"]["types.Status"];
+            logs: string;
+            status: components["schemas"]["types.Status"];
         };
         "types.AppUpgrade": {
-            logs?: string;
-            status?: components["schemas"]["types.Status"];
+            logs: string;
+            status: components["schemas"]["types.Status"];
         };
         "types.AuthRequest": {
-            password?: string;
+            password: string;
         };
         "types.AuthResponse": {
-            token?: string;
+            token: string;
         };
         "types.Error": {
             /**
@@ -1756,32 +1756,32 @@ export interface components {
             versionId?: string;
         };
         "types.GetListAvailableNetworkInterfacesResponse": {
-            networkInterfaces?: string[];
+            networkInterfaces: string[];
         };
         "types.Infra": {
-            components?: components["schemas"]["types.InfraComponent"][];
-            logs?: string;
-            status?: components["schemas"]["types.Status"];
+            components: components["schemas"]["types.InfraComponent"][];
+            logs: string;
+            status: components["schemas"]["types.Status"];
         };
         "types.InfraComponent": {
-            name?: string;
-            status?: components["schemas"]["types.Status"];
+            name: string;
+            status: components["schemas"]["types.Status"];
         };
         "types.InstallAppPreflightsStatusResponse": {
-            allowIgnoreAppPreflights?: boolean;
-            hasStrictAppPreflightFailures?: boolean;
+            allowIgnoreAppPreflights: boolean;
+            hasStrictAppPreflightFailures: boolean;
             output?: components["schemas"]["types.PreflightsOutput"];
-            status?: components["schemas"]["types.Status"];
-            titles?: string[];
+            status: components["schemas"]["types.Status"];
+            titles: string[];
         };
         "types.InstallAppRequest": {
-            ignoreAppPreflights?: boolean;
+            ignoreAppPreflights: boolean;
         };
         "types.InstallHostPreflightsStatusResponse": {
-            allowIgnoreHostPreflights?: boolean;
+            allowIgnoreHostPreflights: boolean;
             output?: components["schemas"]["types.PreflightsOutput"];
             status?: components["schemas"]["types.Status"];
-            titles?: string[];
+            titles: string[];
         };
         "types.KubernetesInstallationConfig": {
             adminConsolePort?: number;
@@ -1790,12 +1790,12 @@ export interface components {
             noProxy?: string;
         };
         "types.KubernetesInstallationConfigResponse": {
-            defaults?: components["schemas"]["types.KubernetesInstallationConfig"];
-            resolved?: components["schemas"]["types.KubernetesInstallationConfig"];
-            values?: components["schemas"]["types.KubernetesInstallationConfig"];
+            defaults: components["schemas"]["types.KubernetesInstallationConfig"];
+            resolved: components["schemas"]["types.KubernetesInstallationConfig"];
+            values: components["schemas"]["types.KubernetesInstallationConfig"];
         };
         "types.LinuxInfraSetupRequest": {
-            ignoreHostPreflights?: boolean;
+            ignoreHostPreflights: boolean;
         };
         "types.LinuxInstallationConfig": {
             adminConsolePort?: number;
@@ -1810,25 +1810,25 @@ export interface components {
             serviceCidr?: string;
         };
         "types.LinuxInstallationConfigResponse": {
-            defaults?: components["schemas"]["types.LinuxInstallationConfig"];
-            resolved?: components["schemas"]["types.LinuxInstallationConfig"];
-            values?: components["schemas"]["types.LinuxInstallationConfig"];
+            defaults: components["schemas"]["types.LinuxInstallationConfig"];
+            resolved: components["schemas"]["types.LinuxInstallationConfig"];
+            values: components["schemas"]["types.LinuxInstallationConfig"];
         };
         "types.PatchAppConfigValuesRequest": {
-            values?: components["schemas"]["types.AppConfigValues"];
+            values: components["schemas"]["types.AppConfigValues"];
         };
         "types.PostInstallRunHostPreflightsRequest": {
-            isUi?: boolean;
+            isUi: boolean;
         };
         "types.PreflightsOutput": {
-            fail?: components["schemas"]["types.PreflightsRecord"][];
-            pass?: components["schemas"]["types.PreflightsRecord"][];
-            warn?: components["schemas"]["types.PreflightsRecord"][];
+            fail: components["schemas"]["types.PreflightsRecord"][];
+            pass: components["schemas"]["types.PreflightsRecord"][];
+            warn: components["schemas"]["types.PreflightsRecord"][];
         };
         "types.PreflightsRecord": {
-            message?: string;
-            strict?: boolean;
-            title?: string;
+            message: string;
+            strict: boolean;
+            title: string;
         };
         /**
          * @example Succeeded
@@ -1836,82 +1836,82 @@ export interface components {
          */
         "types.State": "Pending" | "Running" | "Succeeded" | "Failed";
         "types.Status": {
-            description?: string;
-            lastUpdated?: string;
-            state?: components["schemas"]["types.State"];
+            description: string;
+            lastUpdated: string;
+            state: components["schemas"]["types.State"];
         };
         "types.TemplateAppConfigRequest": {
-            values?: components["schemas"]["types.AppConfigValues"];
+            values: components["schemas"]["types.AppConfigValues"];
         };
         "types.UpgradeAppPreflightsStatusResponse": {
-            allowIgnoreAppPreflights?: boolean;
-            hasStrictAppPreflightFailures?: boolean;
+            allowIgnoreAppPreflights: boolean;
+            hasStrictAppPreflightFailures: boolean;
             output?: components["schemas"]["types.PreflightsOutput"];
-            status?: components["schemas"]["types.Status"];
-            titles?: string[];
+            status: components["schemas"]["types.Status"];
+            titles: string[];
         };
         "types.UpgradeAppRequest": {
-            ignoreAppPreflights?: boolean;
+            ignoreAppPreflights: boolean;
         };
         "v1beta1.ConfigChildItem": {
-            default?: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
-            name?: string;
-            recommended?: boolean;
-            title?: string;
-            value?: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
+            default: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
+            name: string;
+            recommended: boolean;
+            title: string;
+            value: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
         };
         "v1beta1.ConfigGroup": {
-            description?: string;
-            items?: components["schemas"]["v1beta1.ConfigItem"][];
-            name?: string;
-            title?: string;
-            when?: string;
+            description: string;
+            items: components["schemas"]["v1beta1.ConfigItem"][];
+            name: string;
+            title: string;
+            when: string;
         };
         "v1beta1.ConfigItem": {
-            affix?: string;
-            countByGroup?: {
+            affix: string;
+            countByGroup: {
                 [key: string]: number;
             };
-            data?: string;
-            default?: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
-            error?: string;
-            filename?: string;
-            help_text?: string;
-            hidden?: boolean;
-            items?: components["schemas"]["v1beta1.ConfigChildItem"][];
-            minimumCount?: number;
-            multi_value?: string[];
-            multiple?: boolean;
-            name?: string;
-            readonly?: boolean;
-            recommended?: boolean;
-            repeatable?: boolean;
-            required?: boolean;
-            templates?: components["schemas"]["v1beta1.RepeatTemplate"][];
-            title?: string;
-            type?: string;
-            validation?: components["schemas"]["v1beta1.ConfigItemValidation"];
-            value?: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
-            valuesByGroup?: components["schemas"]["v1beta1.ValuesByGroup"];
-            when?: string;
-            write_once?: boolean;
+            data: string;
+            default: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
+            error: string;
+            filename: string;
+            help_text: string;
+            hidden: boolean;
+            items: components["schemas"]["v1beta1.ConfigChildItem"][];
+            minimumCount: number;
+            multi_value: string[];
+            multiple: boolean;
+            name: string;
+            readonly: boolean;
+            recommended: boolean;
+            repeatable: boolean;
+            required: boolean;
+            templates: components["schemas"]["v1beta1.RepeatTemplate"][];
+            title: string;
+            type: string;
+            validation: components["schemas"]["v1beta1.ConfigItemValidation"];
+            value: components["schemas"]["github_com_replicatedhq_kotskinds_multitype.BoolOrString"];
+            valuesByGroup: components["schemas"]["v1beta1.ValuesByGroup"];
+            when: string;
+            write_once: boolean;
         };
         "v1beta1.ConfigItemValidation": {
-            regex?: components["schemas"]["v1beta1.RegexValidator"];
+            regex: components["schemas"]["v1beta1.RegexValidator"];
         };
         "v1beta1.GroupValues": {
             [key: string]: string;
         };
         "v1beta1.RegexValidator": {
-            message?: string;
-            pattern?: string;
+            message: string;
+            pattern: string;
         };
         "v1beta1.RepeatTemplate": {
-            apiVersion?: string;
-            kind?: string;
-            name?: string;
-            namespace?: string;
-            yamlPath?: string;
+            apiVersion: string;
+            kind: string;
+            name: string;
+            namespace: string;
+            yamlPath: string;
         };
         "v1beta1.ValuesByGroup": {
             [key: string]: components["schemas"]["v1beta1.GroupValues"];

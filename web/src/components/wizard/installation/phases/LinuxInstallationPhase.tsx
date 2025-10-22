@@ -8,7 +8,7 @@ import StatusIndicator from '../shared/StatusIndicator';
 import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { useStartInfraSetup, useUpgradeInfra } from '../../../../mutations/useMutations';
-import { useInfraStatus } from '../../../../queries/useQueries';
+import { useLinuxInfraStatus } from '../../../../queries/useQueries';
 
 interface LinuxInstallationPhaseProps {
   onNext: () => void;
@@ -26,7 +26,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   const [installComplete, setInstallComplete] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
-  const startInfraSetup = useStartInfraSetup();
+  const startInfraSetup = useStartInfraSetup({ ignoreHostPreflights });
   const upgradeInfra = useUpgradeInfra();
   const mutationStarted = useRef(false);
 
@@ -34,7 +34,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   const infraMutation = mode === 'upgrade' ? upgradeInfra : startInfraSetup;
 
   // Query to poll infra status
-  const { data: infraStatusResponse, error: infraStatusError } = useInfraStatus({
+  const { data: infraStatusResponse, error: infraStatusError } = useLinuxInfraStatus({
     enabled: isInfraPolling,
     refetchInterval: 2000,
   });
@@ -54,7 +54,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   useEffect(() => {
     if (infraStatusResponse?.status?.state === "Pending" && !mutationStarted.current) {
       mutationStarted.current = true;
-      infraMutation.mutate({ ignoreHostPreflights });
+      infraMutation.mutate();
     }
   }, [infraStatusResponse?.status?.state]);
 

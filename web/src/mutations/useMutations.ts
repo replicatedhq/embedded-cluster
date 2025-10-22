@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useWizard } from "../contexts/WizardModeContext";
 import { useAuth } from "../contexts/AuthContext";
 import {
-  getApiBasePath,
+  getWizardBasePath,
   getAppInstallPath,
   createAuthedClient,
 } from "../api/client";
@@ -14,7 +14,7 @@ export function useProcessAirgap() {
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", mode);
+      const apiBase = getWizardBasePath("linux", mode);
 
       const { data, error } = await client.POST(
         `${apiBase}/airgap/process`,
@@ -33,7 +33,7 @@ export function useUpgradeInfra() {
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", "upgrade");
+      const apiBase = getWizardBasePath("linux", "upgrade");
 
       const { data, error } = await client.POST(`${apiBase}/infra/upgrade`, {});
 
@@ -49,7 +49,7 @@ export function useRunHostPreflights() {
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", "install");
 
       const { data, error } = await client.POST(
         `${apiBase}/host-preflights/run`,
@@ -71,7 +71,7 @@ export function useRunAppPreflights() {
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath(target, mode);
+      const apiBase = getWizardBasePath(target, mode);
 
       const { data, error } = await client.POST(
         `${apiBase}/app-preflights/run`,
@@ -84,13 +84,13 @@ export function useRunAppPreflights() {
   });
 }
 
-export function useStartInfraSetup() {
+export function useStartInfraSetup(args?: { ignoreHostPreflights?: boolean }) {
   const { token } = useAuth();
 
   return useMutation({
-    mutationFn: async (args?: { ignoreHostPreflights?: boolean }) => {
+    mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getApiBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", "install");
 
       const { data, error } = await client.POST(`${apiBase}/infra/setup`, {
         body: {

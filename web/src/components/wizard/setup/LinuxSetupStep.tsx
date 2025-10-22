@@ -9,10 +9,12 @@ import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { LinuxConfig } from "../../../types";
-import { getApiBasePath } from '../../../api/client';
+import type { components } from "../../../types/api";
+import { createAuthedClient, getWizardBasePath } from '../../../api/client';
 import { ApiError } from '../../../api/error';
-import { useInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
+import { useLinuxInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
+
+type LinuxInstallationConfig = components["schemas"]["types.LinuxInstallationConfig"];
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -46,18 +48,17 @@ interface Status {
 }
 
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
-  const { text, target, mode } = useWizard();
+  const { text } = useWizard();
   const { title } = useInitialState();
   const [isInstallationStatusPolling, setIsInstallationStatusPolling] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [defaults, setDefaults] = useState<LinuxConfig>({ dataDirectory: "" });
-  const [configValues, setConfigValues] = useState<LinuxConfig>({ dataDirectory: "" });
+  const [defaults, setDefaults] = useState<LinuxInstallationConfig>({ dataDirectory: "" });
+  const [configValues, setConfigValues] = useState<LinuxInstallationConfig>({ dataDirectory: "" });
   const { token } = useAuth();
-  const apiBase = getApiBasePath(target, mode);
 
   // Query for fetching install configuration
-  const { data: configResponse, isLoading: isConfigLoading } = useInstallConfig();
+  const { data: configResponse, isLoading: isConfigLoading } = useLinuxInstallConfig();
 
   // Store defaults and config values when config loads
   useEffect(() => {
@@ -78,21 +79,19 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   });
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, LinuxConfig>({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, LinuxInstallationConfig>({
     mutationFn: async (configData) => {
-      const response = await fetch(`${apiBase}/installation/configure`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(configData),
+      const client = createAuthedClient(token);
+      const path = getWizardBasePath("linux", "install");
+
+      const { data, error, response } = await client.POST(`${path}/installation/configure`, {
+        body: configData,
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, 'Failed to submit configuration')
+      if (error || !response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to submit configuration");
       }
-      return response.json();
+      return data;
     },
     onSuccess: () => {
       // Clear any previous errors

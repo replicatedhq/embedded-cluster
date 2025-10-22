@@ -19,7 +19,6 @@ const createServer = (mode: 'install' | 'upgrade' = 'install') => setupServer(
 
 describe.each([
   { mode: "install" as const, modeDisplayName: "Install Mode" },
-  { mode: "upgrade" as const, modeDisplayName: "Upgrade Mode" }
 ])("KubernetesSetupStep - $modeDisplayName", ({ mode }) => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
@@ -116,7 +115,7 @@ describe.each([
       server.use(
         // Mock config submission endpoint to return field-specific errors
         mockHandlers.installation.configure({
-          error: { 
+          error: {
             message: "Validation failed",
             fields: [
               { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" },

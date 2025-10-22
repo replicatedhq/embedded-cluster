@@ -5,7 +5,7 @@ import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useSettings } from "../../../contexts/SettingsContext";
 import { CheckCircle, ExternalLink, Loader2, XCircle } from "lucide-react";
 import { ApiError } from '../../../api/error';
-import { useInstallConfig } from '../../../queries/useQueries';
+import { useLinuxInstallConfig } from '../../../queries/useQueries';
 
 const LinuxCompletionStep: React.FC = () => {
   const { title } = useInitialState();
@@ -13,7 +13,7 @@ const LinuxCompletionStep: React.FC = () => {
   const themeColor = settings.themeColor;
 
   // Query for fetching install configuration
-  const { isLoading, error, data: config } = useInstallConfig();
+  const { isLoading, error, data: config } = useLinuxInstallConfig();
 
   // Loading state
   if (isLoading) {

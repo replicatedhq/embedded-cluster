@@ -7,10 +7,12 @@ import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { KubernetesConfig } from "../../../types";
-import { getApiBasePath } from '../../../api/client';
+import type { components } from "../../../types/api";
+import { createAuthedClient, getWizardBasePath } from '../../../api/client';
 import { ApiError } from '../../../api/error';
-import { useInstallConfig } from '../../../queries/useQueries';
+import { useKubernetesInstallConfig } from '../../../queries/useQueries';
+
+type KubernetesInstallationConfig = components["schemas"]["types.KubernetesInstallationConfig"];
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -37,15 +39,14 @@ interface Status {
 }
 
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
-  const { text, target, mode } = useWizard();
+  const { text } = useWizard();
   const [error, setError] = useState<string | null>(null);
-  const [defaults, setDefaults] = useState<KubernetesConfig>({});
-  const [configValues, setConfigValues] = useState<KubernetesConfig>({});
+  const [defaults, setDefaults] = useState<Partial<KubernetesInstallationConfig>>({});
+  const [configValues, setConfigValues] = useState<Partial<KubernetesInstallationConfig>>({});
   const { token } = useAuth();
-  const apiBase = getApiBasePath(target, mode);
 
   // Query for fetching install configuration
-  const { data: configResponse, isLoading: isConfigLoading } = useInstallConfig();
+  const { data: configResponse, isLoading: isConfigLoading } = useKubernetesInstallConfig();
 
   // Store defaults and config values when config loads
   useEffect(() => {
@@ -56,21 +57,19 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   }, [configResponse]);
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, KubernetesConfig>({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, Partial<KubernetesInstallationConfig>>({
     mutationFn: async (configData) => {
-      const response = await fetch(`${apiBase}/installation/configure`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(configData),
+      const client = createAuthedClient(token);
+      const path = getWizardBasePath("kubernetes", "install");
+
+      const { data, error, response } = await client.POST(`${path}/installation/configure`, {
+        body: configData,
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to submit configuration")
+      if (error || !response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to submit configuration");
       }
-      return response.json();
+      return data;
     },
     onSuccess: () => {
       // Clear any previous errors
@@ -85,19 +84,15 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   // Mutation for starting the installation
   const { mutate: startInstallation } = useMutation({
     mutationFn: async () => {
-      const endpoint = mode === 'install' ? 'infra/setup' : 'infra/upgrade';
-      const response = await fetch(`${apiBase}/${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const client = createAuthedClient(token);
+      const path = getWizardBasePath("kubernetes", "install");
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start installation")
+      const { data, error, response } = await client.POST(`${path}/infra/setup`, {});
+
+      if (error || !response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to start installation");
       }
-      return response.json();
+      return data;
     },
     onSuccess: () => {
       setError(null); // Clear any previous errors
