@@ -78,6 +78,7 @@ func TestRealNetworkInterface_DefaultNetworkInterfaceProvider(t *testing.T) {
 	// If there's none skip the remainder of the test
 	if loopbackInterface == nil {
 		t.Skip("no loopback interface found on system")
+		return
 	}
 
 	// Get the loopback interface through the provider interface
