@@ -4,81 +4,96 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"os"
+	_ "embed"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 )
 
-// Global test data to avoid regenerating for each test
-var testReleaseData []byte
+var (
+	//go:embed testdata/release.yaml
+	releaseData []byte
 
-func init() {
-	data, err := generateReleaseTGZ()
-	if err != nil {
-		panic("Failed to generate test release data: " + err.Error())
-	}
-	testReleaseData = data
-}
+	//go:embed testdata/velero-multi.yaml
+	veleroMultiData []byte
+
+	//go:embed testdata/helmcharts-multi.yaml
+	helmchartsMultiData []byte
+
+	//go:embed testdata/mixed-multi.yaml
+	mixedMultiData []byte
+)
 
 func Test_newReleaseDataFrom(t *testing.T) {
 	release, err := newReleaseDataFrom([]byte{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, release)
 	cfg := release.EmbeddedClusterConfig
-	assert.NoError(t, err)
 	assert.Nil(t, cfg)
 }
 
 func TestGetApplication(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	app := release.Application
-	assert.NoError(t, err)
 	assert.NotNil(t, app)
 }
 
 func TestGetEmbeddedClusterConfig(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	cfg := release.EmbeddedClusterConfig
-	assert.NoError(t, err)
 	assert.NotNil(t, cfg)
 }
 
 func TestGetHostPreflights(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	preflights := release.HostPreflights
-	assert.NoError(t, err)
 	assert.NotNil(t, preflights)
 }
 
 func TestGetAppTitle(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	title := release.Application.Spec.Title
-	assert.NoError(t, err)
 	assert.Equal(t, "Embedded Cluster Smoke Test App", title)
 }
 
 func TestGetHelmChartCRs(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	helmCharts := release.HelmChartCRs
-	assert.NoError(t, err)
 	assert.NotNil(t, helmCharts)
 	assert.Len(t, helmCharts, 1) // One HelmChart CR in test data
 }
 
 func TestGetHelmChartArchives(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
 	release, err := newReleaseDataFrom(testReleaseData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	archives := release.HelmChartArchives
-	assert.NoError(t, err)
 	assert.NotNil(t, archives)
 	assert.Len(t, archives, 1) // One .tgz file in test data
+}
+
+func TestGetVeleroBackupAndRestore(t *testing.T) {
+	testReleaseData := generateReleaseTGZ(t, releaseData)
+	release, err := newReleaseDataFrom(testReleaseData)
+	require.NoError(t, err)
+
+	backup := release.VeleroBackup
+	assert.NotNil(t, backup)
+
+	restore := release.VeleroRestore
+	assert.NotNil(t, restore)
 }
 
 func TestParseHelmChartCR(t *testing.T) {
@@ -189,15 +204,75 @@ spec:
 	assert.Equal(t, chartArchive, release.HelmChartArchives[0])
 }
 
-func generateReleaseTGZ() ([]byte, error) {
-	content, err := os.ReadFile("testdata/release.yaml")
-	if err != nil {
-		return nil, err
-	}
+func TestParseMultiDocumentVeleroYAML(t *testing.T) {
+	// Create tar.gz with the multi-document file
+	veleroMulti := generateReleaseTGZ(t, veleroMultiData)
 
+	// Parse the release data
+	release, err := newReleaseDataFrom(veleroMulti)
+	assert.NoError(t, err)
+	assert.NotNil(t, release)
+
+	// Verify both Backup and Restore were parsed
+	assert.NotNil(t, release.VeleroBackup, "VeleroBackup should be parsed")
+	assert.Equal(t, "test-backup", release.VeleroBackup.Name)
+
+	assert.NotNil(t, release.VeleroRestore, "VeleroRestore should be parsed")
+	assert.Equal(t, "test-restore", release.VeleroRestore.Name)
+}
+
+func TestParseMultiDocumentMixedYAML(t *testing.T) {
+	// Create tar.gz with the multi-document file
+	mixedMulti := generateReleaseTGZ(t, mixedMultiData)
+
+	// Parse the release data
+	release, err := newReleaseDataFrom(mixedMulti)
+	require.NoError(t, err)
+	assert.NotNil(t, release)
+
+	// Verify all resources were parsed
+	assert.NotNil(t, release.Application, "Application should be parsed")
+	assert.Equal(t, "Test Application", release.Application.Spec.Title)
+
+	assert.NotNil(t, release.EmbeddedClusterConfig, "EmbeddedClusterConfig should be parsed")
+	assert.Equal(t, "controller-test", release.EmbeddedClusterConfig.Spec.Roles.Controller.Name)
+
+	assert.NotNil(t, release.HostPreflights, "HostPreflights should be parsed")
+	assert.Len(t, release.HostPreflights.Collectors, 1)
+	assert.Len(t, release.HostPreflights.Analyzers, 1)
+}
+
+func TestParseMultipleHelmChartCRsInSingleFile(t *testing.T) {
+	helmchartsMulti := generateReleaseTGZ(t, helmchartsMultiData)
+
+	// Parse the release data
+	release, err := newReleaseDataFrom(helmchartsMulti)
+	require.NoError(t, err)
+	assert.NotNil(t, release)
+
+	// Verify both HelmChart CRs were parsed
+	assert.Len(t, release.HelmChartCRs, 2, "Should have 2 HelmChart CRs")
+
+	// Parse and verify the first chart
+	var chart1 map[string]any
+	err = yaml.Unmarshal(release.HelmChartCRs[0], &chart1)
+	assert.NoError(t, err)
+	metadata1 := chart1["metadata"].(map[string]any)
+	assert.Equal(t, "chart-1", metadata1["name"])
+
+	// Parse and verify the second chart
+	var chart2 map[string]any
+	err = yaml.Unmarshal(release.HelmChartCRs[1], &chart2)
+	assert.NoError(t, err)
+	metadata2 := chart2["metadata"].(map[string]any)
+	assert.Equal(t, "chart-2", metadata2["name"])
+}
+
+func generateReleaseTGZ(t *testing.T, content []byte) []byte {
 	parsed := map[string]string{}
 	if err := yaml.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+		t.Fatalf("Failed to unmarshal content: %v", err)
+		return nil
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -211,20 +286,24 @@ func generateReleaseTGZ() ([]byte, error) {
 		}
 
 		if err := tw.WriteHeader(hdr); err != nil {
-			return nil, err
+			t.Fatalf("Failed to write header: %v", err)
+			return nil
 		}
 
 		if _, err := tw.Write([]byte(content)); err != nil {
-			return nil, err
+			t.Fatalf("Failed to write content: %v", err)
+			return nil
 		}
 	}
 
 	if err := tw.Close(); err != nil {
-		return nil, err
+		t.Fatalf("Failed to close tar writer: %v", err)
+		return nil
 	}
 	if err := gw.Close(); err != nil {
-		return nil, err
+		t.Fatalf("Failed to close gzip writer: %v", err)
+		return nil
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }
