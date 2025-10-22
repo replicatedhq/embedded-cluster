@@ -22,6 +22,7 @@ func TestHostCABundle(t *testing.T) {
 	addon := &adminconsole.AdminConsole{
 		DryRun:           true,
 		HostCABundlePath: filepath.Join(t.TempDir(), "ca-certificates.crt"),
+		KotsadmNamespace: "my-app-namespace",
 	}
 
 	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)

@@ -24,11 +24,12 @@ func TestKubernetes_Airgap(t *testing.T) {
 		Proxy:              nil,
 		AdminConsolePort:   8080,
 
-		Password:      "password",
-		TLSCertBytes:  []byte("cert"),
-		TLSKeyBytes:   []byte("key"),
-		Hostname:      "admin-console",
-		KotsInstaller: nil,
+		Password:         "password",
+		TLSCertBytes:     []byte("cert"),
+		TLSKeyBytes:      []byte("key"),
+		Hostname:         "admin-console",
+		KotsInstaller:    nil,
+		KotsadmNamespace: "my-app-namespace",
 	}
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})

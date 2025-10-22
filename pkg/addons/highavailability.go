@@ -34,6 +34,7 @@ type EnableHAOptions struct {
 	K0sDataDir         string
 	SeaweedFSDataDir   string
 	ServiceCIDR        string
+	KotsadmNamespace   string
 }
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -251,6 +252,7 @@ func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions)
 		DataDir:            opts.DataDir,
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+		KotsadmNamespace:   opts.KotsadmNamespace,
 	}
 	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")

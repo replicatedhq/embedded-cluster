@@ -15,6 +15,7 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/embeddedclusteroperator"
@@ -118,6 +119,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		DataDir:            rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		AdminConsolePort:   rc.AdminConsolePort(),
+		KotsadmNamespace:   constants.KotsadmNamespace,
 	}
 	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
@@ -125,7 +127,7 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.0")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s creating installation with HA disabled", formattedTime())
 	util.EnsureInstallation(t, kcli, ecv1beta1.InstallationSpec{
@@ -181,10 +183,10 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-2", "pod2.yaml")
 }
 
 // If this function name is changed, the .github/workflows/ci.yaml file needs to be updated
@@ -275,6 +277,7 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 		DataDir:            rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		AdminConsolePort:   rc.AdminConsolePort(),
+		KotsadmNamespace:   constants.KotsadmNamespace,
 	}
 	require.NoError(t, adminConsoleAddon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
@@ -282,7 +285,7 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.0")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s creating installation with HA disabled", formattedTime())
 	util.EnsureInstallation(t, kcli, ecv1beta1.InstallationSpec{
@@ -346,10 +349,10 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.36.1")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-2", "pod2.yaml")
 
 	t.Logf("%s upgrading seaweedfs, raftHashicorp and raftBootstrap should stay disabled", formattedTime())
 	seaweedfsAddon := &seaweedfs.SeaweedFS{
@@ -371,13 +374,13 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	copyImageToRegistry(t, registryAddr, "docker.io/library/busybox:1.37.0")
 
 	t.Logf("%s running pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-1", "pod1.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-2", "pod2.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-2", "pod2.yaml")
 
 	t.Logf("%s running third pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, "pod-3", "pod3.yaml")
+	runPodAndValidateImagePull(t, kubeconfig, constants.KotsadmNamespace, "pod-3", "pod3.yaml")
 }
 
 func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
@@ -445,6 +448,7 @@ func enableHA(ctx context.Context, t *testing.T, addOns *addons.AddOns, inSpec e
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        inSpec.RuntimeConfig.Network.ServiceCIDR,
+		KotsadmNamespace:   constants.KotsadmNamespace,
 	}
 	return addOns.EnableHA(ctx, opts, loading)
 }

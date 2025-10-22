@@ -48,15 +48,16 @@ func TestAdminConsole_ExistingCluster(t *testing.T) {
 		Proxy:              ki.ProxySpec(),
 		AdminConsolePort:   ki.AdminConsolePort(),
 
-		Password:     "password",
-		TLSCertBytes: certData,
-		TLSKeyBytes:  keyData,
-		Hostname:     "localhost",
+		Password:         "password",
+		TLSCertBytes:     certData,
+		TLSKeyBytes:      keyData,
+		Hostname:         "localhost",
+		KotsadmNamespace: "my-app-namespace",
 	}
 	require.NoError(t, addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s waiting for admin console to be ready", formattedTime())
-	util.WaitForDeployment(t, kubeconfig, "kotsadm", "kotsadm", 1, 30*time.Second)
+	util.WaitForDeployment(t, kubeconfig, addon.Namespace(), "kotsadm", 1, 30*time.Second)
 
 	deploy := util.GetDeployment(t, kubeconfig, addon.Namespace(), "kotsadm")
 

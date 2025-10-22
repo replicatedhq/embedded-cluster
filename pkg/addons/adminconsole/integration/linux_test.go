@@ -35,11 +35,12 @@ func TestLinux_Airgap(t *testing.T) {
 		DataDir:          dataDir,
 		K0sDataDir:       filepath.Join(dataDir, "k0s"),
 
-		Password:      "password",
-		TLSCertBytes:  []byte("cert"),
-		TLSKeyBytes:   []byte("key"),
-		Hostname:      "admin-console",
-		KotsInstaller: nil,
+		Password:         "password",
+		TLSCertBytes:     []byte("cert"),
+		TLSKeyBytes:      []byte("key"),
+		Hostname:         "admin-console",
+		KotsInstaller:    nil,
+		KotsadmNamespace: "my-app-namespace",
 	}
 
 	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
