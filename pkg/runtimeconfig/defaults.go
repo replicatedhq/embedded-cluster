@@ -1,12 +1,18 @@
 package runtimeconfig
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/gosimple/slug"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // DefaultNoProxy holds the default no proxy values.
@@ -43,6 +49,26 @@ func AppSlug() string {
 		name = filepath.Base(exe)
 	}
 	return slug.Make(name)
+}
+
+// KotsadmNamespace returns the namespace where the kots app and admin console should be deployed.
+// If "kotsadm" exists, it returns "kotsadm" for backwards compatibility, otherwise it returns the app slug.
+func KotsadmNamespace(ctx context.Context, kcli client.Client) (string, error) {
+	// Install scenario - no cluster exists yet, use app slug
+	if kcli == nil {
+		return AppSlug(), nil
+	}
+
+	// Upgrade scenario - check if kotsadm namespace exists and use it for backwards compatibility
+	err := kcli.Get(ctx, client.ObjectKey{Name: constants.KotsadmNamespace}, &corev1.Namespace{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return AppSlug(), nil
+		}
+		return "", fmt.Errorf("failed to get namespace %s: %w", constants.KotsadmNamespace, err)
+	}
+
+	return constants.KotsadmNamespace, nil
 }
 
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs

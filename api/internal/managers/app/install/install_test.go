@@ -63,8 +63,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 				t.Logf("License is nil")
 				return false
 			}
-			if opts.Namespace != "kotsadm" {
-				t.Logf("Namespace mismatch: expected 'kotsadm', got '%s'", opts.Namespace)
+			if opts.Namespace != "install-test" {
+				t.Logf("Namespace mismatch: expected 'install-test', got '%s'", opts.Namespace)
 				return false
 			}
 			if opts.ClusterID != "test-cluster" {

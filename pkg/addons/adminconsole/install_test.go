@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +43,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      PrivateCASConfigMapName,
-				Namespace: constants.KotsadmNamespace,
+				Namespace: "my-app-namespace",
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
 				},
@@ -178,6 +177,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 			addon := &AdminConsole{
 				DataDir:          t.TempDir(),
 				HostCABundlePath: tt.caPath,
+				KotsadmNamespace: "my-app-namespace",
 			}
 			err = addon.ensureCAConfigmap(t.Context(), t.Logf, kcli, mcli)
 

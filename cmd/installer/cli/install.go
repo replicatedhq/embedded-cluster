@@ -644,8 +644,10 @@ func runManagerExperienceInstall(
 	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) (finalErr error) {
-	// Set the KotsadmNamespace to the appSlug for new installations
-	constants.KotsadmNamespace = runtimeconfig.AppSlug()
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
 
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
@@ -677,7 +679,7 @@ func runManagerExperienceInstall(
 		}
 
 		// Generate self-signed certificate
-		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses)
+		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses, kotsadmNamespace)
 		if err != nil {
 			return fmt.Errorf("generate tls certificate: %w", err)
 		}

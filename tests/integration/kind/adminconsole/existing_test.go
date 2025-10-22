@@ -35,7 +35,7 @@ func TestAdminConsole_ExistingCluster(t *testing.T) {
 	}
 
 	t.Logf("%s generating tls certificate", formattedTime())
-	_, certData, keyData, err := tlsutils.GenerateCertificate("localhost", []net.IP{net.ParseIP("127.0.0.1")})
+	_, certData, keyData, err := tlsutils.GenerateCertificate("localhost", []net.IP{net.ParseIP("127.0.0.1")}, "my-app-namespace")
 	if err != nil {
 		t.Fatalf("generate tls certificate: %v", err)
 	}

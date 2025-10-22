@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -287,6 +286,10 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 }
 
 func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		m.logger.WithError(err).Error("get kotsadm namespace")
+	}
 	opts := addons.InstallOptions{
 		ClusterID:               m.clusterID,
 		AdminConsolePwd:         m.password,
@@ -302,7 +305,7 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		KotsadmNamespace:        constants.KotsadmNamespace,
+		KotsadmNamespace:        kotsadmNamespace,
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),

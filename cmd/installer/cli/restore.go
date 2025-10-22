@@ -424,6 +424,11 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		return err
 	}
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	logrus.Debugf("configuring velero backup storage location")
 	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
 		Endpoint:        s3Store.endpoint,
@@ -432,7 +437,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		Path:            s3Store.prefix,
 		AccessKeyID:     s3Store.accessKeyID,
 		SecretAccessKey: s3Store.secretAccessKey,
-		Namespace:       constants.KotsadmNamespace,
+		Namespace:       kotsadmNamespace,
 	}); err != nil {
 		return err
 	}
@@ -1408,7 +1413,12 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := restoreWaitForAdminConsoleReady(ctx, kcli, constants.KotsadmNamespace, loading); err != nil {
+		kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+		if err != nil {
+			return fmt.Errorf("get kotsadm namespace: %w", err)
+		}
+
+		if err := restoreWaitForAdminConsoleReady(ctx, kcli, kotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
 	case disasterRecoveryComponentSeaweedFS:

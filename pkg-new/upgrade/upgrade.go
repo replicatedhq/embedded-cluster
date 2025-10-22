@@ -12,7 +12,6 @@ import (
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
@@ -292,6 +291,11 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		addons.WithProgressChannel(progressChan),
 	)
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.UpgradeOptions{
 		ClusterID:               in.Spec.ClusterID,
 		AdminConsolePort:        rc.AdminConsolePort(),
@@ -303,7 +307,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		EndUserConfigSpec:       nil, // TODO: add support for end user config spec
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		KotsadmNamespace:        constants.KotsadmNamespace,
+		KotsadmNamespace:        kotsadmNamespace,
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),

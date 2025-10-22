@@ -42,7 +42,7 @@ func Test_serveAPI(t *testing.T) {
 	_, port, err := net.SplitHostPort(listener.Addr().String())
 	require.NoError(t, err)
 
-	cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
+	cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil, "my-app-namespace")
 	require.NoError(t, err)
 
 	certPool := x509.NewCertPool()
@@ -148,7 +148,7 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 			_, port, err := net.SplitHostPort(listener.Addr().String())
 			require.NoError(t, err)
 
-			cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil)
+			cert, _, _, err := tlsutils.GenerateCertificate("localhost", nil, "my-app-namespace")
 			require.NoError(t, err)
 
 			certPool := x509.NewCertPool()

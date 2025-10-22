@@ -45,9 +45,15 @@ func CreateUpgradeJob(
 	previousInstallVersion string,
 ) error {
 	log := controllerruntime.LoggerFrom(ctx)
+
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	// check if the job already exists - if it does, we've already rolled out images and can return now
 	job := &batchv1.Job{}
-	err := cli.Get(ctx, client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
+	err = cli.Get(ctx, client.ObjectKey{Namespace: kotsadmNamespace, Name: fmt.Sprintf(upgradeJobName, in.Name)}, job)
 	if err == nil {
 		return nil
 	}
@@ -81,7 +87,7 @@ func CreateUpgradeJob(
 
 	// check if the configmap exists already or if we can just create it
 	existingCm := &corev1.ConfigMap{}
-	err = cli.Get(ctx, client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: fmt.Sprintf(upgradeJobConfigMap, in.Name)}, existingCm)
+	err = cli.Get(ctx, client.ObjectKey{Namespace: kotsadmNamespace, Name: fmt.Sprintf(upgradeJobConfigMap, in.Name)}, existingCm)
 	if err == nil {
 		// if the configmap already exists, update it to have the expected data just in case
 		existingCm.Data["installation.yaml"] = string(installationData)
@@ -94,7 +100,7 @@ func CreateUpgradeJob(
 	} else {
 		cm := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: constants.KotsadmNamespace,
+				Namespace: kotsadmNamespace,
 				Name:      fmt.Sprintf(upgradeJobConfigMap, in.Name),
 			},
 			Data: map[string]string{
@@ -118,7 +124,7 @@ func CreateUpgradeJob(
 		},
 		{
 			Name:  "JOB_NAMESPACE",
-			Value: constants.KotsadmNamespace,
+			Value: kotsadmNamespace,
 		},
 	}
 
@@ -140,7 +146,7 @@ func CreateUpgradeJob(
 	// create the upgrade job
 	job = &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: constants.KotsadmNamespace,
+			Namespace: kotsadmNamespace,
 			Name:      fmt.Sprintf(upgradeJobName, in.Name),
 			Labels: map[string]string{
 				"app.kubernetes.io/instance": "embedded-cluster-upgrade",
@@ -289,8 +295,13 @@ func CreateUpgradeJob(
 }
 
 func ListUpgradeJobs(ctx context.Context, cli client.Client) ([]batchv1.Job, error) {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return nil, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	jobs := batchv1.JobList{}
-	err := cli.List(ctx, &jobs, client.InNamespace(constants.KotsadmNamespace), client.MatchingLabels{
+	err = cli.List(ctx, &jobs, client.InNamespace(kotsadmNamespace), client.MatchingLabels{
 		"app.kubernetes.io/instance": "embedded-cluster-upgrade",
 		"app.kubernetes.io/name":     "embedded-cluster-upgrade",
 	})

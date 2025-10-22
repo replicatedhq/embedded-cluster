@@ -6,7 +6,6 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"go.yaml.in/yaml/v3"
@@ -67,7 +66,7 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 		ChartName:    (&AdminConsole{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(marshalled),
-		TargetNS:     constants.KotsadmNamespace,
+		TargetNS:     (&AdminConsole{}).Namespace(),
 		ForceUpgrade: ptr.To(false),
 		Order:        5,
 	}

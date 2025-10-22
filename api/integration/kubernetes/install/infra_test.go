@@ -20,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -84,9 +83,28 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		// Create mocks
 		helmMock := &helm.MockClient{}
+
+		// Create the app namespace that will be used by the addon
+		appNamespace := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-app",
+			},
+		}
+
+		// Create the password secret that would be created by the AdminConsole addon
+		passwordSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kotsadm-password",
+				Namespace: "test-app",
+			},
+			Data: map[string][]byte{
+				"passwordBcrypt": []byte("$2a$10$hashedpassword"),
+			},
+		}
+
 		fakeKcli := clientfake.NewClientBuilder().
 			WithScheme(scheme).
-			WithObjects(integration.NewTestControllerNode(hostname)).
+			WithObjects(integration.NewTestControllerNode(hostname), appNamespace, passwordSecret).
 			WithStatusSubresource(&ecv1beta1.Installation{}, &apiextensionsv1.CustomResourceDefinition{}).
 			WithInterceptorFuncs(integration.NewTestInterceptorFuncs()).
 			Build()
@@ -104,6 +122,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
 						ReplicatedAppDomain: "replicated.example.com",
 						ProxyRegistryDomain: "some-proxy.example.com",
@@ -126,6 +145,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
 						ReplicatedAppDomain: "replicated.example.com",
 						ProxyRegistryDomain: "some-proxy.example.com",
@@ -210,13 +230,15 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 		// Verify that the mock expectations were met
 		helmMock.AssertExpectations(t)
 
-		// Verify kotsadm namespace and kotsadm-password secret were created
+		// Verify app namespace and kotsadm-password secret were created
+		// The namespace name should be the app slug ("test-app")
+		expectedNamespace := "test-app"
 		var gotKotsadmNamespace corev1.Namespace
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: constants.KotsadmNamespace}, &gotKotsadmNamespace)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Name: expectedNamespace}, &gotKotsadmNamespace)
 		require.NoError(t, err)
 
 		var gotKotsadmPasswordSecret corev1.Secret
-		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
+		err = fakeKcli.Get(t.Context(), client.ObjectKey{Namespace: expectedNamespace, Name: "kotsadm-password"}, &gotKotsadmPasswordSecret)
 		require.NoError(t, err)
 		assert.NotEmpty(t, gotKotsadmPasswordSecret.Data["passwordBcrypt"])
 
@@ -285,6 +307,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinfra.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
 						ReplicatedAppDomain: "replicated.example.com",
 						ProxyRegistryDomain: "some-proxy.example.com",
@@ -307,6 +330,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			kubernetesinstall.WithReleaseData(&release.ReleaseData{
 				EmbeddedClusterConfig: &ecv1beta1.Config{},
 				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "test-app",
 					DefaultDomains: release.Domains{
 						ReplicatedAppDomain: "replicated.example.com",
 						ProxyRegistryDomain: "some-proxy.example.com",

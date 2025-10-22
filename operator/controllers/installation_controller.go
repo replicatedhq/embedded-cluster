@@ -32,6 +32,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -480,16 +481,16 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 
 	kotsadmNamespace := os.Getenv("KOTSADM_NAMESPACE")
 	if kotsadmNamespace == "" {
-		kotsadmNamespace = "kotsadm" // fallback for backwards compatibility
+		kotsadmNamespace = constants.KotsadmNamespace // fallback for backwards compatibility
 	}
 
 	// if the namespace has not been created yet, we don't need to reconcile the CA configmap
-	exists, err := kubeutils.NamespaceExists(ctx, r.Client, kotsadmNamespace)
+	err := r.Get(ctx, client.ObjectKey{Name: kotsadmNamespace}, &corev1.Namespace{})
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil // namespace doesn't exist yet
+		}
 		return fmt.Errorf("failed to check if kotsadm namespace exists: %w", err)
-	}
-	if !exists {
-		return nil
 	}
 
 	logger := ctrl.LoggerFrom(ctx)

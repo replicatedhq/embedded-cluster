@@ -1,8 +1,7 @@
 package constants
 
-var KotsadmNamespace = "kotsadm"
-
 const (
+	KotsadmNamespace         = "kotsadm"
 	KotsadmServiceAccount    = "kotsadm"
 	SeaweedFSNamespace       = "seaweedfs"
 	RegistryNamespace        = "registry"

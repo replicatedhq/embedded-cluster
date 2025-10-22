@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 )
 
@@ -30,11 +29,12 @@ type AdminConsole struct {
 	K0sDataDir       string
 
 	// These options are only used during installation
-	Password      string
-	TLSCertBytes  []byte
-	TLSKeyBytes   []byte
-	Hostname      string
-	KotsInstaller KotsInstaller
+	Password         string
+	TLSCertBytes     []byte
+	TLSKeyBytes      []byte
+	Hostname         string
+	KotsInstaller    KotsInstaller
+	KotsadmNamespace string
 
 	// DryRun is a flag to enable dry-run mode for Admin Console.
 	// If true, Admin Console will only render the helm template and additional manifests, but not install
@@ -59,7 +59,7 @@ func (a *AdminConsole) ReleaseName() string {
 }
 
 func (a *AdminConsole) Namespace() string {
-	return constants.KotsadmNamespace
+	return a.KotsadmNamespace
 }
 
 func getBackupLabels() map[string]string {

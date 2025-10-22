@@ -7,7 +7,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	releasepkg "github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,6 +45,21 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 		},
 	}
 
+	appSlug := "app-slug"
+	kotsadmNamespace := appSlug
+
+	// Set up release data so AppSlug() returns the correct value for v3
+	err := releasepkg.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: " + appSlug),
+	})
+	require.NoError(t, err)
+
+	kotsadmNs := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: kotsadmNamespace,
+		},
+	}
+
 	// Create a cached metadata for the test version
 	// This avoids having to properly create a ConfigMap
 	testMeta := types.ReleaseMetadata{
@@ -52,19 +67,19 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 	}
 	release.CacheMeta(testVersion, testMeta)
 
-	// Create a fake client with the installation
+	// Create a fake client with the installation and kotsadm namespace
 	cli := fake.NewClientBuilder().
 		WithScheme(scheme).
-		WithObjects(installation).
+		WithObjects(installation, kotsadmNs).
 		Build()
 
 	rc := runtimeconfig.New(nil)
 
 	// Call the function under test
-	err := CreateUpgradeJob(
+	err = CreateUpgradeJob(
 		context.Background(), cli, rc, installation,
 		"registry.example.com/local-artifact-mirror:1.2.3",
-		"license-id", "app-slug", "channel-id", testVersion,
+		"license-id", appSlug, "channel-id", testVersion,
 		"1.2.2",
 	)
 	require.NoError(t, err)
@@ -72,7 +87,7 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 	// Get the job that was created
 	job := &batchv1.Job{}
 	err = cli.Get(context.Background(), client.ObjectKey{
-		Namespace: constants.KotsadmNamespace,
+		Namespace: kotsadmNamespace,
 		Name:      "embedded-cluster-upgrade-test-installation",
 	}, job)
 	require.NoError(t, err)
@@ -125,6 +140,21 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 			},
 		}
 
+		appSlug := "app-slug"
+		kotsadmNamespace := appSlug
+
+		// Set up release data so AppSlug() returns the correct value for v3
+		err := releasepkg.SetReleaseDataForTests(map[string][]byte{
+			"channelrelease.yaml": []byte("# channel release object\nappSlug: " + appSlug),
+		})
+		require.NoError(t, err)
+
+		kotsadmNs := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kotsadmNamespace,
+			},
+		}
+
 		// Create a cached metadata for the test version
 		// This avoids having to properly create a ConfigMap
 		testMeta := types.ReleaseMetadata{
@@ -132,19 +162,19 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		}
 		release.CacheMeta(testVersion, testMeta)
 
-		// Create a fake client with the installation
+		// Create a fake client with the installation and kotsadm namespace
 		cli := fake.NewClientBuilder().
 			WithScheme(scheme).
-			WithObjects(installation).
+			WithObjects(installation, kotsadmNs).
 			Build()
 
 		rc := runtimeconfig.New(nil)
 
 		// Call the function under test
-		err := CreateUpgradeJob(
+		err = CreateUpgradeJob(
 			context.Background(), cli, rc, installation,
 			"registry.example.com/local-artifact-mirror:1.2.3",
-			"license-id", "app-slug", "channel-id", testVersion,
+			"license-id", appSlug, "channel-id", testVersion,
 			"1.2.2",
 		)
 		require.NoError(t, err)
@@ -152,7 +182,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: constants.KotsadmNamespace,
+			Namespace: kotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)
@@ -234,6 +264,22 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 			},
 		}
 
+		appSlug := "app-slug"
+		kotsadmNamespace := appSlug
+
+		// Set up release data so AppSlug() returns the correct value for v3
+		err := releasepkg.SetReleaseDataForTests(map[string][]byte{
+			"channelrelease.yaml": []byte("# channel release object\nappSlug: " + appSlug),
+		})
+		require.NoError(t, err)
+
+		// Create kotsadm namespace for v3
+		kotsadmNs := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: kotsadmNamespace,
+			},
+		}
+
 		// Create a cached metadata for the test version
 		// This avoids having to properly create a ConfigMap
 		testMeta := types.ReleaseMetadata{
@@ -241,19 +287,19 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		}
 		release.CacheMeta(testVersion, testMeta)
 
-		// Create a fake client with the installation
+		// Create a fake client with the installation and kotsadm namespace
 		cli := fake.NewClientBuilder().
 			WithScheme(scheme).
-			WithObjects(installation).
+			WithObjects(installation, kotsadmNs).
 			Build()
 
 		rc := runtimeconfig.New(nil)
 
 		// Call the function under test
-		err := CreateUpgradeJob(
+		err = CreateUpgradeJob(
 			context.Background(), cli, rc, installation,
 			"registry.example.com/local-artifact-mirror:1.2.3",
-			"license-id", "app-slug", "channel-id", testVersion,
+			"license-id", appSlug, "channel-id", testVersion,
 			"1.2.2",
 		)
 		require.NoError(t, err)
@@ -261,7 +307,7 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: constants.KotsadmNamespace,
+			Namespace: kotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)
