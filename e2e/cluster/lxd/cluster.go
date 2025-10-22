@@ -465,8 +465,8 @@ func CopyFilesToNode(in *ClusterInput, node string) {
 	if err != nil {
 		in.T.Fatalf("Failed to connect to LXD: %v", err)
 	}
-	req := lxd.ContainerFileArgs{Mode: 0700, Type: "directory"}
-	if err = client.CreateContainerFile(node, "/root/.ssh", req); err != nil {
+	req := lxd.InstanceFileArgs{Mode: 0700, Type: "directory"}
+	if err = client.CreateInstanceFile(node, "/root/.ssh", req); err != nil {
 		in.T.Fatalf("Failed to create directory: %v", err)
 	}
 	files := []File{
@@ -662,12 +662,12 @@ func CopyFileToNode(in *ClusterInput, node string, file File) {
 		in.T.Fatalf("Failed to open file %s: %v", file.SourcePath, err)
 	}
 	defer fp.Close()
-	req := lxd.ContainerFileArgs{
+	req := lxd.InstanceFileArgs{
 		Content: fp,
 		Mode:    file.Mode,
 		Type:    "file",
 	}
-	if err := client.CreateContainerFile(node, file.DestPath, req); err != nil {
+	if err := client.CreateInstanceFile(node, file.DestPath, req); err != nil {
 		in.T.Fatalf("Failed to copy file `%s` to `%s` on node %s: %v", file.SourcePath, file.DestPath, node, err)
 	}
 }
@@ -678,7 +678,7 @@ func CopyFileFromNode(node, source, dest string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to LXD: %v", err)
 	}
-	content, _, err := client.GetContainerFile(node, source)
+	content, _, err := client.GetInstanceFile(node, source)
 	if err != nil {
 		return fmt.Errorf("failed to get file %s: %v", source, err)
 	}
