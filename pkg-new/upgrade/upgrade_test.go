@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -17,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -566,6 +568,7 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 		nodes         *corev1.NodeList
 		targetVersion string
 		mockClient    func(*corev1.NodeList) client.Client
+		backoff       *wait.Backoff
 		expectError   bool
 		errorContains string
 		validate      func(t *testing.T, cli client.Client)
@@ -690,6 +693,12 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 			mockClient: func(nodes *corev1.NodeList) client.Client {
 				return fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build()
 			},
+			backoff: &wait.Backoff{
+				Duration: 100 * time.Millisecond,
+				Steps:    3,
+				Factor:   1.0,
+				Jitter:   0.1,
+			},
 			expectError:   true,
 			errorContains: "cluster nodes did not match version v1.30.0+k0s after upgrade",
 		},
@@ -698,7 +707,12 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := tt.mockClient(tt.nodes)
-			err := waitForClusterNodesMatchVersion(context.Background(), cli, tt.targetVersion, logger)
+			var err error
+			if tt.backoff != nil {
+				err = waitForClusterNodesMatchVersionWithBackoff(context.Background(), cli, tt.targetVersion, logger, *tt.backoff)
+			} else {
+				err = waitForClusterNodesMatchVersion(context.Background(), cli, tt.targetVersion, logger)
+			}
 
 			if tt.expectError {
 				require.Error(t, err)

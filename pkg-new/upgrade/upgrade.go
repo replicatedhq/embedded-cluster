@@ -402,13 +402,15 @@ func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.
 }
 
 func waitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
-	backoff := wait.Backoff{
+	return waitForClusterNodesMatchVersionWithBackoff(ctx, cli, desiredVersion, logger, wait.Backoff{
 		Duration: 5 * time.Second,
 		Steps:    60, // 60 attempts × 5s = 300s = 5 minutes
 		Factor:   1.0,
 		Jitter:   0.1,
-	}
+	})
+}
 
+func waitForClusterNodesMatchVersionWithBackoff(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger, backoff wait.Backoff) error {
 	var lastErr error
 
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
