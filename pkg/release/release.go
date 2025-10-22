@@ -432,11 +432,11 @@ func splitYAMLDocuments(data []byte) ([][]byte, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decode YAML document: %w", err)
+			return nil, fmt.Errorf("decode: %w", err)
 		}
 		valueBytes, err := yaml.Marshal(value)
 		if err != nil {
-			return nil, fmt.Errorf("marshal YAML document: %w", err)
+			return nil, fmt.Errorf("marshal: %w", err)
 		}
 		res = append(res, valueBytes)
 	}
