@@ -80,25 +80,28 @@ function getBaseUrl(): string {
 }
 
 /**
- * Default API client configured with base URL
+ * Create a default API client configured with base URL
  * Use this for unauthenticated requests or when auth is handled externally
  */
-export const apiClient = createClient<paths>({
-  baseUrl: getBaseUrl(),
-});
+export function createBaseClient() {
+  const apiClient = createClient<paths>({
+    baseUrl: getBaseUrl(),
+  });
 
-// Middleware: Automatic error handling
-apiClient.use({
-  async onResponse({ response }) {
-    if (!response.ok) {
-      throw await ApiError.fromResponse(
-        response,
-        `API request failed: ${response.status}`,
-      );
-    }
-    return response;
-  },
-});
+  // Middleware: Automatic error handling
+  apiClient.use({
+    async onResponse({ response }) {
+      if (!response.ok) {
+        throw await ApiError.fromResponse(
+          response,
+          `API request failed: ${response.status}`,
+        );
+      }
+      return response;
+    },
+  });
+  return apiClient;
+}
 
 /**
  * Creates an API client with authentication token

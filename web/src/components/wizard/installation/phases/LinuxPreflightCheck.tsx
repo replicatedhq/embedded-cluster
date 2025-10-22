@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import Button from "../../../common/Button";
-import { PreflightOutput, HostPreflightResponse } from "../../../../types";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { useRunHostPreflights } from "../../../../mutations/useMutations";
 import { useHostPreflightStatus } from "../../../../queries/useQueries";
 import { ApiError } from '../../../../api/error';
+import type { components } from "../../../../types/api";
+
+type PreflightsOutput = components["schemas"]["types.PreflightsOutput"];
+type HostPreflightResponse = components["schemas"]["types.InstallHostPreflightsStatusResponse"];
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -19,8 +22,8 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   const runHostPreflights = useRunHostPreflights();
   const mutationStarted = useRef(false);
 
-  const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
-  const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
+  const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
+  const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
   const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {

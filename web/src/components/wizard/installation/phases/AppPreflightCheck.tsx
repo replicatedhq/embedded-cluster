@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import Button from "../../../common/Button";
-import { PreflightOutput, AppPreflightResponse } from "../../../../types";
 import { useRunAppPreflights } from "../../../../mutations/useMutations";
 import { useAppPreflightStatus } from "../../../../queries/useQueries";
+import type { components } from "../../../../types/api";
+
+type PreflightsOutput = components["schemas"]["types.PreflightsOutput"];
+type AppPreflightsResponse = components["schemas"]["types.InstallAppPreflightsStatusResponse"];
 
 interface AppPreflightCheckProps {
   onRun: () => void;
@@ -18,10 +21,10 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const runAppPreflights = useRunAppPreflights();
   const mutationStarted = useRef(false);
 
-  const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
-  const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
-  const hasStrictFailures = (response?: AppPreflightResponse) => response?.hasStrictAppPreflightFailures ?? false;
-  const isSuccessful = (response?: AppPreflightResponse) => response?.status?.state === "Succeeded";
+  const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
+  const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
+  const hasStrictFailures = (response?: AppPreflightsResponse) => response?.hasStrictAppPreflightFailures ?? false;
+  const isSuccessful = (response?: AppPreflightsResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
     if (runAppPreflights.error) {

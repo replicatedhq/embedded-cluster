@@ -1,4 +1,6 @@
-import { ApiErrorResponse } from "../types";
+import type { components } from "../types/api";
+
+type ApiErrorResponse = components["schemas"]["types.APIError"];
 
 export class ApiError extends Error {
   statusCode: number;
@@ -23,12 +25,31 @@ export class ApiError extends Error {
     try {
       const data = (await response.json()) as ApiErrorResponse;
       error.details = data.message;
-      error.fieldErrors = data.errors;
+      error.fieldErrors = convertToFieldErrors(data.errors);
     } catch {
       // Ignore JSON parsing errors
     }
     return error;
   };
 }
+
+// convertToFieldErrors converts the ApiErrorResponse.errors array
+// into a flat array of field errors with field and message properties
+export const convertToFieldErrors = (
+  errors?: ApiErrorResponse[],
+): { field: string; message: string }[] | undefined => {
+  if (!errors || errors.length === 0) {
+    return undefined;
+  }
+
+  const fieldErrors = errors
+    .filter((error) => error.field !== undefined)
+    .map((error) => ({
+      field: error.field!,
+      message: error.message,
+    }));
+
+  return fieldErrors.length > 0 ? fieldErrors : undefined;
+};
 
 export class ConfigError extends ApiError {}

@@ -17,23 +17,6 @@ export interface InitialState {
 
 export type State = "Pending" | "Running" | "Succeeded" | "Failed";
 
-export interface InfraStatusResponse {
-  components: InfraComponent[];
-  status: InfraStatus;
-  logs: string;
-}
-
-export interface InfraComponent {
-  name: string;
-  status: InfraStatus;
-}
-
-export interface InfraStatus {
-  state: State;
-  description: string;
-  lastUpdated: string;
-}
-
 // Linux Configuration Type used during the setup step
 export interface LinuxConfig {
   adminConsolePort?: number;
@@ -45,31 +28,6 @@ export interface LinuxConfig {
   networkInterface?: string;
   globalCidr?: string;
 }
-
-// Linux Configuration Response Type returned by the API
-export interface LinuxConfigResponse {
-  values: LinuxConfig;
-  defaults: LinuxConfig;
-  resolved: LinuxConfig;
-}
-
-
-// Kubernetes Configuration Type used during the setup step
-export interface KubernetesConfig {
-  adminConsolePort?: number;
-  httpProxy?: string;
-  httpsProxy?: string;
-  noProxy?: string;
-  installCommand?: string;
-}
-
-// Kubernetes Configuration Response Type returned by the API
-export interface KubernetesConfigResponse {
-  values: KubernetesConfig;
-  defaults: KubernetesConfig;
-  resolved: KubernetesConfig;
-}
-
 // WizardText type holds the text fields for the multiple wizard step text fields
 export interface WizardText {
   title: string;
@@ -160,68 +118,3 @@ export interface AppConfigValue {
 }
 
 export type AppConfigValues = Record<string, AppConfigValue>;
-
-// Preflight Types
-export interface PreflightResult {
-  title: string;
-  message: string;
-  strict?: boolean;
-}
-
-export interface PreflightOutput {
-  pass: PreflightResult[];
-  warn: PreflightResult[];
-  fail: PreflightResult[];
-}
-
-export interface PreflightStatus {
-  state: string;
-  description: string;
-  lastUpdated: string;
-}
-
-export interface HostPreflightResponse {
-  titles: string[];
-  output?: PreflightOutput;
-  status?: PreflightStatus;
-  allowIgnoreHostPreflights?: boolean;
-}
-
-export interface AppPreflightResponse {
-  titles: string[];
-  output?: PreflightOutput;
-  status?: PreflightStatus;
-  allowIgnoreAppPreflights?: boolean;
-  hasStrictAppPreflightFailures?: boolean;
-}
-
-export interface AppInstallStatus {
-  status: {
-    state: State;
-    description: string;
-    lastUpdated: string;
-  };
-  logs: string;
-}
-
-export interface Airgap {
-  status: {
-    state: State;
-    description: string;
-    lastUpdated: string;
-  };
-  logs: string;
-}
-
-export interface InstallationStatusResponse {
-  description: string;
-  lastUpdated: string;
-  state: State;
-}
-
-export interface ApiErrorResponse {
-  statusCode: number;
-  message: string;
-  field: string;
-  errors?: { field: string; message: string }[];
-}
