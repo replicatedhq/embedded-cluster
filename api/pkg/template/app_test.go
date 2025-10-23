@@ -52,7 +52,7 @@ func TestEngine_namespaceIntegrated(t *testing.T) {
 		},
 		{
 			name:           "namespace in conditional logic",
-			template:       `{{repl if eq Namespace "kotsadm" }}correct{{repl else }}incorrect{{repl end }}`,
+			template:       `{{repl if eq Namespace "` + kotsadmNamespace + `" }}correct{{repl else }}incorrect{{repl end }}`,
 			expectedResult: "correct",
 		},
 		{

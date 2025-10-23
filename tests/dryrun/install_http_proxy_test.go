@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,6 +38,12 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	dr := dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
 
 	hcli.AssertExpectations(t)
+
+	// Get dynamic kotsadm namespace
+	kcli, err := dr.KubeClient()
+	require.NoError(t, err)
+	expectedNamespace, err := runtimeconfig.KotsadmNamespace(context.TODO(), kcli)
+	require.NoError(t, err)
 
 	// --- validate addons --- //
 
@@ -81,7 +88,7 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 			},
 			{
 				"name":  "KOTSADM_NAMESPACE",
-				"value": "kotsadm",
+				"value": expectedNamespace,
 			},
 		},
 		"extraVolumes": []map[string]any{{
@@ -223,22 +230,13 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 		},
 	})
 
-	// --- validate cluster resources --- //
-	kcli, err := dr.KubeClient()
-	if err != nil {
-		t.Fatalf("failed to create kube client: %v", err)
-	}
-
 	// --- validate installation object --- //
 	in, err := kubeutils.GetLatestInstallation(context.TODO(), kcli)
-	if err != nil {
-		t.Fatalf("failed to get latest installation: %v", err)
-	}
-
+	require.NoError(t, err)
 	assert.Equal(t, hostCABundle, in.Spec.RuntimeConfig.HostCABundlePath)
 
 	var caConfigMap corev1.ConfigMap
-	if err = kcli.Get(context.TODO(), client.ObjectKey{Namespace: "kotsadm", Name: "kotsadm-private-cas"}, &caConfigMap); err != nil {
+	if err = kcli.Get(context.TODO(), client.ObjectKey{Namespace: expectedNamespace, Name: "kotsadm-private-cas"}, &caConfigMap); err != nil {
 		t.Fatalf("failed to get kotsadm-private-cas configmap: %v", err)
 	}
 	assert.Contains(t, caConfigMap.Data, "ca_0.crt", "kotsadm-private-cas configmap should contain ca_0.crt")
