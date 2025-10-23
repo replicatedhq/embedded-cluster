@@ -12,6 +12,9 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -531,12 +534,298 @@ func (m *mockClientWithRetries) Get(ctx context.Context, key client.ObjectKey, o
 	return m.Client.Get(ctx, key, obj, opts...)
 }
 
+// Tests for upgradeK0s function
+func TestUpgradeK0s_SuccessfulUpgrade(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup scheme with required types
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create test installation
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-installation",
+		},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+			AirGap: true,
+		},
+	}
+
+	// Create nodes that start with old version, then get updated to new version
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: "v1.30.13+k0s", // Old version initially
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-2"},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: "v1.30.13+k0s", // Old version initially
+					},
+				},
+			},
+		},
+	}
+
+	// Mock client that simulates plan state changes during waiting
+	mockClient := &mockClientWithStateChange{
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			WithLists(nodes).
+			WithStatusSubresource(&ecv1beta1.Installation{}).
+			Build(),
+		callsUntil:       5, // Will complete after 5 calls
+		finalPlanState:   core.PlanCompleted,
+		finalNodeVersion: "v1.30.14+k0s",
+	}
+
+	// Mock release metadata
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	// Cache the metadata for the release package
+	release.CacheMeta("1.30.14+k0s.0", *meta)
+
+	// Create runtime config
+	rc := runtimeconfig.New(nil)
+	rc.SetLocalArtifactMirrorPort(50000)
+
+	// Create logger
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel) // Reduce noise in tests
+
+	// Test: Call UpgradeK0s through the public interface
+	upgrader := NewInfraUpgrader(
+		WithKubeClient(mockClient),
+		WithRuntimeConfig(rc),
+		WithLogger(logger),
+	)
+	err := upgrader.UpgradeK0s(ctx, installation)
+
+	// Verify success
+	require.NoError(t, err)
+}
+
+func TestUpgradeK0s_AlreadyUpToDate(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+		},
+	}
+
+	// Create nodes with target version already
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: "v1.30.14+k0s", // Already at target version
+					},
+				},
+			},
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(installation).
+		WithLists(nodes).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+	}
+	release.CacheMeta("1.30.14+k0s.0", *meta)
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should return early without creating plan
+	upgrader := NewInfraUpgrader(
+		WithKubeClient(mockClient),
+		WithRuntimeConfig(rc),
+		WithLogger(logger),
+	)
+	err := upgrader.UpgradeK0s(ctx, installation)
+	require.NoError(t, err)
+}
+
+func TestUpgradeK0s_PlanFails(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+		},
+	}
+
+	// Create nodes with old version
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: "v1.30.13+k0s",
+					},
+				},
+			},
+		},
+	}
+
+	// Mock client that simulates plan failure
+	mockClient := &mockClientWithStateChange{
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			WithLists(nodes).
+			WithStatusSubresource(&ecv1beta1.Installation{}).
+			Build(),
+		callsUntil:       3, // Will fail after 3 calls
+		finalPlanState:   core.PlanApplyFailed,
+		finalNodeVersion: "v1.30.13+k0s", // Keep old version
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+	}
+	release.CacheMeta("1.30.14+k0s.0", *meta)
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should return error when plan fails
+	upgrader := NewInfraUpgrader(
+		WithKubeClient(mockClient),
+		WithRuntimeConfig(rc),
+		WithLogger(logger),
+	)
+	err := upgrader.UpgradeK0s(ctx, installation)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "autopilot plan failed")
+	assert.Contains(t, err.Error(), "Upgrade apply has failed")
+}
+
+func TestUpgradeK0s_NodesNotUpgradedAfterPlan(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+		},
+	}
+
+	// Create nodes that still have old version after plan completion
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
+				Status: corev1.NodeStatus{
+					NodeInfo: corev1.NodeSystemInfo{
+						KubeletVersion: "v1.30.13+k0s", // Still old version
+					},
+				},
+			},
+		},
+	}
+
+	// Mock client that simulates plan completion but nodes don't get updated
+	mockClient := &mockClientWithStateChange{
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			WithLists(nodes).
+			WithStatusSubresource(&ecv1beta1.Installation{}).
+			Build(),
+		callsUntil:       3, // Will complete after 3 calls
+		finalPlanState:   core.PlanCompleted,
+		finalNodeVersion: "v1.30.13+k0s", // Keep old version - nodes don't get updated
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+	}
+	release.CacheMeta("1.30.14+k0s.0", *meta)
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should return error when nodes don't match version after plan
+	upgrader := NewInfraUpgrader(
+		WithKubeClient(mockClient),
+		WithRuntimeConfig(rc),
+		WithLogger(logger),
+	)
+	err := upgrader.UpgradeK0s(ctx, installation)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cluster nodes did not match version after upgrade")
+}
+
 // Mock client that changes plan state after N calls
 type mockClientWithStateChange struct {
 	client.Client
-	plan       *apv1b2.Plan
-	callCount  int
-	callsUntil int
+	plan             *apv1b2.Plan
+	callCount        int
+	callsUntil       int
+	finalPlanState   apv1b2.PlanStateType
+	finalNodeVersion string
 }
 
 func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
@@ -546,10 +835,32 @@ func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKe
 		return err
 	}
 
-	// After N calls, mark the plan as completed
+	// After N calls, mark the plan with the specified final state
 	if m.callCount >= m.callsUntil {
 		if plan, ok := obj.(*apv1b2.Plan); ok {
-			plan.Status.State = core.PlanCompleted
+			if m.finalPlanState != "" {
+				plan.Status.State = m.finalPlanState
+			} else {
+				plan.Status.State = core.PlanCompleted // Default behavior
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *mockClientWithStateChange) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	err := m.Client.List(ctx, list, opts...)
+	if err != nil {
+		return err
+	}
+
+	// After plan completion, update node versions to the specified version
+	if m.callCount >= m.callsUntil && m.finalNodeVersion != "" {
+		if nodeList, ok := list.(*corev1.NodeList); ok {
+			for i := range nodeList.Items {
+				nodeList.Items[i].Status.NodeInfo.KubeletVersion = m.finalNodeVersion
+			}
 		}
 	}
 
