@@ -147,6 +147,8 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"LicenseFieldValue": e.licenseFieldValue,
 		"LicenseDockerCfg":  e.licenseDockerCfg,
 		"VersionLabel":      e.versionLabel,
+		"ChannelName":       e.channelName,
+		"Sequence":          e.sequence,
 
 		"HTTPProxy":  e.httpProxy,
 		"HTTPSProxy": e.httpsProxy,
@@ -177,6 +179,7 @@ func (e *Engine) getFuncMap() template.FuncMap {
 		"HumanSize":    e.humanSize,
 		"YamlEscape":   e.yamlEscape,
 		"Distribution": e.distribution,
+		"IsKurl":       func() bool { return false },
 
 		// Registry template functions
 		"HasLocalRegistry":             e.hasLocalRegistry,

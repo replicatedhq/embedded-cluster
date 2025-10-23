@@ -108,5 +108,9 @@ func NewTargetKubernetesAPIWithReleaseData(t *testing.T, mode types.Mode, opts .
 func DefaultReleaseData() *release.ReleaseData {
 	return &release.ReleaseData{
 		AppConfig: &kotsv1beta1.Config{},
+		ChannelRelease: &release.ChannelRelease{
+			ChannelSequence: 1,
+			ChannelID:       "123",
+		},
 	}
 }

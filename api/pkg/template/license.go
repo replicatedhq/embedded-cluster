@@ -10,60 +10,60 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
-func (e *Engine) licenseFieldValue(name string) string {
+func (e *Engine) licenseFieldValue(name string) (string, error) {
 	if e.license == nil {
-		return ""
+		return "", fmt.Errorf("license is nil")
 	}
 
 	// Update docs at https://github.com/replicatedhq/kots.io/blob/main/content/reference/template-functions/license-context.md
 	// when adding new values
 	switch name {
 	case "isSnapshotSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSnapshotSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsSnapshotSupported), nil
 	case "IsDisasterRecoverySupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsDisasterRecoverySupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsDisasterRecoverySupported), nil
 	case "isGitOpsSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGitOpsSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsGitOpsSupported), nil
 	case "isSupportBundleUploadSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSupportBundleUploadSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsSupportBundleUploadSupported), nil
 	case "isEmbeddedClusterMultiNodeEnabled":
-		return fmt.Sprintf("%t", e.license.Spec.IsEmbeddedClusterMultiNodeEnabled)
+		return fmt.Sprintf("%t", e.license.Spec.IsEmbeddedClusterMultiNodeEnabled), nil
 	case "isIdentityServiceSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsIdentityServiceSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsIdentityServiceSupported), nil
 	case "isGeoaxisSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGeoaxisSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsGeoaxisSupported), nil
 	case "isAirgapSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsAirgapSupported)
+		return fmt.Sprintf("%t", e.license.Spec.IsAirgapSupported), nil
 	case "licenseType":
-		return e.license.Spec.LicenseType
+		return e.license.Spec.LicenseType, nil
 	case "licenseSequence":
-		return fmt.Sprintf("%d", e.license.Spec.LicenseSequence)
+		return fmt.Sprintf("%d", e.license.Spec.LicenseSequence), nil
 	case "signature":
-		return string(e.license.Spec.Signature)
+		return string(e.license.Spec.Signature), nil
 	case "appSlug":
-		return e.license.Spec.AppSlug
+		return e.license.Spec.AppSlug, nil
 	case "channelID":
-		return e.license.Spec.ChannelID
+		return e.license.Spec.ChannelID, nil
 	case "channelName":
-		return e.license.Spec.ChannelName
+		return e.license.Spec.ChannelName, nil
 	case "isSemverRequired":
-		return fmt.Sprintf("%t", e.license.Spec.IsSemverRequired)
+		return fmt.Sprintf("%t", e.license.Spec.IsSemverRequired), nil
 	case "customerName":
-		return e.license.Spec.CustomerName
+		return e.license.Spec.CustomerName, nil
 	case "licenseID", "licenseId":
-		return e.license.Spec.LicenseID
+		return e.license.Spec.LicenseID, nil
 	case "endpoint":
 		if e.releaseData == nil {
-			return ""
+			return "", fmt.Errorf("release data is nil")
 		}
 		ecDomains := utils.GetDomains(e.releaseData)
-		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain)
+		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain), nil
 	default:
 		entitlement, ok := e.license.Spec.Entitlements[name]
 		if ok {
-			return fmt.Sprintf("%v", entitlement.Value.Value())
+			return fmt.Sprintf("%v", entitlement.Value.Value()), nil
 		}
-		return ""
+		return "", nil
 	}
 }
 
@@ -73,6 +73,9 @@ func (e *Engine) licenseDockerCfg() (string, error) {
 	}
 	if e.releaseData == nil {
 		return "", fmt.Errorf("release data is nil")
+	}
+	if e.releaseData.ChannelRelease == nil {
+		return "", fmt.Errorf("channel release is nil")
 	}
 
 	auth := fmt.Sprintf("%s:%s", e.license.Spec.LicenseID, e.license.Spec.LicenseID)
@@ -110,4 +113,26 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 		Proxy:    ecDomains.ProxyRegistryDomain,
 		Registry: ecDomains.ReplicatedRegistryDomain,
 	}
+}
+
+func (e *Engine) channelName() (string, error) {
+	if e.license == nil {
+		return "", fmt.Errorf("license is nil")
+	}
+	if e.releaseData == nil {
+		return "", fmt.Errorf("release data is nil")
+	}
+	if e.releaseData.ChannelRelease == nil {
+		return "", fmt.Errorf("channel release is nil")
+	}
+
+	for _, channel := range e.license.Spec.Channels {
+		if channel.ChannelID == e.releaseData.ChannelRelease.ChannelID {
+			return channel.ChannelName, nil
+		}
+	}
+	if e.license.Spec.ChannelID == e.releaseData.ChannelRelease.ChannelID {
+		return e.license.Spec.ChannelName, nil
+	}
+	return "", fmt.Errorf("channel %s not found in license", e.releaseData.ChannelRelease.ChannelID)
 }
