@@ -73,7 +73,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_VELERO_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest velero chart version")
-			latest, err := LatestChartVersion(hcli, veleroRepo, "velero")
+			latest, err := LatestChartVersion(c.Context, hcli, veleroRepo, "velero")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest velero chart version: %v", err)
 			}
@@ -87,7 +87,7 @@ var updateVeleroAddonCommand = &cli.Command{
 			logrus.Infof("velero chart version is already up-to-date")
 		} else {
 			logrus.Infof("mirroring velero chart version %s", nextChartVersion)
-			if err := MirrorChart(hcli, veleroRepo, "velero", nextChartVersion); err != nil {
+			if err := MirrorChart(c.Context, hcli, veleroRepo, "velero", nextChartVersion); err != nil {
 				return fmt.Errorf("failed to mirror velero chart: %v", err)
 			}
 		}

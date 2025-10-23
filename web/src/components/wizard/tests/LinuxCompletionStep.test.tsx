@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxCompletionStep from "../completion/LinuxCompletionStep.tsx";
 import { LinuxConfigResponse } from "../../../types";
+import { mockHandlers } from "../../../test/mockHandlers.ts";
 
 const MOCK_CONFIG: LinuxConfigResponse = {
   values: {
@@ -22,9 +22,7 @@ const MOCK_CONFIG: LinuxConfigResponse = {
 };
 
 const createServer = () => setupServer(
-  http.get(`*/api/linux/install/installation/config`, () => {
-    return HttpResponse.json(MOCK_CONFIG);
-  })
+  mockHandlers.installation.getConfig(MOCK_CONFIG as unknown as Record<string, unknown>, 'linux', 'install')
 );
 
 // Mock window.open
@@ -112,12 +110,7 @@ describe("LinuxCompletionStep", () => {
 
   it("displays error state when API returns ApiError with details", async () => {
     server.use(
-      http.get("*/api/linux/install/installation/config", () => {
-        return HttpResponse.json(
-          { message: "Internal server error" },
-          { status: 500 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Internal server error" } }, 'linux', 'install')
     );
 
     renderWithProviders(<LinuxCompletionStep />, {
@@ -139,12 +132,7 @@ describe("LinuxCompletionStep", () => {
 
   it("displays error state with generic error message when no details provided", async () => {
     server.use(
-      http.get("*/api/linux/install/installation/config", () => {
-        return HttpResponse.json(
-          { error: "Failed to fetch configuration" },
-          { status: 500 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 500, message: "Failed to fetch configuration" } }, 'linux', 'install')
     );
 
     renderWithProviders(<LinuxCompletionStep />, {
@@ -161,17 +149,12 @@ describe("LinuxCompletionStep", () => {
     });
 
     expect(screen.getByText("Failed to load installation configuration")).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch install configuration")).toBeInTheDocument();
+    expect(screen.getByText("Failed to fetch configuration")).toBeInTheDocument();
   });
 
   it("displays error state when API returns 401 unauthorized", async () => {
     server.use(
-      http.get("*/api/linux/install/installation/config", () => {
-        return HttpResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
-      })
+      mockHandlers.installation.getConfig({ error: { statusCode: 401, message: "Unauthorized" } }, 'linux', 'install')
     );
 
     renderWithProviders(<LinuxCompletionStep />, {
@@ -189,9 +172,7 @@ describe("LinuxCompletionStep", () => {
 
   it("displays error state with network error message", async () => {
     server.use(
-      http.get("*/api/linux/install/installation/config", () => {
-        return HttpResponse.error();
-      })
+      mockHandlers.installation.getConfig({ networkError: true }, 'linux', 'install')
     );
 
     renderWithProviders(<LinuxCompletionStep />, {

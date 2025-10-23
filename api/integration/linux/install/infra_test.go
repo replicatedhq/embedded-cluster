@@ -198,11 +198,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			linuxinstall.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -318,7 +319,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
@@ -377,11 +378,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -435,11 +437,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -500,11 +503,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -564,11 +568,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -628,11 +633,12 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -714,13 +720,14 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 				ChannelRelease:        &release.ChannelRelease{},
 				AppConfig:             &appConfig,
 			}),
+			linuxinstall.WithHelmClient(&helm.MockClient{}),
 			linuxinstall.WithRuntimeConfig(rc),
 			linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(states.StateHostPreflightsSucceeded))),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+		apiInstance := integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 			api.WithLinuxInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),

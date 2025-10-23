@@ -130,6 +130,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			kubernetesinfra.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
@@ -153,11 +154,12 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			kubernetesinstall.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -251,9 +253,25 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 	// Test authorization
 	t.Run("Authorization error", func(t *testing.T) {
+		installController, err := kubernetesinstall.NewInstallController(
+			kubernetesinstall.WithReleaseData(&release.ReleaseData{
+				EmbeddedClusterConfig: &ecv1beta1.Config{},
+				ChannelRelease: &release.ChannelRelease{
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.example.com",
+						ProxyRegistryDomain: "some-proxy.example.com",
+					},
+				},
+				AppConfig: &appConfig,
+			}),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
+		)
+		require.NoError(t, err)
+
 		// Create the API
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
+			api.WithKubernetesInstallController(installController),
 			api.WithLogger(logger.NewDiscardLogger()),
 		)
 
@@ -275,7 +293,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 
 		// Parse the response body
 		var apiError types.APIError
-		err := json.NewDecoder(rec.Body).Decode(&apiError)
+		err = json.NewDecoder(rec.Body).Decode(&apiError)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusUnauthorized, apiError.StatusCode)
 	})
@@ -315,6 +333,7 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			kubernetesinfra.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
@@ -338,11 +357,12 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 				},
 				AppConfig: &appConfig,
 			}),
+			kubernetesinstall.WithHelmClient(helmMock),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),

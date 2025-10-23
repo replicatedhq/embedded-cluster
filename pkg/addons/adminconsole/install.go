@@ -57,6 +57,7 @@ func (a *AdminConsole) Install(
 		Values:       values,
 		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
+		LogFn:        helm.LogFn(logf),
 	}
 
 	if a.DryRun {

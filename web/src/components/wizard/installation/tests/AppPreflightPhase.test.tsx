@@ -1,22 +1,16 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
 import AppPreflightPhase from '../phases/AppPreflightPhase.tsx';
 import { withNextButtonOnly } from './TestWrapper.tsx';
+import { mockHandlers, preflightPresets, type Target } from '../../../../test/mockHandlers.ts';
 
 const TestAppPreflightPhase = withNextButtonOnly(AppPreflightPhase);
 
-const createServer = (target: 'linux' | 'kubernetes') => setupServer(
-  // Mock start app installation endpoint
-  http.post(`*/api/${target}/install/app/install`, () => {
-    return HttpResponse.json({ success: true });
-  }),
-  // Mock app preflight run endpoint
-  http.post(`*/api/${target}/install/app-preflights/run`, () => {
-    return HttpResponse.json({ success: true });
-  })
+const createServer = (target: Target) => setupServer(
+  mockHandlers.app.start(true, target, 'install'),
+  mockHandlers.preflights.app.run(true, target, 'install')
 );
 
 describe.each([
@@ -45,20 +39,11 @@ describe.each([
   it('enables Start Installation button when allowIgnoreAppPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: true
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreAppPreflights: true
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -90,20 +75,11 @@ describe.each([
   it('disables Start Installation button when allowIgnoreAppPreflights is false and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: false
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: false
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreAppPreflights: false
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -141,20 +117,11 @@ describe.each([
   it('shows modal when Start Installation clicked and allowIgnoreAppPreflights is true and preflights fail', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: true
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreAppPreflights: true
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -207,20 +174,11 @@ describe.each([
   it('proceeds automatically when allowIgnoreAppPreflights is true and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreAppPreflights: true
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreAppPreflights: true
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -267,20 +225,11 @@ describe.each([
   it('proceeds normally when allowIgnoreAppPreflights is false and preflights pass', async () => {
     // Mock preflight status endpoint - returns success with allowIgnoreAppPreflights: false
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreAppPreflights: false
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreAppPreflights: false
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -328,27 +277,18 @@ describe.each([
   it('sends ignoreAppPreflights parameter when starting installation with failed preflights', async () => {
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space available' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: true
-        });
-      }),
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreAppPreflights: true
+      }, target, 'install'),
       // Mock app install endpoint to capture request body
-      http.post(`*/api/${target}/install/app/install`, async ({ request }) => {
-        const body = await request.json();
-
-        // Verify the request includes ignoreAppPreflights parameter
-        expect(body).toHaveProperty('ignoreAppPreflights', true);
-
-        return HttpResponse.json({ success: true });
-      })
+      mockHandlers.app.start({
+        captureRequest: (body: Record<string, unknown>) => {
+          // Verify the request includes ignoreAppPreflights parameter
+          expect(body).toHaveProperty('ignoreAppPreflights', true);
+        }
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -389,27 +329,18 @@ describe.each([
   it('sends ignoreAppPreflights false when starting installation with passed preflights', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [{ title: 'Disk Space', message: 'Sufficient disk space available' }]
-          },
-          allowIgnoreAppPreflights: false
-        });
-      }),
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreAppPreflights: false
+      }, target, 'install'),
       // Mock app install endpoint to capture request body
-      http.post(`*/api/${target}/install/app/install`, async ({ request }) => {
-        const body = await request.json();
-
-        // Verify the request includes ignoreAppPreflights parameter as false
-        expect(body).toHaveProperty('ignoreAppPreflights', false);
-
-        return HttpResponse.json({ success: true });
-      })
+      mockHandlers.app.start({
+        captureRequest: (body: Record<string, unknown>) => {
+          // Verify the request includes ignoreAppPreflights parameter as false
+          expect(body).toHaveProperty('ignoreAppPreflights', false);
+        }
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -443,22 +374,19 @@ describe.each([
   it('disables Start Installation button when strict failures exist regardless of allowIgnoreAppPreflights', async () => {
     // Mock preflight status endpoint - returns strict failures with allowIgnoreAppPreflights: true
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Critical Security Check', message: 'Security requirement not met', strict: true },
-              { title: 'Disk Space', message: 'Not enough disk space available', strict: false }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: true,
-          hasStrictAppPreflightFailures: true
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: {
+          fail: [
+            { title: 'Critical Security Check', message: 'Security requirement not met', strict: true },
+            { title: 'Disk Space', message: 'Not enough disk space available', strict: false }
+          ],
+          warn: [],
+          pass: []
+        },
+        allowIgnoreAppPreflights: true,
+        hasStrictAppPreflightFailures: true
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -490,21 +418,18 @@ describe.each([
   it('does not show modal when strict failures exist because button is disabled', async () => {
     // Mock preflight status endpoint - returns strict failures
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Critical Security Check', message: 'Security requirement not met', strict: true }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: true,
-          hasStrictAppPreflightFailures: true
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: {
+          fail: [
+            { title: 'Critical Security Check', message: 'Security requirement not met', strict: true }
+          ],
+          warn: [],
+          pass: []
+        },
+        allowIgnoreAppPreflights: true,
+        hasStrictAppPreflightFailures: true
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -563,14 +488,11 @@ describe.each([
   it('calls onStateChange with "Running" immediately when component mounts', async () => {
     // Mock preflight status endpoint - returns running state initially
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Running' },
-          output: { fail: [], warn: [], pass: [] },
-          allowIgnoreAppPreflights: false
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Running' },
+        output: { fail: [], warn: [], pass: [] },
+        allowIgnoreAppPreflights: false
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -590,20 +512,11 @@ describe.each([
   it('calls onStateChange with "Succeeded" when preflights complete successfully', async () => {
     // Mock preflight status endpoint - returns success
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Succeeded' },
-          output: {
-            fail: [],
-            warn: [],
-            pass: [
-              { title: 'Disk Space', message: 'Sufficient disk space available' }
-            ]
-          },
-          allowIgnoreAppPreflights: false
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Succeeded' },
+        output: preflightPresets.success(),
+        allowIgnoreAppPreflights: false
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -632,20 +545,11 @@ describe.each([
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
     // Mock preflight status endpoint - returns failures
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [
-              { title: 'Disk Space', message: 'Not enough disk space available' }
-            ],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: false
-        });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space available'),
+        allowIgnoreAppPreflights: false
+      }, target, 'install')
     );
 
     renderWithProviders(
@@ -674,22 +578,12 @@ describe.each([
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
     // Mock preflight status to show failures initially
     server.use(
-      http.get(`*/api/${target}/install/app-preflights/status`, () => {
-        return HttpResponse.json({
-          titles: ['App Check'],
-          status: { state: 'Failed' },
-          output: {
-            fail: [{ title: 'Disk Space', message: 'Not enough disk space' }],
-            warn: [],
-            pass: []
-          },
-          allowIgnoreAppPreflights: false
-        });
-      }),
-      // Mock preflight run endpoint
-      http.post(`*/api/${target}/install/app-preflights/run`, () => {
-        return HttpResponse.json({ success: true });
-      })
+      mockHandlers.preflights.app.getStatus({
+        status: { state: 'Failed' },
+        output: preflightPresets.failed('Not enough disk space'),
+        allowIgnoreAppPreflights: false
+      }, target, 'install'),
+      mockHandlers.preflights.app.run(true, target, 'install')
     );
 
     renderWithProviders(

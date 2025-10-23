@@ -6,11 +6,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // APIConfig holds the configuration for the API server
 type APIConfig struct {
+	InstallTarget        InstallTarget
 	Password             string // Used by AdminConsole addon to create kotsadm-password secret and infrastructure operations in V2
 	PasswordHash         []byte // Used by auth controller for API authentication in V3
 	TLSConfig            TLSConfig
@@ -22,7 +22,6 @@ type APIConfig struct {
 	ReleaseData          *release.ReleaseData
 	EndUserConfig        *ecv1beta1.Config
 	ClusterID            string
-	Target               Target
 	Mode                 Mode
 	TargetVersion        string // Used for upgrade metrics reporting
 	InitialVersion       string // Used for upgrade metrics reporting
@@ -32,11 +31,11 @@ type APIConfig struct {
 	KubernetesConfig
 }
 
-type Target string
+type InstallTarget string
 
 const (
-	TargetLinux      Target = "linux"
-	TargetKubernetes Target = "kubernetes"
+	InstallTargetLinux      InstallTarget = "linux"
+	InstallTargetKubernetes InstallTarget = "kubernetes"
 )
 
 type Mode string
@@ -52,6 +51,5 @@ type LinuxConfig struct {
 }
 
 type KubernetesConfig struct {
-	RESTClientGetter genericclioptions.RESTClientGetter
-	Installation     kubernetesinstallation.Installation
+	Installation kubernetesinstallation.Installation
 }

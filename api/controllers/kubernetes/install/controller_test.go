@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -111,6 +112,7 @@ func TestGetInstallationConfig(t *testing.T) {
 				WithInstallation(ki),
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -228,6 +230,7 @@ func TestConfigureInstallation(t *testing.T) {
 				WithStore(mockStore),
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -299,6 +302,7 @@ func TestGetInstallationStatus(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInstallationManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -425,6 +429,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -437,6 +442,7 @@ func TestSetupInfra(t *testing.T) {
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
 				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
@@ -538,6 +544,7 @@ func TestGetInfra(t *testing.T) {
 			controller, err := NewInstallController(
 				WithInfraManager(mockManager),
 				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 

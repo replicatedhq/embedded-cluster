@@ -446,6 +446,7 @@ func runManagerExperienceUpgrade(
 ) (finalErr error) {
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
+			InstallTarget:        apitypes.InstallTarget(flags.target),
 			Password:             "", // Only PasswordHash is necessary for upgrades because the kotsadm-password secret has been created already
 			PasswordHash:         upgradeConfig.passwordHash,
 			TLSConfig:            upgradeConfig.tlsConfig,
@@ -457,7 +458,6 @@ func runManagerExperienceUpgrade(
 			ReleaseData:          release.GetReleaseData(),
 			EndUserConfig:        upgradeConfig.endUserConfig,
 			ClusterID:            upgradeConfig.clusterID,
-			Target:               apitypes.Target(flags.target),
 			Mode:                 apitypes.ModeUpgrade,
 			TargetVersion:        targetVersion,
 			InitialVersion:       initialVersion,
@@ -468,7 +468,6 @@ func runManagerExperienceUpgrade(
 			},
 		},
 		ManagerPort:     upgradeConfig.managerPort,
-		InstallTarget:   flags.target,
 		WebMode:         web.ModeUpgrade,
 		MetricsReporter: metricsReporter,
 	}

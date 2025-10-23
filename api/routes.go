@@ -28,7 +28,7 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	authenticatedRouter := router.PathPrefix("/").Subrouter()
 	authenticatedRouter.Use(a.handlers.auth.Middleware)
 
-	if a.cfg.Target == types.TargetLinux {
+	if a.cfg.InstallTarget == types.InstallTargetLinux {
 		a.registerLinuxRoutes(authenticatedRouter)
 	} else {
 		a.registerKubernetesRoutes(authenticatedRouter)

@@ -22,11 +22,11 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // Test the getAppPreflightsStatus endpoint returns app preflights status correctly
@@ -73,6 +73,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
 		appcontroller.WithStore(mockStore),
 		appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+		appcontroller.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
@@ -80,11 +81,12 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 	installController, err := kubernetesinstall.NewInstallController(
 		kubernetesinstall.WithAppController(appController),
 		kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+		kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(t, err)
 
 	// Create the API with the install controller
-	apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+	apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 		api.WithKubernetesInstallController(installController),
 		api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 		api.WithLogger(logger.NewDiscardLogger()),
@@ -172,6 +174,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 			appcontroller.WithStateMachine(kubernetesinstall.NewStateMachine()),
 			appcontroller.WithStore(mockStrictStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -179,11 +182,12 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		strictInstallController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithAppController(strictAppController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with the install controller
-		strictAPIInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		strictAPIInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithKubernetesInstallController(strictInstallController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -238,7 +242,7 @@ func TestGetAppPreflightsStatus(t *testing.T) {
 		mockController.On("GetAppPreflightTitles", mock.Anything).Return([]string{}, assert.AnError)
 
 		// Create the API with the mock controller
-		apiInstance := integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+		apiInstance := integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 			api.WithKubernetesInstallController(mockController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
@@ -325,6 +329,7 @@ func TestPostRunAppPreflights(t *testing.T) {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -333,23 +338,24 @@ func TestPostRunAppPreflights(t *testing.T) {
 			kubernetesinstall.WithStateMachine(stateMachine),
 			kubernetesinstall.WithAppController(appController),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config in the API config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 			Mode:        types.ModeInstall,
-			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -386,23 +392,24 @@ func TestPostRunAppPreflights(t *testing.T) {
 				kubernetesinstall.WithCurrentState(states.StateNew), // Wrong state
 			)),
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 			Mode:        types.ModeInstall,
-			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -433,23 +440,24 @@ func TestPostRunAppPreflights(t *testing.T) {
 		// Create a basic install controller
 		installController, err := kubernetesinstall.NewInstallController(
 			kubernetesinstall.WithReleaseData(integration.DefaultReleaseData()),
+			kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
 		// Create the API with kubernetes config
 		apiInstance, err := api.New(types.APIConfig{
-			Password: "password",
+			InstallTarget: types.InstallTargetKubernetes,
+			Password:      "password",
 			KubernetesConfig: types.KubernetesConfig{
-				RESTClientGetter: &genericclioptions.ConfigFlags{},
-				Installation:     mockInstallation,
+				Installation: mockInstallation,
 			},
 			ReleaseData: integration.DefaultReleaseData(),
 			Mode:        types.ModeInstall,
-			Target:      types.TargetKubernetes,
 		},
 			api.WithKubernetesInstallController(installController),
 			api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 			api.WithLogger(logger.NewDiscardLogger()),
+			api.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 

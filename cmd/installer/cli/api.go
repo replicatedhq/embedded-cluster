@@ -28,8 +28,6 @@ type apiOptions struct {
 	apitypes.APIConfig
 
 	ManagerPort int
-	// The target of the installation, kubernetes or linux
-	InstallTarget string
 	// The mode the web will be running on, install or upgrade
 	WebMode web.Mode
 
@@ -89,7 +87,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 	webServer, err := web.New(web.InitialState{
 		Title:                opts.ReleaseData.Application.Spec.Title,
 		Icon:                 opts.ReleaseData.Application.Spec.Icon,
-		InstallTarget:        opts.InstallTarget,
+		InstallTarget:        string(opts.InstallTarget),
 		Mode:                 opts.WebMode,
 		IsAirgap:             opts.AirgapBundle != "",
 		RequiresInfraUpgrade: opts.RequiresInfraUpgrade,

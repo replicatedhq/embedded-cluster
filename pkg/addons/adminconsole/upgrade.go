@@ -45,6 +45,7 @@ func (a *AdminConsole) Upgrade(
 		Namespace:    a.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

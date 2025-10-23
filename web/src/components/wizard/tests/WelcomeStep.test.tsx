@@ -1,39 +1,14 @@
 import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
+import { mockHandlers, createHandler } from "../../../test/mockHandlers.ts";
 import WelcomeStep from "../WelcomeStep.tsx";
 
 const server = setupServer(
-  // Mock login endpoint
-  http.post("*/api/auth/login", async ({ request }) => {
-    console.log("Mock server received request to /api/auth/login");
-    const body = (await request.json()) as { password: string };
-    console.log("Request body:", body);
-    if (body?.password === "password") {
-      console.log("Password matched, returning success");
-      return new HttpResponse(JSON.stringify({ token: "mock-token" }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-    }
-    console.log("Password did not match, returning 401");
-    return new HttpResponse(JSON.stringify({ message: "Invalid password" }), {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-  }),
-
-  // Catch-all handler for any other requests
-  http.all("*", ({ request }) => {
-    console.log("Unhandled request:", request.method, request.url);
-    return new HttpResponse(null, { status: 404 });
-  })
+  // Default: Mock login endpoint returns 401 for incorrect password
+  // Individual tests override this as needed
+  mockHandlers.auth.login(false)
 );
 
 describe("WelcomeStep", () => {
@@ -61,16 +36,8 @@ describe("WelcomeStep", () => {
   });
 
   it("handles password submission successfully", async () => {
-    server.use(
-      http.post("*/api/auth/login", () => {
-        return new HttpResponse(JSON.stringify({ token: "mock-token" }), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      })
-    );
+    server.use(mockHandlers.auth.login(true, "mock-token"));
+
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
 
     // Fill in password
@@ -111,17 +78,9 @@ describe("WelcomeStep", () => {
   });
 
   it("does not retry on 401 authentication errors", async () => {
-    let requestCount = 0;
+    const callCounter = { callCount: 0 };
     server.use(
-      http.post("*/api/auth/login", () => {
-        requestCount++;
-        return new HttpResponse(JSON.stringify({ message: "Invalid password" }), {
-          status: 401,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      })
+      createHandler.loginWithCounter(401, "Invalid password", callCounter)
     );
 
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
@@ -139,22 +98,14 @@ describe("WelcomeStep", () => {
     });
 
     // Should only make one request, no retries for 401
-    expect(requestCount).toBe(1);
+    expect(callCounter.callCount).toBe(1);
     expect(mockOnNext).not.toHaveBeenCalled();
   });
 
   it("retries once for server errors then shows error", async () => {
-    let requestCount = 0;
+    const callCounter = { callCount: 0 };
     server.use(
-      http.post("*/api/auth/login", () => {
-        requestCount++;
-        return new HttpResponse(JSON.stringify({ message: "Internal server error" }), {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      })
+      createHandler.loginWithCounter(500, "Internal server error", callCounter)
     );
 
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
@@ -172,33 +123,14 @@ describe("WelcomeStep", () => {
     }, { timeout: 5000 });
 
     // Should make 2 requests: initial + 1 retry
-    expect(requestCount).toBe(2);
+    expect(callCounter.callCount).toBe(2);
     expect(mockOnNext).not.toHaveBeenCalled();
   });
 
   it("retries once for network errors then succeeds", async () => {
-    let requestCount = 0;
+    const callCounter = { callCount: 0 };
     server.use(
-      http.post("*/api/auth/login", () => {
-        requestCount++;
-        if (requestCount === 1) {
-          // First request fails with 503
-          return new HttpResponse(JSON.stringify({ message: "Service unavailable" }), {
-            status: 503,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-        } else {
-          // Second request (retry) succeeds
-          return new HttpResponse(JSON.stringify({ token: "mock-token" }), {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-        }
-      })
+      createHandler.loginRetrySuccess(callCounter, 503, "Service unavailable")
     );
 
     renderWithProviders(<WelcomeStep onNext={mockOnNext} />);
@@ -216,7 +148,7 @@ describe("WelcomeStep", () => {
     }, { timeout: 5000 });
 
     // Should make 2 requests: initial failure + 1 successful retry
-    expect(requestCount).toBe(2);
+    expect(callCounter.callCount).toBe(2);
   });
 
   it("shows error message for empty password", async () => {

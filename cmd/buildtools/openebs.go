@@ -76,7 +76,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_OPENEBS_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest openebs chart version")
-			latest, err := LatestChartVersion(hcli, openebsRepo, "openebs")
+			latest, err := LatestChartVersion(c.Context, hcli, openebsRepo, "openebs")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest openebs chart version: %v", err)
 			}
@@ -92,7 +92,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring openebs chart version %s", nextChartVersion)
-		if err := MirrorChart(hcli, openebsRepo, "openebs", nextChartVersion); err != nil {
+		if err := MirrorChart(c.Context, hcli, openebsRepo, "openebs", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror openebs chart: %v", err)
 		}
 
@@ -100,7 +100,7 @@ var updateOpenEBSAddonCommand = &cli.Command{
 		upstream = addProxyAnonymousPrefix(upstream)
 		withproto := fmt.Sprintf("oci://%s", upstream)
 
-		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(hcli, withproto, nextChartVersion)
+		linuxUtilsVersion, err := findOpenEBSLinuxUtilsVersionFromChart(c.Context, hcli, withproto, nextChartVersion)
 		if err != nil {
 			return fmt.Errorf("failed to find openebs linux utils version from chart: %w", err)
 		}
@@ -190,12 +190,12 @@ func updateOpenEBSAddonImages(ctx context.Context, hcli helm.Client, chartURL st
 
 var openebsLinuxUtilsRegexp = regexp.MustCompile(`openebs/linux-utils:v?[\d\.]+`)
 
-func findOpenEBSLinuxUtilsVersionFromChart(hcli helm.Client, chartURL string, chartVersion string) (string, error) {
+func findOpenEBSLinuxUtilsVersionFromChart(ctx context.Context, hcli helm.Client, chartURL string, chartVersion string) (string, error) {
 	values, err := release.GetValuesWithOriginalImages("openebs")
 	if err != nil {
 		return "", fmt.Errorf("failed to get velero values: %v", err)
 	}
-	images, err := helm.ExtractMatchesFromChart(hcli, chartURL, chartVersion, values, openebsLinuxUtilsRegexp)
+	images, err := helm.ExtractMatchesFromChart(ctx, hcli, chartURL, chartVersion, values, openebsLinuxUtilsRegexp)
 	if err != nil {
 		return "", fmt.Errorf("failed to get images from openebs chart: %w", err)
 	}

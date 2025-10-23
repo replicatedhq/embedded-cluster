@@ -52,7 +52,7 @@ var updateRegistryAddonCommand = &cli.Command{
 			logrus.Infof("using input override from INPUT_REGISTRY_CHART_VERSION: %s", nextChartVersion)
 		} else {
 			logrus.Infof("fetching the latest docker-registry chart version")
-			latest, err := LatestChartVersion(hcli, registryRepo, "docker-registry")
+			latest, err := LatestChartVersion(c.Context, hcli, registryRepo, "docker-registry")
 			if err != nil {
 				return fmt.Errorf("failed to get the latest docker-registry chart version: %v", err)
 			}
@@ -68,7 +68,7 @@ var updateRegistryAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("mirroring docker-registry chart version %s", nextChartVersion)
-		if err := MirrorChart(hcli, registryRepo, "docker-registry", nextChartVersion); err != nil {
+		if err := MirrorChart(c.Context, hcli, registryRepo, "docker-registry", nextChartVersion); err != nil {
 			return fmt.Errorf("failed to mirror docker-registry chart: %v", err)
 		}
 

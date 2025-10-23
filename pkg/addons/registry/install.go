@@ -44,6 +44,7 @@ func (r *Registry) Install(
 		Values:       values,
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
+		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")

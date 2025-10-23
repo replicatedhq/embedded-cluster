@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"testing/fstest"
@@ -15,14 +19,18 @@ import (
 
 	apilogger "github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 func Test_serveAPI(t *testing.T) {
@@ -63,10 +71,13 @@ func Test_serveAPI(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	require.NoError(t, err)
 
+	rc := setupMockRuntimeConfig(t)
+
 	config := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			Password:     password,
-			PasswordHash: passwordHash,
+			InstallTarget: apitypes.InstallTargetLinux,
+			Password:      password,
+			PasswordHash:  passwordHash,
 			ReleaseData: &release.ReleaseData{
 				Application: &kotsv1beta1.Application{
 					Spec: kotsv1beta1.ApplicationSpec{
@@ -78,14 +89,15 @@ func Test_serveAPI(t *testing.T) {
 				},
 			},
 			ClusterID: "123",
-			Target:    apitypes.TargetLinux,
 			Mode:      apitypes.ModeInstall,
+			LinuxConfig: apitypes.LinuxConfig{
+				RuntimeConfig: rc,
+			},
 		},
-		ManagerPort:   portInt,
-		InstallTarget: "linux",
-		WebMode:       web.ModeInstall,
-		Logger:        apilogger.NewDiscardLogger(),
-		WebAssetsFS:   webAssetsFS,
+		ManagerPort: portInt,
+		WebMode:     web.ModeInstall,
+		Logger:      apilogger.NewDiscardLogger(),
+		WebAssetsFS: webAssetsFS,
 	}
 
 	go func() {
@@ -120,14 +132,14 @@ func Test_serveAPI(t *testing.T) {
 func Test_serveAPIHTMLInjection(t *testing.T) {
 	tests := []struct {
 		name          string
-		installTarget string
+		installTarget apitypes.InstallTarget
 		mode          web.Mode
 		title         string
 	}{
-		{"linux install mode", "linux", web.ModeInstall, "Linux Install App"},
-		{"linux upgrade mode", "linux", web.ModeUpgrade, "Linux Upgrade App"},
-		{"kubernetes install mode", "kubernetes", web.ModeInstall, "K8s Install App"},
-		{"kubernetes upgrade mode", "kubernetes", web.ModeUpgrade, "K8s Upgrade App"},
+		{"linux install mode", apitypes.InstallTargetLinux, web.ModeInstall, "Linux Install App"},
+		{"linux upgrade mode", apitypes.InstallTargetLinux, web.ModeUpgrade, "Linux Upgrade App"},
+		{"kubernetes install mode", apitypes.InstallTargetKubernetes, web.ModeInstall, "K8s Install App"},
+		{"kubernetes upgrade mode", apitypes.InstallTargetKubernetes, web.ModeUpgrade, "K8s Upgrade App"},
 	}
 
 	for _, tt := range tests {
@@ -171,8 +183,9 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 
 			config := apiOptions{
 				APIConfig: apitypes.APIConfig{
-					Password:     password,
-					PasswordHash: passwordHash,
+					InstallTarget: tt.installTarget,
+					Password:      password,
+					PasswordHash:  passwordHash,
 					ReleaseData: &release.ReleaseData{
 						Application: &kotsv1beta1.Application{
 							Spec: kotsv1beta1.ApplicationSpec{
@@ -184,14 +197,21 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 						},
 					},
 					ClusterID: "123",
-					Target:    apitypes.TargetLinux,
 					Mode:      apitypes.ModeInstall,
 				},
-				ManagerPort:   portInt,
-				InstallTarget: tt.installTarget,
-				WebMode:       tt.mode,
-				Logger:        apilogger.NewDiscardLogger(),
-				WebAssetsFS:   webAssetsFS,
+				ManagerPort: portInt,
+				WebMode:     tt.mode,
+				Logger:      apilogger.NewDiscardLogger(),
+				WebAssetsFS: webAssetsFS,
+			}
+
+			if tt.installTarget == apitypes.InstallTargetKubernetes {
+				ki := setupMockKubernetesInstallation(t)
+				config.Installation = ki
+			} else {
+				// Create a runtime config with temp directory
+				rc := setupMockRuntimeConfig(t)
+				config.RuntimeConfig = rc
 			}
 
 			go func() {
@@ -232,4 +252,66 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 			t.Logf("Install API exited")
 		})
 	}
+}
+
+func setupMockRuntimeConfig(t *testing.T) *runtimeconfig.MockRuntimeConfig {
+	// Set up mock Kubernetes API server for helm client to use
+	mockK8sServer := setupMockKubernetesAPI(t)
+	t.Cleanup(func() {
+		mockK8sServer.Close()
+	})
+	t.Setenv("HELM_KUBEAPISERVER", mockK8sServer.URL)
+	fmt.Println("HELM_KUBEAPISERVER", mockK8sServer.URL)
+
+	// Write the helm binary to the temp directory for helm client to use
+	helmPath := filepath.Join(t.TempDir(), "helm")
+	err := os.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
+	require.NoError(t, err)
+
+	rc := &runtimeconfig.MockRuntimeConfig{}
+	rc.On("GetKubernetesEnvSettings").Return(helmcli.New())
+	rc.On("PathToEmbeddedClusterBinary", "helm").Return(helmPath, nil)
+	return rc
+}
+
+func setupMockKubernetesInstallation(t *testing.T) *kubernetesinstallation.MockInstallation {
+	// Set up mock Kubernetes API server for helm client to use
+	mockK8sServer := setupMockKubernetesAPI(t)
+	t.Cleanup(func() {
+		mockK8sServer.Close()
+	})
+	t.Setenv("HELM_KUBEAPISERVER", mockK8sServer.URL)
+	fmt.Println("HELM_KUBEAPISERVER", mockK8sServer.URL)
+
+	// Write the helm binary to the temp directory for helm client to use
+	helmPath := filepath.Join(t.TempDir(), "helm")
+	err := os.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
+	require.NoError(t, err)
+
+	ki := &kubernetesinstallation.MockInstallation{}
+	ki.On("GetKubernetesEnvSettings").Return(helmcli.New())
+	ki.On("PathToEmbeddedBinary", "helm").Return(helmPath, nil)
+	return ki
+}
+
+// setupMockKubernetesAPI creates a mock Kubernetes API server for testing
+func setupMockKubernetesAPI(_ *testing.T) *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/version":
+			// Return a mock Kubernetes version
+			versionInfo := version.Info{
+				Major:      "1",
+				Minor:      "28",
+				GitVersion: "v1.28.0",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(versionInfo)
+		default:
+			// Return 404 for other endpoints
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+
+	return server
 }

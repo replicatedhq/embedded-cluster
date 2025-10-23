@@ -24,12 +24,14 @@ import (
 	appupgradestore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 type AppUpgradeTestSuite struct {
@@ -70,6 +72,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -126,6 +129,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(&store.MockStore{}),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -191,6 +195,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -266,6 +271,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(&store.MockStore{}),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -307,6 +313,7 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(&store.MockStore{}),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -360,20 +367,22 @@ func TestAppUpgradeSuite(t *testing.T) {
 				controller, err := linuxupgrade.NewUpgradeController(
 					linuxupgrade.WithStateMachine(stateMachine),
 					linuxupgrade.WithReleaseData(rd),
+					linuxupgrade.WithHelmClient(&helm.MockClient{}),
 					linuxupgrade.WithAppController(appController),
 					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
 				require.NoError(t, err)
 
 				apiInstance, err := api.New(types.APIConfig{
-					Password:    "password",
-					ReleaseData: rd,
-					Mode:        types.ModeUpgrade,
-					Target:      types.TargetLinux,
+					InstallTarget: types.InstallTargetLinux,
+					Password:      "password",
+					ReleaseData:   rd,
+					Mode:          types.ModeUpgrade,
 				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				return apiInstance
@@ -391,10 +400,12 @@ func TestAppUpgradeSuite(t *testing.T) {
 				controller, err := kubernetesupgrade.NewUpgradeController(
 					kubernetesupgrade.WithStateMachine(stateMachine),
 					kubernetesupgrade.WithReleaseData(rd),
+					kubernetesupgrade.WithHelmClient(&helm.MockClient{}),
 					kubernetesupgrade.WithAppController(appController),
+					kubernetesupgrade.WithKubernetesEnvSettings(helmcli.New()),
 				)
 				require.NoError(t, err)
-				return integration.NewAPIWithReleaseData(t, types.ModeUpgrade, types.TargetKubernetes,
+				return integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeUpgrade,
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),

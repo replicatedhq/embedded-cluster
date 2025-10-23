@@ -25,12 +25,15 @@ ENV K0S_VERSION=${K0S_VERSION}
 ENV GOCACHE=/root/.cache/go-build
 RUN --mount=type=cache,target="/root/.cache/go-build" make -C operator build
 
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/operator/bin/manager /manager
+COPY --from=build /usr/local/bin/helm /usr/local/bin/helm
 
 RUN groupadd -r manager && useradd -r -u 1000 -g manager manager
 USER 1000

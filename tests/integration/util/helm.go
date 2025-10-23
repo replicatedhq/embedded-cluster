@@ -5,10 +5,18 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 func HelmClient(t *testing.T, kubeconfig string) helm.Client {
-	hcli, err := helm.NewClient(helm.HelmOptions{KubeConfig: kubeconfig})
+	envSettings := helmcli.New()
+	envSettings.KubeConfig = kubeconfig
+
+	hcli, err := helm.NewClient(helm.HelmOptions{
+		HelmPath:              "helm", // use the helm binary in PATH
+		KubernetesEnvSettings: envSettings,
+		K8sVersion:            "v1.26.0",
+	})
 	if err != nil {
 		t.Fatalf("failed to create helm client: %s", err)
 	}

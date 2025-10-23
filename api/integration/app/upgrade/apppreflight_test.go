@@ -27,6 +27,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -35,7 +36,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 )
 
 type AppPreflightTestSuite struct {
@@ -92,6 +93,7 @@ func (s *AppPreflightTestSuite) TestGetAppPreflightsStatus() {
 		appcontroller.WithStateMachine(stateMachine),
 		appcontroller.WithStore(mockStore),
 		appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+		appcontroller.WithHelmClient(&helm.MockClient{}),
 	)
 	require.NoError(s.T(), err)
 
@@ -190,6 +192,7 @@ func (s *AppPreflightTestSuite) TestGetAppPreflightsStatus() {
 			appcontroller.WithStateMachine(strictStateMachine),
 			appcontroller.WithStore(mockStrictStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -293,6 +296,7 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -343,6 +347,7 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(&store.MockStore{}),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -380,6 +385,7 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(&store.MockStore{}),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
+			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
 		require.NoError(t, err)
 
@@ -441,6 +447,7 @@ func TestAppPreflightSuite(t *testing.T) {
 						},
 						AppConfig: &kotsv1beta1.Config{},
 					}),
+					linuxupgrade.WithHelmClient(&helm.MockClient{}),
 					linuxupgrade.WithAppController(appController),
 					linuxupgrade.WithInfraManager(mockInfraManager),
 				)
@@ -448,17 +455,18 @@ func TestAppPreflightSuite(t *testing.T) {
 
 				// Create the API with runtime config in the API config
 				apiInstance, err := api.New(types.APIConfig{
-					Password: "password",
+					InstallTarget: types.InstallTargetLinux,
+					Password:      "password",
 					LinuxConfig: types.LinuxConfig{
 						RuntimeConfig: rc,
 					},
 					ReleaseData: rd,
 					Mode:        types.ModeUpgrade,
-					Target:      types.TargetLinux,
 				},
 					api.WithLinuxUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()), // Prevent permission errors from log file creation
+					api.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				return apiInstance
@@ -481,24 +489,26 @@ func TestAppPreflightSuite(t *testing.T) {
 				controller, err := kubernetesupgrade.NewUpgradeController(
 					kubernetesupgrade.WithStateMachine(stateMachine),
 					kubernetesupgrade.WithReleaseData(rd),
+					kubernetesupgrade.WithHelmClient(&helm.MockClient{}),
 					kubernetesupgrade.WithAppController(appController),
+					kubernetesupgrade.WithKubernetesEnvSettings(helmcli.New()),
 				)
 				require.NoError(t, err)
 
 				// Create the API with kubernetes config in the API config
 				apiInstance, err := api.New(types.APIConfig{
-					Password: "password",
+					InstallTarget: types.InstallTargetKubernetes,
+					Password:      "password",
 					KubernetesConfig: types.KubernetesConfig{
-						RESTClientGetter: &genericclioptions.ConfigFlags{},
-						Installation:     mockInstallation,
+						Installation: mockInstallation,
 					},
 					ReleaseData: rd,
 					Mode:        types.ModeUpgrade,
-					Target:      types.TargetKubernetes,
 				},
 					api.WithKubernetesUpgradeController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
+					api.WithHelmClient(&helm.MockClient{}),
 				)
 				require.NoError(t, err)
 				return apiInstance

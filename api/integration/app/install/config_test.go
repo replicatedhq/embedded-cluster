@@ -18,12 +18,14 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -1046,12 +1048,13 @@ func TestAppInstallSuite(t *testing.T) {
 				controller, err := linuxinstall.NewInstallController(
 					linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(initialState))),
 					linuxinstall.WithReleaseData(rd),
+					linuxinstall.WithHelmClient(&helm.MockClient{}),
 					linuxinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					linuxinstall.WithConfigValues(configValues),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetLinux,
+				return integration.NewTargetLinuxAPIWithReleaseData(t, types.ModeInstall,
 					api.WithLinuxInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),
@@ -1066,12 +1069,14 @@ func TestAppInstallSuite(t *testing.T) {
 				controller, err := kubernetesinstall.NewInstallController(
 					kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(initialState))),
 					kubernetesinstall.WithReleaseData(rd),
+					kubernetesinstall.WithHelmClient(&helm.MockClient{}),
 					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
+					kubernetesinstall.WithKubernetesEnvSettings(helmcli.New()),
 				)
 				require.NoError(t, err)
 				// Create the API with the install controller
-				return integration.NewAPIWithReleaseData(t, types.ModeInstall, types.TargetKubernetes,
+				return integration.NewTargetKubernetesAPIWithReleaseData(t, types.ModeInstall,
 					api.WithKubernetesInstallController(controller),
 					api.WithAuthController(auth.NewStaticAuthController("TOKEN")),
 					api.WithLogger(logger.NewDiscardLogger()),

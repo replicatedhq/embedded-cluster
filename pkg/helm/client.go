@@ -3,6 +3,7 @@ package helm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,17 +14,18 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"go.yaml.in/yaml/v3"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
+	helmcli "helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/downloader"
 	"helm.sh/helm/v3/pkg/getter"
 	"helm.sh/helm/v3/pkg/pusher"
 	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
-	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"helm.sh/helm/v3/pkg/uploader"
@@ -60,51 +62,50 @@ var (
 var _ Client = (*HelmClient)(nil)
 
 func newClient(opts HelmOptions) (*HelmClient, error) {
-	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-cache-*")
+	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-*")
 	if err != nil {
 		return nil, err
 	}
-	registryOpts := []registry.ClientOption{}
-	if opts.Writer != nil {
-		registryOpts = append(registryOpts, registry.ClientOptWriter(opts.Writer))
-	}
+
 	var kversion *semver.Version
-	if opts.K0sVersion != "" {
-		sv, err := semver.NewVersion(opts.K0sVersion)
+	if opts.K8sVersion != "" {
+		sv, err := semver.NewVersion(opts.K8sVersion)
 		if err != nil {
 			return nil, fmt.Errorf("parse k0s version: %w", err)
 		}
 		kversion = sv
 	}
+
+	registryOpts := []registry.ClientOption{}
+	if opts.Writer != nil {
+		registryOpts = append(registryOpts, registry.ClientOptWriter(opts.Writer))
+	}
 	regcli, err := registry.NewClient(registryOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("create registry client: %w", err)
 	}
-	if opts.RESTClientGetter == nil {
-		cfgFlags := &genericclioptions.ConfigFlags{}
-		if opts.KubeConfig != "" {
-			cfgFlags.KubeConfig = &opts.KubeConfig
-		}
-		opts.RESTClientGetter = cfgFlags
-	}
+
 	return &HelmClient{
-		tmpdir:           tmpdir,
-		kversion:         kversion,
-		restClientGetter: opts.RESTClientGetter,
-		regcli:           regcli,
-		logFn:            opts.LogFn,
-		airgapPath:       opts.AirgapPath,
+		helmPath:              opts.HelmPath,
+		executor:              newBinaryExecutor(opts.HelmPath, tmpdir),
+		tmpdir:                tmpdir,
+		kversion:              kversion,
+		kubernetesEnvSettings: opts.KubernetesEnvSettings,
+		regcli:                regcli,
+		airgapPath:            opts.AirgapPath,
+		repositories:          []*repo.Entry{},
 	}, nil
 }
 
 type HelmOptions struct {
-	KubeConfig       string
-	RESTClientGetter genericclioptions.RESTClientGetter
-	K0sVersion       string
-	AirgapPath       string
-	Writer           io.Writer
-	LogFn            action.DebugLog
+	HelmPath              string // Required: Path to the helm binary
+	KubernetesEnvSettings *helmcli.EnvSettings
+	K8sVersion            string
+	AirgapPath            string
+	Writer                io.Writer
 }
+
+type LogFn func(format string, args ...interface{})
 
 type InstallOptions struct {
 	ReleaseName  string
@@ -114,6 +115,7 @@ type InstallOptions struct {
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
+	LogFn        LogFn // Log function override to use for install command
 }
 
 type UpgradeOptions struct {
@@ -125,6 +127,7 @@ type UpgradeOptions struct {
 	Labels       map[string]string
 	Timeout      time.Duration
 	Force        bool
+	LogFn        LogFn // Log function override to use for upgrade command
 }
 
 type UninstallOptions struct {
@@ -132,21 +135,33 @@ type UninstallOptions struct {
 	Namespace      string
 	Wait           bool
 	IgnoreNotFound bool
+	LogFn          LogFn // Log function override to use for uninstall command
+}
+
+type RollbackOptions struct {
+	ReleaseName string
+	Namespace   string
+	Revision    int // Target revision to rollback to, 0 for automatic
+	Timeout     time.Duration
+	Force       bool
+	LogFn       LogFn // Log function override to use for rollback command
 }
 
 type HelmClient struct {
-	tmpdir           string
-	kversion         *semver.Version
-	restClientGetter genericclioptions.RESTClientGetter
-	regcli           *registry.Client
-	repocfg          string
-	repos            []*repo.Entry
-	reposChanged     bool
-	logFn            action.DebugLog
-	airgapPath       string
+	helmPath              string               // Path to helm binary
+	executor              BinaryExecutor       // Mockable executor
+	tmpdir                string               // Temporary directory for helm
+	kversion              *semver.Version      // Kubernetes version for template rendering
+	kubernetesEnvSettings *helmcli.EnvSettings // Kubernetes environment settings
+	regcli                *registry.Client
+	repocfg               string
+	repos                 []*repo.Entry
+	reposChanged          bool
+	airgapPath            string        // Airgap path where charts are stored
+	repositories          []*repo.Entry // Repository entries for helm repo commands
 }
 
-func (h *HelmClient) prepare() error {
+func (h *HelmClient) prepare(_ context.Context) error {
 	// NOTE: this is a hack and should be refactored
 	if !h.reposChanged {
 		return nil
@@ -184,65 +199,40 @@ func (h *HelmClient) Close() error {
 	return os.RemoveAll(h.tmpdir)
 }
 
-func (h *HelmClient) AddRepo(repo *repo.Entry) error {
+func (h *HelmClient) AddRepo(_ context.Context, repo *repo.Entry) error {
 	h.repos = append(h.repos, repo)
 	h.reposChanged = true
 	return nil
 }
 
-func (h *HelmClient) Latest(reponame, chart string) (string, error) {
-	stableConstraint, err := semver.NewConstraint(">0.0.0") // search only for stable versions
+func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string, error) {
+	// Use helm search repo with JSON output to find the latest version
+	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}
+
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("create stable constraint: %w", err)
+		return "", fmt.Errorf("helm search repo: %w", err)
 	}
 
-	for _, repository := range h.repos {
-		if repository.Name != reponame {
-			continue
-		}
-		chrepo, err := repo.NewChartRepository(repository, getters)
-		if err != nil {
-			return "", fmt.Errorf("create chart repo: %w", err)
-		}
-		chrepo.CachePath = h.tmpdir
-		idx, err := chrepo.DownloadIndexFile()
-		if err != nil {
-			return "", fmt.Errorf("download index file: %w", err)
-		}
-
-		repoidx, err := repo.LoadIndexFile(idx)
-		if err != nil {
-			return "", fmt.Errorf("load index file: %w", err)
-		}
-
-		versions, ok := repoidx.Entries[chart]
-		if !ok {
-			return "", fmt.Errorf("chart %s not found", chart)
-		}
-
-		if len(versions) == 0 {
-			return "", fmt.Errorf("chart %s has no versions", chart)
-		}
-
-		for _, version := range versions {
-			v, err := semver.NewVersion(version.Version)
-			if err != nil {
-				continue
-			}
-
-			if stableConstraint.Check(v) {
-				return version.Version, nil
-			}
-		}
-
-		return "", fmt.Errorf("no stable version found for chart %s", chart)
+	// Parse JSON output
+	var results []struct {
+		Version string `json:"version"`
 	}
-	return "", fmt.Errorf("repository %s not found", reponame)
+	if err := json.Unmarshal([]byte(stdout), &results); err != nil {
+		return "", fmt.Errorf("parse helm search json output: %w", err)
+	}
+
+	if len(results) == 0 {
+		return "", fmt.Errorf("no charts found for %s/%s", reponame, chart)
+	}
+
+	// Return the version of the first result (latest version due to --versions flag)
+	return results[0].Version, nil
 }
 
 func (h *HelmClient) PullByRefWithRetries(ctx context.Context, ref string, version string, tries int) (string, error) {
 	for i := 0; ; i++ {
-		localPath, err := h.PullByRef(ref, version)
+		localPath, err := h.PullByRef(ctx, ref, version)
 		if err == nil {
 			return localPath, nil
 		}
@@ -258,14 +248,14 @@ func (h *HelmClient) PullByRefWithRetries(ctx context.Context, ref string, versi
 	}
 }
 
-func (h *HelmClient) Pull(reponame, chart string, version string) (string, error) {
+func (h *HelmClient) Pull(ctx context.Context, reponame, chart string, version string) (string, error) {
 	ref := fmt.Sprintf("%s/%s", reponame, chart)
-	return h.PullByRef(ref, version)
+	return h.PullByRef(ctx, ref, version)
 }
 
-func (h *HelmClient) PullByRef(ref string, version string) (string, error) {
+func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) (string, error) {
 	if !isOCIChart(ref) {
-		if err := h.prepare(); err != nil {
+		if err := h.prepare(ctx); err != nil {
 			return "", fmt.Errorf("prepare: %w", err)
 		}
 	}
@@ -286,11 +276,11 @@ func (h *HelmClient) PullByRef(ref string, version string) (string, error) {
 	return dst, nil
 }
 
-func (h *HelmClient) RegistryAuth(server, user, pass string) error {
+func (h *HelmClient) RegistryAuth(_ context.Context, server, user, pass string) error {
 	return h.regcli.Login(server, registry.LoginOptBasicAuth(user, pass))
 }
 
-func (h *HelmClient) Push(path, dst string) error {
+func (h *HelmClient) Push(_ context.Context, path, dst string) error {
 	up := uploader.ChartUploader{
 		Out:     os.Stdout,
 		Pushers: pushers,
@@ -300,18 +290,28 @@ func (h *HelmClient) Push(path, dst string) error {
 	return up.UploadTo(path, dst)
 }
 
-func (h *HelmClient) GetChartMetadata(chartPath string) (*chart.Metadata, error) {
-	chartRequested, err := loader.Load(chartPath)
-	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
+	// Use helm show chart to get chart metadata
+	args := []string{"show", "chart", ref}
+	if version != "" {
+		args = append(args, "--version", version)
 	}
 
-	return chartRequested.Metadata, nil
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	if err != nil {
+		return nil, fmt.Errorf("helm show chart: %w", err)
+	}
+
+	var metadata chart.Metadata
+	if err := k8syaml.Unmarshal([]byte(stdout), &metadata); err != nil {
+		return nil, fmt.Errorf("parse chart metadata YAML: %w", err)
+	}
+	return &metadata, nil
 }
 
 // reference: https://github.com/helm/helm/blob/0d66425d9a745d8a289b1a5ebb6ccc744436da95/cmd/helm/upgrade.go#L122-L125
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
-	cfg, err := h.getActionCfg(namespace)
+	cfg, err := h.getActionCfg(namespace, nil)
 	if err != nil {
 		return false, fmt.Errorf("get action configuration: %w", err)
 	}
@@ -335,7 +335,7 @@ func isReleaseUninstalled(versions []*release.Release) bool {
 }
 
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
-	cfg, err := h.getActionCfg(opts.Namespace)
+	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
 	}
@@ -382,7 +382,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release
 }
 
 func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
-	cfg, err := h.getActionCfg(opts.Namespace)
+	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
 	if err != nil {
 		return nil, fmt.Errorf("get action configuration: %w", err)
 	}
@@ -426,7 +426,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release
 }
 
 func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error {
-	cfg, err := h.getActionCfg(opts.Namespace)
+	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
 	if err != nil {
 		return fmt.Errorf("get action configuration: %w", err)
 	}
@@ -495,29 +495,29 @@ func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte,
 		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
 	}
 
-	resources := [][]byte{}
-	splitManifests := releaseutil.SplitManifests(manifests.String())
-	for _, manifest := range splitManifests {
-		manifest = strings.TrimSpace(manifest)
-		resources = append(resources, []byte(manifest))
+	splitManifests, err := splitManifests(manifests.String())
+	if err != nil {
+		return nil, fmt.Errorf("split manifests: %w", err)
 	}
-
-	return resources, nil
+	return splitManifests, nil
 }
 
-func (h *HelmClient) getActionCfg(namespace string) (*action.Configuration, error) {
+func (h *HelmClient) getActionCfg(namespace string, logFn LogFn) (*action.Configuration, error) {
 	cfg := &action.Configuration{}
-	var logFn action.DebugLog
-	if h.logFn != nil {
-		logFn = h.logFn
-	} else {
+	if logFn == nil {
 		logFn = _logFn
 	}
-	restClientGetter := &namespacedRESTClientGetter{
-		RESTClientGetter: h.restClientGetter,
+	var restClientGetter genericclioptions.RESTClientGetter
+	if h.kubernetesEnvSettings != nil {
+		restClientGetter = h.kubernetesEnvSettings.RESTClientGetter()
+	} else {
+		restClientGetter = helmcli.New().RESTClientGetter() // use the default env settings from helm
+	}
+	restClientGetter = &namespacedRESTClientGetter{
+		RESTClientGetter: restClientGetter,
 		namespace:        namespace,
 	}
-	if err := cfg.Init(restClientGetter, namespace, "secret", logFn); err != nil {
+	if err := cfg.Init(restClientGetter, namespace, "secret", action.DebugLog(logFn)); err != nil {
 		return nil, fmt.Errorf("init helm configuration: %w", err)
 	}
 	return cfg, nil
@@ -609,4 +609,72 @@ func (n *namespacedClientConfig) Namespace() (string, bool, error) {
 
 func (n *namespacedClientConfig) ConfigAccess() clientcmd.ConfigAccess {
 	return n.cfg.ConfigAccess()
+}
+
+// addKubernetesEnvArgs adds kubernetes environment arguments to the helm command
+func (h *HelmClient) addKubernetesEnvArgs(args []string) []string {
+	if h.kubernetesEnvSettings == nil {
+		return args
+	}
+
+	// Add all helm CLI flags from kubernetesEnvSettings
+	// Based on addKubernetesCLIFlags function below
+	if h.kubernetesEnvSettings.KubeConfig != "" {
+		args = append(args, "--kubeconfig", h.kubernetesEnvSettings.KubeConfig)
+	}
+	if h.kubernetesEnvSettings.KubeContext != "" {
+		args = append(args, "--kube-context", h.kubernetesEnvSettings.KubeContext)
+	}
+	if h.kubernetesEnvSettings.KubeToken != "" {
+		args = append(args, "--kube-token", h.kubernetesEnvSettings.KubeToken)
+	}
+	if h.kubernetesEnvSettings.KubeAsUser != "" {
+		args = append(args, "--kube-as-user", h.kubernetesEnvSettings.KubeAsUser)
+	}
+	for _, group := range h.kubernetesEnvSettings.KubeAsGroups {
+		args = append(args, "--kube-as-group", group)
+	}
+	if h.kubernetesEnvSettings.KubeAPIServer != "" {
+		args = append(args, "--kube-apiserver", h.kubernetesEnvSettings.KubeAPIServer)
+	}
+	if h.kubernetesEnvSettings.KubeCaFile != "" {
+		args = append(args, "--kube-ca-file", h.kubernetesEnvSettings.KubeCaFile)
+	}
+	if h.kubernetesEnvSettings.KubeTLSServerName != "" {
+		args = append(args, "--kube-tls-server-name", h.kubernetesEnvSettings.KubeTLSServerName)
+	}
+	if h.kubernetesEnvSettings.KubeInsecureSkipTLSVerify {
+		args = append(args, "--kube-insecure-skip-tls-verify")
+	}
+	if h.kubernetesEnvSettings.BurstLimit != 0 {
+		args = append(args, "--burst-limit", fmt.Sprintf("%d", h.kubernetesEnvSettings.BurstLimit))
+	}
+	if h.kubernetesEnvSettings.QPS != 0 {
+		args = append(args, "--qps", fmt.Sprintf("%.2f", h.kubernetesEnvSettings.QPS))
+	}
+
+	return args
+}
+
+// AddKubernetesCLIFlags adds Kubernetes-related CLI flags to a pflag.FlagSet
+// This function is used to configure Kubernetes environment settings
+func AddKubernetesCLIFlags(flagSet *pflag.FlagSet, kubernetesEnvSettings *helmcli.EnvSettings) {
+	// From helm
+	// https://github.com/helm/helm/blob/v3.18.3/pkg/cli/environment.go#L145-L163
+
+	flagSet.StringVar(&kubernetesEnvSettings.KubeConfig, "kubeconfig", "", "Path to the kubeconfig file")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeContext, "kube-context", kubernetesEnvSettings.KubeContext, "Name of the kubeconfig context to use")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeToken, "kube-token", kubernetesEnvSettings.KubeToken, "Bearer token used for authentication")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeAsUser, "kube-as-user", kubernetesEnvSettings.KubeAsUser, "Username to impersonate for the operation")
+	flagSet.StringArrayVar(&kubernetesEnvSettings.KubeAsGroups, "kube-as-group", kubernetesEnvSettings.KubeAsGroups, "Group to impersonate for the operation, this flag can be repeated to specify multiple groups.")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeAPIServer, "kube-apiserver", kubernetesEnvSettings.KubeAPIServer, "The address and the port for the Kubernetes API server")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeCaFile, "kube-ca-file", kubernetesEnvSettings.KubeCaFile, "The certificate authority file for the Kubernetes API server connection")
+	flagSet.StringVar(&kubernetesEnvSettings.KubeTLSServerName, "kube-tls-server-name", kubernetesEnvSettings.KubeTLSServerName, "Server name to use for Kubernetes API server certificate validation. If it is not provided, the hostname used to contact the server is used")
+	// flagSet.BoolVar(&kubernetesEnvSettings.Debug, "helm-debug", kubernetesEnvSettings.Debug, "enable verbose output")
+	flagSet.BoolVar(&kubernetesEnvSettings.KubeInsecureSkipTLSVerify, "kube-insecure-skip-tls-verify", kubernetesEnvSettings.KubeInsecureSkipTLSVerify, "If true, the Kubernetes API server's certificate will not be checked for validity. This will make your HTTPS connections insecure")
+	// flagSet.StringVar(&kubernetesEnvSettings.RegistryConfig, "helm-registry-config", kubernetesEnvSettings.RegistryConfig, "Path to the Helm registry config file")
+	// flagSet.StringVar(&kubernetesEnvSettings.RepositoryConfig, "helm-repository-config", kubernetesEnvSettings.RepositoryConfig, "Path to the file containing Helm repository names and URLs")
+	// flagSet.StringVar(&kubernetesEnvSettings.RepositoryCache, "helm-repository-cache", kubernetesEnvSettings.RepositoryCache, "Path to the directory containing cached Helm repository indexes")
+	flagSet.IntVar(&kubernetesEnvSettings.BurstLimit, "burst-limit", kubernetesEnvSettings.BurstLimit, "Kubernetes API client-side default throttling limit")
+	flagSet.Float32Var(&kubernetesEnvSettings.QPS, "qps", kubernetesEnvSettings.QPS, "Queries per second used when communicating with the Kubernetes API, not including bursting")
 }

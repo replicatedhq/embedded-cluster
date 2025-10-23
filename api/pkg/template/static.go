@@ -285,12 +285,13 @@ func (e *Engine) yamlEscape(plain string) string {
 	return indented
 }
 
-func (e *Engine) distribution() string {
-	return "embedded-cluster"
-}
-
 // copied from sprig
 func indent(spaces int, v string) string {
 	pad := strings.Repeat(" ", spaces)
 	return pad + strings.ReplaceAll(v, "\n", "\n"+pad)
+}
+
+func (e *Engine) distribution() string {
+	// TODO: support for kubernetes target
+	return "embedded-cluster"
 }
