@@ -425,6 +425,9 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		return err
 	}
 
+	// TODO: Transitioning from the fixed "kotsadm" namespace to using the app slug as the namespace introduces a potential problem
+	// where the namespace used during restore may differ from the namespace in the backup. The backup resource already includes the
+	// namespace annotation kots.io/kotsadm-deploy-namespace, but we should look into thisfurther.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)
@@ -636,9 +639,6 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		addons.WithDomains(getDomains()),
 	)
 
-	// TODO: Transitioning from the fixed "kotsadm" namespace to using the app slug as the namespace introduces a potential problem
-	// where the namespace used during restore may differ from the namespace in the backup. The backup resource already includes the
-	// namespace annotation kots.io/kotsadm-deploy-namespace, but we should look into thisfurther.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)
