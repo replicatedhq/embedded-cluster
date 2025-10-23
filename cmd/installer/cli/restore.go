@@ -647,6 +647,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
+		KotsadmNamespace:   constants.KotsadmNamespace,
 	}
 
 	err = addOns.EnableAdminConsoleHA(ctx, opts)

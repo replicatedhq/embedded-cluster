@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
@@ -123,6 +124,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
+		KotsadmNamespace:   constants.KotsadmNamespace,
 	}
 
 	return addOns.EnableHA(ctx, opts, loading)
