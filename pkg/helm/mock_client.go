@@ -25,6 +25,11 @@ func (m *MockClient) AddRepo(ctx context.Context, repo *repo.Entry) error {
 	return args.Error(0)
 }
 
+func (m *MockClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
+	args := m.Called(ctx, repo)
+	return args.Error(0)
+}
+
 func (m *MockClient) Latest(ctx context.Context, reponame, chart string) (string, error) {
 	args := m.Called(ctx, reponame, chart)
 	return args.String(0), args.Error(1)
