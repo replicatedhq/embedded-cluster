@@ -344,6 +344,44 @@ make initial-release
     make kurl-proxy-down-ec
     ```
 
+### Using Local KOTS CLI for Development
+
+When developing embedded cluster, you can use your local kots CLI binary instead of the default one. This is particularly useful when you need to test changes to the kots CLI itself.
+
+#### Setting Up Local KOTS Binary
+
+1. **Build your local kots binary** in the kots repository:
+   ```bash
+   make kots-linux-arm64
+   ```
+
+2. **Update `versions.mk`** to set the override:
+   ```makefile
+   KOTS_BINARY_FILE_OVERRIDE = ../kots/bin/kots
+   ```
+
+#### Alternative: Remote Binary Override
+
+1. In the kots repository, build and upload your kots binary to ttl.sh by running:
+   ```bash
+   make kots-ttl.sh
+   ```
+   This will print a ttl.sh URL for the uploaded kots binary.
+
+2. In `versions.mk` file, set the override variable to the printed URL:
+   ```makefile
+   KOTS_BINARY_URL_OVERRIDE = ttl.sh/<user>/kots.tar.gz:24h
+   ```
+
+#### How It Works
+
+The build system checks for overrides in this order:
+1. `KOTS_BINARY_URL_OVERRIDE` - Downloads from URL (supports HTTP/HTTPS and ttl.sh artifacts)
+2. `KOTS_BINARY_FILE_OVERRIDE` - Uses local file directly
+3. Default - Downloads from kotsadm Docker image
+
+The system automatically generates a KOTS version string based on your override, ensuring proper versioning for development builds on rebuilds.
+
 ## Dependency Versions
 
 The [versions.mk](versions.mk) file serves as the single source of truth for all external dependency versions.
