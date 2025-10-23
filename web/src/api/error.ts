@@ -35,7 +35,7 @@ export class ApiError extends Error {
 
 // convertToFieldErrors converts the ApiErrorResponse.errors array
 // into a flat array of field errors with field and message properties
-export const convertToFieldErrors = (
+const convertToFieldErrors = (
   errors?: ApiErrorResponse[],
 ): { field: string; message: string }[] | undefined => {
   if (!errors || errors.length === 0) {

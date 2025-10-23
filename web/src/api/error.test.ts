@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ApiError, convertToFieldErrors } from "./error";
+import { ApiError } from "./error";
 
 describe("ApiError", () => {
   describe("constructor", () => {
