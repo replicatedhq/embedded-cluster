@@ -570,7 +570,8 @@ func (s *AppInstallTestSuite) TestTemplateAppConfig() {
 	s.T().Run("Success with default values", func(t *testing.T) {
 		// Create an install controller with the app config
 		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
-			AppConfig: &appConfigWithTemplates,
+			AppConfig:      &appConfigWithTemplates,
+			ChannelRelease: &release.ChannelRelease{},
 		}, nil)
 
 		// Create a router and register the API routes
@@ -985,7 +986,8 @@ func (s *AppInstallTestSuite) TestTemplateAppConfig_AdditionalTemplateFunctions(
 	s.T().Run("Success with default values", func(t *testing.T) {
 		// Create an install controller with the app config
 		apiInstance := s.createAPI(t, states.StateNew, &release.ReleaseData{
-			AppConfig: &appConfigWithTemplates,
+			AppConfig:      &appConfigWithTemplates,
+			ChannelRelease: &release.ChannelRelease{},
 		}, nil)
 
 		// Create a router and register the API routes
