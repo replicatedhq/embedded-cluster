@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../../../../contexts/SettingsContext';
-import { State } from '../../../../types';
 import InstallationProgress from '../shared/InstallationProgress';
 import LogViewer from '../shared/LogViewer';
 import StatusIndicator from '../shared/StatusIndicator';
@@ -8,6 +7,9 @@ import ErrorMessage from '../shared/ErrorMessage';
 import { NextButtonConfig, BackButtonConfig } from '../types';
 import { useStartInfraSetup } from '../../../../mutations/useMutations';
 import { useKubernetesInfraStatus } from '../../../../queries/useQueries';
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface KubernetesInstallationPhaseProps {
   onNext: () => void;

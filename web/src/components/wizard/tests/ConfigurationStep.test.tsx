@@ -3,9 +3,12 @@ import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
-import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
 import { mockHandlers, type Target, type Mode } from "../../../test/mockHandlers.ts";
 import '@testing-library/jest-dom/vitest';
+
+import type { components } from "../../../types/api";
+import type { ConfigGroup as AppConfigGroup, ConfigItem as AppConfigItem, AppConfig } from "../../../types/api-overrides";
+type AppConfigValues = components["schemas"]["types.AppConfigValues"];
 
 // Mock the debounced fetch to remove timing issues in tests
 vi.mock("../../../utils/debouncedFetch", () => ({

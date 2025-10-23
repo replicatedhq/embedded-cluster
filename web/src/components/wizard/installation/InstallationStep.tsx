@@ -4,7 +4,6 @@ import Button from '../../common/Button';
 import { useWizard } from '../../../contexts/WizardModeContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { useInstallationProgress } from '../../../contexts/InstallationProgressContext';
-import { State, InstallationPhaseId as InstallationPhase } from '../../../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import InstallationTimeline, { PhaseStatus } from './InstallationTimeline';
 import LinuxPreflightPhase from './phases/LinuxPreflightPhase';
@@ -14,6 +13,10 @@ import KubernetesInstallationPhase from './phases/KubernetesInstallationPhase';
 import AppInstallationPhase from './phases/AppInstallationPhase';
 import AirgapPhase from './phases/AirgapPhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
+import type { InstallationPhaseId as InstallationPhase } from '../../../types';
+import type { components } from "../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface InstallationStepProps {
   onNext: () => void;

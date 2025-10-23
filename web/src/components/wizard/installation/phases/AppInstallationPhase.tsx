@@ -2,11 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
-import { NextButtonConfig } from "../types";
-import { State } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
 import { useStartAppInstallation } from '../../../../mutations/useMutations';
 import { useAppInstallStatus } from '../../../../queries/useQueries';
+
+import type { NextButtonConfig } from "../types";
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface AppInstallationPhaseProps {
   onNext: () => void;

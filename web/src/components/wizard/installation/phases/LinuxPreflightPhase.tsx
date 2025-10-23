@@ -5,7 +5,9 @@ import { useWizard } from "../../../../contexts/WizardModeContext";
 import { AlertTriangle } from "lucide-react";
 import LinuxPreflightCheck from "./LinuxPreflightCheck";
 import { NextButtonConfig, BackButtonConfig } from "../types";
-import { State } from "../../../../types";
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface LinuxPreflightPhaseProps {
   onNext: () => void;

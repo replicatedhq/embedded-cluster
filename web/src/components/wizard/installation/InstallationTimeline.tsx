@@ -1,7 +1,11 @@
 import React from 'react';
 import { CheckCircle, XCircle, Loader2, Clock } from 'lucide-react';
-import { State, InstallationPhaseId } from '../../../types';
 import { useWizard } from "../../../contexts/WizardModeContext";
+
+import type { InstallationPhaseId } from '../../../types';
+import type { components } from "../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 export interface PhaseStatus {
   status: State;

@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSettings } from "../../../../contexts/SettingsContext";
 import { XCircle, CheckCircle, Loader2 } from "lucide-react";
-import { NextButtonConfig } from "../types";
-import { State } from "../../../../types";
 import ErrorMessage from "../shared/ErrorMessage";
 import { useProcessAirgap } from '../../../../mutations/useMutations';
 import { useAirgapStatus } from '../../../../queries/useQueries';
+
+import type { NextButtonConfig } from "../types";
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface AirgapPhaseProps {
   onNext: () => void;

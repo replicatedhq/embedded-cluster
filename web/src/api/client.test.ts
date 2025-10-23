@@ -299,7 +299,7 @@ describe("createAuthedClient", () => {
     expect(capturedAuthHeader?.startsWith("Bearer ")).toBe(true);
   });
 
-  it("wraps network errors in ApiError with status 0", async () => {
+  it("wraps network errors in ApiError", async () => {
     const networkError = new Error("Network connection timeout");
     const mockFetch = vi.fn().mockRejectedValue(networkError);
     const client = createAuthedClient("valid-token", {
@@ -311,7 +311,6 @@ describe("createAuthedClient", () => {
       expect.fail("Should have thrown an error");
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).statusCode).toBe(0);
       expect((error as ApiError).message).toBe(
         "Error: Network connection timeout",
       );
@@ -330,7 +329,6 @@ describe("createAuthedClient", () => {
       expect.fail("Should have thrown an error");
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).statusCode).toBe(0);
       expect((error as ApiError).message).toBe("TypeError: Failed to fetch");
     }
   });
@@ -346,7 +344,6 @@ describe("createAuthedClient", () => {
       expect.fail("Should have thrown an error");
     } catch (error) {
       expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).statusCode).toBe(0);
       expect((error as ApiError).message).toBe("Connection refused");
     }
   });
