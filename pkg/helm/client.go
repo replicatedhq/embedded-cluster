@@ -205,6 +205,40 @@ func (h *HelmClient) AddRepo(_ context.Context, repo *repo.Entry) error {
 	return nil
 }
 
+// AddRepoBin adds a repository to the helm client using the helm binary. This is necessary because
+// the AddRepo method does not work with other methods using the binary executor.
+func (h *HelmClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
+	// Use helm repo add command to add the repository
+	args := []string{"repo", "add", repo.Name, repo.URL}
+
+	// Add username/password if provided
+	if repo.Username != "" {
+		args = append(args, "--username", repo.Username)
+	}
+	if repo.Password != "" {
+		args = append(args, "--password", repo.Password)
+	}
+
+	// Add insecure flag if needed
+	if repo.InsecureSkipTLSverify {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
+
+	// Add pass-credentials flag if needed
+	if repo.PassCredentialsAll {
+		args = append(args, "--pass-credentials")
+	}
+
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	if err != nil {
+		return fmt.Errorf("helm repo add: %w", err)
+	}
+
+	// Store the repository entry for future reference
+	h.repositories = append(h.repositories, repo)
+	return nil
+}
+
 func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string, error) {
 	// Use helm search repo with JSON output to find the latest version
 	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}

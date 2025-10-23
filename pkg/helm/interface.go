@@ -15,6 +15,7 @@ var (
 type Client interface {
 	Close() error
 	AddRepo(ctx context.Context, repo *repo.Entry) error
+	AddRepoBin(ctx context.Context, repo *repo.Entry) error
 	Latest(ctx context.Context, reponame, chart string) (string, error)
 	Pull(ctx context.Context, reponame, chart string, version string) (string, error)
 	PullByRef(ctx context.Context, ref string, version string) (string, error)

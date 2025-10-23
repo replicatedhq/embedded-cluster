@@ -355,7 +355,7 @@ func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *se
 
 func LatestChartVersion(ctx context.Context, hcli helm.Client, repo *repo.Entry, name string) (string, error) {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err := hcli.AddRepo(ctx, repo)
+	err := hcli.AddRepoBin(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("add helm repo: %w", err)
 	}
@@ -479,6 +479,10 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
+	err = hcli.AddRepoBin(ctx, repo)
+	if err != nil {
+		return fmt.Errorf("add helm repo: %w", err)
+	}
 	srcMeta, err := hcli.GetChartMetadata(ctx, chpath, ver)
 	if err != nil {
 		return fmt.Errorf("get source chart metadata: %w", err)
