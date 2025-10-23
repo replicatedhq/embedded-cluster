@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -825,55 +826,6 @@ func TestUpgradeK0s_NodesNotUpgradedAfterPlan(t *testing.T) {
 	assert.Contains(t, err.Error(), "cluster nodes did not match version")
 }
 
-// Mock client that changes plan state after N calls
-type mockClientWithStateChange struct {
-	client.Client
-	plan             *apv1b2.Plan
-	callCount        int
-	callsUntil       int
-	finalPlanState   apv1b2.PlanStateType
-	finalNodeVersion string
-}
-
-func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-	m.callCount++
-	err := m.Client.Get(ctx, key, obj, opts...)
-	if err != nil {
-		return err
-	}
-
-	// After N calls, mark the plan with the specified final state
-	if m.callCount >= m.callsUntil {
-		if plan, ok := obj.(*apv1b2.Plan); ok {
-			if m.finalPlanState != "" {
-				plan.Status.State = m.finalPlanState
-			} else {
-				plan.Status.State = core.PlanCompleted // Default behavior
-			}
-		}
-	}
-
-	return nil
-}
-
-func (m *mockClientWithStateChange) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	err := m.Client.List(ctx, list, opts...)
-	if err != nil {
-		return err
-	}
-
-	// After plan completion, update node versions to the specified version
-	if m.callCount >= m.callsUntil && m.finalNodeVersion != "" {
-		if nodeList, ok := list.(*corev1.NodeList); ok {
-			for i := range nodeList.Items {
-				nodeList.Items[i].Status.NodeInfo.KubeletVersion = m.finalNodeVersion
-			}
-		}
-	}
-
-	return nil
-}
-
 func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 	// Set fast polling for tests
 	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
@@ -1539,4 +1491,76 @@ type mockClientWithGetError struct {
 
 func (m *mockClientWithGetError) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	return fmt.Errorf("connection refused")
+}
+
+// Mock client that changes plan state after N calls
+type mockClientWithStateChange struct {
+	client.Client
+	plan             *apv1b2.Plan
+	callCount        int
+	callsUntil       int
+	finalPlanState   apv1b2.PlanStateType
+	finalNodeVersion string
+	finalJobStatus   batchv1.JobStatus
+}
+
+func (m *mockClientWithStateChange) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	m.callCount++
+	err := m.Client.Get(ctx, key, obj, opts...)
+	if err != nil {
+		return err
+	}
+
+	// After N calls, mark the plan with the specified final state
+	if m.callCount >= m.callsUntil {
+		if plan, ok := obj.(*apv1b2.Plan); ok {
+			if m.finalPlanState != "" {
+				plan.Status.State = m.finalPlanState
+			} else {
+				plan.Status.State = core.PlanCompleted // Default behavior
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *mockClientWithStateChange) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	err := m.Client.List(ctx, list, opts...)
+	if err != nil {
+		return err
+	}
+
+	// After N calls, update job statuses or node versions
+	if m.callCount >= m.callsUntil {
+		if jobList, ok := list.(*batchv1.JobList); ok {
+			for i := range jobList.Items {
+				jobList.Items[i].Status = m.finalJobStatus
+			}
+		}
+		if nodeList, ok := list.(*corev1.NodeList); ok && m.finalNodeVersion != "" {
+			for i := range nodeList.Items {
+				nodeList.Items[i].Status.NodeInfo.KubeletVersion = m.finalNodeVersion
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *mockClientWithStateChange) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	// Let the base client create the object
+	err := m.Client.Create(ctx, obj, opts...)
+	if err != nil {
+		return err
+	}
+
+	// If it's a job, immediately set it to the final status
+	if job, ok := obj.(*batchv1.Job); ok {
+		job.Status = m.finalJobStatus
+		// Update the job in the client
+		return m.Client.Status().Update(ctx, job)
+	}
+
+	return nil
 }
