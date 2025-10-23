@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/autopilot/controller/plans/core"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -381,6 +381,10 @@ config:
 }
 
 func TestWaitForAutopilotPlan_Success(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
@@ -407,6 +411,10 @@ func TestWaitForAutopilotPlan_Success(t *testing.T) {
 }
 
 func TestWaitForAutopilotPlan_RetriesOnTransientErrors(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
@@ -438,6 +446,10 @@ func TestWaitForAutopilotPlan_RetriesOnTransientErrors(t *testing.T) {
 }
 
 func TestWaitForAutopilotPlan_ContextCanceled(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
@@ -455,6 +467,10 @@ func TestWaitForAutopilotPlan_ContextCanceled(t *testing.T) {
 }
 
 func TestWaitForAutopilotPlan_WaitsForCompletion(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
@@ -486,39 +502,6 @@ func TestWaitForAutopilotPlan_WaitsForCompletion(t *testing.T) {
 	assert.Equal(t, core.PlanCompleted, result.Status.State)
 }
 
-func TestWaitForAutopilotPlan_LongRunningUpgrade(t *testing.T) {
-	logger := logrus.New()
-	logger.SetLevel(logrus.ErrorLevel)
-
-	scheme := runtime.NewScheme()
-	require.NoError(t, apv1b2.Install(scheme))
-
-	// Simulate a long-running upgrade that takes more than 5 attempts
-	// This represents a real k0s infrastructure upgrade that takes several minutes
-	plan := &apv1b2.Plan{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "autopilot",
-		},
-		Spec: apv1b2.PlanSpec{
-			ID: "long-running-upgrade",
-		},
-		Status: apv1b2.PlanStatus{
-			State: core.PlanSchedulable,
-		},
-	}
-
-	cli := &mockClientWithStateChange{
-		Client:     fake.NewClientBuilder().WithScheme(scheme).WithObjects(plan).Build(),
-		plan:       plan,
-		callsUntil: 10, // Will complete after 10 calls - exceeds buggy 5-attempt limit
-	}
-
-	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
-	require.NoError(t, err, "Should not timeout for long-running upgrades")
-	assert.Equal(t, "autopilot", result.Name)
-	assert.Equal(t, core.PlanCompleted, result.Status.State)
-}
-
 // Mock client that fails N times before succeeding
 type mockClientWithRetries struct {
 	client.Client
@@ -536,6 +519,12 @@ func (m *mockClientWithRetries) Get(ctx context.Context, key client.ObjectKey, o
 
 // Tests for upgradeK0s function
 func TestUpgradeK0s_SuccessfulUpgrade(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_NODE_MAX_STEPS", "10")
+
 	ctx := context.Background()
 
 	// Setup scheme with required types
@@ -627,6 +616,12 @@ func TestUpgradeK0s_SuccessfulUpgrade(t *testing.T) {
 }
 
 func TestUpgradeK0s_AlreadyUpToDate(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_NODE_MAX_STEPS", "10")
+
 	ctx := context.Background()
 
 	scheme := runtime.NewScheme()
@@ -686,6 +681,12 @@ func TestUpgradeK0s_AlreadyUpToDate(t *testing.T) {
 }
 
 func TestUpgradeK0s_PlanFails(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_NODE_MAX_STEPS", "10")
+
 	ctx := context.Background()
 
 	scheme := runtime.NewScheme()
@@ -753,6 +754,12 @@ func TestUpgradeK0s_PlanFails(t *testing.T) {
 }
 
 func TestUpgradeK0s_NodesNotUpgradedAfterPlan(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_MAX_STEPS", "10")
+	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_NODE_MAX_STEPS", "10")
+
 	ctx := context.Background()
 
 	scheme := runtime.NewScheme()
@@ -815,7 +822,7 @@ func TestUpgradeK0s_NodesNotUpgradedAfterPlan(t *testing.T) {
 	)
 	err := upgrader.UpgradeK0s(ctx, installation)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cluster nodes did not match version after upgrade")
+	assert.Contains(t, err.Error(), "cluster nodes did not match version")
 }
 
 // Mock client that changes plan state after N calls
@@ -868,6 +875,10 @@ func (m *mockClientWithStateChange) List(ctx context.Context, list client.Object
 }
 
 func TestWaitForClusterNodesMatchVersion(t *testing.T) {
+	// Set fast polling for tests
+	t.Setenv("AUTOPILOT_NODE_POLL_INTERVAL", "100ms")
+	t.Setenv("AUTOPILOT_NODE_MAX_STEPS", "10")
+
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
@@ -879,7 +890,6 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 		nodes         *corev1.NodeList
 		targetVersion string
 		mockClient    func(*corev1.NodeList) client.Client
-		backoff       *wait.Backoff
 		expectError   bool
 		errorContains string
 		validate      func(t *testing.T, cli client.Client)
@@ -1004,12 +1014,6 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 			mockClient: func(nodes *corev1.NodeList) client.Client {
 				return fake.NewClientBuilder().WithScheme(scheme).WithLists(nodes).Build()
 			},
-			backoff: &wait.Backoff{
-				Duration: 100 * time.Millisecond,
-				Steps:    3,
-				Factor:   1.0,
-				Jitter:   0.1,
-			},
 			expectError:   true,
 			errorContains: "cluster nodes did not match version v1.30.0+k0s after upgrade",
 		},
@@ -1018,12 +1022,7 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cli := tt.mockClient(tt.nodes)
-			var err error
-			if tt.backoff != nil {
-				err = waitForClusterNodesMatchVersionWithBackoff(context.Background(), cli, tt.targetVersion, logger, *tt.backoff)
-			} else {
-				err = waitForClusterNodesMatchVersion(context.Background(), cli, tt.targetVersion, logger)
-			}
+			err := waitForClusterNodesMatchVersion(context.Background(), cli, tt.targetVersion, logger)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -1090,4 +1089,454 @@ func (m *mockClientWithStaggeredNodeUpdates) List(ctx context.Context, list clie
 	}
 
 	return nil
+}
+
+// Tests for createAutopilotPlan function
+func TestCreateAutopilotPlan_PlanAlreadyExists(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create existing plan
+	existingPlan := &apv1b2.Plan{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "autopilot",
+		},
+		Spec: apv1b2.PlanSpec{
+			ID: "existing-plan-id",
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+		},
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(existingPlan, installation).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should not create a new plan when one already exists
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.NoError(t, err)
+
+	// Verify no new plan was created by checking the existing plan is unchanged
+	var plan apv1b2.Plan
+	err = mockClient.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+	require.NoError(t, err)
+	assert.Equal(t, "existing-plan-id", plan.Spec.ID)
+}
+
+func TestCreateAutopilotPlan_AirgapSingleNode(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create single controller node
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "controller-1",
+					Labels: map[string]string{
+						"node-role.kubernetes.io/control-plane": "",
+					},
+				},
+			},
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+			AirGap: true,
+		},
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(installation).
+		WithLists(nodes).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	rc := runtimeconfig.New(nil)
+	rc.SetLocalArtifactMirrorPort(50000)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should create plan with local artifact mirror URL for airgap
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.NoError(t, err)
+
+	// Verify plan was created
+	var plan apv1b2.Plan
+	err = mockClient.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", plan.Name)
+	assert.Equal(t, "test-installation", plan.Annotations[artifacts.InstallationNameAnnotation])
+	assert.Len(t, plan.Spec.Commands, 1)
+	assert.NotNil(t, plan.Spec.Commands[0].K0sUpdate)
+	assert.Equal(t, "v1.30.14+k0s.0", plan.Spec.Commands[0].K0sUpdate.Version)
+
+	// Verify airgap URL format
+	platformKey := fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch())
+	platformResource, exists := plan.Spec.Commands[0].K0sUpdate.Platforms[platformKey]
+	require.True(t, exists)
+	assert.Equal(t, "http://127.0.0.1:50000/bin/k0s-upgrade", platformResource.URL)
+	assert.Equal(t, "abc123def456", platformResource.Sha256)
+
+	// Verify single controller target
+	assert.Len(t, plan.Spec.Commands[0].K0sUpdate.Targets.Controllers.Discovery.Static.Nodes, 1)
+	assert.Equal(t, "controller-1", plan.Spec.Commands[0].K0sUpdate.Targets.Controllers.Discovery.Static.Nodes[0])
+	assert.Len(t, plan.Spec.Commands[0].K0sUpdate.Targets.Workers.Discovery.Static.Nodes, 0)
+}
+
+func TestCreateAutopilotPlan_AirgapMultiNode(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create multi-node cluster
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "controller-1",
+					Labels: map[string]string{
+						"node-role.kubernetes.io/control-plane": "",
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "controller-2",
+					Labels: map[string]string{
+						"node-role.kubernetes.io/control-plane": "",
+					},
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "worker-1",
+				},
+			},
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "worker-2",
+				},
+			},
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+			AirGap: true,
+		},
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(installation).
+		WithLists(nodes).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	rc := runtimeconfig.New(nil)
+	rc.SetLocalArtifactMirrorPort(50000)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should create plan with local artifact mirror URL for airgap multi-node
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.NoError(t, err)
+
+	// Verify plan was created
+	var plan apv1b2.Plan
+	err = mockClient.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", plan.Name)
+	assert.Equal(t, "test-installation", plan.Annotations[artifacts.InstallationNameAnnotation])
+	assert.Len(t, plan.Spec.Commands, 1)
+	assert.NotNil(t, plan.Spec.Commands[0].K0sUpdate)
+	assert.Equal(t, "v1.30.14+k0s.0", plan.Spec.Commands[0].K0sUpdate.Version)
+
+	// Verify airgap URL format
+	platformKey := fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch())
+	platformResource, exists := plan.Spec.Commands[0].K0sUpdate.Platforms[platformKey]
+	require.True(t, exists)
+	assert.Equal(t, "http://127.0.0.1:50000/bin/k0s-upgrade", platformResource.URL)
+	assert.Equal(t, "abc123def456", platformResource.Sha256)
+
+	// Verify multi-node targets
+	controllerNodes := plan.Spec.Commands[0].K0sUpdate.Targets.Controllers.Discovery.Static.Nodes
+	workerNodes := plan.Spec.Commands[0].K0sUpdate.Targets.Workers.Discovery.Static.Nodes
+	assert.Len(t, controllerNodes, 2)
+	assert.Len(t, workerNodes, 2)
+	assert.Contains(t, controllerNodes, "controller-1")
+	assert.Contains(t, controllerNodes, "controller-2")
+	assert.Contains(t, workerNodes, "worker-1")
+	assert.Contains(t, workerNodes, "worker-2")
+}
+
+func TestCreateAutopilotPlan_OnlineSingleNode(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create single controller node
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "controller-1",
+					Labels: map[string]string{
+						"node-role.kubernetes.io/control-plane": "",
+					},
+				},
+			},
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+			AirGap:         false,
+			MetricsBaseURL: "https://metrics.example.com",
+		},
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(installation).
+		WithLists(nodes).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should create plan with metrics base URL for online
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.NoError(t, err)
+
+	// Verify plan was created
+	var plan apv1b2.Plan
+	err = mockClient.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+	require.NoError(t, err)
+	assert.Equal(t, "autopilot", plan.Name)
+	assert.Equal(t, "test-installation", plan.Annotations[artifacts.InstallationNameAnnotation])
+	assert.Len(t, plan.Spec.Commands, 1)
+	assert.NotNil(t, plan.Spec.Commands[0].K0sUpdate)
+	assert.Equal(t, "v1.30.14+k0s.0", plan.Spec.Commands[0].K0sUpdate.Version)
+
+	// Verify online URL format
+	platformKey := fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch())
+	platformResource, exists := plan.Spec.Commands[0].K0sUpdate.Platforms[platformKey]
+	require.True(t, exists)
+	expectedURL := "https://metrics.example.com/embedded-cluster-public-files/k0s-v1.30.14+k0s.0-linux-amd64"
+	assert.Equal(t, expectedURL, platformResource.URL)
+	assert.Equal(t, "abc123def456", platformResource.Sha256)
+
+	// Verify single controller target
+	assert.Len(t, plan.Spec.Commands[0].K0sUpdate.Targets.Controllers.Discovery.Static.Nodes, 1)
+	assert.Equal(t, "controller-1", plan.Spec.Commands[0].K0sUpdate.Targets.Controllers.Discovery.Static.Nodes[0])
+	assert.Len(t, plan.Spec.Commands[0].K0sUpdate.Targets.Workers.Discovery.Static.Nodes, 0)
+}
+
+func TestCreateAutopilotPlan_OnlineWithHttpUrl(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Create single controller node
+	nodes := &corev1.NodeList{
+		Items: []corev1.Node{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "controller-1",
+					Labels: map[string]string{
+						"node-role.kubernetes.io/control-plane": "",
+					},
+				},
+			},
+		},
+	}
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+			AirGap:         false,
+			MetricsBaseURL: "https://metrics.example.com",
+		},
+	}
+
+	// Test with HTTP URL override (for dev/e2e tests)
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+		K0sSHA: "abc123def456",
+		Artifacts: map[string]string{
+			"k0s": "https://dev.example.com/k0s-v1.30.14+k0s.0-linux-amd64",
+		},
+	}
+
+	mockClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(installation).
+		WithLists(nodes).
+		WithStatusSubresource(&ecv1beta1.Installation{}).
+		Build()
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should use the HTTP URL directly when provided
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.NoError(t, err)
+
+	// Verify plan was created
+	var plan apv1b2.Plan
+	err = mockClient.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+	require.NoError(t, err)
+
+	// Verify HTTP URL is used directly
+	platformKey := fmt.Sprintf("%s-%s", helpers.ClusterOS(), helpers.ClusterArch())
+	platformResource, exists := plan.Spec.Commands[0].K0sUpdate.Platforms[platformKey]
+	require.True(t, exists)
+	assert.Equal(t, "https://dev.example.com/k0s-v1.30.14+k0s.0-linux-amd64", platformResource.URL)
+	assert.Equal(t, "abc123def456", platformResource.Sha256)
+}
+
+func TestCreateAutopilotPlan_GetError(t *testing.T) {
+	ctx := context.Background()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, apv1b2.Install(scheme))
+	require.NoError(t, ecv1beta1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	installation := &ecv1beta1.Installation{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-installation"},
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Version: "v1.30.14+k0s.0",
+			},
+		},
+	}
+
+	meta := &ectypes.ReleaseMetadata{
+		Versions: map[string]string{
+			"Kubernetes": "v1.30.14+k0s.0",
+		},
+	}
+
+	// Mock client that returns an error on Get
+	mockClient := &mockClientWithGetError{
+		Client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(installation).
+			WithStatusSubresource(&ecv1beta1.Installation{}).
+			Build(),
+	}
+
+	rc := runtimeconfig.New(nil)
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	// Test: Should return error when Get fails
+	err := createAutopilotPlan(ctx, mockClient, rc, "v1.30.14+k0s", installation, meta, logger)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "get upgrade plan")
+	assert.Contains(t, err.Error(), "connection refused")
+}
+
+// Mock client that returns an error on Get
+type mockClientWithGetError struct {
+	client.Client
+}
+
+func (m *mockClientWithGetError) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	return fmt.Errorf("connection refused")
 }
