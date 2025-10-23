@@ -382,6 +382,22 @@ The build system checks for overrides in this order:
 
 The system automatically generates a KOTS version string based on your override, ensuring proper versioning for development builds on rebuilds.
 
+## API Type Generation (V3 Manager Experience Only)
+
+The V3 manager experience uses OpenAPI/Swagger to generate TypeScript types for the web frontend. When you make changes to API endpoints or types in the `api/` directory for the V3 installer, you need to regenerate the types:
+
+```bash
+make api-types
+```
+
+This command:
+1. Generates OpenAPI documentation from Go code annotations (`api/docs/swagger.yaml`)
+2. Generates TypeScript types from the OpenAPI spec (`web/src/types/api.ts`)
+
+The types are automatically generated before building the web frontend (`npm run build` runs `types:api:generate` as a pre-build step), but you should run `make api-types` manually when developing API changes to ensure the frontend types stay in sync.
+
+**Note:** This is only relevant when working on the V3 manager experience (the new installer UI). The V2 experience uses KOTS admin console and does not use these generated types.
+
 ## Dependency Versions
 
 The [versions.mk](versions.mk) file serves as the single source of truth for all external dependency versions.

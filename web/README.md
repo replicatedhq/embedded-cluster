@@ -63,11 +63,43 @@ The `index.html` file uses Go template syntax that requires pre-processing befor
 
 ## API Integration
 
+### TypeScript Type Generation
+
+The web frontend uses TypeScript types generated from the OpenAPI specification located at `../api/docs/swagger.yaml`. These types ensure type safety when communicating with the Embedded Cluster API.
+
+**Generating Types:**
+
+Types are automatically generated before development and build:
+- `npm run dev` (via `predev` script)
+- `npm run build` (via `prebuild` script)
+
+**Manual Generation:**
+
+To manually regenerate types after API changes:
+
+```bash
+# From project root (recommended - generates OpenAPI docs + types)
+make api-types
+
+# Or from web directory (types only)
+npm run types:api:generate
+```
+
+**Type Checking:**
+
+To verify types are up-to-date without regenerating:
+
+```bash
+npm run types:api:check
+```
+
+The generated types are located at `src/types/api.ts` and used throughout the application with the `openapi-fetch` client.
+
 ### Mock Development Server
 
 For local development, the application uses Netlify Functions to provide a mock API server:
 
-- **Mock Generation**: Automatically generates mock responses from OpenAPI spec
+- **Mock Generation**: Automatically generates mock responses from OpenAPI spec (`../api/docs/swagger.yaml`)
 - **CORS Handling**: Built-in CORS support for local development
 - **Real API Matching**: Mock responses match the production API contract
 - **Hot Reloading**: Changes to the OpenAPI spec are reflected immediately

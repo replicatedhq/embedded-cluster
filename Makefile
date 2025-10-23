@@ -342,6 +342,14 @@ scan:
 		--ignore-unfixed \
 		./
 
+.PHONY: api-types
+api-types:
+	@echo "Generating OpenAPI documentation..."
+	$(MAKE) -C api swagger
+	@echo "Generating TypeScript types from OpenAPI spec..."
+	cd web && npm run types:api:generate
+	@echo "API types generated successfully!"
+
 .PHONY: list-distros
 list-distros:
 	@$(MAKE) -C dev/distros list
