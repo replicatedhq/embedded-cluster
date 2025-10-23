@@ -79,13 +79,22 @@ function getBaseUrl(): string {
   return "/api";
 }
 
+type ClientOptions = {
+  fetchClient?: typeof fetch;
+};
+
 /**
  * Create a default API client configured with base URL
  * Use this for unauthenticated requests or when auth is handled externally
+ *
+ * @param options.fetchClient - Custom fetch implementation (optional)
  */
-export function createBaseClient() {
+export function createBaseClient(
+  options: ClientOptions | undefined = { fetchClient: globalThis.fetch },
+) {
   const apiClient = createClient<paths>({
     baseUrl: getBaseUrl(),
+    fetch: options?.fetchClient,
   });
 
   // Middleware: Automatic error handling
@@ -108,6 +117,7 @@ export function createBaseClient() {
  * Use this factory function when you need authenticated requests
  *
  * @param token - Bearer token for authentication (must be a non-empty string)
+ * @param options.fetchClient - Custom fetch implementation (optional)
  * @returns Configured API client with auth middleware
  * @throws {Error} If token is null, undefined, or an empty string
  *
@@ -117,7 +127,10 @@ export function createBaseClient() {
  *   body: { password: 'secret' }
  * });
  */
-export function createAuthedClient(token: string | null | undefined) {
+export function createAuthedClient(
+  token: string | null | undefined,
+  options: ClientOptions | undefined = { fetchClient: globalThis.fetch },
+): ReturnType<typeof createClient<paths>> {
   if (typeof token !== "string" || token == "") {
     throw new Error(
       "Auth token must be provided and it must be a valid string",
@@ -126,6 +139,7 @@ export function createAuthedClient(token: string | null | undefined) {
 
   const client = createClient<paths>({
     baseUrl: getBaseUrl(),
+    fetch: options?.fetchClient,
   });
 
   // Add auth middleware
@@ -142,6 +156,10 @@ export function createAuthedClient(token: string | null | undefined) {
         );
       }
       return response;
+    },
+    // wrap errors thrown by fetch as API errors with a well known structure
+    async onError({ error }) {
+      throw new ApiError(0, String(error));
     },
   });
 

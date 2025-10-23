@@ -864,8 +864,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       // Change a radio button selection
@@ -1045,8 +1045,8 @@ describe.each([
 
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1205,8 +1205,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       // Change a checkbox
@@ -1592,8 +1592,8 @@ describe.each([
 
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1767,8 +1767,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       const nextButton = screen.getByTestId("config-next-button");
@@ -2754,8 +2754,8 @@ describe.each([
       server.use(
         mockHandlers.appConfig.getTemplate(configWithDropdown, target, mode),
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {

@@ -51,5 +51,3 @@ export const convertToFieldErrors = (
 
   return fieldErrors.length > 0 ? fieldErrors : undefined;
 };
-
-export class ConfigError extends ApiError {}

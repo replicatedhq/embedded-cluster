@@ -20,9 +20,8 @@ export function useAirgapStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("linux", mode);
 
-      const { data, error } = await client.GET(`${apiBase}/airgap/status`);
+      const { data } = await client.GET(`${apiBase}/airgap/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -47,11 +46,8 @@ export function useHostPreflightStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("linux", "install");
 
-      const { data, error } = await client.GET(
-        `${apiBase}/host-preflights/status`,
-      );
+      const { data } = await client.GET(`${apiBase}/host-preflights/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -77,11 +73,8 @@ export function useAppPreflightStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath(target, mode);
 
-      const { data, error } = await client.GET(
-        `${apiBase}/app-preflights/status`,
-      );
+      const { data } = await client.GET(`${apiBase}/app-preflights/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -106,9 +99,8 @@ export function useLinuxInfraStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("linux", mode);
 
-      const { data, error } = await client.GET(`${apiBase}/infra/status`);
+      const { data } = await client.GET(`${apiBase}/infra/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -132,9 +124,8 @@ export function useKubernetesInfraStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("kubernetes", "install");
 
-      const { data, error } = await client.GET(`${apiBase}/infra/status`);
+      const { data } = await client.GET(`${apiBase}/infra/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -159,9 +150,8 @@ export function useAppInstallStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath(target, mode);
 
-      const { data, error } = await client.GET(`${apiBase}/app/status`);
+      const { data } = await client.GET(`${apiBase}/app/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -182,11 +172,8 @@ export function useLinuxInstallConfig() {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("linux", "install");
 
-      const { data, error } = await client.GET(
-        `${apiBase}/installation/config`,
-      );
+      const { data } = await client.GET(`${apiBase}/installation/config`);
 
-      if (error) throw error;
       return data;
     },
   });
@@ -205,11 +192,8 @@ export function useKubernetesInstallConfig() {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("kubernetes", "install");
 
-      const { data, error } = await client.GET(
-        `${apiBase}/installation/config`,
-      );
+      const { data } = await client.GET(`${apiBase}/installation/config`);
 
-      if (error) throw error;
       return data;
     },
   });
@@ -233,11 +217,8 @@ export function useInstallationStatus(options?: {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath(target, "install");
 
-      const { data, error } = await client.GET(
-        `${apiBase}/installation/status`,
-      );
+      const { data } = await client.GET(`${apiBase}/installation/status`);
 
-      if (error) throw error;
       return data;
     },
     enabled: options?.enabled ?? true,
@@ -258,11 +239,10 @@ export function useNetworkInterfaces() {
     queryFn: async () => {
       const client = createAuthedClient(token);
 
-      const { data, error } = await client.GET(
+      const { data } = await client.GET(
         "/console/available-network-interfaces",
       );
 
-      if (error) throw error;
       return data;
     },
   });
