@@ -1,6 +1,7 @@
 package adminconsole
 
 import (
+	"context"
 	_ "embed"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -8,6 +9,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.yaml.in/yaml/v3"
 	"k8s.io/utils/ptr"
 )
@@ -61,12 +63,17 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "get kotsadm namespace")
+	}
+
 	chartConfig := ecv1beta1.Chart{
 		Name:         _releaseName,
 		ChartName:    (&AdminConsole{}).ChartLocation(ecv1beta1.Domains{}),
 		Version:      Metadata.Version,
 		Values:       string(marshalled),
-		TargetNS:     "kotsadm",
+		TargetNS:     kotsadmNamespace,
 		ForceUpgrade: ptr.To(false),
 		Order:        5,
 	}

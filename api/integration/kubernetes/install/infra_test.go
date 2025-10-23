@@ -40,6 +40,15 @@ import (
 
 // Test the kubernetes setupInfra endpoint runs infrastructure setup correctly
 func TestKubernetesPostSetupInfra(t *testing.T) {
+	// Setup environment variable for V3
+	t.Setenv("ENABLE_V3", "1")
+
+	// Set up release data globally so AppSlug() returns the correct value for v3
+	err := release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
+
 	// Create schemes
 	scheme := runtime.NewScheme()
 	require.NoError(t, ecv1beta1.AddToScheme(scheme))
