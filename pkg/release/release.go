@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -304,91 +305,161 @@ func (r *ReleaseData) parse() error {
 			return fmt.Errorf("failed to copy file out of tar: %w", err)
 		}
 
-		switch {
-		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta1")):
-			if bytes.Contains(content.Bytes(), []byte("kind: Application")) {
-				parsed, err := parseApplication(content.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to parse application: %w", err)
-				}
-				r.Application = parsed
-			} else if bytes.Contains(content.Bytes(), []byte("kind: Config")) {
-				parsed, err := parseAppConfig(content.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to parse app config: %w", err)
-				}
-				r.AppConfig = parsed
-			}
+		// we process special files without splitting YAML documents as either they are not yaml or
+		// they are the release data itself which is identified by a comment at the beginning of
+		// the file
+		if err := r.processDocument(content.Bytes(), header.Name); err != nil {
+			return err
+		}
 
-		case bytes.Contains(content.Bytes(), []byte("apiVersion: troubleshoot.sh/v1beta2")):
-			if !bytes.Contains(content.Bytes(), []byte("kind: HostPreflight")) {
-				break
-			}
-			if bytes.Contains(content.Bytes(), []byte("cluster.kurl.sh/v1beta1")) {
-				break
-			}
-			hostPreflights, err := parseHostPreflights(content.Bytes())
+		if !strings.HasPrefix(header.Name, ".") && (strings.HasSuffix(header.Name, ".yaml") || strings.HasSuffix(header.Name, ".yml")) {
+			// Split multi-document YAML files
+			documents, err := splitYAMLDocuments(content.Bytes())
 			if err != nil {
-				return fmt.Errorf("failed to parse host preflights: %w", err)
-			}
-			if hostPreflights != nil {
-				if r.HostPreflights == nil {
-					r.HostPreflights = &troubleshootv1beta2.HostPreflightSpec{}
+				// log only and do not fail here to preserve the previous behavior
+				log.Printf("Failed to parse YAML document from release data %s: %v", header.Name, err)
+			} else {
+				// Process each document
+				for _, doc := range documents {
+					if err := r.processYAMLDocument(doc, header.Name); err != nil {
+						return err
+					}
 				}
-				r.HostPreflights.Collectors = append(r.HostPreflights.Collectors, hostPreflights.Collectors...)
-				r.HostPreflights.Analyzers = append(r.HostPreflights.Analyzers, hostPreflights.Analyzers...)
+				// no need to process the document further
+				continue
 			}
+		}
 
-		case bytes.Contains(content.Bytes(), []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")):
-			if !bytes.Contains(content.Bytes(), []byte("kind: Config")) {
-				break
-			}
-
-			r.EmbeddedClusterConfig, err = parseEmbeddedClusterConfig(content.Bytes())
-			if err != nil {
-				return fmt.Errorf("failed to parse embedded cluster config: %w", err)
-			}
-
-		case bytes.Contains(content.Bytes(), []byte("apiVersion: velero.io/v1")):
-			if bytes.Contains(content.Bytes(), []byte("kind: Backup")) {
-				r.VeleroBackup, err = parseVeleroBackup(content.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to parse velero backup: %w", err)
-				}
-			} else if bytes.Contains(content.Bytes(), []byte("kind: Restore")) {
-				r.VeleroRestore, err = parseVeleroRestore(content.Bytes())
-				if err != nil {
-					return fmt.Errorf("failed to parse velero restore: %w", err)
-				}
-			}
-
-		case bytes.Contains(content.Bytes(), []byte("apiVersion: kots.io/v1beta2")):
-			if bytes.Contains(content.Bytes(), []byte("kind: HelmChart")) {
-				if r.HelmChartCRs == nil {
-					r.HelmChartCRs = [][]byte{}
-				}
-				r.HelmChartCRs = append(r.HelmChartCRs, content.Bytes())
-			}
-
-		case bytes.Contains(content.Bytes(), []byte("# channel release object")):
-			r.ChannelRelease, err = parseChannelRelease(content.Bytes())
-			if err != nil {
-				return fmt.Errorf("failed to parse channel release: %w", err)
-			}
-
-		case strings.HasSuffix(header.Name, ".tgz"):
-			// Skip system files (like macOS ._* files)
-			if isSystemFile(header.Name) {
-				break
-			}
-
-			// This is a chart archive (.tgz file)
-			if r.HelmChartArchives == nil {
-				r.HelmChartArchives = [][]byte{}
-			}
-			r.HelmChartArchives = append(r.HelmChartArchives, content.Bytes())
+		// for backward compatibility, process files again as YAML documents that failed to parse
+		// or do not have the yaml extension
+		if err := r.processYAMLDocument(content.Bytes(), header.Name); err != nil {
+			return err
 		}
 	}
+}
+
+// processDocument processes a single non-YAML document and updates the ReleaseData accordingly.
+func (r *ReleaseData) processDocument(content []byte, headerName string) error {
+	var err error
+
+	switch {
+	case bytes.Contains(content, []byte("# channel release object")):
+		r.ChannelRelease, err = parseChannelRelease(content)
+		if err != nil {
+			return fmt.Errorf("failed to parse channel release: %w", err)
+		}
+
+	case strings.HasSuffix(headerName, ".tgz"):
+		// Skip system files (like macOS ._* files)
+		if isSystemFile(headerName) {
+			break
+		}
+
+		// This is a chart archive (.tgz file)
+		if r.HelmChartArchives == nil {
+			r.HelmChartArchives = [][]byte{}
+		}
+		r.HelmChartArchives = append(r.HelmChartArchives, content)
+	}
+
+	return nil
+}
+
+// processYAMLDocument processes a single YAML document and updates the ReleaseData accordingly.
+func (r *ReleaseData) processYAMLDocument(content []byte, headerName string) error {
+	var err error
+
+	switch {
+	case bytes.Contains(content, []byte("apiVersion: kots.io/v1beta1")):
+		if bytes.Contains(content, []byte("kind: Application")) {
+			parsed, err := parseApplication(content)
+			if err != nil {
+				return fmt.Errorf("failed to parse application: %w", err)
+			}
+			r.Application = parsed
+		} else if bytes.Contains(content, []byte("kind: Config")) {
+			parsed, err := parseAppConfig(content)
+			if err != nil {
+				return fmt.Errorf("failed to parse app config: %w", err)
+			}
+			r.AppConfig = parsed
+		}
+
+	case bytes.Contains(content, []byte("apiVersion: troubleshoot.sh/v1beta2")):
+		if !bytes.Contains(content, []byte("kind: HostPreflight")) {
+			break
+		}
+		if bytes.Contains(content, []byte("cluster.kurl.sh/v1beta1")) {
+			break
+		}
+		hostPreflights, err := parseHostPreflights(content)
+		if err != nil {
+			return fmt.Errorf("failed to parse host preflights: %w", err)
+		}
+		if hostPreflights != nil {
+			if r.HostPreflights == nil {
+				r.HostPreflights = &troubleshootv1beta2.HostPreflightSpec{}
+			}
+			r.HostPreflights.Collectors = append(r.HostPreflights.Collectors, hostPreflights.Collectors...)
+			r.HostPreflights.Analyzers = append(r.HostPreflights.Analyzers, hostPreflights.Analyzers...)
+		}
+
+	case bytes.Contains(content, []byte("apiVersion: embeddedcluster.replicated.com/v1beta1")):
+		if !bytes.Contains(content, []byte("kind: Config")) {
+			break
+		}
+
+		r.EmbeddedClusterConfig, err = parseEmbeddedClusterConfig(content)
+		if err != nil {
+			return fmt.Errorf("failed to parse embedded cluster config: %w", err)
+		}
+
+	case bytes.Contains(content, []byte("apiVersion: velero.io/v1")):
+		if bytes.Contains(content, []byte("kind: Backup")) {
+			r.VeleroBackup, err = parseVeleroBackup(content)
+			if err != nil {
+				return fmt.Errorf("failed to parse velero backup: %w", err)
+			}
+		} else if bytes.Contains(content, []byte("kind: Restore")) {
+			r.VeleroRestore, err = parseVeleroRestore(content)
+			if err != nil {
+				return fmt.Errorf("failed to parse velero restore: %w", err)
+			}
+		}
+
+	case bytes.Contains(content, []byte("apiVersion: kots.io/v1beta2")):
+		if bytes.Contains(content, []byte("kind: HelmChart")) {
+			if r.HelmChartCRs == nil {
+				r.HelmChartCRs = [][]byte{}
+			}
+			r.HelmChartCRs = append(r.HelmChartCRs, content)
+		}
+	}
+
+	return nil
+}
+
+// splitYAMLDocuments splits a multi-document YAML file into individual documents.
+func splitYAMLDocuments(data []byte) ([][]byte, error) {
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+
+	var res [][]byte
+	for {
+		var value interface{}
+		err := dec.Decode(&value)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode: %w", err)
+		}
+		valueBytes, err := yaml.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("marshal: %w", err)
+		}
+		res = append(res, valueBytes)
+	}
+	return res, nil
 }
 
 // isSystemFile returns true if the filename represents a system file that should be ignored

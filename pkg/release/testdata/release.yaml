@@ -81,5 +81,42 @@ helmchart.yaml: |-
         repository: nginx
         tag: "1.21"
 
+backup.yaml: |-
+  ---
+  apiVersion: velero.io/v1
+  kind: Backup
+  metadata:
+    name: test-backup
+  spec:
+    # Back up the resources in the kotsadm namespace
+    includedNamespaces:
+      - kotsadm
+      - ingress-nginx
+    orLabelSelectors:
+      - matchExpressions:
+          # Exclude Replicated resources from the backup
+          - { key: kots.io/kotsadm, operator: NotIn, values: ["true"] }
+
+restore.yaml: |-
+  apiVersion: velero.io/v1
+  kind: Restore
+  metadata:
+    name: test-restore
+  spec:
+    backupName: test-backup
+    includedNamespaces:
+      - '*'
+
 test-chart-1.0.0.tgz: |-
   fake-chart-archive-content-for-testing
+
+release.yaml: |-
+  # channel release object
+  channelID: "channel-id"
+  channelSlug: "channel-slug"
+  appSlug: "app-slug"
+  versionLabel: "1.0.0"
+  defaultDomains:
+    replicatedAppDomain: "replicated-app-domain"
+    proxyRegistryDomain: "proxy-registry-domain"
+    replicatedRegistryDomain: "replicated-registry-domain"
