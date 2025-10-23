@@ -23,11 +23,9 @@ import type { components } from "../../../types/api";
 import type { ConfigGroup as AppConfigGroup, ConfigItem as AppConfigItem, AppConfig } from "../../../types/api-overrides";
 type AppConfigValues = components["schemas"]["types.AppConfigValues"];
 
-
 interface ConfigurationStepProps {
   onNext: () => void;
 }
-
 
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target, mode } = useWizard();
