@@ -657,3 +657,27 @@ spec:
             ---
 
             {{repl Namespace }}
+
+        - name: template_function_sequence
+          type: label
+          title: |
+            ## Sequence
+            ---
+
+            {{repl Sequence }}
+
+        - name: template_function_channel_name
+          type: label
+          title: |
+            ## Channel Name
+            ---
+
+            {{repl ChannelName }}
+
+        - name: template_function_is_kurl
+          type: label
+          title: |
+            ## Is Kurl
+            ---
+
+            {{repl IsKurl }}
