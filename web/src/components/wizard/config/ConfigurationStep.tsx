@@ -58,6 +58,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
       setGeneralError(null); // Clear any existing errors
 
       const apiBase = getApiBasePath(target, mode);
+      // TODO consider using this custom fetch in the future together with the openapi-api fetch client in src/api/client.ts
       const response = await debouncedFetch(`${apiBase}/app/config/template`, {
         method: 'POST',
         headers: {
