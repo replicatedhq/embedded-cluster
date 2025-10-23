@@ -10,8 +10,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	troubleshootloader "github.com/replicatedhq/troubleshoot/pkg/loader"
@@ -148,7 +148,10 @@ func (m *appReleaseManager) dryRunHelmChart(ctx context.Context, templatedCR *ko
 	// Fallback to admin console namespace if namespace is not set
 	namespace := templatedCR.GetNamespace()
 	if namespace == "" {
-		namespace = constants.KotsadmNamespace
+		namespace, err = runtimeconfig.KotsadmNamespace(ctx, nil)
+		if err != nil {
+			return nil, fmt.Errorf("get kotsadm namespace: %w", err)
+		}
 	}
 
 	// Prepare install options for dry run

@@ -19,6 +19,9 @@ import (
 )
 
 func TestAppInstallManager_Install(t *testing.T) {
+	// Setup environment variable for V3
+	t.Setenv("ENABLE_V3", "1")
+
 	// Create test license
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
@@ -36,6 +39,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		},
 	}
+
+	// Set up release data globally so AppSlug() returns the correct value for v3
+	err = release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
 
 	t.Run("Config values should be passed to the installer", func(t *testing.T) {
 		configValues := kotsv1beta1.ConfigValues{
@@ -63,8 +72,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 				t.Logf("License is nil")
 				return false
 			}
-			if opts.Namespace != "install-test" {
-				t.Logf("Namespace mismatch: expected 'install-test', got '%s'", opts.Namespace)
+			if opts.Namespace != "test-app" {
+				t.Logf("Namespace mismatch: expected 'test-app', got '%s'", opts.Namespace)
 				return false
 			}
 			if opts.ClusterID != "test-cluster" {

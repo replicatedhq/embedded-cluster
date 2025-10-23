@@ -13,6 +13,7 @@ import (
 	registrymigrate "github.com/replicatedhq/embedded-cluster/pkg/addons/registry/migrate"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -258,7 +259,12 @@ func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions)
 		return errors.Wrap(err, "upgrade admin console")
 	}
 
-	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, constants.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, a.kcli)
+	if err != nil {
+		return errors.Wrap(err, "get kotsadm namespace")
+	}
+
+	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, kotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
 		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 

@@ -13,7 +13,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
@@ -668,6 +667,11 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.EnableHAOptions{
 		ClusterID:          jcmd.InstallationSpec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
@@ -681,7 +685,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
-		KotsadmNamespace:   constants.KotsadmNamespace,
+		KotsadmNamespace:   kotsadmNamespace,
 	}
 
 	return addOns.EnableHA(ctx, opts, loading)

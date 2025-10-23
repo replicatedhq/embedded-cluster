@@ -32,7 +32,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/openebs"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/upgrade"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -481,7 +480,7 @@ func (r *InstallationReconciler) reconcileHostCABundle(ctx context.Context) erro
 
 	kotsadmNamespace := os.Getenv("KOTSADM_NAMESPACE")
 	if kotsadmNamespace == "" {
-		kotsadmNamespace = constants.KotsadmNamespace // fallback for backwards compatibility
+		kotsadmNamespace = "kotsadm" // fallback for backwards compatibility
 	}
 
 	// if the namespace has not been created yet, we don't need to reconcile the CA configmap

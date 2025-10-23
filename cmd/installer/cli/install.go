@@ -22,7 +22,6 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
@@ -849,7 +848,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	return nil
 }
 
-func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
+func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -862,6 +861,11 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 	var euCfgSpec *ecv1beta1.ConfigSpec
 	if euCfg != nil {
 		euCfgSpec = &euCfg.Spec
+	}
+
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return nil, fmt.Errorf("get kotsadm namespace: %w", err)
 	}
 
 	opts := &addons.InstallOptions{
@@ -879,7 +883,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 		EndUserConfigSpec:       euCfgSpec,
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
-		KotsadmNamespace:        constants.KotsadmNamespace,
+		KotsadmNamespace:        kotsadmNamespace,
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
@@ -888,7 +892,7 @@ func getAddonInstallOpts(flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, 
 			opts := kotscli.InstallOptions{
 				AppSlug:               flags.license.Spec.AppSlug,
 				License:               flags.licenseBytes,
-				Namespace:             constants.KotsadmNamespace,
+				Namespace:             kotsadmNamespace,
 				ClusterID:             flags.clusterID,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
@@ -1201,7 +1205,7 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts, err := getAddonInstallOpts(flags, rc, &loading)
+	opts, err := getAddonInstallOpts(ctx, kcli, flags, rc, &loading)
 	if err != nil {
 		return fmt.Errorf("get addon install opts: %w", err)
 	}

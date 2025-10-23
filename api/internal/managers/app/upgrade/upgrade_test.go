@@ -32,6 +32,12 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		},
 	}
 
+	// Set up release data globally so AppSlug() returns the correct value for v3
+	err := release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
+
 	t.Run("Successful online upgrade", func(t *testing.T) {
 		configValues := kotsv1beta1.ConfigValues{
 			Spec: kotsv1beta1.ConfigValuesSpec{
@@ -47,7 +53,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Deploy", mock.MatchedBy(func(opts kotscli.DeployOptions) bool {
 			return opts.AppSlug == "test-app" &&
-				opts.Namespace == "kotsadm" &&
+				opts.Namespace == "test-app" &&
 				opts.ClusterID == "test-cluster" &&
 				opts.AirgapBundle == "" && // No airgap bundle for online
 				len(opts.License) == 0 && // No license for online
@@ -120,7 +126,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Deploy", mock.MatchedBy(func(opts kotscli.DeployOptions) bool {
 			return opts.AppSlug == "test-app" &&
-				opts.Namespace == "kotsadm" &&
+				opts.Namespace == "test-app" &&
 				opts.ClusterID == "test-cluster" &&
 				opts.AirgapBundle == "airgap-bundle.tar.gz" &&
 				len(opts.License) > 0 && // License provided for airgap

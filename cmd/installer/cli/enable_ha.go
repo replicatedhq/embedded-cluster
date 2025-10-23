@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
@@ -111,6 +110,11 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	loading := spinner.Start()
 	defer loading.Close()
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.EnableHAOptions{
 		ClusterID:          in.Spec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
@@ -124,7 +128,7 @@ func runEnableHA(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
-		KotsadmNamespace:   constants.KotsadmNamespace,
+		KotsadmNamespace:   kotsadmNamespace,
 	}
 
 	return addOns.EnableHA(ctx, opts, loading)
