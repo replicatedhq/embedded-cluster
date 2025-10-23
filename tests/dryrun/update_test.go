@@ -71,7 +71,7 @@ func TestUpdateAirgapCurrent(t *testing.T) {
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile("airgap-update fake-app-slug --namespace fake-app-slug --airgap-bundle .*/bundle.airgap"),
+			regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
 		},
 		true,
 	)
@@ -129,7 +129,7 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile("airgap-update fake-app-slug --namespace fake-app-slug --airgap-bundle .*/bundle.airgap"),
+			regexp.MustCompile("airgap-update fake-app-slug --namespace kotsadm --airgap-bundle .*/bundle.airgap"),
 		},
 		true,
 	)

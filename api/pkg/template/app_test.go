@@ -1,21 +1,25 @@
 package template
 
 import (
+	"context"
 	"testing"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEngine_namespace(t *testing.T) {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		expectedResult string
 	}{
 		{
 			name:           "returns kotsadm namespace",
-			expectedResult: constants.KotsadmNamespace,
+			expectedResult: kotsadmNamespace,
 		},
 	}
 
@@ -33,6 +37,9 @@ func TestEngine_namespace(t *testing.T) {
 }
 
 func TestEngine_namespaceIntegrated(t *testing.T) {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		template       string
@@ -41,7 +48,7 @@ func TestEngine_namespaceIntegrated(t *testing.T) {
 		{
 			name:           "namespace in string concatenation",
 			template:       "{{repl Namespace }}-suffix",
-			expectedResult: constants.KotsadmNamespace + "-suffix",
+			expectedResult: kotsadmNamespace + "-suffix",
 		},
 		{
 			name:           "namespace in conditional logic",
@@ -51,7 +58,7 @@ func TestEngine_namespaceIntegrated(t *testing.T) {
 		{
 			name:           "namespace value check",
 			template:       "prefix-{{repl Namespace }}",
-			expectedResult: "prefix-" + constants.KotsadmNamespace,
+			expectedResult: "prefix-" + kotsadmNamespace,
 		},
 	}
 
