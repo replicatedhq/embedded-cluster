@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
@@ -18,6 +19,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -48,6 +51,8 @@ type AppController struct {
 	license                    []byte
 	releaseData                *release.ReleaseData
 	hcli                       helm.Client
+	kcli                       client.Client
+	kubernetesEnvSettings      *helmcli.EnvSettings
 	store                      store.Store
 	configValues               types.AppConfigValues
 	clusterID                  string
@@ -114,6 +119,18 @@ func WithReleaseData(releaseData *release.ReleaseData) AppControllerOption {
 func WithHelmClient(hcli helm.Client) AppControllerOption {
 	return func(c *AppController) {
 		c.hcli = hcli
+	}
+}
+
+func WithKubeClient(kcli client.Client) AppControllerOption {
+	return func(c *AppController) {
+		c.kcli = kcli
+	}
+}
+
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppControllerOption {
+	return func(c *AppController) {
+		c.kubernetesEnvSettings = envSettings
 	}
 }
 
@@ -233,6 +250,21 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		controller.appInstallManager = appInstallManager
 	}
 
+	// Create Kubernetes client if not provided and kubernetesEnvSettings are available
+	// For tests, a mock client can be injected via WithKubeClient option
+	if controller.kcli == nil && controller.kubernetesEnvSettings != nil {
+		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{
+			RESTClientGetter: controller.kubernetesEnvSettings.RESTClientGetter(),
+		})
+		if err != nil {
+			// Log the error but don't fail - the client will be nil and that's acceptable
+			// for install scenarios or when the cluster doesn't exist yet
+			controller.logger.Debugf("could not create kube client (this is expected during install): %v", err)
+		} else {
+			controller.kcli = kcli
+		}
+	}
+
 	if controller.appUpgradeManager == nil {
 		appUpgradeManager, err := appupgrademanager.NewAppUpgradeManager(
 			appupgrademanager.WithLogger(controller.logger),
@@ -241,6 +273,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appupgrademanager.WithClusterID(controller.clusterID),
 			appupgrademanager.WithAirgapBundle(controller.airgapBundle),
 			appupgrademanager.WithAppUpgradeStore(controller.store.AppUpgradeStore()),
+			appupgrademanager.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app upgrade manager: %w", err)

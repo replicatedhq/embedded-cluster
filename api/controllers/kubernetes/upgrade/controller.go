@@ -134,6 +134,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

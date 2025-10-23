@@ -292,6 +292,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux upgrades use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

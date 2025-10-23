@@ -288,6 +288,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)
