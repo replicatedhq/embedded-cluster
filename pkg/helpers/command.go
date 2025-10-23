@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -53,8 +54,8 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if stderr.String() != "" {
-			return fmt.Errorf("%w: %s", err, stderr.String())
+		if errStr := strings.TrimSpace(stderr.String()); errStr != "" {
+			return fmt.Errorf("%w: %s", err, errStr)
 		}
 		return err
 	}
