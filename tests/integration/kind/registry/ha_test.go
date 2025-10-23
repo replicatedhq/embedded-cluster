@@ -357,7 +357,7 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-2", "pod2.	")
+	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-2", "pod2.yaml")
 
 	t.Logf("%s upgrading seaweedfs, raftHashicorp and raftBootstrap should stay disabled", formattedTime())
 	seaweedfsAddon := &seaweedfs.SeaweedFS{
@@ -382,10 +382,10 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-1", "pod1.yaml")
 
 	t.Logf("%s running second pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-2", "pod2.	")
+	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-2", "pod2.yaml")
 
 	t.Logf("%s running third pod to validate image pull", formattedTime())
-	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-3", "pod3.	")
+	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-3", "pod3.yaml")
 }
 
 func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {

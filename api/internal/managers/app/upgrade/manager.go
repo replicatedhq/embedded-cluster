@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ AppUpgradeManager = &appUpgradeManager{}
@@ -30,6 +31,7 @@ type appUpgradeManager struct {
 	clusterID       string
 	airgapBundle    string
 	kotsCLI         kotscli.KotsCLI
+	kcli            client.Client
 	logger          logrus.FieldLogger
 }
 
@@ -74,6 +76,12 @@ func WithLicense(license []byte) AppUpgradeManagerOption {
 func WithKotsCLI(kotsCLI kotscli.KotsCLI) AppUpgradeManagerOption {
 	return func(m *appUpgradeManager) {
 		m.kotsCLI = kotsCLI
+	}
+}
+
+func WithKubeClient(kcli client.Client) AppUpgradeManagerOption {
+	return func(m *appUpgradeManager) {
+		m.kcli = kcli
 	}
 }
 

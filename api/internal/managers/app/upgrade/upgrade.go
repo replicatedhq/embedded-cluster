@@ -9,7 +9,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -57,11 +56,7 @@ func (m *appUpgradeManager) upgrade(ctx context.Context, configValues kotsv1beta
 	}
 	defer os.Remove(configValuesFile)
 
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return fmt.Errorf("get kube client: %w", err)
-	}
-	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)
 	}
