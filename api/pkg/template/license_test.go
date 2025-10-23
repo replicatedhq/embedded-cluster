@@ -100,9 +100,6 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 		{"storageLimit", "100"},
 		{"isFeatureEnabled", "true"},
 
-		// Endpoint field (should be empty without releaseData)
-		{"endpoint", ""},
-
 		// Unknown field
 		{"unknownField", ""},
 	}
@@ -129,9 +126,9 @@ func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "license is nil")
 }
 
 func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
@@ -187,9 +184,9 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
-	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.NoError(t, err)
-	assert.Equal(t, "", result)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "release data is nil")
 }
 
 func TestEngine_LicenseDockerCfg(t *testing.T) {
@@ -266,7 +263,7 @@ func TestEngine_LicenseDockerCfgWithoutLicense(t *testing.T) {
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "license is nil")
 }
 
@@ -282,7 +279,7 @@ func TestEngine_LicenseDockerCfgWithoutReleaseData(t *testing.T) {
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "release data is nil")
 }
 
@@ -301,7 +298,11 @@ func TestEngine_LicenseDockerCfgStagingEndpoint(t *testing.T) {
 	}
 
 	// Mock release data with embedded cluster config
-	releaseData := &release.ReleaseData{}
+	releaseData := &release.ReleaseData{
+		ChannelRelease: &release.ChannelRelease{
+			ChannelID: "channel-456",
+		},
+	}
 
 	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
 
@@ -401,4 +402,199 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 	expectedAuth := base64.StdEncoding.EncodeToString([]byte("license-789:license-789"))
 	assert.Equal(t, expectedAuth, proxyAuth["auth"])
 	assert.Equal(t, expectedAuth, registryAuth["auth"])
+}
+
+func TestEngine_ChannelName(t *testing.T) {
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID:   "license-123",
+			ChannelID:   "fallback-channel-id",
+			ChannelName: "Fallback Channel",
+			Channels: []kotsv1beta1.Channel{
+				{
+					ChannelID:   "channel-456",
+					ChannelName: "Stable",
+				},
+				{
+					ChannelID:   "channel-789",
+					ChannelName: "Beta",
+				},
+			},
+		},
+	}
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	// Mock release data with embedded cluster config
+	releaseData := &release.ReleaseData{
+		EmbeddedClusterConfig: &ecv1beta1.Config{
+			Spec: ecv1beta1.ConfigSpec{},
+		},
+		ChannelRelease: &release.ChannelRelease{
+			ChannelID: "channel-456",
+		},
+	}
+
+	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "Stable", result)
+}
+
+func TestEngine_ChannelName_FallbackToLicenseChannel(t *testing.T) {
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID:   "license-123",
+			ChannelID:   "fallback-channel-id",
+			ChannelName: "Fallback Channel",
+			Channels: []kotsv1beta1.Channel{
+				{
+					ChannelID:   "channel-456",
+					ChannelName: "Stable",
+				},
+			},
+		},
+	}
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	// Mock release data where ChannelID matches the fallback ChannelID
+	releaseData := &release.ReleaseData{
+		EmbeddedClusterConfig: &ecv1beta1.Config{
+			Spec: ecv1beta1.ConfigSpec{},
+		},
+		ChannelRelease: &release.ChannelRelease{
+			ChannelID: "fallback-channel-id",
+		},
+	}
+
+	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Equal(t, "Fallback Channel", result)
+}
+
+func TestEngine_ChannelName_WithoutLicense(t *testing.T) {
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	engine := NewEngine(config)
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "license is nil")
+}
+
+func TestEngine_ChannelName_WithoutReleaseData(t *testing.T) {
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID:   "license-123",
+			ChannelID:   "channel-456",
+			ChannelName: "Stable",
+		},
+	}
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	engine := NewEngine(config, WithLicense(license))
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "release data is nil")
+}
+
+func TestEngine_ChannelName_WithoutChannelRelease(t *testing.T) {
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID:   "license-123",
+			ChannelID:   "channel-456",
+			ChannelName: "Stable",
+		},
+	}
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	// Mock release data without ChannelRelease
+	releaseData := &release.ReleaseData{
+		EmbeddedClusterConfig: &ecv1beta1.Config{
+			Spec: ecv1beta1.ConfigSpec{},
+		},
+	}
+
+	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "channel release is nil")
+}
+
+func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID:   "license-123",
+			ChannelID:   "fallback-channel-id",
+			ChannelName: "Fallback Channel",
+			Channels: []kotsv1beta1.Channel{
+				{
+					ChannelID:   "channel-456",
+					ChannelName: "Stable",
+				},
+			},
+		},
+	}
+
+	config := &kotsv1beta1.Config{
+		Spec: kotsv1beta1.ConfigSpec{
+			Groups: []kotsv1beta1.ConfigGroup{},
+		},
+	}
+
+	// Mock release data with a channel that doesn't exist in the license
+	releaseData := &release.ReleaseData{
+		EmbeddedClusterConfig: &ecv1beta1.Config{
+			Spec: ecv1beta1.ConfigSpec{},
+		},
+		ChannelRelease: &release.ChannelRelease{
+			ChannelID: "unknown-channel-id",
+		},
+	}
+
+	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+
+	err := engine.Parse("{{repl ChannelName }}")
+	require.NoError(t, err)
+	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "channel unknown-channel-id not found in license")
 }
