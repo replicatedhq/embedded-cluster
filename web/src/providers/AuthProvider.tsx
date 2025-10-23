@@ -30,19 +30,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const client = createAuthedClient(token);
 
       client.GET(`${apiPath}/installation/config`)
-        .then(({ response }) => {
-          // If we get a 401, handle it
-          if (response.status === 401) {
-            const err = new Error("Unauthorized");
-            (err as Error & { status?: number }).status = 401;
-            handleUnauthorized(err);
-          }
+        // Request succeeded, token is valid
+        .then(() => {
           setIsLoading(false);
         })
-        .catch(() => {
-          // If the request fails, assume the token is invalid
-          const err = new Error("Request failed");
-          (err as Error & { status?: number }).status = 401;
+        // Request failed, check if it's unauthorized
+        .catch((err) => {
           handleUnauthorized(err);
           setIsLoading(false);
         });

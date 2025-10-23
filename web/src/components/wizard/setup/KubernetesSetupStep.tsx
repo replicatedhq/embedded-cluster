@@ -62,12 +62,12 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
       const client = createAuthedClient(token);
       const path = getWizardBasePath("kubernetes", "install");
 
-      const { data, error, response } = await client.POST(`${path}/installation/configure`, {
+      const { data, error } = await client.POST(`${path}/installation/configure`, {
         body: configData,
       });
 
-      if (error || !response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to submit configuration");
+      if (error) {
+        throw error;
       }
       return data;
     },

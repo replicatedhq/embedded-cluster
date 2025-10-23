@@ -84,12 +84,12 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
       const client = createAuthedClient(token);
       const path = getWizardBasePath("linux", "install");
 
-      const { data, error, response } = await client.POST(`${path}/installation/configure`, {
+      const { data, error } = await client.POST(`${path}/installation/configure`, {
         body: configData,
       });
 
-      if (error || !response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to submit configuration");
+      if (error) {
+        throw error;
       }
       return data;
     },
