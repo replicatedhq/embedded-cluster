@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -128,7 +129,7 @@ func TestParseLicense(t *testing.T) {
 			fpath: "invalid.yaml",
 			fileContent: `invalid: yaml: content: [
 			unclosed bracket`,
-			wantErr: ErrNotALicenseFile,
+			wantErr: ErrNotALicenseFile{},
 		},
 		{
 			name:  "valid YAML but not a license succeeds (no validation)",
@@ -207,8 +208,8 @@ kind: License`,
 
 			if tt.wantErr != nil {
 				req.Error(err)
-				if tt.wantErr == ErrNotALicenseFile {
-					req.Equal(ErrNotALicenseFile, err)
+				if errors.Is(tt.wantErr, ErrNotALicenseFile{}) {
+					req.ErrorAs(err, &tt.wantErr)
 				} else {
 					req.ErrorIs(err, tt.wantErr)
 				}

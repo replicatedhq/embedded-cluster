@@ -444,6 +444,22 @@ func runManagerExperienceUpgrade(
 	ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, rc runtimeconfig.RuntimeConfig,
 	metricsReporter metrics.ReporterInterface, appTitle string, targetVersion string, initialVersion string,
 ) (finalErr error) {
+	replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
+	if err != nil {
+		return fmt.Errorf("failed to create replicated API client: %w", err)
+	}
+
+	// Sync license before starting the manager experience (online only)
+	isAirgap := flags.airgapBundle != ""
+	if !isAirgap {
+		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, upgradeConfig.license)
+		if err != nil {
+			return fmt.Errorf("failed to sync license: %w", err)
+		}
+		upgradeConfig.license = updatedLicense
+		upgradeConfig.licenseBytes = licenseBytes
+	}
+
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			InstallTarget:        apitypes.InstallTarget(flags.target),

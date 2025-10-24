@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -10,9 +9,13 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-var (
-	ErrNotALicenseFile = errors.New("not a license file")
-)
+type ErrNotALicenseFile struct {
+	Err error
+}
+
+func (e ErrNotALicenseFile) Error() string {
+	return fmt.Sprintf("not a license file: %v", e.Err)
+}
 
 // ParseEndUserConfig parses the end user configuration from the given file.
 func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
@@ -36,9 +39,17 @@ func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read license file: %w", err)
 	}
+	return ParseLicenseFromString(string(data))
+}
+
+// ParseLicenseFromString parses the license from a YAML string
+func ParseLicenseFromString(yamlContent string) (*kotsv1beta1.License, error) {
 	var license kotsv1beta1.License
-	if err := kyaml.Unmarshal(data, &license); err != nil {
-		return nil, ErrNotALicenseFile
+	if err := kyaml.Unmarshal([]byte(yamlContent), &license); err != nil {
+		return nil, ErrNotALicenseFile{Err: err}
+	}
+	if license.Spec.LicenseID == "" {
+		return nil, ErrNotALicenseFile{Err: fmt.Errorf("license id empty")}
 	}
 	return &license, nil
 }

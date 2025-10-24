@@ -973,3 +973,29 @@ oxhVqyhpk86rf0rT5DcD/sBw
 		})
 	}
 }
+
+func Test_preRunInstallCommon(t *testing.T) {
+	tests := []struct {
+		name    string
+		flags   *InstallCmdFlags
+		wantErr bool
+	}{
+		{
+			name: "valid license file",
+			flags: &InstallCmdFlags{
+				licenseFile: "testing/assets/release-restore-newdr/notalicense.yaml",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := preRunInstallCommon(nil, tt.flags, nil, nil)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
