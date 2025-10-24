@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -32,10 +31,6 @@ func init() {
 func TestSyncLicense(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
-	}
-
-	if os.Getenv("SKIP_REAL_API_TESTS") != "" {
-		t.Skip("Skipping real API test: SKIP_REAL_API_TESTS is set")
 	}
 
 	req := require.New(t)
