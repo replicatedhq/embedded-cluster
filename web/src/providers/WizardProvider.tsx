@@ -34,6 +34,7 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     appInstallationFailureTitle: "Application installation failed",
     appInstallationSuccessTitle: "Application installed successfully!",
     nextButtonText: "Next: Start Installation",
+    completion: "Installation complete",
   },
   upgrade: {
     title: title || "",
@@ -64,6 +65,7 @@ const getTextVariations = (isLinux: boolean, title: string): Record<WizardMode, 
     appInstallationFailureTitle: "Application upgrade failed",
     appInstallationSuccessTitle: "Application upgraded successfully!",
     nextButtonText: "Next: Start Upgrade",
+    completion: "Upgrade complete",
   },
 });
 

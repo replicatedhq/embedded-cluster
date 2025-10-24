@@ -194,6 +194,7 @@ export const renderWithProviders = (
         appInstallationSuccessTitle: "Application installed successfully!",
         welcomeButtonText: "Start",
         nextButtonText: "Next: Start Installation",
+        completion: "Installation complete"
       },
     },
     authContext: {
