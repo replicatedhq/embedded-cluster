@@ -194,6 +194,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appconfig.WithLicense(license),
 			appconfig.WithIsAirgap(controller.airgapBundle != ""),
 			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
+			appconfig.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app config manager: %w", err)
@@ -228,6 +229,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appreleasemanager.WithIsAirgap(controller.airgapBundle != ""),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 			appreleasemanager.WithHelmClient(controller.hcli),
+			appreleasemanager.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)

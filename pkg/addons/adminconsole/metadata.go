@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"go.yaml.in/yaml/v3"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -52,7 +53,7 @@ func GetAdditionalImages() []string {
 	return nil
 }
 
-func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func GenerateChartConfig(ctx context.Context, kcli client.Client) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	hv, err := helmValues()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get helm values")
@@ -63,7 +64,7 @@ func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 		return nil, nil, errors.Wrap(err, "marshal helm values")
 	}
 
-	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get kotsadm namespace")
 	}

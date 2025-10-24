@@ -1,6 +1,7 @@
 package addons
 
 import (
+	"context"
 	"strings"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -12,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func Versions() map[string]string {
@@ -39,7 +41,7 @@ func Versions() map[string]string {
 	return versions
 }
 
-func GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+func GenerateChartConfigs(ctx context.Context, kcli client.Client) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
 	charts := []ecv1beta1.Chart{}
 	repositories := []k0sv1beta1.Repository{}
 
@@ -84,7 +86,7 @@ func GenerateChartConfigs() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) 
 	repositories = append(repositories, repos...)
 
 	// admin console
-	chart, repos, err = adminconsole.GenerateChartConfig()
+	chart, repos, err = adminconsole.GenerateChartConfig(ctx, kcli)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "generate chart config for adminconsole")
 	}

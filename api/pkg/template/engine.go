@@ -10,6 +10,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Mode defines the operating mode of the template engine
@@ -29,6 +30,7 @@ type Engine struct {
 	releaseData                *release.ReleaseData
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
+	kubeClient                 client.Client
 
 	// ExecOptions
 	proxySpec        *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
@@ -74,6 +76,12 @@ func WithPrivateCACertConfigMapName(configMapName string) EngineOption {
 func WithIsAirgap(isAirgap bool) EngineOption {
 	return func(e *Engine) {
 		e.isAirgapInstallation = isAirgap
+	}
+}
+
+func WithKubeClient(kcli client.Client) EngineOption {
+	return func(e *Engine) {
+		e.kubeClient = kcli
 	}
 }
 
