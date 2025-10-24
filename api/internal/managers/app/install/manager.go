@@ -10,6 +10,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ AppInstallManager = &appInstallManager{}
@@ -24,13 +26,15 @@ type AppInstallManager interface {
 
 // appInstallManager is an implementation of the AppInstallManager interface
 type appInstallManager struct {
-	appInstallStore appinstallstore.Store
-	releaseData     *release.ReleaseData
-	license         []byte
-	clusterID       string
-	airgapBundle    string
-	kotsCLI         kotscli.KotsCLI
-	logger          logrus.FieldLogger
+	appInstallStore       appinstallstore.Store
+	releaseData           *release.ReleaseData
+	license               []byte
+	clusterID             string
+	airgapBundle          string
+	kotsCLI               kotscli.KotsCLI
+	kcli                  client.Client
+	kubernetesEnvSettings *helmcli.EnvSettings
+	logger                logrus.FieldLogger
 }
 
 type AppInstallManagerOption func(*appInstallManager)
@@ -74,6 +78,18 @@ func WithAirgapBundle(airgapBundle string) AppInstallManagerOption {
 func WithKotsCLI(kotsCLI kotscli.KotsCLI) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kotsCLI = kotsCLI
+	}
+}
+
+func WithKubeClient(kcli client.Client) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.kcli = kcli
+	}
+}
+
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.kubernetesEnvSettings = envSettings
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Controller interface {
@@ -37,8 +38,9 @@ type InstallController struct {
 	installationManager   installation.InstallationManager
 	infraManager          infra.InfraManager
 	metricsReporter       metrics.ReporterInterface
-	kubernetesEnvSettings *helmcli.EnvSettings
 	hcli                  helm.Client
+	kcli                  client.Client
+	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	password              string
 	tlsConfig             types.TLSConfig
@@ -77,6 +79,12 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) InstallContr
 func WithHelmClient(hcli helm.Client) InstallControllerOption {
 	return func(c *InstallController) {
 		c.hcli = hcli
+	}
+}
+
+func WithKubeClient(kcli client.Client) InstallControllerOption {
+	return func(c *InstallController) {
+		c.kcli = kcli
 	}
 }
 
@@ -200,6 +208,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {

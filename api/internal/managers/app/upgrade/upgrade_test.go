@@ -13,6 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestAppUpgradeManager_Upgrade(t *testing.T) {
@@ -62,6 +66,12 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 				opts.SkipPreflights == true
 		})).Return(nil)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager for online deployment (no license or airgap bundle)
 		store := appupgradestore.NewMemoryStore()
 		manager, err := NewAppUpgradeManager(
@@ -70,6 +80,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 			WithReleaseData(releaseData),
 			WithClusterID("test-cluster"),
 			WithKotsCLI(mockKotsCLI),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -94,6 +105,12 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Deploy", mock.Anything).Return(assert.AnError)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager (online deployment - no license or airgap bundle)
 		store := appupgradestore.NewMemoryStore()
 		manager, err := NewAppUpgradeManager(
@@ -102,6 +119,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 			WithReleaseData(releaseData),
 			WithClusterID("test-cluster"),
 			WithKotsCLI(mockKotsCLI),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -135,6 +153,12 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 				opts.SkipPreflights == true
 		})).Return(nil)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager with airgap bundle and license
 		store := appupgradestore.NewMemoryStore()
 		manager, err := NewAppUpgradeManager(
@@ -145,6 +169,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 			WithClusterID("test-cluster"),
 			WithAirgapBundle("airgap-bundle.tar.gz"),
 			WithKotsCLI(mockKotsCLI),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 

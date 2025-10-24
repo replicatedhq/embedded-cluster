@@ -49,7 +49,11 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, nil)
+	if err := m.initKubeClient(); err != nil {
+		return fmt.Errorf("init kube client: %w", err)
+	}
+
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)
 	}

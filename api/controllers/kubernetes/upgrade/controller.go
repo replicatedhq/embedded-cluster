@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Controller interface {
@@ -24,8 +25,9 @@ type Controller interface {
 var _ Controller = (*UpgradeController)(nil)
 
 type UpgradeController struct {
-	kubernetesEnvSettings *helmcli.EnvSettings
 	hcli                  helm.Client
+	kcli                  client.Client
+	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	license               []byte
 	airgapBundle          string
@@ -45,15 +47,21 @@ func WithLogger(logger logrus.FieldLogger) UpgradeControllerOption {
 	}
 }
 
-func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) UpgradeControllerOption {
-	return func(c *UpgradeController) {
-		c.kubernetesEnvSettings = envSettings
-	}
-}
-
 func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.hcli = hcli
+	}
+}
+
+func WithKubeClient(kcli client.Client) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.kcli = kcli
+	}
+}
+
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.kubernetesEnvSettings = envSettings
 	}
 }
 
@@ -134,6 +142,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {

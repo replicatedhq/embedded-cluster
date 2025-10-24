@@ -425,9 +425,11 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		return err
 	}
 
-	// TODO: Transitioning from the fixed "kotsadm" namespace to using the app slug as the namespace introduces a potential problem
-	// where the namespace used during restore may differ from the namespace in the backup. The backup resource already includes the
-	// namespace annotation kots.io/kotsadm-deploy-namespace, but we should look into thisfurther.
+	// TODO: Revisit this when we want to add support for backup/restore in V3
+	// Once we support restoring from a backup in V3, the transition from using the fixed "kotsadm" namespace to the app slug as the
+	// namespace will introduce a potential problem where the namespace used during restore may differ from the namespace in the backup.
+	// The backup resource has a namespace annotation kots.io/kotsadm-deploy-namespace that we can use to preserve the namespace, but we
+	// need to look into how we can get the namespace when we are configuring the S3 storage location and a backup is not available yet.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/config"
 	appinstallmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/install"
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
@@ -245,26 +244,13 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
+			appinstallmanager.WithKubeClient(controller.kcli),
+			appinstallmanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
 		}
 		controller.appInstallManager = appInstallManager
-	}
-
-	// Create Kubernetes client if not provided and kubernetesEnvSettings are available
-	// For tests, a mock client can be injected via WithKubeClient option
-	if controller.kcli == nil && controller.kubernetesEnvSettings != nil {
-		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{
-			RESTClientGetter: controller.kubernetesEnvSettings.RESTClientGetter(),
-		})
-		if err != nil {
-			// Log the error but don't fail - the client will be nil and that's acceptable
-			// for install scenarios or when the cluster doesn't exist yet
-			controller.logger.Debugf("could not create kube client (this is expected during install): %v", err)
-		} else {
-			controller.kcli = kcli
-		}
 	}
 
 	if controller.appUpgradeManager == nil {
@@ -276,6 +262,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appupgrademanager.WithAirgapBundle(controller.airgapBundle),
 			appupgrademanager.WithAppUpgradeStore(controller.store.AppUpgradeStore()),
 			appupgrademanager.WithKubeClient(controller.kcli),
+			appupgrademanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app upgrade manager: %w", err)

@@ -56,6 +56,10 @@ func (m *appUpgradeManager) upgrade(ctx context.Context, configValues kotsv1beta
 	}
 	defer os.Remove(configValuesFile)
 
+	if err := m.initKubeClient(); err != nil {
+		return fmt.Errorf("init kube client: %w", err)
+	}
+
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)

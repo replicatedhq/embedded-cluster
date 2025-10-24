@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Controller interface {
@@ -70,6 +71,7 @@ type InstallController struct {
 	store                     store.Store
 	rc                        runtimeconfig.RuntimeConfig
 	hcli                      helm.Client
+	kcli                      client.Client
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
@@ -223,6 +225,12 @@ func WithHelmClient(hcli helm.Client) InstallControllerOption {
 	}
 }
 
+func WithKubeClient(kcli client.Client) InstallControllerOption {
+	return func(c *InstallController) {
+		c.kcli = kcli
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -288,6 +296,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 		)
 		if err != nil {
