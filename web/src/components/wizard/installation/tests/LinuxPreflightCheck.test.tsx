@@ -186,7 +186,7 @@ describe("LinuxPreflightCheck", () => {
 
     // Should display error message when preflight run fails
     await waitFor(() => {
-      expect(screen.getByText("Failed to start host preflight checks")).toBeInTheDocument();
+      expect(screen.getByText("Failed to run preflights")).toBeInTheDocument();
     });
 
     // onRun should not be called when mutation fails

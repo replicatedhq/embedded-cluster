@@ -3,36 +3,17 @@ import Card from "../../common/Card";
 import Button from "../../common/Button";
 import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useSettings } from "../../../contexts/SettingsContext";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../../../contexts/AuthContext";
 import { CheckCircle, ExternalLink, Loader2, XCircle } from "lucide-react";
-import { getApiBase } from '../../../utils/api-base';
-import { LinuxConfigResponse } from "../../../types";
-import { ApiError } from '../../../utils/api-error';
+import { ApiError } from '../../../api/error';
+import { useLinuxInstallConfig } from '../../../queries/useQueries';
 
 const LinuxCompletionStep: React.FC = () => {
-  const { title, installTarget, mode } = useInitialState();
+  const { title } = useInitialState();
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
 
-  const { token } = useAuth();
-  const apiBase = getApiBase(installTarget, mode);
   // Query for fetching install configuration
-  const { isLoading, error, data: config } = useQuery<LinuxConfigResponse, Error>({
-    queryKey: ["installConfig"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
-      }
-      const configResponse = await response.json() as LinuxConfigResponse;
-      return configResponse;
-    },
-  });
+  const { isLoading, error, data: config } = useLinuxInstallConfig();
 
   // Loading state
   if (isLoading) {

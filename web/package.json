@@ -4,14 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run types:api:generate",
     "dev": "vite",
+    "prebuild": "npm run types:api:generate",
     "build": "vite build",
+    "prebuild:dev": "npm run types:api:generate",
     "build:dev": "NODE_ENV=development vite build",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
-    "lint-fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
     "preview": "vite preview",
     "test:unit": "vitest run",
-    "test": "npm run lint && npm run test:unit"
+    "types:api:generate": "openapi-typescript ../api/docs/swagger.yaml --output src/types/api.ts --path-params-as-types",
+    "types:api:check": "npm run types:api:generate -- --check",
+    "test": "npm run types:api:check && npm run lint && npm run test:unit"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
@@ -19,6 +24,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.5",
     "lucide-react": "^0.546.0",
+    "openapi-fetch": "^0.15.0",
     "react": "^19.1.1",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -48,6 +54,7 @@
     "jsdom": "^27.0.0",
     "msw": "2.11.5",
     "openapi-backend": "^5.15.0",
+    "openapi-typescript": "^7.10.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1",

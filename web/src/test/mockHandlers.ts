@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from "msw";
 
 /**
  * Type-safe MSW handler registry for v3 API endpoints.
@@ -21,9 +21,9 @@ import { http, HttpResponse } from 'msw';
 // Type Definitions
 // ============================================================================
 
-export type Target = 'linux' | 'kubernetes';
-export type Mode = 'install' | 'upgrade';
-export type State = 'Running' | 'Succeeded' | 'Failed' | 'Pending';
+export type Target = "linux" | "kubernetes";
+export type Mode = "install" | "upgrade";
+export type State = "Running" | "Succeeded" | "Failed" | "Pending";
 
 export interface Status {
   state: State;
@@ -81,7 +81,11 @@ export interface NetworkInterface {
 /**
  * Creates a path for API endpoints with target/mode parameters
  */
-function apiPath(path: string, target: Target = 'linux', mode: Mode = 'install'): string {
+function apiPath(
+  path: string,
+  target: Target = "linux",
+  mode: Mode = "install",
+): string {
   return `*/api/${target}/${mode}${path}`;
 }
 
@@ -125,15 +129,18 @@ function withAuth(handler: () => Response | Promise<Response>) {
  * Creates a handler with auth verification and request body capture
  */
 function withAuthAndCapture(
-  handler: (body: Record<string, unknown>, headers: Headers) => Response | Promise<Response>
+  handler: (
+    body: Record<string, unknown>,
+    headers: Headers,
+  ) => Response | Promise<Response>,
 ) {
   return async (context: { request: Request }) => {
     const authError = verifyAuthHeader(context.request);
     if (authError) return authError;
-    
+
     let body: Record<string, unknown> = {};
     try {
-      body = await context.request.json() as Record<string, unknown>;
+      body = (await context.request.json()) as Record<string, unknown>;
     } catch {
       // If there's no body or it's not JSON, use empty object
       body = {};
@@ -157,12 +164,12 @@ export const mockHandlers = {
      * @param shouldSucceed - Whether login should succeed
      * @param token - Optional custom token to return
      */
-    login: (shouldSucceed: boolean = true, token: string = 'test-token') =>
-      http.post('*/api/auth/login', async () => {
+    login: (shouldSucceed: boolean = true, token: string = "test-token") =>
+      http.post("*/api/auth/login", async () => {
         if (shouldSucceed) {
           return HttpResponse.json({ token });
         }
-        return error(401, 'Invalid credentials');
+        return error(401, "Invalid credentials");
       }),
   },
 
@@ -175,11 +182,11 @@ export const mockHandlers = {
      * @param healthy - Whether the service is healthy
      */
     check: (healthy: boolean = true) =>
-      http.get('*/api/health', () => {
+      http.get("*/api/health", () => {
         if (healthy) {
-          return success({ status: 'ok' });
+          return success({ status: "ok" });
         }
-        return error(503, 'Service unavailable');
+        return error(503, "Service unavailable");
       }),
   },
 
@@ -193,10 +200,10 @@ export const mockHandlers = {
      */
     getNetworkInterfaces: (
       interfaces: NetworkInterface[] = [
-        { name: 'eth0', addresses: ['192.168.1.100'] },
-      ]
+        { name: "eth0", addresses: ["192.168.1.100"] },
+      ],
     ) =>
-      http.get('*/api/console/available-network-interfaces', () => {
+      http.get("*/api/console/available-network-interfaces", () => {
         return HttpResponse.json({ interfaces });
       }),
   },
@@ -214,30 +221,39 @@ export const mockHandlers = {
     getConfig: (
       config:
         | Record<string, unknown>
-        | { values?: Record<string, unknown>; defaults?: Record<string, unknown>; resolved?: Record<string, unknown> }
+        | {
+            values?: Record<string, unknown>;
+            defaults?: Record<string, unknown>;
+            resolved?: Record<string, unknown>;
+          }
         | { error: { statusCode: number; message: string } }
-        | { networkError: true }
-        = {},
-      target: Target = 'linux',
-      mode: Mode = 'install'
+        | { networkError: true } = {},
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.get(apiPath('/installation/config', target, mode), () => {
+      http.get(apiPath("/installation/config", target, mode), () => {
         // Handle network error
-        if ('networkError' in config) {
+        if ("networkError" in config) {
           return HttpResponse.error();
         }
 
         // Handle API error
-        if ('error' in config) {
-          const errorConfig = config as { error: { statusCode: number; message: string } };
+        if ("error" in config) {
+          const errorConfig = config as {
+            error: { statusCode: number; message: string };
+          };
           return HttpResponse.json(
             { message: errorConfig.error.message },
-            { status: errorConfig.error.statusCode }
+            { status: errorConfig.error.statusCode },
           );
         }
 
         // Check if this is a full config response with values/defaults/resolved
-        if ('values' in config || 'defaults' in config || 'resolved' in config) {
+        if (
+          "values" in config ||
+          "defaults" in config ||
+          "resolved" in config
+        ) {
           return HttpResponse.json(config);
         }
 
@@ -259,36 +275,45 @@ export const mockHandlers = {
       response:
         | boolean
         | {
-            error?: { message: string; fields?: Array<{ field: string; message: string }> };
-            captureRequest?: (body: Record<string, unknown>, headers: Headers) => void;
+            error?: {
+              message: string;
+              fields?: Array<{ field: string; message: string }>;
+            };
+            captureRequest?: (
+              body: Record<string, unknown>,
+              headers: Headers,
+            ) => void;
           } = true,
-      target: Target = 'linux',
-      mode: Mode = 'install'
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.post(apiPath('/installation/configure', target, mode), withAuthAndCapture(async (body, headers) => {
-        // Handle captureRequest if provided
-        if (typeof response === 'object' && response.captureRequest) {
-          response.captureRequest(body, headers);
-        }
-
-        // Handle boolean shorthand
-        if (typeof response === 'boolean') {
-          return response ? success() : error(400, 'Configuration failed');
-        }
-
-        // Handle custom error with optional field validation errors
-        if (response.error) {
-          const errorBody: Record<string, unknown> = {
-            message: response.error.message
-          };
-          if (response.error.fields && response.error.fields.length > 0) {
-            errorBody.errors = response.error.fields;
+      http.post(
+        apiPath("/installation/configure", target, mode),
+        withAuthAndCapture(async (body, headers) => {
+          // Handle captureRequest if provided
+          if (typeof response === "object" && response.captureRequest) {
+            response.captureRequest(body, headers);
           }
-          return HttpResponse.json(errorBody, { status: 400 });
-        }
 
-        return success();
-      })),
+          // Handle boolean shorthand
+          if (typeof response === "boolean") {
+            return response ? success() : error(400, "Configuration failed");
+          }
+
+          // Handle custom error with optional field validation errors
+          if (response.error) {
+            const errorBody: Record<string, unknown> = {
+              message: response.error.message,
+            };
+            if (response.error.fields && response.error.fields.length > 0) {
+              errorBody.errors = response.error.fields;
+            }
+            return HttpResponse.json(errorBody, { status: 400 });
+          }
+
+          return success();
+        }),
+      ),
 
     /**
      * GET /api/linux/install/installation/status
@@ -302,14 +327,14 @@ export const mockHandlers = {
             description?: string;
             sequence?: Array<{ state: State; description?: string }>;
             counter?: { callCount: number };
-          } = 'Succeeded'
+          } = "Succeeded",
     ) =>
-      http.get('*/api/linux/install/installation/status', () => {
+      http.get("*/api/linux/install/installation/status", () => {
         // Handle string shorthand
-        if (typeof response === 'string') {
+        if (typeof response === "string") {
           return HttpResponse.json({
             state: response,
-            description: 'Installation initialized',
+            description: "Installation initialized",
             lastUpdated: new Date().toISOString(),
           });
         }
@@ -318,10 +343,13 @@ export const mockHandlers = {
         if (response.sequence && response.counter) {
           const callIndex = response.counter.callCount;
           response.counter.callCount++;
-          const current = response.sequence[Math.min(callIndex, response.sequence.length - 1)];
+          const current =
+            response.sequence[
+              Math.min(callIndex, response.sequence.length - 1)
+            ];
           return HttpResponse.json({
             state: current.state,
-            description: current.description || '',
+            description: current.description || "",
             lastUpdated: new Date().toISOString(),
           });
         }
@@ -329,7 +357,7 @@ export const mockHandlers = {
         // Handle single response
         return HttpResponse.json({
           state: response.state,
-          description: response.description || 'Installation initialized',
+          description: response.description || "Installation initialized",
           lastUpdated: new Date().toISOString(),
         });
       }),
@@ -345,32 +373,40 @@ export const mockHandlers = {
        * @param response - Full preflight status response
        */
       getStatus: (response: Partial<PreflightStatusResponse>) =>
-        http.get('*/api/linux/install/host-preflights/status', withAuth(() => {
-          const defaultResponse: PreflightStatusResponse = {
-            titles: ['Host Check'],
-            status: { state: 'Succeeded' },
-            output: { fail: [], warn: [], pass: [] },
-            allowIgnoreHostPreflights: false,
-            ...response,
-          };
-          return HttpResponse.json(defaultResponse);
-        })),
+        http.get(
+          "*/api/linux/install/host-preflights/status",
+          withAuth(() => {
+            const defaultResponse: PreflightStatusResponse = {
+              titles: ["Host Check"],
+              status: { state: "Succeeded" },
+              output: { fail: [], warn: [], pass: [] },
+              allowIgnoreHostPreflights: false,
+              ...response,
+            };
+            return HttpResponse.json(defaultResponse);
+          }),
+        ),
 
       /**
        * POST /api/linux/install/host-preflights/run
        * @param shouldSucceed - Whether preflight run should succeed
        */
       run: (shouldSucceed: boolean = true) =>
-        http.post('*/api/linux/install/host-preflights/run', withAuth(() => {
-          return shouldSucceed ? success() : error(500, 'Failed to run preflights');
-        })),
+        http.post(
+          "*/api/linux/install/host-preflights/run",
+          withAuth(() => {
+            return shouldSucceed
+              ? success()
+              : error(500, "Failed to run preflights");
+          }),
+        ),
 
       /**
        * GET /api/linux/install/host-preflights/output
        * @param output - Preflight output data
        */
       getOutput: (output: PreflightOutput) =>
-        http.get('*/api/linux/install/host-preflights/output', () => {
+        http.get("*/api/linux/install/host-preflights/output", () => {
           return HttpResponse.json(output);
         }),
     },
@@ -387,18 +423,21 @@ export const mockHandlers = {
        */
       getStatus: (
         response: Partial<PreflightStatusResponse>,
-        target: Target = 'linux',
-        mode: Mode = 'install'
+        target: Target = "linux",
+        mode: Mode = "install",
       ) =>
-        http.get(apiPath('/app-preflights/status', target, mode), withAuth(() => {
-          const defaultResponse: PreflightStatusResponse = {
-            titles: ['App Check'],
-            status: { state: 'Succeeded' },
-            output: { fail: [], warn: [], pass: [] },
-            ...response,
-          };
-          return HttpResponse.json(defaultResponse);
-        })),
+        http.get(
+          apiPath("/app-preflights/status", target, mode),
+          withAuth(() => {
+            const defaultResponse: PreflightStatusResponse = {
+              titles: ["App Check"],
+              status: { state: "Succeeded" },
+              output: { fail: [], warn: [], pass: [] },
+              ...response,
+            };
+            return HttpResponse.json(defaultResponse);
+          }),
+        ),
 
       /**
        * POST /api/{target}/{mode}/app-preflights/run
@@ -406,10 +445,19 @@ export const mockHandlers = {
        * @param target - Installation target
        * @param mode - Operation mode
        */
-      run: (shouldSucceed: boolean = true, target: Target = 'linux', mode: Mode = 'install') =>
-        http.post(apiPath('/app-preflights/run', target, mode), withAuth(() => {
-          return shouldSucceed ? success() : error(500, 'Failed to run app preflights');
-        })),
+      run: (
+        shouldSucceed: boolean = true,
+        target: Target = "linux",
+        mode: Mode = "install",
+      ) =>
+        http.post(
+          apiPath("/app-preflights/run", target, mode),
+          withAuth(() => {
+            return shouldSucceed
+              ? success()
+              : error(500, "Failed to run app preflights");
+          }),
+        ),
     },
   },
 
@@ -426,17 +474,26 @@ export const mockHandlers = {
      */
     setup: (
       shouldSucceed: boolean = true,
-      target: Target = 'linux',
-      mode: Mode = 'install',
-      captureRequest?: (body: Record<string, unknown>) => void
+      target: Target = "linux",
+      mode: Mode = "install",
+      captureRequest?: (body: Record<string, unknown>) => void,
     ) =>
-      http.post(apiPath(mode === 'install' ? '/infra/setup' : '/infra/upgrade', target, mode), withAuthAndCapture(async (body) => {
-        if (captureRequest) {
-          captureRequest(body);
-        }
+      http.post(
+        apiPath(
+          mode === "install" ? "/infra/setup" : "/infra/upgrade",
+          target,
+          mode,
+        ),
+        withAuthAndCapture(async (body) => {
+          if (captureRequest) {
+            captureRequest(body);
+          }
 
-        return shouldSucceed ? success() : error(500, 'Infrastructure setup failed');
-      })),
+          return shouldSucceed
+            ? success()
+            : error(500, "Infrastructure setup failed");
+        }),
+      ),
 
     /**
      * GET /api/{target}/{mode}/infra/status
@@ -450,18 +507,24 @@ export const mockHandlers = {
         description?: string;
         components?: Array<{ name: string; status: { state: State } }>;
         logs?: string;
-      } = { state: 'Succeeded' },
-      target: Target = 'linux',
-      mode: Mode = 'install'
+      } = { state: "Succeeded" },
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.get(apiPath('/infra/status', target, mode), withAuth(() => {
-        const defaultResponse = {
-          status: { state: response.state, description: response.description },
-          components: response.components || [],
-          logs: response.logs
-        };
-        return HttpResponse.json(defaultResponse);
-      })),
+      http.get(
+        apiPath("/infra/status", target, mode),
+        withAuth(() => {
+          const defaultResponse = {
+            status: {
+              state: response.state,
+              description: response.description,
+            },
+            components: response.components || [],
+            logs: response.logs,
+          };
+          return HttpResponse.json(defaultResponse);
+        }),
+      ),
   },
 
   /**
@@ -475,35 +538,41 @@ export const mockHandlers = {
      * @param mode - Operation mode
      */
     getTemplate: (
-      config: Partial<AppConfigResponse> | ((body: Record<string, unknown>) => Partial<AppConfigResponse>) | { error: { message: string; statusCode?: number } } = {},
-      target: Target = 'linux',
-      mode: Mode = 'install'
+      config:
+        | Partial<AppConfigResponse>
+        | ((body: Record<string, unknown>) => Partial<AppConfigResponse>)
+        | { error: { message: string; statusCode?: number } } = {},
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.post(apiPath('/app/config/template', target, mode), async ({ request }) => {
-        // Handle error response
-        if (typeof config === 'object' && 'error' in config && config.error) {
-          return HttpResponse.json(
-            { message: config.error.message },
-            { status: config.error.statusCode || 500 }
-          );
-        }
+      http.post(
+        apiPath("/app/config/template", target, mode),
+        async ({ request }) => {
+          // Handle error response
+          if (typeof config === "object" && "error" in config && config.error) {
+            return HttpResponse.json(
+              { message: config.error.message },
+              { status: config.error.statusCode || 500 },
+            );
+          }
 
-        let responseConfig: Partial<AppConfigResponse>;
+          let responseConfig: Partial<AppConfigResponse>;
 
-        if (typeof config === 'function') {
-          const body = await request.json() as Record<string, unknown>;
-          responseConfig = config(body);
-        } else {
-          // TypeScript now knows config is Partial<AppConfigResponse>
-          responseConfig = config as Partial<AppConfigResponse>;
-        }
+          if (typeof config === "function") {
+            const body = (await request.json()) as Record<string, unknown>;
+            responseConfig = config(body);
+          } else {
+            // TypeScript now knows config is Partial<AppConfigResponse>
+            responseConfig = config as Partial<AppConfigResponse>;
+          }
 
-        const defaultConfig: AppConfigResponse = {
-          groups: [],
-          ...responseConfig,
-        };
-        return HttpResponse.json(defaultConfig);
-      }),
+          const defaultConfig: AppConfigResponse = {
+            groups: [],
+            ...responseConfig,
+          };
+          return HttpResponse.json(defaultConfig);
+        },
+      ),
 
     /**
      * PATCH /api/{target}/{mode}/app/config/values
@@ -513,38 +582,60 @@ export const mockHandlers = {
      * @param captureRequest - Optional callback to capture and verify request body
      */
     updateValues: (
-      response: boolean | { error?: { message: string; errors?: Array<{ field: string; message: string }> }; captureRequest?: (body: Record<string, unknown>, headers: Headers) => void } = true,
-      target: Target = 'linux',
-      mode: Mode = 'install',
-      captureRequest?: (body: Record<string, unknown>, headers: Headers) => void
+      response:
+        | boolean
+        | {
+            error?: {
+              message: string;
+              errors?: Array<{ field: string; message: string }>;
+            };
+            captureRequest?: (
+              body: Record<string, unknown>,
+              headers: Headers,
+            ) => void;
+          } = true,
+      target: Target = "linux",
+      mode: Mode = "install",
+      captureRequest?: (
+        body: Record<string, unknown>,
+        headers: Headers,
+      ) => void,
     ) =>
-      http.patch(apiPath('/app/config/values', target, mode), withAuthAndCapture(async (body, headers) => {
-        // Handle request capture - support both old and new patterns
-        const requestCapture = typeof response === 'object' ? response.captureRequest : captureRequest;
-        if (requestCapture) {
-          requestCapture(body, headers);
-        }
-
-        // Handle boolean shorthand
-        if (typeof response === 'boolean') {
-          return response ? HttpResponse.json(body) : error(400, 'Failed to update config values');
-        }
-
-        // Handle custom error with optional field validation errors
-        if (response.error) {
-          const errorBody: Record<string, unknown> = {
-            message: response.error.message,
-            statusCode: 400
-          };
-          if (response.error.errors && response.error.errors.length > 0) {
-            errorBody.errors = response.error.errors;
+      http.patch(
+        apiPath("/app/config/values", target, mode),
+        withAuthAndCapture(async (body, headers) => {
+          // Handle request capture - support both old and new patterns
+          const requestCapture =
+            typeof response === "object"
+              ? response.captureRequest
+              : captureRequest;
+          if (requestCapture) {
+            requestCapture(body, headers);
           }
-          return HttpResponse.json(errorBody, { status: 400 });
-        }
 
-        // Default success - echo the request body back (matches API behavior)
-        return HttpResponse.json(body);
-      })),
+          // Handle boolean shorthand
+          if (typeof response === "boolean") {
+            return response
+              ? HttpResponse.json(body)
+              : error(400, "Failed to update config values");
+          }
+
+          // Handle custom error with optional field validation errors
+          if (response.error) {
+            const errorBody: Record<string, unknown> = {
+              message: response.error.message,
+              statusCode: 400,
+            };
+            if (response.error.errors && response.error.errors.length > 0) {
+              errorBody.errors = response.error.errors;
+            }
+            return HttpResponse.json(errorBody, { status: 400 });
+          }
+
+          // Default success - echo the request body back (matches API behavior)
+          return HttpResponse.json(body);
+        }),
+      ),
   },
 
   /**
@@ -566,45 +657,50 @@ export const mockHandlers = {
             empty?: boolean;
             error?: { statusCode: number; message: string };
             networkError?: boolean;
-          } = 'Succeeded',
-      target: Target = 'linux',
-      mode: Mode = 'install'
+          } = "Succeeded",
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.get(apiPath('/app/status', target, mode), withAuth(() => {
-        // Handle string shorthand for state
-        if (typeof response === 'string') {
-          return HttpResponse.json({ status: { state: response } });
-        }
-
-        // Handle network error
-        if (response.networkError) {
-          return HttpResponse.error();
-        }
-
-        // Handle API error
-        if (response.error) {
-          return HttpResponse.json(
-            {
-              statusCode: response.error.statusCode,
-              message: response.error.message
-            },
-            { status: response.error.statusCode }
-          );
-        }
-
-        // Handle empty response
-        if (response.empty) {
-          return HttpResponse.json({});
-        }
-
-        // Handle normal response with optional description
-        return HttpResponse.json({
-          status: {
-            state: response.state || 'Running',
-            ...(response.description && { description: response.description })
+      http.get(
+        apiPath("/app/status", target, mode),
+        withAuth(() => {
+          // Handle string shorthand for state
+          if (typeof response === "string") {
+            return HttpResponse.json({ status: { state: response } });
           }
-        });
-      })),
+
+          // Handle network error
+          if (response.networkError) {
+            return HttpResponse.error();
+          }
+
+          // Handle API error
+          if (response.error) {
+            return HttpResponse.json(
+              {
+                statusCode: response.error.statusCode,
+                message: response.error.message,
+              },
+              { status: response.error.statusCode },
+            );
+          }
+
+          // Handle empty response
+          if (response.empty) {
+            return HttpResponse.json({});
+          }
+
+          // Handle normal response with optional description
+          return HttpResponse.json({
+            status: {
+              state: response.state || "Running",
+              ...(response.description && {
+                description: response.description,
+              }),
+            },
+          });
+        }),
+      ),
 
     /**
      * POST /api/{target}/{mode}/app/{mode}
@@ -614,39 +710,48 @@ export const mockHandlers = {
      * @param mode - Operation mode (install or upgrade)
      */
     start: (
-      response: boolean | { error?: { statusCode: number; message: string }; networkError?: boolean; captureRequest?: (body: Record<string, unknown>) => void } = true,
-      target: Target = 'linux',
-      mode: Mode = 'install'
+      response:
+        | boolean
+        | {
+            error?: { statusCode: number; message: string };
+            networkError?: boolean;
+            captureRequest?: (body: Record<string, unknown>) => void;
+          } = true,
+      target: Target = "linux",
+      mode: Mode = "install",
     ) =>
-      http.post(apiPath(`/app/${mode}`, target, mode), withAuthAndCapture(async (body) => {
-        // Handle captureRequest if provided
-        if (typeof response === 'object' && response.captureRequest) {
-          response.captureRequest(body);
-        }
+      http.post(
+        apiPath(`/app/${mode}`, target, mode),
+        withAuthAndCapture(async (body) => {
+          // Handle captureRequest if provided
+          if (typeof response === "object" && response.captureRequest) {
+            response.captureRequest(body);
+          }
 
-        // Handle boolean shorthand
-        if (typeof response === 'boolean') {
-          return response ? success() : error(500, `Failed to ${mode} app`);
-        }
+          // Handle boolean shorthand
+          if (typeof response === "boolean") {
+            return response ? success() : error(500, `Failed to ${mode} app`);
+          }
 
-        // Handle network error
-        if (response.networkError) {
-          return HttpResponse.error();
-        }
+          // Handle network error
+          if (response.networkError) {
+            return HttpResponse.error();
+          }
 
-        // Handle API error
-        if (response.error) {
-          return HttpResponse.json(
-            {
-              statusCode: response.error.statusCode,
-              message: response.error.message
-            },
-            { status: response.error.statusCode }
-          );
-        }
+          // Handle API error
+          if (response.error) {
+            return HttpResponse.json(
+              {
+                statusCode: response.error.statusCode,
+                message: response.error.message,
+              },
+              { status: response.error.statusCode },
+            );
+          }
 
-        return success();
-      })),
+          return success();
+        }),
+      ),
   },
 };
 
@@ -674,7 +779,11 @@ export const createHandler = {
    * @param response - Response data
    * @param delayMs - Delay in milliseconds
    */
-  delayed: (path: string, response: Record<string, unknown>, delayMs: number) => {
+  delayed: (
+    path: string,
+    response: Record<string, unknown>,
+    delayMs: number,
+  ) => {
     return http.get(path, async () => {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       return HttpResponse.json(response);
@@ -692,7 +801,7 @@ export const createHandler = {
   withCallCounter: (
     path: string,
     response: Record<string, unknown>,
-    callCounter: { callCount: number }
+    callCounter: { callCount: number },
   ) => {
     return http.get(path, () => {
       callCounter.callCount++;
@@ -711,13 +820,13 @@ export const createHandler = {
   loginWithCounter: (
     statusCode: number,
     message: string,
-    callCounter: { callCount: number }
+    callCounter: { callCount: number },
   ) => {
-    return http.post('*/api/auth/login', () => {
+    return http.post("*/api/auth/login", () => {
       callCounter.callCount++;
       return new HttpResponse(JSON.stringify({ message }), {
         status: statusCode,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
     });
   },
@@ -735,19 +844,19 @@ export const createHandler = {
     callCounter: { callCount: number },
     firstStatusCode: number,
     firstMessage: string,
-    secondResponse: { token: string } = { token: 'mock-token' }
+    secondResponse: { token: string } = { token: "mock-token" },
   ) => {
-    return http.post('*/api/auth/login', () => {
+    return http.post("*/api/auth/login", () => {
       callCounter.callCount++;
       if (callCounter.callCount === 1) {
         return new HttpResponse(JSON.stringify({ message: firstMessage }), {
           status: firstStatusCode,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
         });
       } else {
         return new HttpResponse(JSON.stringify(secondResponse), {
           status: 200,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
         });
       }
     });
@@ -760,7 +869,7 @@ export const createHandler = {
    * @returns MSW handler
    */
   healthRetrySuccess: (callCounter: { callCount: number }) => {
-    return http.get('*/api/health', () => {
+    return http.get("*/api/health", () => {
       callCounter.callCount++;
 
       // Fail first time, succeed on retry
@@ -768,9 +877,9 @@ export const createHandler = {
         return HttpResponse.error();
       }
 
-      return new HttpResponse(JSON.stringify({ status: 'ok' }), {
+      return new HttpResponse(JSON.stringify({ status: "ok" }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
       });
     });
   },
@@ -783,25 +892,27 @@ export const preflightPresets = {
   success: (): PreflightOutput => ({
     fail: [],
     warn: [],
-    pass: [{ title: 'Disk Space', message: 'Sufficient disk space available' }],
+    pass: [{ title: "Disk Space", message: "Sufficient disk space available" }],
   }),
 
-  failed: (message: string = 'Not enough disk space available'): PreflightOutput => ({
-    fail: [{ title: 'Disk Space', message }],
+  failed: (
+    message: string = "Not enough disk space available",
+  ): PreflightOutput => ({
+    fail: [{ title: "Disk Space", message }],
     warn: [],
     pass: [],
   }),
 
-  warning: (message: string = 'Low disk space warning'): PreflightOutput => ({
+  warning: (message: string = "Low disk space warning"): PreflightOutput => ({
     fail: [],
-    warn: [{ title: 'Disk Space', message }],
+    warn: [{ title: "Disk Space", message }],
     pass: [],
   }),
 
   mixed: (): PreflightOutput => ({
-    fail: [{ title: 'Memory', message: 'Insufficient memory' }],
-    warn: [{ title: 'CPU', message: 'CPU usage high' }],
-    pass: [{ title: 'Disk Space', message: 'Sufficient disk space' }],
+    fail: [{ title: "Memory", message: "Insufficient memory" }],
+    warn: [{ title: "CPU", message: "CPU usage high" }],
+    pass: [{ title: "Disk Space", message: "Sufficient disk space" }],
   }),
 };
 
@@ -812,14 +923,14 @@ export const appConfigPresets = {
   simple: (): AppConfigResponse => ({
     groups: [
       {
-        name: 'settings',
-        title: 'Settings',
+        name: "settings",
+        title: "Settings",
         items: [
           {
-            name: 'hostname',
-            title: 'Hostname',
-            type: 'text',
-            value: 'test.example.com',
+            name: "hostname",
+            title: "Hostname",
+            type: "text",
+            value: "test.example.com",
             required: true,
           },
         ],
@@ -830,18 +941,18 @@ export const appConfigPresets = {
   withValidation: (): AppConfigResponse => ({
     groups: [
       {
-        name: 'settings',
-        title: 'Settings',
+        name: "settings",
+        title: "Settings",
         items: [
           {
-            name: 'email',
-            title: 'Email',
-            type: 'text',
+            name: "email",
+            title: "Email",
+            type: "text",
             required: true,
             validation: {
               regex: {
-                pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
-                message: 'Must be a valid email address',
+                pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+                message: "Must be a valid email address",
               },
             },
           },
@@ -853,25 +964,25 @@ export const appConfigPresets = {
   multiGroup: (): AppConfigResponse => ({
     groups: [
       {
-        name: 'basic',
-        title: 'Basic Settings',
+        name: "basic",
+        title: "Basic Settings",
         items: [
           {
-            name: 'hostname',
-            title: 'Hostname',
-            type: 'text',
-            value: 'test.example.com',
+            name: "hostname",
+            title: "Hostname",
+            type: "text",
+            value: "test.example.com",
           },
         ],
       },
       {
-        name: 'advanced',
-        title: 'Advanced Settings',
+        name: "advanced",
+        title: "Advanced Settings",
         items: [
           {
-            name: 'debug',
-            title: 'Debug Mode',
-            type: 'bool',
+            name: "debug",
+            title: "Debug Mode",
+            type: "bool",
             value: false,
           },
         ],

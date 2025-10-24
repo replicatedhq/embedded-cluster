@@ -10,13 +10,13 @@ type AppConfig = kotsv1beta1.ConfigSpec
 
 // AppConfigValue represents a configuration value for the App with optional metadata
 type AppConfigValue struct {
-	Default        string `json:"default,omitempty"`
+	Default        string `json:"default,omitempty" validate:"optional"`
 	Value          string `json:"value"`
-	Data           string `json:"data,omitempty"`
-	ValuePlaintext string `json:"valuePlaintext,omitempty"`
-	DataPlaintext  string `json:"dataPlaintext,omitempty"`
-	Filename       string `json:"filename,omitempty"`
-	RepeatableItem string `json:"repeatableItem,omitempty"`
+	Data           string `json:"data,omitempty" validate:"optional"`
+	ValuePlaintext string `json:"valuePlaintext,omitempty" validate:"optional"`
+	DataPlaintext  string `json:"dataPlaintext,omitempty" validate:"optional"`
+	Filename       string `json:"filename,omitempty" validate:"optional"`
+	RepeatableItem string `json:"repeatableItem,omitempty" validate:"optional"`
 }
 
 // AppConfigValues represents a map of configuration values for the App.

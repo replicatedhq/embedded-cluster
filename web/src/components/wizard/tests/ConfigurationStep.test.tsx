@@ -3,9 +3,12 @@ import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import ConfigurationStep from "../config/ConfigurationStep.tsx";
-import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from "../../../types";
 import { mockHandlers, type Target, type Mode } from "../../../test/mockHandlers.ts";
 import '@testing-library/jest-dom/vitest';
+
+import type { components } from "../../../types/api";
+import type { ConfigGroup as AppConfigGroup, ConfigItem as AppConfigItem, AppConfig } from "../../../types/api-overrides";
+type AppConfigValues = components["schemas"]["types.AppConfigValues"];
 
 // Mock the debounced fetch to remove timing issues in tests
 vi.mock("../../../utils/debouncedFetch", () => ({
@@ -864,8 +867,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       // Change a radio button selection
@@ -1045,8 +1048,8 @@ describe.each([
 
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1205,8 +1208,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       // Change a checkbox
@@ -1592,8 +1595,8 @@ describe.each([
 
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {
@@ -1767,8 +1770,8 @@ describe.each([
       let submittedValues: { values: AppConfigValues } | null = null;
       server.use(
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       const nextButton = screen.getByTestId("config-next-button");
@@ -2754,8 +2757,8 @@ describe.each([
       server.use(
         mockHandlers.appConfig.getTemplate(configWithDropdown, target, mode),
         mockHandlers.appConfig.updateValues(true, target, mode, (body) => {
-        submittedValues = body as { values: AppConfigValues };
-      })
+          submittedValues = body as { values: AppConfigValues };
+        })
       );
 
       renderWithProviders(<ConfigurationStep onNext={mockOnNext} />, {

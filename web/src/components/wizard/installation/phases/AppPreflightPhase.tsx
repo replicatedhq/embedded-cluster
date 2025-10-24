@@ -5,7 +5,9 @@ import { useWizard } from "../../../../contexts/WizardModeContext";
 import { AlertTriangle } from "lucide-react";
 import AppPreflightCheck from "./AppPreflightCheck";
 import { NextButtonConfig } from "../types";
-import { State } from "../../../../types";
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface AppPreflightPhaseProps {
   onNext: () => void;

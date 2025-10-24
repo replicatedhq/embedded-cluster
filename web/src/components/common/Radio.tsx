@@ -1,7 +1,8 @@
 import React from 'react';
 import { useSettings } from '../../contexts/SettingsContext';
-import { AppConfigChildItem } from '../../types';
 import HelpText from './HelpText';
+
+import type { ConfigChildItem as AppConfigChildItem } from '../../types/api-overrides';
 
 interface RadioProps {
   id: string;

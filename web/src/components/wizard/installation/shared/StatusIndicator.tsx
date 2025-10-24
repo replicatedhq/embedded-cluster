@@ -1,6 +1,8 @@
 import React from 'react';
 import { Server, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
-import { State } from '../../../../types';
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface StatusIndicatorProps {
   title: string;

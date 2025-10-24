@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Input from "../../common/Input";
 import Button from "../../common/Button";
 import Card from "../../common/Card";
 import { useWizard } from "../../../contexts/WizardModeContext";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
 import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronRight, ChevronLeft } from "lucide-react";
-import { KubernetesConfig, KubernetesConfigResponse } from "../../../types";
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import type { components } from "../../../types/api";
+import { createAuthedClient, getWizardBasePath } from '../../../api/client';
+import { ApiError } from '../../../api/error';
+import { useKubernetesInstallConfig } from '../../../queries/useQueries';
+
+type KubernetesInstallationConfig = components["schemas"]["types.KubernetesInstallationConfig"];
 
 /**
  * Maps internal field names to user-friendly display names.
@@ -36,50 +39,37 @@ interface Status {
 }
 
 const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBack }) => {
-  const { text, target, mode } = useWizard();
+  const { text } = useWizard();
   const [error, setError] = useState<string | null>(null);
-  const [defaults, setDefaults] = useState<KubernetesConfig>({});
-  const [configValues, setConfigValues] = useState<KubernetesConfig>({});
+  const [defaults, setDefaults] = useState<Partial<KubernetesInstallationConfig>>({});
+  const [configValues, setConfigValues] = useState<Partial<KubernetesInstallationConfig>>({});
   const { token } = useAuth();
-  const apiBase = getApiBase(target, mode);
 
   // Query for fetching install configuration
-  const { isLoading: isConfigLoading } = useQuery<KubernetesConfigResponse, Error>({
-    queryKey: ["installConfig"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/installation/config`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to fetch install configuration")
-      }
-      const configResponse = await response.json();
-      // Store defaults for display in help text
+  const { data: configResponse, isLoading: isConfigLoading } = useKubernetesInstallConfig();
+
+  // Store defaults and config values when config loads
+  useEffect(() => {
+    if (configResponse) {
       setDefaults(configResponse.defaults);
-      // Store the config values for display in the form inputs
-      setConfigValues(configResponse.values)
-      return configResponse;
-    },
-  });
+      setConfigValues(configResponse.values);
+    }
+  }, [configResponse]);
 
   // Mutation for submitting the configuration
-  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, KubernetesConfig>({
+  const { mutate: submitConfig, error: submitError } = useMutation<Status, ApiError, Partial<KubernetesInstallationConfig>>({
     mutationFn: async (configData) => {
-      const response = await fetch(`${apiBase}/installation/configure`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(configData),
+      const client = createAuthedClient(token);
+      const path = getWizardBasePath("kubernetes", "install");
+
+      const { data, error } = await client.POST(`${path}/installation/configure`, {
+        body: configData,
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to submit configuration")
+      if (error) {
+        throw error;
       }
-      return response.json();
+      return data;
     },
     onSuccess: () => {
       // Clear any previous errors
@@ -94,19 +84,15 @@ const KubernetesSetupStep: React.FC<KubernetesSetupStepProps> = ({ onNext, onBac
   // Mutation for starting the installation
   const { mutate: startInstallation } = useMutation({
     mutationFn: async () => {
-      const endpoint = mode === 'install' ? 'infra/setup' : 'infra/upgrade';
-      const response = await fetch(`${apiBase}/${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const client = createAuthedClient(token);
+      const path = getWizardBasePath("kubernetes", "install");
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start installation")
+      const { data, error, response } = await client.POST(`${path}/infra/setup`, {});
+
+      if (error || !response.ok) {
+        throw await ApiError.fromResponse(response, "Failed to start installation");
       }
-      return response.json();
+      return data;
     },
     onSuccess: () => {
       setError(null); // Clear any previous errors

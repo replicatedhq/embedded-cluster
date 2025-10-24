@@ -7,14 +7,15 @@ import { ChevronRight, Lock } from "lucide-react";
 import { useWizard } from "../../contexts/WizardModeContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
+import { ApiError } from "../../api/error";
+import { createBaseClient } from "../../api/client";
+import type { components } from "../../types/api";
 
 interface WelcomeStepProps {
   onNext: () => void;
 }
 
-interface LoginResponse {
-  token: string;
-}
+type LoginResponse = components["schemas"]["types.AuthResponse"];
 
 const INCORRECT_PASSWORD_ERROR = "Incorrect password";
 
@@ -34,40 +35,34 @@ const WelcomeStep: React.FC<WelcomeStepProps> = ({ onNext }) => {
   const {
     mutate: login,
     isPending: isLoading,
-  } = useMutation<LoginResponse, Error, string>({
+  } = useMutation<LoginResponse, ApiError, string>({
     retry(failureCount, error) {
-      if (error.message === INCORRECT_PASSWORD_ERROR) {
+      if (error.statusCode === 401) {
         return false; // Don't retry on incorrect password
       }
       // Otherwise retry once, keep the default retry logic
       return failureCount < 1;
     },
     mutationFn: async (password: string) => {
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ password }),
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const apiClient = createBaseClient();
+      const { data, error } = await apiClient.POST("/auth/login", {
+        body: { password },
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error(INCORRECT_PASSWORD_ERROR);
-        } else {
-          throw new Error(`Login failed: ${response.statusText}`);
-        }
+      if (error) {
+        throw error
       }
-
-      return response.json();
+      return data
     },
     onSuccess: (data) => {
       setToken(data.token);
       onNext();
     },
     onError: (error) => {
-      setLoginError(error.message);
+      if (error.statusCode === 401) {
+        setLoginError(INCORRECT_PASSWORD_ERROR);
+      } else {
+        setLoginError(`Login failed with: ${error.details || error.message}`);
+      }
     },
   });
 

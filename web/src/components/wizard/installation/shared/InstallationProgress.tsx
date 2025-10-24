@@ -1,5 +1,7 @@
 import React from 'react';
-import { State } from '../../../../types';
+import type { components } from "../../../../types/api";
+
+type State = components["schemas"]["types.State"];
 
 interface InstallationProgressProps {
   progress: number;

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { XCircle, CheckCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import Button from "../../../common/Button";
-import { PreflightOutput, HostPreflightResponse } from "../../../../types";
-import { useWizard } from "../../../../contexts/WizardModeContext";
 import { useSettings } from "../../../../contexts/SettingsContext";
-import { getApiBase } from '../../../../utils/api-base';
-import { ApiError } from '../../../../utils/api-error';
 import { useRunHostPreflights } from "../../../../mutations/useMutations";
+import { useHostPreflightStatus } from "../../../../queries/useQueries";
+import { ApiError } from '../../../../api/error';
+import type { components } from "../../../../types/api";
+
+type PreflightsOutput = components["schemas"]["types.PreflightsOutput"];
+type HostPreflightResponse = components["schemas"]["types.InstallHostPreflightsStatusResponse"];
 
 interface LinuxPreflightCheckProps {
   onRun: () => void;
@@ -15,19 +16,21 @@ interface LinuxPreflightCheckProps {
 }
 
 const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComplete }) => {
-  const { target, mode } = useWizard();
   const [isPreflightsPolling, setIsPreflightsPolling] = useState(true);
   const { settings } = useSettings();
   const themeColor = settings.themeColor;
   const runHostPreflights = useRunHostPreflights();
   const mutationStarted = useRef(false);
 
-  const hasFailures = (output?: PreflightOutput) => (output?.fail?.length ?? 0) > 0;
-  const hasWarnings = (output?: PreflightOutput) => (output?.warn?.length ?? 0) > 0;
+  const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
+  const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
   const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
 
   const getErrorMessage = () => {
     if (runHostPreflights.error) {
+      if (runHostPreflights.error instanceof ApiError) {
+        return runHostPreflights.error.details || runHostPreflights.error.message;
+      }
       return runHostPreflights.error.message;
     }
     if (preflightResponse?.status?.state === "Failed") {
@@ -35,8 +38,6 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
     }
     return "";
   };
-
-  const apiBase = getApiBase(target, mode);
 
   // Handle mutation callbacks
   useEffect(() => {
@@ -50,21 +51,7 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
   }, [runHostPreflights.isSuccess, runHostPreflights.isError]);
 
   // Query to poll preflight status
-  const { data: preflightResponse } = useQuery<HostPreflightResponse, Error>({
-    queryKey: ["preflightStatus"],
-    queryFn: async () => {
-      const response = await fetch(`${apiBase}/host-preflights/status`, {
-        headers: {
-          ...(localStorage.getItem("auth") && {
-            Authorization: `Bearer ${localStorage.getItem("auth")}`,
-          }),
-        },
-      });
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to get preflight status")
-      }
-      return response.json() as Promise<HostPreflightResponse>;
-    },
+  const { data: preflightResponse } = useHostPreflightStatus({
     enabled: isPreflightsPolling,
     refetchInterval: 1000,
     // The back button in InstallationStep is configured based on preflight status; `gcTime: 0` ensures

@@ -14,12 +14,14 @@ import { useWizard } from '../../../contexts/WizardModeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useSettings } from '../../../contexts/SettingsContext';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { useDebouncedFetch } from '../../../utils/debouncedFetch';
-import { AppConfig, AppConfigGroup, AppConfigItem, AppConfigValues } from '../../../types';
-import { getApiBase } from '../../../utils/api-base';
-import { ApiError } from '../../../utils/api-error';
+import { useDebouncedFetch } from '../../../api/debouncedFetch';
+import { ApiError } from '../../../api/error';
+import { createAuthedClient, getWizardBasePath, getApiBasePath } from '../../../api/client';
 import { handleUnauthorized } from '../../../utils/auth';
 
+import type { components } from "../../../types/api";
+import type { ConfigGroup as AppConfigGroup, ConfigItem as AppConfigItem, AppConfig } from "../../../types/api-overrides";
+type AppConfigValues = components["schemas"]["types.AppConfigValues"];
 
 interface ConfigurationStepProps {
   onNext: () => void;
@@ -53,7 +55,8 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     try {
       setGeneralError(null); // Clear any existing errors
 
-      const apiBase = getApiBase(target, mode);
+      const apiBase = getApiBasePath(target, mode);
+      // TODO consider using this custom fetch in the future together with the openapi-api fetch client in src/api/client.ts
       const response = await debouncedFetch(`${apiBase}/app/config/template`, {
         method: 'POST',
         headers: {
@@ -160,19 +163,14 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<void, ApiError>({
     mutationFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app/config/values`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ values: changedValues }),
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath(target, mode);
+
+      const { error } = await client.PATCH(`${apiBase}/app/config/values`, {
+        body: { values: changedValues },
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to save configuration")
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
       setGeneralError(null);

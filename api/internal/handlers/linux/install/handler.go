@@ -150,6 +150,7 @@ func (h *Handler) PostRunHostPreflights(w http.ResponseWriter, r *http.Request) 
 	}
 
 	err := h.controller.RunHostPreflights(r.Context(), install.RunHostPreflightsOptions{
+		// TODO this should be inferred based on the user agent instead of requiring the client to send it via the request body
 		IsUI: req.IsUI,
 	})
 	if err != nil {

@@ -3,8 +3,10 @@ import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
 import LinuxCompletionStep from "../completion/LinuxCompletionStep.tsx";
-import { LinuxConfigResponse } from "../../../types";
 import { mockHandlers } from "../../../test/mockHandlers.ts";
+import type { components } from "../../../types/api";
+
+type LinuxConfigResponse = components["schemas"]["types.LinuxInstallationConfigResponse"];
 
 const MOCK_CONFIG: LinuxConfigResponse = {
   values: {

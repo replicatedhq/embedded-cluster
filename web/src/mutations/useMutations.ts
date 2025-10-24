@@ -1,80 +1,65 @@
 import { useMutation } from "@tanstack/react-query";
 import { useWizard } from "../contexts/WizardModeContext";
 import { useAuth } from "../contexts/AuthContext";
-import { getApiBase } from "../utils/api-base";
-import { ApiError } from "../utils/api-error";
+import {
+  getWizardBasePath,
+  getAppInstallPath,
+  createAuthedClient,
+} from "../api/client";
 
 export function useProcessAirgap() {
-  const { target, mode } = useWizard();
   const { token } = useAuth();
+  const { mode } = useWizard();
 
   return useMutation({
     mutationFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/airgap/process`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("linux", mode);
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start airgap processing");
-      }
-      return response.json();
+      const { data, error } = await client.POST(
+        `${apiBase}/airgap/process`,
+        {},
+      );
+
+      if (error) throw error;
+      return data;
     },
   });
 }
 
 export function useUpgradeInfra() {
-  const { target, mode } = useWizard();
   const { token } = useAuth();
 
   return useMutation({
-    mutationFn: async (args?: { ignoreHostPreflights?: boolean }) => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/infra/upgrade`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          isUi: true,
-          ignoreHostPreflights: args?.ignoreHostPreflights || false,
-        }),
-      });
+    mutationFn: async () => {
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("linux", "upgrade");
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start infrastructure upgrade");
-      }
-      return response.json();
+      const { data, error } = await client.POST(`${apiBase}/infra/upgrade`, {});
+
+      if (error) throw error;
+      return data;
     },
   });
 }
 
 export function useRunHostPreflights() {
-  const { target, mode } = useWizard();
   const { token } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/host-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("linux", "install");
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start host preflight checks");
-      }
-      return response.json();
+      const { data, error } = await client.POST(
+        `${apiBase}/host-preflights/run`,
+        {
+          body: { isUi: true },
+        },
+      );
+
+      if (error) throw error;
+      return data;
     },
   });
 }
@@ -85,46 +70,36 @@ export function useRunAppPreflights() {
 
   return useMutation({
     mutationFn: async () => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app-preflights/run`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ isUi: true }),
-      });
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath(target, mode);
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start app preflight checks");
-      }
-      return response.json();
+      const { data, error } = await client.POST(
+        `${apiBase}/app-preflights/run`,
+        {},
+      );
+
+      if (error) throw error;
+      return data;
     },
   });
 }
 
-export function useStartInfraSetup() {
-  const { target, mode } = useWizard();
+export function useStartInfraSetup(args?: { ignoreHostPreflights?: boolean }) {
   const { token } = useAuth();
 
   return useMutation({
-    mutationFn: async (args?: { ignoreHostPreflights?: boolean }) => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/infra/setup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+    mutationFn: async () => {
+      const client = createAuthedClient(token);
+      const apiBase = getWizardBasePath("linux", "install");
+
+      const { data, error } = await client.POST(`${apiBase}/infra/setup`, {
+        body: {
           ignoreHostPreflights: args?.ignoreHostPreflights || false,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start infrastructure setup");
-      }
-      return response.json();
+      if (error) throw error;
+      return data;
     },
   });
 }
@@ -135,22 +110,17 @@ export function useStartAppInstallation() {
 
   return useMutation({
     mutationFn: async (args?: { ignoreAppPreflights?: boolean }) => {
-      const apiBase = getApiBase(target, mode);
-      const response = await fetch(`${apiBase}/app/${mode}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      const client = createAuthedClient(token);
+      const path = getAppInstallPath(target, mode);
+
+      const { data, error } = await client.POST(path, {
+        body: {
           ignoreAppPreflights: args?.ignoreAppPreflights || false,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw await ApiError.fromResponse(response, "Failed to start application installation");
-      }
-      return response.json();
+      if (error) throw error;
+      return data;
     },
   });
 }
