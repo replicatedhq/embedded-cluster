@@ -622,6 +622,22 @@ func runManagerExperienceInstall(
 	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) (finalErr error) {
+	replicatedAPI, err := newReplicatedAPIClient(flags.license, flags.clusterID)
+	if err != nil {
+		return fmt.Errorf("failed to create replicated API client: %w", err)
+	}
+
+	// Sync license before starting the manager experience (online only)
+	isAirgap := flags.airgapBundle != ""
+	if !isAirgap {
+		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, flags.license)
+		if err != nil {
+			return fmt.Errorf("failed to sync license: %w", err)
+		}
+		flags.license = updatedLicense
+		flags.licenseBytes = licenseBytes
+	}
+
 	// this is necessary because the api listens on all interfaces,
 	// and we only know the interface to use when the user selects it in the ui
 	ipAddresses, err := netutils.ListAllValidIPAddresses()
@@ -1337,16 +1353,6 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
-}
-
-func replicatedAppURL() string {
-	domains := getDomains()
-	return netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
-}
-
-func proxyRegistryURL() string {
-	domains := getDomains()
-	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 func waitForNode(ctx context.Context) error {
