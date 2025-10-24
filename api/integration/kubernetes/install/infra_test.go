@@ -100,20 +100,9 @@ func TestKubernetesPostSetupInfra(t *testing.T) {
 			},
 		}
 
-		// Create the password secret that would be created by the AdminConsole addon
-		passwordSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "kotsadm-password",
-				Namespace: "test-app",
-			},
-			Data: map[string][]byte{
-				"passwordBcrypt": []byte("$2a$10$hashedpassword"),
-			},
-		}
-
 		fakeKcli := clientfake.NewClientBuilder().
 			WithScheme(scheme).
-			WithObjects(integration.NewTestControllerNode(hostname), appNamespace, passwordSecret).
+			WithObjects(integration.NewTestControllerNode(hostname), appNamespace).
 			WithStatusSubresource(&ecv1beta1.Installation{}, &apiextensionsv1.CustomResourceDefinition{}).
 			WithInterceptorFuncs(integration.NewTestInterceptorFuncs()).
 			Build()
