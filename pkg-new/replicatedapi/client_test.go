@@ -318,8 +318,8 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 		checkHeaders  map[string]string
 	}{
 		{
-			name:      "with cluster ID and nil reporting info",
-			clusterID: "cluster-123",
+			name:          "with cluster ID and nil reporting info",
+			clusterID:     "cluster-123",
 			reportingInfo: nil,
 			expectedCount: 9, // ClusterID, InstanceID, EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
