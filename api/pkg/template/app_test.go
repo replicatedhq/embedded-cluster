@@ -2,6 +2,7 @@ package template
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -52,7 +53,7 @@ func TestEngine_namespaceIntegrated(t *testing.T) {
 		},
 		{
 			name:           "namespace in conditional logic",
-			template:       `{{repl if eq Namespace "` + kotsadmNamespace + `" }}correct{{repl else }}incorrect{{repl end }}`,
+			template:       fmt.Sprintf(`{{repl if eq Namespace "%s" }}correct{{repl else }}incorrect{{repl end }}`, kotsadmNamespace),
 			expectedResult: "correct",
 		},
 		{

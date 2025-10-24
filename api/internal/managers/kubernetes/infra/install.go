@@ -149,6 +149,8 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 }
 
 func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
+	// TODO: We should not use the runtimeconfig package for kubernetes target installs. Since runtimeconfig.KotsadmNamespace is
+	// target agnostic, we should move it to a package that can be used by both linux/kubernetes targets.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return addons.KubernetesInstallOptions{}, fmt.Errorf("get kotsadm namespace: %w", err)
