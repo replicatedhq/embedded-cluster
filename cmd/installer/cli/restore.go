@@ -425,6 +425,16 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		return err
 	}
 
+	// TODO: Revisit this when we want to add support for backup/restore in V3
+	// Once we support restoring from a backup in V3, the transition from using the fixed "kotsadm" namespace to the app slug as the
+	// namespace will introduce a potential problem where the namespace used during restore may differ from the namespace in the backup.
+	// The backup resource has a namespace annotation kots.io/kotsadm-deploy-namespace that we can use to preserve the namespace, but we
+	// need to look into how we can get the namespace when we are configuring the S3 storage location and a backup is not available yet.
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	logrus.Debugf("configuring velero backup storage location")
 	if err := kotscli.VeleroConfigureOtherS3(kotscli.VeleroConfigureOtherS3Options{
 		Endpoint:        s3Store.endpoint,
@@ -433,7 +443,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags Inst
 		Path:            s3Store.prefix,
 		AccessKeyID:     s3Store.accessKeyID,
 		SecretAccessKey: s3Store.secretAccessKey,
-		Namespace:       constants.KotsadmNamespace,
+		Namespace:       kotsadmNamespace,
 	}); err != nil {
 		return err
 	}
@@ -631,6 +641,11 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		addons.WithDomains(getDomains()),
 	)
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.EnableHAOptions{
 		ClusterID:          in.Spec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
@@ -644,6 +659,7 @@ func runRestoreEnableAdminConsoleHA(ctx context.Context, flags InstallCmdFlags, 
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
+		KotsadmNamespace:   kotsadmNamespace,
 	}
 
 	err = addOns.EnableAdminConsoleHA(ctx, opts)
@@ -1411,7 +1427,12 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 			return fmt.Errorf("unable to create kube client: %w", err)
 		}
 
-		if err := restoreWaitForAdminConsoleReady(ctx, kcli, constants.KotsadmNamespace, loading); err != nil {
+		kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+		if err != nil {
+			return fmt.Errorf("get kotsadm namespace: %w", err)
+		}
+
+		if err := restoreWaitForAdminConsoleReady(ctx, kcli, kotsadmNamespace, loading); err != nil {
 			return fmt.Errorf("unable to wait for admin console: %w", err)
 		}
 	case disasterRecoveryComponentSeaweedFS:

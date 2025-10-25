@@ -70,15 +70,15 @@ func copyImageToRegistry(t *testing.T, registryAddr string, image string) {
 	}
 }
 
-func runPodAndValidateImagePull(t *testing.T, kubeconfig string, podName string, fileName string) {
+func runPodAndValidateImagePull(t *testing.T, kubeconfig string, namespace string, podName string, fileName string) {
 	b, err := static.FS.ReadFile(fileName)
 	if err != nil {
 		t.Fatalf("failed to read %s: %s", fileName, err)
 	}
 	filename := util.WriteTempFile(t, "pod-*.yaml", b, 0644)
-	util.KubectlApply(t, kubeconfig, "kotsadm", filename)
+	util.KubectlApply(t, kubeconfig, namespace, filename)
 
-	util.WaitForPodComplete(t, kubeconfig, "kotsadm", podName, 30*time.Second)
+	util.WaitForPodComplete(t, kubeconfig, namespace, podName, 30*time.Second)
 }
 
 var imagePolicy = []byte(`{"default": [{"type": "insecureAcceptAnything"}]}`)

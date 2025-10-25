@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -134,7 +135,10 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts := m.getAddonInstallOpts(license, ki)
+	opts, err := m.getAddonInstallOpts(ctx, license, ki)
+	if err != nil {
+		return fmt.Errorf("get addon install options: %w", err)
+	}
 
 	logFn("installing addons")
 	if err := addOns.InstallKubernetes(ctx, opts); err != nil {
@@ -144,7 +148,13 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kubernetesinstallation.Installation) addons.KubernetesInstallOptions {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
+	// TODO: We should not use the runtimeconfig package for kubernetes target installs. Since runtimeconfig.KotsadmNamespace is
+	// target agnostic, we should move it to a package that can be used by both linux/kubernetes targets.
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return addons.KubernetesInstallOptions{}, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
 	opts := addons.KubernetesInstallOptions{
 		AdminConsolePwd:    m.password,
 		AdminConsolePort:   ki.AdminConsolePort(),
@@ -156,10 +166,11 @@ func (m *infraManager) getAddonInstallOpts(license *kotsv1beta1.License, ki kube
 		IsMultiNodeEnabled: license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec: m.getECConfigSpec(),
 		EndUserConfigSpec:  m.getEndUserConfigSpec(),
+		KotsadmNamespace:   kotsadmNamespace,
 		ProxySpec:          ki.ProxySpec(),
 	}
 
 	// TODO: no kots app install for now
 
-	return opts
+	return opts, nil
 }

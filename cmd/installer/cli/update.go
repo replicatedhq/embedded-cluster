@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -68,9 +67,14 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to get latest installation: %w", err)
 			}
 
+			kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+			if err != nil {
+				return fmt.Errorf("get kotsadm namespace: %w", err)
+			}
+
 			if err := kotscli.AirgapUpdate(kotscli.AirgapUpdateOptions{
 				AppSlug:      appSlug,
-				Namespace:    constants.KotsadmNamespace,
+				Namespace:    kotsadmNamespace,
 				AirgapBundle: airgapBundle,
 				ClusterID:    in.Spec.ClusterID,
 			}); err != nil {

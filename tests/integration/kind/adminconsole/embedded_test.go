@@ -71,7 +71,7 @@ func TestAdminConsole_EmbeddedCluster(t *testing.T) {
 	util.WaitForStorageClass(t, kubeconfig, "openebs-hostpath", 30*time.Second)
 
 	t.Logf("%s generating tls certificate", formattedTime())
-	_, certData, keyData, err := tlsutils.GenerateCertificate("localhost", []net.IP{net.ParseIP("127.0.0.1")})
+	_, certData, keyData, err := tlsutils.GenerateCertificate("localhost", []net.IP{net.ParseIP("127.0.0.1")}, "my-app-namespace")
 	if err != nil {
 		t.Fatalf("generate tls certificate: %v", err)
 	}
@@ -90,15 +90,16 @@ func TestAdminConsole_EmbeddedCluster(t *testing.T) {
 		DataDir:          rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:       rc.EmbeddedClusterK0sSubDir(),
 
-		Password:     "password",
-		TLSCertBytes: certData,
-		TLSKeyBytes:  keyData,
-		Hostname:     "localhost",
+		Password:         "password",
+		TLSCertBytes:     certData,
+		TLSKeyBytes:      keyData,
+		Hostname:         "localhost",
+		KotsadmNamespace: "my-app-namespace",
 	}
 	require.NoError(t, addon.Install(ctx, t.Logf, kcli, mcli, hcli, domains, nil))
 
 	t.Logf("%s waiting for admin console to be ready", formattedTime())
-	util.WaitForDeployment(t, kubeconfig, "kotsadm", "kotsadm", 1, 30*time.Second)
+	util.WaitForDeployment(t, kubeconfig, addon.Namespace(), "kotsadm", 1, 30*time.Second)
 
 	deploy := util.GetDeployment(t, kubeconfig, addon.Namespace(), "kotsadm")
 

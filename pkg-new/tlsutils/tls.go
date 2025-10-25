@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	certutil "k8s.io/client-go/util/cert"
 )
 
@@ -30,8 +29,8 @@ type Config struct {
 }
 
 // GenerateCertificate creates a new self-signed TLS certificate
-func GenerateCertificate(hostname string, ipAddresses []net.IP) (tls.Certificate, []byte, []byte, error) {
-	hostname, altNames := generateCertHostnames(hostname)
+func GenerateCertificate(hostname string, ipAddresses []net.IP, namespace string) (tls.Certificate, []byte, []byte, error) {
+	hostname, altNames := generateCertHostnames(hostname, namespace)
 
 	// Generate a new self-signed cert
 	certData, keyData, err := certutil.GenerateSelfSignedCertKey(hostname, ipAddresses, altNames)
@@ -56,8 +55,7 @@ func GetTLSConfig(cert tls.Certificate) *tls.Config {
 	}
 }
 
-func generateCertHostnames(hostname string) (string, []string) {
-	namespace := constants.KotsadmNamespace
+func generateCertHostnames(hostname string, namespace string) (string, []string) {
 
 	if hostname == "" {
 		hostname = fmt.Sprintf("kotsadm.%s.svc.cluster.local", namespace)

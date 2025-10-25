@@ -18,6 +18,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -48,6 +50,8 @@ type AppController struct {
 	license                    []byte
 	releaseData                *release.ReleaseData
 	hcli                       helm.Client
+	kcli                       client.Client
+	kubernetesEnvSettings      *helmcli.EnvSettings
 	store                      store.Store
 	configValues               types.AppConfigValues
 	clusterID                  string
@@ -117,6 +121,18 @@ func WithHelmClient(hcli helm.Client) AppControllerOption {
 	}
 }
 
+func WithKubeClient(kcli client.Client) AppControllerOption {
+	return func(c *AppController) {
+		c.kcli = kcli
+	}
+}
+
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppControllerOption {
+	return func(c *AppController) {
+		c.kubernetesEnvSettings = envSettings
+	}
+}
+
 func WithConfigValues(configValues types.AppConfigValues) AppControllerOption {
 	return func(c *AppController) {
 		c.configValues = configValues
@@ -177,6 +193,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appconfig.WithLicense(license),
 			appconfig.WithIsAirgap(controller.airgapBundle != ""),
 			appconfig.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
+			appconfig.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create app config manager: %w", err)
@@ -211,6 +228,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appreleasemanager.WithIsAirgap(controller.airgapBundle != ""),
 			appreleasemanager.WithPrivateCACertConfigMapName(controller.privateCACertConfigMapName),
 			appreleasemanager.WithHelmClient(controller.hcli),
+			appreleasemanager.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app release manager: %w", err)
@@ -226,6 +244,8 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
+			appinstallmanager.WithKubeClient(controller.kcli),
+			appinstallmanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
@@ -241,6 +261,8 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appupgrademanager.WithClusterID(controller.clusterID),
 			appupgrademanager.WithAirgapBundle(controller.airgapBundle),
 			appupgrademanager.WithAppUpgradeStore(controller.store.AppUpgradeStore()),
+			appupgrademanager.WithKubeClient(controller.kcli),
+			appupgrademanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app upgrade manager: %w", err)

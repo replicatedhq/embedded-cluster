@@ -31,6 +31,7 @@ type UpgradeOptions struct {
 	EndUserConfigSpec       *ecv1beta1.ConfigSpec
 	ProxySpec               *ecv1beta1.ProxySpec
 	HostCABundlePath        string
+	KotsadmNamespace        string
 	DataDir                 string
 	K0sDataDir              string
 	OpenEBSDataDir          string
@@ -110,6 +111,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		IsAirgap:         opts.IsAirgap,
 		Proxy:            opts.ProxySpec,
 		HostCABundlePath: opts.HostCABundlePath,
+		KotsadmNamespace: opts.KotsadmNamespace,
 
 		ChartLocationOverride: ecoChartLocation,
 		ChartVersionOverride:  ecoChartVersion,
@@ -151,6 +153,7 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 		DataDir:            opts.DataDir,
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+		KotsadmNamespace:   opts.KotsadmNamespace,
 	})
 
 	return addOns, nil

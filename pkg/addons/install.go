@@ -33,6 +33,7 @@ type InstallOptions struct {
 	ClusterID               string
 	DisasterRecoveryEnabled bool
 	HostCABundlePath        string
+	KotsadmNamespace        string
 	DataDir                 string
 	K0sDataDir              string
 	OpenEBSDataDir          string
@@ -51,6 +52,7 @@ type KubernetesInstallOptions struct {
 	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
 	EndUserConfigSpec  *ecv1beta1.ConfigSpec
 	KotsInstaller      adminconsole.KotsInstaller
+	KotsadmNamespace   string
 	ProxySpec          *ecv1beta1.ProxySpec
 }
 
@@ -155,6 +157,7 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 			IsAirgap:         opts.IsAirgap,
 			Proxy:            opts.ProxySpec,
 			HostCABundlePath: opts.HostCABundlePath,
+			KotsadmNamespace: opts.KotsadmNamespace,
 		},
 	}
 
@@ -185,11 +188,12 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
 
-		Password:      opts.AdminConsolePwd,
-		TLSCertBytes:  opts.TLSCertBytes,
-		TLSKeyBytes:   opts.TLSKeyBytes,
-		Hostname:      opts.Hostname,
-		KotsInstaller: opts.KotsInstaller,
+		Password:         opts.AdminConsolePwd,
+		TLSCertBytes:     opts.TLSCertBytes,
+		TLSKeyBytes:      opts.TLSKeyBytes,
+		Hostname:         opts.Hostname,
+		KotsInstaller:    opts.KotsInstaller,
+		KotsadmNamespace: opts.KotsadmNamespace,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 
@@ -233,11 +237,12 @@ func GetAddOnsForKubernetesInstall(opts KubernetesInstallOptions) []types.AddOn 
 		Proxy:              opts.ProxySpec,
 		AdminConsolePort:   opts.AdminConsolePort,
 
-		Password:      opts.AdminConsolePwd,
-		TLSCertBytes:  opts.TLSCertBytes,
-		TLSKeyBytes:   opts.TLSKeyBytes,
-		Hostname:      opts.Hostname,
-		KotsInstaller: opts.KotsInstaller,
+		Password:         opts.AdminConsolePwd,
+		TLSCertBytes:     opts.TLSCertBytes,
+		TLSKeyBytes:      opts.TLSKeyBytes,
+		Hostname:         opts.Hostname,
+		KotsInstaller:    opts.KotsInstaller,
+		KotsadmNamespace: opts.KotsadmNamespace,
 	}
 	addOns = append(addOns, adminConsoleAddOn)
 

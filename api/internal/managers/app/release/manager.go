@@ -13,6 +13,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // AppReleaseManager provides methods for managing the release of an app
@@ -26,6 +27,7 @@ type appReleaseManager struct {
 	license                    *kotsv1beta1.License
 	isAirgap                   bool
 	privateCACertConfigMapName string
+	kcli                       client.Client
 
 	templateEngine *template.Engine
 	hcli           helm.Client
@@ -76,6 +78,12 @@ func WithPrivateCACertConfigMapName(configMapName string) AppReleaseManagerOptio
 	}
 }
 
+func WithKubeClient(kcli client.Client) AppReleaseManagerOption {
+	return func(m *appReleaseManager) {
+		m.kcli = kcli
+	}
+}
+
 // NewAppReleaseManager creates a new AppReleaseManager
 func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOption) (AppReleaseManager, error) {
 	manager := &appReleaseManager{
@@ -105,6 +113,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 			template.WithLicense(manager.license),
 			template.WithIsAirgap(manager.isAirgap),
 			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
+			template.WithKubeClient(manager.kcli),
 		)
 	}
 
