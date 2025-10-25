@@ -36,9 +36,14 @@ func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read license file: %w", err)
 	}
+	return ParseLicenseFromString(string(data))
+}
+
+// ParseLicenseFromString parses the license from a YAML string
+func ParseLicenseFromString(yamlContent string) (*kotsv1beta1.License, error) {
 	var license kotsv1beta1.License
-	if err := kyaml.Unmarshal(data, &license); err != nil {
-		return nil, ErrNotALicenseFile
+	if err := kyaml.Unmarshal([]byte(yamlContent), &license); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal license YAML: %w", err)
 	}
 	return &license, nil
 }
