@@ -1,9 +1,6 @@
 global:
   enableReplication: true
   replicationPlacment: "001"
-{{- if .ReplaceImages }}
-  registry: "proxy.replicated.com/anonymous/"
-{{- end }}
 
 master:
 {{- if .ReplaceImages }}
@@ -145,3 +142,6 @@ filer:
     createBuckets:
     - name: registry
       anonymousRead: false
+
+s3:
+  enabled: false
