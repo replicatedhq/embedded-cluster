@@ -106,7 +106,7 @@ jobs:
       # Archive the SARIF results as an artifact for later reference
       # Useful for debugging or historical analysis
       - name: Archive scan results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: "sarif-${{ steps.image_details.outputs.safe_name }}"
           path: results.sarif
