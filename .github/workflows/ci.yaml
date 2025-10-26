@@ -362,7 +362,7 @@ jobs:
         run: |
           make buildtools
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -505,7 +505,7 @@ jobs:
           fi
 
       - name: Upload release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ matrix.n == 0 }}
         with:
           name: current-release
@@ -515,7 +515,7 @@ jobs:
             output/bin/embedded-cluster-release-builder
 
       - name: Upload release previous k0s
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ matrix.n != 0 }}
         with:
           name: previous-k0s-${{ matrix.n }}-release
@@ -632,7 +632,7 @@ jobs:
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: upgrade-release
           path: |

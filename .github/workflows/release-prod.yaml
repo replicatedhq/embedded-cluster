@@ -63,7 +63,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -443,7 +443,7 @@ jobs:
         run: |
           make output/bin/embedded-cluster-release-builder
       - name: Upload embedded-cluster-release-builder artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: embedded-cluster-release-builder
           path: |
@@ -482,7 +482,7 @@ jobs:
           mv embedded-cluster output/bin/embedded-cluster-original
 
       - name: Upload release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: current-release
           path: |
