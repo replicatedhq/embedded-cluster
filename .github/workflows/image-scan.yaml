@@ -86,7 +86,7 @@ jobs:
           cache-dependency-path: "**/*.sum"
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: buildtools
           path: output/bin
