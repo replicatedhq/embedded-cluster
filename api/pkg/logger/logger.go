@@ -20,6 +20,8 @@ func NewLogger() (*logrus.Logger, error) {
 	}
 
 	logger := logrus.New()
+	// Set to debug by default to capture all the manager and execution logs
+	logger.SetLevel(logrus.DebugLevel)
 	logger.SetOutput(logfile)
 
 	logger.Infof("versions: embedded-cluster=%s, k0s=%s", versions.Version, versions.K0sVersion)
