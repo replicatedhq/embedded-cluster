@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ AppConfigManager = &appConfigManager{}
@@ -35,6 +36,7 @@ type appConfigManager struct {
 	license                    *kotsv1beta1.License
 	isAirgap                   bool
 	privateCACertConfigMapName string
+	kcli                       client.Client
 
 	logger         logrus.FieldLogger
 	templateEngine *apitemplate.Engine
@@ -78,6 +80,12 @@ func WithPrivateCACertConfigMapName(configMapName string) AppConfigManagerOption
 	}
 }
 
+func WithKubeClient(kcli client.Client) AppConfigManagerOption {
+	return func(c *appConfigManager) {
+		c.kcli = kcli
+	}
+}
+
 // NewAppConfigManager creates a new AppConfigManager with the provided options
 func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOption) (*appConfigManager, error) {
 	manager := &appConfigManager{
@@ -104,6 +112,7 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithLicense(manager.license),
 			apitemplate.WithIsAirgap(manager.isAirgap),
 			apitemplate.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
+			apitemplate.WithKubeClient(manager.kcli),
 		)
 	}
 

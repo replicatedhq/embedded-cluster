@@ -12,7 +12,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
@@ -352,9 +351,14 @@ func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtim
 		m.kcli = kcli
 	}
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return nil, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	// Read the registry-creds secret from kotsadm namespace
 	secret := &corev1.Secret{}
-	err := m.kcli.Get(ctx, client.ObjectKey{Namespace: constants.KotsadmNamespace, Name: "registry-creds"}, secret)
+	err = m.kcli.Get(ctx, client.ObjectKey{Namespace: kotsadmNamespace, Name: "registry-creds"}, secret)
 	if err != nil {
 		return nil, fmt.Errorf("get registry-creds secret: %w", err)
 	}

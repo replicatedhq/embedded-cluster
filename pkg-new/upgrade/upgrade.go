@@ -289,6 +289,11 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		addons.WithProgressChannel(progressChan),
 	)
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.UpgradeOptions{
 		ClusterID:               in.Spec.ClusterID,
 		AdminConsolePort:        rc.AdminConsolePort(),
@@ -300,6 +305,7 @@ func upgradeAddons(ctx context.Context, cli client.Client, hcli helm.Client, rc 
 		EndUserConfigSpec:       nil, // TODO: add support for end user config spec
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
+		KotsadmNamespace:        kotsadmNamespace,
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),

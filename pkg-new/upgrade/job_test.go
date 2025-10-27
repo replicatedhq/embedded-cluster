@@ -68,10 +68,13 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), cli)
+	require.NoError(t, err)
+
 	// Get the job that was created
 	job := &batchv1.Job{}
 	err = cli.Get(context.Background(), client.ObjectKey{
-		Namespace: upgradeJobNamespace,
+		Namespace: kotsadmNamespace,
 		Name:      "embedded-cluster-upgrade-test-installation",
 	}, job)
 	require.NoError(t, err)
@@ -148,10 +151,13 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		)
 		require.NoError(t, err)
 
+		kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), cli)
+		require.NoError(t, err)
+
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: upgradeJobNamespace,
+			Namespace: kotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)
@@ -257,10 +263,13 @@ func TestCreateUpgradeJob_HostCABundle(t *testing.T) {
 		)
 		require.NoError(t, err)
 
+		kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), cli)
+		require.NoError(t, err)
+
 		// Get the job that was created
 		job := &batchv1.Job{}
 		err = cli.Get(context.Background(), client.ObjectKey{
-			Namespace: upgradeJobNamespace,
+			Namespace: kotsadmNamespace,
 			Name:      "embedded-cluster-upgrade-test-installation",
 		}, job)
 		require.NoError(t, err)

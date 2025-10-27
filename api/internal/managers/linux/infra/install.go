@@ -275,7 +275,10 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts := m.getAddonInstallOpts(ctx, license, rc)
+	opts, err := m.getAddonInstallOpts(ctx, license, rc)
+	if err != nil {
+		return fmt.Errorf("get addon install options: %w", err)
+	}
 
 	logFn("installing addons")
 	if err := addOns.Install(ctx, opts); err != nil {
@@ -285,7 +288,11 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) addons.InstallOptions {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return addons.InstallOptions{}, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
 	opts := addons.InstallOptions{
 		ClusterID:               m.clusterID,
 		AdminConsolePwd:         m.password,
@@ -301,13 +308,14 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		ProxySpec:               rc.ProxySpec(),
 		HostCABundlePath:        rc.HostCABundlePath(),
+		KotsadmNamespace:        kotsadmNamespace,
 		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 	}
 
-	return opts
+	return opts, nil
 }
 
 func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) (finalErr error) {

@@ -9,8 +9,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -49,12 +49,21 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 		return fmt.Errorf("parse license: %w", err)
 	}
 
+	if err := m.initKubeClient(); err != nil {
+		return fmt.Errorf("init kube client: %w", err)
+	}
+
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	installOpts := kotscli.InstallOptions{
 		AppSlug:      license.Spec.AppSlug,
 		License:      m.license,
-		Namespace:    constants.KotsadmNamespace,
+		Namespace:    kotsadmNamespace,
 		ClusterID:    m.clusterID,
 		AirgapBundle: m.airgapBundle,
 		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -82,7 +81,7 @@ func Test_readPasswordHash(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-password",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"passwordBcrypt": []byte("$2a$10$hashedpassword"),
@@ -95,7 +94,7 @@ func Test_readPasswordHash(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-password",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"otherField": []byte("somevalue"),
@@ -113,7 +112,7 @@ func Test_readPasswordHash(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-password",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"passwordBcrypt": []byte(""),
@@ -126,7 +125,7 @@ func Test_readPasswordHash(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-password",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: nil,
 			},
@@ -153,7 +152,7 @@ func Test_readPasswordHash(t *testing.T) {
 				WithObjects(objects...).
 				Build()
 
-			passwordHash, err := readPasswordHash(context.Background(), fakeClient)
+			passwordHash, err := readPasswordHash(context.Background(), fakeClient, "my-app-namespace")
 
 			if tt.wantErr != "" {
 				req.Error(err)
@@ -253,7 +252,7 @@ func Test_readTLSConfig(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"tls.crt": []byte(testCertData),
@@ -271,7 +270,7 @@ func Test_readTLSConfig(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"tls.key": []byte(testKeyData),
@@ -284,7 +283,7 @@ func Test_readTLSConfig(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"tls.crt": []byte(testCertData),
@@ -297,7 +296,7 @@ func Test_readTLSConfig(t *testing.T) {
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "kotsadm-tls",
-					Namespace: constants.KotsadmNamespace,
+					Namespace: "my-app-namespace",
 				},
 				Data: map[string][]byte{
 					"tls.crt": []byte(""),
@@ -332,7 +331,7 @@ func Test_readTLSConfig(t *testing.T) {
 				WithObjects(objects...).
 				Build()
 
-			tlsConfig, err := readTLSConfig(context.Background(), fakeClient)
+			tlsConfig, err := readTLSConfig(context.Background(), fakeClient, "my-app-namespace")
 
 			if tt.wantErr != "" {
 				req.Error(err)

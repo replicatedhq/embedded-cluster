@@ -15,10 +15,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	kyaml "sigs.k8s.io/yaml"
 )
 
 func TestAppInstallManager_Install(t *testing.T) {
+	// Setup environment variable for V3
+	t.Setenv("ENABLE_V3", "1")
+
 	// Create test license
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
@@ -36,6 +43,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		},
 	}
+
+	// Set up release data globally so AppSlug() returns the correct value for v3
+	err = release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
 
 	t.Run("Config values should be passed to the installer", func(t *testing.T) {
 		configValues := kotsv1beta1.ConfigValues{
@@ -63,8 +76,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 				t.Logf("License is nil")
 				return false
 			}
-			if opts.Namespace != "kotsadm" {
-				t.Logf("Namespace mismatch: expected 'kotsadm', got '%s'", opts.Namespace)
+			if opts.Namespace != "test-app" {
+				t.Logf("Namespace mismatch: expected 'test-app', got '%s'", opts.Namespace)
 				return false
 			}
 			if opts.ClusterID != "test-cluster" {
@@ -110,6 +123,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			return true
 		})).Return(nil)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager
 		manager, err := NewAppInstallManager(
 			WithLicense(licenseBytes),
@@ -118,6 +137,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithReleaseData(releaseData),
 			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -133,6 +153,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Install", mock.Anything).Return(nil)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
@@ -144,6 +170,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -170,6 +197,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Install", mock.Anything).Return(assert.AnError)
 
+		// Create fake kube client
+		sch := runtime.NewScheme()
+		require.NoError(t, corev1.AddToScheme(sch))
+		require.NoError(t, scheme.AddToScheme(sch))
+		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
+
 		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
@@ -181,6 +214,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 

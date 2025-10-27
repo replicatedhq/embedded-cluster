@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Controller interface {
@@ -56,6 +57,7 @@ type UpgradeController struct {
 	store                store.Store
 	rc                   runtimeconfig.RuntimeConfig
 	hcli                 helm.Client
+	kcli                 client.Client
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
@@ -181,6 +183,12 @@ func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
 	}
 }
 
+func WithKubeClient(kcli client.Client) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.kcli = kcli
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.endUserConfig = endUserConfig
@@ -292,6 +300,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithAirgapBundle(controller.airgapBundle),
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux upgrades use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
+			appcontroller.WithKubeClient(controller.kcli),
+			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

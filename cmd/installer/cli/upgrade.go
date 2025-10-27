@@ -16,7 +16,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -59,6 +58,7 @@ type upgradeConfig struct {
 	clusterID            string
 	managerPort          int
 	requiresInfraUpgrade bool
+	kotsadmNamespace     string
 }
 
 // UpgradeCmd returns a cobra command for upgrading the embedded cluster application.
@@ -248,6 +248,13 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.licenseBytes = data
 
+	// Continue using "kotsadm" namespace if it exists for backwards compatibility, otherwise use the appSlug
+	ns, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+	upgradeConfig.kotsadmNamespace = ns
+
 	if flags.airgapBundle != "" {
 		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
 		if err != nil {
@@ -263,7 +270,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	upgradeConfig.embeddedAssetsSize = assetsSize
 
 	// Read existing TLS certificates from kotsadm-tls secret in the cluster
-	tlsConfig, err := readTLSConfig(ctx, kcli)
+	tlsConfig, err := readTLSConfig(ctx, kcli, upgradeConfig.kotsadmNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to read tls config: %w", err)
 	}
@@ -275,7 +282,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	upgradeConfig.tlsCert = cert
 
 	// Read password hash from the kotsadm-password secret in the cluster
-	pwdHash, err := readPasswordHash(ctx, kcli)
+	pwdHash, err := readPasswordHash(ctx, kcli, upgradeConfig.kotsadmNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to read password hash from cluster: %w", err)
 	}
@@ -296,7 +303,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.endUserConfig = eucfg
 
-	cv, err := getCurrentConfigValues(appSlug, upgradeConfig.clusterID)
+	cv, err := getCurrentConfigValues(appSlug, upgradeConfig.clusterID, upgradeConfig.kotsadmNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to get current config values: %w", err)
 	}
@@ -345,11 +352,11 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 	return nil
 }
 
-func getCurrentConfigValues(appSlug string, clusterID string) (apitypes.AppConfigValues, error) {
+func getCurrentConfigValues(appSlug string, clusterID string, namespace string) (apitypes.AppConfigValues, error) {
 	// Get the kots config YAML using the kotscli package
 	configYaml, err := kotscli.GetConfigValues(kotscli.GetConfigValuesOptions{
 		AppSlug:               appSlug,
-		Namespace:             constants.KotsadmNamespace,
+		Namespace:             namespace,
 		ClusterID:             clusterID,
 		ReplicatedAppEndpoint: replicatedAppURL(),
 	})
@@ -387,12 +394,12 @@ func getClusterID(ctx context.Context, kcli client.Client) (string, error) {
 }
 
 // readTLSConfig reads the TLS certificate from the kotsadm-tls secret
-func readTLSConfig(ctx context.Context, kcli client.Client) (apitypes.TLSConfig, error) {
+func readTLSConfig(ctx context.Context, kcli client.Client, namespace string) (apitypes.TLSConfig, error) {
 	var tlsConfig apitypes.TLSConfig
 
 	tlsSecret := &corev1.Secret{}
 	err := kcli.Get(ctx, client.ObjectKey{
-		Namespace: constants.KotsadmNamespace,
+		Namespace: namespace,
 		Name:      "kotsadm-tls",
 	}, tlsSecret)
 	if err != nil {
@@ -414,11 +421,11 @@ func readTLSConfig(ctx context.Context, kcli client.Client) (apitypes.TLSConfig,
 }
 
 // readPasswordHash reads the bcrypt password hash from the kotsadm-password secret
-func readPasswordHash(ctx context.Context, kcli client.Client) ([]byte, error) {
+func readPasswordHash(ctx context.Context, kcli client.Client, namespace string) ([]byte, error) {
 	pwdSecret := &corev1.Secret{}
 
 	err := kcli.Get(ctx, client.ObjectKey{
-		Namespace: constants.KotsadmNamespace,
+		Namespace: namespace,
 		Name:      "kotsadm-password",
 	}, pwdSecret)
 	if err != nil {

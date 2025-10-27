@@ -9,8 +9,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -43,7 +43,7 @@ func (m *appUpgradeManager) Upgrade(ctx context.Context, configValues kotsv1beta
 	return nil
 }
 
-func (m *appUpgradeManager) upgrade(_ context.Context, configValues kotsv1beta1.ConfigValues) error {
+func (m *appUpgradeManager) upgrade(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
@@ -56,10 +56,19 @@ func (m *appUpgradeManager) upgrade(_ context.Context, configValues kotsv1beta1.
 	}
 	defer os.Remove(configValuesFile)
 
+	if err := m.initKubeClient(); err != nil {
+		return fmt.Errorf("init kube client: %w", err)
+	}
+
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	deployOpts := kotscli.DeployOptions{
 		AppSlug:               m.releaseData.ChannelRelease.AppSlug,
 		License:               m.license,
-		Namespace:             constants.KotsadmNamespace,
+		Namespace:             kotsadmNamespace,
 		ClusterID:             m.clusterID,
 		AirgapBundle:          m.airgapBundle,
 		ConfigValuesFile:      configValuesFile,

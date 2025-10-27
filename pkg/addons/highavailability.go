@@ -13,6 +13,7 @@ import (
 	registrymigrate "github.com/replicatedhq/embedded-cluster/pkg/addons/registry/migrate"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +35,7 @@ type EnableHAOptions struct {
 	K0sDataDir         string
 	SeaweedFSDataDir   string
 	ServiceCIDR        string
+	KotsadmNamespace   string
 }
 
 // CanEnableHA checks if high availability can be enabled in the cluster.
@@ -251,12 +253,18 @@ func (a *AddOns) EnableAdminConsoleHA(ctx context.Context, opts EnableHAOptions)
 		DataDir:            opts.DataDir,
 		K0sDataDir:         opts.K0sDataDir,
 		AdminConsolePort:   opts.AdminConsolePort,
+		KotsadmNamespace:   opts.KotsadmNamespace,
 	}
 	if err := ac.Upgrade(ctx, a.logf, a.kcli, a.mcli, a.hcli, a.domains, a.addOnOverrides(ac, opts.EmbeddedConfigSpec, opts.EndUserConfigSpec)); err != nil {
 		return errors.Wrap(err, "upgrade admin console")
 	}
 
-	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, constants.KotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, a.kcli)
+	if err != nil {
+		return errors.Wrap(err, "get kotsadm namespace")
+	}
+
+	if err := kubeutils.WaitForStatefulset(ctx, a.kcli, kotsadmNamespace, "kotsadm-rqlite", nil); err != nil {
 		return errors.Wrap(err, "wait for rqlite to be ready")
 	}
 

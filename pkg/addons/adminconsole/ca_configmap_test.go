@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +24,9 @@ func TestEnsureCAConfigmap(t *testing.T) {
 	metascheme := metadatafake.NewTestScheme()
 	metav1.AddMetaToScheme(metascheme)
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
+	require.NoError(t, err)
+
 	newConfigMap := func(content string) *corev1.ConfigMap {
 		hash := md5.Sum([]byte(content))
 		checksum := hex.EncodeToString(hash[:])
@@ -33,7 +37,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      PrivateCASConfigMapName,
-				Namespace: _namespace,
+				Namespace: kotsadmNamespace,
 				Annotations: map[string]string{
 					"replicated.com/cas-checksum": checksum,
 				},
@@ -66,7 +70,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: kotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				assert.True(t, k8serrors.IsNotFound(err), "ConfigMap should not exist")
@@ -89,7 +93,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: kotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -120,7 +124,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: kotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -152,7 +156,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			assert: func(t *testing.T, c client.Client) {
 				cm := &corev1.ConfigMap{}
 				err := c.Get(context.Background(), client.ObjectKey{
-					Namespace: _namespace,
+					Namespace: kotsadmNamespace,
 					Name:      PrivateCASConfigMapName,
 				}, cm)
 				require.NoError(t, err)
@@ -190,7 +194,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			kcli, mcli := tt.initClients(t)
 
 			logf := func(format string, args ...any) {} // discard logs
-			err := EnsureCAConfigmap(context.Background(), logf, kcli, mcli, caPath)
+			err := EnsureCAConfigmap(context.Background(), logf, kcli, mcli, kotsadmNamespace, caPath)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("EnsureCAConfigmap() error = %v, wantErr %v", err, tt.wantErr)
 			}

@@ -1,10 +1,17 @@
 package template
 
 import (
-	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"context"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 // namespace returns the namespace for the app
 func (e *Engine) namespace() string {
-	return constants.KotsadmNamespace
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), e.kubeClient)
+	if err != nil {
+		return "kotsadm"
+	}
+
+	return kotsadmNamespace
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
+	helmcli "helm.sh/helm/v3/pkg/cli"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ AppUpgradeManager = &appUpgradeManager{}
@@ -24,13 +26,15 @@ type AppUpgradeManager interface {
 
 // appUpgradeManager is an implementation of the AppUpgradeManager interface
 type appUpgradeManager struct {
-	appUpgradeStore appupgradestore.Store
-	releaseData     *release.ReleaseData
-	license         []byte
-	clusterID       string
-	airgapBundle    string
-	kotsCLI         kotscli.KotsCLI
-	logger          logrus.FieldLogger
+	appUpgradeStore       appupgradestore.Store
+	releaseData           *release.ReleaseData
+	license               []byte
+	clusterID             string
+	airgapBundle          string
+	kotsCLI               kotscli.KotsCLI
+	kcli                  client.Client
+	kubernetesEnvSettings *helmcli.EnvSettings
+	logger                logrus.FieldLogger
 }
 
 type AppUpgradeManagerOption func(*appUpgradeManager)
@@ -74,6 +78,18 @@ func WithLicense(license []byte) AppUpgradeManagerOption {
 func WithKotsCLI(kotsCLI kotscli.KotsCLI) AppUpgradeManagerOption {
 	return func(m *appUpgradeManager) {
 		m.kotsCLI = kotsCLI
+	}
+}
+
+func WithKubeClient(kcli client.Client) AppUpgradeManagerOption {
+	return func(m *appUpgradeManager) {
+		m.kcli = kcli
+	}
+}
+
+func WithKubernetesEnvSettings(envSettings *helmcli.EnvSettings) AppUpgradeManagerOption {
+	return func(m *appUpgradeManager) {
+		m.kubernetesEnvSettings = envSettings
 	}
 }
 

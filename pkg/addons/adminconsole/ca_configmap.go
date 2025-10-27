@@ -23,7 +23,7 @@ const (
 	PrivateCASConfigMapName = "kotsadm-private-cas"
 )
 
-func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, caPath string) error {
+func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Client, mcli metadata.Interface, namespace, caPath string) error {
 	if caPath == "" {
 		return nil
 	}
@@ -37,7 +37,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		Group:    "",
 		Version:  "v1",
 		Resource: "configmaps",
-	}).Namespace(_namespace).Get(ctx, PrivateCASConfigMapName, metav1.GetOptions{})
+	}).Namespace(namespace).Get(ctx, PrivateCASConfigMapName, metav1.GetOptions{})
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("get configmap metadata: %w", err)
 	}
@@ -49,7 +49,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 		}
 	}
 
-	new, err := newCAConfigMap(caPath, checksum)
+	new, err := newCAConfigMap(caPath, namespace, checksum)
 	if err != nil {
 		return fmt.Errorf("create map: %w", err)
 	} else if new == nil {
@@ -80,7 +80,7 @@ func EnsureCAConfigmap(ctx context.Context, logf types.LogFunc, kcli client.Clie
 	return nil
 }
 
-func newCAConfigMap(caPath string, checksum string) (*corev1.ConfigMap, error) {
+func newCAConfigMap(caPath string, namespace, checksum string) (*corev1.ConfigMap, error) {
 	if caPath == "" {
 		return nil, nil
 	}
@@ -90,7 +90,7 @@ func newCAConfigMap(caPath string, checksum string) (*corev1.ConfigMap, error) {
 		return nil, fmt.Errorf("create map: %w", err)
 	}
 
-	return casConfigMap(casMap, checksum), nil
+	return casConfigMap(casMap, namespace, checksum), nil
 }
 
 func calculateFileChecksum(path string) (string, error) {
@@ -110,7 +110,7 @@ func calculateFileChecksum(path string) (string, error) {
 	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
-func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
+func casConfigMap(cas map[string]string, namespace, checksum string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -118,7 +118,7 @@ func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      PrivateCASConfigMapName,
-			Namespace: _namespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				"kots.io/kotsadm":                        "true",
 				"replicated.com/disaster-recovery":       "infra",

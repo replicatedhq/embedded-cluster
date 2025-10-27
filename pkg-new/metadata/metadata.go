@@ -115,7 +115,7 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 		Artifacts: artifacts,
 	}
 
-	chtconfig, repconfig, err := addons.GenerateChartConfigs()
+	chtconfig, repconfig, err := addons.GenerateChartConfigs(context.Background(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("generate chart configs: %w", err)
 	}

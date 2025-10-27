@@ -261,6 +261,68 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	}
 }
 
+func TestInstallationReconciler_reconcileHostCABundle_CustomNamespace(t *testing.T) {
+	// Create a temporary file for testing CA bundle
+	tempDir := t.TempDir()
+	testCAPath := filepath.Join(tempDir, "test-ca.crt")
+	err := os.WriteFile(testCAPath, []byte("new CA content"), 0644)
+	require.NoError(t, err)
+
+	namespace := "my-app"
+
+	metascheme := metadatafake.NewTestScheme()
+	metav1.AddMetaToScheme(metascheme)
+
+	ns := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+
+	// Setup clients with namespace
+	kcli := clientfake.NewClientBuilder().WithObjects(ns).Build()
+	mcli := metadatafake.NewSimpleMetadataClient(metascheme)
+
+	// Setup reconciler
+	scheme := runtime.NewScheme()
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	reconciler := &InstallationReconciler{
+		Client:         kcli,
+		MetadataClient: mcli,
+		RuntimeConfig:  runtimeconfig.New(nil),
+	}
+
+	// Create a mock logger
+	verbosity := 1
+	if os.Getenv("DEBUG") != "" {
+		verbosity = 10
+	}
+	logger := testr.NewWithOptions(t, testr.Options{Verbosity: verbosity})
+	ctx := logr.NewContext(context.Background(), logger)
+
+	// Set environment variables
+	t.Setenv("PRIVATE_CA_BUNDLE_PATH", testCAPath)
+	t.Setenv("KOTSADM_NAMESPACE", namespace)
+
+	// Run test
+	err = reconciler.reconcileHostCABundle(ctx)
+	require.NoError(t, err)
+
+	// Verify configmap was created in the custom namespace (not kotsadm)
+	cm := &corev1.ConfigMap{}
+	err = kcli.Get(context.Background(), client.ObjectKey{
+		Namespace: namespace,
+		Name:      adminconsole.PrivateCASConfigMapName,
+	}, cm)
+	require.NoError(t, err, "ConfigMap should exist in custom namespace %s", namespace)
+}
+
 func TestInstallationReconciler_deleteUpgradeJobs(t *testing.T) {
 	// Create test namespace
 	namespace := &corev1.Namespace{

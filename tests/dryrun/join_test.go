@@ -136,6 +136,16 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 	kcli, err := kubeUtils.KubeClient()
 	require.NoError(t, err)
 
+	kcli.Create(context.Background(), &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "my-app-namespace",
+		},
+	}, &ctrlclient.CreateOptions{})
+
 	kcli.Create(context.Background(), &ecv1beta1.Installation{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Installation",

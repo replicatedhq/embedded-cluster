@@ -668,6 +668,11 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 	loading := spinner.Start()
 	defer loading.Close()
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	opts := addons.EnableHAOptions{
 		ClusterID:          jcmd.InstallationSpec.ClusterID,
 		AdminConsolePort:   rc.AdminConsolePort(),
@@ -681,6 +686,7 @@ func maybeEnableHA(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
 		SeaweedFSDataDir:   rc.EmbeddedClusterSeaweedFSSubDir(),
 		ServiceCIDR:        rc.ServiceCIDR(),
+		KotsadmNamespace:   kotsadmNamespace,
 	}
 
 	return addOns.EnableHA(ctx, opts, loading)
