@@ -449,7 +449,7 @@ func saveTokenToDisk(token string) error {
 		return err
 	}
 	data := []byte(token)
-	if err := os.WriteFile("/etc/k0s/join-token", data, 0644); err != nil {
+	if err := helpers.WriteFile("/etc/k0s/join-token", data, 0644); err != nil {
 		return err
 	}
 	return nil
@@ -498,7 +498,7 @@ func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.Runtime
 		return fmt.Errorf("unable to marshal cluster spec: %w", err)
 	}
 
-	err = os.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
+	err = helpers.WriteFile(runtimeconfig.K0sConfigPath, clusterSpecYaml, 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write cluster spec to /etc/k0s/k0s.yaml: %w", err)
 	}

@@ -160,7 +160,7 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, networkInterface string, airga
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal config: %w", err)
 	}
-	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
+	if err := helpers.WriteFile(cfgpath, data, 0600); err != nil {
 		return nil, fmt.Errorf("unable to write config file: %w", err)
 	}
 
@@ -244,7 +244,7 @@ func (k *K0s) PatchK0sConfig(path string, patch string) error {
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
+	if err := helpers.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("unable to write node config file: %w", err)
 	}
 	return nil

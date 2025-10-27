@@ -8,6 +8,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -58,7 +59,7 @@ func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool)
 		return fmt.Errorf("render support bundle template: %w", err)
 	}
 	path = rc.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
-	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+	if err := helpers.WriteFile(path, []byte(contents), 0644); err != nil {
 		return fmt.Errorf("write support bundle spec: %w", err)
 	}
 	return nil

@@ -112,7 +112,7 @@ func (a *AddonMetadata) Save(addon string) error {
 		return fmt.Errorf("failed to encode addon metadata: %w", err)
 	}
 	fpath := filepath.Join("pkg", "addons", addon, "static", "metadata.yaml")
-	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
+	if err := helpers.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write addon metadata: %w", err)
 	}
 	return nil

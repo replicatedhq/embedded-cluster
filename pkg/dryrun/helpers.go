@@ -2,7 +2,7 @@ package dryrun
 
 import (
 	"bytes"
-	"context"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
@@ -24,6 +24,7 @@ func (h *Helpers) RunCommand(bin string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-func (h *Helpers) IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error) {
-	return false, nil
+func (h *Helpers) WriteFile(path string, data []byte, perm os.FileMode) error {
+	RecordFileWrite(path, data, perm)
+	return nil
 }

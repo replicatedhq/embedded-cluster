@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -25,7 +26,7 @@ func (h *HostUtils) AddInsecureRegistry(registry string) error {
 		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
 	}
 
-	err := os.WriteFile(filepath.Join(parentDir, "embedded-registry.toml"), []byte(contents), 0644)
+	err := helpers.WriteFile(filepath.Join(parentDir, "embedded-registry.toml"), []byte(contents), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write embedded-registry.toml: %w", err)
 	}

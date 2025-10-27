@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
@@ -85,7 +86,7 @@ func (m *Materializer) LocalArtifactMirrorUnitFile() error {
 		return fmt.Errorf("unable to open unit file: %w", err)
 	}
 	dstpath := "/etc/systemd/system/local-artifact-mirror.service"
-	if err := os.WriteFile(dstpath, content, 0644); err != nil {
+	if err := helpers.WriteFile(dstpath, content, 0644); err != nil {
 		return fmt.Errorf("unable to write file: %w", err)
 	}
 	return nil
@@ -100,7 +101,7 @@ func (m *Materializer) CalicoNetworkManagerConfig() error {
 		return fmt.Errorf("unable to open network manager config file: %w", err)
 	}
 	dstpath := "/etc/NetworkManager/conf.d/embedded-cluster.conf"
-	if err := os.WriteFile(dstpath, content, 0644); err != nil {
+	if err := helpers.WriteFile(dstpath, content, 0644); err != nil {
 		return fmt.Errorf("unable to write file: %w", err)
 	}
 	return nil
@@ -185,14 +186,14 @@ func (m *Materializer) SupportFiles() error {
 			return fmt.Errorf("unable to read asset: %w", err)
 		}
 		dstpath := m.rc.PathToEmbeddedClusterSupportFile(entry.Name())
-		if err := os.WriteFile(dstpath, srcfile, 0644); err != nil {
+		if err := helpers.WriteFile(dstpath, srcfile, 0644); err != nil {
 			return fmt.Errorf("unable to write file %s: %w", dstpath, err)
 		}
 	}
 
 	name := "host-support-bundle-remote.yaml"
 	dstpath := m.rc.PathToEmbeddedClusterSupportFile(name)
-	if err := os.WriteFile(dstpath, support.GetRemoteHostSupportBundleSpec(), 0644); err != nil {
+	if err := helpers.WriteFile(dstpath, support.GetRemoteHostSupportBundleSpec(), 0644); err != nil {
 		return fmt.Errorf("unable to write file %s: %w", dstpath, err)
 	}
 
@@ -240,7 +241,7 @@ func (m *Materializer) Binaries() error {
 			remove = append(remove, tmp)
 		}
 
-		if err := os.WriteFile(dstpath, srcfile, 0755); err != nil {
+		if err := helpers.WriteFile(dstpath, srcfile, 0755); err != nil {
 			return fmt.Errorf("unable to write file: %w", err)
 		}
 	}
@@ -260,7 +261,7 @@ func (m *Materializer) Kubectl() error {
 	_ = os.RemoveAll(dstpath)
 	k0spath := runtimeconfig.K0sBinaryPath
 	content := fmt.Sprintf(kubectlScript, k0spath)
-	if err := os.WriteFile(dstpath, []byte(content), 0755); err != nil {
+	if err := helpers.WriteFile(dstpath, []byte(content), 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 
@@ -270,7 +271,7 @@ func (m *Materializer) Kubectl() error {
 	if err != nil {
 		return fmt.Errorf("generate kubectl completion: %w", err)
 	}
-	if err := os.WriteFile(dstpath, contentBytes, 0755); err != nil {
+	if err := helpers.WriteFile(dstpath, contentBytes, 0755); err != nil {
 		return fmt.Errorf("write kubectl completion: %w", err)
 	}
 	return nil

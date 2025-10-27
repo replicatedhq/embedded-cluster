@@ -3,9 +3,9 @@ package release
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -28,7 +28,7 @@ func (a *K0sMetadata) Save(minorVersion string) error {
 		return fmt.Errorf("failed to encode k0s metadata: %w", err)
 	}
 	fpath := filepath.Join("pkg", "config", "static", fmt.Sprintf("metadata-1_%s.yaml", minorVersion))
-	if err := os.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
+	if err := helpers.WriteFile(fpath, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write k0s metadata: %w", err)
 	}
 	return nil

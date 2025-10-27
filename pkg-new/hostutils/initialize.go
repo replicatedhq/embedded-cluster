@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -34,7 +35,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 
 	if opts.License != nil {
 		h.logger.Debugf("write license file to %s", rc.EmbeddedClusterHomeDirectory())
-		if err := os.WriteFile(filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), opts.License, 0400); err != nil {
+		if err := helpers.WriteFile(filepath.Join(rc.EmbeddedClusterHomeDirectory(), "license.yaml"), opts.License, 0400); err != nil {
 			h.logger.Warnf("unable to write license file to %s: %v", rc.EmbeddedClusterHomeDirectory(), err)
 		}
 	}

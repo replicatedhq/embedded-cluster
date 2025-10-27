@@ -97,6 +97,10 @@ func RemoveAll(path string) error {
 	return me.ErrorOrNil()
 }
 
+func WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
 // CopyFile copies a file from src to dst, creating parent directories as needed.
 // The destination file will be created with the specified mode.
 func CopyFile(src, dst string, mode os.FileMode) error {
@@ -123,7 +127,7 @@ func CopyFile(src, dst string, mode os.FileMode) error {
 		return fmt.Errorf("read source file: %w", err)
 	}
 
-	if err := os.WriteFile(dst, data, mode); err != nil {
+	if err := WriteFile(dst, data, mode); err != nil {
 		return fmt.Errorf("write destination file: %w", err)
 	}
 

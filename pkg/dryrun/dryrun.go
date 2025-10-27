@@ -52,6 +52,7 @@ func Init(outputFile string, client *Client) {
 		Commands:          []types.Command{},
 		Metrics:           []types.Metric{},
 		HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
+		Files:             map[string]types.FileWrite{},
 		LogBuffer:         bytes.NewBuffer(nil),
 	}
 	drFile = outputFile
@@ -106,7 +107,7 @@ func Dump() error {
 	if err != nil {
 		return fmt.Errorf("marshal dry run info: %w", err)
 	}
-	if err := os.WriteFile(drFile, output, 0644); err != nil {
+	if err := helpers.WriteFile(drFile, output, 0644); err != nil {
 		return fmt.Errorf("write dry run info to file: %w", err)
 	}
 	return nil
@@ -165,6 +166,17 @@ func RecordHostPreflightSpec(hpf *troubleshootv1beta2.HostPreflightSpec) {
 	defer mu.Unlock()
 
 	dr.HostPreflightSpec = hpf
+}
+
+func RecordFileWrite(path string, content []byte, mode os.FileMode) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	dr.Files[path] = types.FileWrite{
+		Path:    path,
+		Content: string(content),
+		Mode:    mode,
+	}
 }
 
 func KubeClient() (client.Client, error) {

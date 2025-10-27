@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"go.yaml.in/yaml/v3"
@@ -173,7 +174,7 @@ func (h *HelmClient) prepare(_ context.Context) error {
 	}
 
 	repocfg := filepath.Join(h.tmpdir, "config.yaml")
-	if err := os.WriteFile(repocfg, data, 0644); err != nil {
+	if err := helpers.WriteFile(repocfg, data, 0644); err != nil {
 		return fmt.Errorf("write repositories: %w", err)
 	}
 

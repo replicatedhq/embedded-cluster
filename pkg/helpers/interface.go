@@ -23,7 +23,6 @@ func Set(_h HelpersInterface) {
 type HelpersInterface interface {
 	RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) error
 	RunCommand(bin string, args ...string) (string, error)
-	IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error)
 }
 
 type RunCommandOptions struct {
@@ -49,8 +48,4 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 
 func RunCommand(bin string, args ...string) (string, error) {
 	return h.RunCommand(bin, args...)
-}
-
-func IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error) {
-	return h.IsSystemdServiceActive(ctx, svcname)
 }

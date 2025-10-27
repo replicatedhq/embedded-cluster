@@ -31,6 +31,7 @@ type DryRun struct {
 	Commands          []Command                              `json:"commands"`
 	Metrics           []Metric                               `json:"metrics"`
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
+	Files             map[string]FileWrite                   `json:"files"`
 
 	// These fields are set on marshal
 	OSEnv      map[string]string `json:"osEnv"`
@@ -54,6 +55,12 @@ type Metric struct {
 type Command struct {
 	Cmd string            `json:"cmd"`
 	Env map[string]string `json:"env,omitempty"`
+}
+
+type FileWrite struct {
+	Path    string      `json:"path"`
+	Content string      `json:"content"`
+	Mode    os.FileMode `json:"mode"`
 }
 
 func (d *DryRun) MarshalJSON() ([]byte, error) {

@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 const (
@@ -30,7 +32,7 @@ func UnitFilePath(unit string) string {
 func WriteUnitFile(unit string, contents []byte) error {
 	unit = normalizeUnitName(unit)
 
-	err := os.WriteFile(UnitFilePath(unit), contents, 0644)
+	err := helpers.WriteFile(UnitFilePath(unit), contents, 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
@@ -59,7 +61,7 @@ func WriteDropInFile(unit, fileName string, contents []byte) error {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
-	err = os.WriteFile(DropInFilePath(unit, fileName), contents, 0644)
+	err = helpers.WriteFile(DropInFilePath(unit, fileName), contents, 0644)
 	if err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

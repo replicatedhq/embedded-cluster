@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -79,7 +80,7 @@ func dryrunInstallWithClusterConfig(t *testing.T, c *dryrun.Client, clusterConfi
 	dryrun.Init(drFile, c)
 
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
+	require.NoError(t, helpers.WriteFile(licenseFile, []byte(licenseData), 0644))
 
 	if err := runInstallerCmd(
 		append([]string{

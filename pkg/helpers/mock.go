@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"context"
 	"strings"
 )
 
@@ -22,8 +21,4 @@ func (m *MockHelpers) RunCommandWithOptions(opts RunCommandOptions, bin string, 
 func (m *MockHelpers) RunCommand(bin string, args ...string) (string, error) {
 	m.Commands = append(m.Commands, bin+" "+strings.Join(args, " "))
 	return "", nil
-}
-
-func (m *MockHelpers) IsSystemdServiceActive(ctx context.Context, svcname string) (bool, error) {
-	return false, nil
 }

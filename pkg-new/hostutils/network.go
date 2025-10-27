@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/firewalld"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/multierr"
@@ -17,7 +18,7 @@ import (
 // the calico interfaces. This function restarts the NetworkManager service if the configuration
 // was changed.
 func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	if active, err := helpers.IsSystemdServiceActive(ctx, "NetworkManager"); err != nil {
+	if active, err := systemd.IsActive(ctx, "NetworkManager"); err != nil {
 		return fmt.Errorf("check if NetworkManager is active: %w", err)
 	} else if !active {
 		logrus.Debugf("NetworkManager is not active, skipping configuration")

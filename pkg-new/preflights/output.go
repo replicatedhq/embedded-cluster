@@ -9,6 +9,7 @@ import (
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/term"
 )
@@ -37,7 +38,7 @@ func (p *PreflightsRunner) SaveToDisk(o *apitypes.PreflightsOutput, path string)
 
 	// If we ever want to store multiple preflight results
 	// we can add a timestamp to the filename.
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := helpers.WriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("unable to write preflight results to %s: %w", path, err)
 	}
 

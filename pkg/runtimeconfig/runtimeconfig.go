@@ -224,7 +224,7 @@ func (rc *runtimeConfig) WriteToDisk() error {
 		return fmt.Errorf("marshal spec: %w", err)
 	}
 
-	if err := os.WriteFile(location, yml, 0644); err != nil {
+	if err := helpers.WriteFile(location, yml, 0644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

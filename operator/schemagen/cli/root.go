@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -138,7 +139,7 @@ func writeSchema(schema *extensionsv1.JSONSchemaProps, outfile string) error {
 	)
 	boolStringed := replacer.Replace(string(b))
 
-	err = os.WriteFile(outfile, []byte(boolStringed), 0644)
+	err = helpers.WriteFile(outfile, []byte(boolStringed), 0644)
 	if err != nil {
 		return errors.Wrap(err, "failed to write file")
 	}

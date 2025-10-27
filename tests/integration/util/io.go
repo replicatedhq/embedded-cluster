@@ -3,6 +3,8 @@ package util
 import (
 	"os"
 	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 func WriteTempFile(t *testing.T, pattern string, data []byte, perm os.FileMode) string {
@@ -11,7 +13,7 @@ func WriteTempFile(t *testing.T, pattern string, data []byte, perm os.FileMode) 
 		t.Fatalf("failed to create temp file: %s", err)
 	}
 	defer f.Close()
-	err = os.WriteFile(f.Name(), data, perm)
+	err = helpers.WriteFile(f.Name(), data, perm)
 	if err != nil {
 		t.Fatalf("failed to write temp file %s: %s", f.Name(), err)
 	}

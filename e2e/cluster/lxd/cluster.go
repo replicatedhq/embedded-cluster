@@ -18,6 +18,7 @@ import (
 	lxd "github.com/canonical/lxd/client"
 	"github.com/canonical/lxd/shared/api"
 	"github.com/google/uuid"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 var networkaddr chan string
@@ -732,7 +733,7 @@ func NodeHasInternet(in *ClusterInput, node string) {
 	defer func() {
 		os.RemoveAll(fp.Name())
 	}()
-	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+	if err := helpers.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
 		in.T.Fatalf("Failed to write script: %v", err)
 	}
 	file := File{
@@ -782,7 +783,7 @@ func NodeHasNoInternet(in *ClusterInput, node string) {
 	defer func() {
 		os.RemoveAll(fp.Name())
 	}()
-	if err := os.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
+	if err := helpers.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
 		in.T.Fatalf("Failed to write script: %v", err)
 	}
 	file := File{

@@ -94,7 +94,7 @@ func sysctlConfig() error {
 	if err := os.MkdirAll(filepath.Dir(sysctlConfigPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
-	if err := os.WriteFile(sysctlConfigPath, embeddedClusterSysctlConf, 0644); err != nil {
+	if err := helpers.WriteFile(sysctlConfigPath, embeddedClusterSysctlConf, 0644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
@@ -136,7 +136,7 @@ func generateDynamicSysctlConfig(getter sysctlValueGetter, configPath string) er
 		}
 	}
 
-	if err := os.WriteFile(configPath, []byte(config.String()), 0644); err != nil {
+	if err := helpers.WriteFile(configPath, []byte(config.String()), 0644); err != nil {
 		return fmt.Errorf("write dynamic config file: %w", err)
 	}
 	return nil
@@ -180,7 +180,7 @@ func kernelModulesConfig() error {
 	if err := os.MkdirAll(filepath.Dir(modulesLoadConfigPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
-	if err := os.WriteFile(modulesLoadConfigPath, embeddedClusterModulesConf, 0644); err != nil {
+	if err := helpers.WriteFile(modulesLoadConfigPath, embeddedClusterModulesConf, 0644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
@@ -262,7 +262,7 @@ Environment="HTTP_PROXY=%s"
 Environment="HTTPS_PROXY=%s"
 Environment="NO_PROXY=%s"`, httpProxy, httpsProxy, noProxy)
 
-	err := os.WriteFile(filepath.Join(servicePath, "http-proxy.conf"), []byte(content), 0644)
+	err := helpers.WriteFile(filepath.Join(servicePath, "http-proxy.conf"), []byte(content), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to create and write proxy file: %w", err)
 	}
@@ -362,7 +362,7 @@ func ensureAutopilotConfig(servicePath string, hostname string) error {
 	content := fmt.Sprintf(`[Service]
 Environment="AUTOPILOT_HOSTNAME=%s"`, hostname)
 
-	err := os.WriteFile(filepath.Join(servicePath, "autopilot-hostname.conf"), []byte(content), 0644)
+	err := helpers.WriteFile(filepath.Join(servicePath, "autopilot-hostname.conf"), []byte(content), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to create and write autopilot hostname file: %w", err)
 	}
