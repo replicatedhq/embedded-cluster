@@ -111,13 +111,13 @@ func TestRemoveAll(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(dir, "file1"), []byte("test"), 0644); err != nil {
+				if err := WriteFile(filepath.Join(dir, "file1"), []byte("test"), 0644); err != nil {
 					t.Fatal(err)
 				}
 				if err := os.Mkdir(filepath.Join(dir, "subdir"), 0755); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(dir, "subdir", "file2"), []byte("test"), 0644); err != nil {
+				if err := WriteFile(filepath.Join(dir, "subdir", "file2"), []byte("test"), 0644); err != nil {
 					t.Fatal(err)
 				}
 				return dir, true
@@ -213,7 +213,7 @@ func TestCopyFile(t *testing.T) {
 			dst:  filepath.Join(tmpDir, "subdir", "dest.txt"),
 			mode: 0644,
 			setup: func() error {
-				return os.WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("test content"), 0644)
+				return WriteFile(filepath.Join(tmpDir, "source.txt"), []byte("test content"), 0644)
 			},
 			wantErr: false,
 		},

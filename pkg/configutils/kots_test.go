@@ -1,10 +1,12 @@
 package configutils
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateKotsConfigValues(t *testing.T) {
@@ -60,7 +62,7 @@ kind: ConfigValues
 			tmp, err := os.MkdirTemp(os.TempDir(), "config-values-*")
 			req.NoError(err)
 			filename := filepath.Join(tmp, "config-values.yaml")
-			err = os.WriteFile(filename, []byte(tt.contents), 0644)
+			err = helpers.WriteFile(filename, []byte(tt.contents), 0644)
 			req.NoError(err)
 			defer os.RemoveAll(tmp)
 

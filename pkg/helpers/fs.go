@@ -97,7 +97,7 @@ func RemoveAll(path string) error {
 	return me.ErrorOrNil()
 }
 
-func WriteFile(path string, data []byte, perm os.FileMode) error {
+func (h *Helpers) WriteFile(path string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(path, data, perm)
 }
 

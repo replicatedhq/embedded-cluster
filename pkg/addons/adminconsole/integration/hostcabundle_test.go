@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -24,7 +24,7 @@ func TestHostCABundle(t *testing.T) {
 		HostCABundlePath: filepath.Join(t.TempDir(), "ca-certificates.crt"),
 	}
 
-	err := os.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
+	err := helpers.WriteFile(addon.HostCABundlePath, []byte("test"), 0644)
 	require.NoError(t, err, "Failed to write CA bundle file")
 
 	hcli, err := helm.NewClient(helm.HelmOptions{})

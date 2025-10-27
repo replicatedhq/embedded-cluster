@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/types/join"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -112,7 +113,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 
 		// create fake k0s images file
 		testK0sImagesPath := filepath.Join(t.TempDir(), "ec-images-amd64.tar")
-		err = os.WriteFile(testK0sImagesPath, []byte("fake-k0s-images-file-content"), 0644)
+		err = helpers.WriteFile(testK0sImagesPath, []byte("fake-k0s-images-file-content"), 0644)
 		require.NoError(t, err)
 
 		testK0sImagesFile, err := os.Open(testK0sImagesPath)

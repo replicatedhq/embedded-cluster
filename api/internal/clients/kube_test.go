@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/rest"
@@ -39,7 +40,7 @@ users:
     token: eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZWZhdWx0In0.test-token
 `
 
-	err = os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
+	err = helpers.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -61,7 +62,7 @@ func createInvalidKubeConfig(t *testing.T) string {
 	// Create an invalid kubeconfig (invalid YAML)
 	kubeconfig := `invalid yaml content {[}`
 
-	err = os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
+	err = helpers.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestServeCmd(t *testing.T) {
 	binPath := filepath.Join(dataDir, "bin", "local-artifact-mirror")
 	err = os.MkdirAll(filepath.Dir(binPath), 0755)
 	require.NoError(t, err)
-	err = os.WriteFile(binPath, []byte("test content"), 0644)
+	err = helpers.WriteFile(binPath, []byte("test content"), 0644)
 	require.NoError(t, err)
 
 	// Create test files in whitelisted directories
@@ -45,7 +46,7 @@ func TestServeCmd(t *testing.T) {
 		require.NoError(t, err)
 
 		testFilePath := filepath.Join(dirPath, "test.txt")
-		err = os.WriteFile(testFilePath, []byte("test content"), 0644)
+		err = helpers.WriteFile(testFilePath, []byte("test content"), 0644)
 		require.NoError(t, err)
 	}
 
@@ -55,7 +56,7 @@ func TestServeCmd(t *testing.T) {
 	require.NoError(t, err)
 
 	nonWhitelistedFile := filepath.Join(nonWhitelistedDir, "secret.txt")
-	err = os.WriteFile(nonWhitelistedFile, []byte("secret content"), 0644)
+	err = helpers.WriteFile(nonWhitelistedFile, []byte("secret content"), 0644)
 	require.NoError(t, err)
 
 	testCases := []struct {

@@ -107,7 +107,7 @@ func Dump() error {
 	if err != nil {
 		return fmt.Errorf("marshal dry run info: %w", err)
 	}
-	if err := helpers.WriteFile(drFile, output, 0644); err != nil {
+	if err := os.WriteFile(drFile, output, 0644); err != nil {
 		return fmt.Errorf("write dry run info to file: %w", err)
 	}
 	return nil

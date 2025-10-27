@@ -11,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -142,7 +143,7 @@ func updateCmdSetupFilesystem(t *testing.T, root, k0s string) {
 	require.NoError(t, err)
 	err = os.MkdirAll(filepath.Join(k0s, "pki"), 0644)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(k0s, "pki/ca.crt"), []byte("fake-ca-cert"), 0644)
+	err = helpers.WriteFile(filepath.Join(k0s, "pki/ca.crt"), []byte("fake-ca-cert"), 0644)
 	require.NoError(t, err)
 }
 
@@ -153,6 +154,6 @@ var (
 
 func airgapBundleFile(t *testing.T) string {
 	bundleAirgapFile := filepath.Join(t.TempDir(), "bundle.airgap")
-	require.NoError(t, os.WriteFile(bundleAirgapFile, airgapBundle, 0644))
+	require.NoError(t, helpers.WriteFile(bundleAirgapFile, airgapBundle, 0644))
 	return bundleAirgapFile
 }

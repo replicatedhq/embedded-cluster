@@ -5,10 +5,10 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +27,7 @@ func TestAdminConsole_ensureCAConfigmap(t *testing.T) {
 	// Create a temporary file for testing CA bundle
 	tempDir := t.TempDir()
 	testCAPath := filepath.Join(tempDir, "test-ca.crt")
-	err := os.WriteFile(testCAPath, []byte("new CA content"), 0644)
+	err := helpers.WriteFile(testCAPath, []byte("new CA content"), 0644)
 	require.NoError(t, err)
 
 	metascheme := metadatafake.NewTestScheme()

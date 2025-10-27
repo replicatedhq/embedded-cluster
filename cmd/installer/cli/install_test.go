@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -880,9 +881,9 @@ r3glM4yhSJwf/cAWmt1A7DGOYnV7FF2wkDJJPX/Vag1uEsqrzwnAdFBymK5dwDsu
 oxhVqyhpk86rf0rT5DcD/sBw
 -----END PRIVATE KEY-----`
 
-	err := os.WriteFile(certPath, []byte(certData), 0644)
+	err := helpers.WriteFile(certPath, []byte(certData), 0644)
 	require.NoError(t, err)
-	err = os.WriteFile(keyPath, []byte(keyData), 0644)
+	err = helpers.WriteFile(keyPath, []byte(keyData), 0644)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -931,7 +932,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			name: "invalid cert file",
 			tlsCertFile: func() string {
 				invalidCertPath := filepath.Join(tmpdir, "invalid-cert.pem")
-				os.WriteFile(invalidCertPath, []byte("invalid cert data"), 0644)
+				helpers.WriteFile(invalidCertPath, []byte("invalid cert data"), 0644)
 				return invalidCertPath
 			}(),
 			tlsKeyFile: keyPath,

@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -21,6 +20,7 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/web"
@@ -265,7 +265,7 @@ func setupMockRuntimeConfig(t *testing.T) *runtimeconfig.MockRuntimeConfig {
 
 	// Write the helm binary to the temp directory for helm client to use
 	helmPath := filepath.Join(t.TempDir(), "helm")
-	err := os.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
+	err := helpers.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
 	require.NoError(t, err)
 
 	rc := &runtimeconfig.MockRuntimeConfig{}
@@ -285,7 +285,7 @@ func setupMockKubernetesInstallation(t *testing.T) *kubernetesinstallation.MockI
 
 	// Write the helm binary to the temp directory for helm client to use
 	helmPath := filepath.Join(t.TempDir(), "helm")
-	err := os.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
+	err := helpers.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
 	require.NoError(t, err)
 
 	ki := &kubernetesinstallation.MockInstallation{}

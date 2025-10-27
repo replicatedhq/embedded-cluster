@@ -89,7 +89,7 @@ kind: Config`,
 				// Create temporary file
 				tmpDir := t.TempDir()
 				testFile = filepath.Join(tmpDir, tt.fpath)
-				err := os.WriteFile(testFile, []byte(tt.fileContent), 0644)
+				err := WriteFile(testFile, []byte(tt.fileContent), 0644)
 				req.NoError(err)
 			} else if tt.fpath != "" {
 				// Use the fpath as-is for non-existent file tests
@@ -196,7 +196,7 @@ kind: License`,
 				// Create temporary file
 				tmpDir := t.TempDir()
 				testFile = filepath.Join(tmpDir, tt.fpath)
-				err := os.WriteFile(testFile, []byte(tt.fileContent), 0644)
+				err := WriteFile(testFile, []byte(tt.fileContent), 0644)
 				req.NoError(err)
 			} else {
 				// Use the fpath as-is for non-existent file tests
@@ -346,7 +346,7 @@ spec:
 				// Create temporary file
 				tmpDir := t.TempDir()
 				testFile = filepath.Join(tmpDir, tt.fpath)
-				err := os.WriteFile(testFile, []byte(tt.fileContent), 0644)
+				err := WriteFile(testFile, []byte(tt.fileContent), 0644)
 				req.NoError(err)
 			} else if tt.fpath != "" {
 				// Use the fpath as-is for non-existent file tests

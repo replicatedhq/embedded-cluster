@@ -11,6 +11,7 @@ import (
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -122,7 +123,7 @@ func TestInstallFlags(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(defaultTmpFile.Name())
 
-	err = os.WriteFile(defaultTmpFile.Name(), k0sDefaultConfigBytes, 0644)
+	err = helpers.WriteFile(defaultTmpFile.Name(), k0sDefaultConfigBytes, 0644)
 	require.NoError(t, err)
 
 	k0sCfg.Spec.WorkerProfiles = []k0sv1beta1.WorkerProfile{
@@ -137,7 +138,7 @@ func TestInstallFlags(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(profileTmpFile.Name())
 
-	err = os.WriteFile(profileTmpFile.Name(), k0sProfileConfigBytes, 0644)
+	err = helpers.WriteFile(profileTmpFile.Name(), k0sProfileConfigBytes, 0644)
 	require.NoError(t, err)
 
 	rc := runtimeconfig.New(nil)

@@ -1,7 +1,6 @@
 package dryrun
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/assert"
@@ -199,7 +199,7 @@ func dryrunInstallWithCustomReleaseDataExpectError(t *testing.T, c *dryrun.Clien
 	dryrun.Init(drFile, c)
 
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
+	require.NoError(t, helpers.WriteFile(licenseFile, []byte(licenseData), 0644))
 
 	// Return the error instead of failing the test
 	return runInstallerCmd(

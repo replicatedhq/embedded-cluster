@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -190,7 +191,7 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 
 			// Write the actual template to the test directory
 			templatePath := filepath.Join(supportDir, "host-support-bundle.tmpl.yaml")
-			err = os.WriteFile(templatePath, templateContent, 0644)
+			err = helpers.WriteFile(templatePath, templateContent, 0644)
 			require.NoError(t, err)
 
 			// Create mock RuntimeConfig

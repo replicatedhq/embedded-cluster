@@ -9,6 +9,7 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -35,7 +36,7 @@ func TestPatchK0sConfig(t *testing.T) {
 				originalFile.Close()
 				os.Remove(originalFile.Name())
 			}()
-			err = os.WriteFile(originalFile.Name(), []byte(tt.Original), 0644)
+			err = helpers.WriteFile(originalFile.Name(), []byte(tt.Original), 0644)
 			req.NoError(err, "unable to write original config")
 
 			var patch string

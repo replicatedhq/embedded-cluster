@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -81,7 +81,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
-				err := os.WriteFile(cafile, []byte("test-ca-content"), 0644)
+				err := helpers.WriteFile(cafile, []byte("test-ca-content"), 0644)
 				require.NoError(t, err)
 				return cafile
 			},
@@ -112,7 +112,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
-				err := os.WriteFile(cafile, []byte("new-ca-content"), 0644)
+				err := helpers.WriteFile(cafile, []byte("new-ca-content"), 0644)
 				require.NoError(t, err)
 				return cafile
 			},
@@ -144,7 +144,7 @@ func TestEnsureCAConfigmap(t *testing.T) {
 			},
 			setup: func(t *testing.T) string {
 				cafile := filepath.Join(t.TempDir(), "ca.crt")
-				err := os.WriteFile(cafile, []byte("same-ca-content"), 0644)
+				err := helpers.WriteFile(cafile, []byte("same-ca-content"), 0644)
 				require.NoError(t, err)
 				return cafile
 			},

@@ -12,6 +12,7 @@ import (
 	"testing/fstest"
 
 	"github.com/gorilla/mux"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -368,11 +369,11 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 
 	// Create a test file in the dist/assets directory
 	devFileContent := "console.log('Development mode!');"
-	err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
+	err = helpers.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(devFileContent), 0644)
 	require.NoError(t, err, "Failed to write dev file")
 
 	// Create a index.hmtl test file in the dist/ directory to be used as template by the web server
-	err = os.WriteFile("./web/dist/index.html", []byte(htmlTemplate), 0644)
+	err = helpers.WriteFile("./web/dist/index.html", []byte(htmlTemplate), 0644)
 	require.NoError(t, err, "Failed to write dev file")
 
 	// Create a new Web instance
@@ -399,7 +400,7 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 
 	t.Run("Changes to the file are reflected and served", func(t *testing.T) {
 		newDevFileContent := devFileContent + "console.log('such a change, very wow');"
-		err = os.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(newDevFileContent), 0644)
+		err = helpers.WriteFile("./web/dist/assets/test-file-dev-app.js", []byte(newDevFileContent), 0644)
 		req := httptest.NewRequest("GET", "/assets/test-file-dev-app.js", nil)
 		recorder := httptest.NewRecorder()
 

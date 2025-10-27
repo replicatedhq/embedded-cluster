@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -84,7 +85,7 @@ func TestPullImagesCmd(t *testing.T) {
 					Run(func(args mock.Arguments) {
 						artifactFile := filepath.Join(artifactDir, ImagesSrcArtifactName)
 						fmt.Println("artifactFile", artifactFile)
-						err = os.WriteFile(artifactFile, []byte("test artifact content"), 0644)
+						err = helpers.WriteFile(artifactFile, []byte("test artifact content"), 0644)
 						require.NoError(t, err)
 					}).
 					Return(artifactDir, nil)
@@ -105,7 +106,7 @@ func TestPullImagesCmd(t *testing.T) {
 					Run(func(args mock.Arguments) {
 						artifactFile := filepath.Join(artifactDir, ImagesSrcArtifactName)
 						fmt.Println("artifactFile", artifactFile)
-						err = os.WriteFile(artifactFile, []byte("test artifact content"), 0644)
+						err = helpers.WriteFile(artifactFile, []byte("test artifact content"), 0644)
 						require.NoError(t, err)
 					}).
 					Return(artifactDir, nil)

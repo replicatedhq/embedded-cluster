@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"io"
+	"os"
 )
 
 var h HelpersInterface
@@ -23,6 +24,7 @@ func Set(_h HelpersInterface) {
 type HelpersInterface interface {
 	RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) error
 	RunCommand(bin string, args ...string) (string, error)
+	WriteFile(path string, data []byte, perm os.FileMode) error
 }
 
 type RunCommandOptions struct {
@@ -48,4 +50,8 @@ func RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) e
 
 func RunCommand(bin string, args ...string) (string, error) {
 	return h.RunCommand(bin, args...)
+}
+
+func WriteFile(path string, data []byte, perm os.FileMode) error {
+	return h.WriteFile(path, data, perm)
 }

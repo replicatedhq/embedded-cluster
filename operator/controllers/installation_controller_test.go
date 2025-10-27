@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr/testr"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,7 @@ func TestInstallationReconciler_reconcileHostCABundle(t *testing.T) {
 	// Create a temporary file for testing CA bundle
 	tempDir := t.TempDir()
 	testCAPath := filepath.Join(tempDir, "test-ca.crt")
-	err := os.WriteFile(testCAPath, []byte("new CA content"), 0644)
+	err := helpers.WriteFile(testCAPath, []byte("new CA content"), 0644)
 	require.NoError(t, err)
 
 	namespace := "kotsadm"

@@ -13,6 +13,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -400,7 +401,7 @@ var (
 
 func valuesFile(t *testing.T) string {
 	valuesYamlFilename := filepath.Join(t.TempDir(), "values.yaml")
-	require.NoError(t, os.WriteFile(valuesYamlFilename, valuesYaml, 0644))
+	require.NoError(t, helpers.WriteFile(valuesYamlFilename, valuesYaml, 0644))
 	return valuesYamlFilename
 }
 
@@ -684,9 +685,9 @@ r3glM4yhSJwf/cAWmt1A7DGOYnV7FF2wkDJJPX/Vag1uEsqrzwnAdFBymK5dwDsu
 oxhVqyhpk86rf0rT5DcD/sBw
 -----END PRIVATE KEY-----`
 
-	err := os.WriteFile(certPath, []byte(certData), 0644)
+	err := helpers.WriteFile(certPath, []byte(certData), 0644)
 	require.NoError(t, err)
-	err = os.WriteFile(keyPath, []byte(keyData), 0644)
+	err = helpers.WriteFile(keyPath, []byte(keyData), 0644)
 	require.NoError(t, err)
 
 	hcli := &helm.MockClient{}
