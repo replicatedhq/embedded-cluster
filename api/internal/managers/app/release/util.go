@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"helm.sh/helm/v3/pkg/chart/loader"
@@ -62,7 +63,7 @@ func writeChartArchiveToTemp(chartArchive []byte) (string, error) {
 
 	// Write the chart archive to the temporary file
 	if _, err := tmpFile.Write(chartArchive); err != nil {
-		os.Remove(tmpFile.Name())
+		helpers.Remove(tmpFile.Name())
 		return "", fmt.Errorf("write chart archive: %w", err)
 	}
 

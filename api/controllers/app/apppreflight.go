@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime/debug"
 
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
@@ -12,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 type RunAppPreflightOptions struct {
@@ -70,7 +70,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		defer func() {
 			// Clean up binary if requested
 			if opts.CleanupBinary {
-				_ = os.Remove(opts.PreflightBinaryPath)
+				_ = helpers.Remove(opts.PreflightBinaryPath)
 			}
 
 			if r := recover(); r != nil {

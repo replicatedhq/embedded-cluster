@@ -3,7 +3,6 @@ package dryrun
 import (
 	"context"
 	_ "embed"
-	"os"
 	"path/filepath"
 	"regexp"
 	"testing"
@@ -137,11 +136,11 @@ func TestUpdateAirgapPreFS(t *testing.T) {
 }
 
 func updateCmdSetupFilesystem(t *testing.T, root, k0s string) {
-	err := os.MkdirAll(root, 0755)
+	err := helpers.MkdirAll(root, 0755)
 	require.NoError(t, err)
-	err = os.MkdirAll(filepath.Join(root, "tmp"), 0755)
+	err = helpers.MkdirAll(filepath.Join(root, "tmp"), 0755)
 	require.NoError(t, err)
-	err = os.MkdirAll(filepath.Join(k0s, "pki"), 0644)
+	err = helpers.MkdirAll(filepath.Join(k0s, "pki"), 0644)
 	require.NoError(t, err)
 	err = helpers.WriteFile(filepath.Join(k0s, "pki/ca.crt"), []byte("fake-ca-cert"), 0644)
 	require.NoError(t, err)

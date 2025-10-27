@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,7 +96,7 @@ func newCAConfigMap(caPath string, checksum string) (*corev1.ConfigMap, error) {
 func calculateFileChecksum(path string) (string, error) {
 	hasher := md5.New()
 
-	file, err := os.Open(path)
+	file, err := helpers.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)
 	}
@@ -135,7 +135,7 @@ func casConfigMap(cas map[string]string, checksum string) *corev1.ConfigMap {
 func casToMap(cas []string) (map[string]string, error) {
 	casMap := map[string]string{}
 	for i, path := range cas {
-		data, err := os.ReadFile(path)
+		data, err := helpers.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("read ca file %s: %w", path, err)
 		}

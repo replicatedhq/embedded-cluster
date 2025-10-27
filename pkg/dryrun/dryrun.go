@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
@@ -52,7 +53,6 @@ func Init(outputFile string, client *Client) {
 		Commands:          []types.Command{},
 		Metrics:           []types.Metric{},
 		HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-		Files:             map[string]types.FileWrite{},
 		LogBuffer:         bytes.NewBuffer(nil),
 	}
 	drFile = outputFile
@@ -114,7 +114,7 @@ func Dump() error {
 }
 
 func Load() (*types.DryRun, error) {
-	data, err := os.ReadFile(drFile)
+	data, err := helpers.ReadFile(drFile)
 	if err != nil {
 		return nil, fmt.Errorf("read dry run file: %w", err)
 	}
@@ -168,15 +168,124 @@ func RecordHostPreflightSpec(hpf *troubleshootv1beta2.HostPreflightSpec) {
 	dr.HostPreflightSpec = hpf
 }
 
-func RecordFileWrite(path string, content []byte, mode os.FileMode) {
-	mu.Lock()
-	defer mu.Unlock()
+func WriteFile(path string, content []byte, mode os.FileMode) error {
+	fs := dr.Filesystem()
+	return afero.WriteFile(fs, path, content, mode)
+}
 
-	dr.Files[path] = types.FileWrite{
-		Path:    path,
-		Content: string(content),
-		Mode:    mode,
+func ReadFile(path string) ([]byte, error) {
+	fs := dr.Filesystem()
+	return afero.ReadFile(fs, path)
+}
+
+func MoveFile(src, dst string) error {
+	fs := dr.Filesystem()
+	return fs.Rename(src, dst)
+}
+
+func Open(path string) (afero.File, error) {
+	fs := dr.Filesystem()
+	return fs.Open(path)
+}
+
+func OpenFile(path string, flag int, perm os.FileMode) (afero.File, error) {
+	fs := dr.Filesystem()
+	return fs.OpenFile(path, flag, perm)
+}
+
+func ReadDir(path string) ([]os.DirEntry, error) {
+	fs := dr.Filesystem()
+
+	// afero.ReadDir returns []os.FileInfo
+	infos, err := afero.ReadDir(fs, path)
+	if err != nil {
+		return nil, err
 	}
+
+	// Convert []os.FileInfo to []os.DirEntry
+	entries := make([]os.DirEntry, len(infos))
+	for i, info := range infos {
+		entries[i] = fileInfoToDirEntry(info)
+	}
+	return entries, nil
+}
+
+// fileInfoToDirEntry wraps os.FileInfo to implement os.DirEntry
+type fileInfoDirEntry struct {
+	info os.FileInfo
+}
+
+func fileInfoToDirEntry(info os.FileInfo) os.DirEntry {
+	return &fileInfoDirEntry{info: info}
+}
+
+func (e *fileInfoDirEntry) Name() string {
+	return e.info.Name()
+}
+
+func (e *fileInfoDirEntry) IsDir() bool {
+	return e.info.IsDir()
+}
+
+func (e *fileInfoDirEntry) Type() os.FileMode {
+	return e.info.Mode().Type()
+}
+
+func (e *fileInfoDirEntry) Info() (os.FileInfo, error) {
+	return e.info, nil
+}
+
+func Stat(path string) (os.FileInfo, error) {
+	fs := dr.Filesystem()
+	return fs.Stat(path)
+}
+
+func Lstat(path string) (os.FileInfo, error) {
+	fs := dr.Filesystem()
+
+	// Check if filesystem supports Lstat
+	if lstater, ok := fs.(afero.Lstater); ok {
+		info, _, err := lstater.LstatIfPossible(path)
+		return info, err
+	}
+
+	// Fall back to Stat
+	return fs.Stat(path)
+}
+
+func MkdirTemp(dir, pattern string) (string, error) {
+	fs := dr.Filesystem()
+	return afero.TempDir(fs, dir, pattern)
+}
+
+func CreateTemp(dir, pattern string) (afero.File, error) {
+	fs := dr.Filesystem()
+	return afero.TempFile(fs, dir, pattern)
+}
+
+func RemoveAll(path string) error {
+	fs := dr.Filesystem()
+	return fs.RemoveAll(path)
+}
+
+func Remove(path string) error {
+	fs := dr.Filesystem()
+	return fs.Remove(path)
+}
+
+func Chmod(path string, mode os.FileMode) error {
+	fs := dr.Filesystem()
+	return fs.Chmod(path, mode)
+}
+
+func MkdirAll(path string, perm os.FileMode) error {
+	fs := dr.Filesystem()
+	return fs.MkdirAll(path, perm)
+}
+
+func Rename(oldpath, newpath string) error {
+	fs := dr.Filesystem()
+	return fs.Rename(oldpath, newpath)
 }
 
 func KubeClient() (client.Client, error) {

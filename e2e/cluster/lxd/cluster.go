@@ -380,7 +380,7 @@ func ConfigureProxy(in *ClusterInput) {
 		in.T.Errorf("failed to copy proxy ca: %v", err)
 		return
 	}
-	defer os.Remove("/tmp/ca.crt")
+	defer helpers.Remove("/tmp/ca.crt")
 
 	// set the default route on all other nodes to point to the proxy we just created.
 	// this makes it easier to ensure no internet will work on them other than dns and
@@ -536,7 +536,7 @@ func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 	if err != nil {
 		in.T.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer helpers.Remove(tmpFile.Name())
 	defer tmpFile.Close()
 
 	// Create tar writer
@@ -575,7 +575,7 @@ func CopyDirToNode(in *ClusterInput, node string, dir Dir) {
 
 		// If this is a regular file, write the contents
 		if !info.IsDir() {
-			file, err := os.Open(path)
+			file, err := helpers.Open(path)
 			if err != nil {
 				return fmt.Errorf("failed to open file %s: %v", path, err)
 			}
@@ -731,7 +731,7 @@ func NodeHasInternet(in *ClusterInput, node string) {
 	}
 	fp.Close()
 	defer func() {
-		os.RemoveAll(fp.Name())
+		helpers.RemoveAll(fp.Name())
 	}()
 	if err := helpers.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
 		in.T.Fatalf("Failed to write script: %v", err)
@@ -781,7 +781,7 @@ func NodeHasNoInternet(in *ClusterInput, node string) {
 	}
 	fp.Close()
 	defer func() {
-		os.RemoveAll(fp.Name())
+		helpers.RemoveAll(fp.Name())
 	}()
 	if err := helpers.WriteFile(fp.Name(), []byte(checkInternet), 0755); err != nil {
 		in.T.Fatalf("Failed to write script: %v", err)

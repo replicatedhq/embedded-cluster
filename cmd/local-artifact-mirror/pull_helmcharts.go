@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/tgzutils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -44,7 +44,7 @@ func PullHelmChartsCmd(cli *CLI) *cobra.Command {
 			}
 			defer func() {
 				logrus.Infof("removing temporary directory %s", location)
-				os.RemoveAll(location)
+				helpers.RemoveAll(location)
 			}()
 
 			dst := cli.RC.EmbeddedClusterChartsSubDir()

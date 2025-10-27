@@ -391,7 +391,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 
 	// license file can be empty for restore
 	if flags.licenseFile != "" {
-		b, err := os.ReadFile(flags.licenseFile)
+		b, err := helpers.ReadFile(flags.licenseFile)
 		if err != nil {
 			return fmt.Errorf("failed to read license file: %w", err)
 		}
@@ -467,11 +467,11 @@ func processTLSConfig(flags *InstallCmdFlags) error {
 		if err != nil {
 			return fmt.Errorf("load tls certificate: %w", err)
 		}
-		certData, err := os.ReadFile(flags.tlsCertFile)
+		certData, err := helpers.ReadFile(flags.tlsCertFile)
 		if err != nil {
 			return fmt.Errorf("failed to read tls cert file: %w", err)
 		}
-		keyData, err := os.ReadFile(flags.tlsKeyFile)
+		keyData, err := helpers.ReadFile(flags.tlsKeyFile)
 		if err != nil {
 			return fmt.Errorf("failed to read tls key file: %w", err)
 		}
@@ -564,7 +564,7 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, ki kubern
 
 	// If set, validate that the kubeconfig file exists and can be read
 	if flags.kubernetesEnvSettings.KubeConfig != "" {
-		if _, err := os.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
+		if _, err := helpers.Stat(flags.kubernetesEnvSettings.KubeConfig); os.IsNotExist(err) {
 			return fmt.Errorf("kubeconfig file does not exist: %s", flags.kubernetesEnvSettings.KubeConfig)
 		} else if err != nil {
 			return fmt.Errorf("failed to stat kubeconfig file: %w", err)
@@ -1074,7 +1074,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	licenseBytes, err := helpers.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("failed to read license file: %w", err)
 	}

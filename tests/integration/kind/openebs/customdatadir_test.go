@@ -8,6 +8,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util/kind"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +48,7 @@ func TestOpenEBS_CustomDataDir(t *testing.T) {
 	// create a Pod and PVC to test that the data dir is mounted
 	createPodAndPVC(t, kubeconfig)
 
-	_, err := os.Stat(filepath.Join(dataDir, "openebs-local"))
+	_, err := helpers.Stat(filepath.Join(dataDir, "openebs-local"))
 	require.NoError(t, err, "failed to find openebs data dir")
 	entries, err := os.ReadDir(dataDir)
 	require.NoError(t, err, "failed to read openebs data dir")

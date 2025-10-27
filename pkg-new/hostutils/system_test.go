@@ -13,9 +13,9 @@ import (
 )
 
 func TestSysctlConfig(t *testing.T) {
-	basedir, err := os.MkdirTemp("", "embedded-cluster-test-base-dir")
+	basedir, err := helpers.MkdirTemp("", "embedded-cluster-test-base-dir")
 	assert.NoError(t, err)
-	defer os.RemoveAll(basedir)
+	defer helpers.RemoveAll(basedir)
 
 	orig := sysctlConfigPath
 	defer func() {
@@ -26,16 +26,16 @@ func TestSysctlConfig(t *testing.T) {
 	rc.SetDataDir(basedir)
 
 	// happy path.
-	dstdir, err := os.MkdirTemp("", "embedded-cluster-test")
+	dstdir, err := helpers.MkdirTemp("", "embedded-cluster-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(dstdir)
+	defer helpers.RemoveAll(dstdir)
 
 	sysctlConfigPath = filepath.Join(dstdir, "sysctl.conf")
 	err = sysctlConfig()
 	assert.NoError(t, err)
 
 	// check that the file exists.
-	_, err = os.Stat(sysctlConfigPath)
+	_, err = helpers.Stat(sysctlConfigPath)
 	assert.NoError(t, err)
 
 	// now use a non-existing directory.
@@ -119,7 +119,7 @@ func TestDynamicSysctlConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			// Read generated file
-			content, err := os.ReadFile(configPath)
+			content, err := helpers.ReadFile(configPath)
 			require.NoError(t, err)
 
 			// Check for expected lines
@@ -226,7 +226,7 @@ func Test_ensureProxyConfig(t *testing.T) {
 			assert.FileExists(t, configFile)
 
 			// Read and verify file contents
-			content, err := os.ReadFile(configFile)
+			content, err := helpers.ReadFile(configFile)
 			require.NoError(t, err)
 
 			expectedContent := `[Service]
@@ -237,7 +237,7 @@ Environment="NO_PROXY=` + tt.noProxy + `"`
 			assert.Equal(t, expectedContent, string(content))
 
 			// Verify file permissions
-			info, err := os.Stat(configFile)
+			info, err := helpers.Stat(configFile)
 			require.NoError(t, err)
 			assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
 		})
@@ -286,7 +286,7 @@ func Test_ensureAutopilotConfig(t *testing.T) {
 			assert.FileExists(t, configFile)
 
 			// Read and verify file contents
-			content, err := os.ReadFile(configFile)
+			content, err := helpers.ReadFile(configFile)
 			require.NoError(t, err)
 
 			expectedContent := `[Service]
@@ -295,7 +295,7 @@ Environment="AUTOPILOT_HOSTNAME=` + tt.hostname + `"`
 			assert.Equal(t, expectedContent, string(content))
 
 			// Verify file permissions
-			info, err := os.Stat(configFile)
+			info, err := helpers.Stat(configFile)
 			require.NoError(t, err)
 			assert.Equal(t, os.FileMode(0644), info.Mode().Perm())
 		})

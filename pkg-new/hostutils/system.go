@@ -91,7 +91,7 @@ func (h *HostUtils) ConfigureSysctl() error {
 
 // sysctlConfig writes the embedded sysctl config to the /etc/sysctl.d directory.
 func sysctlConfig() error {
-	if err := os.MkdirAll(filepath.Dir(sysctlConfigPath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(sysctlConfigPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 	if err := helpers.WriteFile(sysctlConfigPath, embeddedClusterSysctlConf, 0644); err != nil {
@@ -109,7 +109,7 @@ func dynamicSysctlConfig() error {
 // generateDynamicSysctlConfig is the testable version of dynamicSysctlConfig that accepts
 // a custom sysctl value getter and config path.
 func generateDynamicSysctlConfig(getter sysctlValueGetter, configPath string) error {
-	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 
@@ -177,7 +177,7 @@ func (h *HostUtils) ConfigureKernelModules() error {
 // kernelModulesConfig writes the embedded kernel modules config to the /etc/modules-load.d
 // directory.
 func kernelModulesConfig() error {
-	if err := os.MkdirAll(filepath.Dir(modulesLoadConfigPath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(modulesLoadConfigPath), 0755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
 	if err := helpers.WriteFile(modulesLoadConfigPath, embeddedClusterModulesConf, 0644); err != nil {
@@ -211,8 +211,8 @@ func modprobe(module string) error {
 // systemd unit file for the local artifact mirror service.
 func (h *HostUtils) CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error {
 	dst := systemdUnitFileName()
-	if _, err := os.Lstat(dst); err == nil {
-		if err := os.Remove(dst); err != nil {
+	if _, err := helpers.Lstat(dst); err == nil {
+		if err := helpers.Remove(dst); err != nil {
 			return err
 		}
 	}
@@ -252,7 +252,7 @@ func systemdUnitFileName() string {
 // systemd directory (/etc/systemd/system/k0s{controller,worker}.service.d/).
 func ensureProxyConfig(servicePath string, httpProxy string, httpsProxy string, noProxy string) error {
 	// create the directory
-	if err := os.MkdirAll(servicePath, 0755); err != nil {
+	if err := helpers.MkdirAll(servicePath, 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
@@ -355,7 +355,7 @@ func (h *HostUtils) WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeC
 // ensureAutopilotConfig creates a new autopilot-hostname.conf configuration file. The file is saved in the
 // systemd directory (/etc/systemd/system/k0s{controller,worker}.service.d/).
 func ensureAutopilotConfig(servicePath string, hostname string) error {
-	if err := os.MkdirAll(servicePath, 0755); err != nil {
+	if err := helpers.MkdirAll(servicePath, 0755); err != nil {
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 

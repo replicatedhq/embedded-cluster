@@ -11,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/spf13/afero"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -31,7 +32,6 @@ type DryRun struct {
 	Commands          []Command                              `json:"commands"`
 	Metrics           []Metric                               `json:"metrics"`
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
-	Files             map[string]FileWrite                   `json:"files"`
 
 	// These fields are set on marshal
 	OSEnv      map[string]string `json:"osEnv"`
@@ -44,6 +44,7 @@ type DryRun struct {
 	kcli    client.Client        `json:"-"`
 	mcli    metadata.Interface   `json:"-"`
 	kclient kubernetes.Interface `json:"-"`
+	fs      afero.Fs             `json:"-"`
 }
 
 type Metric struct {
@@ -57,10 +58,17 @@ type Command struct {
 	Env map[string]string `json:"env,omitempty"`
 }
 
-type FileWrite struct {
+type File struct {
 	Path    string      `json:"path"`
 	Content string      `json:"content"`
 	Mode    os.FileMode `json:"mode"`
+}
+
+func (d *DryRun) Filesystem() afero.Fs {
+	if d.fs == nil {
+		d.fs = afero.NewMemMapFs()
+	}
+	return d.fs
 }
 
 func (d *DryRun) MarshalJSON() ([]byte, error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"syscall"
@@ -467,7 +466,7 @@ func TestRestrictiveUmask(t *testing.T) {
 	}
 	gotFailure := false
 	for _, folder := range folderList {
-		stat, err := os.Stat(folder)
+		stat, err := helpers.Stat(folder)
 		if err != nil {
 			t.Logf("failed to stat %s: %v", folder, err)
 			gotFailure = true
@@ -618,7 +617,7 @@ func findHostCABundle(t *testing.T) string {
 	}
 
 	for _, file := range certFiles {
-		if _, err := os.Stat(file); err == nil {
+		if _, err := helpers.Stat(file); err == nil {
 			return file
 		}
 	}

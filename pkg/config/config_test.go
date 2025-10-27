@@ -121,7 +121,7 @@ func TestInstallFlags(t *testing.T) {
 
 	defaultTmpFile, err := os.CreateTemp("", "k0s-*.yaml")
 	require.NoError(t, err)
-	defer os.Remove(defaultTmpFile.Name())
+	defer helpers.Remove(defaultTmpFile.Name())
 
 	err = helpers.WriteFile(defaultTmpFile.Name(), k0sDefaultConfigBytes, 0644)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ func TestInstallFlags(t *testing.T) {
 
 	profileTmpFile, err := os.CreateTemp("", "k0s-*.yaml")
 	require.NoError(t, err)
-	defer os.Remove(profileTmpFile.Name())
+	defer helpers.Remove(profileTmpFile.Name())
 
 	err = helpers.WriteFile(profileTmpFile.Name(), k0sProfileConfigBytes, 0644)
 	require.NoError(t, err)

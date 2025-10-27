@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kyaml "sigs.k8s.io/yaml"
@@ -54,7 +55,7 @@ func (m *appUpgradeManager) upgrade(_ context.Context, configValues kotsv1beta1.
 	if err != nil {
 		return fmt.Errorf("creating config values file: %w", err)
 	}
-	defer os.Remove(configValuesFile)
+	defer helpers.Remove(configValuesFile)
 
 	deployOpts := kotscli.DeployOptions{
 		AppSlug:               m.releaseData.ChannelRelease.AppSlug,
@@ -106,7 +107,7 @@ func (m *appUpgradeManager) createConfigValuesFile(configValues kotsv1beta1.Conf
 	defer configValuesFile.Close()
 
 	if _, err := configValuesFile.Write(data); err != nil {
-		_ = os.Remove(configValuesFile.Name())
+		_ = helpers.Remove(configValuesFile.Name())
 		return "", fmt.Errorf("write config values to temp file: %w", err)
 	}
 

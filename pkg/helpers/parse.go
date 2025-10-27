@@ -3,7 +3,6 @@ package helpers
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -19,7 +18,7 @@ func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
 	if fpath == "" {
 		return nil, nil
 	}
-	data, err := os.ReadFile(fpath)
+	data, err := ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read overrides file: %w", err)
 	}
@@ -32,7 +31,7 @@ func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
 
 // ParseLicense parses the license from the given file.
 func ParseLicense(fpath string) (*kotsv1beta1.License, error) {
-	data, err := os.ReadFile(fpath)
+	data, err := ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read license file: %w", err)
 	}
@@ -47,7 +46,7 @@ func ParseConfigValues(fpath string) (*kotsv1beta1.ConfigValues, error) {
 	if fpath == "" {
 		return nil, nil
 	}
-	data, err := os.ReadFile(fpath)
+	data, err := ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config values file: %w", err)
 	}

@@ -104,11 +104,11 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 
 	if isAirgap {
 		// make sure k0s images file does not exist before join
-		_, err := os.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
+		_, err := helpers.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
 		require.ErrorIs(t, err, os.ErrNotExist)
 
 		// make sure charts directory does not exist before join
-		_, err = os.ReadFile("/var/lib/embedded-cluster/charts")
+		_, err = helpers.ReadFile("/var/lib/embedded-cluster/charts")
 		require.ErrorIs(t, err, os.ErrNotExist)
 
 		// create fake k0s images file
@@ -116,7 +116,7 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 		err = helpers.WriteFile(testK0sImagesPath, []byte("fake-k0s-images-file-content"), 0644)
 		require.NoError(t, err)
 
-		testK0sImagesFile, err := os.Open(testK0sImagesPath)
+		testK0sImagesFile, err := helpers.Open(testK0sImagesPath)
 		require.NoError(t, err)
 		defer testK0sImagesFile.Close()
 
@@ -228,21 +228,21 @@ func testJoinControllerNodeImpl(t *testing.T, isAirgap bool, hasHAMigration bool
 	// --- validate k0s images file and charts (if airgap) --- //
 	if isAirgap {
 		// validate that k0s images were written
-		content, err := os.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
+		content, err := helpers.ReadFile("/var/lib/embedded-cluster/k0s/images/ec-images-amd64.tar")
 		require.NoError(t, err)
 		assert.Equal(t, "fake-k0s-images-file-content", string(content))
 
 		// validate that charts were extracted and written to the correct directory
 		chartsDir := "/var/lib/embedded-cluster/charts"
-		content, err = os.ReadFile(filepath.Join(chartsDir, "seaweedfs-4.0.379.tgz"))
+		content, err = helpers.ReadFile(filepath.Join(chartsDir, "seaweedfs-4.0.379.tgz"))
 		require.NoError(t, err)
 		assert.Equal(t, "fake-seaweedfs-chart-content", string(content))
 
-		content, err = os.ReadFile(filepath.Join(chartsDir, "docker-registry-2.2.3.tgz"))
+		content, err = helpers.ReadFile(filepath.Join(chartsDir, "docker-registry-2.2.3.tgz"))
 		require.NoError(t, err)
 		assert.Equal(t, "fake-docker-registry-chart-content", string(content))
 
-		content, err = os.ReadFile(filepath.Join(chartsDir, "admin-console-1.124.15-ec.1.tgz"))
+		content, err = helpers.ReadFile(filepath.Join(chartsDir, "admin-console-1.124.15-ec.1.tgz"))
 		require.NoError(t, err)
 		assert.Equal(t, "fake-admin-console-chart-content", string(content))
 	}

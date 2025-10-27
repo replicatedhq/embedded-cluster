@@ -12,35 +12,35 @@ import (
 
 func TestMoveFile(t *testing.T) {
 	srcContent := []byte("test")
-	srcFile, err := os.CreateTemp("", "source-*")
+	srcFile, err := CreateTemp("", "source-*")
 	assert.NoError(t, err)
-	defer os.Remove(srcFile.Name())
+	defer Remove(srcFile.Name())
 	defer srcFile.Close()
 
 	_, err = srcFile.Write(srcContent)
 	assert.NoError(t, err)
 
-	dstFile, err := os.CreateTemp("", "destination-*")
+	dstFile, err := CreateTemp("", "destination-*")
 	assert.NoError(t, err)
-	defer os.Remove(dstFile.Name())
+	defer Remove(dstFile.Name())
 	defer dstFile.Close()
 
 	err = MoveFile(srcFile.Name(), dstFile.Name())
 	assert.NoError(t, err)
 
-	_, err = os.Stat(dstFile.Name())
+	_, err = Stat(dstFile.Name())
 	assert.NoError(t, err)
 
-	content, err := os.ReadFile(dstFile.Name())
+	content, err := ReadFile(dstFile.Name())
 	assert.NoError(t, err)
 	assert.Equal(t, srcContent, content)
 }
 
 func TestMoveFile_PreserveMode(t *testing.T) {
 	srcContent := []byte("test")
-	srcFile, err := os.CreateTemp("", "source-*")
+	srcFile, err := CreateTemp("", "source-*")
 	assert.NoError(t, err)
-	defer os.Remove(srcFile.Name())
+	defer Remove(srcFile.Name())
 	defer srcFile.Close()
 
 	_, err = srcFile.Write(srcContent)
@@ -49,39 +49,39 @@ func TestMoveFile_PreserveMode(t *testing.T) {
 	err = os.Chmod(srcFile.Name(), 0755)
 	assert.NoError(t, err)
 
-	defer os.Remove("/tmp/testbin")
+	defer Remove("/tmp/testbin")
 	err = MoveFile(srcFile.Name(), "/tmp/testbin")
 	assert.NoError(t, err)
 
-	info, err := os.Stat("/tmp/testbin")
+	info, err := Stat("/tmp/testbin")
 	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0755), info.Mode())
 }
 
 func TestMoveFile_Directory(t *testing.T) {
-	srcDir, err := os.MkdirTemp("", "sourcedir-*")
+	srcDir, err := MkdirTemp("", "sourcedir-*")
 	assert.NoError(t, err)
-	defer os.RemoveAll(srcDir)
+	defer RemoveAll(srcDir)
 	err = MoveFile(srcDir, "destination")
 	assert.Error(t, err)
 }
 
 func TestMoveFile_Symlink(t *testing.T) {
-	srcFile, err := os.CreateTemp("", "source-*")
+	srcFile, err := CreateTemp("", "source-*")
 	assert.NoError(t, err)
 	_, err = srcFile.Write([]byte("test"))
 	assert.NoError(t, err)
-	defer os.Remove(srcFile.Name())
+	defer Remove(srcFile.Name())
 	defer srcFile.Close()
 
 	symlinkPath := fmt.Sprintf("%s-symlink", srcFile.Name())
 	err = os.Symlink(srcFile.Name(), symlinkPath)
 	assert.NoError(t, err)
-	defer os.Remove(symlinkPath)
+	defer Remove(symlinkPath)
 
 	err = MoveFile(symlinkPath, "/tmp/destination")
 	assert.NoError(t, err)
-	defer os.RemoveAll("/tmp/destination")
+	defer RemoveAll("/tmp/destination")
 
 	target, err := os.Readlink(symlinkPath)
 	assert.Error(t, err)
@@ -97,7 +97,7 @@ func TestRemoveAll(t *testing.T) {
 		{
 			name: "remove file",
 			setup: func(t *testing.T) (string, bool) {
-				f, err := os.CreateTemp("", "test-file")
+				f, err := CreateTemp("", "test-file")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -107,7 +107,7 @@ func TestRemoveAll(t *testing.T) {
 		{
 			name: "remove directory",
 			setup: func(t *testing.T) (string, bool) {
-				dir, err := os.MkdirTemp("", "test-dir")
+				dir, err := MkdirTemp("", "test-dir")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -127,7 +127,7 @@ func TestRemoveAll(t *testing.T) {
 		{
 			name: "remove symlink",
 			setup: func(t *testing.T) (string, bool) {
-				f, err := os.CreateTemp("", "test-file")
+				f, err := CreateTemp("", "test-file")
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -160,7 +160,7 @@ func TestRemoveAll(t *testing.T) {
 
 			if tt.isDir {
 				// validate dir has contents
-				d, err := os.Open(path)
+				d, err := Open(path)
 				req.NoError(err)
 				defer d.Close()
 
@@ -175,14 +175,14 @@ func TestRemoveAll(t *testing.T) {
 
 			if !tt.isDir {
 				// file should be gone
-				_, err := os.Lstat(path)
+				_, err := Lstat(path)
 				req.Error(err)
 			} else {
 				// dir should exist and be empty
-				_, err := os.Lstat(path)
+				_, err := Lstat(path)
 				req.NoError(err)
 
-				d, err := os.Open(path)
+				d, err := Open(path)
 				req.NoError(err)
 				defer d.Close()
 
@@ -273,18 +273,18 @@ func TestCopyFile(t *testing.T) {
 			require.NoError(err, "CopyFile() should not return error")
 
 			// Check if destination file exists
-			_, err = os.Stat(tt.dst)
+			_, err = Stat(tt.dst)
 			require.NoError(err, "Destination file should exist")
 
 			// Check file mode
-			info, err := os.Stat(tt.dst)
+			info, err := Stat(tt.dst)
 			require.NoError(err, "Should be able to stat destination file")
 			assert.Equal(tt.mode, info.Mode(), "Destination file mode should match expected mode")
 
 			// Check file contents
-			srcContent, err := os.ReadFile(tt.src)
+			srcContent, err := ReadFile(tt.src)
 			require.NoError(err, "Should be able to read source file")
-			dstContent, err := os.ReadFile(tt.dst)
+			dstContent, err := ReadFile(tt.dst)
 			require.NoError(err, "Should be able to read destination file")
 			assert.Equal(string(srcContent), string(dstContent), "Destination file content should match source content")
 		})

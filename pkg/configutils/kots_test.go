@@ -59,12 +59,12 @@ kind: ConfigValues
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
-			tmp, err := os.MkdirTemp(os.TempDir(), "config-values-*")
+			tmp, err := helpers.MkdirTemp(os.TempDir(), "config-values-*")
 			req.NoError(err)
 			filename := filepath.Join(tmp, "config-values.yaml")
 			err = helpers.WriteFile(filename, []byte(tt.contents), 0644)
 			req.NoError(err)
-			defer os.RemoveAll(tmp)
+			defer helpers.RemoveAll(tmp)
 
 			gotErr := ValidateKotsConfigValues(filename)
 			if tt.wantErr {

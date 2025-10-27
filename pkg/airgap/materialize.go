@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kotsadm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -91,7 +92,7 @@ func FetchAndWriteArtifacts(ctx context.Context, kotsAPIAddress string, rc runti
 
 func writeOneFile(reader io.Reader, path string, mode int64) error {
 	// setup destination
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return fmt.Errorf("failed to create destination directory: %w", err)
 	}
 

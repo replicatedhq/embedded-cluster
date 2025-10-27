@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -44,7 +43,7 @@ func PullImagesCmd(cli *CLI) *cobra.Command {
 			}
 			defer func() {
 				logrus.Infof("removing temporary directory %s", location)
-				os.RemoveAll(location)
+				helpers.RemoveAll(location)
 			}()
 
 			dst := filepath.Join(cli.RC.EmbeddedClusterImagesSubDir(), ImagesDstArtifactName)

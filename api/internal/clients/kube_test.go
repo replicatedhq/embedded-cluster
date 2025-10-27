@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -15,7 +14,7 @@ import (
 func createTestKubeConfig(t *testing.T) string {
 	t.Helper()
 
-	tmpDir, err := os.MkdirTemp("", "kube-test-*")
+	tmpDir, err := helpers.MkdirTemp("", "kube-test-*")
 	require.NoError(t, err)
 
 	kubeconfigPath := filepath.Join(tmpDir, "kubeconfig")
@@ -44,7 +43,7 @@ users:
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
+		helpers.RemoveAll(tmpDir)
 	})
 
 	return kubeconfigPath
@@ -54,7 +53,7 @@ users:
 func createInvalidKubeConfig(t *testing.T) string {
 	t.Helper()
 
-	tmpDir, err := os.MkdirTemp("", "kube-test-invalid-*")
+	tmpDir, err := helpers.MkdirTemp("", "kube-test-invalid-*")
 	require.NoError(t, err)
 
 	kubeconfigPath := filepath.Join(tmpDir, "kubeconfig")
@@ -66,7 +65,7 @@ func createInvalidKubeConfig(t *testing.T) string {
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
+		helpers.RemoveAll(tmpDir)
 	})
 
 	return kubeconfigPath

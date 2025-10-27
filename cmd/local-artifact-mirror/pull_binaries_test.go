@@ -6,11 +6,11 @@ import (
 	"compress/gzip"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -176,11 +176,11 @@ func TestPullBinariesCmd_Online(t *testing.T) {
 
 				// Check that the destination file exists
 				expectedDst := filepath.Join(dataDir, "some-file")
-				_, err := os.Stat(expectedDst)
+				_, err := helpers.Stat(expectedDst)
 				assert.NoError(t, err, "Expected destination file to exist")
 
 				// Verify file content
-				content, err := os.ReadFile(expectedDst)
+				content, err := helpers.ReadFile(expectedDst)
 				assert.NoError(t, err)
 				assert.Equal(t, "Hello, world!\n", string(content))
 			}

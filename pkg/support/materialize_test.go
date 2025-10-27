@@ -1,7 +1,6 @@
 package support
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -181,12 +180,12 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 
 			// Create the support subdirectory
 			supportDir := filepath.Join(tempDir, "support")
-			err := os.MkdirAll(supportDir, 0755)
+			err := helpers.MkdirAll(supportDir, 0755)
 			require.NoError(t, err)
 
 			// Copy the actual customer template to the test directory
 			actualTemplatePath := filepath.Join("../../cmd/installer/goods/support/host-support-bundle.tmpl.yaml")
-			templateContent, err := os.ReadFile(actualTemplatePath)
+			templateContent, err := helpers.ReadFile(actualTemplatePath)
 			require.NoError(t, err, "Should be able to read the actual customer template")
 
 			// Write the actual template to the test directory
@@ -210,11 +209,11 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 
 			// Verify the file was created
 			outputFile := filepath.Join(supportDir, "host-support-bundle.yaml")
-			_, err = os.Stat(outputFile)
+			_, err = helpers.Stat(outputFile)
 			require.NoError(t, err, "Support bundle spec file should be created")
 
 			// Read the generated file content
-			content, err := os.ReadFile(outputFile)
+			content, err := helpers.ReadFile(outputFile)
 			require.NoError(t, err)
 			contentStr := string(content)
 

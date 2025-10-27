@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
 type MultiError struct {
@@ -28,8 +30,8 @@ func (e *MultiError) ErrorOrNil() error {
 
 // MoveFile moves a file from one location to another, overwriting the destination if it
 // exists. File mode is preserved.
-func MoveFile(src, dst string) error {
-	srcinfo, err := os.Stat(src)
+func (h *Helpers) MoveFile(src, dst string) error {
+	srcinfo, err := Stat(src)
 	if err != nil {
 		return err
 	}
@@ -38,14 +40,14 @@ func MoveFile(src, dst string) error {
 		return fmt.Errorf("cannot move directory %s", src)
 	}
 
-	srcfp, err := os.Open(src)
+	srcfp, err := Open(src)
 	if err != nil {
 		return fmt.Errorf("open source file: %s", err)
 	}
 	defer srcfp.Close()
 
 	opts := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	dstfp, err := os.OpenFile(dst, opts, srcinfo.Mode())
+	dstfp, err := OpenFile(dst, opts, srcinfo.Mode())
 	if err != nil {
 		return fmt.Errorf("open destination file: %s", err)
 	}
@@ -59,7 +61,7 @@ func MoveFile(src, dst string) error {
 		return fmt.Errorf("sync file: %s", err)
 	}
 
-	if err := os.Remove(src); err != nil {
+	if err := Remove(src); err != nil {
 		return fmt.Errorf("remove source file: %s", err)
 	}
 
@@ -77,9 +79,9 @@ func RemoveAll(path string) error {
 		return nil
 	}
 	if !info.IsDir() {
-		return os.Remove(path)
+		return Remove(path)
 	}
-	d, err := os.Open(path)
+	d, err := Open(path)
 	if err != nil {
 		return fmt.Errorf("open directory: %w", err)
 	}
@@ -101,6 +103,58 @@ func (h *Helpers) WriteFile(path string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(path, data, perm)
 }
 
+func (h *Helpers) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func (h *Helpers) Open(path string) (afero.File, error) {
+	return os.Open(path)
+}
+
+func (h *Helpers) OpenFile(path string, flag int, perm os.FileMode) (afero.File, error) {
+	return os.OpenFile(path, flag, perm)
+}
+
+func (h *Helpers) ReadDir(path string) ([]os.DirEntry, error) {
+	return os.ReadDir(path)
+}
+
+func (h *Helpers) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
+func (h *Helpers) Lstat(path string) (os.FileInfo, error) {
+	return os.Lstat(path)
+}
+
+func (h *Helpers) MkdirTemp(dir, pattern string) (string, error) {
+	return os.MkdirTemp(dir, pattern)
+}
+
+func (h *Helpers) CreateTemp(dir, pattern string) (afero.File, error) {
+	return os.CreateTemp(dir, pattern)
+}
+
+func (h *Helpers) RemoveAll(path string) error {
+	return os.RemoveAll(path)
+}
+
+func (h *Helpers) Remove(path string) error {
+	return os.Remove(path)
+}
+
+func (h *Helpers) Chmod(path string, mode os.FileMode) error {
+	return os.Chmod(path, mode)
+}
+
+func (h *Helpers) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+func (h *Helpers) Rename(oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath)
+}
+
 // CopyFile copies a file from src to dst, creating parent directories as needed.
 // The destination file will be created with the specified mode.
 func CopyFile(src, dst string, mode os.FileMode) error {
@@ -108,7 +162,7 @@ func CopyFile(src, dst string, mode os.FileMode) error {
 		return fmt.Errorf("source path cannot be empty")
 	}
 
-	srcinfo, err := os.Stat(src)
+	srcinfo, err := Stat(src)
 	if err != nil {
 		return fmt.Errorf("stat source file: %w", err)
 	}
@@ -122,7 +176,7 @@ func CopyFile(src, dst string, mode os.FileMode) error {
 		return fmt.Errorf("create parent directories: %w", err)
 	}
 
-	data, err := os.ReadFile(src)
+	data, err := ReadFile(src)
 	if err != nil {
 		return fmt.Errorf("read source file: %w", err)
 	}

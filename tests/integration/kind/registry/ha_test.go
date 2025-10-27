@@ -21,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/openebs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
@@ -485,7 +486,7 @@ func buildOperatorImage(t *testing.T) string {
 		}
 	}
 
-	image, err := os.ReadFile(filepath.Join(operatorDir, "build/image"))
+	image, err := helpers.ReadFile(filepath.Join(operatorDir, "build/image"))
 	if err != nil {
 		t.Fatalf("failed to read operator image file: %v", err)
 	}

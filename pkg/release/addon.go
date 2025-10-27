@@ -3,7 +3,6 @@ package release
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -87,7 +86,7 @@ func RenderHelmValues(rawvalues []byte, meta AddonMetadata) (map[string]interfac
 
 func GetValuesWithOriginalImages(addon string) (map[string]interface{}, error) {
 	tplpath := filepath.Join("pkg", "addons", addon, "static", "values.tpl.yaml")
-	tpl, err := os.ReadFile(tplpath)
+	tpl, err := helpers.ReadFile(tplpath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read values template: %w", err)
 	}

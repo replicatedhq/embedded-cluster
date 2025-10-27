@@ -4,7 +4,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
@@ -220,7 +220,7 @@ func controllerWorkerProfile() (string, error) {
 		k0sPath = k0sConfigPathOverride
 	}
 
-	data, err := os.ReadFile(k0sPath)
+	data, err := helpers.ReadFile(k0sPath)
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}

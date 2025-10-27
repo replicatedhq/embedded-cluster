@@ -232,7 +232,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 
 	// Verify that a data directory exists
 	dataDir := rc.EmbeddedClusterHomeDirectory()
-	if _, err := os.Stat(dataDir); err != nil {
+	if _, err := helpers.Stat(dataDir); err != nil {
 		return fmt.Errorf("failed to stat data directory: %w", err)
 	}
 
@@ -242,7 +242,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return err
 	}
 	upgradeConfig.license = license
-	data, err := os.ReadFile(flags.licenseFile)
+	data, err := helpers.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("failed to read license file: %w", err)
 	}

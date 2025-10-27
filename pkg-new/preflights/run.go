@@ -54,7 +54,7 @@ func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opt
 	if err != nil {
 		return nil, "", err
 	}
-	defer os.Remove(fpath)
+	defer helpers.Remove(fpath)
 
 	// Execute preflight command
 	cmd := exec.Command(opts.PreflightBinaryPath, "--interactive=false", "--format=json", fpath)
@@ -112,7 +112,7 @@ func saveSpecToTempFile(specYAML []byte) (string, error) {
 	defer tmpfile.Close()
 
 	if _, err := tmpfile.Write(specYAML); err != nil {
-		os.Remove(tmpfile.Name()) // Clean up on write error
+		helpers.Remove(tmpfile.Name()) // Clean up on write error
 		return "", fmt.Errorf("unable to write preflight spec: %w", err)
 	}
 

@@ -38,7 +38,7 @@ func New() *K0s {
 // GetStatus calls the k0s status command and returns information about system init, PID, k0s role,
 // kubeconfig and similar.
 func (k *K0s) GetStatus(ctx context.Context) (*K0sStatus, error) {
-	if _, err := os.Stat(k0sBinPath); err != nil {
+	if _, err := helpers.Stat(k0sBinPath); err != nil {
 		return nil, err
 	}
 
@@ -84,7 +84,7 @@ func (k *K0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
 // IsInstalled checks if the embedded cluster is already installed by looking for
 // the k0s configuration file existence.
 func (k *K0s) IsInstalled() (bool, error) {
-	_, err := os.Stat(runtimeconfig.K0sConfigPath)
+	_, err := helpers.Stat(runtimeconfig.K0sConfigPath)
 	if err == nil {
 		return true, nil
 	} else if os.IsNotExist(err) {
@@ -143,10 +143,10 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, networkInterface string, airga
 	}
 
 	cfgpath := runtimeconfig.K0sConfigPath
-	if _, err := os.Stat(cfgpath); err == nil {
+	if _, err := helpers.Stat(cfgpath); err == nil {
 		return nil, fmt.Errorf("configuration file already exists")
 	}
-	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
+	if err := helpers.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
 		return nil, fmt.Errorf("unable to create directory: %w", err)
 	}
 
@@ -202,8 +202,8 @@ func (k *K0s) PatchK0sConfig(path string, patch string) error {
 	finalcfg := k0sv1beta1.ClusterConfig{
 		ObjectMeta: metav1.ObjectMeta{Name: "k0s"},
 	}
-	if _, err := os.Stat(path); err == nil {
-		data, err := os.ReadFile(path)
+	if _, err := helpers.Stat(path); err == nil {
+		data, err := helpers.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("unable to read node config: %w", err)
 		}
@@ -257,7 +257,7 @@ func (k *K0s) WaitForK0s() error {
 	for i := 0; i < 30; i++ {
 		time.Sleep(2 * time.Second)
 		spath := runtimeconfig.K0sStatusSocketPath
-		if _, err := os.Stat(spath); err != nil {
+		if _, err := helpers.Stat(spath); err != nil {
 			continue
 		}
 		success = true

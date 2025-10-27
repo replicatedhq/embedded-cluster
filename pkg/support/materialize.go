@@ -3,7 +3,6 @@ package support
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"text/template"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -50,7 +49,7 @@ func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool)
 	}
 
 	path := rc.PathToEmbeddedClusterSupportFile("host-support-bundle.tmpl.yaml")
-	tmpl, err := os.ReadFile(path)
+	tmpl, err := helpers.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read support bundle template: %w", err)
 	}

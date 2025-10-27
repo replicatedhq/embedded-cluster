@@ -3,8 +3,9 @@ package certs
 import (
 	"fmt"
 	"net"
-	"os"
 	"time"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 // Option is a function that applies a configuration option to a Builder.
@@ -61,11 +62,11 @@ func WithDNSName(name string) Option {
 // SignWithDiskFiles allows to sign the certificate with the CA certificate and key from disk.
 func SignWithDiskFiles(certPath, keyPath string) Option {
 	return func(b *Builder) error {
-		crt, err := os.ReadFile(certPath)
+		crt, err := helpers.ReadFile(certPath)
 		if err != nil {
 			return fmt.Errorf("unable to read cert file: %w", err)
 		}
-		key, err := os.ReadFile(keyPath)
+		key, err := helpers.ReadFile(keyPath)
 		if err != nil {
 			return fmt.Errorf("unable to read key file: %w", err)
 		}

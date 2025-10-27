@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 const (
@@ -34,7 +35,7 @@ func downloadAirgapBundle(t *testing.T, versionLabel string, destPath string, li
 				return nil
 			}
 			t.Logf("downloaded airgap bundle to %s (%d bytes), retrying as it is less than 1GB", destPath, size)
-			err = os.RemoveAll(destPath)
+			err = helpers.RemoveAll(destPath)
 			if err != nil {
 				return fmt.Errorf("failed to remove airgap bundle at %s: %w", destPath, err)
 			}
@@ -73,7 +74,7 @@ func maybeDownloadAirgapBundle(versionLabel string, destPath string, licenseID s
 	size, err := f.ReadFrom(resp.Body)
 	if err != nil {
 		_ = f.Close()
-		_ = os.RemoveAll(airgapBundlePath)
+		_ = helpers.RemoveAll(airgapBundlePath)
 		return 0, fmt.Errorf("failed to write response to temporary file: %w", err)
 	}
 

@@ -63,7 +63,7 @@ var (
 var _ Client = (*HelmClient)(nil)
 
 func newClient(opts HelmOptions) (*HelmClient, error) {
-	tmpdir, err := os.MkdirTemp(os.TempDir(), "helm-*")
+	tmpdir, err := helpers.MkdirTemp(os.TempDir(), "helm-*")
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (h *HelmClient) prepare(_ context.Context) error {
 }
 
 func (h *HelmClient) Close() error {
-	return os.RemoveAll(h.tmpdir)
+	return helpers.RemoveAll(h.tmpdir)
 }
 
 func (h *HelmClient) AddRepo(_ context.Context, repo *repo.Entry) error {
@@ -572,7 +572,7 @@ func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, char
 		if err != nil {
 			return nil, fmt.Errorf("pull: %w", err)
 		}
-		defer os.RemoveAll(localPath)
+		defer helpers.RemoveAll(localPath)
 	} else {
 		localPath = chartPath
 	}

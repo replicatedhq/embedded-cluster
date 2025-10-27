@@ -58,7 +58,7 @@ func New(spec *ecv1beta1.RuntimeConfigSpec, opts ...Option) RuntimeConfig {
 // /etc/embedded-cluster/ec.yaml.
 func NewFromDisk() (RuntimeConfig, error) {
 	location := ECConfigPath
-	data, err := os.ReadFile(location)
+	data, err := helpers.ReadFile(location)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read runtime config: %w", err)
 	}
@@ -215,7 +215,7 @@ func (rc *runtimeConfig) WriteToDisk() error {
 	}
 
 	// check if the file already exists, if it does delete it
-	if err := os.RemoveAll(location); err != nil {
+	if err := helpers.RemoveAll(location); err != nil {
 		return fmt.Errorf("remove existing file: %w", err)
 	}
 
@@ -343,7 +343,7 @@ func (rc *runtimeConfig) GetKubernetesEnvSettings() *helmcli.EnvSettings {
 }
 
 func mkdirAll(path string) error {
-	return os.MkdirAll(path, 0755)
+	return helpers.MkdirAll(path, 0755)
 }
 
 func mustMkdirAll(path string) {

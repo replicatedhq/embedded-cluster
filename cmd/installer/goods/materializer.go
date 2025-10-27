@@ -136,7 +136,7 @@ func SizeOfEmbeddedAssets() (int64, error) {
 		return 0, fmt.Errorf("unable to get our own executable path: %w", err)
 	}
 
-	info, err := os.Stat(srcpath)
+	info, err := helpers.Stat(srcpath)
 	if err != nil {
 		return 0, fmt.Errorf("unable to stat our own executable path: %w", err)
 	}
@@ -217,7 +217,7 @@ func (m *Materializer) Binaries() error {
 	var remove []string
 	defer func() {
 		for _, f := range remove {
-			os.Remove(f)
+			helpers.Remove(f)
 		}
 	}()
 
@@ -233,9 +233,9 @@ func (m *Materializer) Binaries() error {
 		}
 
 		dstpath := m.rc.PathToEmbeddedClusterBinary(entry.Name())
-		if _, err := os.Stat(dstpath); err == nil {
+		if _, err := helpers.Stat(dstpath); err == nil {
 			tmp := fmt.Sprintf("%s.bkp", dstpath)
-			if err := os.Rename(dstpath, tmp); err != nil {
+			if err := helpers.Rename(dstpath, tmp); err != nil {
 				return fmt.Errorf("unable to rename %s to %s: %w", dstpath, tmp, err)
 			}
 			remove = append(remove, tmp)
@@ -258,7 +258,7 @@ func (m *Materializer) Kubectl() error {
 	// local-artifact-mirror needs to serve the kubectl binary.
 	// https://github.com/k0sproject/k0s/blob/5d48d20767851fe8e299aacd3d5aae6fcfbeab37/main.go#L40
 	dstpath := m.rc.PathToEmbeddedClusterBinary("kubectl")
-	_ = os.RemoveAll(dstpath)
+	_ = helpers.RemoveAll(dstpath)
 	k0spath := runtimeconfig.K0sBinaryPath
 	content := fmt.Sprintf(kubectlScript, k0spath)
 	if err := helpers.WriteFile(dstpath, []byte(content), 0755); err != nil {
@@ -266,7 +266,7 @@ func (m *Materializer) Kubectl() error {
 	}
 
 	dstpath = m.rc.PathToEmbeddedClusterBinary("kubectl_completion_bash.sh")
-	_ = os.RemoveAll(dstpath)
+	_ = helpers.RemoveAll(dstpath)
 	contentBytes, err := completionAliasBash("kubectl", "k0s kubectl")
 	if err != nil {
 		return fmt.Errorf("generate kubectl completion: %w", err)
@@ -292,22 +292,22 @@ func (m *Materializer) Ourselves() error {
 		return nil
 	}
 
-	if _, err := os.Stat(dstpath); err == nil {
+	if _, err := helpers.Stat(dstpath); err == nil {
 		tmp := fmt.Sprintf("%s.bkp", dstpath)
-		if err := os.Rename(dstpath, tmp); err != nil {
+		if err := helpers.Rename(dstpath, tmp); err != nil {
 			return fmt.Errorf("unable to rename %s to %s: %w", dstpath, tmp, err)
 		}
-		defer os.Remove(tmp)
+		defer helpers.Remove(tmp)
 	}
 
-	src, err := os.Open(srcpath)
+	src, err := helpers.Open(srcpath)
 	if err != nil {
 		return fmt.Errorf("unable to open source file: %w", err)
 	}
 	defer src.Close()
 
 	opts := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-	dst, err := os.OpenFile(dstpath, opts, 0755)
+	dst, err := helpers.OpenFile(dstpath, opts, 0755)
 	if err != nil {
 		return fmt.Errorf("unable to open destination file: %w", err)
 	}

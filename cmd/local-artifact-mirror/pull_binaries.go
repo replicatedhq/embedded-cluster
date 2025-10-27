@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -80,13 +81,13 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 
 			defer func() {
 				logrus.Infof("removing temporary directory %s", location)
-				_ = os.RemoveAll(location)
+				_ = helpers.RemoveAll(location)
 			}()
 
 			bin := filepath.Join(location, EmbeddedClusterBinaryArtifactName)
 
 			// Verify the binary file exists and has content
-			binInfo, err := os.Stat(bin)
+			binInfo, err := helpers.Stat(bin)
 			if err != nil {
 				return fmt.Errorf("binary file verification failed: %w", err)
 			}
@@ -98,11 +99,11 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 			logrus.Infof("binary file size: %d bytes", binInfo.Size())
 
 			namedBin := filepath.Join(location, in.Spec.BinaryName)
-			if err := os.Rename(bin, namedBin); err != nil {
+			if err := helpers.Rename(bin, namedBin); err != nil {
 				return fmt.Errorf("unable to rename binary: %w", err)
 			}
 
-			if err := os.Chmod(namedBin, 0755); err != nil {
+			if err := helpers.Chmod(namedBin, 0755); err != nil {
 				return fmt.Errorf("unable to change permissions on %s: %w", bin, err)
 			}
 
@@ -132,7 +133,7 @@ func PullBinariesCmd(cli *CLI) *cobra.Command {
 // fetchBinaryWithLicense downloads the binary from the Replicated app using basic auth with license ID
 func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	// Create a temporary directory to store the binary
-	tmpdir, err := os.MkdirTemp("", "lam-artifact-*")
+	tmpdir, err := helpers.MkdirTemp("", "lam-artifact-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
 	}
@@ -141,7 +142,7 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	logrus.Debugf("Requesting release tarball from %s using license ID auth", url)
 	body, err := doBinaryRequest(url, licenseID)
 	if err != nil {
-		_ = os.RemoveAll(tmpdir)
+		_ = helpers.RemoveAll(tmpdir)
 		return "", fmt.Errorf("create request: %w", err)
 	}
 	defer body.Close()
@@ -151,7 +152,7 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	// Stream extraction directly from response body
 	gzr, err := gzip.NewReader(body)
 	if err != nil {
-		_ = os.RemoveAll(tmpdir)
+		_ = helpers.RemoveAll(tmpdir)
 		return "", fmt.Errorf("create gzip reader: %w", err)
 	}
 	defer gzr.Close()
@@ -162,7 +163,7 @@ func fetchBinaryWithLicense(url, licenseID, binaryName string) (string, error) {
 	destPath := filepath.Join(tmpdir, EmbeddedClusterBinaryArtifactName)
 
 	if err := extractBinaryFromTarball(tr, binaryName, destPath); err != nil {
-		_ = os.RemoveAll(tmpdir)
+		_ = helpers.RemoveAll(tmpdir)
 		return "", fmt.Errorf("extract tarball: %w", err)
 	}
 

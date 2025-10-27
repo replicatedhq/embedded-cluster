@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -972,13 +973,13 @@ func TestAirgapUpgradeFromEC18(t *testing.T) {
 	defer tc.Cleanup(withEnv)
 
 	// delete airgap bundles once they've been copied to the nodes
-	if err := os.Remove(airgapInstallBundlePath); err != nil {
+	if err := helpers.Remove(airgapInstallBundlePath); err != nil {
 		t.Logf("failed to remove airgap install bundle: %v", err)
 	}
-	if err := os.Remove(airgapUpgradeBundlePath); err != nil {
+	if err := helpers.Remove(airgapUpgradeBundlePath); err != nil {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
-	if err := os.Remove(airgapUpgrade2BundlePath); err != nil {
+	if err := helpers.Remove(airgapUpgrade2BundlePath); err != nil {
 		t.Logf("failed to remove airgap upgrade bundle: %v", err)
 	}
 

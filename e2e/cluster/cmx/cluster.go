@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 type ClusterInput struct {
@@ -201,11 +203,11 @@ func ensureAssetsDir(node Node) error {
 
 func copyScriptsToNode(node Node) error {
 	// Create a temporary directory for the archive
-	tempDir, err := os.MkdirTemp("", "scripts-archive")
+	tempDir, err := helpers.MkdirTemp("", "scripts-archive")
 	if err != nil {
 		return fmt.Errorf("create temp directory: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer helpers.RemoveAll(tempDir)
 
 	// Create the archive
 	archivePath := filepath.Join(tempDir, "scripts.tgz")

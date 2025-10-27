@@ -10,6 +10,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -80,7 +81,7 @@ func GetRuntimeConfigFromFilesystem() (runtimeconfig.RuntimeConfig, error) {
 	rc := runtimeconfig.New(nil)
 
 	// ca.crt is available on both control plane and worker nodes
-	_, err := os.Stat(filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
+	_, err := helpers.Stat(filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
 		logrus.Debugf("Got runtime config from filesystem with k0s data dir %s", rc.EmbeddedClusterK0sSubDir())
 		return rc, nil
@@ -94,7 +95,7 @@ func GetRuntimeConfigFromFilesystem() (runtimeconfig.RuntimeConfig, error) {
 	})
 
 	// ca.crt is available on both control plane and worker nodes
-	_, err = os.Stat(filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
+	_, err = helpers.Stat(filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pki/ca.crt"))
 	if err == nil {
 		logrus.Debugf("Got runtime config from filesystem with k0s data dir %s", rc.EmbeddedClusterK0sSubDir())
 		return rc, nil

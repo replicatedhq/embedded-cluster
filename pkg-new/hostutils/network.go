@@ -3,7 +3,6 @@ package hostutils
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -26,7 +25,7 @@ func (h *HostUtils) ConfigureNetworkManager(ctx context.Context, rc runtimeconfi
 	}
 
 	dir := "/etc/NetworkManager/conf.d"
-	if _, err := os.Stat(dir); err != nil {
+	if _, err := helpers.Stat(dir); err != nil {
 		logrus.Debugf("skiping NetworkManager config (%s): %v", dir, err)
 		return nil
 	}

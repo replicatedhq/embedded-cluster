@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -68,7 +67,7 @@ var metadataExtractHelmChartImagesCommand = &cli.Command{
 }
 
 func readMetadataFromFile(path string) (*types.ReleaseMetadata, error) {
-	b, err := os.ReadFile(path)
+	b, err := helpers.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}

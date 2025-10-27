@@ -3,7 +3,6 @@ package hostutils
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -22,7 +21,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	h.logger.Debugf("setting permissions on %s", rc.EmbeddedClusterHomeDirectory())
-	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := helpers.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		h.logger.Debugf("unable to chmod embedded-cluster home dir: %s", err)

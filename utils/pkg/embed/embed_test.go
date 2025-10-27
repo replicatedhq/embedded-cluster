@@ -12,15 +12,15 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 	// Create temporary files for testing
 	binFile, err := os.CreateTemp("", "test-bin")
 	assert.NoError(t, err)
-	defer os.Remove(binFile.Name())
+	defer helpers.Remove(binFile.Name())
 
 	releaseFile, err := os.CreateTemp("", "test-release")
 	assert.NoError(t, err)
-	defer os.Remove(releaseFile.Name())
+	defer helpers.Remove(releaseFile.Name())
 
 	outputFile, err := os.CreateTemp("", "test-output")
 	assert.NoError(t, err)
-	defer os.Remove(outputFile.Name())
+	defer helpers.Remove(outputFile.Name())
 
 	// Write test data to the files
 	binContent := []byte("test binary content")
@@ -38,7 +38,7 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 	encodedRelease := base64.StdEncoding.EncodeToString(releaseData)
 
 	// Verify the new binary content
-	gotBinContent, err := os.ReadFile(outputFile.Name())
+	gotBinContent, err := helpers.ReadFile(outputFile.Name())
 	assert.NoError(t, err)
 
 	wantBinContent := append(binContent, delimiterBytes(beginReleaseDelimiter)...)
@@ -60,14 +60,14 @@ func TestEmbedReleaseDataInBinary(t *testing.T) {
 
 	outputOutputFile, err := os.CreateTemp("", "test-output")
 	assert.NoError(t, err)
-	defer os.Remove(outputOutputFile.Name())
+	defer helpers.Remove(outputOutputFile.Name())
 
 	// Embed twice to make sure it does not duplicate the release data
 	err = EmbedReleaseDataInBinary(outputFile.Name(), releaseFile.Name(), outputOutputFile.Name())
 	assert.NoError(t, err)
 
 	// Verify the new binary content
-	gotBinContent, err = os.ReadFile(outputOutputFile.Name())
+	gotBinContent, err = helpers.ReadFile(outputOutputFile.Name())
 	assert.NoError(t, err)
 
 	assert.Equal(t, string(wantBinContent), string(gotBinContent))
@@ -77,7 +77,7 @@ func TestNoReleaseData(t *testing.T) {
 	// Create temporary files for testing
 	binFile, err := os.CreateTemp("", "test-bin")
 	assert.NoError(t, err)
-	defer os.Remove(binFile.Name())
+	defer helpers.Remove(binFile.Name())
 
 	// Verify that no error is returned when the binary does not contain release data
 	_, err = ExtractReleaseDataFromBinary(binFile.Name())

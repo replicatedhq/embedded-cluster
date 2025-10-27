@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
@@ -89,7 +89,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			}
 
 			// Verify config values file content
-			b, err := os.ReadFile(opts.ConfigValuesFile)
+			b, err := helpers.ReadFile(opts.ConfigValuesFile)
 			if err != nil {
 				t.Logf("Failed to read config values file: %v", err)
 				return false
@@ -242,7 +242,7 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 	assert.NotEmpty(t, filename)
 
 	// Verify file exists and contains correct content
-	data, err := os.ReadFile(filename)
+	data, err := helpers.ReadFile(filename)
 	assert.NoError(t, err)
 
 	var unmarshaled kotsv1beta1.ConfigValues
@@ -251,5 +251,5 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 	assert.Equal(t, "testValue", unmarshaled.Spec.Values["testKey"].Value)
 
 	// Clean up
-	os.Remove(filename)
+	helpers.Remove(filename)
 }

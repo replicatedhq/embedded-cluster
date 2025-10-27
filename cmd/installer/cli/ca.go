@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 // findHostCABundle locates the system CA certificate bundle on the host.
@@ -18,7 +20,7 @@ import (
 func findHostCABundle() (string, error) {
 	// First check if SSL_CERT_FILE environment variable is set
 	if envFile := os.Getenv("SSL_CERT_FILE"); envFile != "" {
-		if _, err := os.Stat(envFile); err != nil {
+		if _, err := helpers.Stat(envFile); err != nil {
 			return "", fmt.Errorf("SSL_CERT_FILE set to %s but file cannot be accessed: %w", envFile, err)
 		}
 		return envFile, nil
@@ -38,7 +40,7 @@ func findHostCABundle() (string, error) {
 	for _, file := range certFiles {
 		// Ignore all errors to replicate the behavior of the Go standard library
 		// https://github.com/golang/go/blob/go1.24.3/src/crypto/x509/root_unix.go#L47-L81
-		if _, err := os.Stat(file); err == nil {
+		if _, err := helpers.Stat(file); err == nil {
 			return file, nil
 		}
 	}

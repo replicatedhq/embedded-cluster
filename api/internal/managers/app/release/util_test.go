@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"os"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
@@ -281,12 +281,12 @@ func TestWriteChartArchiveToTemp(t *testing.T) {
 				assert.NotEmpty(t, filePath)
 
 				// Verify file exists and has correct content
-				fileContent, err := os.ReadFile(filePath)
+				fileContent, err := helpers.ReadFile(filePath)
 				require.NoError(t, err)
 				assert.Equal(t, tt.chartArchive, fileContent)
 
 				// Clean up
-				err = os.Remove(filePath)
+				err = helpers.Remove(filePath)
 				assert.NoError(t, err)
 			}
 		})

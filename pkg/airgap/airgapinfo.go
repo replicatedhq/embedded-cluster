@@ -5,9 +5,9 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"sigs.k8s.io/yaml"
 )
@@ -76,7 +76,7 @@ func AirgapMetadataFromReader(reader io.Reader) (metadata *AirgapMetadata, err e
 }
 
 func AirgapMetadataFromPath(path string) (metadata *AirgapMetadata, err error) {
-	reader, err := os.Open(path)
+	reader, err := helpers.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open airgap file: %w", err)
 	}

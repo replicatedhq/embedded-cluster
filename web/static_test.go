@@ -119,7 +119,7 @@ func TestNewWithDefaultFS(t *testing.T) {
 // TestNewWithIndexHTML tests creating a Web instance with the actual index.html template we use and pass over to Vite for building.
 func TestNewWithIndexHTML(t *testing.T) {
 	// Setup a mock filesystem with our actual index.html file
-	indexHTML, err := os.ReadFile("index.html")
+	indexHTML, err := helpers.ReadFile("index.html")
 	require.NoError(t, err, "Failed to read index.html")
 
 	mockFS := fstest.MapFS{
@@ -363,9 +363,9 @@ func TestRegisterRoutesWithDevEnv(t *testing.T) {
 	t.Setenv("EC_DEV_ENV", "true")
 
 	// Create temporary dist directory structure to mimic what we use for development
-	err = os.MkdirAll("./web/dist/assets", 0755)
+	err = helpers.MkdirAll("./web/dist/assets", 0755)
 	require.NoError(t, err, "Failed to create dist directory")
-	defer os.RemoveAll("./web/dist/assets") // Clean up after test
+	defer helpers.RemoveAll("./web/dist/assets") // Clean up after test
 
 	// Create a test file in the dist/assets directory
 	devFileContent := "console.log('Development mode!');"

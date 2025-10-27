@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/artifacts"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -69,11 +69,11 @@ func getRemoteMetadataAirgap(ctx context.Context, cli client.Client, in *v1beta1
 	if err != nil {
 		return nil, fmt.Errorf("pull artifact: %w", err)
 	}
-	defer os.RemoveAll(location)
+	defer helpers.RemoveAll(location)
 
 	// now that we have the metadata locally we can read its information and create the config map.
 	fpath := filepath.Join(location, "version-metadata.json")
-	data, err := os.ReadFile(fpath)
+	data, err := helpers.ReadFile(fpath)
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
@@ -82,7 +82,7 @@ func getRemoteMetadataAirgap(ctx context.Context, cli client.Client, in *v1beta1
 }
 
 func pullArtifact(ctx context.Context, cli client.Client, from string) (string, error) {
-	tmpdir, err := os.MkdirTemp("", "embedded-cluster-metadata-*")
+	tmpdir, err := helpers.MkdirTemp("", "embedded-cluster-metadata-*")
 	if err != nil {
 		return "", fmt.Errorf("create temp dir: %w", err)
 	}
@@ -100,7 +100,7 @@ func pullArtifact(ctx context.Context, cli client.Client, from string) (string, 
 		return tmpdir, nil
 	}
 
-	os.RemoveAll(tmpdir)
+	helpers.RemoveAll(tmpdir)
 	return "", err
 }
 

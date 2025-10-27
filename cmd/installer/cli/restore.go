@@ -1234,7 +1234,7 @@ func pickBackupToRestore(backups []disasterrecovery.ReplicatedBackup) *disasterr
 
 // getK0sConfigFromDisk reads and returns the k0s config from disk.
 func getK0sConfigFromDisk() (*k0sv1beta1.ClusterConfig, error) {
-	cfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
+	cfgBytes, err := helpers.ReadFile(runtimeconfig.K0sConfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read k0s config file: %w", err)
 	}

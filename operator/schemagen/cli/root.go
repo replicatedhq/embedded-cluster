@@ -72,7 +72,7 @@ func generateSchemas(v *viper.Viper) error {
 			return nil
 		}
 
-		content, err := os.ReadFile(path)
+		content, err := helpers.ReadFile(path)
 		if err != nil {
 			return errors.Wrap(err, "failed to read crd file")
 		}
@@ -115,17 +115,17 @@ func writeSchema(schema *extensionsv1.JSONSchemaProps, outfile string) error {
 		return errors.Wrap(err, "failed to marshal json")
 	}
 
-	_, err = os.Stat(outfile)
+	_, err = helpers.Stat(outfile)
 	if err == nil {
-		if err := os.Remove(outfile); err != nil {
+		if err := helpers.Remove(outfile); err != nil {
 			return errors.Wrap(err, "failed to remove file")
 		}
 	}
 
 	d, _ := path.Split(outfile)
-	_, err = os.Stat(d)
+	_, err = helpers.Stat(d)
 	if os.IsNotExist(err) {
-		if err = os.MkdirAll(d, 0755); err != nil {
+		if err = helpers.MkdirAll(d, 0755); err != nil {
 			return errors.Wrap(err, "failed to mkdir")
 		}
 	}

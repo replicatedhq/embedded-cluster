@@ -3,11 +3,11 @@ package cli
 import (
 	"context"
 	"crypto/tls"
-	"os"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -411,9 +411,9 @@ func Test_preRunUpgrade(t *testing.T) {
 			req := require.New(t)
 
 			// Create temporary data directory
-			tmpDir, err := os.MkdirTemp("", "prerunupgrade-test-*")
+			tmpDir, err := helpers.MkdirTemp("", "prerunupgrade-test-*")
 			req.NoError(err)
-			defer os.RemoveAll(tmpDir)
+			defer helpers.RemoveAll(tmpDir)
 
 			// Set up data directory
 			dataDir := tt.dataDir

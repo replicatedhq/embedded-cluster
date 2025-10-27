@@ -38,12 +38,12 @@ func SupportBundleCmd(ctx context.Context) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			supportBundle := rc.PathToEmbeddedClusterBinary("kubectl-support_bundle")
-			if _, err := os.Stat(supportBundle); err != nil {
+			if _, err := helpers.Stat(supportBundle); err != nil {
 				return errors.New("support-bundle command can only be run after an install attempt")
 			}
 
 			hostSupportBundle := rc.PathToEmbeddedClusterSupportFile("host-support-bundle.yaml")
-			if _, err := os.Stat(hostSupportBundle); err != nil {
+			if _, err := helpers.Stat(hostSupportBundle); err != nil {
 				return fmt.Errorf("unable to find host support bundle: %w", err)
 			}
 
@@ -57,7 +57,7 @@ func SupportBundleCmd(ctx context.Context) *cobra.Command {
 
 			kubeConfig := rc.PathToKubeConfig()
 			arguments := []string{}
-			if _, err := os.Stat(kubeConfig); err == nil {
+			if _, err := helpers.Stat(kubeConfig); err == nil {
 				arguments = append(arguments, fmt.Sprintf("--kubeconfig=%s", kubeConfig))
 			}
 

@@ -40,7 +40,7 @@ func Install(opts InstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	var appVersionLabel string
 	var channelSlug string
@@ -58,7 +58,7 @@ func Install(opts InstallOptions) error {
 	if err != nil {
 		return fmt.Errorf("create temp license file: %w", err)
 	}
-	defer os.Remove(licenseFile)
+	defer helpers.Remove(licenseFile)
 
 	maskfn := MaskKotsOutputForOnline()
 	installArgs := []string{
@@ -118,7 +118,7 @@ func ResetPassword(rc runtimeconfig.RuntimeConfig, password string) error {
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	runCommandOptions := helpers.RunCommandOptions{
 		Env:   map[string]string{"KUBECONFIG": rc.PathToKubeConfig()},
@@ -145,7 +145,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	maskfn := MaskKotsOutputForAirgap()
 
@@ -196,7 +196,7 @@ func VeleroConfigureOtherS3(opts VeleroConfigureOtherS3Options) error {
 	if err != nil {
 		return fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	veleroConfigureOtherS3Args := []string{
 		"velero",
@@ -268,7 +268,7 @@ func GetJoinCommand(ctx context.Context, rc runtimeconfig.RuntimeConfig) (string
 	if err != nil {
 		return "", fmt.Errorf("unable to materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	outBuffer := bytes.NewBuffer(nil)
 	runCommandOptions := helpers.RunCommandOptions{
@@ -308,7 +308,7 @@ func Deploy(opts DeployOptions) error {
 	if err != nil {
 		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	deployArgs := []string{
 		"deploy",
@@ -327,7 +327,7 @@ func Deploy(opts DeployOptions) error {
 		if err != nil {
 			return fmt.Errorf("create temp license file: %w", err)
 		}
-		defer os.Remove(licenseFile)
+		defer helpers.Remove(licenseFile)
 
 		deployArgs = append(deployArgs, "--license", licenseFile)
 		deployArgs = append(deployArgs, "--airgap-bundle", opts.AirgapBundle)
@@ -391,7 +391,7 @@ func PushImages(opts PushImagesOptions) error {
 	if err != nil {
 		return fmt.Errorf("materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	pushArgs := []string{
 		"admin-console",
@@ -430,7 +430,7 @@ func createLicenseFile(license []byte) (string, error) {
 	defer licenseFile.Close()
 
 	if _, err := licenseFile.Write(license); err != nil {
-		_ = os.Remove(licenseFile.Name())
+		_ = helpers.Remove(licenseFile.Name())
 		return "", fmt.Errorf("write license to temp file: %w", err)
 	}
 
@@ -451,7 +451,7 @@ func GetConfigValues(opts GetConfigValuesOptions) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("materialize kubectl-kots binary: %w", err)
 	}
-	defer os.Remove(kotsBinPath)
+	defer helpers.Remove(kotsBinPath)
 
 	// Build command arguments
 	args := []string{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -192,11 +191,11 @@ func TestPullImagesCmd(t *testing.T) {
 
 				// Check that the destination file exists
 				expectedDst := filepath.Join(dataDir, "images", ImagesDstArtifactName)
-				_, err := os.Stat(expectedDst)
+				_, err := helpers.Stat(expectedDst)
 				assert.NoError(t, err, "Expected destination file to exist")
 
 				// Verify file content
-				content, err := os.ReadFile(expectedDst)
+				content, err := helpers.ReadFile(expectedDst)
 				assert.NoError(t, err)
 				assert.Equal(t, "test artifact content", string(content))
 			}

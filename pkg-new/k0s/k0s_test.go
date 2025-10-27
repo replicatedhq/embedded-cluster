@@ -34,7 +34,7 @@ func TestPatchK0sConfig(t *testing.T) {
 			req.NoError(err, "unable to create temp file")
 			defer func() {
 				originalFile.Close()
-				os.Remove(originalFile.Name())
+				helpers.Remove(originalFile.Name())
 			}()
 			err = helpers.WriteFile(originalFile.Name(), []byte(tt.Original), 0644)
 			req.NoError(err, "unable to write original config")
@@ -50,7 +50,7 @@ func TestPatchK0sConfig(t *testing.T) {
 			err = PatchK0sConfig(originalFile.Name(), patch)
 			req.NoError(err, "unable to patch config")
 
-			data, err := os.ReadFile(originalFile.Name())
+			data, err := helpers.ReadFile(originalFile.Name())
 			req.NoError(err, "unable to read patched config")
 
 			var original k0sv1beta1.ClusterConfig

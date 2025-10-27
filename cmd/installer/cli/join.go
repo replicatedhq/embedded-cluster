@@ -252,7 +252,7 @@ func runJoinVerifyAndPrompt(appSlug string, flags JoinCmdFlags, rc runtimeconfig
 		return fmt.Errorf("unable to write runtime config: %w", err)
 	}
 
-	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := helpers.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
@@ -306,7 +306,7 @@ func initializeJoin(ctx context.Context, appSlug string, rc runtimeconfig.Runtim
 	// this does not return an error - it returns the previous umask
 	_ = syscall.Umask(0o022)
 
-	if err := os.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
+	if err := helpers.Chmod(rc.EmbeddedClusterHomeDirectory(), 0755); err != nil {
 		// don't fail as there are cases where we can't change the permissions (bind mounts, selinux, etc...),
 		// and we handle and surface those errors to the user later (host preflights, checking exec errors, etc...)
 		logrus.Debugf("unable to chmod embedded-cluster home dir: %s", err)
@@ -445,7 +445,7 @@ func installAndJoinCluster(ctx context.Context, rc runtimeconfig.RuntimeConfig, 
 
 // saveTokenToDisk saves the provided token in "/etc/k0s/join-token".
 func saveTokenToDisk(token string) error {
-	if err := os.MkdirAll("/etc/k0s", 0755); err != nil {
+	if err := helpers.MkdirAll("/etc/k0s", 0755); err != nil {
 		return err
 	}
 	data := []byte(token)
@@ -553,7 +553,7 @@ func applyJoinConfigurationOverrides(jcmd *join.JoinCommandResponse) error {
 }
 
 func getFirstDefinedProfile() (string, error) {
-	k0scfgBytes, err := os.ReadFile(runtimeconfig.K0sConfigPath)
+	k0scfgBytes, err := helpers.ReadFile(runtimeconfig.K0sConfigPath)
 	if err != nil {
 		return "", fmt.Errorf("unable to read k0s config: %w", err)
 	}

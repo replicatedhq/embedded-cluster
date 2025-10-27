@@ -13,6 +13,7 @@ import (
 	"time"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/spf13/cobra"
 )
@@ -91,7 +92,7 @@ func ServeCmd(cli *CLI) *cobra.Command {
 // channel.
 func startBinaryWatcher(cancel context.CancelFunc, rc runtimeconfig.RuntimeConfig) error {
 	fpath := rc.PathToEmbeddedClusterBinary("local-artifact-mirror")
-	stat, err := os.Stat(fpath)
+	stat, err := helpers.Stat(fpath)
 	if err != nil {
 		return fmt.Errorf("unable to stat %s: %s", fpath, err)
 	}
@@ -100,7 +101,7 @@ func startBinaryWatcher(cancel context.CancelFunc, rc runtimeconfig.RuntimeConfi
 		fmt.Println("Watching for changes in the binary")
 		ticker := time.NewTicker(5 * time.Second)
 		for range ticker.C {
-			if stat, err = os.Stat(fpath); err != nil {
+			if stat, err = helpers.Stat(fpath); err != nil {
 				fmt.Println("Unable to stat binary:", err)
 				continue
 			}

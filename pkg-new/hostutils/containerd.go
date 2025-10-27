@@ -2,7 +2,6 @@ package hostutils
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -22,7 +21,7 @@ func (h *HostUtils) AddInsecureRegistry(registry string) error {
 	parentDir := runtimeconfig.K0sContainerdConfigPath
 	contents := fmt.Sprintf(registryConfigTemplate, registry)
 
-	if err := os.MkdirAll(parentDir, 0755); err != nil {
+	if err := helpers.MkdirAll(parentDir, 0755); err != nil {
 		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
 	}
 

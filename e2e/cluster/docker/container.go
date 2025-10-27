@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 type Container struct {
@@ -41,11 +43,11 @@ func (c *Container) WithECBinary(path string) *Container {
 	if err != nil {
 		c.t.Fatalf("failed to get absolute path to embedded-cluster binary: %v", err)
 	}
-	_, err = os.Stat(path)
+	_, err = helpers.Stat(path)
 	if err != nil {
 		c.t.Fatalf("failed to find embedded-cluster binary: %v", err)
 	}
-	err = os.Chmod(path, 0755)
+	err = helpers.Chmod(path, 0755)
 	if err != nil {
 		c.t.Fatalf("failed to chmod embedded-cluster binary: %v", err)
 	}
@@ -61,11 +63,11 @@ func (c *Container) WithECReleaseBuilder(path string) *Container {
 	if err != nil {
 		c.t.Fatalf("failed to get absolute path to embedded-cluster release builder: %v", err)
 	}
-	_, err = os.Stat(path)
+	_, err = helpers.Stat(path)
 	if err != nil {
 		c.t.Fatalf("failed to find embedded-cluster release builder: %v", err)
 	}
-	err = os.Chmod(path, 0755)
+	err = helpers.Chmod(path, 0755)
 	if err != nil {
 		c.t.Fatalf("failed to chmod embedded-cluster binary: %v", err)
 	}
@@ -81,7 +83,7 @@ func (c *Container) WithLicense(path string) *Container {
 	if err != nil {
 		c.t.Fatalf("failed to get absolute path to license file: %v", err)
 	}
-	_, err = os.Stat(path)
+	_, err = helpers.Stat(path)
 	if err != nil {
 		c.t.Fatalf("failed to find embedded-cluster binary: %v", err)
 	}

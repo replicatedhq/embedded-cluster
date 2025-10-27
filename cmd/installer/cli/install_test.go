@@ -491,8 +491,8 @@ spec:
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			tmpdir, err := os.MkdirTemp("", "license")
-			defer os.RemoveAll(tmpdir)
+			tmpdir, err := helpers.MkdirTemp("", "license")
+			defer helpers.RemoveAll(tmpdir)
 			req.NoError(err)
 
 			licenseFile, err := os.Create(tmpdir + "/license.yaml")

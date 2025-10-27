@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -34,7 +33,7 @@ func TestServeCmd(t *testing.T) {
 
 	// Create the required bin/local-artifact-mirror binary
 	binPath := filepath.Join(dataDir, "bin", "local-artifact-mirror")
-	err = os.MkdirAll(filepath.Dir(binPath), 0755)
+	err = helpers.MkdirAll(filepath.Dir(binPath), 0755)
 	require.NoError(t, err)
 	err = helpers.WriteFile(binPath, []byte("test content"), 0644)
 	require.NoError(t, err)
@@ -42,7 +41,7 @@ func TestServeCmd(t *testing.T) {
 	// Create test files in whitelisted directories
 	for _, dir := range whitelistServeDirs {
 		dirPath := filepath.Join(dataDir, dir)
-		err := os.MkdirAll(dirPath, 0755)
+		err := helpers.MkdirAll(dirPath, 0755)
 		require.NoError(t, err)
 
 		testFilePath := filepath.Join(dirPath, "test.txt")
@@ -52,7 +51,7 @@ func TestServeCmd(t *testing.T) {
 
 	// Create a test file in a non-whitelisted directory
 	nonWhitelistedDir := filepath.Join(dataDir, "logs")
-	err = os.MkdirAll(nonWhitelistedDir, 0755)
+	err = helpers.MkdirAll(nonWhitelistedDir, 0755)
 	require.NoError(t, err)
 
 	nonWhitelistedFile := filepath.Join(nonWhitelistedDir, "secret.txt")

@@ -2,10 +2,10 @@ package hostutils
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
@@ -23,7 +23,7 @@ func (h *HostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundl
 
 	if airgapBundle != "" {
 		// read file from path
-		rawfile, err := os.Open(airgapBundle)
+		rawfile, err := helpers.Open(airgapBundle)
 		if err != nil {
 			return fmt.Errorf("failed to open airgap file: %w", err)
 		}

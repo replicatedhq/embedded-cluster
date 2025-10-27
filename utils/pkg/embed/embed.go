@@ -49,7 +49,7 @@ func EmbedReleaseDataInBinary(binPath string, releasePath string, outputPath str
 		return fmt.Errorf("failed to read new binary: expected %d bytes, got %d", totalLen, len(newBinContent))
 	}
 
-	// TODO: use helpers.WriteFile instead
+	// TODO: use os.WriteFile instead
 	if err := os.WriteFile(outputPath, newBinContent, 0644); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}

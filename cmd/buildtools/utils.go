@@ -22,6 +22,7 @@ import (
 	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
@@ -169,7 +170,7 @@ func ResolveApkoPackageVersion(componentName, packageName, packageVersion string
 }
 
 func GetImageNameFromBuildFile(imageBuildFile string) (string, error) {
-	contents, err := os.ReadFile(imageBuildFile)
+	contents, err := helpers.ReadFile(imageBuildFile)
 	if err != nil {
 		return "", fmt.Errorf("read build file: %w", err)
 	}
@@ -477,7 +478,7 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 		return fmt.Errorf("pull chart %s: %w", name, err)
 	}
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
-	defer os.Remove(chpath)
+	defer helpers.Remove(chpath)
 
 	err = hcli.AddRepoBin(ctx, repo)
 	if err != nil {

@@ -155,7 +155,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 			}
 
 			lamPath := "/etc/systemd/system/local-artifact-mirror.service"
-			if _, err := os.Stat(lamPath); err == nil {
+			if _, err := helpers.Stat(lamPath); err == nil {
 				if _, err := helpers.RunCommand("systemctl", "stop", "local-artifact-mirror"); err != nil {
 					return err
 				}
@@ -255,7 +255,7 @@ func checkErrPrompt(noPrompt bool, force bool, err error) bool {
 // in a high availability cluster and there are only 3 control nodes.
 func maybePrintHAWarning(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	kubeconfig := rc.PathToKubeConfig()
-	if _, err := os.Stat(kubeconfig); err != nil {
+	if _, err := helpers.Stat(kubeconfig); err != nil {
 		return nil
 	}
 
@@ -340,7 +340,7 @@ type etcdMembers struct {
 // leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
 func (h *hostInfo) leaveEtcdcluster() {
 	// Check if k0s binary exists
-	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+	if _, err := helpers.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
 		return
 	}
@@ -403,7 +403,7 @@ var (
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() {
 	// Check if k0s binary exists
-	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+	if _, err := helpers.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping node drain", k0sBinPath)
 		return
 	}
@@ -564,7 +564,7 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 // stopK0s attempts to stop the k0s service
 func stopAndResetK0s(dataDir string) error {
 	// Check if k0s binary exists
-	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
+	if _, err := helpers.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping k0s stop and reset", k0sBinPath)
 		return nil
 	}

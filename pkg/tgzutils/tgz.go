@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
 // Decompress decompresses a .tgz file into a directory.
 func Decompress(tgz, dst string) error {
-	fp, err := os.Open(tgz)
+	fp, err := helpers.Open(tgz)
 	if err != nil {
 		return fmt.Errorf("unable to open tgz file: %v", err)
 	}
@@ -43,7 +45,7 @@ func Decompress(tgz, dst string) error {
 			mode := os.FileMode(header.Mode)
 			dst := filepath.Join(dst, header.Name)
 			opts := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-			outfp, err := os.OpenFile(dst, opts, mode)
+			outfp, err := helpers.OpenFile(dst, opts, mode)
 			if err != nil {
 				return fmt.Errorf("unable to create file: %v", err)
 			}
@@ -51,7 +53,7 @@ func Decompress(tgz, dst string) error {
 				return fmt.Errorf("unable to write file: %v", err)
 			}
 			outfp.Close()
-			if err := os.Chmod(dst, os.FileMode(header.Mode)); err != nil {
+			if err := helpers.Chmod(dst, os.FileMode(header.Mode)); err != nil {
 				return fmt.Errorf("unable to chmod file: %v", err)
 			}
 		default:

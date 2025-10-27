@@ -13,6 +13,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/sirupsen/logrus"
@@ -45,7 +46,7 @@ func ShellCmd(ctx context.Context, appTitle string) *cobra.Command {
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
 			os.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir())
 
-			if _, err := os.Stat(rc.PathToKubeConfig()); err != nil {
+			if _, err := helpers.Stat(rc.PathToKubeConfig()); err != nil {
 				return fmt.Errorf("kubeconfig not found at %s", rc.PathToKubeConfig())
 			}
 
@@ -153,7 +154,7 @@ func openInteractiveShell(shpath string, rc runtimeconfig.RuntimeConfig) error {
 	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
 	// if /etc/bash_completion is present enable kubectl auto completion.
-	if _, err := os.Stat("/etc/bash_completion"); err == nil {
+	if _, err := helpers.Stat("/etc/bash_completion"); err == nil {
 		config = fmt.Sprintf("source <(k0s completion %s)\n", filepath.Base(shpath))
 		_, _ = shellpty.WriteString(config)
 		_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))

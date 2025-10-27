@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -63,7 +63,7 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 }
 
 func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	licenseBytes, err := os.ReadFile(flags.licenseFile)
+	licenseBytes, err := helpers.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("unable to read license file: %w", err)
 	}

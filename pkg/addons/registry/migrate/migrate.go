@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 )
@@ -61,7 +62,7 @@ func RegistryData(ctx context.Context) error {
 			return nil
 		}
 
-		f, err := os.Open(path)
+		f, err := helpers.Open(path)
 		if err != nil {
 			return fmt.Errorf("open file: %w", err)
 		}

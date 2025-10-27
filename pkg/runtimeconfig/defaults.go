@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/gosimple/slug"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 )
@@ -49,7 +50,7 @@ func AppSlug() string {
 // are stored.
 func EmbeddedClusterLogsSubDir() string {
 	path := "/var/log/embedded-cluster"
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := helpers.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
 	}
 	return path

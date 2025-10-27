@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,7 +86,7 @@ func createTarballFromDir(rootPath string, additionalFiles map[string][]byte) io
 				return err
 			}
 			if !info.IsDir() {
-				file, err := os.Open(path)
+				file, err := helpers.Open(path)
 				if err != nil {
 					return err
 				}
