@@ -25,7 +25,6 @@ Without plugin support, vendors must choose between EC's built-in disaster recov
 │  │   velero:                                               │    │
 │  │     plugins:                                            │    │
 │  │     - image: myvendor/velero-postgresql:v1.0.0          │    │
-│  │       imagePullSecret: my-registry-secret               │    │
 │  │     - image: myvendor/velero-mongodb:v2.1.0             │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └──────────────────────────┬──────────────────────────────────────┘
@@ -122,7 +121,6 @@ spec:
     velero:
       plugins:
         - image: vendor/plugin:tag
-          imagePullSecret: secret-name
 ```
 
 ## Implementation plan
@@ -141,8 +139,7 @@ spec:
    }
 
    type VeleroPlugin struct {
-       Image           string `json:"image"`
-       ImagePullSecret string `json:"imagePullSecret,omitempty"`
+       Image string `json:"image"`
    }
    ```
 
@@ -225,7 +222,6 @@ Plugin support will be controlled by:
 2. **Helm Values Generation**:
    - Single plugin injection
    - Multiple plugins
-   - Plugin with imagePullSecret
    - Override scenarios
 
 ### Integration Tests
