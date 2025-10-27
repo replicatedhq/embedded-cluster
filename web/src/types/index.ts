@@ -44,6 +44,7 @@ export interface WizardText {
   appInstallationFailureTitle: string;
   appInstallationSuccessTitle: string;
   nextButtonText: string;
+  completion: string;
 }
 
 // WizardStep type represents the different steps in the installation or upgrade wizard
