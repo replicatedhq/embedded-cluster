@@ -16,10 +16,10 @@ type ReportingInfo struct {
 	EmbeddedClusterNodes      *string `header:"X-Replicated-EmbeddedClusterNodes"`
 	ReplHelmInstalls          *string `header:"X-Replicated-ReplHelmInstalls"`
 	NativeHelmInstalls        *string `header:"X-Replicated-NativeHelmInstalls"`
-	DownstreamChannelSequence *string `header:"X-Replicated-DownstreamChannelSequence"`
 	AppStatus                 *string `header:"X-Replicated-AppStatus"`
 	InstallStatus             *string `header:"X-Replicated-InstallStatus"`
 	PreflightStatus           *string `header:"X-Replicated-PreflightStatus"`
+	DownstreamChannelSequence *string `header:"X-Replicated-DownstreamChannelSequence"`
 	DownstreamSequence        *string `header:"X-Replicated-DownstreamSequence"`
 	DownstreamSource          *string `header:"X-Replicated-DownstreamSource"`
 	SkipPreflights            *string `header:"X-Replicated-SkipPreflights"`
@@ -57,8 +57,9 @@ func (c *client) getReportingInfoHeaders(reportingInfo *ReportingInfo) map[strin
 	headers["X-Replicated-K8sDistribution"] = DistributionEmbeddedCluster
 	headers["X-Replicated-EmbeddedClusterVersion"] = versions.Version
 
-	headers["X-Replicated-ClusterID"] = c.clusterID  // TODO: what is this?
-	headers["X-Replicated-InstanceID"] = c.clusterID // TODO: what is this?
+	// TODO
+	// headers["X-Replicated-ClusterID"] = "TODO"
+	// headers["X-Replicated-InstanceID"] = "TODO"
 	headers["X-Replicated-EmbeddedClusterID"] = c.clusterID
 
 	// Add static headers
