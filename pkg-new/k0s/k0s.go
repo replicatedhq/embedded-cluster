@@ -95,7 +95,7 @@ func (k *K0s) IsInstalled() (bool, error) {
 }
 
 // NewK0sConfig creates a new k0sv1beta1.ClusterConfig object from the input parameters.
-func NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec

@@ -171,7 +171,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		}
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
-			k0sMock.On("NewK0sConfig", "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
+			k0sMock.On("NewK0sConfig", "eth0", false, "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, k0sConfig).Return(nil),
 			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, hostname, false).Return(nil),
 			k0sMock.On("Install", rc, hostname).Return(nil),
@@ -705,7 +705,7 @@ func TestLinuxPostSetupInfra(t *testing.T) {
 		k0sConfig := &k0sv1beta1.ClusterConfig{}
 		mock.InOrder(
 			k0sMock.On("IsInstalled").Return(false, nil),
-			k0sMock.On("NewK0sConfig", "eth0", "", "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
+			k0sMock.On("NewK0sConfig", "eth0", false, "10.244.0.0/16", "10.96.0.0/12", mock.Anything, mock.Anything).Return(k0sConfig, nil),
 			k0sMock.On("WriteK0sConfig", mock.Anything, k0sConfig).Return(nil),
 			hostutilsMock.On("CreateSystemdUnitFiles", mock.Anything, mock.Anything, rc, hostname, false).Return(nil),
 			k0sMock.On("Install", rc, hostname).Return(errors.New("failed to install k0s")),

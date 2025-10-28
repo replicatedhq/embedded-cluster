@@ -4,6 +4,7 @@ import (
 	"context"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
@@ -34,6 +35,15 @@ func (m *MockK0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error
 func (m *MockK0s) IsInstalled() (bool, error) {
 	args := m.Called()
 	return args.Bool(0), args.Error(1)
+}
+
+// NewK0sConfig mocks the NewK0sConfig method
+func (m *MockK0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+	args := m.Called(networkInterface, isAirgap, podCIDR, serviceCIDR, eucfg, mutate)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*k0sv1beta1.ClusterConfig), args.Error(1)
 }
 
 // WriteK0sConfig mocks the WriteK0sConfig method

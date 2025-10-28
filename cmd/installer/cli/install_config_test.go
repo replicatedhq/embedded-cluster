@@ -4,10 +4,13 @@ import (
 	"net"
 	"testing"
 
+	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 )
 
 // Mock network interface for testing
@@ -157,7 +160,6 @@ func Test_buildInstallFlags_ProxyConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup flags struct
 			flags := &installFlags{
-				assumeYes:        true,   // Skip password prompts
 				networkInterface: "eth0", // Skip network interface auto-detection
 			}
 
@@ -266,6 +268,121 @@ func Test_buildInstallFlags_SkipHostPreflightsEnvVar(t *testing.T) {
 
 			// Verify the flag was set correctly
 			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
+		})
+	}
+}
+
+func Test_buildInstallFlags_CIDRConfig(t *testing.T) {
+	// Compute expected split CIDR values for the default CIDR
+	defaultPodCIDR, defaultServiceCIDR, err := newconfig.SplitCIDR(ecv1beta1.DefaultNetworkCIDR)
+	assert.NoError(t, err, "failed to split default CIDR")
+
+	tests := []struct {
+		name        string
+		init        func(t *testing.T, flagSet *pflag.FlagSet)
+		expected    *newconfig.CIDRConfig
+		expectError bool
+	}{
+		{
+			name: "with pod and service flags",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("pod-cidr", "10.0.0.0/24")
+				flagSet.Set("service-cidr", "10.1.0.0/24")
+			},
+			expected: &newconfig.CIDRConfig{
+				PodCIDR:     "10.0.0.0/24",
+				ServiceCIDR: "10.1.0.0/24",
+				GlobalCIDR:  nil,
+			},
+		},
+		{
+			name: "with pod flag",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("pod-cidr", "10.0.0.0/24")
+			},
+			expected: &newconfig.CIDRConfig{
+				PodCIDR:     "10.0.0.0/24",
+				ServiceCIDR: v1beta1.DefaultNetwork().ServiceCIDR,
+				GlobalCIDR:  nil,
+			},
+		},
+		{
+			name: "with pod, service and cidr flags - should error",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("pod-cidr", "10.0.0.0/24")
+				flagSet.Set("service-cidr", "10.1.0.0/24")
+				flagSet.Set("cidr", "10.2.0.0/24")
+			},
+			expectError: true,
+		},
+		{
+			name: "with pod and cidr flags - should error",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("pod-cidr", "10.0.0.0/24")
+				flagSet.Set("cidr", "10.2.0.0/24")
+			},
+			expectError: true,
+		},
+		{
+			name: "with service flag only",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("service-cidr", "10.1.0.0/24")
+			},
+			expected: &newconfig.CIDRConfig{
+				PodCIDR:     v1beta1.DefaultNetwork().PodCIDR,
+				ServiceCIDR: "10.1.0.0/24",
+				GlobalCIDR:  nil,
+			},
+		},
+		{
+			name: "with cidr flag",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				flagSet.Set("cidr", "10.2.0.0/16")
+			},
+			expected: &newconfig.CIDRConfig{
+				PodCIDR:     "10.2.0.0/17",
+				ServiceCIDR: "10.2.128.0/17",
+				GlobalCIDR:  ptr.To("10.2.0.0/16"),
+			},
+		},
+		{
+			name: "with no flags (defaults)",
+			init: func(t *testing.T, flagSet *pflag.FlagSet) {
+				// No flags set, should use default cidr value and split it
+			},
+			expected: &newconfig.CIDRConfig{
+				PodCIDR:     defaultPodCIDR,
+				ServiceCIDR: defaultServiceCIDR,
+				GlobalCIDR:  ptr.To(ecv1beta1.DefaultNetworkCIDR),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup flags struct
+			flags := &installFlags{
+				networkInterface: "eth0", // Skip network interface auto-detection
+			}
+
+			// Setup cobra command with flags
+			cmd := &cobra.Command{}
+			mustAddCIDRFlags(cmd.Flags())
+			mustAddProxyFlags(cmd.Flags())
+
+			flagSet := cmd.Flags()
+			if tt.init != nil {
+				tt.init(t, flagSet)
+			}
+
+			err := buildInstallFlags(cmd, flags)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err, "unexpected error")
+				assert.Equal(t, tt.expected, flags.cidrConfig)
+			}
 		})
 	}
 }
