@@ -88,10 +88,11 @@ func TestNeedsK0sChartCleanup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			scheme := runtime.NewScheme()
-			err := k0sv1beta1.AddToScheme(scheme)
+			// we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
+			err := k0sv1beta1.Install(scheme)
 			require.NoError(t, err)
-			//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
-			err = k0shelmv1beta1.AddToScheme(scheme)
+			// we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
+			err = k0shelmv1beta1.Install(scheme)
 			require.NoError(t, err)
 
 			cli := fake.NewClientBuilder().
