@@ -386,3 +386,62 @@ func Test_buildInstallFlags_CIDRConfig(t *testing.T) {
 		})
 	}
 }
+
+func Test_buildInstallFlags_TLSValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		tlsCertFile string
+		tlsKeyFile  string
+		wantErr     string
+	}{
+		{
+			name:        "both cert and key provided",
+			tlsCertFile: "/path/to/cert.pem",
+			tlsKeyFile:  "/path/to/key.pem",
+			wantErr:     "",
+		},
+		{
+			name:        "neither cert nor key provided",
+			tlsCertFile: "",
+			tlsKeyFile:  "",
+			wantErr:     "",
+		},
+		{
+			name:        "only cert file provided",
+			tlsCertFile: "/path/to/cert.pem",
+			tlsKeyFile:  "",
+			wantErr:     "both --tls-cert and --tls-key must be provided together",
+		},
+		{
+			name:        "only key file provided",
+			tlsCertFile: "",
+			tlsKeyFile:  "/path/to/key.pem",
+			wantErr:     "both --tls-cert and --tls-key must be provided together",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup flags struct
+			flags := &installFlags{
+				networkInterface: "eth0", // Skip network interface auto-detection
+				tlsCertFile:      tt.tlsCertFile,
+				tlsKeyFile:       tt.tlsKeyFile,
+			}
+
+			// Setup cobra command with flags
+			cmd := &cobra.Command{}
+			mustAddCIDRFlags(cmd.Flags())
+			mustAddProxyFlags(cmd.Flags())
+
+			err := buildInstallFlags(cmd, flags)
+
+			if tt.wantErr != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

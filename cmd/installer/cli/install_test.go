@@ -899,21 +899,6 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			wantErr:     "",
 			expectTLS:   false,
 		},
-		// TODO NOW: move this to the build install flags test when we add it
-		// {
-		// 	name:        "only cert file provided",
-		// 	tlsCertFile: certPath,
-		// 	tlsKeyFile:  "",
-		// 	wantErr:     "both --tls-cert and --tls-key must be provided together",
-		// 	expectTLS:   false,
-		// },
-		// {
-		// 	name:        "only key file provided",
-		// 	tlsCertFile: "",
-		// 	tlsKeyFile:  keyPath,
-		// 	wantErr:     "both --tls-cert and --tls-key must be provided together",
-		// 	expectTLS:   false,
-		// },
 		{
 			name:        "cert file does not exist",
 			tlsCertFile: filepath.Join(tmpdir, "nonexistent.pem"),
