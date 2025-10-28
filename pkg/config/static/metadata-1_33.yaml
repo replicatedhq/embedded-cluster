@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.3-amd64@sha256:ba9e67b77a964fb95c836430140e77a3f3605a4453ceb7df1f4c43dd04852f97
-            arm64: v3.29.3-arm64@sha256:bcb96f11f5aedbfb92e860e0006dfcd4e3a0e48aa94476d8b71fa186e4705b56
+            amd64: v3.29.3-amd64@sha256:843b069579f23f6742bd736cede9a52da86e867afb794e388ec41af821d01ffb
+            arm64: v3.29.3-arm64@sha256:cb7bc228b63cbe1629704838b8bc3ebd9b6220de6855f1172d12fb331a4a2c35
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.29.3-amd64@sha256:314527adba1b9f445e181ded800dfcb65873853d55333d92c9a2f5c0888fe72c
-            arm64: v3.29.3-arm64@sha256:69b1a6acb9aeef1324ee5574ef217b54c59cf2aee7933fc41c5c2f0402840955
+            amd64: v3.29.3-amd64@sha256:97a011f40202f2162cf827342c156b9ee2d24cf844faed717a11ef263feaf411
+            arm64: v3.29.3-arm64@sha256:b6cb7914298996310f6015817392f789e087faa81e31633d278c05151f19e3d6
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.29.3-amd64@sha256:48288e892adb30b610dff84424111d72671c3e179570482da5aae048ed2645b0
-            arm64: v3.29.3-arm64@sha256:d6e97d84515fe4569a783a86d9410253ae7d8a1f0cefdbebc0ef7bbfb31405d9
+            amd64: v3.29.3-amd64@sha256:44a95ffa32027be4faafbbebff19a19cab42420725ccd2b3e27ecbd8def940a3
+            arm64: v3.29.3-arm64@sha256:47249309a6b83d2cbb067a41bc8e12ba100f9e6c6aa29cafe8b6b347cc7e69c9
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: v1.12.3-amd64@sha256:8f5f7a0b7e43ba7efc18d3c2d1eb4a9b0d92969be27abb87af1c3bb1ffb5f359
-            arm64: v1.12.3-arm64@sha256:27b89e34043cd283d36be797f36da6e18b22c01a6547cfbda5fe21d6a9ea8d39
+            amd64: 1.13.1-amd64@sha256:50f3bff150d550c51a3fcb35647b2382d4941385832ae669f13cdbb39e560d63
+            arm64: 1.13.1-arm64@sha256:af215fb41f787102113aa279312625daa570425f9ec118f6663ad061db520fd9
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: 1.31.2-amd64@sha256:6d243ea9bce274e50106eb5cd7e16a9a6d73fcb9e54879b2be53656adb50ec5c
-            arm64: 1.31.2-arm64@sha256:8394aba8c1cbe52bd27e276c8c1e7333cefaffde0ba7591f78525700d5005ad9
+            amd64: 1.32.8-amd64@sha256:47c925f31b305a17251e8e424cdfdf744201a84cd8af9fecb38a3c698fa4808b
+            arm64: 1.32.8-arm64@sha256:744d6a587248a518292483bf73516746699dbb685e1504c21af57bf38f8e5481
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.33.5-amd64@sha256:6f6dec84370a352a37f77b5452c8a467b64b510519dfbe917ce1a4bcba0d632a
-            arm64: v1.33.5-arm64@sha256:8a3a325957cb1f3b0398999cb1df4bdc1f90b3b0d506af8d5bfe651fa94c218b
+            amd64: v1.33.5-amd64@sha256:69acb30c43b5bbcfd6f90d79b342b5d86730497db2dd49c6037b376de4be7ad2
+            arm64: v1.33.5-arm64@sha256:d25c10c28d069ce3a91c1f5aa9266f7c685dd22abe1f76b6d38e25578d77033f
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.0-amd64@sha256:7a37510b20c6d506df5db21430f099e17e77ca2a6b70ca649c14600738465900
-            arm64: v0.8.0-arm64@sha256:8535a486080aa611544a5d7f75da02d3896f7f5187cdcef36b9ed7f658e7bd7e
+            amd64: v0.8.0-amd64@sha256:f0a44c9f544557332a32bdc84e3b7c980b5ed0c4a60ac4d03ade9e970d16b8e5
+            arm64: v0.8.0-arm64@sha256:ff4e5cf660f494305fd551c2272f7ee09bd1129225f66284adc10805b84529a3
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.10.1-amd64@sha256:0733e6feb71bd4882f6b47135b2e21c2fe0e567e73cba1e4a0ca0f97fa87583c
-            arm64: 3.10.1-arm64@sha256:136810ca7962f9b7d78d6fa363c7b59e338b7353fa0e0f741d364e61024a5305
+            amd64: 3.10.1-amd64@sha256:06bc277a20f6332c914444e16a6619f6b481627b36911d21a28ac8ef53b53614
+            arm64: 3.10.1-arm64@sha256:0a149ef51bd9c9d50f6838de19f3dafe2f0ad8ccb29edfc5dce1247f36816760
