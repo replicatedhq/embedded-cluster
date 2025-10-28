@@ -321,10 +321,8 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 			name:          "with cluster ID and nil reporting info",
 			clusterID:     "cluster-123",
 			reportingInfo: nil,
-			expectedCount: 9, // ClusterID, InstanceID, EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			expectedCount: 7, // EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
-				"X-Replicated-ClusterID":              "cluster-123",
-				"X-Replicated-InstanceID":             "cluster-123",
 				"X-Replicated-EmbeddedClusterID":      "cluster-123",
 				"X-Replicated-DownstreamChannelID":    "test-channel-123",
 				"X-Replicated-DownstreamChannelName":  "Stable",
@@ -341,9 +339,8 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 				EmbeddedClusterNodes: stringPtr("5"),
 				AppStatus:            stringPtr("ready"),
 			},
-			expectedCount: 11, // 9 from above + 2 from reportingInfo
+			expectedCount: 9, // 7 from above + 2 from reportingInfo
 			checkHeaders: map[string]string{
-				"X-Replicated-ClusterID":            "cluster-abc",
 				"X-Replicated-EmbeddedClusterNodes": "5",
 				"X-Replicated-AppStatus":            "ready",
 				"X-Replicated-IsKurl":               "false",
