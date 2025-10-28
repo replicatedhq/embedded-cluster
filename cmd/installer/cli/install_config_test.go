@@ -18,7 +18,12 @@ func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet
 	return ipnet, nil
 }
 
-func Test_hydrateInstallCmdFlags_ProxyConfig(t *testing.T) {
+// Helper function to create bool pointer
+func boolPtr(b bool) *bool {
+	return &b
+}
+
+func Test_buildInstallFlags_ProxyConfig(t *testing.T) {
 	tests := []struct {
 		name string
 		init func(t *testing.T, flagSet *pflag.FlagSet)
@@ -151,7 +156,7 @@ func Test_hydrateInstallCmdFlags_ProxyConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup flags struct
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				assumeYes:        true,   // Skip password prompts
 				networkInterface: "eth0", // Skip network interface auto-detection
 			}
@@ -169,10 +174,98 @@ func Test_hydrateInstallCmdFlags_ProxyConfig(t *testing.T) {
 			// Override the network lookup with our mock
 			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
-			// Call hydration function
-			err := hydrateInstallCmdFlags(cmd, flags)
-			assert.NoError(t, err, "unexpected error during hydration")
+			err := buildInstallFlags(cmd, flags)
+			assert.NoError(t, err, "unexpected error")
 			assert.Equal(t, tt.want, flags.proxySpec)
+		})
+	}
+}
+
+func Test_buildInstallFlags_SkipHostPreflightsEnvVar(t *testing.T) {
+	tests := []struct {
+		name                   string
+		envVarValue            string
+		flagValue              *bool // nil means not set, true/false means explicitly set
+		expectedSkipPreflights bool
+	}{
+		{
+			name:                   "env var set to 1, no flag",
+			envVarValue:            "1",
+			flagValue:              nil,
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var set to true, no flag",
+			envVarValue:            "true",
+			flagValue:              nil,
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var set, flag explicitly false (flag takes precedence)",
+			envVarValue:            "1",
+			flagValue:              boolPtr(false),
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var set, flag explicitly true",
+			envVarValue:            "1",
+			flagValue:              boolPtr(true),
+			expectedSkipPreflights: true,
+		},
+		{
+			name:                   "env var not set, no flag",
+			envVarValue:            "",
+			flagValue:              nil,
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var not set, flag explicitly false",
+			envVarValue:            "",
+			flagValue:              boolPtr(false),
+			expectedSkipPreflights: false,
+		},
+		{
+			name:                   "env var not set, flag explicitly true",
+			envVarValue:            "",
+			flagValue:              boolPtr(true),
+			expectedSkipPreflights: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment variable
+			if tt.envVarValue != "" {
+				t.Setenv("SKIP_HOST_PREFLIGHTS", tt.envVarValue)
+			}
+
+			// Create a mock cobra command to simulate flag behavior
+			cmd := &cobra.Command{}
+			flags := &installFlags{
+				networkInterface: "eth0", // Skip network interface auto-detection
+			}
+
+			// Add the flags
+			cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks")
+			mustAddCIDRFlags(cmd.Flags())
+			mustAddProxyFlags(cmd.Flags())
+
+			// Set the flag if explicitly provided in test
+			if tt.flagValue != nil {
+				err := cmd.Flags().Set("skip-host-preflights", "true")
+				if *tt.flagValue {
+					assert.NoError(t, err)
+				} else {
+					// For false, we need to mark the flag as changed but set to false
+					cmd.Flags().Set("skip-host-preflights", "false")
+				}
+			}
+
+			err := buildInstallFlags(cmd, flags)
+			assert.NoError(t, err)
+
+			// Verify the flag was set correctly
+			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
 		})
 	}
 }

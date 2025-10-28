@@ -15,7 +15,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -112,7 +111,7 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				assumeYes:            tt.noPrompt,
 				adminConsolePassword: tt.userPassword,
 			}
@@ -611,101 +610,6 @@ func Test_verifyProxyConfig(t *testing.T) {
 	}
 }
 
-func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
-	tests := []struct {
-		name                   string
-		envVarValue            string
-		flagValue              *bool // nil means not set, true/false means explicitly set
-		expectedSkipPreflights bool
-	}{
-		{
-			name:                   "env var set to 1, no flag",
-			envVarValue:            "1",
-			flagValue:              nil,
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var set to true, no flag",
-			envVarValue:            "true",
-			flagValue:              nil,
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var set, flag explicitly false (flag takes precedence)",
-			envVarValue:            "1",
-			flagValue:              boolPtr(false),
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var set, flag explicitly true",
-			envVarValue:            "1",
-			flagValue:              boolPtr(true),
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var not set, no flag",
-			envVarValue:            "",
-			flagValue:              nil,
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var not set, flag explicitly false",
-			envVarValue:            "",
-			flagValue:              boolPtr(false),
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var not set, flag explicitly true",
-			envVarValue:            "",
-			flagValue:              boolPtr(true),
-			expectedSkipPreflights: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set up environment variable
-			if tt.envVarValue != "" {
-				t.Setenv("SKIP_HOST_PREFLIGHTS", tt.envVarValue)
-			}
-
-			// Create a mock cobra command to simulate flag behavior
-			cmd := &cobra.Command{}
-			flags := &InstallCmdFlags{}
-			derived := &InstallDerivedConfig{}
-
-			// Add the flag to the command (similar to addInstallFlags)
-			cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks")
-
-			// Set the flag if explicitly provided in test
-			if tt.flagValue != nil {
-				err := cmd.Flags().Set("skip-host-preflights", fmt.Sprintf("%t", *tt.flagValue))
-				require.NoError(t, err)
-			}
-
-			// Create a minimal runtime config for the test
-			rc := runtimeconfig.New(nil)
-
-			// Call preRunInstall (this would normally require root, but we're just testing the flag logic)
-			// We expect this to fail due to non-root execution, but we can check the flag value before it fails
-			err := preRunInstallLinux(flags, derived, rc)
-
-			// The function will fail due to non-root check, but we can verify the flag was set correctly
-			// by checking the flag value before the root check fails
-			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
-
-			// We expect an error due to non-root execution
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "install command must be run as root")
-		})
-	}
-}
-
-// Helper function to create bool pointer
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
 	tests := []struct {
 		name                        string
@@ -734,7 +638,7 @@ func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
 				t.Setenv("ENABLE_V3", tt.enableV3EnvVar)
 			}
 
-			flags := &InstallCmdFlags{}
+			flags := &installFlags{}
 			enableV3 := isV3Enabled()
 			flagSet := newLinuxInstallFlags(flags, enableV3)
 
@@ -799,7 +703,7 @@ func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 			}
 
 			// Create a flagset similar to how newLinuxInstallFlags works
-			flags := &InstallCmdFlags{}
+			flags := &installFlags{}
 			flagSet := newLinuxInstallFlags(flags, tt.enableV3)
 
 			// Create a command to test flag parsing
@@ -874,7 +778,7 @@ func Test_k0sConfigFromFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				cidrConfig: &newconfig.CIDRConfig{
 					PodCIDR:     tt.podCIDR,
 					ServiceCIDR: tt.serviceCIDR,
@@ -883,9 +787,9 @@ func Test_k0sConfigFromFlags(t *testing.T) {
 				networkInterface: "",
 				overrides:        "",
 			}
-			derived := &InstallDerivedConfig{}
+			installCfg := &installConfig{}
 
-			cfg, err := k0sConfigFromFlags(flags, derived)
+			cfg, err := k0sConfigFromFlags(flags, installCfg)
 
 			if tt.wantErr {
 				req.Error(err)
@@ -995,7 +899,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			wantErr:     "",
 			expectTLS:   false,
 		},
-		// TODO NOW: move this to the hydrate test when we add it
+		// TODO NOW: move this to the build install flags test when we add it
 		// {
 		// 	name:        "only cert file provided",
 		// 	tlsCertFile: certPath,
@@ -1046,12 +950,12 @@ oxhVqyhpk86rf0rT5DcD/sBw
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				tlsCertFile: tt.tlsCertFile,
 				tlsKeyFile:  tt.tlsKeyFile,
 			}
 
-			derived, err := buildInstallDerivedConfig(flags)
+			installCfg, err := buildInstallConfig(flags)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -1060,12 +964,12 @@ oxhVqyhpk86rf0rT5DcD/sBw
 				require.NoError(t, err)
 
 				if tt.expectTLS {
-					assert.NotEmpty(t, derived.tlsCertBytes, "TLS cert bytes should be populated")
-					assert.NotEmpty(t, derived.tlsKeyBytes, "TLS key bytes should be populated")
-					assert.NotNil(t, derived.tlsCert.Certificate, "TLS cert should be loaded")
+					assert.NotEmpty(t, installCfg.tlsCertBytes, "TLS cert bytes should be populated")
+					assert.NotEmpty(t, installCfg.tlsKeyBytes, "TLS key bytes should be populated")
+					assert.NotNil(t, installCfg.tlsCert.Certificate, "TLS cert should be loaded")
 				} else {
-					assert.Empty(t, derived.tlsCertBytes, "TLS cert bytes should be empty")
-					assert.Empty(t, derived.tlsKeyBytes, "TLS key bytes should be empty")
+					assert.Empty(t, installCfg.tlsCertBytes, "TLS cert bytes should be empty")
+					assert.Empty(t, installCfg.tlsKeyBytes, "TLS key bytes should be empty")
 				}
 			}
 		})

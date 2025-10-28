@@ -3,13 +3,11 @@ package cli
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
@@ -22,10 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hydrateInstallCmdFlags modifies flags in-place to resolve final values
-// This handles cmd.Changed(), env vars, auto-detection, and validation
-// Call this AFTER cobra has parsed flags but BEFORE using them
-func hydrateInstallCmdFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
+// buildInstallFlags maps cobra command flags to install flags
+func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	// Target defaulting (if not V3)
 	if !isV3Enabled() {
 		flags.target = "linux"
@@ -70,13 +66,6 @@ func hydrateInstallCmdFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 		}
 	}
 
-	// Admin console password
-	if cmd.Flags().Lookup("admin-console-password") != nil {
-		if err := ensureAdminConsolePassword(flags); err != nil {
-			return err
-		}
-	}
-
 	// CIDR configuration
 	cidrCfg, err := cidrConfigFromCmd(cmd)
 	if err != nil {
@@ -85,7 +74,7 @@ func hydrateInstallCmdFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	flags.cidrConfig = cidrCfg
 
 	// Proxy configuration
-	proxy, err := proxyConfigFromCmd(cmd, flags.networkInterface, flags.cidrConfig, flags.assumeYes)
+	proxy, err := parseProxyFlags(cmd, flags.networkInterface, flags.cidrConfig)
 	if err != nil {
 		return err
 	}
@@ -94,15 +83,12 @@ func hydrateInstallCmdFlags(cmd *cobra.Command, flags *InstallCmdFlags) error {
 	return nil
 }
 
-// buildInstallDerivedConfig takes hydrated flags and computes all derived values
-// This function has side effects: file I/O, crypto generation
-func buildInstallDerivedConfig(flags *InstallCmdFlags) (*InstallDerivedConfig, error) {
-	derived := &InstallDerivedConfig{
+// buildInstallConfig builds the install config from install flags
+func buildInstallConfig(flags *installFlags) (*installConfig, error) {
+	installCfg := &installConfig{
 		clusterID:               uuid.New().String(),
 		enableManagerExperience: isV3Enabled(),
 	}
-
-	// === File I/O Operations ===
 
 	// License file reading
 	if flags.licenseFile != "" {
@@ -110,13 +96,13 @@ func buildInstallDerivedConfig(flags *InstallCmdFlags) (*InstallDerivedConfig, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to read license file: %w", err)
 		}
-		derived.licenseBytes = b
+		installCfg.licenseBytes = b
 
 		l, err := helpers.ParseLicense(flags.licenseFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse license file: %w", err)
 		}
-		derived.license = l
+		installCfg.license = l
 	}
 
 	// Config values validation
@@ -128,13 +114,13 @@ func buildInstallDerivedConfig(flags *InstallCmdFlags) (*InstallDerivedConfig, e
 	}
 
 	// Airgap detection and metadata
-	derived.isAirgap = flags.airgapBundle != ""
+	installCfg.isAirgap = flags.airgapBundle != ""
 	if flags.airgapBundle != "" {
 		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get airgap info: %w", err)
 		}
-		derived.airgapMetadata = metadata
+		installCfg.airgapMetadata = metadata
 	}
 
 	// Embedded assets size
@@ -142,70 +128,21 @@ func buildInstallDerivedConfig(flags *InstallCmdFlags) (*InstallDerivedConfig, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to get size of embedded files: %w", err)
 	}
-	derived.embeddedAssetsSize = size
+	installCfg.embeddedAssetsSize = size
 
 	// End user config (overrides file)
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
 	if err != nil {
 		return nil, fmt.Errorf("process overrides file: %w", err)
 	}
-	derived.endUserConfig = eucfg
+	installCfg.endUserConfig = eucfg
 
 	// TLS Certificate Processing
-	if err := processTLSConfig(flags, derived); err != nil {
+	if err := processTLSConfig(flags, installCfg); err != nil {
 		return nil, fmt.Errorf("process TLS config: %w", err)
 	}
 
-	return derived, nil
-}
-
-func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
-	if flags.adminConsolePassword == "" {
-		// no password was provided
-		if flags.assumeYes {
-			logrus.Infof("\nThe Admin Console password is set to %q.", "password")
-			flags.adminConsolePassword = "password"
-		} else {
-			logrus.Info("")
-			maxTries := 3
-			for i := 0; i < maxTries; i++ {
-				promptA, err := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
-				if err != nil {
-					return fmt.Errorf("failed to get password: %w", err)
-				}
-
-				promptB, err := prompts.New().Password("Confirm the Admin Console password:")
-				if err != nil {
-					return fmt.Errorf("failed to get password confirmation: %w", err)
-				}
-
-				if validateAdminConsolePassword(promptA, promptB) {
-					flags.adminConsolePassword = promptA
-					return nil
-				}
-			}
-			return NewErrorNothingElseToAdd(errors.New("password is not valid"))
-		}
-	}
-
-	if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
-		return NewErrorNothingElseToAdd(errors.New("password is not valid"))
-	}
-
-	return nil
-}
-
-func proxyConfigFromCmd(cmd *cobra.Command, networkInterface string, cidrCfg *newconfig.CIDRConfig, assumeYes bool) (*ecv1beta1.ProxySpec, error) {
-	proxy, err := parseProxyFlags(cmd, networkInterface, cidrCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := verifyProxyConfig(proxy, prompts.New(), assumeYes); err != nil {
-		return nil, err
-	}
-
-	return proxy, nil
+	return installCfg, nil
 }
 
 func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
@@ -222,7 +159,7 @@ func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
 	return cidrCfg, nil
 }
 
-func processTLSConfig(flags *InstallCmdFlags, derived *InstallDerivedConfig) error {
+func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 	// If both cert and key are provided, load them
 	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
 		certBytes, err := os.ReadFile(flags.tlsCertFile)
@@ -239,10 +176,10 @@ func processTLSConfig(flags *InstallCmdFlags, derived *InstallDerivedConfig) err
 			return fmt.Errorf("failed to parse TLS certificate: %w", err)
 		}
 
-		derived.tlsCert = cert
-		derived.tlsCertBytes = certBytes
-		derived.tlsKeyBytes = keyBytes
-	} else if derived.enableManagerExperience {
+		installCfg.tlsCert = cert
+		installCfg.tlsCertBytes = certBytes
+		installCfg.tlsKeyBytes = keyBytes
+	} else if installCfg.enableManagerExperience {
 		// For manager experience, generate self-signed certificate if none provided
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
@@ -276,9 +213,9 @@ func processTLSConfig(flags *InstallCmdFlags, derived *InstallDerivedConfig) err
 		if err != nil {
 			return fmt.Errorf("generate tls certificate: %w", err)
 		}
-		derived.tlsCert = cert
-		derived.tlsCertBytes = certData
-		derived.tlsKeyBytes = keyData
+		installCfg.tlsCert = cert
+		installCfg.tlsCertBytes = certData
+		installCfg.tlsKeyBytes = keyData
 	}
 
 	return nil
