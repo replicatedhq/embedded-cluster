@@ -136,35 +136,30 @@ func NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, servic
 // WriteK0sConfig creates a new k0s.yaml configuration file. The file is saved in the
 // global location (as returned by runtimeconfig.K0sConfigPath). If a file already sits
 // there, this function returns an error.
-func (k *K0s) WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	cfg, err := NewK0sConfig(networkInterface, airgapBundle != "", podCIDR, serviceCIDR, eucfg, mutate)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create k0s config: %w", err)
-	}
-
+func (k *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
 	cfgpath := runtimeconfig.K0sConfigPath
 	if _, err := os.Stat(cfgpath); err == nil {
-		return nil, fmt.Errorf("configuration file already exists")
+		return fmt.Errorf("configuration file already exists")
 	}
 	if err := os.MkdirAll(filepath.Dir(cfgpath), 0755); err != nil {
-		return nil, fmt.Errorf("unable to create directory: %w", err)
+		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
 	// This is necessary to install the previous version of k0s in e2e tests
 	// TODO: remove this once the previous version is > 1.29
 	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
 	}
 	data, err := k8syaml.Marshal(unstructured)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal config: %w", err)
+		return fmt.Errorf("unable to marshal config: %w", err)
 	}
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
-		return nil, fmt.Errorf("unable to write config file: %w", err)
+		return fmt.Errorf("unable to write config file: %w", err)
 	}
 
-	return cfg, nil
+	return nil
 }
 
 // applyUnsupportedOverrides applies overrides to the k0s configuration. Applies the

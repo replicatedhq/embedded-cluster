@@ -70,6 +70,7 @@ type InstallCmdFlags struct {
 	assumeYes            bool
 	overrides            string
 	configValues         string
+	cidrConfig           *newconfig.CIDRConfig
 
 	// linux flags
 	dataDir                 string
@@ -228,6 +229,12 @@ func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
 	if fn := linuxFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
 	}
+
+	cidrCfg, err := cidrConfigFromCmd(cmd)
+	if err != nil {
+		panic(err)
+	}
+	flags.cidrConfig = cidrCfg
 
 	kubernetesFlagSet := newKubernetesInstallFlags(flags, enableV3)
 	cmd.Flags().AddFlagSet(kubernetesFlagSet)
@@ -523,24 +530,14 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 		}
 	}
 
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return fmt.Errorf("process overrides file: %w", err)
-	}
-
-	cidrCfg, err := cidrConfigFromCmd(cmd)
-	if err != nil {
-		return err
-	}
-
-	k0sCfg, err := k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, eucfg, nil)
+	k0sCfg, err := k0sConfigFromFlags(flags)
 	if err != nil {
 		return fmt.Errorf("failed to create k0s config: %w", err)
 	}
 	networkSpec := helpers.NetworkSpecFromK0sConfig(k0sCfg)
 	networkSpec.NetworkInterface = flags.networkInterface
-	if cidrCfg.GlobalCIDR != nil {
-		networkSpec.GlobalCIDR = *cidrCfg.GlobalCIDR
+	if flags.cidrConfig.GlobalCIDR != nil {
+		networkSpec.GlobalCIDR = *flags.cidrConfig.GlobalCIDR
 	}
 
 	// TODO: validate that a single port isn't used for multiple services
@@ -823,6 +820,14 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
 
 	return nil
+}
+
+func k0sConfigFromFlags(flags *InstallCmdFlags) (*k0sv1beta1.ClusterConfig, error) {
+	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	if err != nil {
+		return nil, fmt.Errorf("process overrides file: %w", err)
+	}
+	return k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, eucfg, nil)
 }
 
 func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
@@ -1114,12 +1119,12 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 
 	logrus.Debugf("creating k0s configuration file")
 
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
+	cfg, err := k0sConfigFromFlags(&flags)
 	if err != nil {
-		return nil, fmt.Errorf("process overrides file: %w", err)
+		return nil, fmt.Errorf("unable to create k0s config: %w", err)
 	}
 
-	cfg, err := k0s.WriteK0sConfig(ctx, flags.networkInterface, flags.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), eucfg, mutate)
+	err = k0s.WriteK0sConfig(ctx, cfg)
 	if err != nil {
 		loading.ErrorClosef("Failed to install node")
 		return nil, fmt.Errorf("create config file: %w", err)

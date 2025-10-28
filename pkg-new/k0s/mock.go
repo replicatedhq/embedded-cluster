@@ -4,7 +4,6 @@ import (
 	"context"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/mock"
 )
@@ -38,9 +37,9 @@ func (m *MockK0s) IsInstalled() (bool, error) {
 }
 
 // WriteK0sConfig mocks the WriteK0sConfig method
-func (m *MockK0s) WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	args := m.Called(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, eucfg, mutate)
-	return args.Get(0).(*k0sv1beta1.ClusterConfig), args.Error(1)
+func (m *MockK0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
+	args := m.Called(ctx, cfg)
+	return args.Error(0)
 }
 
 // PatchK0sConfig mocks the PatchK0sConfig method

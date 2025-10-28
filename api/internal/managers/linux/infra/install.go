@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
@@ -162,8 +163,11 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err = m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
+	k0sCfg, err = k0s.NewK0sConfig(rc.NetworkInterface(), m.airgapBundle != "", rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
+		return nil, fmt.Errorf("new k0s config: %w", err)
+	}
+	if err := m.k0scli.WriteK0sConfig(ctx, k0sCfg); err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -37,7 +36,7 @@ type K0sInterface interface {
 	GetStatus(ctx context.Context) (*K0sStatus, error)
 	Install(rc runtimeconfig.RuntimeConfig, hostname string) error
 	IsInstalled() (bool, error)
-	WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error)
+	WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error
 	PatchK0sConfig(path string, patch string) error
 	WaitForK0s() error
 }
@@ -54,8 +53,8 @@ func IsInstalled() (bool, error) {
 	return _k0s.IsInstalled()
 }
 
-func WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	return _k0s.WriteK0sConfig(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, eucfg, mutate)
+func WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
+	return _k0s.WriteK0sConfig(ctx, cfg)
 }
 
 func PatchK0sConfig(path string, patch string) error {
