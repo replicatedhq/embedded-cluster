@@ -43,7 +43,7 @@ func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta
 	return nil
 }
 
-func (m *appInstallManager) install(_ context.Context, configValues kotsv1beta1.ConfigValues) error {
+func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
 	license := &kotsv1beta1.License{}
 	if err := kyaml.Unmarshal(m.license, license); err != nil {
 		return fmt.Errorf("parse license: %w", err)
