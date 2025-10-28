@@ -823,49 +823,49 @@ func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 
 func Test_k0sConfigFromFlags(t *testing.T) {
 	tests := []struct {
-		name               string
-		podCIDR            string
-		serviceCIDR        string
-		globalCIDR         *string
-		expectedPodCIDR    string
+		name                string
+		podCIDR             string
+		serviceCIDR         string
+		globalCIDR          *string
+		expectedPodCIDR     string
 		expectedServiceCIDR string
-		wantErr            bool
+		wantErr             bool
 	}{
 		{
-			name:               "pod and service CIDRs set",
-			podCIDR:            "10.0.0.0/24",
-			serviceCIDR:        "10.1.0.0/24",
-			globalCIDR:         nil,
-			expectedPodCIDR:    "10.0.0.0/24",
+			name:                "pod and service CIDRs set",
+			podCIDR:             "10.0.0.0/24",
+			serviceCIDR:         "10.1.0.0/24",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "10.0.0.0/24",
 			expectedServiceCIDR: "10.1.0.0/24",
-			wantErr:            false,
+			wantErr:             false,
 		},
 		{
-			name:               "custom pod and service CIDRs",
-			podCIDR:            "192.168.0.0/16",
-			serviceCIDR:        "10.96.0.0/12",
-			globalCIDR:         nil,
-			expectedPodCIDR:    "192.168.0.0/16",
+			name:                "custom pod and service CIDRs",
+			podCIDR:             "192.168.0.0/16",
+			serviceCIDR:         "10.96.0.0/12",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "192.168.0.0/16",
 			expectedServiceCIDR: "10.96.0.0/12",
-			wantErr:            false,
+			wantErr:             false,
 		},
 		{
-			name:               "global CIDR should not affect k0s config",
-			podCIDR:            "10.0.0.0/25",
-			serviceCIDR:        "10.0.0.128/25",
-			globalCIDR:         stringPtr("10.0.0.0/24"),
-			expectedPodCIDR:    "10.0.0.0/25",
+			name:                "global CIDR should not affect k0s config",
+			podCIDR:             "10.0.0.0/25",
+			serviceCIDR:         "10.0.0.128/25",
+			globalCIDR:          stringPtr("10.0.0.0/24"),
+			expectedPodCIDR:     "10.0.0.0/25",
 			expectedServiceCIDR: "10.0.0.128/25",
-			wantErr:            false,
+			wantErr:             false,
 		},
 		{
-			name:               "IPv4 CIDRs with different masks",
-			podCIDR:            "172.16.0.0/20",
-			serviceCIDR:        "172.17.0.0/20",
-			globalCIDR:         nil,
-			expectedPodCIDR:    "172.16.0.0/20",
+			name:                "IPv4 CIDRs with different masks",
+			podCIDR:             "172.16.0.0/20",
+			serviceCIDR:         "172.17.0.0/20",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "172.16.0.0/20",
 			expectedServiceCIDR: "172.17.0.0/20",
-			wantErr:            false,
+			wantErr:             false,
 		},
 	}
 
