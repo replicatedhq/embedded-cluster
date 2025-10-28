@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// buildInstallFlags maps cobra command flags to install flags
+// Hop: buildInstallFlags maps cobra command flags to install flags
 func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	// Target defaulting (if not V3)
 	if !isV3Enabled() {
@@ -83,7 +83,7 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	return nil
 }
 
-// buildInstallConfig builds the install config from install flags
+// Hop: buildInstallConfig builds the install config from install flags
 func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 	installCfg := &installConfig{
 		clusterID:               uuid.New().String(),
