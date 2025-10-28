@@ -22,7 +22,7 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 	output := strings.TrimSpace(string(p))
 	if output != "" {
 		lw.manager.addLogs("[kots] %s", output)
-		lw.manager.logger.WithField("component", "kots").Debug(string(p))
+		lw.manager.logger.WithField("component", "kots").Debug(output)
 	}
 	return len(p), nil
 }
