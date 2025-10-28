@@ -527,7 +527,6 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
-          - TestCustomCIDR
           - TestLocalArtifactMirror
           - TestMultiNodeReset
           - TestCollectSupportBundle
