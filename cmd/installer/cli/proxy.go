@@ -30,8 +30,8 @@ func mustAddProxyFlags(flagSet *pflag.FlagSet) {
 	flagSet.String("no-proxy", "", "Comma-separated list of hosts for which not to use a proxy (overrides no_proxy/NO_PROXY environment variables)")
 }
 
-func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
-	p, err := getProxySpec(cmd)
+func parseProxyFlags(cmd *cobra.Command, networkInterface string, cidrCfg *newconfig.CIDRConfig) (*ecv1beta1.ProxySpec, error) {
+	p, err := getProxySpec(cmd, networkInterface, cidrCfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get proxy spec from flags: %w", err)
 	}
@@ -40,7 +40,7 @@ func parseProxyFlags(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	return p, nil
 }
 
-func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
+func getProxySpec(cmd *cobra.Command, networkInterface string, cidrCfg *newconfig.CIDRConfig) (*ecv1beta1.ProxySpec, error) {
 	// Command-line flags have the highest precedence
 	httpProxy, err := cmd.Flags().GetString("http-proxy")
 	if err != nil {
@@ -53,14 +53,6 @@ func getProxySpec(cmd *cobra.Command) (*ecv1beta1.ProxySpec, error) {
 	noProxy, err := cmd.Flags().GetString("no-proxy")
 	if err != nil {
 		return nil, fmt.Errorf("unable to get no-proxy flag: %w", err)
-	}
-	networkInterface, err := cmd.Flags().GetString("network-interface")
-	if err != nil {
-		return nil, fmt.Errorf("unable to get network-interface flag: %w", err)
-	}
-	cidrCfg, err := getCIDRConfig(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("unable to determine pod and service CIDRs: %w", err)
 	}
 	proxy, err := newconfig.GetProxySpec(httpProxy, httpsProxy, noProxy, cidrCfg.PodCIDR, cidrCfg.ServiceCIDR, networkInterface, defaultNetworkLookupImpl)
 	if err != nil {

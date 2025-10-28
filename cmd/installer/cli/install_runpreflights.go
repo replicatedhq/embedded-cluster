@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
@@ -36,16 +35,17 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
+			derived, err := preRunInstall(cmd, &flags, rc, ki)
+			if err != nil {
 				return err
 			}
-			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
+			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, derived, prompts.New()); err != nil {
 				return err
 			}
 
 			_ = rc.SetEnv()
 
-			if err := runInstallRunPreflights(cmd.Context(), flags, rc); err != nil {
+			if err := runInstallRunPreflights(cmd.Context(), flags, derived, rc); err != nil {
 				return err
 			}
 
@@ -62,22 +62,17 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 	return cmd
 }
 
-func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	licenseBytes, err := os.ReadFile(flags.licenseFile)
-	if err != nil {
-		return fmt.Errorf("unable to read license file: %w", err)
-	}
-
+func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Debugf("configuring host")
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
-		License:      licenseBytes,
+		License:      derived.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, nil); err != nil {
+	if err := runInstallPreflights(ctx, flags, derived, rc, nil); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
@@ -89,7 +84,7 @@ func runInstallRunPreflights(ctx context.Context, flags InstallCmdFlags, rc runt
 	return nil
 }
 
-func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
+func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig, metricsReporter metrics.ReporterInterface) error {
 	replicatedAppURL := replicatedAppURL()
 	proxyRegistryURL := proxyRegistryURL()
 
@@ -100,11 +95,11 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 
 	// Calculate airgap storage space requirement
 	var controllerAirgapStorageSpace string
-	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+	if derived.airgapMetadata != nil && derived.airgapMetadata.AirgapInfo != nil {
 		controllerAirgapStorageSpace = preflights.CalculateAirgapStorageSpace(preflights.AirgapStorageSpaceCalcArgs{
-			UncompressedSize:   flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize,
-			EmbeddedAssetsSize: flags.embeddedAssetsSize,
-			K0sImageSize:       flags.airgapMetadata.K0sImageSize,
+			UncompressedSize:   derived.airgapMetadata.AirgapInfo.Spec.UncompressedSize,
+			EmbeddedAssetsSize: derived.embeddedAssetsSize,
+			K0sImageSize:       derived.airgapMetadata.K0sImageSize,
 			IsController:       true,
 		})
 	}
@@ -122,7 +117,7 @@ func runInstallPreflights(ctx context.Context, flags InstallCmdFlags, rc runtime
 		PodCIDR:                      rc.PodCIDR(),
 		ServiceCIDR:                  rc.ServiceCIDR(),
 		NodeIP:                       nodeIP,
-		IsAirgap:                     flags.isAirgap,
+		IsAirgap:                     derived.isAirgap,
 		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {

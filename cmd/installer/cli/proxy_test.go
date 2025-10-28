@@ -18,7 +18,7 @@ func (m *mockNetworkLookup) FirstValidIPNet(networkInterface string) (*net.IPNet
 	return ipnet, nil
 }
 
-func Test_getProxySpecFromFlags(t *testing.T) {
+func Test_hydrateInstallCmdFlags_ProxyConfig(t *testing.T) {
 	tests := []struct {
 		name string
 		init func(t *testing.T, flagSet *pflag.FlagSet)
@@ -150,10 +150,16 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup flags struct
+			flags := &InstallCmdFlags{
+				assumeYes:        true,   // Skip password prompts
+				networkInterface: "eth0", // Skip network interface auto-detection
+			}
+
+			// Setup cobra command with flags
 			cmd := &cobra.Command{}
 			mustAddCIDRFlags(cmd.Flags())
 			mustAddProxyFlags(cmd.Flags())
-			cmd.Flags().String("network-interface", "", "The network interface to use for the cluster")
 
 			flagSet := cmd.Flags()
 			if tt.init != nil {
@@ -163,9 +169,10 @@ func Test_getProxySpecFromFlags(t *testing.T) {
 			// Override the network lookup with our mock
 			defaultNetworkLookupImpl = &mockNetworkLookup{}
 
-			got, err := getProxySpec(cmd)
-			assert.NoError(t, err, "unexpected error received")
-			assert.Equal(t, tt.want, got)
+			// Call hydration function
+			err := hydrateInstallCmdFlags(cmd, flags)
+			assert.NoError(t, err, "unexpected error during hydration")
+			assert.Equal(t, tt.want, flags.proxySpec)
 		})
 	}
 }

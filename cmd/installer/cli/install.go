@@ -8,16 +8,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
@@ -28,12 +25,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -63,14 +58,10 @@ type InstallCmdFlags struct {
 	adminConsolePassword string
 	adminConsolePort     int
 	airgapBundle         string
-	airgapMetadata       *airgap.AirgapMetadata
-	embeddedAssetsSize   int64
-	isAirgap             bool
 	licenseFile          string
 	assumeYes            bool
 	overrides            string
 	configValues         string
-	cidrConfig           *newconfig.CIDRConfig
 
 	// linux flags
 	dataDir                 string
@@ -79,25 +70,36 @@ type InstallCmdFlags struct {
 	ignoreHostPreflights    bool
 	ignoreAppPreflights     bool
 	networkInterface        string
+	cidrConfig              *newconfig.CIDRConfig
+	proxySpec               *ecv1beta1.ProxySpec
 
 	// kubernetes flags
 	kubernetesEnvSettings *helmcli.EnvSettings
 
 	// guided UI flags
-	enableManagerExperience bool
-	target                  string
-	managerPort             int
-	tlsCertFile             string
-	tlsKeyFile              string
-	hostname                string
-
-	installConfig
+	target      string
+	managerPort int
+	tlsCertFile string
+	tlsKeyFile  string
+	hostname    string
 }
 
-type installConfig struct {
-	clusterID    string
-	license      *kotsv1beta1.License
-	licenseBytes []byte
+// InstallDerivedConfig holds computed/derived values from flags
+// These are calculated during the hydration/build phase and passed to execution functions
+type InstallDerivedConfig struct {
+	// Computed from flags
+	clusterID               string
+	isAirgap                bool
+	enableManagerExperience bool
+
+	// From file reads
+	licenseBytes       []byte
+	license            *kotsv1beta1.License
+	airgapMetadata     *airgap.AirgapMetadata
+	embeddedAssetsSize int64
+	endUserConfig      *ecv1beta1.Config
+
+	// TLS config (loaded/generated)
 	tlsCert      tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
@@ -129,21 +131,22 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			cancel() // Cancel context when command completes
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
+			derived, err := preRunInstall(cmd, &flags, rc, ki)
+			if err != nil {
 				return err
 			}
-			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
+			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, derived, prompts.New()); err != nil {
 				return err
 			}
 
 			metricsReporter := newInstallReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				flags.license.Spec.LicenseID, flags.clusterID, flags.license.Spec.AppSlug,
+				derived.license.Spec.LicenseID, derived.clusterID, derived.license.Spec.AppSlug,
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 
-			if flags.enableManagerExperience {
-				return runManagerExperienceInstall(ctx, flags, rc, ki, metricsReporter.reporter, appTitle)
+			if derived.enableManagerExperience {
+				return runManagerExperienceInstall(ctx, flags, derived, rc, ki, metricsReporter.reporter, appTitle)
 			}
 
 			_ = rc.SetEnv()
@@ -153,7 +156,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				metricsReporter.ReportSignalAborted(ctx, sig)
 			})
 
-			if err := runInstall(cmd.Context(), flags, rc, metricsReporter); err != nil {
+			if err := runInstall(cmd.Context(), flags, derived, rc, metricsReporter); err != nil {
 				// Check if this is an interrupt error from the terminal
 				if errors.Is(err, terminal.InterruptErr) {
 					metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
@@ -229,12 +232,6 @@ func mustAddInstallFlags(cmd *cobra.Command, flags *InstallCmdFlags) {
 	if fn := linuxFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
 	}
-
-	cidrCfg, err := cidrConfigFromCmd(cmd)
-	if err != nil {
-		panic(err)
-	}
-	flags.cidrConfig = cidrCfg
 
 	kubernetesFlagSet := newKubernetesInstallFlags(flags, enableV3)
 	cmd.Flags().AddFlagSet(kubernetesFlagSet)
@@ -367,141 +364,44 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 	return nil
 }
 
-func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
-	if !isV3Enabled() {
-		flags.target = "linux"
+func preRunInstall(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) (*InstallDerivedConfig, error) {
+	// Hydrate flags
+	if err := hydrateInstallCmdFlags(cmd, flags); err != nil {
+		return nil, err
 	}
 
-	if !slices.Contains([]string{"linux", "kubernetes"}, flags.target) {
-		return fmt.Errorf(`invalid --target (must be one of: "linux", "kubernetes")`)
-	}
-
-	flags.clusterID = uuid.New().String()
-
-	if err := preRunInstallCommon(cmd, flags, rc, ki); err != nil {
-		return err
-	}
-
-	switch flags.target {
-	case "linux":
-		return preRunInstallLinux(cmd, flags, rc)
-	case "kubernetes":
-		return preRunInstallKubernetes(cmd, flags, ki)
-	}
-
-	return nil
-}
-
-func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) error {
-	flags.enableManagerExperience = isV3Enabled()
-
-	// license file can be empty for restore
-	if flags.licenseFile != "" {
-		b, err := os.ReadFile(flags.licenseFile)
-		if err != nil {
-			return fmt.Errorf("failed to read license file: %w", err)
-		}
-		flags.licenseBytes = b
-
-		// validate the the license is indeed a license file
-		l, err := helpers.ParseLicense(flags.licenseFile)
-		if err != nil {
-			if err == helpers.ErrNotALicenseFile {
-				return fmt.Errorf("license file is not a valid license file")
-			}
-
-			return fmt.Errorf("failed to parse license file: %w", err)
-		}
-		flags.license = l
-	}
-
-	if flags.configValues != "" {
-		err := configutils.ValidateKotsConfigValues(flags.configValues)
-		if err != nil {
-			return fmt.Errorf("config values file is not valid: %w", err)
-		}
-	}
-
-	flags.isAirgap = flags.airgapBundle != ""
-	if flags.airgapBundle != "" {
-		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
-		if err != nil {
-			return fmt.Errorf("failed to get airgap info: %w", err)
-		}
-		flags.airgapMetadata = metadata
-	}
-
-	var err error
-	flags.embeddedAssetsSize, err = goods.SizeOfEmbeddedAssets()
+	// Build derived config
+	derived, err := buildInstallDerivedConfig(flags)
 	if err != nil {
-		return fmt.Errorf("failed to get size of embedded files: %w", err)
+		return nil, err
 	}
 
-	if flags.managerPort != 0 && flags.adminConsolePort != 0 {
-		if flags.managerPort == flags.adminConsolePort {
-			return fmt.Errorf("manager port cannot be the same as admin console port")
-		}
-	}
-
-	proxy, err := proxyConfigFromCmd(cmd, flags.assumeYes)
-	if err != nil {
-		return err
-	}
-
+	// Set runtime config values from flags
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	ki.SetAdminConsolePort(flags.adminConsolePort)
 
 	rc.SetManagerPort(flags.managerPort)
 	ki.SetManagerPort(flags.managerPort)
 
-	rc.SetProxySpec(proxy)
-	ki.SetProxySpec(proxy)
+	rc.SetProxySpec(flags.proxySpec)
+	ki.SetProxySpec(flags.proxySpec)
 
-	// Process TLS certificate configuration if provided
-	if err := processTLSConfig(flags); err != nil {
-		return fmt.Errorf("process TLS configuration: %w", err)
+	// Target-specific configuration
+	switch flags.target {
+	case "linux":
+		if err := preRunInstallLinux(flags, derived, rc); err != nil {
+			return nil, err
+		}
+	case "kubernetes":
+		if err := preRunInstallKubernetes(flags, ki); err != nil {
+			return nil, err
+		}
 	}
 
-	return nil
+	return derived, nil
 }
 
-// processTLSConfig validates and processes TLS certificate configuration for both traditional and manager experience flows
-func processTLSConfig(flags *InstallCmdFlags) error {
-	// If both cert and key are provided, validate and load them
-	if flags.tlsCertFile != "" && flags.tlsKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(flags.tlsCertFile, flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("load tls certificate: %w", err)
-		}
-		certData, err := os.ReadFile(flags.tlsCertFile)
-		if err != nil {
-			return fmt.Errorf("failed to read tls cert file: %w", err)
-		}
-		keyData, err := os.ReadFile(flags.tlsKeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to read tls key file: %w", err)
-		}
-		flags.tlsCert = cert
-		flags.tlsCertBytes = certData
-		flags.tlsKeyBytes = keyData
-
-		return nil
-	}
-
-	// If only one of cert or key is provided, return an error
-	if flags.tlsCertFile != "" || flags.tlsKeyFile != "" {
-		return fmt.Errorf("both --tls-cert and --tls-key must be provided together")
-	}
-
-	// If neither is provided, no TLS configuration (will use default behavior)
-	return nil
-}
-
-func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
-	if !cmd.Flags().Changed("skip-host-preflights") && (os.Getenv("SKIP_HOST_PREFLIGHTS") == "1" || os.Getenv("SKIP_HOST_PREFLIGHTS") == "true") {
-		flags.skipHostPreflights = true
-	}
-
+func preRunInstallLinux(flags *InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig) error {
 	if os.Getuid() != 0 {
 		return fmt.Errorf("install command must be run as root")
 	}
@@ -516,21 +416,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	}
 	logrus.Debugf("using host CA bundle: %s", hostCABundlePath)
 
-	// if a network interface flag was not provided, attempt to discover it
-	if flags.networkInterface == "" {
-		autoInterface, err := newconfig.DetermineBestNetworkInterface()
-		if err == nil {
-			flags.networkInterface = autoInterface
-		}
-	}
-
-	if flags.localArtifactMirrorPort != 0 && flags.adminConsolePort != 0 {
-		if flags.localArtifactMirrorPort == flags.adminConsolePort {
-			return fmt.Errorf("local artifact mirror port cannot be the same as admin console port")
-		}
-	}
-
-	k0sCfg, err := k0sConfigFromFlags(flags)
+	k0sCfg, err := k0sConfigFromFlags(flags, derived)
 	if err != nil {
 		return fmt.Errorf("failed to create k0s config: %w", err)
 	}
@@ -554,7 +440,7 @@ func preRunInstallLinux(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimeco
 	return nil
 }
 
-func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, ki kubernetesinstallation.Installation) error {
+func preRunInstallKubernetes(flags *InstallCmdFlags, ki kubernetesinstallation.Installation) error {
 	// TODO: we only support amd64 clusters for target=kubernetes installs
 	helpers.SetClusterArch("amd64")
 
@@ -587,84 +473,13 @@ func preRunInstallKubernetes(_ *cobra.Command, flags *InstallCmdFlags, ki kubern
 	return nil
 }
 
-func proxyConfigFromCmd(cmd *cobra.Command, assumeYes bool) (*ecv1beta1.ProxySpec, error) {
-	proxy, err := parseProxyFlags(cmd)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := verifyProxyConfig(proxy, prompts.New(), assumeYes); err != nil {
-		return nil, err
-	}
-
-	return proxy, nil
-}
-
-func cidrConfigFromCmd(cmd *cobra.Command) (*newconfig.CIDRConfig, error) {
-	if err := validateCIDRFlags(cmd); err != nil {
-		return nil, err
-	}
-
-	// parse the various cidr flags to make sure we have exactly what we want
-	cidrCfg, err := getCIDRConfig(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("failed to determine pod and service CIDRs: %w", err)
-	}
-
-	return cidrCfg, nil
-}
-
 func runManagerExperienceInstall(
-	ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
+	ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) (finalErr error) {
-	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("get kotsadm namespace: %w", err)
-	}
-
-	// this is necessary because the api listens on all interfaces,
-	// and we only know the interface to use when the user selects it in the ui
-	ipAddresses, err := netutils.ListAllValidIPAddresses()
-	if err != nil {
-		return fmt.Errorf("failed to list all valid IP addresses: %w", err)
-	}
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(flags.adminConsolePassword), 10)
 	if err != nil {
 		return fmt.Errorf("failed to generate password hash: %w", err)
-	}
-
-	// For manager experience, generate self-signed cert if none provided, with user confirmation
-	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
-		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
-		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
-
-		if !flags.assumeYes {
-			logrus.Info("") // newline so the prompt is separated from the warning
-			confirmed, err := prompts.New().Confirm("Do you want to continue with a self-signed certificate?", false)
-			if err != nil {
-				return fmt.Errorf("failed to get confirmation: %w", err)
-			}
-			if !confirmed {
-				logrus.Infof("\nInstallation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
-				return nil
-			}
-		}
-
-		// Generate self-signed certificate
-		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses, kotsadmNamespace)
-		if err != nil {
-			return fmt.Errorf("generate tls certificate: %w", err)
-		}
-		flags.tlsCert = cert
-		flags.tlsCertBytes = certData
-		flags.tlsKeyBytes = keyData
-	}
-
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return fmt.Errorf("process overrides file: %w", err)
 	}
 
 	var configValues apitypes.AppConfigValues
@@ -682,18 +497,18 @@ func runManagerExperienceInstall(
 			Password:      flags.adminConsolePassword,
 			PasswordHash:  passwordHash,
 			TLSConfig: apitypes.TLSConfig{
-				CertBytes: flags.tlsCertBytes,
-				KeyBytes:  flags.tlsKeyBytes,
+				CertBytes: derived.tlsCertBytes,
+				KeyBytes:  derived.tlsKeyBytes,
 				Hostname:  flags.hostname,
 			},
-			License:              flags.licenseBytes,
+			License:              derived.licenseBytes,
 			AirgapBundle:         flags.airgapBundle,
-			AirgapMetadata:       flags.airgapMetadata,
-			EmbeddedAssetsSize:   flags.embeddedAssetsSize,
+			AirgapMetadata:       derived.airgapMetadata,
+			EmbeddedAssetsSize:   derived.embeddedAssetsSize,
 			ConfigValues:         configValues,
 			ReleaseData:          release.GetReleaseData(),
-			EndUserConfig:        eucfg,
-			ClusterID:            flags.clusterID,
+			EndUserConfig:        derived.endUserConfig,
+			ClusterID:            derived.clusterID,
 			Mode:                 apitypes.ModeInstall,
 			RequiresInfraUpgrade: false, // Always false for install
 
@@ -714,7 +529,7 @@ func runManagerExperienceInstall(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if err := startAPI(ctx, flags.tlsCert, apiConfig, cancel); err != nil {
+	if err := startAPI(ctx, derived.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
@@ -726,25 +541,25 @@ func runManagerExperienceInstall(
 	return nil
 }
 
-func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {
-	if flags.enableManagerExperience {
+func runInstall(ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {
+	if derived.enableManagerExperience {
 		return nil
 	}
 
 	logrus.Debug("initializing install")
-	if err := initializeInstall(ctx, flags, rc); err != nil {
+	if err := initializeInstall(ctx, flags, derived, rc); err != nil {
 		return fmt.Errorf("failed to initialize install: %w", err)
 	}
 
 	logrus.Debugf("running install preflights")
-	if err := runInstallPreflights(ctx, flags, rc, metricsReporter.reporter); err != nil {
+	if err := runInstallPreflights(ctx, flags, derived, rc, metricsReporter.reporter); err != nil {
 		if errors.Is(err, preflights.ErrPreflightsHaveFail) {
 			return NewErrorNothingElseToAdd(err)
 		}
 		return fmt.Errorf("failed to run install preflights: %w", err)
 	}
 
-	if _, err := installAndStartCluster(ctx, flags, rc, nil); err != nil {
+	if _, err := installAndStartCluster(ctx, flags, derived, rc, nil); err != nil {
 		return fmt.Errorf("failed to install cluster: %w", err)
 	}
 
@@ -761,7 +576,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	errCh := kubeutils.WaitForKubernetes(ctx, kcli)
 	defer logKubernetesErrors(errCh)
 
-	in, err := recordInstallation(ctx, kcli, flags, rc)
+	in, err := recordInstallation(ctx, kcli, flags, derived, rc)
 	if err != nil {
 		return fmt.Errorf("failed to record installation: %w", err)
 	}
@@ -782,7 +597,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	}
 
 	airgapChartsPath := ""
-	if flags.isAirgap {
+	if derived.isAirgap {
 		airgapChartsPath = rc.EmbeddedClusterChartsSubDir()
 	}
 
@@ -798,7 +613,7 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 	defer hcli.Close()
 
 	logrus.Debugf("installing addons")
-	if err := installAddons(ctx, kcli, mcli, hcli, flags, rc); err != nil {
+	if err := installAddons(ctx, kcli, mcli, hcli, flags, derived, rc); err != nil {
 		return err
 	}
 
@@ -817,32 +632,24 @@ func runInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.Run
 
 	isHeadlessInstall := flags.configValues != "" && flags.adminConsolePassword != ""
 
-	printSuccessMessage(flags.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
+	printSuccessMessage(derived.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
 
 	return nil
 }
 
-func k0sConfigFromFlags(flags *InstallCmdFlags) (*k0sv1beta1.ClusterConfig, error) {
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("process overrides file: %w", err)
-	}
-	return k0s.NewK0sConfig(flags.networkInterface, flags.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, eucfg, nil)
+func k0sConfigFromFlags(flags *InstallCmdFlags, derived *InstallDerivedConfig) (*k0sv1beta1.ClusterConfig, error) {
+	return k0s.NewK0sConfig(flags.networkInterface, derived.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, derived.endUserConfig, nil)
 }
 
-func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
+func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
 
-	euCfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process overrides file: %w", err)
-	}
 	var euCfgSpec *ecv1beta1.ConfigSpec
-	if euCfg != nil {
-		euCfgSpec = &euCfg.Spec
+	if derived.endUserConfig != nil {
+		euCfgSpec = &derived.endUserConfig.Spec
 	}
 
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
@@ -851,16 +658,16 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallC
 	}
 
 	opts := &addons.InstallOptions{
-		ClusterID:               flags.clusterID,
+		ClusterID:               derived.clusterID,
 		AdminConsolePwd:         flags.adminConsolePassword,
 		AdminConsolePort:        rc.AdminConsolePort(),
-		License:                 flags.license,
+		License:                 derived.license,
 		IsAirgap:                flags.airgapBundle != "",
-		TLSCertBytes:            flags.tlsCertBytes,
-		TLSKeyBytes:             flags.tlsKeyBytes,
+		TLSCertBytes:            derived.tlsCertBytes,
+		TLSKeyBytes:             derived.tlsKeyBytes,
 		Hostname:                flags.hostname,
-		DisasterRecoveryEnabled: flags.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      flags.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		DisasterRecoveryEnabled: derived.license.Spec.IsDisasterRecoverySupported,
+		IsMultiNodeEnabled:      derived.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		ProxySpec:               rc.ProxySpec(),
@@ -872,10 +679,10 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallC
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
-				AppSlug:               flags.license.Spec.AppSlug,
-				License:               flags.licenseBytes,
+				AppSlug:               derived.license.Spec.AppSlug,
+				License:               derived.licenseBytes,
 				Namespace:             kotsadmNamespace,
-				ClusterID:             flags.clusterID,
+				ClusterID:             derived.clusterID,
 				AirgapBundle:          flags.airgapBundle,
 				ConfigValuesFile:      flags.configValues,
 				ReplicatedAppEndpoint: replicatedAppURL(),
@@ -888,14 +695,14 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags InstallC
 	return opts, nil
 }
 
-func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, flags *InstallCmdFlags, prompt prompts.Prompt) error {
+func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, flags *InstallCmdFlags, derived *InstallDerivedConfig, prompt prompts.Prompt) error {
 	logrus.Debugf("checking if k0s is already installed")
 	err := verifyNoInstallation(appSlug, "reinstall")
 	if err != nil {
 		return err
 	}
 
-	err = verifyChannelRelease("installation", flags.isAirgap, flags.assumeYes)
+	err = verifyChannelRelease("installation", derived.isAirgap, flags.assumeYes)
 	if err != nil {
 		return err
 	}
@@ -905,14 +712,14 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	if err != nil {
 		return err
 	}
-	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
+	if derived.airgapMetadata != nil && derived.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
-		if err := checkAirgapMatches(flags.airgapMetadata.AirgapInfo); err != nil {
+		if err := checkAirgapMatches(derived.airgapMetadata.AirgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
 	}
 
-	if !flags.isAirgap {
+	if !derived.isAirgap {
 		if err := maybePromptForAppUpdate(ctx, prompt, license, flags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
@@ -927,48 +734,7 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 		return err
 	}
 
-	// restore command doesn't have a password flag
-	if cmd.Flags().Lookup("admin-console-password") != nil {
-		if err := ensureAdminConsolePassword(flags); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
-	if flags.adminConsolePassword == "" {
-		// no password was provided
-		if flags.assumeYes {
-			logrus.Infof("\nThe Admin Console password is set to %q.", "password")
-			flags.adminConsolePassword = "password"
-		} else {
-			logrus.Info("")
-			maxTries := 3
-			for i := 0; i < maxTries; i++ {
-				promptA, err := prompts.New().Password(fmt.Sprintf("Set the Admin Console password (minimum %d characters):", minAdminPasswordLength))
-				if err != nil {
-					return fmt.Errorf("failed to get password: %w", err)
-				}
-
-				promptB, err := prompts.New().Password("Confirm the Admin Console password:")
-				if err != nil {
-					return fmt.Errorf("failed to get password confirmation: %w", err)
-				}
-
-				if validateAdminConsolePassword(promptA, promptB) {
-					flags.adminConsolePassword = promptA
-					return nil
-				}
-			}
-			return NewErrorNothingElseToAdd(errors.New("password is not valid"))
-		}
-	}
-
-	if !validateAdminConsolePassword(flags.adminConsolePassword, flags.adminConsolePassword) {
-		return NewErrorNothingElseToAdd(errors.New("password is not valid"))
-	}
+	// Password has already been resolved in hydration, no need to check again
 
 	return nil
 }
@@ -1084,18 +850,13 @@ func verifyNoInstallation(appSlug string, cmdName string) error {
 	return nil
 }
 
-func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+func initializeInstall(ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Info("")
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	licenseBytes, err := os.ReadFile(flags.licenseFile)
-	if err != nil {
-		return fmt.Errorf("failed to read license file: %w", err)
-	}
-
 	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
-		License:      licenseBytes,
+		License:      derived.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		spinner.ErrorClosef("Initialization failed")
@@ -1106,7 +867,7 @@ func initializeInstall(ctx context.Context, flags InstallCmdFlags, rc runtimecon
 	return nil
 }
 
-func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	loading := spinner.Start()
 	loading.Infof("Installing node")
 
@@ -1119,7 +880,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := k0sConfigFromFlags(&flags)
+	cfg, err := k0sConfigFromFlags(&flags, derived)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create k0s config: %w", err)
 	}
@@ -1159,7 +920,7 @@ func installAndStartCluster(ctx context.Context, flags InstallCmdFlags, rc runti
 	return cfg, nil
 }
 
-func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig) error {
+func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -1187,7 +948,7 @@ func installAddons(ctx context.Context, kcli client.Client, mcli metadata.Interf
 		addons.WithProgressChannel(progressChan),
 	)
 
-	opts, err := getAddonInstallOpts(ctx, kcli, flags, rc, &loading)
+	opts, err := getAddonInstallOpts(ctx, kcli, flags, derived, rc, &loading)
 	if err != nil {
 		return fmt.Errorf("get addon install opts: %w", err)
 	}
@@ -1380,7 +1141,7 @@ func waitForNode(ctx context.Context) error {
 }
 
 func recordInstallation(
-	ctx context.Context, kcli client.Client, flags InstallCmdFlags, rc runtimeconfig.RuntimeConfig,
+	ctx context.Context, kcli client.Client, flags InstallCmdFlags, derived *InstallDerivedConfig, rc runtimeconfig.RuntimeConfig,
 ) (*ecv1beta1.Installation, error) {
 	// get the embedded cluster config
 	cfg := release.GetEmbeddedClusterConfig()
@@ -1389,27 +1150,21 @@ func recordInstallation(
 		cfgspec = &cfg.Spec
 	}
 
-	// parse the end user config
-	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
-	if err != nil {
-		return nil, fmt.Errorf("process overrides file: %w", err)
-	}
-
 	// extract airgap uncompressed size if airgap info is provided
 	var airgapUncompressedSize int64
-	if flags.airgapMetadata != nil && flags.airgapMetadata.AirgapInfo != nil {
-		airgapUncompressedSize = flags.airgapMetadata.AirgapInfo.Spec.UncompressedSize
+	if derived.airgapMetadata != nil && derived.airgapMetadata.AirgapInfo != nil {
+		airgapUncompressedSize = derived.airgapMetadata.AirgapInfo.Spec.UncompressedSize
 	}
 
 	// record the installation
 	installation, err := kubeutils.RecordInstallation(ctx, kcli, kubeutils.RecordInstallationOptions{
-		ClusterID:              flags.clusterID,
-		IsAirgap:               flags.isAirgap,
-		License:                flags.license,
+		ClusterID:              derived.clusterID,
+		IsAirgap:               derived.isAirgap,
+		License:                derived.license,
 		ConfigSpec:             cfgspec,
 		MetricsBaseURL:         replicatedAppURL(),
 		RuntimeConfig:          rc.Get(),
-		EndUserConfig:          eucfg,
+		EndUserConfig:          derived.endUserConfig,
 		AirgapUncompressedSize: airgapUncompressedSize,
 	})
 	if err != nil {
