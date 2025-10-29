@@ -29,7 +29,6 @@ func TestUpdateClusterConfig(t *testing.T) {
 	logger.SetLevel(logrus.ErrorLevel)
 
 	scheme := runtime.NewScheme()
-	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
 
 	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29

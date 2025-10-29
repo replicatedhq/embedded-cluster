@@ -26,7 +26,6 @@ func init() {
 	utilruntime.Must(embeddedclusterv1beta1.AddToScheme(Scheme))
 	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	utilruntime.Must(autopilotv1beta2.AddToScheme(Scheme))
-	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	utilruntime.Must(k0sv1beta1.AddToScheme(Scheme))
 	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	utilruntime.Must(k0shelmv1beta1.AddToScheme(Scheme))
