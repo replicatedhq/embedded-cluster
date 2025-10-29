@@ -50,8 +50,10 @@ func (c *client) getReportingInfoHeaders(reportingInfo *ReportingInfo) map[strin
 
 	// add headers from client
 	channel, _ := c.getChannelFromLicense() // ignore error
-	headers["X-Replicated-DownstreamChannelID"] = channel.ChannelID
-	headers["X-Replicated-DownstreamChannelName"] = channel.ChannelName
+	if channel != nil {
+		headers["X-Replicated-DownstreamChannelID"] = channel.ChannelID
+		headers["X-Replicated-DownstreamChannelName"] = channel.ChannelName
+	}
 
 	headers["X-Replicated-K8sVersion"] = versions.K0sVersion
 	headers["X-Replicated-K8sDistribution"] = DistributionEmbeddedCluster
