@@ -37,10 +37,10 @@ spec:
 	require.NoError(t, err)
 
 	tests := []struct {
-		name          string
-		flags         HeadlessInstallFlags
-		expectErrors  bool
-		errorContains []string
+		name             string
+		flags            HeadlessInstallFlags
+		expectErrorCount int
+		errorContains    []string
 	}{
 		{
 			name: "valid flags with valid config file",
@@ -49,7 +49,7 @@ spec:
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
-			expectErrors: false,
+			expectErrorCount: 0,
 		},
 		{
 			name: "missing config values flag",
@@ -58,8 +58,8 @@ spec:
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
-			expectErrors:  true,
-			errorContains: []string{"--config-values flag is required"},
+			expectErrorCount: 1,
+			errorContains:    []string{"--config-values flag is required"},
 		},
 		{
 			name: "missing admin console password",
@@ -68,8 +68,8 @@ spec:
 				AdminConsolePassword: "",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
-			expectErrors:  true,
-			errorContains: []string{"--admin-console-password flag is required"},
+			expectErrorCount: 1,
+			errorContains:    []string{"--admin-console-password flag is required"},
 		},
 		{
 			name: "unsupported target",
@@ -78,8 +78,8 @@ spec:
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetKubernetes),
 			},
-			expectErrors:  true,
-			errorContains: []string{"headless installation only supports --target=linux"},
+			expectErrorCount: 1,
+			errorContains:    []string{"headless installation only supports --target=linux"},
 		},
 		{
 			name: "config file not found",
@@ -88,8 +88,8 @@ spec:
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
-			expectErrors:  true,
-			errorContains: []string{"config values file not found"},
+			expectErrorCount: 1,
+			errorContains:    []string{"config values file not found"},
 		},
 		{
 			name: "invalid YAML in config file",
@@ -98,8 +98,8 @@ spec:
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
-			expectErrors:  true,
-			errorContains: []string{"failed to parse config values"},
+			expectErrorCount: 1,
+			errorContains:    []string{"failed to parse config values file"},
 		},
 		{
 			name: "all flags missing",
@@ -108,8 +108,8 @@ spec:
 				AdminConsolePassword: "",
 				Target:               "",
 			},
-			expectErrors:  true,
-			errorContains: []string{"--config-values flag is required", "--admin-console-password flag is required", "headless installation only supports --target=linux"},
+			expectErrorCount: 3,
+			errorContains:    []string{"--config-values flag is required", "--admin-console-password flag is required", "headless installation only supports --target=linux"},
 		},
 		{
 			name: "multiple errors - missing password and bad target",
@@ -118,8 +118,28 @@ spec:
 				AdminConsolePassword: "",
 				Target:               string(apitypes.InstallTargetKubernetes),
 			},
-			expectErrors:  true,
-			errorContains: []string{"--admin-console-password flag is required", "headless installation only supports --target=linux"},
+			expectErrorCount: 2,
+			errorContains:    []string{"--admin-console-password flag is required", "headless installation only supports --target=linux"},
+		},
+		{
+			name: "missing config and password with bad target",
+			flags: HeadlessInstallFlags{
+				ConfigValues:         "",
+				AdminConsolePassword: "",
+				Target:               string(apitypes.InstallTargetKubernetes),
+			},
+			expectErrorCount: 3,
+			errorContains:    []string{"--config-values flag is required", "--admin-console-password flag is required", "headless installation only supports --target=linux"},
+		},
+		{
+			name: "missing config with nonexistent file and bad target",
+			flags: HeadlessInstallFlags{
+				ConfigValues:         "/nonexistent/config.yaml",
+				AdminConsolePassword: "",
+				Target:               string(apitypes.InstallTargetKubernetes),
+			},
+			expectErrorCount: 3,
+			errorContains:    []string{"--admin-console-password flag is required", "headless installation only supports --target=linux", "config values file not found"},
 		},
 	}
 
@@ -127,23 +147,21 @@ spec:
 		t.Run(tt.name, func(t *testing.T) {
 			errors := ValidateHeadlessInstallFlags(tt.flags)
 
-			if tt.expectErrors {
-				assert.NotEmpty(t, errors, "expected validation errors but got none")
-				// Check that each expected error substring is found in at least one error message
-				for _, expectedError := range tt.errorContains {
-					found := false
-					for _, err := range errors {
-						if strings.Contains(err, expectedError) {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("expected error containing %q not found in errors: %v", expectedError, errors)
+			// Check the exact error count
+			assert.Equal(t, tt.expectErrorCount, len(errors), "unexpected number of validation errors. Got errors: %v", errors)
+
+			// Check that each expected error substring is found in at least one error message
+			for _, expectedError := range tt.errorContains {
+				found := false
+				for _, err := range errors {
+					if strings.Contains(err, expectedError) {
+						found = true
+						break
 					}
 				}
-			} else {
-				assert.Empty(t, errors, "expected no validation errors but got: %v", errors)
+				if !found {
+					t.Errorf("expected error containing %q not found in errors: %v", expectedError, errors)
+				}
 			}
 		})
 	}

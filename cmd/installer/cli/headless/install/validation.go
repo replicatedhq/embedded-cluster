@@ -41,17 +41,20 @@ func ValidateHeadlessInstallFlags(flags HeadlessInstallFlags) []string {
 		errors = append(errors, fmt.Sprintf("headless installation only supports --target=linux (got: %s)", flags.Target))
 	}
 
-	// Check if file exists
-	if _, err := os.Stat(flags.ConfigValues); err != nil {
-		if os.IsNotExist(err) {
-			errors = append(errors, fmt.Sprintf("config values file not found: %s", flags.ConfigValues))
-		}
-		errors = append(errors, fmt.Sprintf("failed to access config values file: %v", err))
-	} else {
-		// Parse the config values file
-		_, err := helpers.ParseConfigValues(flags.ConfigValues)
-		if err != nil {
-			errors = append(errors, fmt.Sprintf("failed to parse config values from %s: %v", flags.ConfigValues, err))
+	if flags.ConfigValues != "" {
+		// Check if file exists
+		if _, err := os.Stat(flags.ConfigValues); err != nil {
+			if os.IsNotExist(err) {
+				errors = append(errors, fmt.Sprintf("config values file not found: %s", flags.ConfigValues))
+			} else {
+				errors = append(errors, fmt.Sprintf("failed to access config values file: %v", err))
+			}
+		} else {
+			// Parse the config values file
+			_, err := helpers.ParseConfigValues(flags.ConfigValues)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("failed to parse config values file: %v", err))
+			}
 		}
 	}
 

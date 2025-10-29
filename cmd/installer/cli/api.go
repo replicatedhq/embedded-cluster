@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -28,6 +29,8 @@ type apiOptions struct {
 	apitypes.APIConfig
 
 	ManagerPort int
+	SocketPath  string
+	Headless    bool
 	// The mode the web will be running on, install or upgrade
 	WebMode web.Mode
 
@@ -36,10 +39,26 @@ type apiOptions struct {
 	WebAssetsFS     fs.FS
 }
 
-func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
-	if err != nil {
-		return fmt.Errorf("unable to create listener: %w", err)
+func startAPI(ctx context.Context, cert *tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
+	var listener net.Listener
+	var err error
+
+	if opts.SocketPath != "" {
+		// For headless mode, listen on unix socket
+		// Remove socket file if it already exists
+		_ = os.Remove(opts.SocketPath)
+		listener, err = net.Listen("unix", opts.SocketPath)
+		if err != nil {
+			return fmt.Errorf("unable to create unix socket listener: %w", err)
+		}
+		logrus.Debugf("API server listening on unix socket: %s", opts.SocketPath)
+	} else {
+		// For UI mode, listen on TCP port
+		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
+		if err != nil {
+			return fmt.Errorf("unable to create tcp listener: %w", err)
+		}
+		logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
 	}
 
 	go func() {
@@ -52,15 +71,35 @@ func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel
 		}
 	}()
 
-	addr := fmt.Sprintf("localhost:%d", opts.ManagerPort)
-	if err := waitForAPI(ctx, addr); err != nil {
+	var addr string
+	httpClient := &http.Client{
+		Timeout: 2 * time.Second,
+	}
+	if opts.SocketPath != "" {
+		addr = fmt.Sprintf("http://unix")
+		httpClient.Transport = &http.Transport{
+			Proxy: nil,
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", opts.SocketPath)
+			},
+		}
+	} else {
+		addr = fmt.Sprintf("https://localhost:%d", opts.ManagerPort)
+		httpClient.Transport = &http.Transport{
+			Proxy: nil,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		}
+	}
+	if err := waitForAPI(ctx, httpClient, addr); err != nil {
 		return fmt.Errorf("unable to wait for api: %w", err)
 	}
 
 	return nil
 }
 
-func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, opts apiOptions) error {
+func serveAPI(ctx context.Context, listener net.Listener, cert *tls.Certificate, opts apiOptions) error {
 	router := mux.NewRouter()
 
 	if opts.ReleaseData == nil {
@@ -84,26 +123,32 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		return fmt.Errorf("new api: %w", err)
 	}
 
-	webServer, err := web.New(web.InitialState{
-		Title:                opts.ReleaseData.Application.Spec.Title,
-		Icon:                 opts.ReleaseData.Application.Spec.Icon,
-		InstallTarget:        string(opts.InstallTarget),
-		Mode:                 opts.WebMode,
-		IsAirgap:             opts.AirgapBundle != "",
-		RequiresInfraUpgrade: opts.RequiresInfraUpgrade,
-	}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
-	if err != nil {
-		return fmt.Errorf("new web server: %w", err)
+	// Only start web server for UI mode, not headless
+	if !opts.Headless {
+		webServer, err := web.New(web.InitialState{
+			Title:                opts.ReleaseData.Application.Spec.Title,
+			Icon:                 opts.ReleaseData.Application.Spec.Icon,
+			InstallTarget:        string(opts.InstallTarget),
+			Mode:                 opts.WebMode,
+			IsAirgap:             opts.AirgapBundle != "",
+			RequiresInfraUpgrade: opts.RequiresInfraUpgrade,
+		}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
+		if err != nil {
+			return fmt.Errorf("new web server: %w", err)
+		}
+		webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
 	}
 
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
-	webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
-		ErrorLog:  log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
-		Handler:   router,
-		TLSConfig: tlsutils.GetTLSConfig(cert),
+		ErrorLog: log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
+		Handler:  router,
+	}
+
+	if cert != nil {
+		server.TLSConfig = tlsutils.GetTLSConfig(*cert)
 	}
 
 	go func() {
@@ -112,6 +157,9 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		_ = server.Shutdown(context.Background())
 	}()
 
+	if cert == nil {
+		return server.Serve(listener)
+	}
 	return server.ServeTLS(listener, "", "")
 }
 
@@ -126,16 +174,7 @@ func loggerFromOptions(opts apiOptions) (logrus.FieldLogger, error) {
 	return logger, nil
 }
 
-func waitForAPI(ctx context.Context, addr string) error {
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			Proxy: nil,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
+func waitForAPI(ctx context.Context, httpClient *http.Client, addr string) error {
 	timeout := time.After(10 * time.Second)
 	var lastErr error
 	for {
@@ -148,7 +187,7 @@ func waitForAPI(ctx context.Context, addr string) error {
 			}
 			return fmt.Errorf("api did not start in time")
 		case <-time.Tick(1 * time.Second):
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/api/health", addr), nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/health", addr), nil)
 			if err != nil {
 				lastErr = fmt.Errorf("unable to create request: %w", err)
 				continue
@@ -177,4 +216,9 @@ func getManagerURL(hostname string, port int) string {
 		}
 	}
 	return fmt.Sprintf("https://%s:%v", ipaddr, port)
+}
+
+// getHeadlessSocketPath returns the path to the unix socket for headless API communication
+func getHeadlessSocketPath(homeDir string) string {
+	return filepath.Join(homeDir, "api.sock")
 }

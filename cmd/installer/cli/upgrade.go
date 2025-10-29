@@ -48,7 +48,7 @@ type UpgradeCmdFlags struct {
 type upgradeConfig struct {
 	passwordHash         []byte
 	tlsConfig            apitypes.TLSConfig
-	tlsCert              tls.Certificate
+	tlsCert              *tls.Certificate
 	license              *kotsv1beta1.License
 	licenseBytes         []byte
 	airgapMetadata       *airgap.AirgapMetadata
@@ -279,7 +279,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	if err != nil {
 		return fmt.Errorf("failed to create TLS certificate from data: %w", err)
 	}
-	upgradeConfig.tlsCert = cert
+	upgradeConfig.tlsCert = &cert
 
 	// Read password hash from the kotsadm-password secret in the cluster
 	pwdHash, err := readPasswordHash(ctx, kcli, upgradeConfig.kotsadmNamespace)
@@ -475,6 +475,7 @@ func runManagerExperienceUpgrade(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// Upgrade is not headless, so pass false for headless and empty socket path
 	if err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}

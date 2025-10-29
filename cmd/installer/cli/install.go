@@ -99,7 +99,7 @@ type installConfig struct {
 	clusterID    string
 	license      *kotsv1beta1.License
 	licenseBytes []byte
-	tlsCert      tls.Certificate
+	tlsCert      *tls.Certificate
 	tlsCertBytes []byte
 	tlsKeyBytes  []byte
 }
@@ -139,8 +139,6 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				if err := validateHeadlessInstall(&flags); err != nil {
 					return err
 				}
-				// TODO(PR2): Implement headless installation orchestration
-				return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 			}
 
 			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
@@ -503,7 +501,7 @@ func processTLSConfig(flags *InstallCmdFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to read tls key file: %w", err)
 		}
-		flags.tlsCert = cert
+		flags.tlsCert = &cert
 		flags.tlsCertBytes = certData
 		flags.tlsKeyBytes = keyData
 
@@ -668,6 +666,7 @@ func runManagerExperienceInstall(
 	}
 
 	// For manager experience, generate self-signed cert if none provided, with user confirmation
+	var tlsConfig apitypes.TLSConfig
 	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
@@ -689,9 +688,15 @@ func runManagerExperienceInstall(
 		if err != nil {
 			return fmt.Errorf("generate tls certificate: %w", err)
 		}
-		flags.tlsCert = cert
+		flags.tlsCert = &cert
 		flags.tlsCertBytes = certData
 		flags.tlsKeyBytes = keyData
+
+		tlsConfig = apitypes.TLSConfig{
+			CertBytes: flags.tlsCertBytes,
+			KeyBytes:  flags.tlsKeyBytes,
+			Hostname:  flags.hostname,
+		}
 	}
 
 	eucfg, err := helpers.ParseEndUserConfig(flags.overrides)
@@ -708,16 +713,18 @@ func runManagerExperienceInstall(
 		configValues = apitypes.ConvertToAppConfigValues(kotsConfigValues)
 	}
 
+	// Determine socket path for headless mode
+	var socketPath string
+	if flags.headless {
+		socketPath = getHeadlessSocketPath(rc.EmbeddedClusterTmpSubDir())
+	}
+
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
-			InstallTarget: apitypes.InstallTarget(flags.target),
-			Password:      flags.adminConsolePassword,
-			PasswordHash:  passwordHash,
-			TLSConfig: apitypes.TLSConfig{
-				CertBytes: flags.tlsCertBytes,
-				KeyBytes:  flags.tlsKeyBytes,
-				Hostname:  flags.hostname,
-			},
+			InstallTarget:        apitypes.InstallTarget(flags.target),
+			Password:             flags.adminConsolePassword,
+			PasswordHash:         passwordHash,
+			TLSConfig:            tlsConfig,
 			License:              flags.licenseBytes,
 			AirgapBundle:         flags.airgapBundle,
 			AirgapMetadata:       flags.airgapMetadata,
@@ -739,6 +746,8 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
+		SocketPath:      socketPath,
+		Headless:        flags.headless,
 		WebMode:         web.ModeInstall,
 		MetricsReporter: metricsReporter,
 	}
@@ -748,6 +757,13 @@ func runManagerExperienceInstall(
 
 	if err := startAPI(ctx, flags.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
+	}
+
+	// Validate headless mode requirements
+	if flags.headless {
+		// TODO(PR2): Implement headless installation orchestration
+		// The orchestrator will use the unix socket at socketPath to communicate with the API
+		return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",

@@ -101,7 +101,7 @@ func Test_serveAPI(t *testing.T) {
 	}
 
 	go func() {
-		err := serveAPI(ctx, listener, cert, config)
+		err := serveAPI(ctx, listener, &cert, config)
 		t.Logf("Install API exited with error: %v", err)
 		errCh <- err
 	}()
@@ -215,7 +215,7 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 			}
 
 			go func() {
-				err := serveAPI(ctx, listener, cert, config)
+				err := serveAPI(ctx, listener, &cert, config)
 				t.Logf("Install API exited with error: %v", err)
 				errCh <- err
 			}()
