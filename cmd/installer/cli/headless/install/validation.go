@@ -24,7 +24,8 @@ type ValidationResult struct {
 	ValidationErrors []string
 }
 
-// ValidateHeadlessInstallFlags validates that all required flags are present for headless installation
+// ValidateHeadlessInstallFlags validates that all required flags are present for headless
+// installation and that the config values file exists and is readable.
 func ValidateHeadlessInstallFlags(flags HeadlessInstallFlags) []string {
 	var errors []string
 
@@ -40,48 +41,21 @@ func ValidateHeadlessInstallFlags(flags HeadlessInstallFlags) []string {
 		errors = append(errors, fmt.Sprintf("headless installation only supports --target=linux (got: %s)", flags.Target))
 	}
 
-	return errors
-}
-
-// ValidateAndLoadConfigValues validates the config values file and loads it
-func ValidateAndLoadConfigValues(configValuesPath string) (*ValidationResult, error) {
-	result := &ValidationResult{
-		IsValid: true,
-	}
-
 	// Check if file exists
-	if _, err := os.Stat(configValuesPath); err != nil {
+	if _, err := os.Stat(flags.ConfigValues); err != nil {
 		if os.IsNotExist(err) {
-			result.IsValid = false
-			result.ValidationErrors = append(result.ValidationErrors, fmt.Sprintf("config values file not found: %s", configValuesPath))
-			return result, fmt.Errorf("config values file not found: %s", configValuesPath)
+			errors = append(errors, fmt.Sprintf("config values file not found: %s", flags.ConfigValues))
 		}
-		result.IsValid = false
-		result.ValidationErrors = append(result.ValidationErrors, fmt.Sprintf("failed to access config values file: %v", err))
-		return result, fmt.Errorf("failed to access config values file: %w", err)
+		errors = append(errors, fmt.Sprintf("failed to access config values file: %v", err))
+	} else {
+		// Parse the config values file
+		_, err := helpers.ParseConfigValues(flags.ConfigValues)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("failed to parse config values from %s: %v", flags.ConfigValues, err))
+		}
 	}
 
-	// Parse the config values file
-	kotsConfigValues, err := helpers.ParseConfigValues(configValuesPath)
-	if err != nil {
-		result.IsValid = false
-		result.ValidationErrors = append(result.ValidationErrors, fmt.Sprintf("failed to parse config values: %v", err))
-		return result, fmt.Errorf("failed to parse config values from %s: %w", configValuesPath, err)
-	}
-
-	if kotsConfigValues == nil {
-		result.IsValid = false
-		result.ValidationErrors = append(result.ValidationErrors, "config values file is empty or invalid")
-		return result, fmt.Errorf("config values file is empty or invalid: %s", configValuesPath)
-	}
-
-	// Convert to AppConfigValues
-	appConfigValues := apitypes.ConvertToAppConfigValues(kotsConfigValues)
-
-	result.ConfigValues = kotsConfigValues
-	result.AppConfigValues = appConfigValues
-
-	return result, nil
+	return errors
 }
 
 // FormatValidationErrors formats validation errors for display

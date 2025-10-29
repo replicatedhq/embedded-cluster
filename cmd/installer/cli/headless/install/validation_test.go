@@ -12,6 +12,30 @@ import (
 )
 
 func TestValidateHeadlessInstallFlags(t *testing.T) {
+	// Create temporary directory for test files
+	tmpDir := t.TempDir()
+
+	// Create a valid config file
+	validConfigFile := filepath.Join(tmpDir, "valid-config.yaml")
+	validConfigContent := `apiVersion: kots.io/v1beta1
+kind: ConfigValues
+metadata:
+  name: test-config
+spec:
+  values:
+    database_host:
+      value: "postgres.example.com"
+    database_password:
+      value: "secretpassword"`
+	err := os.WriteFile(validConfigFile, []byte(validConfigContent), 0644)
+	require.NoError(t, err)
+
+	// Create an invalid YAML file
+	invalidConfigFile := filepath.Join(tmpDir, "invalid-config.yaml")
+	invalidConfigContent := `this is not valid: yaml: content [`
+	err = os.WriteFile(invalidConfigFile, []byte(invalidConfigContent), 0644)
+	require.NoError(t, err)
+
 	tests := []struct {
 		name          string
 		flags         HeadlessInstallFlags
@@ -19,16 +43,16 @@ func TestValidateHeadlessInstallFlags(t *testing.T) {
 		errorContains []string
 	}{
 		{
-			name: "valid flags",
+			name: "valid flags with valid config file",
 			flags: HeadlessInstallFlags{
-				ConfigValues:         "/path/to/config.yaml",
+				ConfigValues:         validConfigFile,
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
 			expectErrors: false,
 		},
 		{
-			name: "missing config values",
+			name: "missing config values flag",
 			flags: HeadlessInstallFlags{
 				ConfigValues:         "",
 				AdminConsolePassword: "password123",
@@ -40,7 +64,7 @@ func TestValidateHeadlessInstallFlags(t *testing.T) {
 		{
 			name: "missing admin console password",
 			flags: HeadlessInstallFlags{
-				ConfigValues:         "/path/to/config.yaml",
+				ConfigValues:         validConfigFile,
 				AdminConsolePassword: "",
 				Target:               string(apitypes.InstallTargetLinux),
 			},
@@ -50,12 +74,32 @@ func TestValidateHeadlessInstallFlags(t *testing.T) {
 		{
 			name: "unsupported target",
 			flags: HeadlessInstallFlags{
-				ConfigValues:         "/path/to/config.yaml",
+				ConfigValues:         validConfigFile,
 				AdminConsolePassword: "password123",
 				Target:               string(apitypes.InstallTargetKubernetes),
 			},
 			expectErrors:  true,
 			errorContains: []string{"headless installation only supports --target=linux"},
+		},
+		{
+			name: "config file not found",
+			flags: HeadlessInstallFlags{
+				ConfigValues:         "/nonexistent/config.yaml",
+				AdminConsolePassword: "password123",
+				Target:               string(apitypes.InstallTargetLinux),
+			},
+			expectErrors:  true,
+			errorContains: []string{"config values file not found"},
+		},
+		{
+			name: "invalid YAML in config file",
+			flags: HeadlessInstallFlags{
+				ConfigValues:         invalidConfigFile,
+				AdminConsolePassword: "password123",
+				Target:               string(apitypes.InstallTargetLinux),
+			},
+			expectErrors:  true,
+			errorContains: []string{"failed to parse config values"},
 		},
 		{
 			name: "all flags missing",
@@ -66,6 +110,16 @@ func TestValidateHeadlessInstallFlags(t *testing.T) {
 			},
 			expectErrors:  true,
 			errorContains: []string{"--config-values flag is required", "--admin-console-password flag is required", "headless installation only supports --target=linux"},
+		},
+		{
+			name: "multiple errors - missing password and bad target",
+			flags: HeadlessInstallFlags{
+				ConfigValues:         validConfigFile,
+				AdminConsolePassword: "",
+				Target:               string(apitypes.InstallTargetKubernetes),
+			},
+			expectErrors:  true,
+			errorContains: []string{"--admin-console-password flag is required", "headless installation only supports --target=linux"},
 		},
 	}
 
@@ -95,74 +149,25 @@ func TestValidateHeadlessInstallFlags(t *testing.T) {
 	}
 }
 
-func TestValidateAndLoadConfigValues(t *testing.T) {
-	tests := []struct {
-		name          string
-		configContent string
-		expectError   bool
-		errorContains string
-	}{
-		{
-			name: "valid config values",
-			configContent: `apiVersion: kots.io/v1beta1
+func TestValidateHeadlessInstallFlags_EmptyConfigFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	emptyConfigFile := filepath.Join(tmpDir, "empty-config.yaml")
+	emptyConfigContent := `apiVersion: kots.io/v1beta1
 kind: ConfigValues
 metadata:
-  name: test-config
-spec:
-  values:
-    database_host:
-      value: "postgres.example.com"
-    database_password:
-      value: "secretpassword"`,
-			expectError: false,
-		},
-		{
-			name:          "invalid YAML",
-			configContent: `this is not valid: yaml: content [`,
-			expectError:   true,
-			errorContains: "failed to parse config values",
-		},
-		{
-			name: "empty config values",
-			configContent: `apiVersion: kots.io/v1beta1
-kind: ConfigValues
-metadata:
-  name: test-config`,
-			expectError: false,
-		},
+  name: test-config`
+	err := os.WriteFile(emptyConfigFile, []byte(emptyConfigContent), 0644)
+	require.NoError(t, err)
+
+	flags := HeadlessInstallFlags{
+		ConfigValues:         emptyConfigFile,
+		AdminConsolePassword: "password123",
+		Target:               string(apitypes.InstallTargetLinux),
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a temporary file with the config content
-			tmpDir := t.TempDir()
-			configFile := filepath.Join(tmpDir, "config.yaml")
-			err := os.WriteFile(configFile, []byte(tt.configContent), 0644)
-			require.NoError(t, err)
-
-			result, err := ValidateAndLoadConfigValues(configFile)
-
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.True(t, result.IsValid)
-				assert.NotNil(t, result.ConfigValues)
-			}
-		})
-	}
-}
-
-func TestValidateAndLoadConfigValues_FileNotFound(t *testing.T) {
-	result, err := ValidateAndLoadConfigValues("/nonexistent/config.yaml")
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "config values file not found")
-	assert.False(t, result.IsValid)
-	assert.Contains(t, result.ValidationErrors[0], "config values file not found")
+	errors := ValidateHeadlessInstallFlags(flags)
+	// Empty config file should still be valid (no spec.values is okay)
+	assert.Empty(t, errors, "expected no validation errors for empty config file")
 }
 
 func TestFormatValidationErrors(t *testing.T) {

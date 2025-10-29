@@ -375,7 +375,7 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 
 // validateHeadlessInstall validates the flags and config values required for headless installation
 func validateHeadlessInstall(flags *InstallCmdFlags) error {
-	// Validate required flags
+	// Validate flags
 	headlessFlags := headlessinstall.HeadlessInstallFlags{
 		ConfigValues:         flags.configValues,
 		AdminConsolePassword: flags.adminConsolePassword,
@@ -385,19 +385,6 @@ func validateHeadlessInstall(flags *InstallCmdFlags) error {
 	if validationErrors := headlessinstall.ValidateHeadlessInstallFlags(headlessFlags); len(validationErrors) > 0 {
 		return fmt.Errorf("%s", headlessinstall.FormatValidationErrors(validationErrors))
 	}
-
-	// Validate and load config values
-	result, err := headlessinstall.ValidateAndLoadConfigValues(flags.configValues)
-	if err != nil {
-		return err
-	}
-
-	if !result.IsValid {
-		return fmt.Errorf("%s", headlessinstall.FormatValidationErrors(result.ValidationErrors))
-	}
-
-	logrus.Infof("Headless installation validation passed")
-	logrus.Debugf("Config values loaded successfully with %d values", len(result.AppConfigValues))
 
 	return nil
 }
