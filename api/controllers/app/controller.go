@@ -202,11 +202,8 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 	}
 
 	if controller.configValues != nil {
-		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
-		if err != nil {
-			return nil, fmt.Errorf("validate app config values: %w", err)
-		}
-		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
+		// Prepopulate the config values in the UI
+		err := controller.appConfigManager.PatchConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
