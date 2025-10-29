@@ -132,21 +132,13 @@ func TestParseLicense(t *testing.T) {
 			wantErr: ErrNotALicenseFile{},
 		},
 		{
-			name:  "valid YAML but not a license succeeds (no validation)",
+			name:  "valid YAML but not a license returns ErrNotALicenseFile",
 			fpath: "not-license.yaml",
 			fileContent: `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: test`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-			},
+			wantErr: ErrNotALicenseFile{},
 		},
 		{
 			name:  "valid license",
@@ -178,11 +170,16 @@ spec:
 			name:  "minimal valid license",
 			fpath: "minimal-license.yaml",
 			fileContent: `apiVersion: kots.io/v1beta1
-kind: License`,
+kind: License
+spec:
+  licenseID: "test-license-id"`,
 			expected: &kotsv1beta1.License{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "kots.io/v1beta1",
 					Kind:       "License",
+				},
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "test-license-id",
 				},
 			},
 		},

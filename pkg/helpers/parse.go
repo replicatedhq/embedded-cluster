@@ -14,7 +14,7 @@ type ErrNotALicenseFile struct {
 }
 
 func (e ErrNotALicenseFile) Error() string {
-	return fmt.Sprintf("not a license file: %v", e.Err)
+	return e.Err.Error()
 }
 
 // ParseEndUserConfig parses the end user configuration from the given file.

@@ -401,7 +401,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 		if err != nil {
 			var notALicenseFileErr helpers.ErrNotALicenseFile
 			if errors.As(err, &notALicenseFileErr) {
-				return fmt.Errorf("license file is not a valid license file")
+				return fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", flags.licenseFile, err)
 			}
 
 			return fmt.Errorf("failed to parse license file: %w", err)
