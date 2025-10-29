@@ -202,6 +202,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 	}
 
 	if controller.configValues != nil {
+		// Upgrade: existing values from previous installation
 		err := controller.appConfigManager.ValidateConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("validate app config values: %w", err)
@@ -209,6 +210,17 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		err = controller.appConfigManager.PatchConfigValues(controller.configValues)
 		if err != nil {
 			return nil, fmt.Errorf("patch app config values: %w", err)
+		}
+		// Upgrade: warm cache with existing values
+		err = controller.appConfigManager.WarmEngineCache(controller.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("warm engine cache: %w", err)
+		}
+	} else {
+		// Install: warm cache with empty values
+		err := controller.appConfigManager.WarmEngineCache(make(types.AppConfigValues))
+		if err != nil {
+			return nil, fmt.Errorf("warm engine cache: %w", err)
 		}
 	}
 

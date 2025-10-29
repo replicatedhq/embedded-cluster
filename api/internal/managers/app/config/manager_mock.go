@@ -45,3 +45,9 @@ func (m *MockAppConfigManager) GetKotsadmConfigValues() (kotsv1beta1.ConfigValue
 	args := m.Called()
 	return args.Get(0).(kotsv1beta1.ConfigValues), args.Error(1)
 }
+
+// WarmEngineCache mocks the WarmEngineCache method
+func (m *MockAppConfigManager) WarmEngineCache(configValues types.AppConfigValues) error {
+	args := m.Called(configValues)
+	return args.Error(0)
+}

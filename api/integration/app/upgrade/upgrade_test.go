@@ -48,6 +48,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		// Create mock app config manager
 		mockAppConfigManager := &appconfig.MockAppConfigManager{}
 		mockAppConfigManager.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
+		mockAppConfigManager.On("WarmEngineCache", mock.Anything).Return(nil)
 
 		// Create mock app upgrade manager with debug info
 		mockAppUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
@@ -171,6 +172,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		// Create mock app config manager
 		mockAppConfigManager := &appconfig.MockAppConfigManager{}
 		mockAppConfigManager.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
+		mockAppConfigManager.On("WarmEngineCache", mock.Anything).Return(nil)
 
 		// Create mock app upgrade manager that fails
 		mockAppUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}

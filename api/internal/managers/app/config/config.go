@@ -116,6 +116,16 @@ func (m *appConfigManager) ValidateConfigValues(configValues types.AppConfigValu
 	return ve.ErrorOrNil()
 }
 
+// WarmEngineCache warms the template engine cache by executing templates with given values
+func (m *appConfigManager) WarmEngineCache(configValues types.AppConfigValues) error {
+	_, err := m.executeConfigTemplate(configValues)
+	if err != nil {
+		return fmt.Errorf("execute config template: %w", err)
+	}
+
+	return nil
+}
+
 // PatchConfigValues performs a partial update by merging new values with existing ones
 func (m *appConfigManager) PatchConfigValues(newValues types.AppConfigValues) error {
 	// Get existing values
