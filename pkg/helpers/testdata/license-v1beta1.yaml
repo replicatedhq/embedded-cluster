@@ -24,25 +24,11 @@ spec:
   isEmbeddedClusterMultiNodeEnabled: true
   replicatedProxyDomain: proxy.replicated.com
   entitlements:
-    max-nodes:
-      title: Maximum Nodes
-      description: Maximum number of nodes allowed
-      value:
-        type: Integer
-        intVal: 10
-      valueType: Integer
-      isHidden: false
-      signature:
-        v1: dGVzdC1zaWduYXR1cmUtZGF0YQ==
-    feature-flag:
-      title: Feature Flag
-      description: Enable advanced features
-      value:
-        type: Boolean
-        boolVal: true
-      valueType: Boolean
-      isHidden: false
-      signature:
-        v1: dGVzdC1zaWduYXR1cmUtZGF0YQ==
+    expires_at:
+      title: Expiration
+      description: License Expiration
+      value: ""
+      valueType: String
+      signature: {}
   channels: []
   signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==
