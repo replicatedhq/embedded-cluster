@@ -665,9 +665,9 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("failed to generate password hash: %w", err)
 	}
 
-	// For manager experience, generate self-signed cert if none provided, with user confirmation
+	// For UI based manager experience, generate self-signed cert if none provided, with user confirmation
 	var tlsConfig apitypes.TLSConfig
-	if flags.tlsCertFile == "" || flags.tlsKeyFile == "" {
+	if !flags.headless && (flags.tlsCertFile == "" || flags.tlsKeyFile == "") {
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
 
@@ -717,6 +717,9 @@ func runManagerExperienceInstall(
 	var socketPath string
 	if flags.headless {
 		socketPath = getHeadlessSocketPath(rc.EmbeddedClusterTmpSubDir())
+		defer func() {
+			_ = os.Remove(socketPath)
+		}()
 	}
 
 	apiConfig := apiOptions{
