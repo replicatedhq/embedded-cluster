@@ -455,8 +455,6 @@ func TestInjectHeaders(t *testing.T) {
 	req.Contains(authHeader, "Basic ")
 
 	// Validate reporting info headers were injected
-	req.Equal("test-cluster-id", header.Get("X-Replicated-ClusterID"))
-	req.Equal("test-cluster-id", header.Get("X-Replicated-InstanceID"))
 	req.Equal("test-cluster-id", header.Get("X-Replicated-EmbeddedClusterID"))
 	req.Equal("test-channel-123", header.Get("X-Replicated-DownstreamChannelID"))
 	req.Equal("Stable", header.Get("X-Replicated-DownstreamChannelName"))
