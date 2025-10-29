@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -44,8 +45,8 @@ func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta
 }
 
 func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
+	licenseWrapper, err := licensewrapper.LoadLicenseFromBytes(m.license)
+	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
@@ -61,7 +62,7 @@ func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	installOpts := kotscli.InstallOptions{
-		AppSlug:      license.Spec.AppSlug,
+		AppSlug:      licenseWrapper.GetAppSlug(),
 		License:      m.license,
 		Namespace:    kotsadmNamespace,
 		ClusterID:    m.clusterID,

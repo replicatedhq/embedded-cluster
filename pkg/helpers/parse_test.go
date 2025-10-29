@@ -111,89 +111,146 @@ kind: Config`,
 	}
 }
 
-func TestParseLicense_V1Beta1(t *testing.T) {
-	licenseFile := "testdata/license-v1beta1.yaml"
+func TestParseLicense(t *testing.T) {
+	tests := []struct {
+		name           string
+		licenseFile    string
+		wantErr        bool
+		wantIsV1       bool
+		wantIsV2       bool
+		wantAppSlug    string
+		wantLicenseID  string
+		wantECEnabled  bool
+		wantCustomer   string
+	}{
+		{
+			name:          "v1beta1 license",
+			licenseFile:   "testdata/license-v1beta1.yaml",
+			wantErr:       false,
+			wantIsV1:      true,
+			wantIsV2:      false,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+			wantCustomer:  "Test Customer V1",
+		},
+		{
+			name:          "v1beta2 license",
+			licenseFile:   "testdata/license-v1beta2.yaml",
+			wantErr:       false,
+			wantIsV1:      false,
+			wantIsV2:      true,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+			wantCustomer:  "Test Customer V2",
+		},
+		{
+			name:        "invalid version (v1beta3)",
+			licenseFile: "testdata/license-invalid-version.yaml",
+			wantErr:     true,
+		},
+		{
+			name:        "file not found",
+			licenseFile: "testdata/nonexistent.yaml",
+			wantErr:     true,
+		},
+	}
 
-	wrapper, err := ParseLicense(licenseFile)
-	require.NoError(t, err)
-	require.True(t, wrapper.IsV1())
-	require.False(t, wrapper.IsV2())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wrapper, err := ParseLicense(tt.licenseFile)
 
-	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
-	assert.Equal(t, "test-license-id-v1", wrapper.GetLicenseID())
-	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
-	assert.Equal(t, "Test Customer V1", wrapper.GetCustomerName())
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
+			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
+			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())
+			assert.Equal(t, tt.wantLicenseID, wrapper.GetLicenseID())
+			assert.Equal(t, tt.wantECEnabled, wrapper.IsEmbeddedClusterDownloadEnabled())
+			assert.Equal(t, tt.wantCustomer, wrapper.GetCustomerName())
+		})
+	}
 }
 
-func TestParseLicense_V1Beta2(t *testing.T) {
-	licenseFile := "testdata/license-v1beta2.yaml"
-
-	wrapper, err := ParseLicense(licenseFile)
-	require.NoError(t, err)
-	require.False(t, wrapper.IsV1())
-	require.True(t, wrapper.IsV2())
-
-	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
-	assert.Equal(t, "test-license-id-v2", wrapper.GetLicenseID())
-	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
-	assert.Equal(t, "Test Customer V2", wrapper.GetCustomerName())
-}
-
-func TestParseLicense_InvalidVersion(t *testing.T) {
-	licenseFile := "testdata/license-invalid-version.yaml"
-
-	_, err := ParseLicense(licenseFile)
-	require.Error(t, err)
-}
-
-func TestParseLicense_FileNotFound(t *testing.T) {
-	licenseFile := "testdata/nonexistent.yaml"
-
-	_, err := ParseLicense(licenseFile)
-	require.Error(t, err)
-}
-
-func TestParseLicenseFromBytes_V1Beta1(t *testing.T) {
-	data, err := os.ReadFile("testdata/license-v1beta1.yaml")
-	require.NoError(t, err)
-
-	wrapper, err := ParseLicenseFromBytes(data)
-	require.NoError(t, err)
-	require.True(t, wrapper.IsV1())
-	require.False(t, wrapper.IsV2())
-
-	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
-	assert.Equal(t, "test-license-id-v1", wrapper.GetLicenseID())
-	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
-}
-
-func TestParseLicenseFromBytes_V1Beta2(t *testing.T) {
-	data, err := os.ReadFile("testdata/license-v1beta2.yaml")
-	require.NoError(t, err)
-
-	wrapper, err := ParseLicenseFromBytes(data)
-	require.NoError(t, err)
-	require.False(t, wrapper.IsV1())
-	require.True(t, wrapper.IsV2())
-
-	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
-	assert.Equal(t, "test-license-id-v2", wrapper.GetLicenseID())
-	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
-}
-
-func TestParseLicenseFromBytes_InvalidVersion(t *testing.T) {
-	data := []byte(`apiVersion: kots.io/v1beta3
+func TestParseLicenseFromBytes(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupData     func(t *testing.T) []byte
+		wantErr       bool
+		wantIsV1      bool
+		wantIsV2      bool
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+	}{
+		{
+			name: "v1beta1 license",
+			setupData: func(t *testing.T) []byte {
+				data, err := os.ReadFile("testdata/license-v1beta1.yaml")
+				require.NoError(t, err)
+				return data
+			},
+			wantErr:       false,
+			wantIsV1:      true,
+			wantIsV2:      false,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+		},
+		{
+			name: "v1beta2 license",
+			setupData: func(t *testing.T) []byte {
+				data, err := os.ReadFile("testdata/license-v1beta2.yaml")
+				require.NoError(t, err)
+				return data
+			},
+			wantErr:       false,
+			wantIsV1:      false,
+			wantIsV2:      true,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+		},
+		{
+			name: "invalid version (v1beta3)",
+			setupData: func(t *testing.T) []byte {
+				return []byte(`apiVersion: kots.io/v1beta3
 kind: License`)
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid YAML",
+			setupData: func(t *testing.T) []byte {
+				return []byte(`this is not valid yaml: [[[`)
+			},
+			wantErr: true,
+		},
+	}
 
-	_, err := ParseLicenseFromBytes(data)
-	require.Error(t, err)
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := tt.setupData(t)
+			wrapper, err := ParseLicenseFromBytes(data)
 
-func TestParseLicenseFromBytes_InvalidYAML(t *testing.T) {
-	data := []byte(`this is not valid yaml: [[[`)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 
-	_, err := ParseLicenseFromBytes(data)
-	require.Error(t, err)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
+			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
+			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())
+			assert.Equal(t, tt.wantLicenseID, wrapper.GetLicenseID())
+			assert.Equal(t, tt.wantECEnabled, wrapper.IsEmbeddedClusterDownloadEnabled())
+		})
+	}
 }
 
 func TestParseConfigValues(t *testing.T) {

@@ -26,14 +26,13 @@ func TestAppInstallManager_Install(t *testing.T) {
 	// Setup environment variable for V3
 	t.Setenv("ENABLE_V3", "1")
 
-	// Create test license
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug: "test-app",
-		},
-	}
-	licenseBytes, err := kyaml.Marshal(license)
-	require.NoError(t, err)
+	// Create test license with proper Kubernetes resource format
+	licenseYAML := `apiVersion: kots.io/v1beta1
+kind: License
+spec:
+  appSlug: test-app
+`
+	licenseBytes := []byte(licenseYAML)
 
 	// Create test release data
 	releaseData := &release.ReleaseData{

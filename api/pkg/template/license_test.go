@@ -607,32 +607,43 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "channel unknown-channel-id not found in license")
 
-func TestEngine_LicenseWrapper_V1Beta1(t *testing.T) {
-	licenseData, err := os.ReadFile("../../../pkg/helpers/testdata/license-v1beta1.yaml")
-	require.NoError(t, err)
+func TestEngine_LicenseWrapper(t *testing.T) {
+	tests := []struct {
+		name          string
+		licenseFile   string
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+	}{
+		{
+			name:          "v1beta1 license",
+			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta1.yaml",
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+		},
+		{
+			name:          "v1beta2 license",
+			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta2.yaml",
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+		},
+	}
 
-	wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			licenseData, err := os.ReadFile(tt.licenseFile)
+			require.NoError(t, err)
 
-	engine := NewEngine(nil, WithLicense(wrapper))
+			wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
+			require.NoError(t, err)
 
-	// Test that engine methods work with v1beta1 license
-	assert.Equal(t, "embedded-cluster-test", engine.LicenseAppSlug())
-	assert.Equal(t, "test-license-id-v1", engine.LicenseID())
-	assert.True(t, engine.LicenseIsEmbeddedClusterDownloadEnabled())
-}
+			engine := NewEngine(nil, WithLicense(wrapper))
 
-func TestEngine_LicenseWrapper_V1Beta2(t *testing.T) {
-	licenseData, err := os.ReadFile("../../../pkg/helpers/testdata/license-v1beta2.yaml")
-	require.NoError(t, err)
-
-	wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
-	require.NoError(t, err)
-
-	engine := NewEngine(nil, WithLicense(wrapper))
-
-	// Test that engine methods work with v1beta2 license
-	assert.Equal(t, "embedded-cluster-test", engine.LicenseAppSlug())
-	assert.Equal(t, "test-license-id-v2", engine.LicenseID())
-	assert.True(t, engine.LicenseIsEmbeddedClusterDownloadEnabled())
+			assert.Equal(t, tt.wantAppSlug, engine.LicenseAppSlug())
+			assert.Equal(t, tt.wantLicenseID, engine.LicenseID())
+			assert.Equal(t, tt.wantECEnabled, engine.LicenseIsEmbeddedClusterDownloadEnabled())
+		})
+	}
 }

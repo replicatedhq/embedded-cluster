@@ -498,6 +498,29 @@ spec:
   `,
 			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: Stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK)",
 		},
+		{
+			name:       "v1beta2 license, with release",
+			useRelease: true,
+			licenseContents: `apiVersion: kots.io/v1beta2
+kind: License
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: true
+  `,
+		},
+		{
+			name:       "v1beta2 license without EC enabled, with release",
+			useRelease: true,
+			licenseContents: `apiVersion: kots.io/v1beta2
+kind: License
+spec:
+  appSlug: embedded-cluster-smoke-test-staging-app
+  channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
+  isEmbeddedClusterDownloadEnabled: false
+  `,
+			wantErr: "license does not have embedded cluster enabled, please provide a valid license",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
