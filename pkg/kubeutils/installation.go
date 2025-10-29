@@ -15,7 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -123,7 +123,7 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 type RecordInstallationOptions struct {
 	ClusterID              string
 	IsAirgap               bool
-	License                *kotsv1beta1.License
+	License                licensewrapper.LicenseWrapper
 	ConfigSpec             *ecv1beta1.ConfigSpec
 	MetricsBaseURL         string
 	RuntimeConfig          *ecv1beta1.RuntimeConfigSpec
@@ -172,8 +172,8 @@ func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInst
 			EndUserK0sConfigOverrides: euOverrides,
 			BinaryName:                runtimeconfig.AppSlug(),
 			LicenseInfo: &ecv1beta1.LicenseInfo{
-				IsDisasterRecoverySupported: opts.License.Spec.IsDisasterRecoverySupported,
-				IsMultiNodeEnabled:          opts.License.Spec.IsEmbeddedClusterMultiNodeEnabled,
+				IsDisasterRecoverySupported: opts.License.IsDisasterRecoverySupported(),
+				IsMultiNodeEnabled:          opts.License.IsEmbeddedClusterMultiNodeEnabled(),
 			},
 		},
 	}
