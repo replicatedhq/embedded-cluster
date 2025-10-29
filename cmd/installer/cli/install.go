@@ -43,6 +43,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -90,7 +91,7 @@ type installConfig struct {
 	isAirgap                bool
 	enableManagerExperience bool
 	licenseBytes            []byte
-	license                 *kotsv1beta1.License
+	license                 licensewrapper.LicenseWrapper
 	airgapMetadata          *airgap.AirgapMetadata
 	embeddedAssetsSize      int64
 	endUserConfig           *ecv1beta1.Config
@@ -135,7 +136,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 
 			metricsReporter := newInstallReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				installCfg.license.Spec.LicenseID, installCfg.clusterID, installCfg.license.Spec.AppSlug,
+				installCfg.license.GetLicenseIO(), installCfg.clusterID, installCfg.license.Spec.AppSlug,
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 
@@ -660,8 +661,8 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		TLSCertBytes:            installCfg.tlsCertBytes,
 		TLSKeyBytes:             installCfg.tlsKeyBytes,
 		Hostname:                flags.hostname,
-		DisasterRecoveryEnabled: installCfg.license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      installCfg.license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		DisasterRecoveryEnabled: flags.license.IsDisasterRecoverySupported(),
+		IsMultiNodeEnabled:      flags.license.IsEmbeddedClusterMultiNodeEnabled(),
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		ProxySpec:               rc.ProxySpec(),
@@ -673,8 +674,8 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
-				AppSlug:               installCfg.license.Spec.AppSlug,
-				License:               installCfg.licenseBytes,
+				AppSlug:               flags.license.GetAppSlug(),
+				License:               flags.licenseBytes,
 				Namespace:             kotsadmNamespace,
 				ClusterID:             installCfg.clusterID,
 				AirgapBundle:          flags.airgapBundle,
@@ -780,7 +781,7 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+func getLicenseFromFilepath(licenseFile string) (licensewrapper.LicenseWrapper, error) {
 	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
@@ -789,44 +790,48 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 	// 3. a license and no release, which is not OK
 	if rel == nil && licenseFile == "" {
 		// no license and no release, this is OK
-		return nil, nil
+		return licensewrapper.LicenseWrapper{}, nil
 	} else if rel == nil && licenseFile != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+		return licensewrapper.LicenseWrapper{}, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
 	} else if rel != nil && licenseFile == "" {
 		// release is present but no license, this is not OK
-		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+		return licensewrapper.LicenseWrapper{}, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	license, err := helpers.ParseLicense(licenseFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+		return licensewrapper.LicenseWrapper{}, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
-	if rel.AppSlug != license.Spec.AppSlug {
+	if rel.AppSlug != license.GetAppSlug() {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return licensewrapper.LicenseWrapper{}, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.GetAppSlug(), rel.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
 	if err := checkChannelExistence(license, rel); err != nil {
-		return nil, err
+		return licensewrapper.LicenseWrapper{}, err
 	}
 
-	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
-		// read the expiration date, and check it against the current date
-		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
-		if err != nil {
-			return nil, fmt.Errorf("parse expiration date: %w", err)
-		}
-		if time.Now().After(expiration) {
-			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+	entitlements := license.GetEntitlements()
+	if expiresAt, ok := entitlements["expires_at"]; ok {
+		expiresAtValue := expiresAt.GetValue()
+		if expiresAtValue.StrVal != "" {
+			// read the expiration date, and check it against the current date
+			expiration, err := time.Parse(time.RFC3339, expiresAtValue.StrVal)
+			if err != nil {
+				return licensewrapper.LicenseWrapper{}, fmt.Errorf("parse expiration date: %w", err)
+			}
+			if time.Now().After(expiration) {
+				return licensewrapper.LicenseWrapper{}, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+			}
 		}
 	}
 
-	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+	if !license.IsEmbeddedClusterDownloadEnabled() {
+		return licensewrapper.LicenseWrapper{}, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
 	return license, nil
@@ -834,15 +839,16 @@ func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
 
 // checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
 // error message actually listing available channels, if it does not.
-func checkChannelExistence(license *kotsv1beta1.License, rel *release.ChannelRelease) error {
+func checkChannelExistence(license licensewrapper.LicenseWrapper, rel *release.ChannelRelease) error {
 	var allowedChannels []string
 	channelExists := false
 
-	if len(license.Spec.Channels) == 0 { // support pre-multichannel licenses
-		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.Spec.ChannelName, license.Spec.ChannelID))
-		channelExists = license.Spec.ChannelID == rel.ChannelID
+	channels := license.GetChannels()
+	if len(channels) == 0 { // support pre-multichannel licenses
+		allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", license.GetChannelName(), license.GetChannelID()))
+		channelExists = license.GetChannelID() == rel.ChannelID
 	} else {
-		for _, channel := range license.Spec.Channels {
+		for _, channel := range channels {
 			allowedChannels = append(allowedChannels, fmt.Sprintf("%s (%s)", channel.ChannelSlug, channel.ChannelID))
 			if channel.ChannelID == rel.ChannelID {
 				channelExists = true
@@ -1067,7 +1073,7 @@ func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license licensewrapper.LicenseWrapper, assumeYes bool) error {
 	channelRelease := release.GetChannelRelease()
 	if channelRelease == nil {
 		// It is possible to install without embedding the release data. In this case, we cannot
@@ -1075,7 +1081,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		return nil
 	}
 
-	if license == nil {
+	if license.GetLicenseID() == "" {
 		return errors.New("license required")
 	}
 
@@ -1099,7 +1105,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 	logrus.Infof(
 		"To download it, run:\n  curl -fL \"%s\" \\\n    -H \"Authorization: %s\" \\\n    -o %s-%s.tgz\n",
 		releaseURL,
-		license.Spec.LicenseID,
+		license.GetLicenseID(),
 		channelRelease.AppSlug,
 		channelRelease.ChannelSlug,
 	)
@@ -1223,15 +1229,15 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
+func printSuccessMessage(license licensewrapper.LicenseWrapper, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content
 	var message string
 	if isHeadlessInstall {
-		message = fmt.Sprintf("The Admin Console for %s is available at:", license.Spec.AppSlug)
+		message = fmt.Sprintf("The Admin Console for %s is available at:", license.GetAppSlug())
 	} else {
-		message = fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
+		message = fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.GetAppSlug())
 	}
 
 	// Determine the length of the longest line
