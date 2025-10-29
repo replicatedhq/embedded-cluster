@@ -635,6 +635,22 @@ func k0sConfigFromFlags(flags *installFlags, installCfg *installConfig) (*k0sv1b
 	return k0s.NewK0sConfig(flags.networkInterface, installCfg.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, installCfg.endUserConfig, nil)
 }
 
+// kotsInstallOptionsFromFlags builds kotscli.InstallOptions from CLI flags and install config.
+// This function is extracted to enable integration testing.
+// Returns InstallOptions with ConfigValuesFile set to the file path (not parsed values).
+func kotsInstallOptionsFromFlags(flags installFlags, installCfg *installConfig, kotsadmNamespace string) kotscli.InstallOptions {
+	return kotscli.InstallOptions{
+		AppSlug:               installCfg.license.Spec.AppSlug,
+		License:               installCfg.licenseBytes,
+		Namespace:             kotsadmNamespace,
+		ClusterID:             installCfg.clusterID,
+		AirgapBundle:          flags.airgapBundle,
+		ConfigValuesFile:      flags.configValues,
+		ReplicatedAppEndpoint: replicatedAppURL(),
+		SkipPreflights:        flags.ignoreAppPreflights,
+	}
+}
+
 func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig, loading **spinner.MessageWriter) (*addons.InstallOptions, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
@@ -672,17 +688,8 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
-			opts := kotscli.InstallOptions{
-				AppSlug:               installCfg.license.Spec.AppSlug,
-				License:               installCfg.licenseBytes,
-				Namespace:             kotsadmNamespace,
-				ClusterID:             installCfg.clusterID,
-				AirgapBundle:          flags.airgapBundle,
-				ConfigValuesFile:      flags.configValues,
-				ReplicatedAppEndpoint: replicatedAppURL(),
-				SkipPreflights:        flags.ignoreAppPreflights,
-				Stdout:                *loading,
-			}
+			opts := kotsInstallOptionsFromFlags(flags, installCfg, kotsadmNamespace)
+			opts.Stdout = *loading
 			return kotscli.Install(opts)
 		},
 	}
