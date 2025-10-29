@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,6 +64,11 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 				},
 			}
 
+			// Wrap the license
+			wrappedLicense := licensewrapper.LicenseWrapper{
+				V1: license,
+			}
+
 			// Create infra manager
 			manager := NewInfraManager(
 				WithClusterID("test-cluster"),
@@ -70,7 +76,7 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			)
 
 			// Test the getAddonInstallOpts method with configValues passed as parameter
-			opts, err := manager.getAddonInstallOpts(t.Context(), license, rc)
+			opts := manager.getAddonInstallOpts(t.Context(), wrappedLicense, rc)
 			assert.NoError(t, err)
 
 			// Verify the install options

@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,6 +34,7 @@ type appConfigManager struct {
 	rawConfig                  kotsv1beta1.Config
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
+	license                    licensewrapper.LicenseWrapper
 	license                    *kotsv1beta1.License
 	isAirgap                   bool
 	privateCACertConfigMapName string
@@ -62,7 +64,7 @@ func WithReleaseData(releaseData *release.ReleaseData) AppConfigManagerOption {
 	}
 }
 
-func WithLicense(license *kotsv1beta1.License) AppConfigManagerOption {
+func WithLicense(license licensewrapper.LicenseWrapper) AppConfigManagerOption {
 	return func(c *appConfigManager) {
 		c.license = license
 	}

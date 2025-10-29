@@ -8,50 +8,71 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+<<<<<<< HEAD
 )
 
 func (e *Engine) licenseFieldValue(name string) (string, error) {
 	if e.license == nil {
 		return "", fmt.Errorf("license is nil")
+=======
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
+)
+
+// Helper methods for direct access (used by tests and other code)
+func (e *Engine) LicenseAppSlug() string {
+	return e.license.GetAppSlug()
+}
+
+func (e *Engine) LicenseID() string {
+	return e.license.GetLicenseID()
+}
+
+func (e *Engine) LicenseIsEmbeddedClusterDownloadEnabled() bool {
+	return e.license.IsEmbeddedClusterDownloadEnabled()
+}
+
+func (e *Engine) licenseFieldValue(name string) string {
+	if e.license.GetLicenseID() == "" {
+		return ""
 	}
 
 	// Update docs at https://github.com/replicatedhq/kots.io/blob/main/content/reference/template-functions/license-context.md
 	// when adding new values
 	switch name {
 	case "isSnapshotSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSnapshotSupported), nil
+		return fmt.Sprintf("%t", e.license.IsSnapshotSupported())
 	case "IsDisasterRecoverySupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsDisasterRecoverySupported), nil
+		return fmt.Sprintf("%t", e.license.IsDisasterRecoverySupported())
 	case "isGitOpsSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGitOpsSupported), nil
+		return fmt.Sprintf("%t", e.license.IsGitOpsSupported())
 	case "isSupportBundleUploadSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsSupportBundleUploadSupported), nil
+		return fmt.Sprintf("%t", e.license.IsSupportBundleUploadSupported())
 	case "isEmbeddedClusterMultiNodeEnabled":
-		return fmt.Sprintf("%t", e.license.Spec.IsEmbeddedClusterMultiNodeEnabled), nil
+		return fmt.Sprintf("%t", e.license.IsEmbeddedClusterMultiNodeEnabled())
 	case "isIdentityServiceSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsIdentityServiceSupported), nil
+		return fmt.Sprintf("%t", e.license.IsIdentityServiceSupported())
 	case "isGeoaxisSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsGeoaxisSupported), nil
+		return fmt.Sprintf("%t", e.license.IsGeoaxisSupported())
 	case "isAirgapSupported":
-		return fmt.Sprintf("%t", e.license.Spec.IsAirgapSupported), nil
+		return fmt.Sprintf("%t", e.license.IsAirgapSupported())
 	case "licenseType":
-		return e.license.Spec.LicenseType, nil
+		return e.license.GetLicenseType()
 	case "licenseSequence":
-		return fmt.Sprintf("%d", e.license.Spec.LicenseSequence), nil
+		return fmt.Sprintf("%d", e.license.GetLicenseSequence())
 	case "signature":
-		return string(e.license.Spec.Signature), nil
+		return string(e.license.GetSignature())
 	case "appSlug":
-		return e.license.Spec.AppSlug, nil
+		return e.license.GetAppSlug()
 	case "channelID":
-		return e.license.Spec.ChannelID, nil
+		return e.license.GetChannelID()
 	case "channelName":
-		return e.license.Spec.ChannelName, nil
+		return e.license.GetChannelName()
 	case "isSemverRequired":
-		return fmt.Sprintf("%t", e.license.Spec.IsSemverRequired), nil
+		return fmt.Sprintf("%t", e.license.IsSemverRequired())
 	case "customerName":
-		return e.license.Spec.CustomerName, nil
+		return e.license.GetCustomerName()
 	case "licenseID", "licenseId":
-		return e.license.Spec.LicenseID, nil
+		return e.license.GetLicenseID()
 	case "endpoint":
 		if e.releaseData == nil {
 			return "", fmt.Errorf("release data is nil")
@@ -59,16 +80,18 @@ func (e *Engine) licenseFieldValue(name string) (string, error) {
 		ecDomains := utils.GetDomains(e.releaseData)
 		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain), nil
 	default:
-		entitlement, ok := e.license.Spec.Entitlements[name]
+		entitlements := e.license.GetEntitlements()
+		entitlement, ok := entitlements[name]
 		if ok {
-			return fmt.Sprintf("%v", entitlement.Value.Value()), nil
+			val := entitlement.GetValue()
+			return fmt.Sprintf("%v", val.Value())
 		}
 		return "", nil
 	}
 }
 
 func (e *Engine) licenseDockerCfg() (string, error) {
-	if e.license == nil {
+	if e.license.GetLicenseID() == "" {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {
@@ -78,7 +101,8 @@ func (e *Engine) licenseDockerCfg() (string, error) {
 		return "", fmt.Errorf("channel release is nil")
 	}
 
-	auth := fmt.Sprintf("%s:%s", e.license.Spec.LicenseID, e.license.Spec.LicenseID)
+	licenseID := e.license.GetLicenseID()
+	auth := fmt.Sprintf("%s:%s", licenseID, licenseID)
 	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
 
 	registryProxyInfo := getRegistryProxyInfo(e.releaseData)
@@ -115,8 +139,6 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 	}
 }
 
-func (e *Engine) channelName() (string, error) {
-	if e.license == nil {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {

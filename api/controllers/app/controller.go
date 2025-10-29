@@ -15,8 +15,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -176,10 +177,11 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		return nil, err
 	}
 
-	var license *kotsv1beta1.License
+	var license licensewrapper.LicenseWrapper
 	if len(controller.license) > 0 {
-		license = &kotsv1beta1.License{}
-		if err := kyaml.Unmarshal(controller.license, license); err != nil {
+		var err error
+		license, err = helpers.ParseLicenseFromBytes(controller.license)
+		if err != nil {
 			return nil, fmt.Errorf("parse license: %w", err)
 		}
 	}

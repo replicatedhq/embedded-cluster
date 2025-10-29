@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 // Mode defines the operating mode of the template engine
@@ -26,7 +27,7 @@ const (
 type Engine struct {
 	mode                       Mode
 	config                     *kotsv1beta1.Config
-	license                    *kotsv1beta1.License
+	license     licensewrapper.LicenseWrapper
 	releaseData                *release.ReleaseData
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
@@ -55,7 +56,7 @@ func WithMode(mode Mode) EngineOption {
 	}
 }
 
-func WithLicense(license *kotsv1beta1.License) EngineOption {
+func WithLicense(license licensewrapper.LicenseWrapper) EngineOption {
 	return func(e *Engine) {
 		e.license = license
 	}
