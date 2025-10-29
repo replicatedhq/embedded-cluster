@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	headlessinstall "github.com/replicatedhq/embedded-cluster/cmd/installer/cli/headless/install"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -70,6 +71,7 @@ type InstallCmdFlags struct {
 	assumeYes            bool
 	overrides            string
 	configValues         string
+	headless             bool
 
 	// linux flags
 	dataDir                 string
@@ -131,6 +133,16 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err := preRunInstall(cmd, &flags, rc, ki); err != nil {
 				return err
 			}
+
+			// Validate headless mode requirements
+			if flags.headless {
+				if err := validateHeadlessInstall(&flags); err != nil {
+					return err
+				}
+				// TODO(PR2): Implement headless installation orchestration
+				return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
+			}
+
 			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, prompts.New()); err != nil {
 				return err
 			}
@@ -264,6 +276,7 @@ func newCommonInstallFlags(flags *InstallCmdFlags, enableV3 bool) *pflag.FlagSet
 	mustAddProxyFlags(flagSet)
 
 	flagSet.BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	flagSet.BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 	flagSet.SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return flagSet
@@ -356,6 +369,35 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *InstallCmdFlags) error
 			return err
 		}
 	}
+
+	return nil
+}
+
+// validateHeadlessInstall validates the flags and config values required for headless installation
+func validateHeadlessInstall(flags *InstallCmdFlags) error {
+	// Validate required flags
+	headlessFlags := headlessinstall.HeadlessInstallFlags{
+		ConfigValues:         flags.configValues,
+		AdminConsolePassword: flags.adminConsolePassword,
+		Target:               flags.target,
+	}
+
+	if validationErrors := headlessinstall.ValidateHeadlessInstallFlags(headlessFlags); len(validationErrors) > 0 {
+		return fmt.Errorf("%s", headlessinstall.FormatValidationErrors(validationErrors))
+	}
+
+	// Validate and load config values
+	result, err := headlessinstall.ValidateAndLoadConfigValues(flags.configValues)
+	if err != nil {
+		return err
+	}
+
+	if !result.IsValid {
+		return fmt.Errorf("%s", headlessinstall.FormatValidationErrors(result.ValidationErrors))
+	}
+
+	logrus.Infof("Headless installation validation passed")
+	logrus.Debugf("Config values loaded successfully with %d values", len(result.AppConfigValues))
 
 	return nil
 }
