@@ -475,7 +475,6 @@ func runManagerExperienceUpgrade(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Upgrade is not headless, so pass false for headless and empty socket path
 	if err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}

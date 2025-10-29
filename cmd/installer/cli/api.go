@@ -76,7 +76,7 @@ func startAPI(ctx context.Context, cert *tls.Certificate, opts apiOptions, cance
 		Timeout: 2 * time.Second,
 	}
 	if opts.SocketPath != "" {
-		addr = fmt.Sprintf("http://unix")
+		addr = "http://unix"
 		httpClient.Transport = &http.Transport{
 			Proxy: nil,
 			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
