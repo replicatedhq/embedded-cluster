@@ -35,6 +35,40 @@ type InstallOptions struct {
 	Stdout                io.Writer
 }
 
+// buildInstallArgs constructs the command-line arguments for kubectl-kots install.
+// This function is extracted to enable integration testing of argument construction.
+func buildInstallArgs(opts InstallOptions, upstreamURI string, appVersionLabel string, licenseFile string) []string {
+	installArgs := []string{
+		"install",
+		upstreamURI,
+		"--license-file",
+		licenseFile,
+		"--namespace",
+		opts.Namespace,
+		"--app-version-label",
+		appVersionLabel,
+		"--exclude-admin-console",
+	}
+
+	if opts.DisableImagePush {
+		installArgs = append(installArgs, "--disable-image-push")
+	}
+
+	if opts.AirgapBundle != "" {
+		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
+	}
+
+	if opts.ConfigValuesFile != "" {
+		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
+	}
+
+	if opts.SkipPreflights {
+		installArgs = append(installArgs, "--skip-preflights")
+	}
+
+	return installArgs
+}
+
 func Install(opts InstallOptions) error {
 	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
 	if err != nil {
@@ -61,32 +95,11 @@ func Install(opts InstallOptions) error {
 	defer os.Remove(licenseFile)
 
 	maskfn := MaskKotsOutputForOnline()
-	installArgs := []string{
-		"install",
-		upstreamURI,
-		"--license-file",
-		licenseFile,
-		"--namespace",
-		opts.Namespace,
-		"--app-version-label",
-		appVersionLabel,
-		"--exclude-admin-console",
-	}
-	if opts.DisableImagePush {
-		installArgs = append(installArgs, "--disable-image-push")
-	}
 	if opts.AirgapBundle != "" {
-		installArgs = append(installArgs, "--airgap-bundle", opts.AirgapBundle)
 		maskfn = MaskKotsOutputForAirgap()
 	}
 
-	if opts.ConfigValuesFile != "" {
-		installArgs = append(installArgs, "--config-values", opts.ConfigValuesFile)
-	}
-
-	if opts.SkipPreflights {
-		installArgs = append(installArgs, "--skip-preflights")
-	}
+	installArgs := buildInstallArgs(opts, upstreamURI, appVersionLabel, licenseFile)
 
 	if msg, ok := opts.Stdout.(*spinner.MessageWriter); ok && msg != nil {
 		msg.SetMask(maskfn)
