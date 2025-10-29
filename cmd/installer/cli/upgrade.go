@@ -236,17 +236,38 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return fmt.Errorf("failed to stat data directory: %w", err)
 	}
 
-	// Validate the license is indeed a license file
-	license, err := getLicenseFromFilepath(flags.licenseFile)
-	if err != nil {
-		return err
-	}
-	upgradeConfig.license = license
 	data, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("failed to read license file: %w", err)
 	}
 	upgradeConfig.licenseBytes = data
+
+	// validate the the license is indeed a license file
+	l, err := helpers.ParseLicenseFromBytes(data)
+	if err != nil {
+		var notALicenseFileErr helpers.ErrNotALicenseFile
+		if errors.As(err, &notALicenseFileErr) {
+			return fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", flags.licenseFile, err)
+		}
+
+		return fmt.Errorf("failed to parse license file: %w", err)
+	}
+	upgradeConfig.license = l
+
+	// sync the license if a license is provided and we are not in airgap mode
+	if upgradeConfig.license != nil && flags.airgapBundle == "" {
+		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
+		if err != nil {
+			return fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, upgradeConfig.license)
+		if err != nil {
+			return fmt.Errorf("failed to sync license: %w", err)
+		}
+		upgradeConfig.license = updatedLicense
+		upgradeConfig.licenseBytes = licenseBytes
+	}
 
 	// Continue using "kotsadm" namespace if it exists for backwards compatibility, otherwise use the appSlug
 	ns, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
@@ -444,22 +465,6 @@ func runManagerExperienceUpgrade(
 	ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, rc runtimeconfig.RuntimeConfig,
 	metricsReporter metrics.ReporterInterface, appTitle string, targetVersion string, initialVersion string,
 ) (finalErr error) {
-	replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
-	if err != nil {
-		return fmt.Errorf("failed to create replicated API client: %w", err)
-	}
-
-	// Sync license before starting the manager experience (online only)
-	isAirgap := flags.airgapBundle != ""
-	if !isAirgap {
-		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, upgradeConfig.license)
-		if err != nil {
-			return fmt.Errorf("failed to sync license: %w", err)
-		}
-		upgradeConfig.license = updatedLicense
-		upgradeConfig.licenseBytes = licenseBytes
-	}
-
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			InstallTarget:        apitypes.InstallTarget(flags.target),

@@ -397,7 +397,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 		flags.licenseBytes = b
 
 		// validate the the license is indeed a license file
-		l, err := helpers.ParseLicense(flags.licenseFile)
+		l, err := helpers.ParseLicenseFromBytes(b)
 		if err != nil {
 			var notALicenseFileErr helpers.ErrNotALicenseFile
 			if errors.As(err, &notALicenseFileErr) {
@@ -423,6 +423,22 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 			return fmt.Errorf("failed to get airgap info: %w", err)
 		}
 		flags.airgapMetadata = metadata
+	}
+
+	// sync the license if we are in the manager experience and a license is provided and we are
+	// not in airgap mode
+	if flags.enableManagerExperience && flags.license != nil && !flags.isAirgap {
+		replicatedAPI, err := newReplicatedAPIClient(flags.license, flags.clusterID)
+		if err != nil {
+			return fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(cmd.Context(), replicatedAPI, flags.license)
+		if err != nil {
+			return fmt.Errorf("failed to sync license: %w", err)
+		}
+		flags.license = updatedLicense
+		flags.licenseBytes = licenseBytes
 	}
 
 	var err error
@@ -625,22 +641,6 @@ func runManagerExperienceInstall(
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("get kotsadm namespace: %w", err)
-	}
-
-	replicatedAPI, err := newReplicatedAPIClient(flags.license, flags.clusterID)
-	if err != nil {
-		return fmt.Errorf("failed to create replicated API client: %w", err)
-	}
-
-	// Sync license before starting the manager experience (online only)
-	isAirgap := flags.airgapBundle != ""
-	if !isAirgap {
-		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, flags.license)
-		if err != nil {
-			return fmt.Errorf("failed to sync license: %w", err)
-		}
-		flags.license = updatedLicense
-		flags.licenseBytes = licenseBytes
 	}
 
 	// this is necessary because the api listens on all interfaces,
@@ -913,7 +913,7 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	logrus.Debugf("checking license matches")
-	license, err := getLicenseFromFilepath(flags.licenseFile)
+	license, err := verifyLicense(flags.license)
 	if err != nil {
 		return err
 	}
@@ -985,27 +985,22 @@ func ensureAdminConsolePassword(flags *InstallCmdFlags) error {
 	return nil
 }
 
-func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
 	// 3. a license and no release, which is not OK
-	if rel == nil && licenseFile == "" {
+	if rel == nil && license == nil {
 		// no license and no release, this is OK
 		return nil, nil
-	} else if rel == nil && licenseFile != "" {
+	} else if rel == nil && license != nil {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
 		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && licenseFile == "" {
+	} else if rel != nil && license == nil {
 		// release is present but no license, this is not OK
 		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
-	}
-
-	license, err := helpers.ParseLicense(licenseFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
 	}
 
 	// Check if the license matches the application version data
