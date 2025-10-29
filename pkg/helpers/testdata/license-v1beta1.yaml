@@ -1,0 +1,48 @@
+apiVersion: kots.io/v1beta1
+kind: License
+metadata:
+  name: test-license
+spec:
+  appSlug: embedded-cluster-test
+  licenseID: test-license-id-v1
+  licenseType: dev
+  customerName: Test Customer V1
+  customerEmail: test@example.com
+  endpoint: https://replicated.app
+  channelID: test-channel-id
+  channelName: Stable
+  licenseSequence: 1
+  isAirgapSupported: true
+  isGitOpsSupported: false
+  isIdentityServiceSupported: false
+  isGeoaxisSupported: false
+  isSnapshotSupported: true
+  isSupportBundleUploadSupported: true
+  isSemverRequired: true
+  isDisasterRecoverySupported: true
+  isEmbeddedClusterDownloadEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
+  replicatedProxyDomain: proxy.replicated.com
+  entitlements:
+    max-nodes:
+      title: Maximum Nodes
+      description: Maximum number of nodes allowed
+      value:
+        type: Integer
+        intVal: 10
+      valueType: Integer
+      isHidden: false
+      signature:
+        v1: dGVzdC1zaWduYXR1cmUtZGF0YQ==
+    feature-flag:
+      title: Feature Flag
+      description: Enable advanced features
+      value:
+        type: Boolean
+        boolVal: true
+      valueType: Boolean
+      isHidden: false
+      signature:
+        v1: dGVzdC1zaWduYXR1cmUtZGF0YQ==
+  channels: []
+  signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==

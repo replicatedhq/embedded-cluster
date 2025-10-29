@@ -1,0 +1,14 @@
+apiVersion: kots.io/v1beta2
+kind: License
+metadata:
+  name: test-license
+spec:
+  appSlug: embedded-cluster-test
+  licenseID: test-license-id-v2
+  licenseType: dev
+  customerName: Test Customer V2
+  customerEmail: test@example.com
+  endpoint: https://replicated.app
+  licenseSequence: 1
+  # isEmbeddedClusterDownloadEnabled is intentionally false for testing validation
+  isEmbeddedClusterDownloadEnabled: false
