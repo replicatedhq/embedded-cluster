@@ -23,8 +23,6 @@ type AppConfigManager interface {
 	TemplateConfig(configValues types.AppConfigValues, maskPasswords bool, filterHiddenItems bool) (types.AppConfig, error)
 	// GetConfigValues gets the current config values
 	GetConfigValues() (types.AppConfigValues, error)
-	// WarmEngineCache warms the template engine cache by executing templates with provided values
-	WarmEngineCache(configValues types.AppConfigValues) error
 	// GetKotsadmConfigValues merges the config values with the app config defaults and returns a
 	// kotsv1beta1.ConfigValues struct.
 	GetKotsadmConfigValues() (kotsv1beta1.ConfigValues, error)
