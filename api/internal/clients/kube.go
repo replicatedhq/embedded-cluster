@@ -22,6 +22,7 @@ import (
 var localSchemeBuilder = runtime.NewSchemeBuilder(
 	apiextensionsv1.AddToScheme,
 	embeddedclusterv1beta1.AddToScheme,
+	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
 	autopilotv1beta2.AddToScheme,
 	k0sv1beta1.AddToScheme,
 	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
