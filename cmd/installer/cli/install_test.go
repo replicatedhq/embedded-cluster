@@ -981,10 +981,11 @@ func Test_preRunInstallCommon(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid license file",
+			name: "invalid license file returns ErrNotALicenseFile",
 			flags: &InstallCmdFlags{
 				licenseFile: "testing/assets/release-restore-newdr/notalicense.yaml",
 			},
+			wantErr: true,
 		},
 	}
 
