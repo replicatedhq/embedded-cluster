@@ -690,8 +690,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.0.5 h1:EfpWLLCyXw8PSM2/XNJLjI3Pb
 github.com/redis/go-redis/extra/redisotel/v9 v9.0.5/go.mod h1:WZjPDy7VNzn77AAfnAfVjZNvfJTYfPetfZk5yoSTLaQ=
 github.com/redis/go-redis/v9 v9.7.3 h1:YpPyAayJV+XErNsatSElgRZZVCwXX9QzkKYNvO7x0wM=
 github.com/redis/go-redis/v9 v9.7.3/go.mod h1:bGUrSggJ9X9GUmZpZNEOQKaANxSGgOEBRltRTZHSvrA=
-github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c h1:lnCL/wYi2BFTnxOP/lmo9WJwVPG3fk/plgJ/9NrMFw4=
-github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c/go.mod h1:QjhIUu3+OmHZ09u09j3FCoTt8F3BYtQglS+OLmftu9I=
+github.com/replicatedhq/kotskinds v0.0.0-20251029124314-174e89c93554 h1:a9vLewcXgVC/vclEak7CV0gsSYhYinjnWDoUkzrqN4w=
+github.com/replicatedhq/kotskinds v0.0.0-20251029124314-174e89c93554/go.mod h1:+k4PHo2wukoU9kdiKrqqgi89Wmj+9AiwppYGVK11zig=
 github.com/replicatedhq/troubleshoot v0.123.12 h1:XbgZJMSwIHyf1lvxIRNwI9AVsRzcA7N3AWLPLSkrr+w=
 github.com/replicatedhq/troubleshoot v0.123.12/go.mod h1:CKPCj8si77XuSL6sIAFdqtO23/eha159eEBlQF8HpVw=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

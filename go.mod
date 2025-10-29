@@ -36,7 +36,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
-	github.com/replicatedhq/kotskinds v0.0.0-20250609144916-baa60600998c
+	github.com/replicatedhq/kotskinds v0.0.0-20251029124314-174e89c93554
 	github.com/replicatedhq/troubleshoot v0.123.12
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.1
