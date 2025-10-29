@@ -7,6 +7,7 @@ import (
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -110,115 +111,89 @@ kind: Config`,
 	}
 }
 
-func TestParseLicense(t *testing.T) {
-	tests := []struct {
-		name        string
-		fpath       string
-		fileContent string
-		expected    *kotsv1beta1.License
-		wantErr     error
-	}{
-		{
-			name:    "file does not exist",
-			fpath:   "nonexistent.yaml",
-			wantErr: os.ErrNotExist,
-		},
-		{
-			name:  "invalid YAML returns ErrNotALicenseFile",
-			fpath: "invalid.yaml",
-			fileContent: `invalid: yaml: content: [
-			unclosed bracket`,
-			wantErr: ErrNotALicenseFile,
-		},
-		{
-			name:  "valid YAML but not a license succeeds (no validation)",
-			fpath: "not-license.yaml",
-			fileContent: `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: test`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
-				},
-			},
-		},
-		{
-			name:  "valid license",
-			fpath: "license.yaml",
-			fileContent: `apiVersion: kots.io/v1beta1
-kind: License
-metadata:
-  name: test-license
-spec:
-  licenseID: "test-license-id"
-  appSlug: "test-app"
-  endpoint: "https://replicated.app"`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "License",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-license",
-				},
-				Spec: kotsv1beta1.LicenseSpec{
-					LicenseID: "test-license-id",
-					AppSlug:   "test-app",
-					Endpoint:  "https://replicated.app",
-				},
-			},
-		},
-		{
-			name:  "minimal valid license",
-			fpath: "minimal-license.yaml",
-			fileContent: `apiVersion: kots.io/v1beta1
-kind: License`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "License",
-				},
-			},
-		},
-	}
+func TestParseLicense_V1Beta1(t *testing.T) {
+	licenseFile := "testdata/license-v1beta1.yaml"
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
+	wrapper, err := ParseLicense(licenseFile)
+	require.NoError(t, err)
+	require.True(t, wrapper.IsV1())
+	require.False(t, wrapper.IsV2())
 
-			var testFile string
-			if tt.fileContent != "" {
-				// Create temporary file
-				tmpDir := t.TempDir()
-				testFile = filepath.Join(tmpDir, tt.fpath)
-				err := os.WriteFile(testFile, []byte(tt.fileContent), 0644)
-				req.NoError(err)
-			} else {
-				// Use the fpath as-is for non-existent file tests
-				testFile = tt.fpath
-			}
+	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
+	assert.Equal(t, "test-license-id-v1", wrapper.GetLicenseID())
+	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
+	assert.Equal(t, "Test Customer V1", wrapper.GetCustomerName())
+}
 
-			result, err := ParseLicense(testFile)
+func TestParseLicense_V1Beta2(t *testing.T) {
+	licenseFile := "testdata/license-v1beta2.yaml"
 
-			if tt.wantErr != nil {
-				req.Error(err)
-				if tt.wantErr == ErrNotALicenseFile {
-					req.Equal(ErrNotALicenseFile, err)
-				} else {
-					req.ErrorIs(err, tt.wantErr)
-				}
-				req.Nil(result)
-			} else {
-				req.NoError(err)
-				req.Equal(tt.expected, result)
-			}
-		})
-	}
+	wrapper, err := ParseLicense(licenseFile)
+	require.NoError(t, err)
+	require.False(t, wrapper.IsV1())
+	require.True(t, wrapper.IsV2())
+
+	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
+	assert.Equal(t, "test-license-id-v2", wrapper.GetLicenseID())
+	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
+	assert.Equal(t, "Test Customer V2", wrapper.GetCustomerName())
+}
+
+func TestParseLicense_InvalidVersion(t *testing.T) {
+	licenseFile := "testdata/license-invalid-version.yaml"
+
+	_, err := ParseLicense(licenseFile)
+	require.Error(t, err)
+}
+
+func TestParseLicense_FileNotFound(t *testing.T) {
+	licenseFile := "testdata/nonexistent.yaml"
+
+	_, err := ParseLicense(licenseFile)
+	require.Error(t, err)
+}
+
+func TestParseLicenseFromBytes_V1Beta1(t *testing.T) {
+	data, err := os.ReadFile("testdata/license-v1beta1.yaml")
+	require.NoError(t, err)
+
+	wrapper, err := ParseLicenseFromBytes(data)
+	require.NoError(t, err)
+	require.True(t, wrapper.IsV1())
+	require.False(t, wrapper.IsV2())
+
+	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
+	assert.Equal(t, "test-license-id-v1", wrapper.GetLicenseID())
+	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
+}
+
+func TestParseLicenseFromBytes_V1Beta2(t *testing.T) {
+	data, err := os.ReadFile("testdata/license-v1beta2.yaml")
+	require.NoError(t, err)
+
+	wrapper, err := ParseLicenseFromBytes(data)
+	require.NoError(t, err)
+	require.False(t, wrapper.IsV1())
+	require.True(t, wrapper.IsV2())
+
+	assert.Equal(t, "embedded-cluster-test", wrapper.GetAppSlug())
+	assert.Equal(t, "test-license-id-v2", wrapper.GetLicenseID())
+	assert.True(t, wrapper.IsEmbeddedClusterDownloadEnabled())
+}
+
+func TestParseLicenseFromBytes_InvalidVersion(t *testing.T) {
+	data := []byte(`apiVersion: kots.io/v1beta3
+kind: License`)
+
+	_, err := ParseLicenseFromBytes(data)
+	require.Error(t, err)
+}
+
+func TestParseLicenseFromBytes_InvalidYAML(t *testing.T) {
+	data := []byte(`this is not valid yaml: [[[`)
+
+	_, err := ParseLicenseFromBytes(data)
+	require.Error(t, err)
 }
 
 func TestParseConfigValues(t *testing.T) {
