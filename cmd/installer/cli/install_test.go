@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -292,7 +293,10 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			prompts.SetTerminal(true)
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
-			err = maybePromptForAppUpdate(context.Background(), prompt, license, false)
+			// Wrap the license for the new API
+			wrappedLicense := licensewrapper.LicenseWrapper{V1: license}
+
+			err = maybePromptForAppUpdate(context.Background(), prompt, wrappedLicense, false)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -353,7 +357,8 @@ func Test_getLicenseFromFilepath(t *testing.T) {
 		},
 		{
 			name: "valid license, no release",
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -364,7 +369,8 @@ spec:
 		{
 			name:       "valid license, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -374,7 +380,8 @@ spec:
 		{
 			name:       "valid multi-channel license, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "OtherChannelID"
@@ -393,7 +400,8 @@ spec:
 		{
 			name:       "expired license, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -411,7 +419,8 @@ spec:
 		{
 			name:       "license with no expiration, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -428,7 +437,8 @@ spec:
 		{
 			name:       "license with 100 year expiration, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -445,7 +455,8 @@ spec:
 		{
 			name:       "embedded cluster not enabled, with release",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
@@ -456,7 +467,8 @@ spec:
 		{
 			name:       "incorrect license (multichan license)",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
@@ -476,7 +488,8 @@ spec:
 		{
 			name:       "incorrect license (pre-multichan license)",
 			useRelease: true,
-			licenseContents: `
+			licenseContents: `apiVersion: kots.io/v1beta1
+kind: License
 spec:
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
