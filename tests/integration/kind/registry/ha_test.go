@@ -54,17 +54,18 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	})
 
 	// data and k0s directories are required for the admin console addon
-	ecDataDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster",
+	// Each node needs its own separate data directory to avoid conflicts with local persistent volumes
+	for i := range kindConfig.Nodes {
+		ecDataDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster",
+		}
+		k0sDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster/k0s",
+		}
+		kindConfig.Nodes[i].ExtraMounts = append(kindConfig.Nodes[i].ExtraMounts, ecDataDirMount, k0sDirMount)
 	}
-	k0sDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster/k0s",
-	}
-	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
@@ -215,17 +216,18 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	})
 
 	// data and k0s directories are required for the admin console addon
-	ecDataDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster",
+	// Each node needs its own separate data directory to avoid conflicts with local persistent volumes
+	for i := range kindConfig.Nodes {
+		ecDataDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster",
+		}
+		k0sDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster/k0s",
+		}
+		kindConfig.Nodes[i].ExtraMounts = append(kindConfig.Nodes[i].ExtraMounts, ecDataDirMount, k0sDirMount)
 	}
-	k0sDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster/k0s",
-	}
-	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 

@@ -1,6 +1,7 @@
 package seaweedfs
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/metadata"
@@ -32,12 +34,14 @@ func (s *SeaweedFS) Install(
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	err = s.ensurePostInstallHooksDeleted(ctx, kcli)
-	if err != nil {
-		return errors.Wrap(err, "ensure hooks deleted")
+	if !s.DryRun {
+		err = s.ensurePostInstallHooksDeleted(ctx, kcli)
+		if err != nil {
+			return errors.Wrap(err, "ensure hooks deleted")
+		}
 	}
 
-	_, err = hcli.Install(ctx, helm.InstallOptions{
+	opts := helm.InstallOptions{
 		ReleaseName:  s.ReleaseName(),
 		ChartPath:    s.ChartLocation(domains),
 		ChartVersion: Metadata.Version,
@@ -45,10 +49,21 @@ func (s *SeaweedFS) Install(
 		Namespace:    s.Namespace(),
 		Labels:       getBackupLabels(),
 		LogFn:        helm.LogFn(logf),
-	})
-	if err != nil {
-		return errors.Wrap(err, "helm install")
 	}
+
+	if s.DryRun {
+		manifests, err := hcli.Render(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "dry run values")
+		}
+		s.dryRunManifests = append(s.dryRunManifests, manifests...)
+	} else {
+		_, err = hcli.Install(ctx, opts)
+		if err != nil {
+			return errors.Wrap(err, "helm install")
+		}
+	}
+
 	return nil
 }
 
@@ -69,13 +84,21 @@ func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client)
 }
 
 func (s *SeaweedFS) ensureNamespace(ctx context.Context, kcli client.Client) error {
-	ns := corev1.Namespace{
+	obj := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: s.Namespace(),
 		},
 	}
-	if err := kcli.Create(ctx, &ns); client.IgnoreAlreadyExists(err) != nil {
-		return err
+	if s.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
+		}
+		s.dryRunManifests = append(s.dryRunManifests, b.Bytes())
+	} else {
+		if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+			return err
+		}
 	}
 	return nil
 }
@@ -91,6 +114,10 @@ func (s *SeaweedFS) ensureService(ctx context.Context, kcli client.Client, servi
 	}
 
 	obj := &corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Service",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{Name: _s3SVCName, Namespace: s.Namespace()},
 		Spec: corev1.ServiceSpec{
 			ClusterIP: clusterIP,
@@ -111,22 +138,30 @@ func (s *SeaweedFS) ensureService(ctx context.Context, kcli client.Client, servi
 
 	obj.Labels = ApplyLabels(obj.Labels, "s3")
 
-	var existingObj corev1.Service
-	if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, "get s3 service")
-	} else if err == nil {
-		// if the service already exists and has the correct cluster IP, do not recreate it
-		if existingObj.Spec.ClusterIP == clusterIP {
-			return nil
+	if s.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
 		}
-		err := kcli.Delete(ctx, &existingObj)
-		if err != nil {
-			return errors.Wrap(err, "delete existing s3 service")
+		s.dryRunManifests = append(s.dryRunManifests, b.Bytes())
+	} else {
+		var existingObj corev1.Service
+		if err := kcli.Get(ctx, client.ObjectKey{Name: obj.Name, Namespace: obj.Namespace}, &existingObj); client.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, "get s3 service")
+		} else if err == nil {
+			// if the service already exists and has the correct cluster IP, do not recreate it
+			if existingObj.Spec.ClusterIP == clusterIP {
+				return nil
+			}
+			err := kcli.Delete(ctx, &existingObj)
+			if err != nil {
+				return errors.Wrap(err, "delete existing s3 service")
+			}
 		}
-	}
 
-	if err := kcli.Create(ctx, obj); err != nil {
-		return errors.Wrap(err, "create s3 service")
+		if err := kcli.Create(ctx, obj); err != nil {
+			return errors.Wrap(err, "create s3 service")
+		}
 	}
 
 	return nil
@@ -157,7 +192,12 @@ func (s *SeaweedFS) ensureS3Secret(ctx context.Context, kcli client.Client) erro
 	}
 
 	obj := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{Name: _s3SecretName, Namespace: s.Namespace()},
+		Type:       "Opaque",
 		Data: map[string][]byte{
 			"seaweedfs_s3_config": configData,
 		},
@@ -165,8 +205,16 @@ func (s *SeaweedFS) ensureS3Secret(ctx context.Context, kcli client.Client) erro
 
 	obj.Labels = ApplyLabels(obj.Labels, "s3")
 
-	if err := kcli.Create(ctx, obj); client.IgnoreAlreadyExists(err) != nil {
-		return errors.Wrap(err, "create s3 secret")
+	if s.DryRun {
+		b := bytes.NewBuffer(nil)
+		if err := serializer.Encode(obj, b); err != nil {
+			return errors.Wrap(err, "serialize")
+		}
+		s.dryRunManifests = append(s.dryRunManifests, b.Bytes())
+	} else {
+		if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "create s3 secret")
+		}
 	}
 
 	return nil
