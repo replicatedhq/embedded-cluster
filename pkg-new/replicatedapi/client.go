@@ -15,6 +15,8 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
+var _ Client = (*client)(nil)
+
 var defaultHTTPClient = newRetryableHTTPClient()
 
 // ClientFactory is a function type for creating replicatedapi clients
@@ -29,6 +31,7 @@ func SetClientFactory(factory ClientFactory) {
 
 type Client interface {
 	SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error)
+	GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error)
 }
 
 type client struct {
@@ -171,4 +174,48 @@ func (c *client) getChannelFromLicense() (*kotsv1beta1.Channel, error) {
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+// GetPendingReleases fetches pending releases from the Replicated API
+func (c *client) GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error) {
+	u := fmt.Sprintf("%s/release/%s/pending", c.replicatedAppURL, c.license.Spec.AppSlug)
+
+	params := url.Values{}
+	params.Set("selectedChannelId", channelID)
+	params.Set("currentSequence", fmt.Sprintf("%d", currentSequence))
+	params.Set("isSemverSupported", fmt.Sprintf("%t", opts.IsSemverSupported))
+	if opts.SortOrder != "" {
+		params.Set("sortOrder", string(opts.SortOrder))
+	}
+	u = fmt.Sprintf("%s?%s", u, params.Encode())
+
+	req, err := c.newRetryableRequest(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	var pendingReleases PendingReleasesResponse
+	if err := kyaml.Unmarshal(body, &pendingReleases); err != nil {
+		return nil, fmt.Errorf("unmarshal pending releases response: %w", err)
+	}
+
+	return &pendingReleases, nil
 }
