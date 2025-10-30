@@ -1051,7 +1051,7 @@ func TestAppInstallSuite(t *testing.T) {
 					linuxinstall.WithStateMachine(linuxinstall.NewStateMachine(linuxinstall.WithCurrentState(initialState))),
 					linuxinstall.WithReleaseData(rd),
 					linuxinstall.WithHelmClient(&helm.MockClient{}),
-					linuxinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
+					linuxinstall.WithLicense([]byte("apiVersion: kots.io/v1beta1\nkind: License\nspec:\n  licenseID: test-license\n")),
 					linuxinstall.WithConfigValues(configValues),
 				)
 				require.NoError(t, err)
@@ -1072,7 +1072,7 @@ func TestAppInstallSuite(t *testing.T) {
 					kubernetesinstall.WithStateMachine(kubernetesinstall.NewStateMachine(kubernetesinstall.WithCurrentState(initialState))),
 					kubernetesinstall.WithReleaseData(rd),
 					kubernetesinstall.WithHelmClient(&helm.MockClient{}),
-					kubernetesinstall.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
+					kubernetesinstall.WithLicense([]byte("apiVersion: kots.io/v1beta1\nkind: License\nspec:\n  licenseID: test-license\n")),
 					kubernetesinstall.WithConfigValues(configValues),
 					kubernetesinstall.WithKubernetesEnvSettings(helmcli.New()),
 				)
