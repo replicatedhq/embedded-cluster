@@ -236,7 +236,7 @@ func TestSyncLicense(t *testing.T) {
 			req.NoError(err)
 
 			// Execute test
-			license, rawLicense, err := c.SyncLicense(context.Background(), nil)
+			license, rawLicense, err := c.SyncLicense(context.Background())
 
 			// Validate results
 			if tt.wantErr != "" {
@@ -301,7 +301,7 @@ func TestSyncLicense_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// Execute test
-	result, rawLicense, err := c.SyncLicense(ctx, nil)
+	result, rawLicense, err := c.SyncLicense(ctx)
 
 	// Should return error due to cancelled context
 	req.Error(err)
@@ -313,14 +313,12 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 	tests := []struct {
 		name          string
 		clusterID     string
-		reportingInfo *ReportingInfo
 		expectedCount int
 		checkHeaders  map[string]string
 	}{
 		{
-			name:          "with cluster ID and nil reporting info",
+			name:          "with cluster ID",
 			clusterID:     "cluster-123",
-			reportingInfo: nil,
 			expectedCount: 7, // EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
 				"X-Replicated-EmbeddedClusterID":      "cluster-123",
@@ -333,23 +331,8 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 			},
 		},
 		{
-			name:      "with reporting info fields",
-			clusterID: "cluster-abc",
-			reportingInfo: &ReportingInfo{
-				EmbeddedClusterNodes: stringPtr("5"),
-				AppStatus:            stringPtr("ready"),
-			},
-			expectedCount: 9, // 7 from above + 2 from reportingInfo
-			checkHeaders: map[string]string{
-				"X-Replicated-EmbeddedClusterNodes": "5",
-				"X-Replicated-AppStatus":            "ready",
-				"X-Replicated-IsKurl":               "false",
-			},
-		},
-		{
 			name:          "zero values should be skipped",
 			clusterID:     "",
-			reportingInfo: &ReportingInfo{},
 			expectedCount: 6, // ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
 				"X-Replicated-IsKurl": "false",
@@ -389,7 +372,7 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 				clusterID:   tt.clusterID,
 			}
 
-			headers := c.getReportingInfoHeaders(tt.reportingInfo)
+			headers := c.getReportingInfoHeaders()
 
 			req.Len(headers, tt.expectedCount)
 
@@ -434,14 +417,9 @@ func TestInjectHeaders(t *testing.T) {
 		clusterID:   "test-cluster-id",
 	}
 
-	reportingInfo := &ReportingInfo{
-		EmbeddedClusterNodes: stringPtr("3"),
-		AppStatus:            stringPtr("ready"),
-	}
-
 	// Test the internal method directly
 	header := http.Header{}
-	c.injectHeaders(header, reportingInfo)
+	c.injectHeaders(header)
 
 	// Validate User-Agent header was injected
 	userAgent := header.Get("User-Agent")
@@ -461,7 +439,5 @@ func TestInjectHeaders(t *testing.T) {
 	req.Equal(versions.K0sVersion, header.Get("X-Replicated-K8sVersion"))
 	req.Equal(DistributionEmbeddedCluster, header.Get("X-Replicated-K8sDistribution"))
 	req.Equal(versions.Version, header.Get("X-Replicated-EmbeddedClusterVersion"))
-	req.Equal("3", header.Get("X-Replicated-EmbeddedClusterNodes"))
-	req.Equal("ready", header.Get("X-Replicated-AppStatus"))
 	req.Equal("false", header.Get("X-Replicated-IsKurl"))
 }

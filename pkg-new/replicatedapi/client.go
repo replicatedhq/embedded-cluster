@@ -18,7 +18,7 @@ import (
 var defaultHTTPClient = newRetryableHTTPClient()
 
 type Client interface {
-	SyncLicense(ctx context.Context, reportingInfo *ReportingInfo) (*kotsv1beta1.License, []byte, error)
+	SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error)
 }
 
 type client struct {
@@ -60,7 +60,7 @@ func NewClient(replicatedAppURL string, license *kotsv1beta1.License, releaseDat
 }
 
 // SyncLicense fetches the latest license from the Replicated API
-func (c *client) SyncLicense(ctx context.Context, reportingInfo *ReportingInfo) (*kotsv1beta1.License, []byte, error) {
+func (c *client) SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error) {
 	u := fmt.Sprintf("%s/license/%s", c.replicatedAppURL, c.license.Spec.AppSlug)
 
 	params := url.Values{}
@@ -70,7 +70,7 @@ func (c *client) SyncLicense(ctx context.Context, reportingInfo *ReportingInfo) 
 	}
 	u = fmt.Sprintf("%s?%s", u, params.Encode())
 
-	req, err := c.newRetryableRequest(ctx, http.MethodGet, u, nil, reportingInfo)
+	req, err := c.newRetryableRequest(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create request: %w", err)
 	}
@@ -112,23 +112,23 @@ func (c *client) SyncLicense(ctx context.Context, reportingInfo *ReportingInfo) 
 }
 
 // newRetryableRequest returns a retryablehttp.Request object with kots defaults set, including a User-Agent header.
-func (c *client) newRetryableRequest(ctx context.Context, method string, url string, body io.Reader, reportingInfo *ReportingInfo) (*retryablehttp.Request, error) {
+func (c *client) newRetryableRequest(ctx context.Context, method string, url string, body io.Reader) (*retryablehttp.Request, error) {
 	req, err := retryablehttp.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return nil, err
 	}
 
-	c.injectHeaders(req.Header, reportingInfo)
+	c.injectHeaders(req.Header)
 
 	return req, nil
 }
 
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
-func (c *client) injectHeaders(header http.Header, reportingInfo *ReportingInfo) {
+func (c *client) injectHeaders(header http.Header) {
 	header.Set("Authorization", "Basic "+basicAuth(c.license.Spec.LicenseID, c.license.Spec.LicenseID))
 	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
-	c.injectReportingInfoHeaders(header, reportingInfo)
+	c.injectReportingInfoHeaders(header)
 }
 
 func (c *client) getChannelFromLicense() (*kotsv1beta1.Channel, error) {

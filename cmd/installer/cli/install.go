@@ -396,7 +396,7 @@ func preRunInstallCommon(cmd *cobra.Command, flags *InstallCmdFlags, rc runtimec
 		}
 		flags.licenseBytes = b
 
-		// validate the the license is indeed a license file
+		// validate the license is indeed a license file
 		l, err := helpers.ParseLicenseFromBytes(b)
 		if err != nil {
 			var notALicenseFileErr helpers.ErrNotALicenseFile

@@ -33,7 +33,7 @@ func newReplicatedAPIClient(license *kotsv1beta1.License, clusterID string) (rep
 func syncLicense(ctx context.Context, client replicatedapi.Client, license *kotsv1beta1.License) (*kotsv1beta1.License, []byte, error) {
 	logrus.Debug("Syncing license")
 
-	updatedLicense, licenseBytes, err := client.SyncLicense(ctx, nil)
+	updatedLicense, licenseBytes, err := client.SyncLicense(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get latest license: %w", err)
 	}

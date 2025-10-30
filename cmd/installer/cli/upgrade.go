@@ -242,7 +242,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.licenseBytes = data
 
-	// validate the the license is indeed a license file
+	// validate the license is indeed a license file
 	l, err := helpers.ParseLicenseFromBytes(data)
 	if err != nil {
 		var notALicenseFileErr helpers.ErrNotALicenseFile

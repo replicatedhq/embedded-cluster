@@ -49,7 +49,7 @@ func ParseLicenseFromBytes(data []byte) (*kotsv1beta1.License, error) {
 		return nil, ErrNotALicenseFile{Err: err}
 	}
 	if license.Spec.LicenseID == "" {
-		return nil, ErrNotALicenseFile{Err: fmt.Errorf("license id empty")}
+		return nil, ErrNotALicenseFile{Err: fmt.Errorf("license id is empty")}
 	}
 	return &license, nil
 }
