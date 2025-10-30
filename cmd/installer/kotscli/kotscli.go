@@ -3,6 +3,7 @@ package kotscli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -435,6 +436,56 @@ func createLicenseFile(license []byte) (string, error) {
 	}
 
 	return licenseFile.Name(), nil
+}
+
+// AppVersionInfo holds information about a deployed app version
+type AppVersionInfo struct {
+	VersionLabel    string `json:"versionLabel"`
+	ChannelSequence int64  `json:"channelSequence"`
+	Sequence        int64  `json:"sequence"`
+	Status          string `json:"status"`
+}
+
+// GetCurrentAppVersion retrieves the currently deployed app version and sequence
+func GetCurrentAppVersion(appSlug string, namespace string) (*AppVersionInfo, error) {
+	kotsBinPath, err := goods.InternalBinary("kubectl-kots")
+	if err != nil {
+		return nil, fmt.Errorf("materialize kubectl-kots binary: %w", err)
+	}
+	defer os.Remove(kotsBinPath)
+
+	// Build command arguments: kots get versions <appSlug> -n <namespace> -o json
+	args := []string{
+		"get", "versions",
+		appSlug,
+		"-n", namespace,
+		"-o", "json",
+	}
+
+	// Execute the command and capture output
+	var outputBuffer bytes.Buffer
+	runCommandOpts := helpers.RunCommandOptions{
+		Stdout: &outputBuffer,
+	}
+
+	if err := helpers.RunCommandWithOptions(runCommandOpts, kotsBinPath, args...); err != nil {
+		return nil, fmt.Errorf("get versions from kots: %w", err)
+	}
+
+	// Parse JSON output
+	var versions []AppVersionInfo
+	if err := json.Unmarshal(outputBuffer.Bytes(), &versions); err != nil {
+		return nil, fmt.Errorf("unmarshal versions output: %w", err)
+	}
+
+	// Find the deployed version
+	for _, v := range versions {
+		if v.Status == "deployed" {
+			return &v, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no deployed version found for app %s", appSlug)
 }
 
 // GetConfigValuesOptions holds options for getting config values

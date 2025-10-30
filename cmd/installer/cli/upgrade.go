@@ -16,6 +16,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -59,6 +61,8 @@ type upgradeConfig struct {
 	managerPort          int
 	requiresInfraUpgrade bool
 	kotsadmNamespace     string
+	currentAppVersion    *kotscli.AppVersionInfo
+	replicatedAPIClient  replicatedapi.Client
 }
 
 // UpgradeCmd returns a cobra command for upgrading the embedded cluster application.
@@ -110,7 +114,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli, appSlug); err != nil {
 				return err
 			}
-			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New()); err != nil {
+			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New(), kcli); err != nil {
 				return err
 			}
 
@@ -236,17 +240,39 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		return fmt.Errorf("failed to stat data directory: %w", err)
 	}
 
-	// Validate the license is indeed a license file
-	license, err := getLicenseFromFilepath(flags.licenseFile)
-	if err != nil {
-		return err
-	}
-	upgradeConfig.license = license
 	data, err := os.ReadFile(flags.licenseFile)
 	if err != nil {
 		return fmt.Errorf("failed to read license file: %w", err)
 	}
 	upgradeConfig.licenseBytes = data
+
+	// validate the license is indeed a license file
+	l, err := helpers.ParseLicenseFromBytes(data)
+	if err != nil {
+		var notALicenseFileErr helpers.ErrNotALicenseFile
+		if errors.As(err, &notALicenseFileErr) {
+			return fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", flags.licenseFile, err)
+		}
+
+		return fmt.Errorf("failed to parse license file: %w", err)
+	}
+	upgradeConfig.license = l
+
+	// sync the license if a license is provided and we are not in airgap mode
+	if upgradeConfig.license != nil && flags.airgapBundle == "" {
+		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
+		if err != nil {
+			return fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(ctx, replicatedAPI, upgradeConfig.license)
+		if err != nil {
+			return fmt.Errorf("failed to sync license: %w", err)
+		}
+		upgradeConfig.license = updatedLicense
+		upgradeConfig.licenseBytes = licenseBytes
+		upgradeConfig.replicatedAPIClient = replicatedAPI
+	}
 
 	// Continue using "kotsadm" namespace if it exists for backwards compatibility, otherwise use the appSlug
 	ns, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
@@ -316,10 +342,17 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.requiresInfraUpgrade = requiresInfraUpgrade
 
+	// Get current app version for deployability validation
+	currentAppVersion, err := kotscli.GetCurrentAppVersion(appSlug, upgradeConfig.kotsadmNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get current app version: %w", err)
+	}
+	upgradeConfig.currentAppVersion = currentAppVersion
+
 	return nil
 }
 
-func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt) error {
+func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt, kcli client.Client) error {
 	isAirgap := flags.airgapBundle != ""
 
 	err := verifyChannelRelease("upgrade", isAirgap, flags.assumeYes)
@@ -332,6 +365,15 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 		if err := checkAirgapMatches(upgradeConfig.airgapMetadata.AirgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
+	}
+
+	// Validate release upgradable
+	if err := validateIsReleaseUpgradable(ctx, upgradeConfig, kcli, isAirgap); err != nil {
+		if validation.IsValidationError(err) {
+			// This is a validation error that prevents the upgrade from proceeding, expose the error directly
+			return err
+		}
+		return fmt.Errorf("upgrade validation execution failed: %w", err)
 	}
 
 	if !isAirgap {
@@ -521,4 +563,65 @@ func checkRequiresInfraUpgrade(ctx context.Context) (bool, error) {
 	}
 
 	return !bytes.Equal(currentJSON, targetJSON), nil
+}
+
+// validateIsReleaseUpgradable validates that the target release can be safely deployed
+func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfig, kcli client.Client, isAirgap bool) error {
+	// Get current installation for version information
+	currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get current installation: %w", err)
+	}
+
+	// Get target release data
+	releaseData := release.GetReleaseData()
+	if releaseData == nil {
+		return fmt.Errorf("release data not found")
+	}
+
+	// Get channel release info
+	channelRelease := releaseData.ChannelRelease
+	if channelRelease == nil {
+		return fmt.Errorf("channel release not found in release data")
+	}
+
+	// Get current and target EC/K8s versions
+	var currentECVersion string
+	if currentInstallation.Spec.Config != nil {
+		currentECVersion = currentInstallation.Spec.Config.Version
+	}
+
+	targetECVersion := versions.Version
+
+	// Build validation options
+	opts := validation.UpgradableOptions{
+		IsAirgap:         isAirgap,
+		CurrentECVersion: currentECVersion,
+		TargetECVersion:  targetECVersion,
+		License:          upgradeConfig.license,
+		AirgapMetadata:   upgradeConfig.airgapMetadata,
+	}
+
+	// Add current app version info if available
+	if upgradeConfig.currentAppVersion != nil {
+		opts.CurrentAppVersion = upgradeConfig.currentAppVersion.VersionLabel
+		opts.CurrentAppSequence = upgradeConfig.currentAppVersion.ChannelSequence
+	}
+
+	// Add target app version info
+	opts.TargetAppVersion = channelRelease.VersionLabel
+	opts.TargetAppSequence = channelRelease.ChannelSequence
+
+	// For online upgrades, add the replicated API client and channel ID
+	if upgradeConfig.replicatedAPIClient != nil {
+		opts.ReplicatedAPI = upgradeConfig.replicatedAPIClient
+		opts.ChannelID = channelRelease.ChannelID
+	}
+
+	// Perform validation
+	if err := validation.ValidateIsReleaseUpgradable(ctx, opts); err != nil {
+		return err
+	}
+
+	return nil
 }
