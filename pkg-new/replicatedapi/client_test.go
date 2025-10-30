@@ -15,10 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func stringPtr(s string) *string {
-	return &s
-}
-
 func TestSyncLicense(t *testing.T) {
 	tests := []struct {
 		name            string
