@@ -81,8 +81,10 @@ func TestUpgradeInfra(t *testing.T) {
 			rc.SetManagerPort(9001)
 
 			mockInfraManager := &infra.MockInfraManager{}
-			mockStore := &store.MockStore{}
 			mockInstallationManager := &installation.MockInstallationManager{}
+
+			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			tt.setupMocks(rc, mockInfraManager, mockInstallationManager)
 
@@ -187,7 +189,9 @@ func TestGetInfra(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockInfraManager := &infra.MockInfraManager{}
+
 			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			tt.setupMock(mockInfraManager)
 
@@ -321,8 +325,10 @@ func TestReportingHandlers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockMetricsReporter := &metrics.MockReporter{}
-			mockStore := &store.MockStore{}
 			mockInfraManager := &infra.MockInfraManager{}
+
+			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			tt.setupMocks(mockMetricsReporter, mockStore)
 
@@ -451,6 +457,8 @@ func TestProcessAirgap(t *testing.T) {
 			}
 
 			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc)
+
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			controller, err := NewUpgradeController(
 				WithRuntimeConfig(rc),

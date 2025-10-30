@@ -61,6 +61,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 
 		// Create mock store that will be shared between AppController and UpgradeController
 		mockStore := &store.MockStore{}
+		mockAppConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 		// Create state machine that will be shared between AppController and UpgradeController
 		stateMachine := s.createStateMachine(states.StateAppPreflightsSucceeded)
@@ -124,10 +125,14 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		// Create state machine
 		stateMachine := s.createStateMachine(states.StateAppPreflightsSucceeded)
 
+		// Create mock store
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		// Create simple app controller for auth test
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(stateMachine),
-			appcontroller.WithStore(&store.MockStore{}),
+			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
@@ -171,6 +176,7 @@ func (s *AppUpgradeTestSuite) TestPostUpgradeApp() {
 		// Create mock app config manager
 		mockAppConfigManager := &appconfig.MockAppConfigManager{}
 		mockAppConfigManager.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, nil)
+		mockAppConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 		// Create mock app upgrade manager that fails
 		mockAppUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
@@ -265,11 +271,15 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 
 		stateMachine := s.createStateMachine(states.StateAppPreflightsSucceeded)
 
+		// Create mock store
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		// Create app controller with real upgrade manager
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithAppUpgradeManager(appUpgradeManager),
 			appcontroller.WithStateMachine(stateMachine),
-			appcontroller.WithStore(&store.MockStore{}),
+			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
@@ -309,9 +319,14 @@ func (s *AppUpgradeTestSuite) TestGetAppUpgradeStatus() {
 		stateMachine := s.createStateMachine(states.StateAppPreflightsSucceeded)
 
 		// Create simple app controller for auth test
+
+		// Create mock store
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(stateMachine),
-			appcontroller.WithStore(&store.MockStore{}),
+			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
