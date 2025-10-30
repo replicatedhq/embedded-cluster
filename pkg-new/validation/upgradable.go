@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
@@ -104,8 +103,7 @@ func validateRequiredReleases(ctx context.Context, opts UpgradableOptions) error
 	}
 
 	if len(requiredVersions) > 0 {
-		return fmt.Errorf("this upgrade requires installing intermediate version(s) first: %s. Please go through this upgrade path before upgrading to %s",
-			strings.Join(requiredVersions, ", "), opts.TargetAppVersion)
+		return NewRequiredReleasesError(requiredVersions, opts.TargetAppVersion)
 	}
 
 	return nil
@@ -124,14 +122,14 @@ func validateAppVersionDowngrade(opts UpgradableOptions) error {
 			return err
 		}
 		if targetVer.LessThan(currentVer) {
-			return fmt.Errorf("downgrade detected: cannot upgrade from app version %s to older version %s", opts.CurrentAppVersion, opts.TargetAppVersion)
+			return NewAppVersionDowngradeError(opts.CurrentAppVersion, opts.TargetAppVersion)
 		}
 		return nil
 	}
 
 	// Use app sequence as fallback
 	if opts.CurrentAppSequence > opts.TargetAppSequence {
-		return fmt.Errorf("downgrade detected: cannot upgrade from app version %s to older version %s", opts.CurrentAppVersion, opts.TargetAppVersion)
+		return NewAppVersionDowngradeError(opts.CurrentAppVersion, opts.TargetAppVersion)
 	}
 
 	return nil
@@ -150,7 +148,7 @@ func validateECVersionDowngrade(opts UpgradableOptions) error {
 	}
 
 	if target.LessThan(current) {
-		return fmt.Errorf("downgrade detected: cannot upgrade from Embedded Cluster version %s to older version %s", opts.CurrentECVersion, opts.TargetECVersion)
+		return NewECVersionDowngradeError(opts.CurrentECVersion, opts.TargetECVersion)
 	}
 
 	return nil
@@ -171,8 +169,10 @@ func validateK8sVersion(opts UpgradableOptions) error {
 
 	// Check if minor version is being skipped
 	if targetK8s.Minor() > currentK8s.Minor()+1 {
-		return fmt.Errorf("Kubernetes version skip detected: cannot upgrade from k8s %d.%d to %d.%d. Kubernetes only supports upgrading by one minor version at a time",
-			currentK8s.Major(), currentK8s.Minor(), targetK8s.Major(), targetK8s.Minor())
+		return NewK8sVersionSkipError(
+			fmt.Sprintf("%d.%d", currentK8s.Major(), currentK8s.Minor()),
+			fmt.Sprintf("%d.%d", targetK8s.Major(), targetK8s.Minor()),
+		)
 	}
 
 	return nil
