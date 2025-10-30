@@ -370,6 +370,22 @@ func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.Run
 		return nil, err
 	}
 
+	// sync the license if we are in the manager experience and a license is provided and we are
+	// not in airgap mode
+	if installCfg.enableManagerExperience && installCfg.license != nil && !installCfg.isAirgap {
+		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(cmd.Context(), replicatedAPI, installCfg.license)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sync license: %w", err)
+		}
+		installCfg.license = updatedLicense
+		installCfg.licenseBytes = licenseBytes
+	}
+
 	// Set runtime config values from flags
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	ki.SetAdminConsolePort(flags.adminConsolePort)

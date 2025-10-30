@@ -112,22 +112,6 @@ func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 		installCfg.license = l
 	}
 
-	// sync the license if we are in the manager experience and a license is provided and we are
-	// not in airgap mode
-	if installCfg.enableManagerExperience && installCfg.license != nil && !installCfg.isAirgap {
-		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
-		}
-
-		updatedLicense, licenseBytes, err := syncLicense(context.TODO(), replicatedAPI, installCfg.license)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sync license: %w", err)
-		}
-		installCfg.license = updatedLicense
-		installCfg.licenseBytes = licenseBytes
-	}
-
 	// Config values validation
 	if flags.configValues != "" {
 		err := configutils.ValidateKotsConfigValues(flags.configValues)

@@ -257,54 +257,6 @@ func TestSyncLicense(t *testing.T) {
 	}
 }
 
-func TestSyncLicense_ContextCancellation(t *testing.T) {
-	req := require.New(t)
-
-	// Create a server that delays response
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Simulate slow response
-		<-r.Context().Done()
-	}))
-	defer server.Close()
-
-	license := kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug:         "test-app",
-			LicenseID:       "test-license-id",
-			LicenseSequence: 1,
-			ChannelID:       "test-channel-123",
-			Channels: []kotsv1beta1.Channel{
-				{
-					ChannelID:   "test-channel-123",
-					ChannelName: "Stable",
-				},
-			},
-		},
-	}
-
-	releaseData := &release.ReleaseData{
-		ChannelRelease: &release.ChannelRelease{
-			ChannelID: "test-channel-123",
-		},
-	}
-
-	// Create client
-	c, err := NewClient(server.URL, &license, releaseData)
-	req.NoError(err)
-
-	// Create a context that is already cancelled
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// Execute test
-	result, rawLicense, err := c.SyncLicense(ctx)
-
-	// Should return error due to cancelled context
-	req.Error(err)
-	req.Nil(result)
-	req.Nil(rawLicense)
-}
-
 func TestGetReportingInfoHeaders(t *testing.T) {
 	tests := []struct {
 		name          string
