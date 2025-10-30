@@ -121,6 +121,7 @@ func RootCmd(ctx context.Context) *cobra.Command {
 	cmd.AddCommand(RestoreCmd(ctx, appSlug, appTitle))
 	cmd.AddCommand(AdminConsoleCmd(ctx, appTitle))
 	cmd.AddCommand(SupportBundleCmd(ctx))
+	cmd.AddCommand(LintCmd(ctx))
 
 	return cmd
 }

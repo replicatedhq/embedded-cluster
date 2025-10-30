@@ -1,0 +1,14 @@
+# This should WARN: Port 30000 is within the supported range (80-32767)
+# Expected warning: port 30000 is already supported
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: test-config
+spec:
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: adminconsole
+      values: |
+        service:
+          type: NodePort
+          nodePort: 30000  # ERROR: This port is already supported!
