@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"os"
 
@@ -98,11 +99,33 @@ func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 		}
 		installCfg.licenseBytes = b
 
-		l, err := helpers.ParseLicense(flags.licenseFile)
+		// validate the license is indeed a license file
+		l, err := helpers.ParseLicenseFromBytes(b)
 		if err != nil {
+			var notALicenseFileErr helpers.ErrNotALicenseFile
+			if errors.As(err, &notALicenseFileErr) {
+				return nil, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", flags.licenseFile, err)
+			}
+
 			return nil, fmt.Errorf("failed to parse license file: %w", err)
 		}
 		installCfg.license = l
+	}
+
+	// sync the license if we are in the manager experience and a license is provided and we are
+	// not in airgap mode
+	if installCfg.enableManagerExperience && installCfg.license != nil && !installCfg.isAirgap {
+		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(context.TODO(), replicatedAPI, installCfg.license)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sync license: %w", err)
+		}
+		installCfg.license = updatedLicense
+		installCfg.licenseBytes = licenseBytes
 	}
 
 	// Config values validation
