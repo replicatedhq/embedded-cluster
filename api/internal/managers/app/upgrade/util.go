@@ -28,16 +28,17 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 }
 
 // log logs a message to the structured logger and adds it to the logs store
-func (m *appUpgradeManager) log(fields interface{}, format string, v ...interface{}) {
+func (m *appUpgradeManager) log(fields any, format string, v ...any) {
+	logger := m.logger.WithField("component", "kots")
 	if fields != nil {
 		f, err := json.Marshal(fields)
 		if err == nil {
-			m.logger.WithField("fields", string(f)).Debugf(format, v...)
+			logger.WithField("fields", string(f)).Debugf(format, v...)
 		} else {
-			m.logger.Debugf(format, v...)
+			logger.Debugf(format, v...)
 		}
 	} else {
-		m.logger.Debugf(format, v...)
+		logger.Debugf(format, v...)
 	}
 	m.addLogs(format, v...)
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/replicatedhq/embedded-cluster/api/docs"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
@@ -23,9 +24,13 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 	}).Methods("GET")
 	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 
-	router.HandleFunc("/auth/login", a.handlers.auth.PostLogin).Methods("POST")
+	// Routes with logging middleware
+	routerWithLogging := router.PathPrefix("/").Subrouter()
+	routerWithLogging.Use(logger.HTTPLoggingMiddleware(a.logger))
 
-	authenticatedRouter := router.PathPrefix("/").Subrouter()
+	routerWithLogging.HandleFunc("/auth/login", a.handlers.auth.PostLogin).Methods("POST")
+
+	authenticatedRouter := routerWithLogging.PathPrefix("/").Subrouter()
 	authenticatedRouter.Use(a.handlers.auth.Middleware)
 
 	if a.cfg.InstallTarget == types.InstallTargetLinux {

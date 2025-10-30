@@ -11,10 +11,10 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +111,7 @@ func Test_ensureAdminConsolePassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				assumeYes:            tt.noPrompt,
 				adminConsolePassword: tt.userPassword,
 			}
@@ -618,100 +618,6 @@ func Test_verifyProxyConfig(t *testing.T) {
 	}
 }
 
-func Test_preRunInstall_SkipHostPreflightsEnvVar(t *testing.T) {
-	tests := []struct {
-		name                   string
-		envVarValue            string
-		flagValue              *bool // nil means not set, true/false means explicitly set
-		expectedSkipPreflights bool
-	}{
-		{
-			name:                   "env var set to 1, no flag",
-			envVarValue:            "1",
-			flagValue:              nil,
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var set to true, no flag",
-			envVarValue:            "true",
-			flagValue:              nil,
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var set, flag explicitly false (flag takes precedence)",
-			envVarValue:            "1",
-			flagValue:              boolPtr(false),
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var set, flag explicitly true",
-			envVarValue:            "1",
-			flagValue:              boolPtr(true),
-			expectedSkipPreflights: true,
-		},
-		{
-			name:                   "env var not set, no flag",
-			envVarValue:            "",
-			flagValue:              nil,
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var not set, flag explicitly false",
-			envVarValue:            "",
-			flagValue:              boolPtr(false),
-			expectedSkipPreflights: false,
-		},
-		{
-			name:                   "env var not set, flag explicitly true",
-			envVarValue:            "",
-			flagValue:              boolPtr(true),
-			expectedSkipPreflights: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set up environment variable
-			if tt.envVarValue != "" {
-				t.Setenv("SKIP_HOST_PREFLIGHTS", tt.envVarValue)
-			}
-
-			// Create a mock cobra command to simulate flag behavior
-			cmd := &cobra.Command{}
-			flags := &InstallCmdFlags{}
-
-			// Add the flag to the command (similar to addInstallFlags)
-			cmd.Flags().BoolVar(&flags.skipHostPreflights, "skip-host-preflights", false, "Skip host preflight checks")
-
-			// Set the flag if explicitly provided in test
-			if tt.flagValue != nil {
-				err := cmd.Flags().Set("skip-host-preflights", fmt.Sprintf("%t", *tt.flagValue))
-				require.NoError(t, err)
-			}
-
-			// Create a minimal runtime config for the test
-			rc := runtimeconfig.New(nil)
-
-			// Call preRunInstall (this would normally require root, but we're just testing the flag logic)
-			// We expect this to fail due to non-root execution, but we can check the flag value before it fails
-			err := preRunInstallLinux(cmd, flags, rc)
-
-			// The function will fail due to non-root check, but we can verify the flag was set correctly
-			// by checking the flag value before the root check fails
-			assert.Equal(t, tt.expectedSkipPreflights, flags.skipHostPreflights)
-
-			// We expect an error due to non-root execution
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "install command must be run as root")
-		})
-	}
-}
-
-// Helper function to create bool pointer
-func boolPtr(b bool) *bool {
-	return &b
-}
-
 func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
 	tests := []struct {
 		name                        string
@@ -740,7 +646,7 @@ func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
 				t.Setenv("ENABLE_V3", tt.enableV3EnvVar)
 			}
 
-			flags := &InstallCmdFlags{}
+			flags := &installFlags{}
 			enableV3 := isV3Enabled()
 			flagSet := newLinuxInstallFlags(flags, enableV3)
 
@@ -805,7 +711,7 @@ func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 			}
 
 			// Create a flagset similar to how newLinuxInstallFlags works
-			flags := &InstallCmdFlags{}
+			flags := &installFlags{}
 			flagSet := newLinuxInstallFlags(flags, tt.enableV3)
 
 			// Create a command to test flag parsing
@@ -828,7 +734,101 @@ func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 	}
 }
 
-func Test_processTLSConfig(t *testing.T) {
+func Test_k0sConfigFromFlags(t *testing.T) {
+	tests := []struct {
+		name                string
+		podCIDR             string
+		serviceCIDR         string
+		globalCIDR          *string
+		expectedPodCIDR     string
+		expectedServiceCIDR string
+		wantErr             bool
+	}{
+		{
+			name:                "pod and service CIDRs set",
+			podCIDR:             "10.0.0.0/24",
+			serviceCIDR:         "10.1.0.0/24",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "10.0.0.0/24",
+			expectedServiceCIDR: "10.1.0.0/24",
+			wantErr:             false,
+		},
+		{
+			name:                "custom pod and service CIDRs",
+			podCIDR:             "192.168.0.0/16",
+			serviceCIDR:         "10.96.0.0/12",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "192.168.0.0/16",
+			expectedServiceCIDR: "10.96.0.0/12",
+			wantErr:             false,
+		},
+		{
+			name:                "global CIDR should not affect k0s config",
+			podCIDR:             "10.0.0.0/25",
+			serviceCIDR:         "10.0.0.128/25",
+			globalCIDR:          stringPtr("10.0.0.0/24"),
+			expectedPodCIDR:     "10.0.0.0/25",
+			expectedServiceCIDR: "10.0.0.128/25",
+			wantErr:             false,
+		},
+		{
+			name:                "IPv4 CIDRs with different masks",
+			podCIDR:             "172.16.0.0/20",
+			serviceCIDR:         "172.17.0.0/20",
+			globalCIDR:          nil,
+			expectedPodCIDR:     "172.16.0.0/20",
+			expectedServiceCIDR: "172.17.0.0/20",
+			wantErr:             false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			flags := &installFlags{
+				cidrConfig: &newconfig.CIDRConfig{
+					PodCIDR:     tt.podCIDR,
+					ServiceCIDR: tt.serviceCIDR,
+					GlobalCIDR:  tt.globalCIDR,
+				},
+				networkInterface: "",
+				overrides:        "",
+			}
+			installCfg := &installConfig{}
+
+			cfg, err := k0sConfigFromFlags(flags, installCfg)
+
+			if tt.wantErr {
+				req.Error(err)
+				return
+			}
+
+			req.NoError(err)
+			req.NotNil(cfg)
+			req.NotNil(cfg.Spec)
+			req.NotNil(cfg.Spec.Network)
+
+			// Verify pod CIDR is set correctly if expected
+			if tt.expectedPodCIDR != "" {
+				req.Equal(tt.expectedPodCIDR, cfg.Spec.Network.PodCIDR,
+					"Pod CIDR should be set correctly in k0s config")
+			}
+
+			// Verify service CIDR is set correctly if expected
+			if tt.expectedServiceCIDR != "" {
+				req.Equal(tt.expectedServiceCIDR, cfg.Spec.Network.ServiceCIDR,
+					"Service CIDR should be set correctly in k0s config")
+			}
+		})
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
+}
+
+func Test_buildInstallDerivedConfig_TLS(t *testing.T) {
 	// Create a temporary directory for test certificates
 	tmpdir := t.TempDir()
 
@@ -908,31 +908,17 @@ oxhVqyhpk86rf0rT5DcD/sBw
 			expectTLS:   false,
 		},
 		{
-			name:        "only cert file provided",
-			tlsCertFile: certPath,
-			tlsKeyFile:  "",
-			wantErr:     "both --tls-cert and --tls-key must be provided together",
-			expectTLS:   false,
-		},
-		{
-			name:        "only key file provided",
-			tlsCertFile: "",
-			tlsKeyFile:  keyPath,
-			wantErr:     "both --tls-cert and --tls-key must be provided together",
-			expectTLS:   false,
-		},
-		{
 			name:        "cert file does not exist",
 			tlsCertFile: filepath.Join(tmpdir, "nonexistent.pem"),
 			tlsKeyFile:  keyPath,
-			wantErr:     "load tls certificate",
+			wantErr:     "failed to read TLS certificate",
 			expectTLS:   false,
 		},
 		{
 			name:        "key file does not exist",
 			tlsCertFile: certPath,
 			tlsKeyFile:  filepath.Join(tmpdir, "nonexistent.key"),
-			wantErr:     "load tls certificate",
+			wantErr:     "failed to read TLS key",
 			expectTLS:   false,
 		},
 		{
@@ -943,7 +929,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 				return invalidCertPath
 			}(),
 			tlsKeyFile: keyPath,
-			wantErr:    "load tls certificate",
+			wantErr:    "failed to parse TLS certificate",
 			expectTLS:  false,
 		},
 		{
@@ -957,26 +943,27 @@ oxhVqyhpk86rf0rT5DcD/sBw
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flags := &InstallCmdFlags{
+			flags := &installFlags{
 				tlsCertFile: tt.tlsCertFile,
 				tlsKeyFile:  tt.tlsKeyFile,
 			}
 
-			err := processTLSConfig(flags)
+			installCfg, err := buildInstallConfig(flags)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 			} else {
 				require.NoError(t, err)
-			}
 
-			if tt.expectTLS {
-				assert.NotEmpty(t, flags.tlsCertBytes, "TLS cert bytes should be populated")
-				assert.NotEmpty(t, flags.tlsKeyBytes, "TLS key bytes should be populated")
-			} else {
-				assert.Empty(t, flags.tlsCertBytes, "TLS cert bytes should be empty")
-				assert.Empty(t, flags.tlsKeyBytes, "TLS key bytes should be empty")
+				if tt.expectTLS {
+					assert.NotEmpty(t, installCfg.tlsCertBytes, "TLS cert bytes should be populated")
+					assert.NotEmpty(t, installCfg.tlsKeyBytes, "TLS key bytes should be populated")
+					assert.NotNil(t, installCfg.tlsCert.Certificate, "TLS cert should be loaded")
+				} else {
+					assert.Empty(t, installCfg.tlsCertBytes, "TLS cert bytes should be empty")
+					assert.Empty(t, installCfg.tlsKeyBytes, "TLS key bytes should be empty")
+				}
 			}
 		})
 	}

@@ -162,8 +162,11 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	logFn := m.logFn("k0s")
 
 	logFn("creating k0s configuration file")
-	k0sCfg, err = m.k0scli.WriteK0sConfig(ctx, rc.NetworkInterface(), m.airgapBundle, rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
+	k0sCfg, err = m.k0scli.NewK0sConfig(rc.NetworkInterface(), m.airgapBundle != "", rc.PodCIDR(), rc.ServiceCIDR(), m.endUserConfig, nil)
 	if err != nil {
+		return nil, fmt.Errorf("new k0s config: %w", err)
+	}
+	if err := m.k0scli.WriteK0sConfig(ctx, k0sCfg); err != nil {
 		return nil, fmt.Errorf("create config file: %w", err)
 	}
 
