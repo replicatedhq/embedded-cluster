@@ -869,9 +869,9 @@ spec:
 			expectLicense: false,
 		},
 		{
-			name:        "license file does not exist",
-			licenseFile: filepath.Join(tmpdir, "nonexistent.yaml"),
-			wantErr:     "failed to read license file",
+			name:          "license file does not exist",
+			licenseFile:   filepath.Join(tmpdir, "nonexistent.yaml"),
+			wantErr:       "failed to read license file",
 			expectLicense: false,
 		},
 		{
