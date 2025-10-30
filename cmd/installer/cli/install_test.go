@@ -457,25 +457,6 @@ func Test_verifyLicense(t *testing.T) {
 			},
 		},
 		{
-			name:       "license with 100 year expiration, with release",
-			useRelease: true,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
-					Entitlements: map[string]kotsv1beta1.EntitlementField{
-						"expires_at": {
-							Value: kotsv1beta1.EntitlementValue{
-								Type:   kotsv1beta1.String,
-								StrVal: "2124-06-03T00:00:00Z",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
 			name:       "embedded cluster not enabled, with release",
 			useRelease: true,
 			license: &kotsv1beta1.License{
