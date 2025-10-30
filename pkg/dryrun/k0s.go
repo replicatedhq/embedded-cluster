@@ -27,8 +27,12 @@ func (c *K0s) IsInstalled() (bool, error) {
 	return c.Status != nil, nil
 }
 
-func (c *K0s) WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	return k0s.New().WriteK0sConfig(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, eucfg, mutate) // actual implementation accounts for dryrun
+func (c *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+	return k0s.New().NewK0sConfig(networkInterface, isAirgap, podCIDR, serviceCIDR, eucfg, mutate) // actual implementation accounts for dryrun
+}
+
+func (c *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
+	return k0s.New().WriteK0sConfig(ctx, cfg) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) PatchK0sConfig(path string, patch string) error {

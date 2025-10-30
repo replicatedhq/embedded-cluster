@@ -37,10 +37,19 @@ func (m *MockK0s) IsInstalled() (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-// WriteK0sConfig mocks the WriteK0sConfig method
-func (m *MockK0s) WriteK0sConfig(ctx context.Context, networkInterface string, airgapBundle string, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	args := m.Called(ctx, networkInterface, airgapBundle, podCIDR, serviceCIDR, eucfg, mutate)
+// NewK0sConfig mocks the NewK0sConfig method
+func (m *MockK0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+	args := m.Called(networkInterface, isAirgap, podCIDR, serviceCIDR, eucfg, mutate)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(*k0sv1beta1.ClusterConfig), args.Error(1)
+}
+
+// WriteK0sConfig mocks the WriteK0sConfig method
+func (m *MockK0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
+	args := m.Called(ctx, cfg)
+	return args.Error(0)
 }
 
 // PatchK0sConfig mocks the PatchK0sConfig method
