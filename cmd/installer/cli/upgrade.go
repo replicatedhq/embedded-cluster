@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -25,7 +26,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -114,7 +114,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli, appSlug); err != nil {
 				return err
 			}
-			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New(), kcli, appSlug); err != nil {
+			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New(), kcli); err != nil {
 				return err
 			}
 
@@ -352,7 +352,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	return nil
 }
 
-func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt, kcli client.Client, appSlug string) error {
+func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt, kcli client.Client) error {
 	isAirgap := flags.airgapBundle != ""
 
 	err := verifyChannelRelease("upgrade", isAirgap, flags.assumeYes)
@@ -367,9 +367,13 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 		}
 	}
 
-	// Validate release deployability
-	if err := validateReleaseDeployability(ctx, upgradeConfig, kcli, appSlug, isAirgap); err != nil {
-		return fmt.Errorf("upgrade validation failed: %w", err)
+	// Validate release upgradable
+	if err := validateIsReleaseUpgradable(ctx, upgradeConfig, kcli, isAirgap); err != nil {
+		if validation.IsValidationError(err) {
+			// This is a validation error that prevents the upgrade from proceeding, expose the error directly
+			return err
+		}
+		return fmt.Errorf("upgrade validation execution failed: %w", err)
 	}
 
 	if !isAirgap {
@@ -572,8 +576,8 @@ func checkRequiresInfraUpgrade(ctx context.Context) (bool, error) {
 	return !bytes.Equal(currentJSON, targetJSON), nil
 }
 
-// validateReleaseDeployability validates that the target release can be safely deployed
-func validateReleaseDeployability(ctx context.Context, upgradeConfig upgradeConfig, kcli client.Client, appSlug string, isAirgap bool) error {
+// validateIsReleaseUpgradable validates that the target release can be safely deployed
+func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfig, kcli client.Client, isAirgap bool) error {
 	// Get current installation for version information
 	currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
@@ -620,7 +624,7 @@ func validateReleaseDeployability(ctx context.Context, upgradeConfig upgradeConf
 	opts.TargetAppSequence = channelRelease.ChannelSequence
 
 	// For online upgrades, add the replicated API client and channel ID
-	if !isAirgap && upgradeConfig.replicatedAPIClient != nil {
+	if upgradeConfig.replicatedAPIClient != nil {
 		opts.ReplicatedAPI = upgradeConfig.replicatedAPIClient
 		opts.ChannelID = channelRelease.ChannelID
 	}
