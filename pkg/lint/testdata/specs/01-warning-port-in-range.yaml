@@ -11,4 +11,4 @@ spec:
       values: |
         service:
           type: NodePort
-          nodePort: 30000  # ERROR: This port is already supported!
+          nodePort: 30000

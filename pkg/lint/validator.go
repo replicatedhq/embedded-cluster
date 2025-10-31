@@ -60,6 +60,58 @@ type ValidationResult struct {
 	Warnings []ValidationWarning
 }
 
+// JSONOutput represents the JSON output format for all linted files
+type JSONOutput struct {
+	Files []FileResult `json:"files"`
+}
+
+// FileResult represents the validation result for a single file in JSON format
+type FileResult struct {
+	Path     string            `json:"path"`
+	Valid    bool              `json:"valid"`
+	Errors   []ValidationIssue `json:"errors,omitempty"`
+	Warnings []ValidationIssue `json:"warnings,omitempty"`
+}
+
+// ValidationIssue represents a single validation error or warning in JSON format
+type ValidationIssue struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// ToJSON converts a ValidationResult to a FileResult for JSON output
+func (r *ValidationResult) ToJSON(path string) FileResult {
+	result := FileResult{
+		Path:     path,
+		Valid:    len(r.Errors) == 0,
+		Errors:   []ValidationIssue{},
+		Warnings: []ValidationIssue{},
+	}
+
+	for _, err := range r.Errors {
+		if ve, ok := err.(ValidationError); ok {
+			result.Errors = append(result.Errors, ValidationIssue{
+				Field:   ve.Field,
+				Message: ve.Message,
+			})
+		} else {
+			result.Errors = append(result.Errors, ValidationIssue{
+				Field:   "",
+				Message: err.Error(),
+			})
+		}
+	}
+
+	for _, warning := range r.Warnings {
+		result.Warnings = append(result.Warnings, ValidationIssue{
+			Field:   warning.Field,
+			Message: warning.Message,
+		})
+	}
+
+	return result
+}
+
 // ValidateFile validates a single configuration file
 func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 	file, err := os.Open(path)

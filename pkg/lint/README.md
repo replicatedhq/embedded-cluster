@@ -21,11 +21,21 @@ embedded-cluster lint config1.yaml config2.yaml config3.yaml
 # Verbose mode (shows API endpoints and configuration)
 embedded-cluster lint -v config.yaml
 
+# JSON output (for CI/CD and scripting)
+embedded-cluster lint -o json config.yaml
+embedded-cluster lint --output json config.yaml  # Long form
+
 # With custom domain validation enabled
 REPLICATED_API_TOKEN="your-token" \
 REPLICATED_API_ORIGIN="https://api.replicated.com/vendor" \
 REPLICATED_APP="your-app-id" \
 embedded-cluster lint config.yaml
+
+# JSON output with custom domain validation
+REPLICATED_API_TOKEN="your-token" \
+REPLICATED_API_ORIGIN="https://api.replicated.com/vendor" \
+REPLICATED_APP="your-app-id" \
+embedded-cluster lint -o json config.yaml
 ```
 
 ## Validation Rules
@@ -76,6 +86,63 @@ ERROR: config.yaml: domains.replicatedAppDomain: custom domain "invalid.example.
 - **1**: Validation failed (has errors)
 
 Warnings do NOT cause a non-zero exit code.
+
+## JSON Output
+
+Use the `-o json` or `--output json` flag for machine-parseable output:
+
+```bash
+embedded-cluster lint -o json config.yaml
+embedded-cluster lint --output json config.yaml
+```
+
+### JSON Format
+
+```json
+{
+  "files": [
+    {
+      "path": "config.yaml",
+      "valid": true,
+      "warnings": [
+        {
+          "field": "unsupportedOverrides.builtInExtensions[adminconsole].service.nodePort",
+          "message": "port 8080 is already supported (supported range: 80-32767)"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### JSON Fields
+
+- `files[]` - Array of file results
+  - `path` - File path
+  - `valid` - `true` if no errors (warnings don't affect this)
+  - `errors[]` - Array of validation errors (if any)
+    - `field` - YAML path to the problematic field
+    - `message` - Error description
+  - `warnings[]` - Array of validation warnings (if any)
+    - `field` - YAML path to the field
+    - `message` - Warning description
+
+### CI/CD Integration
+
+```bash
+# Example: Fail CI build on errors, allow warnings
+if ! embedded-cluster lint -o json config.yaml > results.json 2>&1; then
+  echo "Validation failed with errors"
+  cat results.json | jq '.files[].errors'
+  exit 1
+fi
+
+# Check if there are any warnings
+if cat results.json | jq -e '.files[].warnings | length > 0' > /dev/null; then
+  echo "::warning::Lint warnings found"
+  cat results.json | jq '.files[].warnings'
+fi
+```
 
 ## Verbose Mode
 
