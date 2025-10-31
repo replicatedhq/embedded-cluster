@@ -227,7 +227,7 @@ func (v *Validator) extractNodePorts(data interface{}, path []string) []portInfo
 				continue
 			}
 
-			newPath := append(path, key)
+			newPath := append(append([]string{}, path...), key)
 
 			// Check if this is a nodePort field
 			if key == "nodePort" {
@@ -241,7 +241,7 @@ func (v *Validator) extractNodePorts(data interface{}, path []string) []portInfo
 		}
 	case map[string]interface{}:
 		for k, value := range val {
-			newPath := append(path, k)
+			newPath := append(append([]string{}, path...), k)
 
 			// Check if this is a nodePort field
 			if k == "nodePort" {
@@ -255,7 +255,7 @@ func (v *Validator) extractNodePorts(data interface{}, path []string) []portInfo
 		}
 	case []interface{}:
 		for i, item := range val {
-			newPath := append(path, fmt.Sprintf("[%d]", i))
+			newPath := append(append([]string{}, path...), fmt.Sprintf("[%d]", i))
 			ports = append(ports, v.extractNodePorts(item, newPath)...)
 		}
 	}
