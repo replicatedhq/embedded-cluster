@@ -2,11 +2,14 @@ package dryrun
 
 import (
 	"context"
+	"crypto/x509"
 	_ "embed"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -488,14 +491,18 @@ func TestCustomCidrInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 5 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
 		"--cidr", "10.2.0.0/16",
+		"--airgap-bundle", airgapBundleFile(t),
+		"--http-proxy", "http://localhost:3128",
+		"--https-proxy", "https://localhost:3128",
+		"--no-proxy", "localhost,127.0.0.1,10.0.0.0/8",
 	)
 
 	// --- validate commands --- //
@@ -514,6 +521,45 @@ func TestCustomCidrInstallation(t *testing.T) {
 
 	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
 	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
+
+	// --- validate registry --- //
+	expectedRegistryIP := "10.2.128.11" // lower band index 10
+
+	kcli, err := dr.KubeClient()
+	require.NoError(t, err, "get kube client")
+
+	var registrySecret corev1.Secret
+	err = kcli.Get(context.TODO(), types.NamespacedName{Name: "registry-tls", Namespace: "registry"}, &registrySecret)
+	require.NoError(t, err, "get registry TLS secret")
+
+	certData, ok := registrySecret.StringData["tls.crt"]
+	require.True(t, ok, "registry TLS secret must contain tls.crt")
+
+	// parse certificate and verify it contains the expected IP
+	block, _ := pem.Decode([]byte(certData))
+	require.NotNil(t, block, "failed to decode certificate PEM")
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err, "failed to parse certificate")
+
+	// check if certificate contains the expected registry IP (convert to strings for comparison)
+	ipStrings := make([]string, len(cert.IPAddresses))
+	for i, ip := range cert.IPAddresses {
+		ipStrings[i] = ip.String()
+	}
+	assert.Contains(t, ipStrings, expectedRegistryIP, "certificate should contain registry IP %s, found IPs: %v", expectedRegistryIP, cert.IPAddresses)
+
+	// --- validate registry helm values --- //
+	assert.Equal(t, "Install", hcli.Calls[2].Method)
+	registryOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "docker-registry", registryOpts.ReleaseName)
+	assertHelmValues(t, registryOpts.Values, map[string]interface{}{
+		"service.clusterIP": expectedRegistryIP,
+	})
+
+	// --- validate cidrs in no proxy --- //
+	noProxy := strings.Split(dr.OSEnv["NO_PROXY"], ",")
+	assert.Contains(t, noProxy, "10.2.0.0/17")
+	assert.Contains(t, noProxy, "10.2.128.0/17")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
