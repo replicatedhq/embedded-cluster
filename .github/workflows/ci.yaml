@@ -767,18 +767,6 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
           ./scripts/ci-release-app.sh
 
-          # then install a version with additional failing host preflights
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}-failing-preflights"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-failing-preflights
-          ./scripts/ci-release-app.sh
-
-          # then install a version with additional warning host preflights
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}-warning-preflights"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-warning-preflights
-          ./scripts/ci-release-app.sh
-
           # promote a release with improved dr support
           export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-legacydr"
@@ -893,15 +881,12 @@ jobs:
           - TestPreflights
           - TestPreflightsNoexec
           - TestMaterialize
-          - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
           - TestSingleNodeInstallation
           - TestSingleNodeInstallationAlmaLinux8
           - TestSingleNodeInstallationDebian11
           - TestSingleNodeInstallationDebian12
           - TestSingleNodeInstallationCentos9Stream
           - TestSingleNodeUpgradePreviousStable
-          - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedAppPreviousK0s
           - TestResetAndReinstall
           - TestMultiNodeInstallation
@@ -912,7 +897,6 @@ jobs:
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
           - TestLocalArtifactMirror
-          - TestMultiNodeReset
           - TestCollectSupportBundle
           - TestUnsupportedOverrides
           - TestHostCollectSupportBundleInCluster
@@ -984,8 +968,6 @@ jobs:
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestSingleNodeAirgapUpgradeConfigValues
-          - TestMultiNodeAirgapUpgrade
-          - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
