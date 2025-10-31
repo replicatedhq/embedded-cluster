@@ -35,7 +35,6 @@ type appConfigManager struct {
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
 	license                    licensewrapper.LicenseWrapper
-	license                    *kotsv1beta1.License
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client
