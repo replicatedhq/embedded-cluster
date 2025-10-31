@@ -123,7 +123,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
 		Nodes:  1,
-		Distro: "almalinux-8",
+		Distro: "debian-bookworm",
 	})
 	defer tc.Cleanup()
 
