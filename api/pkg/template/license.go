@@ -23,62 +23,62 @@ func (e *Engine) LicenseIsEmbeddedClusterDownloadEnabled() bool {
 	return e.license.IsEmbeddedClusterDownloadEnabled()
 }
 
-func (e *Engine) licenseFieldValue(name string) string {
+func (e *Engine) licenseFieldValue(name string) (string, error) {
 	if e.license.V1 == nil && e.license.V2 == nil {
-		return ""
+		return "", fmt.Errorf("license is nil")
 	}
 
 	// Update docs at https://github.com/replicatedhq/kots.io/blob/main/content/reference/template-functions/license-context.md
 	// when adding new values
 	switch name {
 	case "isSnapshotSupported":
-		return fmt.Sprintf("%t", e.license.IsSnapshotSupported())
+		return fmt.Sprintf("%t", e.license.IsSnapshotSupported()), nil
 	case "IsDisasterRecoverySupported":
-		return fmt.Sprintf("%t", e.license.IsDisasterRecoverySupported())
+		return fmt.Sprintf("%t", e.license.IsDisasterRecoverySupported()), nil
 	case "isGitOpsSupported":
-		return fmt.Sprintf("%t", e.license.IsGitOpsSupported())
+		return fmt.Sprintf("%t", e.license.IsGitOpsSupported()), nil
 	case "isSupportBundleUploadSupported":
-		return fmt.Sprintf("%t", e.license.IsSupportBundleUploadSupported())
+		return fmt.Sprintf("%t", e.license.IsSupportBundleUploadSupported()), nil
 	case "isEmbeddedClusterMultiNodeEnabled":
-		return fmt.Sprintf("%t", e.license.IsEmbeddedClusterMultiNodeEnabled())
+		return fmt.Sprintf("%t", e.license.IsEmbeddedClusterMultiNodeEnabled()), nil
 	case "isIdentityServiceSupported":
-		return fmt.Sprintf("%t", e.license.IsIdentityServiceSupported())
+		return fmt.Sprintf("%t", e.license.IsIdentityServiceSupported()), nil
 	case "isGeoaxisSupported":
-		return fmt.Sprintf("%t", e.license.IsGeoaxisSupported())
+		return fmt.Sprintf("%t", e.license.IsGeoaxisSupported()), nil
 	case "isAirgapSupported":
-		return fmt.Sprintf("%t", e.license.IsAirgapSupported())
+		return fmt.Sprintf("%t", e.license.IsAirgapSupported()), nil
 	case "licenseType":
-		return e.license.GetLicenseType()
+		return e.license.GetLicenseType(), nil
 	case "licenseSequence":
-		return fmt.Sprintf("%d", e.license.GetLicenseSequence())
+		return fmt.Sprintf("%d", e.license.GetLicenseSequence()), nil
 	case "signature":
-		return string(e.license.GetSignature())
+		return string(e.license.GetSignature()), nil
 	case "appSlug":
-		return e.license.GetAppSlug()
+		return e.license.GetAppSlug(), nil
 	case "channelID":
-		return e.license.GetChannelID()
+		return e.license.GetChannelID(), nil
 	case "channelName":
-		return e.license.GetChannelName()
+		return e.license.GetChannelName(), nil
 	case "isSemverRequired":
-		return fmt.Sprintf("%t", e.license.IsSemverRequired())
+		return fmt.Sprintf("%t", e.license.IsSemverRequired()), nil
 	case "customerName":
-		return e.license.GetCustomerName()
+		return e.license.GetCustomerName(), nil
 	case "licenseID", "licenseId":
-		return e.license.GetLicenseID()
+		return e.license.GetLicenseID(), nil
 	case "endpoint":
 		if e.releaseData == nil {
-			return ""
+			return "", fmt.Errorf("release data is nil")
 		}
 		ecDomains := utils.GetDomains(e.releaseData)
-		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain)
+		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain), nil
 	default:
 		entitlements := e.license.GetEntitlements()
 		entitlement, ok := entitlements[name]
 		if ok {
 			val := entitlement.GetValue()
-			return fmt.Sprintf("%v", val.Value())
+			return fmt.Sprintf("%v", val.Value()), nil
 		}
-		return ""
+		return "", nil
 	}
 }
 
