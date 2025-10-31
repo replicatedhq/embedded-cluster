@@ -8,13 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-<<<<<<< HEAD
-)
-
-func (e *Engine) licenseFieldValue(name string) (string, error) {
-	if e.license == nil {
-		return "", fmt.Errorf("license is nil")
-=======
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
@@ -139,6 +132,8 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 	}
 }
 
+func (e *Engine) channelName() (string, error) {
+	if e.license == nil {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {
@@ -153,7 +148,7 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 			return channel.ChannelName, nil
 		}
 	}
-	if e.license.Spec.ChannelID == e.releaseData.ChannelRelease.ChannelID {
+	if e.license.GetChannelID() == e.releaseData.ChannelRelease.ChannelID {
 		return e.license.Spec.ChannelName, nil
 	}
 	return "", fmt.Errorf("channel %s not found in license", e.releaseData.ChannelRelease.ChannelID)
