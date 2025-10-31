@@ -605,6 +605,12 @@ func TestCustomCidrInstallation(t *testing.T) {
 	}
 	assert.True(t, found, "NO_PROXY env var not found in admin console opts")
 
+	// --- validate custom cidrs in NO_PROXY in http-proxy.conf file --- //
+	proxyConfPath := "/etc/systemd/system/k0scontroller.service.d/http-proxy.conf"
+	proxyConfContent, err := os.ReadFile(proxyConfPath)
+	require.NoError(t, err, "failed to read http-proxy.conf file")
+	assert.Contains(t, string(proxyConfContent), fmt.Sprintf(`Environment="NO_PROXY=%s"`, noProxy), "http-proxy.conf should contain NO_PROXY with custom CIDRs")
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
