@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -548,7 +547,26 @@ func TestCustomCidrInstallation(t *testing.T) {
 	}
 	assert.Contains(t, ipStrings, expectedRegistryIP, "certificate should contain registry IP %s, found IPs: %v", expectedRegistryIP, cert.IPAddresses)
 
-	// --- validate registry helm values --- //
+	// --- validate cidrs in NO_PROXY OS env var --- //
+	noProxy := dr.OSEnv["NO_PROXY"]
+	assert.Contains(t, noProxy, "10.2.0.0/17")
+	assert.Contains(t, noProxy, "10.2.128.0/17")
+
+	// --- validate cidrs in NO_PROXY Helm value of operator chart --- //
+	assert.Equal(t, "Install", hcli.Calls[1].Method)
+	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
+
+	found := false
+	for _, env := range operatorOpts.Values["extraEnv"].([]map[string]interface{}) {
+		if env["name"] == "NO_PROXY" {
+			assert.Equal(t, noProxy, env["value"])
+			found = true
+		}
+	}
+	assert.True(t, found, "NO_PROXY env var not found in operator opts")
+
+	// --- validate custom cidr was used for registry service cluster IP --- //
 	assert.Equal(t, "Install", hcli.Calls[2].Method)
 	registryOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "docker-registry", registryOpts.ReleaseName)
@@ -556,10 +574,36 @@ func TestCustomCidrInstallation(t *testing.T) {
 		"service.clusterIP": expectedRegistryIP,
 	})
 
-	// --- validate cidrs in no proxy --- //
-	noProxy := strings.Split(dr.OSEnv["NO_PROXY"], ",")
-	assert.Contains(t, noProxy, "10.2.0.0/17")
-	assert.Contains(t, noProxy, "10.2.128.0/17")
+	// --- validate cidrs in NO_PROXY Helm value of velero chart --- //
+	assert.Equal(t, "Install", hcli.Calls[3].Method)
+	veleroOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "velero", veleroOpts.ReleaseName)
+	found = false
+
+	extraEnvVars, err := helm.GetValue(veleroOpts.Values, "configuration.extraEnvVars")
+	require.NoError(t, err)
+
+	for _, env := range extraEnvVars.([]map[string]interface{}) {
+		if env["name"] == "NO_PROXY" {
+			assert.Equal(t, noProxy, env["value"])
+			found = true
+		}
+	}
+	assert.True(t, found, "NO_PROXY env var not found in velero opts")
+
+	// --- validate cidrs in NO_PROXY Helm value of admin console chart --- //
+	assert.Equal(t, "Install", hcli.Calls[4].Method)
+	adminConsoleOpts := hcli.Calls[4].Arguments[1].(helm.InstallOptions)
+	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
+
+	found = false
+	for _, env := range adminConsoleOpts.Values["extraEnv"].([]map[string]interface{}) {
+		if env["name"] == "NO_PROXY" {
+			assert.Equal(t, noProxy, env["value"])
+			found = true
+		}
+	}
+	assert.True(t, found, "NO_PROXY env var not found in admin console opts")
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
