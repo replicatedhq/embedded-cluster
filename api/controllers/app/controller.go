@@ -21,7 +21,6 @@ import (
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kyaml "sigs.k8s.io/yaml"
 )
 
 type Controller interface {
