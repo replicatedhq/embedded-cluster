@@ -251,36 +251,39 @@ func (c *APIClient) getDomainsFromChannelReleases() ([]string, error) {
 		if err != nil {
 			continue
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			continue
-		}
+		func() {
+			defer resp.Body.Close()
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			continue
-		}
+			if resp.StatusCode != http.StatusOK {
+				return
+			}
 
-		var releasesResp ChannelReleasesResponse
-		if err := json.Unmarshal(body, &releasesResp); err != nil {
-			continue
-		}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return
+			}
 
-		// Extract domains from releases
-		for _, release := range releasesResp.ChannelReleases {
-			if release.DefaultDomains != nil {
-				if release.DefaultDomains.ReplicatedApp != "" {
-					domainSet[release.DefaultDomains.ReplicatedApp] = true
-				}
-				if release.DefaultDomains.ProxyRegistry != "" {
-					domainSet[release.DefaultDomains.ProxyRegistry] = true
-				}
-				if release.DefaultDomains.ReplicatedRegistry != "" {
-					domainSet[release.DefaultDomains.ReplicatedRegistry] = true
+			var releasesResp ChannelReleasesResponse
+			if err := json.Unmarshal(body, &releasesResp); err != nil {
+				return
+			}
+
+			// Extract domains from releases
+			for _, release := range releasesResp.ChannelReleases {
+				if release.DefaultDomains != nil {
+					if release.DefaultDomains.ReplicatedApp != "" {
+						domainSet[release.DefaultDomains.ReplicatedApp] = true
+					}
+					if release.DefaultDomains.ProxyRegistry != "" {
+						domainSet[release.DefaultDomains.ProxyRegistry] = true
+					}
+					if release.DefaultDomains.ReplicatedRegistry != "" {
+						domainSet[release.DefaultDomains.ReplicatedRegistry] = true
+					}
 				}
 			}
-		}
+		}()
 	}
 
 	// Convert set to slice
