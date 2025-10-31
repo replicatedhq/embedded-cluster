@@ -448,7 +448,7 @@ func TestEngine_ChannelName(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -488,7 +488,7 @@ func TestEngine_ChannelName_FallbackToLicenseChannel(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -528,7 +528,7 @@ func TestEngine_ChannelName_WithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -559,7 +559,7 @@ func TestEngine_ChannelName_WithoutChannelRelease(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -599,13 +599,14 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "channel unknown-channel-id not found in license")
+}
 
 func TestEngine_LicenseWrapper(t *testing.T) {
 	tests := []struct {

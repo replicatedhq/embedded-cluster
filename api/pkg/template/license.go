@@ -8,7 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 // Helper methods for direct access (used by tests and other code)
@@ -68,10 +67,10 @@ func (e *Engine) licenseFieldValue(name string) string {
 		return e.license.GetLicenseID()
 	case "endpoint":
 		if e.releaseData == nil {
-			return "", fmt.Errorf("release data is nil")
+			return ""
 		}
 		ecDomains := utils.GetDomains(e.releaseData)
-		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain), nil
+		return netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain)
 	default:
 		entitlements := e.license.GetEntitlements()
 		entitlement, ok := entitlements[name]
@@ -79,7 +78,7 @@ func (e *Engine) licenseFieldValue(name string) string {
 			val := entitlement.GetValue()
 			return fmt.Sprintf("%v", val.Value())
 		}
-		return "", nil
+		return ""
 	}
 }
 
@@ -133,7 +132,7 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 }
 
 func (e *Engine) channelName() (string, error) {
-	if e.license == nil {
+	if e.license.GetLicenseID() == "" {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {
@@ -143,13 +142,13 @@ func (e *Engine) channelName() (string, error) {
 		return "", fmt.Errorf("channel release is nil")
 	}
 
-	for _, channel := range e.license.Spec.Channels {
+	for _, channel := range e.license.GetChannels() {
 		if channel.ChannelID == e.releaseData.ChannelRelease.ChannelID {
 			return channel.ChannelName, nil
 		}
 	}
 	if e.license.GetChannelID() == e.releaseData.ChannelRelease.ChannelID {
-		return e.license.Spec.ChannelName, nil
+		return e.license.GetChannelName(), nil
 	}
 	return "", fmt.Errorf("channel %s not found in license", e.releaseData.ChannelRelease.ChannelID)
 }
