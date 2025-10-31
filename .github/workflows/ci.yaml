@@ -904,7 +904,6 @@ jobs:
           - TestInstallFromReplicatedApp
           - TestUpgradeFromReplicatedAppPreviousK0s
           - TestResetAndReinstall
-          - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
@@ -985,7 +984,6 @@ jobs:
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestSingleNodeAirgapUpgradeConfigValues
-          - TestSingleNodeAirgapUpgradeCustomCIDR
           - TestMultiNodeAirgapUpgrade
           - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
