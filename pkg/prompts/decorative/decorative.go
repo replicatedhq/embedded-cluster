@@ -24,6 +24,16 @@ func (d Decorative) Confirm(msg string, defvalue bool) (bool, error) {
 	return response, nil
 }
 
+// PressEnter asks the user to press enter to continue.
+func (d Decorative) PressEnter(msg string) error {
+	var i string
+	in := &survey.Input{Message: msg}
+	if err := survey.AskOne(in, &i); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Password asks the user for a password. Password can't be empty.
 func (d Decorative) Password(msg string) (string, error) {
 	var pass string
@@ -36,6 +46,20 @@ func (d Decorative) Password(msg string) (string, error) {
 		}
 	}
 	return pass, nil
+}
+
+// Select asks the user to select one of the provided options.
+func (d Decorative) Select(msg string, options []string, defvalue string) (string, error) {
+	question := &survey.Select{
+		Message: msg,
+		Options: options,
+		Default: defvalue,
+	}
+	var response string
+	if err := survey.AskOne(question, &response); err != nil {
+		return "", err
+	}
+	return response, nil
 }
 
 // Input asks the user for a string. If required is true then

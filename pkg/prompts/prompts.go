@@ -14,15 +14,10 @@ import (
 var (
 	_isTerminal bool   = false
 	_testPrompt Prompt = nil
-	_isHeadless bool   = false
 )
 
 func SetTerminal(isTerminal bool) {
 	_isTerminal = isTerminal
-}
-
-func SetHeadless(isHeadless bool) {
-	_isHeadless = isHeadless
 }
 
 // Prompt is the interface implemented by 'decorative' and 'plain' prompts.
@@ -30,8 +25,12 @@ type Prompt interface {
 	// Confirm asks for user for a "Yes" or "No" response. The default value is used if the user
 	// presses enter without typing anything.
 	Confirm(msg string, defvalue bool) (bool, error)
+	// PressEnter asks the user to press enter to continue.
+	PressEnter(msg string) error
 	// Password asks the user for a password. Password can't be empty.
 	Password(msg string) (string, error)
+	// Select asks the user to select one of the provided options.
+	Select(msg string, options []string, defvalue string) (string, error)
 	// Input asks the user for a string. If required is true then the string cannot be empty.
 	Input(msg string, defvalue string, required bool) (string, error)
 }
@@ -41,10 +40,6 @@ func New() Prompt {
 	// If a test prompt is set, use it instead
 	if _testPrompt != nil {
 		return _testPrompt
-	}
-	// If in headless mode, return a prompt with no stdin
-	if _isHeadless {
-		return plain.New(plain.WithIn(nil))
 	}
 	if os.Getenv("EMBEDDED_CLUSTER_PLAIN_PROMPTS") == "true" {
 		return plain.New()

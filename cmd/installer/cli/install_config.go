@@ -88,9 +88,6 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 		}
 	}
 
-	// Set headless mode for prompts library
-	prompts.SetHeadless(flags.headless)
-
 	return nil
 }
 
@@ -225,11 +222,7 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 				return fmt.Errorf("failed to get confirmation: %w", err)
 			}
 			if !confirmed {
-				if flags.headless {
-					logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
-				} else {
-					logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
-				}
+				logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
 				return fmt.Errorf("installation cancelled by user")
 			}
 		}
