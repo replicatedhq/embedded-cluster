@@ -113,15 +113,15 @@ kind: Config`,
 
 func TestParseLicense(t *testing.T) {
 	tests := []struct {
-		name           string
-		licenseFile    string
-		wantErr        bool
-		wantIsV1       bool
-		wantIsV2       bool
-		wantAppSlug    string
-		wantLicenseID  string
-		wantECEnabled  bool
-		wantCustomer   string
+		name          string
+		licenseFile   string
+		wantErr       bool
+		wantIsV1      bool
+		wantIsV2      bool
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+		wantCustomer  string
 	}{
 		{
 			name:          "v1beta1 license",

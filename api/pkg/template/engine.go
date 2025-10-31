@@ -10,8 +10,8 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Mode defines the operating mode of the template engine
@@ -27,7 +27,7 @@ const (
 type Engine struct {
 	mode                       Mode
 	config                     *kotsv1beta1.Config
-	license     licensewrapper.LicenseWrapper
+	license                    licensewrapper.LicenseWrapper
 	releaseData                *release.ReleaseData
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
