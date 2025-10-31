@@ -24,7 +24,7 @@ func (e *Engine) LicenseIsEmbeddedClusterDownloadEnabled() bool {
 }
 
 func (e *Engine) licenseFieldValue(name string) string {
-	if e.license.GetLicenseID() == "" {
+	if e.license.V1 == nil && e.license.V2 == nil {
 		return ""
 	}
 
@@ -83,7 +83,7 @@ func (e *Engine) licenseFieldValue(name string) string {
 }
 
 func (e *Engine) licenseDockerCfg() (string, error) {
-	if e.license.GetLicenseID() == "" {
+	if e.license.V1 == nil && e.license.V2 == nil {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {
@@ -132,7 +132,7 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 }
 
 func (e *Engine) channelName() (string, error) {
-	if e.license.GetLicenseID() == "" {
+	if e.license.V1 == nil && e.license.V2 == nil {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {

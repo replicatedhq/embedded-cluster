@@ -135,9 +135,9 @@ func TestEngine_LicenseFieldValueWithoutLicense(t *testing.T) {
 
 	err := engine.Parse("{{repl LicenseFieldValue \"customerName\" }}")
 	require.NoError(t, err)
-	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "license is nil")
+	result, err := engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
+	require.NoError(t, err)
+	assert.Empty(t, result, "LicenseFieldValue should return empty string when license is nil")
 }
 
 func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
