@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
@@ -80,6 +81,29 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	}
 	flags.proxySpec = proxy
 
+	// Headless installation validation
+	if isV3Enabled() && flags.headless {
+		if err := validateHeadlessInstallFlags(flags); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateHeadlessInstallFlags(flags *installFlags) error {
+	if flags.configValues == "" {
+		return fmt.Errorf("--config-values flag is required for headless installation")
+	}
+
+	if flags.adminConsolePassword == "" {
+		return fmt.Errorf("--admin-console-password flag is required for headless installation")
+	}
+
+	if flags.target != string(apitypes.InstallTargetLinux) {
+		return fmt.Errorf("headless installation only supports --target=linux (got: %s)", flags.target)
+	}
+
 	return nil
 }
 
@@ -111,6 +135,13 @@ func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("config values file is not valid: %w", err)
 		}
+
+		// Parse the config values file
+		cv, err := helpers.ParseConfigValues(flags.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse config values file: %w", err)
+		}
+		installCfg.configValues = cv
 	}
 
 	// Airgap detection and metadata

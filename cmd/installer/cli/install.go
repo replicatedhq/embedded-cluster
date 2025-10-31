@@ -15,7 +15,6 @@ import (
 	"github.com/AlecAivazis/survey/v2/terminal"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
-	headlessinstall "github.com/replicatedhq/embedded-cluster/cmd/installer/cli/headless/install"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
@@ -99,6 +98,7 @@ type installConfig struct {
 	tlsCert                 *tls.Certificate
 	tlsCertBytes            []byte
 	tlsKeyBytes             []byte
+	configValues            *kotsv1beta1.ConfigValues
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -130,13 +130,6 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			installCfg, err := preRunInstall(cmd, &flags, rc, ki)
 			if err != nil {
 				return err
-			}
-
-			// Validate headless mode requirements
-			if flags.headless {
-				if err := validateHeadlessInstall(&flags); err != nil {
-					return err
-				}
 			}
 
 			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, installCfg, prompts.New()); err != nil {
@@ -369,22 +362,6 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 	return nil
 }
 
-// validateHeadlessInstall validates the flags and config values required for headless installation
-func validateHeadlessInstall(flags *installFlags) error {
-	// Validate flags
-	headlessFlags := headlessinstall.HeadlessInstallFlags{
-		ConfigValues:         flags.configValues,
-		AdminConsolePassword: flags.adminConsolePassword,
-		Target:               flags.target,
-	}
-
-	if validationErrors := headlessinstall.ValidateHeadlessInstallFlags(headlessFlags); len(validationErrors) > 0 {
-		return fmt.Errorf("%s", headlessinstall.FormatValidationErrors(validationErrors))
-	}
-
-	return nil
-}
-
 func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation) (*installConfig, error) {
 	// Hydrate flags
 	if err := buildInstallFlags(cmd, flags); err != nil {
@@ -504,12 +481,8 @@ func runManagerExperienceInstall(
 	}
 
 	var configValues apitypes.AppConfigValues
-	if flags.configValues != "" {
-		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
-		if err != nil {
-			return fmt.Errorf("parse config values file: %w", err)
-		}
-		configValues = apitypes.ConvertToAppConfigValues(kotsConfigValues)
+	if installCfg.configValues != nil {
+		configValues = apitypes.ConvertToAppConfigValues(installCfg.configValues)
 	}
 
 	// Determine socket path for headless mode
