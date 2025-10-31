@@ -90,10 +90,7 @@ func (r *ValidationResult) ToJSON(path string) FileResult {
 
 	for _, err := range r.Errors {
 		if ve, ok := err.(ValidationError); ok {
-			result.Errors = append(result.Errors, ValidationIssue{
-				Field:   ve.Field,
-				Message: ve.Message,
-			})
+			result.Errors = append(result.Errors, ValidationIssue(ve))
 		} else {
 			result.Errors = append(result.Errors, ValidationIssue{
 				Field:   "",
@@ -103,10 +100,7 @@ func (r *ValidationResult) ToJSON(path string) FileResult {
 	}
 
 	for _, warning := range r.Warnings {
-		result.Warnings = append(result.Warnings, ValidationIssue{
-			Field:   warning.Field,
-			Message: warning.Message,
-		})
+		result.Warnings = append(result.Warnings, ValidationIssue(warning))
 	}
 
 	return result
