@@ -76,7 +76,7 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			)
 
 			// Test the getAddonInstallOpts method with configValues passed as parameter
-			opts := manager.getAddonInstallOpts(t.Context(), wrappedLicense, rc)
+			opts, err := manager.getAddonInstallOpts(t.Context(), wrappedLicense, rc)
 			assert.NoError(t, err)
 
 			// Verify the install options

@@ -44,7 +44,7 @@ spec:
 	}
 
 	// Set up release data globally so AppSlug() returns the correct value for v3
-	err = release.SetReleaseDataForTests(map[string][]byte{
+	err := release.SetReleaseDataForTests(map[string][]byte{
 		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
 	})
 	require.NoError(t, err)
