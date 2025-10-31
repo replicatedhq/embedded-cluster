@@ -101,6 +101,65 @@ func TestSyncLicense(t *testing.T) {
 			wantIsV1:            true,
 		},
 		{
+			name: "successful license sync with v1beta2",
+			license: kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					AppSlug:         "test-app",
+					LicenseID:       "test-license-id",
+					LicenseSequence: 5,
+					ChannelID:       "test-channel-123",
+					ChannelName:     "Stable",
+					Channels: []kotsv1beta1.Channel{
+						{
+							ChannelID:   "test-channel-123",
+							ChannelName: "Stable",
+						},
+					},
+				},
+			},
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					ChannelID: "test-channel-123",
+				},
+			},
+			serverHandler: func(t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					// Validate request
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/license/test-app", r.URL.Path)
+					assert.Equal(t, "5", r.URL.Query().Get("licenseSequence"))
+					assert.Equal(t, "test-channel-123", r.URL.Query().Get("selectedChannelId"))
+					assert.Equal(t, "application/yaml", r.Header.Get("Accept"))
+
+					// Validate auth header
+					authHeader := r.Header.Get("Authorization")
+					assert.NotEmpty(t, authHeader)
+					assert.Contains(t, authHeader, "Basic ")
+
+					// Return v1beta2 license response
+					resp := `apiVersion: kots.io/v1beta2
+kind: License
+spec:
+  licenseID: test-license-id-v2
+  appSlug: test-app
+  licenseSequence: 6
+  customerName: Test Customer
+  channelID: test-channel-123
+  channelName: Stable
+  channels:
+    - channelID: test-channel-123
+      channelName: Stable`
+
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(resp))
+				}
+			},
+			wantLicenseSequence: 6,
+			wantAppSlug:         "test-app",
+			wantLicenseID:       "test-license-id-v2",
+			wantIsV2:            true,
+		},
+		{
 			name: "returns error on 401 unauthorized",
 			license: kotsv1beta1.License{
 				Spec: kotsv1beta1.LicenseSpec{

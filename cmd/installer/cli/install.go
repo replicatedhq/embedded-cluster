@@ -815,7 +815,6 @@ func verifyLicense(license licensewrapper.LicenseWrapper) (licensewrapper.Licens
 		return licensewrapper.LicenseWrapper{}, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
-
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.GetAppSlug() {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
