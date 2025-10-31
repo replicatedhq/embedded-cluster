@@ -136,7 +136,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 
 			metricsReporter := newInstallReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				installCfg.license.GetLicenseIO(), installCfg.clusterID, installCfg.license.Spec.AppSlug,
+				installCfg.license.GetLicenseID(), installCfg.clusterID, installCfg.license.GetAppSlug(),
 			)
 			metricsReporter.ReportInstallationStarted(ctx)
 
@@ -661,8 +661,8 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		TLSCertBytes:            installCfg.tlsCertBytes,
 		TLSKeyBytes:             installCfg.tlsKeyBytes,
 		Hostname:                flags.hostname,
-		DisasterRecoveryEnabled: flags.license.IsDisasterRecoverySupported(),
-		IsMultiNodeEnabled:      flags.license.IsEmbeddedClusterMultiNodeEnabled(),
+		DisasterRecoveryEnabled: installCfg.license.IsDisasterRecoverySupported(),
+		IsMultiNodeEnabled:      installCfg.license.IsEmbeddedClusterMultiNodeEnabled(),
 		EmbeddedConfigSpec:      embCfgSpec,
 		EndUserConfigSpec:       euCfgSpec,
 		ProxySpec:               rc.ProxySpec(),
@@ -674,8 +674,8 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
 			opts := kotscli.InstallOptions{
-				AppSlug:               flags.license.GetAppSlug(),
-				License:               flags.licenseBytes,
+				AppSlug:               installCfg.license.GetAppSlug(),
+				License:               installCfg.licenseBytes,
 				Namespace:             kotsadmNamespace,
 				ClusterID:             installCfg.clusterID,
 				AirgapBundle:          flags.airgapBundle,
@@ -818,9 +818,10 @@ func getLicenseFromFilepath(licenseFile string) (licensewrapper.LicenseWrapper, 
 	entitlements := license.GetEntitlements()
 	if expiresAt, ok := entitlements["expires_at"]; ok {
 		expiresAtValue := expiresAt.GetValue()
-		if expiresAtValue.StrVal != "" {
+		valueInterface := expiresAtValue.Value()
+		if expiresAtStr, ok := valueInterface.(string); ok && expiresAtStr != "" {
 			// read the expiration date, and check it against the current date
-			expiration, err := time.Parse(time.RFC3339, expiresAtValue.StrVal)
+			expiration, err := time.Parse(time.RFC3339, expiresAtStr)
 			if err != nil {
 				return licensewrapper.LicenseWrapper{}, fmt.Errorf("parse expiration date: %w", err)
 			}

@@ -26,7 +26,7 @@ import (
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/embedded-cluster/web"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -49,7 +49,7 @@ type upgradeConfig struct {
 	passwordHash         []byte
 	tlsConfig            apitypes.TLSConfig
 	tlsCert              tls.Certificate
-	license              *kotsv1beta1.License
+	license              licensewrapper.LicenseWrapper
 	licenseBytes         []byte
 	airgapMetadata       *airgap.AirgapMetadata
 	embeddedAssetsSize   int64
@@ -126,7 +126,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 
 			metricsReporter := newUpgradeReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				upgradeConfig.license.Spec.LicenseID, upgradeConfig.clusterID, upgradeConfig.license.Spec.AppSlug,
+				upgradeConfig.license.GetLicenseID(), upgradeConfig.clusterID, upgradeConfig.license.GetAppSlug(),
 				targetVersion, initialVersion,
 			)
 			metricsReporter.ReportUpgradeStarted(ctx)
