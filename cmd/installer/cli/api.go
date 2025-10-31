@@ -40,7 +40,7 @@ type apiOptions struct {
 func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
 	if err != nil {
-		return fmt.Errorf("unable to create tcp listener: %w", err)
+		return fmt.Errorf("unable to create listener: %w", err)
 	}
 	logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
 
@@ -95,6 +95,8 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		return fmt.Errorf("new api: %w", err)
 	}
 
+	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
+
 	// Only start web server for UI mode, not headless
 	if !opts.Headless {
 		webServer, err := web.New(web.InitialState{
@@ -110,8 +112,6 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		}
 		webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
 	}
-
-	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
