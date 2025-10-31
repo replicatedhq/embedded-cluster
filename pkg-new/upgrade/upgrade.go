@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
+	"strconv"
 	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -368,9 +370,25 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfi
 }
 
 func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
+	// Get poll interval from environment variable, default to 20 seconds
+	pollInterval := 20 * time.Second
+	if envInterval := os.Getenv("AUTOPILOT_POLL_INTERVAL"); envInterval != "" {
+		if duration, err := time.ParseDuration(envInterval); err == nil {
+			pollInterval = duration
+		}
+	}
+
+	// Get max steps from environment variable, default to 90 attempts × 20s = 1800s = 30 minutes
+	maxSteps := 90
+	if envSteps := os.Getenv("AUTOPILOT_MAX_STEPS"); envSteps != "" {
+		if steps, err := strconv.Atoi(envSteps); err == nil && steps > 0 {
+			maxSteps = steps
+		}
+	}
+
 	backoff := wait.Backoff{
-		Duration: 20 * time.Second, // 20-second polling interval
-		Steps:    90,               // 90 attempts × 20s = 1800s = 30 minutes
+		Duration: pollInterval,
+		Steps:    maxSteps,
 	}
 
 	var plan apv1b2.Plan
@@ -408,15 +426,28 @@ func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.
 }
 
 func waitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
-	return waitForClusterNodesMatchVersionWithBackoff(ctx, cli, desiredVersion, logger, wait.Backoff{
-		Duration: 5 * time.Second,
-		Steps:    60, // 60 attempts × 5s = 300s = 5 minutes
+	// Get poll interval from environment variable, default to 5 seconds
+	pollInterval := 5 * time.Second
+	if envInterval := os.Getenv("AUTOPILOT_NODE_POLL_INTERVAL"); envInterval != "" {
+		if duration, err := time.ParseDuration(envInterval); err == nil {
+			pollInterval = duration
+		}
+	}
+
+	// Get max steps from environment variable, default to 60 attempts × 5s = 300s = 5 minutes
+	maxSteps := 60
+	if envSteps := os.Getenv("AUTOPILOT_NODE_MAX_STEPS"); envSteps != "" {
+		if steps, err := strconv.Atoi(envSteps); err == nil && steps > 0 {
+			maxSteps = steps
+		}
+	}
+
+	backoff := wait.Backoff{
+		Duration: pollInterval,
+		Steps:    maxSteps,
 		Factor:   1.0,
 		Jitter:   0.1,
-	})
-}
-
-func waitForClusterNodesMatchVersionWithBackoff(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger, backoff wait.Backoff) error {
+	}
 	var lastErr error
 
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
