@@ -95,7 +95,7 @@ type installConfig struct {
 	airgapMetadata          *airgap.AirgapMetadata
 	embeddedAssetsSize      int64
 	endUserConfig           *ecv1beta1.Config
-	tlsCert                 *tls.Certificate
+	tlsCert                 tls.Certificate
 	tlsCertBytes            []byte
 	tlsKeyBytes             []byte
 	configValues            *kotsv1beta1.ConfigValues
@@ -485,15 +485,6 @@ func runManagerExperienceInstall(
 		configValues = apitypes.ConvertToAppConfigValues(installCfg.configValues)
 	}
 
-	// Determine socket path for headless mode
-	var socketPath string
-	if flags.headless {
-		socketPath = getHeadlessSocketPath(rc.EmbeddedClusterTmpSubDir())
-		defer func() {
-			_ = os.Remove(socketPath)
-		}()
-	}
-
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			InstallTarget: apitypes.InstallTarget(flags.target),
@@ -525,7 +516,6 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
-		SocketPath:      socketPath,
 		Headless:        flags.headless,
 		WebMode:         web.ModeInstall,
 		MetricsReporter: metricsReporter,
@@ -538,10 +528,8 @@ func runManagerExperienceInstall(
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
-	// Validate headless mode requirements
 	if flags.headless {
 		// TODO(PR2): Implement headless installation orchestration
-		// The orchestrator will use the unix socket at socketPath to communicate with the API
 		return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 	}
 
@@ -719,11 +707,6 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 		return err
 	}
 
-	logrus.Debugf("checking license matches")
-	license, err := getLicenseFromFilepath(flags.licenseFile)
-	if err != nil {
-		return err
-	}
 	if installCfg.airgapMetadata != nil && installCfg.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(installCfg.airgapMetadata.AirgapInfo); err != nil {
@@ -732,7 +715,7 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	if !installCfg.isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompt, license, flags.assumeYes); err != nil {
+		if err := maybePromptForAppUpdate(ctx, prompt, installCfg.license, flags.assumeYes, flags.headless); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
@@ -1085,7 +1068,7 @@ func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool, headless bool) error {
 	channelRelease := release.GetChannelRelease()
 	if channelRelease == nil {
 		// It is possible to install without embedding the release data. In this case, we cannot
@@ -1122,8 +1105,8 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		channelRelease.ChannelSlug,
 	)
 
-	// if the assumeYes flag is set, we don't prompt the user and continue by default.
-	if assumeYes {
+	// if the assumeYes flag is set or the install is headless, we don't prompt the user and continue by default.
+	if assumeYes || headless {
 		return nil
 	}
 

@@ -15,21 +15,9 @@ func (m *MockPrompt) Confirm(msg string, defvalue bool) (bool, error) {
 	return args.Bool(0), args.Error(1)
 }
 
-// PressEnter mocks the PressEnter method
-func (m *MockPrompt) PressEnter(msg string) error {
-	args := m.Called(msg)
-	return args.Error(0)
-}
-
 // Password mocks the Password method
 func (m *MockPrompt) Password(msg string) (string, error) {
 	args := m.Called(msg)
-	return args.String(0), args.Error(1)
-}
-
-// Select mocks the Select method
-func (m *MockPrompt) Select(msg string, options []string, defvalue string) (string, error) {
-	args := m.Called(msg, options, defvalue)
 	return args.String(0), args.Error(1)
 }
 

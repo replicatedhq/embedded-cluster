@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -29,7 +28,6 @@ type apiOptions struct {
 	apitypes.APIConfig
 
 	ManagerPort int
-	SocketPath  string
 	Headless    bool
 	// The mode the web will be running on, install or upgrade
 	WebMode web.Mode
@@ -39,27 +37,12 @@ type apiOptions struct {
 	WebAssetsFS     fs.FS
 }
 
-func startAPI(ctx context.Context, cert *tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
-	var listener net.Listener
-	var err error
-
-	if opts.SocketPath != "" {
-		// For headless mode, listen on unix socket
-		// Remove socket file if it already exists
-		_ = os.Remove(opts.SocketPath)
-		listener, err = net.Listen("unix", opts.SocketPath)
-		if err != nil {
-			return fmt.Errorf("unable to create unix socket listener: %w", err)
-		}
-		logrus.Debugf("API server listening on unix socket: %s", opts.SocketPath)
-	} else {
-		// For UI mode, listen on TCP port
-		listener, err = net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
-		if err != nil {
-			return fmt.Errorf("unable to create tcp listener: %w", err)
-		}
-		logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
+func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
+	if err != nil {
+		return fmt.Errorf("unable to create tcp listener: %w", err)
 	}
+	logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
 
 	go func() {
 		// If the api exits, we want to exit the entire process
@@ -71,26 +54,15 @@ func startAPI(ctx context.Context, cert *tls.Certificate, opts apiOptions, cance
 		}
 	}()
 
-	var addr string
+	addr := fmt.Sprintf("https://localhost:%d", opts.ManagerPort)
 	httpClient := &http.Client{
 		Timeout: 2 * time.Second,
-	}
-	if opts.SocketPath != "" {
-		addr = "http://unix"
-		httpClient.Transport = &http.Transport{
-			Proxy: nil,
-			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-				return net.Dial("unix", opts.SocketPath)
-			},
-		}
-	} else {
-		addr = fmt.Sprintf("https://localhost:%d", opts.ManagerPort)
-		httpClient.Transport = &http.Transport{
+		Transport: &http.Transport{
 			Proxy: nil,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
-		}
+		},
 	}
 	if err := waitForAPI(ctx, httpClient, addr); err != nil {
 		return fmt.Errorf("unable to wait for api: %w", err)
@@ -99,7 +71,7 @@ func startAPI(ctx context.Context, cert *tls.Certificate, opts apiOptions, cance
 	return nil
 }
 
-func serveAPI(ctx context.Context, listener net.Listener, cert *tls.Certificate, opts apiOptions) error {
+func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, opts apiOptions) error {
 	router := mux.NewRouter()
 
 	if opts.ReleaseData == nil {
@@ -143,12 +115,9 @@ func serveAPI(ctx context.Context, listener net.Listener, cert *tls.Certificate,
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
-		ErrorLog: log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
-		Handler:  router,
-	}
-
-	if cert != nil {
-		server.TLSConfig = tlsutils.GetTLSConfig(*cert)
+		ErrorLog:  log.New(logger.WithField("http-server", "std-log").Writer(), "", 0),
+		Handler:   router,
+		TLSConfig: tlsutils.GetTLSConfig(cert),
 	}
 
 	go func() {
@@ -157,9 +126,6 @@ func serveAPI(ctx context.Context, listener net.Listener, cert *tls.Certificate,
 		_ = server.Shutdown(context.Background())
 	}()
 
-	if cert == nil {
-		return server.Serve(listener)
-	}
 	return server.ServeTLS(listener, "", "")
 }
 
@@ -216,9 +182,4 @@ func getManagerURL(hostname string, port int) string {
 		}
 	}
 	return fmt.Sprintf("https://%s:%v", ipaddr, port)
-}
-
-// getHeadlessSocketPath returns the path to the unix socket for headless API communication
-func getHeadlessSocketPath(homeDir string) string {
-	return filepath.Join(homeDir, "api.sock")
 }

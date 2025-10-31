@@ -101,7 +101,7 @@ func Test_serveAPI(t *testing.T) {
 	}
 
 	go func() {
-		err := serveAPI(ctx, listener, &cert, config)
+		err := serveAPI(ctx, listener, cert, config)
 		t.Logf("Install API exited with error: %v", err)
 		errCh <- err
 	}()
@@ -116,99 +116,6 @@ func Test_serveAPI(t *testing.T) {
 			},
 		},
 	}
-	resp, err := httpClient.Get(url)
-	require.NoError(t, err)
-	if resp != nil {
-		defer resp.Body.Close()
-	}
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-
-	cancel()
-	assert.ErrorIs(t, <-errCh, http.ErrServerClosed)
-	t.Logf("Install API exited")
-}
-
-func Test_serveAPIUnixSocket(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
-
-	// Create a temporary socket file
-	socketPath := filepath.Join(t.TempDir(), "api.sock")
-
-	listener, err := net.Listen("unix", socketPath)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = listener.Close()
-		_ = os.Remove(socketPath)
-	})
-
-	ctx, cancel := context.WithCancel(t.Context())
-	t.Cleanup(cancel)
-
-	errCh := make(chan error)
-
-	// Mock the web assets filesystem so that we don't need to embed the web assets.
-	webAssetsFS = fstest.MapFS{
-		"index.html": &fstest.MapFile{
-			Data: []byte(""),
-			Mode: 0644,
-		},
-	}
-
-	password := "password"
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
-	require.NoError(t, err)
-
-	rc := setupMockRuntimeConfig(t)
-
-	config := apiOptions{
-		APIConfig: apitypes.APIConfig{
-			InstallTarget: apitypes.InstallTargetLinux,
-			Password:      password,
-			PasswordHash:  passwordHash,
-			ReleaseData: &release.ReleaseData{
-				Application: &kotsv1beta1.Application{
-					Spec: kotsv1beta1.ApplicationSpec{
-						Title: "Test Application",
-					},
-				},
-				AppConfig: &kotsv1beta1.Config{
-					Spec: kotsv1beta1.ConfigSpec{},
-				},
-			},
-			ClusterID: "123",
-			Mode:      apitypes.ModeInstall,
-			LinuxConfig: apitypes.LinuxConfig{
-				RuntimeConfig: rc,
-			},
-		},
-		SocketPath:  socketPath,
-		Headless:    true,
-		WebMode:     web.ModeInstall,
-		Logger:      apilogger.NewDiscardLogger(),
-		WebAssetsFS: webAssetsFS,
-	}
-
-	go func() {
-		// For unix sockets, we don't use TLS, so pass nil for cert
-		err := serveAPI(ctx, listener, nil, config)
-		t.Logf("Install API exited with error: %v", err)
-		errCh <- err
-	}()
-
-	// Create an HTTP client that connects to the unix socket
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-				return net.Dial("unix", socketPath)
-			},
-		},
-	}
-
-	// For unix socket, the URL doesn't matter much, just needs to be a valid URL
-	url := "http://unix/api/health"
-	t.Logf("Making request to %s via unix socket %s", url, socketPath)
 	resp, err := httpClient.Get(url)
 	require.NoError(t, err)
 	if resp != nil {
@@ -308,7 +215,7 @@ func Test_serveAPIHTMLInjection(t *testing.T) {
 			}
 
 			go func() {
-				err := serveAPI(ctx, listener, &cert, config)
+				err := serveAPI(ctx, listener, cert, config)
 				t.Logf("Install API exited with error: %v", err)
 				errCh <- err
 			}()

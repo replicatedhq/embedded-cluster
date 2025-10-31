@@ -88,6 +88,9 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 		}
 	}
 
+	// Set headless mode for prompts library
+	prompts.SetHeadless(flags.headless)
+
 	return nil
 }
 
@@ -207,11 +210,11 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 			return fmt.Errorf("failed to parse TLS certificate: %w", err)
 		}
 
-		installCfg.tlsCert = &cert
+		installCfg.tlsCert = cert
 		installCfg.tlsCertBytes = certBytes
 		installCfg.tlsKeyBytes = keyBytes
-	} else if !flags.headless && installCfg.enableManagerExperience {
-		// For UI based manager experience, generate self-signed cert if none provided, with user confirmation
+	} else if installCfg.enableManagerExperience {
+		// For manager experience, generate self-signed cert if none provided, with user confirmation
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
 
@@ -222,7 +225,11 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 				return fmt.Errorf("failed to get confirmation: %w", err)
 			}
 			if !confirmed {
-				logrus.Infof("\nInstallation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
+				if flags.headless {
+					logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
+				} else {
+					logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
+				}
 				return fmt.Errorf("installation cancelled by user")
 			}
 		}
@@ -244,7 +251,7 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 		if err != nil {
 			return fmt.Errorf("generate tls certificate: %w", err)
 		}
-		installCfg.tlsCert = &cert
+		installCfg.tlsCert = cert
 		installCfg.tlsCertBytes = certData
 		installCfg.tlsKeyBytes = keyData
 	}
