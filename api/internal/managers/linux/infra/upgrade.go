@@ -17,10 +17,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kyaml "sigs.k8s.io/yaml"
 )
 
 // Upgrade performs the infrastructure upgrade by orchestrating the upgrade steps
@@ -113,8 +112,8 @@ func (m *infraManager) newInstallationObj(ctx context.Context, registrySettings 
 		return nil, fmt.Errorf("get current installation: %w", err)
 	}
 
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
+	license, err := licensewrapper.LoadLicenseFromBytes(m.license)
+	if err != nil {
 		return nil, fmt.Errorf("parse license: %w", err)
 	}
 
@@ -139,8 +138,8 @@ func (m *infraManager) newInstallationObj(ctx context.Context, registrySettings 
 	in.Spec.Artifacts = artifacts
 	in.Spec.Config = m.getECConfigSpec()
 	in.Spec.LicenseInfo = &ecv1beta1.LicenseInfo{
-		IsDisasterRecoverySupported: license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:          license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		IsDisasterRecoverySupported: license.IsDisasterRecoverySupported(),
+		IsMultiNodeEnabled:          license.IsEmbeddedClusterMultiNodeEnabled(),
 	}
 
 	return in, nil
@@ -262,8 +261,8 @@ func (m *infraManager) upgradeK0s(ctx context.Context, in *ecv1beta1.Installatio
 }
 
 func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.Installation, registrySettings *types.RegistrySettings) error {
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
+	license, err := licensewrapper.LoadLicenseFromBytes(m.license)
+	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
@@ -287,7 +286,7 @@ func (m *infraManager) distributeArtifacts(ctx context.Context, in *ecv1beta1.In
 		localArtifactMirrorImage = destImage
 	}
 
-	return m.upgrader.DistributeArtifacts(ctx, in, localArtifactMirrorImage, license.Spec.LicenseID, appSlug, channelID, appVersion)
+	return m.upgrader.DistributeArtifacts(ctx, in, localArtifactMirrorImage, license.GetLicenseID(), appSlug, channelID, appVersion)
 }
 
 // destECImage returns the location to an EC image in the registry

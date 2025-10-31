@@ -75,7 +75,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 func (m *infraManager) initInstallComponentsList(license licensewrapper.LicenseWrapper) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.IsDisasterRecoverySupported)
+	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.IsDisasterRecoverySupported())
 	for _, addOnName := range addOnsNames {
 		components = append(components, types.InfraComponent{Name: addOnName})
 	}
