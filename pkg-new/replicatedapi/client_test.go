@@ -9,20 +9,25 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.yaml.in/yaml/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func TestSyncLicense(t *testing.T) {
 	tests := []struct {
-		name            string
-		license         kotsv1beta1.License
-		releaseData     *release.ReleaseData
-		serverHandler   func(t *testing.T) http.HandlerFunc
-		expectedLicense *kotsv1beta1.License
-		wantErr         string
+		name                string
+		license             kotsv1beta1.License
+		releaseData         *release.ReleaseData
+		serverHandler       func(t *testing.T) http.HandlerFunc
+		wantLicenseSequence int64
+		wantAppSlug         string
+		wantLicenseID       string
+		wantIsV1            bool
+		wantIsV2            bool
+		wantErr             string
 	}{
 		{
 			name: "successful license sync",
@@ -83,23 +88,17 @@ func TestSyncLicense(t *testing.T) {
 					}
 
 					w.WriteHeader(http.StatusOK)
-					yaml.NewEncoder(w).Encode(resp)
+					respBytes, err := kyaml.Marshal(resp)
+					if err != nil {
+						t.Fatalf("failed to marshal license: %v", err)
+					}
+					w.Write(respBytes)
 				}
 			},
-			expectedLicense: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "License",
-				},
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:         "test-app",
-					LicenseID:       "test-license-id",
-					LicenseSequence: 6,
-					CustomerName:    "Test Customer",
-					ChannelID:       "test-channel-123",
-					ChannelName:     "Stable",
-				},
-			},
+			wantLicenseSequence: 6,
+			wantAppSlug:         "test-app",
+			wantLicenseID:       "test-license-id",
+			wantIsV1:            true,
 		},
 		{
 			name: "returns error on 401 unauthorized",
@@ -215,7 +214,7 @@ func TestSyncLicense(t *testing.T) {
 					w.Write([]byte("invalid yaml"))
 				}
 			},
-			wantErr: "unmarshal license response",
+			wantErr: "parse license response",
 		},
 	}
 
@@ -227,8 +226,11 @@ func TestSyncLicense(t *testing.T) {
 			server := httptest.NewServer(tt.serverHandler(t))
 			defer server.Close()
 
-			// Create client
-			c, err := NewClient(server.URL, &tt.license, tt.releaseData)
+			// Wrap the v1beta1 license first
+			wrapper := licensewrapper.LicenseWrapper{V1: &tt.license}
+
+			// Create client with wrapper
+			c, err := NewClient(server.URL, wrapper, tt.releaseData)
 			req.NoError(err)
 
 			// Execute test
@@ -238,19 +240,31 @@ func TestSyncLicense(t *testing.T) {
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.Contains(err.Error(), tt.wantErr)
-				req.Nil(license)
+				var emptyWrapper licensewrapper.LicenseWrapper
+				assert.Equal(t, emptyWrapper, license)
 				req.Nil(rawLicense)
 			} else {
 				req.NoError(err)
-				req.NotNil(license)
 				req.NotNil(rawLicense)
-				assert.Equal(t, tt.expectedLicense.Spec.AppSlug, license.Spec.AppSlug)
-				assert.Equal(t, tt.expectedLicense.Spec.LicenseID, license.Spec.LicenseID)
-				assert.Equal(t, tt.expectedLicense.Spec.LicenseSequence, license.Spec.LicenseSequence)
+
+				// Assert using wrapper methods (works for both v1beta1 and v1beta2)
+				assert.Equal(t, tt.wantLicenseSequence, license.GetLicenseSequence())
+				assert.Equal(t, tt.wantAppSlug, license.GetAppSlug())
+				assert.Equal(t, tt.wantLicenseID, license.GetLicenseID())
+
+				// Assert version
+				if tt.wantIsV1 {
+					assert.True(t, license.IsV1())
+					assert.False(t, license.IsV2())
+				}
+				if tt.wantIsV2 {
+					assert.False(t, license.IsV1())
+					assert.True(t, license.IsV2())
+				}
 
 				// Validate raw license is valid YAML
 				var parsedLicense kotsv1beta1.License
-				err = yaml.Unmarshal(rawLicense, &parsedLicense)
+				err = kyaml.Unmarshal(rawLicense, &parsedLicense)
 				req.NoError(err, "rawLicense should be valid YAML")
 			}
 		})
@@ -315,7 +329,7 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 			}
 
 			c := &client{
-				license:     &license,
+				license:     licensewrapper.LicenseWrapper{V1: &license},
 				releaseData: releaseData,
 				clusterID:   tt.clusterID,
 			}
@@ -360,7 +374,7 @@ func TestInjectHeaders(t *testing.T) {
 	}
 
 	c := &client{
-		license:     &license,
+		license:     licensewrapper.LicenseWrapper{V1: &license},
 		releaseData: releaseData,
 		clusterID:   "test-cluster-id",
 	}

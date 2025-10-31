@@ -22,14 +22,10 @@ func proxyRegistryURL() string {
 }
 
 func newReplicatedAPIClient(license licensewrapper.LicenseWrapper, clusterID string) (replicatedapi.Client, error) {
-	// Extract the underlying v1beta1 license for the API client
-	// The API client only supports v1beta1 licenses
-	// For v1beta2 licenses, we use the V1 field which contains the converted v1beta1 representation
-	underlyingLicense := license.V1
-
+	// Pass the wrapper directly - the API client now handles both v1beta1 and v1beta2
 	return replicatedapi.NewClient(
 		replicatedAppURL(),
-		underlyingLicense,
+		license,
 		release.GetReleaseData(),
 		replicatedapi.WithClusterID(clusterID),
 	)
@@ -44,13 +40,13 @@ func syncLicense(ctx context.Context, client replicatedapi.Client, license licen
 	}
 
 	oldSeq := license.GetLicenseSequence()
-	newSeq := updatedLicense.Spec.LicenseSequence
+	newSeq := updatedLicense.GetLicenseSequence()
 	if newSeq != oldSeq {
 		logrus.Debugf("License synced successfully (sequence %d -> %d)", oldSeq, newSeq)
 	} else {
 		logrus.Debug("License is already up to date")
 	}
 
-	// Wrap the updated license - it comes back as v1beta1
-	return licensewrapper.LicenseWrapper{V1: updatedLicense}, licenseBytes, nil
+	// Return wrapper directly - already wrapped by SyncLicense
+	return updatedLicense, licenseBytes, nil
 }
