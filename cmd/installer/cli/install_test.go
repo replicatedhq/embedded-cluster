@@ -361,6 +361,7 @@ func Test_verifyLicense(t *testing.T) {
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-no-release
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -373,6 +374,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-valid
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -384,6 +386,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-multichannel
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "OtherChannelID"
   isEmbeddedClusterDownloadEnabled: true
@@ -404,6 +407,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-expired
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -423,6 +427,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-no-expiration
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -441,6 +446,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-100year
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -459,6 +465,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-no-ec
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: false
@@ -471,6 +478,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-multichan
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
   isEmbeddedClusterDownloadEnabled: false
@@ -492,6 +500,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta1
 kind: License
 spec:
+  licenseID: test-license-premultichan
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2i9fCbxTNIhuAOaC6MoKMVeGzuK"
   channelName: "Stable"
@@ -505,6 +514,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta2
 kind: License
 spec:
+  licenseID: test-license-v1beta2
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: true
@@ -516,6 +526,7 @@ spec:
 			licenseContents: `apiVersion: kots.io/v1beta2
 kind: License
 spec:
+  licenseID: test-license-v1beta2-no-ec
   appSlug: embedded-cluster-smoke-test-staging-app
   channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
   isEmbeddedClusterDownloadEnabled: false
@@ -908,7 +919,7 @@ spec:
 				os.WriteFile(invalidPath, []byte("this is not a valid license file"), 0644)
 				return invalidPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
@@ -922,7 +933,7 @@ metadata:
 				os.WriteFile(wrongKindPath, []byte(wrongKindData), 0644)
 				return wrongKindPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
@@ -938,7 +949,7 @@ spec:
 				os.WriteFile(corruptPath, []byte(corruptData), 0644)
 				return corruptPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
