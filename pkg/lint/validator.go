@@ -1,9 +1,11 @@
 package lint
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -71,6 +73,12 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
 
+	// Validate YAML syntax first (before attempting to parse into structs)
+	// This provides better error messages for syntax errors
+	if err := v.validateYAMLSyntax(data); err != nil {
+		return nil, err
+	}
+
 	// Parse the config using k8s yaml which properly handles the embedded types
 	var config ecv1beta1.Config
 	if err := k8syaml.Unmarshal(data, &config); err != nil {
@@ -116,6 +124,48 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 	}
 
 	return result, nil
+}
+
+// validateYAMLSyntax validates that the YAML is syntactically correct
+// Adapted from kots-lint/pkg/kots/lint.go:788-846
+func (v *Validator) validateYAMLSyntax(data []byte) error {
+	reader := bytes.NewReader(data)
+	decoder := yaml.NewDecoder(reader)
+	decoder.SetStrict(true) // Catches duplicate keys, wrong types, etc.
+
+	for {
+		var doc interface{}
+		err := decoder.Decode(&doc)
+
+		if err == nil {
+			continue // Document valid, check next
+		}
+		if err == io.EOF {
+			break // All documents checked
+		}
+
+		// YAML syntax error found - extract line number from error message
+		lineNum := extractLineNumber(err.Error())
+		if lineNum > 0 {
+			return fmt.Errorf("YAML syntax error at line %d: %v", lineNum, err)
+		}
+		return fmt.Errorf("YAML syntax error: %v", err)
+	}
+
+	return nil
+}
+
+// extractLineNumber extracts line number from YAML error messages
+// YAML errors typically look like: "yaml: line 15: mapping values are not allowed in this context"
+func extractLineNumber(errMsg string) int {
+	re := regexp.MustCompile(`line (\d+)`)
+	matches := re.FindStringSubmatch(errMsg)
+	if len(matches) > 1 {
+		if line, err := strconv.Atoi(matches[1]); err == nil {
+			return line
+		}
+	}
+	return 0 // Unknown line
 }
 
 // validatePorts validates that ports in unsupportedOverrides are not already supported

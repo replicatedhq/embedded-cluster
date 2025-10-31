@@ -11,11 +11,11 @@ import (
 
 func TestValidatePorts(t *testing.T) {
 	tests := []struct {
-		name         string
-		yamlContent  string
+		name          string
+		yamlContent   string
 		expectWarning bool
-		warningCount int
-		warningMsg   string
+		warningCount  int
+		warningMsg    string
 	}{
 		{
 			name: "valid port outside supported range",
@@ -318,6 +318,125 @@ func TestExtractPortValue(t *testing.T) {
 			validator := NewValidator("", "", "")
 			result := validator.extractPortValue(tt.value)
 			assert.Equal(t, tt.expected, result, "Expected %d but got %d", tt.expected, result)
+		})
+	}
+}
+
+func TestValidateYAMLSyntax(t *testing.T) {
+	tests := []struct {
+		name        string
+		yamlContent string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid yaml",
+			yamlContent: `apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+spec:
+  version: "1.0.0"`,
+			expectError: false,
+		},
+		{
+			name: "valid multi-document yaml",
+			yamlContent: `apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+spec:
+  version: "1.0.0"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test`,
+			expectError: false,
+		},
+		{
+			name: "duplicate key - strict mode",
+			yamlContent: `apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+spec:
+  version: "1.0.0"
+  version: "2.0.0"`,
+			expectError: true,
+			errorMsg:    "line 5",
+		},
+		{
+			name:        "tab character mixed with spaces",
+			yamlContent: "apiVersion: embeddedcluster.replicated.com/v1beta1\nkind: Config\nspec:\n\tversion: \"1.0.0\"",
+			expectError: true,
+			errorMsg:    "line",
+		},
+		{
+			name: "unclosed quote",
+			yamlContent: `apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+spec:
+  version: "1.0.0`,
+			expectError: true,
+			errorMsg:    "line",
+		},
+		{
+			name:        "empty yaml",
+			yamlContent: ``,
+			expectError: false,
+		},
+		{
+			name: "only comments",
+			yamlContent: `# This is a comment
+# Another comment`,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+			err := validator.validateYAMLSyntax([]byte(tt.yamlContent))
+
+			if tt.expectError {
+				require.Error(t, err, "Expected YAML syntax error but got none")
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain: %s", tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+			}
+		})
+	}
+}
+
+func TestExtractLineNumber(t *testing.T) {
+	tests := []struct {
+		name     string
+		errMsg   string
+		expected int
+	}{
+		{
+			name:     "yaml error with line number",
+			errMsg:   "yaml: line 15: mapping values are not allowed in this context",
+			expected: 15,
+		},
+		{
+			name:     "yaml error with different line",
+			errMsg:   "yaml: line 42: found unexpected end of stream",
+			expected: 42,
+		},
+		{
+			name:     "error without line number",
+			errMsg:   "yaml: invalid yaml",
+			expected: 0,
+		},
+		{
+			name:     "empty error message",
+			errMsg:   "",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractLineNumber(tt.errMsg)
+			assert.Equal(t, tt.expected, result, "Expected line %d but got %d", tt.expected, result)
 		})
 	}
 }
