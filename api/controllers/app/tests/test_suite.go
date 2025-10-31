@@ -149,11 +149,13 @@ func (s *AppControllerTestSuite) TestPatchAppConfigValues() {
 			for _, tt := range tests {
 				t.Run(tt.name, func(t *testing.T) {
 
-					appConfigManager := &appconfig.MockAppConfigManager{}
 					appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 					appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 					appInstallManager := &appinstallmanager.MockAppInstallManager{}
 					sm := scenario.createSM(tt.currentState)
+
+					appConfigManager := &appconfig.MockAppConfigManager{}
+					appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 					controller, err := appcontroller.NewAppController(
 						appcontroller.WithStateMachine(sm),
@@ -426,10 +428,13 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
 
-			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			sm := s.CreateInstallStateMachine(tt.currentState)
+
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
+
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithAppConfigManager(appConfigManager),
@@ -499,11 +504,13 @@ func (s *AppControllerTestSuite) TestGetAppInstallStatus() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			sm := s.CreateInstallStateMachine(states.StateNew)
+
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
@@ -527,6 +534,7 @@ func (s *AppControllerTestSuite) TestGetAppInstallStatus() {
 				assert.Equal(t, expectedAppInstall, result)
 			}
 
+			appConfigManager.AssertExpectations(s.T())
 			appInstallManager.AssertExpectations(s.T())
 		})
 	}
@@ -681,11 +689,13 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			sm := s.CreateInstallStateMachine(tt.currentState)
+
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
@@ -820,12 +830,14 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
 			sm := s.CreateUpgradeStateMachine(tt.currentState)
+
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
@@ -896,12 +908,14 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 
 	for _, tt := range tests {
 		s.T().Run(tt.name, func(t *testing.T) {
-			appConfigManager := &appconfig.MockAppConfigManager{}
 			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
 			sm := s.CreateUpgradeStateMachine(states.StateNew)
+
+			appConfigManager := &appconfig.MockAppConfigManager{}
+			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),

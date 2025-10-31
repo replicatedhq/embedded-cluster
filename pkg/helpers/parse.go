@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -11,9 +10,13 @@ import (
 	kyaml "sigs.k8s.io/yaml"
 )
 
-var (
-	ErrNotALicenseFile = errors.New("not a license file")
-)
+type ErrNotALicenseFile struct {
+	Err error
+}
+
+func (e ErrNotALicenseFile) Error() string {
+	return e.Err.Error()
+}
 
 // ParseEndUserConfig parses the end user configuration from the given file.
 func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {

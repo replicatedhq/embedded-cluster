@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -154,6 +155,62 @@ func TestParseLicense(t *testing.T) {
 			name:        "file not found",
 			licenseFile: "testdata/nonexistent.yaml",
 			wantErr:     true,
+			fpath: "invalid.yaml",
+			fileContent: `invalid: yaml: content: [
+			unclosed bracket`,
+			wantErr: ErrNotALicenseFile{},
+		},
+		{
+			name:  "valid YAML but not a license returns ErrNotALicenseFile",
+			fpath: "not-license.yaml",
+			fileContent: `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test`,
+			wantErr: ErrNotALicenseFile{},
+		},
+		{
+			name:  "valid license",
+			fpath: "license.yaml",
+			fileContent: `apiVersion: kots.io/v1beta1
+kind: License
+metadata:
+  name: test-license
+spec:
+  licenseID: "test-license-id"
+  appSlug: "test-app"
+  endpoint: "https://replicated.app"`,
+			expected: &kotsv1beta1.License{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "License",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-license",
+				},
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "test-license-id",
+					AppSlug:   "test-app",
+					Endpoint:  "https://replicated.app",
+				},
+			},
+		},
+		{
+			name:  "minimal valid license",
+			fpath: "minimal-license.yaml",
+			fileContent: `apiVersion: kots.io/v1beta1
+kind: License
+spec:
+  licenseID: "test-license-id"`,
+			expected: &kotsv1beta1.License{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "kots.io/v1beta1",
+					Kind:       "License",
+				},
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "test-license-id",
+				},
+			},
 		},
 	}
 
