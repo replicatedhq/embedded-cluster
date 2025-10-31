@@ -81,8 +81,9 @@ func testDefaultInstallationImpl(t *testing.T) {
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
-		"embeddedClusterID": in.Spec.ClusterID,
-		"image.repository":  "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+		"embeddedClusterID":                     in.Spec.ClusterID,
+		"image.repository":                      "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
+		"global.labels['release-custom-label']": "release-clustom-value", // validate unsupported overrides are applied
 	})
 
 	// velero
@@ -99,11 +100,12 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"isMultiNodeEnabled":     true,
-		"kurlProxy.nodePort":     float64(30000),
-		"embeddedClusterID":      in.Spec.ClusterID,
-		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
-		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
+		"isMultiNodeEnabled":             true,
+		"kurlProxy.nodePort":             float64(30000),
+		"embeddedClusterID":              in.Spec.ClusterID,
+		"embeddedClusterDataDir":         "/var/lib/embedded-cluster",
+		"embeddedClusterK0sDir":          "/var/lib/embedded-cluster/k0s",
+		"labels['release-custom-label']": "release-clustom-value", // validate unsupported overrides are applied
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -204,6 +206,12 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Contains(t, k0sConfig.Spec.Images.Calico.CNI.Image, "fake-replicated-proxy.test.net/library")
 	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/library")
 	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/library")
+
+	// validate unsupported overrides were applied --- //
+	assert.Equal(t, "testing-overrides-k0s-name", k0sConfig.ObjectMeta.Name, "k0s config name should be set from unsupported-overrides")
+	assert.NotNil(t, k0sConfig.Spec.Telemetry, "telemetry config should exist from unsupported-overrides")
+	require.NotNil(t, k0sConfig.Spec.Telemetry.Enabled, "telemetry enabled field should exist")
+	assert.True(t, *k0sConfig.Spec.Telemetry.Enabled, "telemetry should be enabled from unsupported-overrides")
 }
 
 func TestCustomDataDir(t *testing.T) {

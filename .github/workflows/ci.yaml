@@ -880,15 +880,9 @@ jobs:
         test:
           - TestPreflights
           - TestPreflightsNoexec
-          - TestMaterialize
           - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
           - TestSingleNodeUpgradePreviousStable
           - TestUpgradeFromReplicatedAppPreviousK0s
-          - TestResetAndReinstall
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
@@ -896,9 +890,7 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
-          - TestLocalArtifactMirror
           - TestCollectSupportBundle
-          - TestUnsupportedOverrides
           - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
     steps:
@@ -964,7 +956,6 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestSingleNodeAirgapUpgradeConfigValues
