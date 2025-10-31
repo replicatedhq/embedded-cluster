@@ -210,6 +210,17 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		if err != nil {
 			return nil, fmt.Errorf("patch app config values: %w", err)
 		}
+		// Warm the template engine cache with the existing values
+		_, err = controller.appConfigManager.TemplateConfig(controller.configValues, false, false)
+		if err != nil {
+			return nil, fmt.Errorf("template config: %w", err)
+		}
+	} else {
+		// Warm the template engine cache with empty values
+		_, err := controller.appConfigManager.TemplateConfig(make(types.AppConfigValues), false, false)
+		if err != nil {
+			return nil, fmt.Errorf("template config: %w", err)
+		}
 	}
 
 	if controller.appPreflightManager == nil {

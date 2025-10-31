@@ -53,6 +53,7 @@ func TestGetAppInstallStatus(t *testing.T) {
 
 		// Create mock store
 		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create real app install controller
 		appController, err := appcontroller.NewAppController(
@@ -269,6 +270,8 @@ func TestPostInstallApp(t *testing.T) {
 
 		// Create simple app install controller
 		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(stateMachine),
 			appcontroller.WithStore(mockStore),
@@ -506,6 +509,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("App preflight bypass denied with failed preflights", func(t *testing.T) {
 		// Create mock store
 		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create mock app preflight manager that returns non-strict failures (method should be called but bypass denied)
 		mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
@@ -586,6 +590,7 @@ func TestPostInstallApp(t *testing.T) {
 	t.Run("Strict app preflight bypass blocked", func(t *testing.T) {
 		// Create mock store
 		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 		// Create mock app preflight manager that returns strict failures (cannot be bypassed)
 		mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}

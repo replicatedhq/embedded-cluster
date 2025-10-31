@@ -399,7 +399,9 @@ func TestConfigureInstallation(t *testing.T) {
 
 			mockManager := &installation.MockInstallationManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
+
 			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			tt.setupMock(mockManager, rc, tt.config, mockStore, mockMetricsReporter)
 
@@ -731,6 +733,9 @@ func TestRunHostPreflights(t *testing.T) {
 			mockStore := &store.MockStore{}
 
 			tt.setupMocks(mockPreflightManager, rc, mockMetricsReporter, mockStore)
+
+			// Mock GetConfigValues call that happens during controller initialization
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
@@ -1152,9 +1157,11 @@ func TestSetupInfra(t *testing.T) {
 			mockInfraManager := &infra.MockInfraManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
-			mockAppConfigManager := &appconfig.MockAppConfigManager{}
 			mockAppPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
 			mockAppReleaseManager := &appreleasemanager.MockAppReleaseManager{}
+
+			mockAppConfigManager := &appconfig.MockAppConfigManager{}
+			mockAppConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
 			tt.setupMocks(rc, mockPreflightManager, mockInstallationManager, mockInfraManager, mockAppConfigManager, mockMetricsReporter, mockStore)
 
@@ -1396,6 +1403,9 @@ func TestProcessAirgap(t *testing.T) {
 			}
 
 			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc)
+
+			// Mock GetConfigValues call that happens during controller initialization
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			controller, err := NewInstallController(
 				WithRuntimeConfig(rc),
