@@ -22,6 +22,7 @@ data:
           image: {{ .Values.goldpingerImage }}
           podLaunchOptions:
             image: {{ .Values.utilsImage }}
+            namespace: {{ .Release.Namespace }}
           exclude: {{ .Values.isAirgap }}
       analyzers:
       - goldpinger:
