@@ -715,7 +715,7 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	if !installCfg.isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompt, installCfg.license, flags.assumeYes, flags.headless); err != nil {
+		if err := maybePromptForAppUpdate(ctx, prompt, installCfg.license, flags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
@@ -1068,7 +1068,7 @@ func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool, headless bool) error {
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *kotsv1beta1.License, assumeYes bool) error {
 	channelRelease := release.GetChannelRelease()
 	if channelRelease == nil {
 		// It is possible to install without embedding the release data. In this case, we cannot
@@ -1105,8 +1105,8 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		channelRelease.ChannelSlug,
 	)
 
-	// if the assumeYes flag is set or the install is headless, we don't prompt the user and continue by default.
-	if assumeYes || headless {
+	// if the assumeYes flag is set, we don't prompt the user and continue by default.
+	if assumeYes {
 		return nil
 	}
 

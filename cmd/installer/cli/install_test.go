@@ -133,7 +133,6 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 		channelRelease        *release.ChannelRelease
 		apiHandler            func(http.ResponseWriter, *http.Request)
 		assumeYes             bool
-		headless              bool
 		answerYes             bool
 		wantPrompt            bool
 		wantErr               bool
@@ -188,24 +187,6 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				w.Write([]byte(response))
 			},
 			assumeYes:  true,
-			wantPrompt: false,
-			wantErr:    false,
-		},
-		{
-			name: "newer version available, headless true",
-			channelRelease: &release.ChannelRelease{
-				ChannelID:    "test-channel",
-				ChannelSlug:  "test",
-				AppSlug:      "app-slug",
-				VersionLabel: "v1.0.0",
-			},
-			apiHandler: func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				response := `{"channelReleases":[{"channelId":"test-channel","versionLabel":"v2.0.0"}]}`
-				w.Write([]byte(response))
-			},
-			headless:   true,
 			wantPrompt: false,
 			wantErr:    false,
 		},
@@ -340,7 +321,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			prompts.SetTerminal(true)
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
-			err = maybePromptForAppUpdate(context.Background(), prompt, license, tt.assumeYes, tt.headless)
+			err = maybePromptForAppUpdate(context.Background(), prompt, license, tt.assumeYes)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

@@ -335,7 +335,7 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 	}
 
 	if !isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompt, upgradeConfig.license, flags.assumeYes, false); err != nil {
+		if err := maybePromptForAppUpdate(ctx, prompt, upgradeConfig.license, flags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
