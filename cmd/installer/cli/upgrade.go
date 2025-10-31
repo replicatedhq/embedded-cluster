@@ -255,7 +255,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	upgradeConfig.license = l
 
 	// sync the license if a license is provided and we are not in airgap mode
-	if upgradeConfig.license != nil && flags.airgapBundle == "" {
+	if upgradeConfig.license.GetLicenseID() != "" && flags.airgapBundle == "" {
 		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
 		if err != nil {
 			return fmt.Errorf("failed to create replicated API client: %w", err)
