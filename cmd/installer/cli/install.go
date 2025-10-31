@@ -816,10 +816,10 @@ func getLicenseFromFilepath(licenseFile string) (licensewrapper.LicenseWrapper, 
 	}
 
 	entitlements := license.GetEntitlements()
-	if expiresAt, ok := entitlements["expires_at"]; ok {
-		expiresAtValue := expiresAt.GetValue()
-		valueInterface := expiresAtValue.Value()
-		if expiresAtStr, ok := valueInterface.(string); ok && expiresAtStr != "" {
+	if expiresAtField, ok := entitlements["expires_at"]; ok {
+		entValue := expiresAtField.GetValue()
+		expiresAtValue := entValue.Value()
+		if expiresAtStr, ok := expiresAtValue.(string); ok && expiresAtStr != "" {
 			// read the expiration date, and check it against the current date
 			expiration, err := time.Parse(time.RFC3339, expiresAtStr)
 			if err != nil {
