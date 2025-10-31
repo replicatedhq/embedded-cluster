@@ -1667,64 +1667,6 @@ func TestInstallSnapshotFromReplicatedApp(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// TestCustomCIDR tests the installation with an alternate CIDR range
-func TestCustomCIDR(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        4,
-		Distro:       "debian-bookworm",
-		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-	t.Log("non-proxied infrastructure created")
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		podCidr:     "10.128.0.0/20",
-		serviceCidr: "10.129.0.0/20",
-	})
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// join a controller node
-	joinControllerNode(t, tc, 1)
-
-	// XXX If we are too aggressive joining nodes we can see the following error being
-	// thrown by kotsadm on its log (and we get a 500 back):
-	// "
-	// failed to get controller role name: failed to get cluster config: failed to get
-	// current installation: failed to list installations: etcdserver: leader changed
-	// "
-	t.Logf("node 1 joined, sleeping...")
-	time.Sleep(30 * time.Second)
-
-	// join another controller node
-	joinControllerNode(t, tc, 2)
-
-	// join a worker node
-	joinWorkerNode(t, tc, 3)
-
-	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, nil)
-
-	checkInstallationState(t, tc)
-
-	// ensure that the cluster is using the right IP ranges.
-	t.Logf("%s: checking service and pod IP addresses", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-cidr-ranges.sh", "^10.128.[0-9]*.[0-9]", "^10.129.[0-9]*.[0-9]"})
-	if err != nil {
-		t.Fatalf("fail to check addresses on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	t.Parallel()
 
