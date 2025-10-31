@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -437,6 +438,117 @@ func TestExtractLineNumber(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := extractLineNumber(tt.errMsg)
 			assert.Equal(t, tt.expected, result, "Expected line %d but got %d", tt.expected, result)
+		})
+	}
+}
+
+func TestValidateDomains(t *testing.T) {
+	tests := []struct {
+		name           string
+		configDomains  ecv1beta1.Domains
+		allowedDomains []string
+		expectErrors   int
+		errorFields    []string
+	}{
+		{
+			name: "valid custom domain",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain: "custom.example.com",
+			},
+			allowedDomains: []string{"custom.example.com"},
+			expectErrors:   0,
+		},
+		{
+			name: "invalid custom domain",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain: "invalid.example.com",
+			},
+			allowedDomains: []string{"custom.example.com"},
+			expectErrors:   1,
+			errorFields:    []string{"domains.replicatedAppDomain"},
+		},
+		{
+			name: "default domains always allowed",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain:      "replicated.app",
+				ProxyRegistryDomain:      "proxy.replicated.com",
+				ReplicatedRegistryDomain: "registry.replicated.com",
+			},
+			allowedDomains: []string{}, // Empty list, but defaults should still be allowed
+			expectErrors:   0,
+		},
+		{
+			name: "multiple invalid domains",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain:      "bad1.example.com",
+				ProxyRegistryDomain:      "bad2.example.com",
+				ReplicatedRegistryDomain: "bad3.example.com",
+			},
+			allowedDomains: []string{},
+			expectErrors:   3,
+			errorFields:    []string{"domains.replicatedAppDomain", "domains.proxyRegistryDomain", "domains.replicatedRegistryDomain"},
+		},
+		{
+			name: "mixed valid and invalid domains",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain:      "custom.example.com",
+				ProxyRegistryDomain:      "invalid.example.com",
+				ReplicatedRegistryDomain: "registry.replicated.com", // Default
+			},
+			allowedDomains: []string{"custom.example.com"},
+			expectErrors:   1,
+			errorFields:    []string{"domains.proxyRegistryDomain"},
+		},
+		{
+			name: "empty domain configuration",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain:      "",
+				ProxyRegistryDomain:      "",
+				ReplicatedRegistryDomain: "",
+			},
+			allowedDomains: []string{"any.example.com"},
+			expectErrors:   0, // No domains to validate
+		},
+		{
+			name: "custom domain in allowed list",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain: "app.custom.io",
+				ProxyRegistryDomain: "proxy.custom.io",
+			},
+			allowedDomains: []string{"app.custom.io", "proxy.custom.io", "registry.custom.io"},
+			expectErrors:   0,
+		},
+		{
+			name: "one valid, two invalid",
+			configDomains: ecv1beta1.Domains{
+				ReplicatedAppDomain:      "replicated.app", // Default - valid
+				ProxyRegistryDomain:      "bad.com",
+				ReplicatedRegistryDomain: "alsobad.com",
+			},
+			allowedDomains: []string{},
+			expectErrors:   2,
+			errorFields:    []string{"domains.proxyRegistryDomain", "domains.replicatedRegistryDomain"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+
+			errors := validator.validateDomains(tt.configDomains, tt.allowedDomains)
+
+			assert.Len(t, errors, tt.expectErrors, "Expected %d errors but got %d", tt.expectErrors, len(errors))
+
+			// Check that expected error fields are present
+			if tt.expectErrors > 0 && len(tt.errorFields) > 0 {
+				for i, expectedField := range tt.errorFields {
+					if i < len(errors) {
+						if ve, ok := errors[i].(ValidationError); ok {
+							assert.Equal(t, expectedField, ve.Field, "Error field mismatch at index %d", i)
+						}
+					}
+				}
+			}
 		})
 	}
 }

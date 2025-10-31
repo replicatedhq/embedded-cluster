@@ -23,7 +23,7 @@ type APIClient struct {
 func NewAPIClient(apiToken, apiOrigin, appID string) *APIClient {
 	return &APIClient{
 		apiToken:  apiToken,
-		apiOrigin: strings.TrimSuffix(apiOrigin, "/"),
+		apiOrigin: strings.TrimRight(apiOrigin, "/"),
 		appID:     appID,
 		client: &http.Client{
 			Timeout: 30 * time.Second,

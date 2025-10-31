@@ -151,7 +151,7 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 		if v.verbose {
 			v.apiClient.logConfiguration()
 		}
-		domainErrors, err := v.validateDomains(config.Spec.Domains)
+		domainErrors, err := v.validateDomainsWithAPI(config.Spec.Domains)
 		if err != nil {
 			// Log the API error but continue validation
 			result.Errors = append(result.Errors, ValidationError{
@@ -331,48 +331,54 @@ func (v *Validator) extractPortValue(value interface{}) int {
 	return 0
 }
 
-// validateDomains validates custom domains against the Replicated API
-func (v *Validator) validateDomains(domains ecv1beta1.Domains) ([]error, error) {
-	var errors []error
-
+// validateDomainsWithAPI validates custom domains by fetching allowed domains from the API
+func (v *Validator) validateDomainsWithAPI(domains ecv1beta1.Domains) ([]error, error) {
 	// Fetch allowed custom domains from API
 	customDomains, err := v.apiClient.GetCustomDomains()
 	if err != nil {
 		return nil, err
 	}
 
+	// Call the pure validation function
+	return v.validateDomains(domains, customDomains), nil
+}
+
+// validateDomains validates custom domains against a list of allowed domains (pure function)
+func (v *Validator) validateDomains(domains ecv1beta1.Domains, allowedDomains []string) []error {
+	var errors []error
+
 	// Create a set of allowed domains for easy lookup
-	allowedDomains := make(map[string]bool)
-	for _, domain := range customDomains {
-		allowedDomains[domain] = true
+	allowedSet := make(map[string]bool)
+	for _, domain := range allowedDomains {
+		allowedSet[domain] = true
 	}
 
 	// Also add default domains as they're always allowed
-	allowedDomains["replicated.app"] = true
-	allowedDomains["proxy.replicated.com"] = true
-	allowedDomains["registry.replicated.com"] = true
+	allowedSet["replicated.app"] = true
+	allowedSet["proxy.replicated.com"] = true
+	allowedSet["registry.replicated.com"] = true
 
 	// Check each configured domain
-	if domains.ReplicatedAppDomain != "" && !allowedDomains[domains.ReplicatedAppDomain] {
+	if domains.ReplicatedAppDomain != "" && !allowedSet[domains.ReplicatedAppDomain] {
 		errors = append(errors, ValidationError{
 			Field:   "domains.replicatedAppDomain",
 			Message: fmt.Sprintf("custom domain %q not found in app's configured domains", domains.ReplicatedAppDomain),
 		})
 	}
 
-	if domains.ProxyRegistryDomain != "" && !allowedDomains[domains.ProxyRegistryDomain] {
+	if domains.ProxyRegistryDomain != "" && !allowedSet[domains.ProxyRegistryDomain] {
 		errors = append(errors, ValidationError{
 			Field:   "domains.proxyRegistryDomain",
 			Message: fmt.Sprintf("custom domain %q not found in app's configured domains", domains.ProxyRegistryDomain),
 		})
 	}
 
-	if domains.ReplicatedRegistryDomain != "" && !allowedDomains[domains.ReplicatedRegistryDomain] {
+	if domains.ReplicatedRegistryDomain != "" && !allowedSet[domains.ReplicatedRegistryDomain] {
 		errors = append(errors, ValidationError{
 			Field:   "domains.replicatedRegistryDomain",
 			Message: fmt.Sprintf("custom domain %q not found in app's configured domains", domains.ReplicatedRegistryDomain),
 		})
 	}
 
-	return errors, nil
+	return errors
 }

@@ -293,7 +293,7 @@ func TestNewAPIClient(t *testing.T) {
 			apiToken:       "token",
 			apiOrigin:      "https://api.replicated.com/vendor///",
 			appID:          "app-id",
-			expectedOrigin: "https://api.replicated.com/vendor//",
+			expectedOrigin: "https://api.replicated.com/vendor",
 		},
 	}
 
