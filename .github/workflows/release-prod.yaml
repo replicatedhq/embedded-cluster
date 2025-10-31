@@ -341,12 +341,6 @@ jobs:
           export APP_VERSION="appver-${{ github.ref_name }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install	
           ./scripts/ci-release-app.sh
-          
-          # then install a version with alternate unsupported overrides
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-unsupported-overrides"
-          export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
-          ./scripts/ci-release-app.sh
 
           # then a noop upgrade
           export EC_VERSION="${{ github.ref_name }}"

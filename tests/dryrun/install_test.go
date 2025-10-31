@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	_ "embed"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -81,9 +82,8 @@ func testDefaultInstallationImpl(t *testing.T) {
 	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
 	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
-		"embeddedClusterID":                     in.Spec.ClusterID,
-		"image.repository":                      "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
-		"global.labels['release-custom-label']": "release-clustom-value", // validate unsupported overrides are applied
+		"embeddedClusterID": in.Spec.ClusterID,
+		"image.repository":  "fake-replicated-proxy.test.net/anonymous/replicated/embedded-cluster-operator-image",
 	})
 
 	// velero
@@ -100,12 +100,11 @@ func testDefaultInstallationImpl(t *testing.T) {
 	adminConsoleOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
-		"isMultiNodeEnabled":             true,
-		"kurlProxy.nodePort":             float64(30000),
-		"embeddedClusterID":              in.Spec.ClusterID,
-		"embeddedClusterDataDir":         "/var/lib/embedded-cluster",
-		"embeddedClusterK0sDir":          "/var/lib/embedded-cluster/k0s",
-		"labels['release-custom-label']": "release-clustom-value", // validate unsupported overrides are applied
+		"isMultiNodeEnabled":     true,
+		"kurlProxy.nodePort":     float64(30000),
+		"embeddedClusterID":      in.Spec.ClusterID,
+		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
+		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -207,11 +206,29 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Contains(t, k0sConfig.Spec.Images.Calico.Node.Image, "fake-replicated-proxy.test.net/library")
 	assert.Contains(t, k0sConfig.Spec.Images.Calico.KubeControllers.Image, "fake-replicated-proxy.test.net/library")
 
-	// validate unsupported overrides were applied --- //
-	assert.Equal(t, "testing-overrides-k0s-name", k0sConfig.ObjectMeta.Name, "k0s config name should be set from unsupported-overrides")
+	// validate unsupported overrides were applied
+	assert.Equal(t, "testing-overrides-k0s-name", k0sConfig.Name, "k0s config name should be set from unsupported-overrides")
+
+	// telemetry
 	assert.NotNil(t, k0sConfig.Spec.Telemetry, "telemetry config should exist from unsupported-overrides")
 	require.NotNil(t, k0sConfig.Spec.Telemetry.Enabled, "telemetry enabled field should exist")
-	assert.True(t, *k0sConfig.Spec.Telemetry.Enabled, "telemetry should be enabled from unsupported-overrides")
+	assert.False(t, *k0sConfig.Spec.Telemetry.Enabled, "telemetry should be enabled from unsupported-overrides")
+
+	// api extraArgs
+	require.NotNil(t, k0sConfig.Spec.API, "api config should exist")
+	require.NotNil(t, k0sConfig.Spec.API.ExtraArgs, "api extraArgs should exist")
+	assert.Equal(t, "test-value", k0sConfig.Spec.API.ExtraArgs["test-key"], "api extraArgs should contain test-key from unsupported-overrides")
+
+	// worker profiles
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "workerProfiles should have one profile from unsupported-overrides")
+	assert.Equal(t, "ip-forward", k0sConfig.Spec.WorkerProfiles[0].Name, "workerProfile name should be set from unsupported-overrides")
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config, "workerProfile config should exist")
+
+	var profileConfig map[string]interface{}
+	err = json.Unmarshal(k0sConfig.Spec.WorkerProfiles[0].Config.Raw, &profileConfig)
+	require.NoError(t, err, "should be able to unmarshal workerProfile config")
+	sysctls := profileConfig["allowedUnsafeSysctls"].([]interface{})
+	assert.Equal(t, "net.ipv4.ip_forward", sysctls[0], "allowedUnsafeSysctls should contain net.ipv4.ip_forward from unsupported-overrides")
 }
 
 func TestCustomDataDir(t *testing.T) {

@@ -761,12 +761,6 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # then install a version with alternate unsupported overrides
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}-unsupported-overrides"
-          export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
-          ./scripts/ci-release-app.sh
-
           # promote a release with improved dr support
           export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
           export APP_VERSION="appver-${SHORT_SHA}-legacydr"

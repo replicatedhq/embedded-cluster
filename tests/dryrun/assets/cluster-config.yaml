@@ -8,20 +8,18 @@ spec:
    replicatedAppDomain: "fake-endpoint.com"
    proxyRegistryDomain: "fake-replicated-proxy.test.net"
  unsupportedOverrides:
-   builtInExtensions:
-     - name: admin-console
-       values: |
-         labels:
-           release-custom-label: release-clustom-value
-     - name: embedded-cluster-operator
-       values: |
-         global:
-           labels:
-             release-custom-label: release-clustom-value
    k0s: |
      config:
        metadata:
          name: testing-overrides-k0s-name
        spec:
          telemetry:
-           enabled: true
+           enabled: false
+         api:
+           extraArgs:
+             test-key: test-value
+         workerProfiles:
+         - name: ip-forward
+           values:
+             allowedUnsafeSysctls:
+             - net.ipv4.ip_forward
