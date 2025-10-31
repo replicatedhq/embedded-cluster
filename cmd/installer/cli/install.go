@@ -265,7 +265,6 @@ func newCommonInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	mustAddProxyFlags(flagSet)
 
 	flagSet.BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
-	flagSet.BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 	flagSet.SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return flagSet
@@ -350,11 +349,15 @@ func addTLSFlags(cmd *cobra.Command, flags *installFlags) error {
 
 func addManagementConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
+	cmd.Flags().BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
 	// not hide the manager-port flag.
 	if !isV3Enabled() {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("headless"); err != nil {
 			return err
 		}
 	}
