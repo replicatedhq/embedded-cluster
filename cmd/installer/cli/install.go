@@ -62,6 +62,7 @@ type installFlags struct {
 	assumeYes            bool
 	overrides            string
 	configValues         string
+	headless             bool
 
 	// linux flags
 	dataDir                 string
@@ -94,9 +95,10 @@ type installConfig struct {
 	airgapMetadata          *airgap.AirgapMetadata
 	embeddedAssetsSize      int64
 	endUserConfig           *ecv1beta1.Config
-	tlsCert                 tls.Certificate
+	tlsCert                 *tls.Certificate
 	tlsCertBytes            []byte
 	tlsKeyBytes             []byte
+	configValues            *kotsv1beta1.ConfigValues
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -129,6 +131,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, installCfg, prompts.New()); err != nil {
 				return err
 			}
@@ -262,6 +265,7 @@ func newCommonInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	mustAddProxyFlags(flagSet)
 
 	flagSet.BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
+	flagSet.BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 	flagSet.SetNormalizeFunc(normalizeNoPromptToYes)
 
 	return flagSet
@@ -493,12 +497,17 @@ func runManagerExperienceInstall(
 	}
 
 	var configValues apitypes.AppConfigValues
-	if flags.configValues != "" {
-		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
-		if err != nil {
-			return fmt.Errorf("parse config values file: %w", err)
-		}
-		configValues = apitypes.ConvertToAppConfigValues(kotsConfigValues)
+	if installCfg.configValues != nil {
+		configValues = apitypes.ConvertToAppConfigValues(installCfg.configValues)
+	}
+
+	// Determine socket path for headless mode
+	var socketPath string
+	if flags.headless {
+		socketPath = getHeadlessSocketPath(rc.EmbeddedClusterTmpSubDir())
+		defer func() {
+			_ = os.Remove(socketPath)
+		}()
 	}
 
 	apiConfig := apiOptions{
@@ -532,6 +541,8 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
+		SocketPath:      socketPath,
+		Headless:        flags.headless,
 		WebMode:         web.ModeInstall,
 		MetricsReporter: metricsReporter,
 	}
@@ -541,6 +552,13 @@ func runManagerExperienceInstall(
 
 	if err := startAPI(ctx, installCfg.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
+	}
+
+	// Validate headless mode requirements
+	if flags.headless {
+		// TODO(PR2): Implement headless installation orchestration
+		// The orchestrator will use the unix socket at socketPath to communicate with the API
+		return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
