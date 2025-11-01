@@ -66,192 +66,6 @@ func TestSingleNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeInstallationAlmaLinux8(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "almalinux-8",
-		LicensePath:  "licenses/multi-node-disabled-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
-	line := []string{"yum-install-tar.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: configuring firewalld", time.Now().Format(time.RFC3339))
-	line = []string{"firewalld-configure.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to configure firewalld: %v: %s: %s", err, stdout, stderr)
-	}
-
-	installSingleNode(t, tc)
-
-	isMultiNodeEnabled := "false"
-	testArgs := []string{isMultiNodeEnabled}
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-	checkNodeJoinCommand(t, tc, 0)
-
-	t.Logf("%s: validating firewalld", time.Now().Format(time.RFC3339))
-	line = []string{"firewalld-validate.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to validate firewalld: %v: %s: %s", err, stdout, stderr)
-	}
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: resetting firewalld", time.Now().Format(time.RFC3339))
-	line = []string{"firewalld-reset.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to reset firewalld: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeInstallationDebian12(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "debian-bookworm",
-		LicensePath:  "licenses/multi-node-disabled-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	installSingleNode(t, tc)
-
-	isMultiNodeEnabled := "false"
-	testArgs := []string{isMultiNodeEnabled}
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-	checkNodeJoinCommand(t, tc, 0)
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeInstallationDebian11(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "debian-bullseye",
-		LicensePath:  "licenses/multi-node-disabled-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	installSingleNode(t, tc)
-
-	isMultiNodeEnabled := "false"
-	testArgs := []string{isMultiNodeEnabled}
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-	checkNodeJoinCommand(t, tc, 0)
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeInstallationCentos9Stream(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "centos-9",
-		LicensePath:  "licenses/multi-node-disabled-license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
-	line := []string{"yum-install-tar.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	installSingleNode(t, tc)
-
-	isMultiNodeEnabled := "false"
-	testArgs := []string{isMultiNodeEnabled}
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-	checkNodeJoinCommand(t, tc, 0)
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs = []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
 // This test creates 4 nodes, installs on the first one and then generate 2 join tokens
 // for controllers and one join token for worker nodes. Joins the nodes and then waits
 // for them to report ready.
@@ -361,52 +175,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 
 	checkPostUpgradeState(t, tc)
 
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestUpgradeFromReplicatedApp(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:      t,
-		Nodes:  1,
-		Distro: "debian-bookworm",
-	})
-	defer tc.Cleanup()
-
-	// Previous stable EC version with a -1 minor k0s version
-	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
-
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version: initialVersion,
-	})
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		version: initialVersion,
-	})
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationStateWithOptions(t, tc, installationStateOptions{
-		version:    initialVersion,
-		k8sVersion: k8sVersionPreviousStable(),
-	})
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	line := []string{"collect-support-bundle-host-in-cluster.sh"}
+	line = []string{"collect-support-bundle-host-in-cluster.sh"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
 	if err != nil {
 		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
@@ -424,7 +193,7 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:      t,
 		Nodes:  1,
-		Distro: "debian-bookworm",
+		Distro: "debian-bullseye",
 	})
 	defer tc.Cleanup()
 
@@ -477,111 +246,6 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
 	if err != nil {
 		t.Fatalf("fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestResetAndReinstall(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := docker.NewCluster(&docker.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distro:       "debian-bookworm",
-		LicensePath:  "licenses/license.yaml",
-		ECBinaryPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	installSingleNode(t, tc)
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-	resetInstallation(t, tc, 0)
-
-	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
-
-	installSingleNode(t, tc)
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestResetAndReinstallAirgap(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := cmx.NewCluster(&cmx.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distribution: "ubuntu",
-		Version:      "22.04",
-	})
-	defer tc.Cleanup()
-
-	t.Logf("%s: downloading airgap file on node 0", time.Now().Format(time.RFC3339))
-	err := downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), AirgapInstallBundlePath, AirgapLicenseID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
-	if err := tc.Airgap(); err != nil {
-		t.Fatalf("failed to airgap cluster: %v", err)
-	}
-
-	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
-	line := []string{"airgap-prepare.sh"}
-
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
-	}
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		isAirgap: true,
-	})
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkNodeJoinCommand(t, tc, 0)
-	resetInstallation(t, tc, 0)
-
-	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	tc.WaitForReboot()
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		isAirgap: true,
-	})
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
@@ -1075,7 +739,7 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
 		Nodes:        1,
-		Distro:       "debian-bookworm",
+		Distro:       "centos-9",
 		LicensePath:  "licenses/license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
 	})

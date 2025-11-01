@@ -7,3 +7,19 @@ spec:
  domains:
    replicatedAppDomain: "fake-endpoint.com"
    proxyRegistryDomain: "fake-replicated-proxy.test.net"
+ unsupportedOverrides:
+   k0s: |
+     config:
+       metadata:
+         name: testing-overrides-k0s-name
+       spec:
+         telemetry:
+           enabled: false
+         api:
+           extraArgs:
+             test-key: test-value
+         workerProfiles:
+         - name: ip-forward
+           values:
+             allowedUnsafeSysctls:
+             - net.ipv4.ip_forward
