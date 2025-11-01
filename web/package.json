@@ -51,7 +51,7 @@
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.4.0",
-    "jsdom": "^27.0.1",
+    "jsdom": "^27.1.0",
     "msw": "2.11.6",
     "openapi-backend": "^5.15.0",
     "openapi-typescript": "^7.10.1",
