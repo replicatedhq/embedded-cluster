@@ -1169,7 +1169,7 @@ func TestSetupInfra(t *testing.T) {
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(getTestReleaseData(&appConfig)),
-				appcontroller.WithLicense([]byte("spec:\n  licenseID: test-license\n")),
+				appcontroller.WithLicense([]byte("apiVersion: kots.io/v1beta1\nkind: License\nspec:\n  licenseID: test-license\n")),
 				appcontroller.WithAppConfigManager(mockAppConfigManager),
 				appcontroller.WithAppPreflightManager(mockAppPreflightManager),
 				appcontroller.WithAppReleaseManager(mockAppReleaseManager),
@@ -1187,7 +1187,7 @@ func TestSetupInfra(t *testing.T) {
 				WithAllowIgnoreHostPreflights(tt.serverAllowIgnoreHostPreflights),
 				WithMetricsReporter(mockMetricsReporter),
 				WithReleaseData(getTestReleaseData(&appConfig)),
-				WithLicense([]byte("spec:\n  licenseID: test-license\n")),
+				WithLicense([]byte("apiVersion: kots.io/v1beta1\nkind: License\nspec:\n  licenseID: test-license\n")),
 				WithStore(mockStore),
 				WithHelmClient(&helm.MockClient{}),
 			)

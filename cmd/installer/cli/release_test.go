@@ -9,6 +9,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -91,7 +92,10 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 				},
 			}
 
-			got, err := getCurrentAppChannelRelease(context.Background(), license, tt.args.channelID)
+			// Wrap the license for the new API
+			wrappedLicense := licensewrapper.LicenseWrapper{V1: license}
+
+			got, err := getCurrentAppChannelRelease(context.Background(), wrappedLicense, tt.args.channelID)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

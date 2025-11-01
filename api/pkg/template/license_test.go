@@ -4,14 +4,23 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Helper function to wrap old-style license in LicenseWrapper for testing
+func wrapLicense(license *kotsv1beta1.License) licensewrapper.LicenseWrapper {
+	return licensewrapper.LicenseWrapper{
+		V1: license,
+	}
+}
 
 func TestEngine_LicenseFieldValue(t *testing.T) {
 	license := &kotsv1beta1.License{
@@ -67,7 +76,7 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	// Test basic license fields
 	testCases := []struct {
@@ -157,7 +166,7 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
@@ -180,7 +189,7 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
@@ -216,7 +225,7 @@ func TestEngine_LicenseDockerCfg(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -274,7 +283,7 @@ func TestEngine_LicenseDockerCfgWithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(nil, WithLicense(license))
+	engine := NewEngine(nil, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -304,7 +313,7 @@ func TestEngine_LicenseDockerCfgStagingEndpoint(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -367,7 +376,7 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -439,7 +448,7 @@ func TestEngine_ChannelName(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -479,7 +488,7 @@ func TestEngine_ChannelName_FallbackToLicenseChannel(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -519,7 +528,7 @@ func TestEngine_ChannelName_WithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -550,7 +559,7 @@ func TestEngine_ChannelName_WithoutChannelRelease(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -590,11 +599,52 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
 	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "channel unknown-channel-id not found in license")
+}
+
+func TestEngine_LicenseWrapper(t *testing.T) {
+	tests := []struct {
+		name          string
+		licenseFile   string
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+	}{
+		{
+			name:          "v1beta1 license",
+			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta1.yaml",
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+		},
+		{
+			name:          "v1beta2 license",
+			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta2.yaml",
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			licenseData, err := os.ReadFile(tt.licenseFile)
+			require.NoError(t, err)
+
+			wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
+			require.NoError(t, err)
+
+			engine := NewEngine(nil, WithLicense(wrapper))
+
+			assert.Equal(t, tt.wantAppSlug, engine.LicenseAppSlug())
+			assert.Equal(t, tt.wantLicenseID, engine.LicenseID())
+			assert.Equal(t, tt.wantECEnabled, engine.LicenseIsEmbeddedClusterDownloadEnabled())
+		})
+	}
 }

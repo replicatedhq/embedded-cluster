@@ -12,7 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	nodeutil "k8s.io/component-helpers/node/util"
 )
@@ -32,16 +32,13 @@ func (e ErrorNoFail) Error() string {
 	return e.Err.Error()
 }
 
-// LicenseID returns the license id. If the license is nil, it returns an empty string.
-func LicenseID(license *kotsv1beta1.License) string {
-	if license != nil {
-		return license.Spec.LicenseID
-	}
-	return ""
+// LicenseID returns the license id from a LicenseWrapper.
+func LicenseID(license licensewrapper.LicenseWrapper) string {
+	return license.GetLicenseID()
 }
 
-// License returns the parsed license. If something goes wrong, it returns nil.
-func License(licenseFlag string) *kotsv1beta1.License {
+// License returns the parsed license as a LicenseWrapper. If something goes wrong, it returns an empty wrapper.
+func License(licenseFlag string) licensewrapper.LicenseWrapper {
 	license, _ := helpers.ParseLicense(licenseFlag)
 	return license
 }
