@@ -496,16 +496,27 @@ func runManagerExperienceUpgrade(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig, cancel); err != nil {
+	apiExitCh, err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig)
+	if err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
 		appTitle,
 		getManagerURL(upgradeConfig.tlsConfig.Hostname, upgradeConfig.managerPort))
-	<-ctx.Done()
 
-	return nil
+	// Wait for either user cancellation or API unexpected exit
+	select {
+	case <-ctx.Done():
+		// Normal exit (user interrupted)
+		return nil
+	case err := <-apiExitCh:
+		// API exited unexpectedly
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("api server exited unexpectedly")
+	}
 }
 
 // checkRequiresInfraUpgrade determines if an infrastructure upgrade is required by comparing

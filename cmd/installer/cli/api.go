@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -37,22 +36,14 @@ type apiOptions struct {
 	WebAssetsFS     fs.FS
 }
 
-func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel context.CancelFunc) error {
+// startAPI starts the API server and returns a channel that will receive an error if the API exits unexpectedly.
+// The returned channel will be closed when the API exits normally (via context cancellation).
+func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions) (<-chan error, error) {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", opts.ManagerPort))
 	if err != nil {
-		return fmt.Errorf("unable to create listener: %w", err)
+		return nil, fmt.Errorf("unable to create listener: %w", err)
 	}
 	logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
-
-	go func() {
-		// If the api exits, we want to exit the entire process
-		defer cancel()
-		if err := serveAPI(ctx, listener, cert, opts); err != nil {
-			if !errors.Is(err, http.ErrServerClosed) {
-				logrus.Errorf("API server exited with error: %v", err)
-			}
-		}
-	}()
 
 	addr := fmt.Sprintf("https://localhost:%d", opts.ManagerPort)
 	httpClient := &http.Client{
@@ -64,11 +55,30 @@ func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel
 			},
 		},
 	}
-	if err := waitForAPI(ctx, httpClient, addr); err != nil {
-		return fmt.Errorf("unable to wait for api: %w", err)
+
+	apiExitCh := make(chan error, 1)
+	waitErrCh := make(chan error, 1)
+
+	go func() {
+		apiExitCh <- serveAPI(ctx, listener, cert, opts)
+	}()
+
+	go func() {
+		waitErrCh <- waitForAPI(ctx, httpClient, addr)
+	}()
+
+	select {
+	case err := <-apiExitCh:
+		if err != nil {
+			return nil, fmt.Errorf("serve api: %w", err)
+		}
+	case err := <-waitErrCh:
+		if err != nil {
+			return apiExitCh, fmt.Errorf("wait for api: %w", err)
+		}
 	}
 
-	return nil
+	return apiExitCh, nil
 }
 
 func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, opts apiOptions) error {

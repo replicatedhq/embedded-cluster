@@ -41,6 +41,12 @@ var (
 	//go:embed assets/cluster-config-nodomains.yaml
 	clusterConfigNoDomainsData string
 
+	//go:embed assets/kotskinds-application.yaml
+	applicationData string
+
+	//go:embed assets/kotskinds-config.yaml
+	configData string
+
 	//go:embed assets/install-license.yaml
 	licenseData string
 )
@@ -122,6 +128,8 @@ func embedReleaseData(clusterConfig string) error {
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
 		"cluster-config.yaml": []byte(clusterConfig),
+		"application.yaml":    []byte(applicationData),
+		"config.yaml":         []byte(configData),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
