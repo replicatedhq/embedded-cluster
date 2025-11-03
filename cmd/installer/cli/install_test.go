@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -595,7 +596,7 @@ versionLabel: testversion
 				req.NoError(err)
 			}
 
-			_, err = verifyLicense(license)
+			err = verifyLicense(license)
 
 			if tt.wantErr != "" {
 				req.EqualError(err, tt.wantErr)
@@ -893,127 +894,5 @@ func Test_k0sConfigFromFlags(t *testing.T) {
 
 func stringPtr(s string) *string {
 	return &s
-}
-
-func Test_buildInstallConfig_License(t *testing.T) {
-	// Create a temporary directory for test license files
-	tmpdir := t.TempDir()
-
-	// Valid test license data (YAML format for a kotsv1beta1.License)
-	validLicenseData := `apiVersion: kots.io/v1beta1
-kind: License
-metadata:
-  name: test-license
-spec:
-  licenseID: test-license-id
-  appSlug: test-app
-  channelID: test-channel-id
-  channelName: Test Channel
-  customerName: Test Customer
-  endpoint: https://replicated.app
-  entitlements:
-    expires_at:
-      title: Expiration
-      value: "2030-01-01T00:00:00Z"
-      valueType: String
-  isEmbeddedClusterDownloadEnabled: true`
-
-	// Create a valid license file
-	validLicensePath := filepath.Join(tmpdir, "valid-license.yaml")
-	err := os.WriteFile(validLicensePath, []byte(validLicenseData), 0644)
-	require.NoError(t, err)
-
-	tests := []struct {
-		name          string
-		licenseFile   string
-		wantErr       string
-		expectLicense bool
-	}{
-		{
-			name:          "no license file provided",
-			licenseFile:   "",
-			wantErr:       "",
-			expectLicense: false,
-		},
-		{
-			name:          "license file does not exist",
-			licenseFile:   filepath.Join(tmpdir, "nonexistent.yaml"),
-			wantErr:       "failed to read license file",
-			expectLicense: false,
-		},
-		{
-			name: "invalid license file - not YAML",
-			licenseFile: func() string {
-				invalidPath := filepath.Join(tmpdir, "invalid-license.txt")
-				os.WriteFile(invalidPath, []byte("this is not a valid license file"), 0644)
-				return invalidPath
-			}(),
-			wantErr:       "failed to parse license file",
-			expectLicense: false,
-		},
-		{
-			name: "invalid license file - wrong kind",
-			licenseFile: func() string {
-				wrongKindPath := filepath.Join(tmpdir, "wrong-kind.yaml")
-				wrongKindData := `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: not-a-license`
-				os.WriteFile(wrongKindPath, []byte(wrongKindData), 0644)
-				return wrongKindPath
-			}(),
-			wantErr:       "failed to parse license file",
-			expectLicense: false,
-		},
-		{
-			name: "corrupt license file - invalid YAML",
-			licenseFile: func() string {
-				corruptPath := filepath.Join(tmpdir, "corrupt-license.yaml")
-				corruptData := `apiVersion: kots.io/v1beta1
-kind: License
-metadata:
-  name: test
-spec:
-  this is not valid yaml: [[[`
-				os.WriteFile(corruptPath, []byte(corruptData), 0644)
-				return corruptPath
-			}(),
-			wantErr:       "failed to parse license file",
-			expectLicense: false,
-		},
-		{
-			name:          "valid license file",
-			licenseFile:   validLicensePath,
-			wantErr:       "",
-			expectLicense: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			flags := &installFlags{
-				licenseFile: tt.licenseFile,
-			}
-
-			installCfg, err := buildInstallConfig(flags)
-
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-			} else {
-				require.NoError(t, err)
-
-				if tt.expectLicense {
-					assert.NotEmpty(t, installCfg.licenseBytes, "License bytes should be populated")
-					assert.NotEmpty(t, installCfg.license.GetLicenseID(), "License should be parsed")
-					assert.Equal(t, "test-license-id", installCfg.license.GetLicenseID())
-					assert.Equal(t, "test-app", installCfg.license.GetAppSlug())
-				} else {
-					assert.Empty(t, installCfg.licenseBytes, "License bytes should be empty")
-					assert.Nil(t, installCfg.license, "License should be nil")
-				}
-			}
-		})
-	}
 }
 
