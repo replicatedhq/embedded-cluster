@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
@@ -81,6 +82,29 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	}
 	flags.proxySpec = proxy
 
+	// Headless installation validation
+	if isV3Enabled() && flags.headless {
+		if err := validateHeadlessInstallFlags(flags); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateHeadlessInstallFlags(flags *installFlags) error {
+	if flags.configValues == "" {
+		return fmt.Errorf("--config-values flag is required for headless installation")
+	}
+
+	if flags.adminConsolePassword == "" {
+		return fmt.Errorf("--admin-console-password flag is required for headless installation")
+	}
+
+	if flags.target != string(apitypes.InstallTargetLinux) {
+		return fmt.Errorf("headless installation only supports --target=linux (got: %s)", flags.target)
+	}
+
 	return nil
 }
 
@@ -118,6 +142,13 @@ func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("config values file is not valid: %w", err)
 		}
+
+		// Parse the config values file
+		cv, err := helpers.ParseConfigValues(flags.configValues)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse config values file: %w", err)
+		}
+		installCfg.configValues = cv
 	}
 
 	// Airgap detection and metadata
@@ -187,7 +218,7 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 		installCfg.tlsCertBytes = certBytes
 		installCfg.tlsKeyBytes = keyBytes
 	} else if installCfg.enableManagerExperience {
-		// For manager experience, generate self-signed certificate if none provided
+		// For manager experience, generate self-signed cert if none provided, with user confirmation
 		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
 		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
 
@@ -198,7 +229,7 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 				return fmt.Errorf("failed to get confirmation: %w", err)
 			}
 			if !confirmed {
-				logrus.Infof("\nInstallation cancelled. Please run the command again with the --tls-key and --tls-cert flags.\n")
+				logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
 				return fmt.Errorf("installation cancelled by user")
 			}
 		}

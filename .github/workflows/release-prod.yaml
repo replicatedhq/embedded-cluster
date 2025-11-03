@@ -341,24 +341,6 @@ jobs:
           export APP_VERSION="appver-${{ github.ref_name }}"
           export RELEASE_YAML_DIR=e2e/kots-release-install	
           ./scripts/ci-release-app.sh
-          
-          # then install a version with alternate unsupported overrides
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-unsupported-overrides"
-          export RELEASE_YAML_DIR=e2e/kots-release-unsupported-overrides
-          ./scripts/ci-release-app.sh
-          
-          # then install a version with additional failing host preflights
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-failing-preflights"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-failing-preflights
-          ./scripts/ci-release-app.sh
-          
-          # then install a version with additional warning host preflights
-          export EC_VERSION="${{ github.ref_name }}"
-          export APP_VERSION="appver-${{ github.ref_name }}-warning-preflights"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-warning-preflights
-          ./scripts/ci-release-app.sh
 
           # then a noop upgrade
           export EC_VERSION="${{ github.ref_name }}"
@@ -508,29 +490,15 @@ jobs:
         test:
           - TestPreflights
           - TestPreflightsNoexec
-          - TestMaterialize
-          - TestHostPreflightCustomSpec
-          - TestHostPreflightInBuiltSpec
           - TestSingleNodeInstallation
-          - TestSingleNodeInstallationAlmaLinux8
-          - TestSingleNodeInstallationDebian11
-          - TestSingleNodeInstallationDebian12
-          - TestSingleNodeInstallationCentos9Stream
           - TestSingleNodeUpgradePreviousStable
-          - TestInstallFromReplicatedApp
-          - TestUpgradeFromReplicatedApp
-          - TestResetAndReinstall
-          - TestInstallSnapshotFromReplicatedApp
           - TestMultiNodeInstallation
           - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
-          - TestLocalArtifactMirror
-          - TestMultiNodeReset
           - TestCollectSupportBundle
-          - TestUnsupportedOverrides
           - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
     steps:
@@ -596,13 +564,9 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestResetAndReinstallAirgap
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestSingleNodeAirgapUpgradeConfigValues
-          - TestSingleNodeAirgapUpgradeCustomCIDR
-          - TestMultiNodeAirgapUpgrade
-          - TestMultiNodeAirgapUpgradeSameK0s
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery

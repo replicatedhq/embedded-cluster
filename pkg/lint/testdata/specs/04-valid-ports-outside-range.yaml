@@ -1,0 +1,29 @@
+# This should PASS: All ports are outside the supported range
+# No errors expected
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: valid-config
+spec:
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: adminconsole
+      values: |
+        service:
+          type: NodePort
+          nodePort: 50000  # OK: Above supported range
+    - name: openebs
+      values: |
+        apiServer:
+          service:
+            nodePort: 79  # OK: Below supported range
+    - name: registry
+      values: |
+        service:
+          nodePort: 32768  # OK: Above supported range
+    - name: monitoring
+      values: |
+        prometheus:
+          server:
+            service:
+              nodePort: 60000  # OK: Above supported range
