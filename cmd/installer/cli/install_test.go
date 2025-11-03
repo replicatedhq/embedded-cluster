@@ -556,7 +556,7 @@ versionLabel: testversion
 			})
 
 			// Parse license contents into wrapper
-			var license licensewrapper.LicenseWrapper
+			var license *licensewrapper.LicenseWrapper
 			if tt.licenseContents != "" {
 				tmpdir := t.TempDir()
 				licensePath := filepath.Join(tmpdir, "license.yaml")
@@ -981,7 +981,7 @@ spec:
 					assert.Equal(t, "test-app", installCfg.license.GetAppSlug())
 				} else {
 					assert.Empty(t, installCfg.licenseBytes, "License bytes should be empty")
-					assert.Empty(t, installCfg.license.GetLicenseID(), "License should be empty")
+					assert.Nil(t, installCfg.license, "License should be nil")
 				}
 			}
 		})
