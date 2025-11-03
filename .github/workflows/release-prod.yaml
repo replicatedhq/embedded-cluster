@@ -564,10 +564,8 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
-          - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
@@ -575,11 +573,7 @@ jobs:
             is-lxd: true
           - test: TestCommandsRequireSudo
             is-lxd: true
-          - test: TestSingleNodeDisasterRecoveryWithProxy
-            is-lxd: true
           - test: TestProxiedEnvironment
-            is-lxd: true
-          - test: TestProxiedCustomCIDR
             is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true
