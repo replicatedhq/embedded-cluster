@@ -34,7 +34,7 @@ type appConfigManager struct {
 	rawConfig                  kotsv1beta1.Config
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
-	license *licensewrapper.LicenseWrapper
+	license                    *licensewrapper.LicenseWrapper
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client

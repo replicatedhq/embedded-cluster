@@ -25,7 +25,7 @@ type AppReleaseManager interface {
 type appReleaseManager struct {
 	rawConfig                  kotsv1beta1.Config
 	releaseData                *release.ReleaseData
-	license *licensewrapper.LicenseWrapper
+	license                    *licensewrapper.LicenseWrapper
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client

@@ -325,7 +325,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 
 			// Wrap the license for the new API
 			wrappedLicense := &licensewrapper.LicenseWrapper{V1: license}
-			err = maybePromptForAppUpdate(context.Background(), prompt, wrappedLicense, false)
+			err = maybePromptForAppUpdate(context.Background(), prompt, wrappedLicense, tt.assumeYes)
 
 			if tt.wantErr {
 				require.Error(t, err)
