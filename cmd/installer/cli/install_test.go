@@ -895,4 +895,3 @@ func Test_k0sConfigFromFlags(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
-
