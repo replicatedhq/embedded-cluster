@@ -124,6 +124,11 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				initialVersion = currentInstallation.Spec.Config.Version
 			}
 
+			// Verify license is available for metrics reporting
+			if upgradeConfig.license == nil {
+				return fmt.Errorf("license is required for upgrade")
+			}
+
 			metricsReporter := newUpgradeReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				upgradeConfig.license.GetLicenseID(), upgradeConfig.clusterID, upgradeConfig.license.GetAppSlug(),
@@ -255,7 +260,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	upgradeConfig.license = l
 
 	// sync the license if a license is provided and we are not in airgap mode
-	if upgradeConfig.license.GetLicenseID() != "" && flags.airgapBundle == "" {
+	if upgradeConfig.license != nil && upgradeConfig.license.GetLicenseID() != "" && flags.airgapBundle == "" {
 		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
 		if err != nil {
 			return fmt.Errorf("failed to create replicated API client: %w", err)

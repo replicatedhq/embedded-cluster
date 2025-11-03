@@ -677,6 +677,11 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		return nil, fmt.Errorf("get kotsadm namespace: %w", err)
 	}
 
+	// Verify license is available before configuring install options
+	if installCfg.license == nil {
+		return nil, fmt.Errorf("license is required for installation")
+	}
+
 	opts := &addons.InstallOptions{
 		ClusterID:               installCfg.clusterID,
 		AdminConsolePwd:         flags.adminConsolePassword,
@@ -698,6 +703,10 @@ func getAddonInstallOpts(ctx context.Context, kcli client.Client, flags installF
 		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		ServiceCIDR:             rc.ServiceCIDR(),
 		KotsInstaller: func() error {
+			// License already validated above, but check defensively
+			if installCfg.license == nil {
+				return fmt.Errorf("license is required for KOTS installation")
+			}
 			opts := kotscli.InstallOptions{
 				AppSlug:               installCfg.license.GetAppSlug(),
 				License:               installCfg.licenseBytes,
