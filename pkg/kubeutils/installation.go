@@ -133,6 +133,11 @@ type RecordInstallationOptions struct {
 }
 
 func RecordInstallation(ctx context.Context, kcli client.Client, opts RecordInstallationOptions) (*ecv1beta1.Installation, error) {
+	// Verify license is available before recording installation
+	if opts.License == nil {
+		return nil, fmt.Errorf("license is required for recording installation")
+	}
+
 	// ensure that the embedded-cluster namespace exists
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
