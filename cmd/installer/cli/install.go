@@ -137,6 +137,11 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
+			// Verify license is available for metrics reporting
+			if installCfg.license == nil {
+				return fmt.Errorf("license is required for installation")
+			}
+
 			metricsReporter := newInstallReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
 				installCfg.license.GetLicenseID(), installCfg.clusterID, installCfg.license.GetAppSlug(),
