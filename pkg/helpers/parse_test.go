@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"embed"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+//go:embed testdata/*
+var testdata embed.FS
 
 func TestParseEndUserConfig(t *testing.T) {
 	tests := []struct {
@@ -159,7 +163,21 @@ func TestParseLicense(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			wrapper, err := ParseLicense(tt.licenseFile)
+			var testFile string
+			if tt.licenseFile != "testdata/nonexistent.yaml" {
+				// Read from embedded filesystem and write to temp file
+				data, err := testdata.ReadFile(tt.licenseFile)
+				require.NoError(t, err)
+				tmpDir := t.TempDir()
+				testFile = filepath.Join(tmpDir, filepath.Base(tt.licenseFile))
+				err = os.WriteFile(testFile, data, 0644)
+				require.NoError(t, err)
+			} else {
+				// Use non-existent path for the error case
+				testFile = tt.licenseFile
+			}
+
+			wrapper, err := ParseLicense(testFile)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -193,7 +211,7 @@ func TestParseLicenseFromBytes(t *testing.T) {
 		{
 			name: "v1beta1 license",
 			setupData: func(t *testing.T) []byte {
-				data, err := os.ReadFile("testdata/license-v1beta1.yaml")
+				data, err := testdata.ReadFile("testdata/license-v1beta1.yaml")
 				require.NoError(t, err)
 				return data
 			},
@@ -207,7 +225,7 @@ func TestParseLicenseFromBytes(t *testing.T) {
 		{
 			name: "v1beta2 license",
 			setupData: func(t *testing.T) []byte {
-				data, err := os.ReadFile("testdata/license-v1beta2.yaml")
+				data, err := testdata.ReadFile("testdata/license-v1beta2.yaml")
 				require.NoError(t, err)
 				return data
 			},

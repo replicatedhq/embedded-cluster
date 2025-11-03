@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -609,23 +608,95 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 }
 
 func TestEngine_LicenseWrapper(t *testing.T) {
+	licenseV1Beta1 := `apiVersion: kots.io/v1beta1
+kind: License
+metadata:
+  name: test-license
+spec:
+  appSlug: embedded-cluster-test
+  licenseID: test-license-id-v1
+  licenseType: dev
+  customerName: Test Customer V1
+  customerEmail: test@example.com
+  endpoint: https://replicated.app
+  channelID: test-channel-id
+  channelName: Stable
+  licenseSequence: 1
+  isAirgapSupported: true
+  isGitOpsSupported: false
+  isIdentityServiceSupported: false
+  isGeoaxisSupported: false
+  isSnapshotSupported: true
+  isSupportBundleUploadSupported: true
+  isSemverRequired: true
+  isDisasterRecoverySupported: true
+  isEmbeddedClusterDownloadEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
+  replicatedProxyDomain: proxy.replicated.com
+  entitlements:
+    expires_at:
+      title: Expiration
+      description: License Expiration
+      value: ""
+      valueType: String
+      signature: {}
+  channels: []
+  signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==
+`
+
+	licenseV1Beta2 := `apiVersion: kots.io/v1beta2
+kind: License
+metadata:
+  name: test-license
+spec:
+  appSlug: embedded-cluster-test
+  licenseID: test-license-id-v2
+  licenseType: dev
+  customerName: Test Customer V2
+  customerEmail: test@example.com
+  endpoint: https://replicated.app
+  channelID: test-channel-id
+  channelName: Stable
+  licenseSequence: 1
+  isAirgapSupported: true
+  isGitOpsSupported: false
+  isIdentityServiceSupported: false
+  isGeoaxisSupported: false
+  isSnapshotSupported: true
+  isSupportBundleUploadSupported: true
+  isSemverRequired: true
+  isDisasterRecoverySupported: true
+  isEmbeddedClusterDownloadEnabled: true
+  isEmbeddedClusterMultiNodeEnabled: true
+  replicatedProxyDomain: proxy.replicated.com
+  entitlements:
+    expires_at:
+      title: Expiration
+      description: License Expiration
+      value: ""
+      valueType: String
+      signature: {}
+  channels: []
+  signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==
+`
+
 	tests := []struct {
 		name          string
-		licenseFile   string
+		licenseData   string
 		wantAppSlug   string
 		wantLicenseID string
 		wantECEnabled bool
 	}{
 		{
 			name:          "v1beta1 license",
-			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta1.yaml",
+			licenseData:   licenseV1Beta1,
 			wantAppSlug:   "embedded-cluster-test",
 			wantLicenseID: "test-license-id-v1",
 			wantECEnabled: true,
 		},
 		{
 			name:          "v1beta2 license",
-			licenseFile:   "../../../pkg/helpers/testdata/license-v1beta2.yaml",
+			licenseData:   licenseV1Beta2,
 			wantAppSlug:   "embedded-cluster-test",
 			wantLicenseID: "test-license-id-v2",
 			wantECEnabled: true,
@@ -634,10 +705,7 @@ func TestEngine_LicenseWrapper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			licenseData, err := os.ReadFile(tt.licenseFile)
-			require.NoError(t, err)
-
-			wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
+			wrapper, err := licensewrapper.LoadLicenseFromBytes([]byte(tt.licenseData))
 			require.NoError(t, err)
 
 			engine := NewEngine(nil, WithLicense(&wrapper))
