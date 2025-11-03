@@ -123,7 +123,7 @@ func writeInstallationStatusMessage(writer *spinner.MessageWriter, install *ecv1
 type RecordInstallationOptions struct {
 	ClusterID              string
 	IsAirgap               bool
-	License                licensewrapper.LicenseWrapper
+	License                *licensewrapper.LicenseWrapper
 	ConfigSpec             *ecv1beta1.ConfigSpec
 	MetricsBaseURL         string
 	RuntimeConfig          *ecv1beta1.RuntimeConfigSpec

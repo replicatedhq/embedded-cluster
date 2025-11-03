@@ -49,7 +49,7 @@ type upgradeConfig struct {
 	passwordHash         []byte
 	tlsConfig            apitypes.TLSConfig
 	tlsCert              tls.Certificate
-	license              licensewrapper.LicenseWrapper
+	license              *licensewrapper.LicenseWrapper
 	licenseBytes         []byte
 	airgapMetadata       *airgap.AirgapMetadata
 	embeddedAssetsSize   int64

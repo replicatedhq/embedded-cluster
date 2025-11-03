@@ -25,7 +25,7 @@ type AppReleaseManager interface {
 type appReleaseManager struct {
 	rawConfig                  kotsv1beta1.Config
 	releaseData                *release.ReleaseData
-	license                    licensewrapper.LicenseWrapper
+	license *licensewrapper.LicenseWrapper
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client
@@ -61,7 +61,7 @@ func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
 	}
 }
 
-func WithLicense(license licensewrapper.LicenseWrapper) AppReleaseManagerOption {
+func WithLicense(license *licensewrapper.LicenseWrapper) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.license = license
 	}

@@ -97,13 +97,13 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 	return nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (*ecv1beta1.Installation, error) {
 	// TODO: we may need this later
 
 	return nil, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -148,7 +148,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(ctx context.Context, license licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
 	// TODO: We should not use the runtimeconfig package for kubernetes target installs. Since runtimeconfig.KotsadmNamespace is
 	// target agnostic, we should move it to a package that can be used by both linux/kubernetes targets.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)

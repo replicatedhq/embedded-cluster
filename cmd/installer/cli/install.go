@@ -91,7 +91,7 @@ type installConfig struct {
 	isAirgap                bool
 	enableManagerExperience bool
 	licenseBytes            []byte
-	license                 licensewrapper.LicenseWrapper
+	license                 *licensewrapper.LicenseWrapper
 	airgapMetadata          *airgap.AirgapMetadata
 	embeddedAssetsSize      int64
 	endUserConfig           *ecv1beta1.Config
@@ -797,33 +797,33 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func verifyLicense(license licensewrapper.LicenseWrapper) (licensewrapper.LicenseWrapper, error) {
+func verifyLicense(license *licensewrapper.LicenseWrapper) (*licensewrapper.LicenseWrapper, error) {
 	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
 	// 3. a license and no release, which is not OK
-	if rel == nil && license.GetLicenseID() == "" {
+	if rel == nil && (license == nil || license.GetLicenseID() == "") {
 		// no license and no release, this is OK
-		return licensewrapper.LicenseWrapper{}, nil
-	} else if rel == nil && license.GetLicenseID() != "" {
+		return nil, nil
+	} else if rel == nil && license != nil && license.GetLicenseID() != "" {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && license.GetLicenseID() == "" {
+		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+	} else if rel != nil && (license == nil || license.GetLicenseID() == "") {
 		// release is present but no license, this is not OK
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.GetAppSlug() {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.GetAppSlug(), rel.AppSlug)
+		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.GetAppSlug(), rel.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
 	if err := checkChannelExistence(license, rel); err != nil {
-		return licensewrapper.LicenseWrapper{}, err
+		return nil, err
 	}
 
 	entitlements := license.GetEntitlements()
@@ -834,16 +834,16 @@ func verifyLicense(license licensewrapper.LicenseWrapper) (licensewrapper.Licens
 			// read the expiration date, and check it against the current date
 			expiration, err := time.Parse(time.RFC3339, expiresAtStr)
 			if err != nil {
-				return licensewrapper.LicenseWrapper{}, fmt.Errorf("parse expiration date: %w", err)
+				return nil, fmt.Errorf("parse expiration date: %w", err)
 			}
 			if time.Now().After(expiration) {
-				return licensewrapper.LicenseWrapper{}, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+				return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
 			}
 		}
 	}
 
 	if !license.IsEmbeddedClusterDownloadEnabled() {
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
 	return license, nil
@@ -851,7 +851,10 @@ func verifyLicense(license licensewrapper.LicenseWrapper) (licensewrapper.Licens
 
 // checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
 // error message actually listing available channels, if it does not.
-func checkChannelExistence(license licensewrapper.LicenseWrapper, rel *release.ChannelRelease) error {
+func checkChannelExistence(license *licensewrapper.LicenseWrapper, rel *release.ChannelRelease) error {
+	if license == nil {
+		return fmt.Errorf("license is nil")
+	}
 	var allowedChannels []string
 	channelExists := false
 
@@ -1085,7 +1088,7 @@ func checkAirgapMatches(airgapInfo *kotsv1beta1.Airgap) error {
 // maybePromptForAppUpdate warns the user if the embedded release is not the latest for the current
 // channel. If stdout is a terminal, it will prompt the user to continue installing the out-of-date
 // release and return an error if the user chooses not to continue.
-func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license licensewrapper.LicenseWrapper, assumeYes bool) error {
+func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license *licensewrapper.LicenseWrapper, assumeYes bool) error {
 	channelRelease := release.GetChannelRelease()
 	if channelRelease == nil {
 		// It is possible to install without embedding the release data. In this case, we cannot
@@ -1093,7 +1096,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		return nil
 	}
 
-	if license.GetLicenseID() == "" {
+	if license == nil || license.GetLicenseID() == "" {
 		return errors.New("license required")
 	}
 
@@ -1231,7 +1234,7 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license licensewrapper.LicenseWrapper, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
+func printSuccessMessage(license *licensewrapper.LicenseWrapper, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
 	// Create the message content

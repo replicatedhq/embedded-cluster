@@ -27,7 +27,7 @@ const (
 type Engine struct {
 	mode                       Mode
 	config                     *kotsv1beta1.Config
-	license                    licensewrapper.LicenseWrapper
+	license                    *licensewrapper.LicenseWrapper
 	releaseData                *release.ReleaseData
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
@@ -56,7 +56,7 @@ func WithMode(mode Mode) EngineOption {
 	}
 }
 
-func WithLicense(license licensewrapper.LicenseWrapper) EngineOption {
+func WithLicense(license *licensewrapper.LicenseWrapper) EngineOption {
 	return func(e *Engine) {
 		e.license = license
 	}

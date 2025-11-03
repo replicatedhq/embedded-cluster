@@ -34,7 +34,7 @@ type appConfigManager struct {
 	rawConfig                  kotsv1beta1.Config
 	appConfigStore             configstore.Store
 	releaseData                *release.ReleaseData
-	license                    licensewrapper.LicenseWrapper
+	license *licensewrapper.LicenseWrapper
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client
@@ -63,7 +63,7 @@ func WithReleaseData(releaseData *release.ReleaseData) AppConfigManagerOption {
 	}
 }
 
-func WithLicense(license licensewrapper.LicenseWrapper) AppConfigManagerOption {
+func WithLicense(license *licensewrapper.LicenseWrapper) AppConfigManagerOption {
 	return func(c *appConfigManager) {
 		c.license = license
 	}

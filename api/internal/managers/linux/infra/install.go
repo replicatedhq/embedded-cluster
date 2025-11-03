@@ -72,7 +72,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	return nil
 }
 
-func (m *infraManager) initInstallComponentsList(license licensewrapper.LicenseWrapper) error {
+func (m *infraManager) initInstallComponentsList(license *licensewrapper.LicenseWrapper) error {
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
 	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.IsDisasterRecoverySupported())
@@ -210,7 +210,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
 	logFn := m.logFn("metadata")
 
 	// get the configured custom domains
@@ -246,7 +246,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -291,7 +291,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(ctx context.Context, license licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return addons.InstallOptions{}, fmt.Errorf("get kotsadm namespace: %w", err)

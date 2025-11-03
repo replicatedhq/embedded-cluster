@@ -26,7 +26,11 @@ type apiChannelRelease struct {
 	ReplicatedProxyDomain    string `json:"replicatedProxyDomain"`
 }
 
-func getCurrentAppChannelRelease(ctx context.Context, license licensewrapper.LicenseWrapper, channelID string) (*apiChannelRelease, error) {
+func getCurrentAppChannelRelease(ctx context.Context, license *licensewrapper.LicenseWrapper, channelID string) (*apiChannelRelease, error) {
+	if license == nil {
+		return nil, fmt.Errorf("license is required")
+	}
+
 	query := url.Values{}
 	query.Set("selectedChannelId", channelID)
 	query.Set("channelSequence", "") // sending an empty string will return the latest channel release

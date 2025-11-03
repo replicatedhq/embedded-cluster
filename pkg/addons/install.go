@@ -18,7 +18,7 @@ import (
 type InstallOptions struct {
 	AdminConsolePwd    string
 	AdminConsolePort   int
-	License            licensewrapper.LicenseWrapper
+	License            *licensewrapper.LicenseWrapper
 	IsAirgap           bool
 	TLSCertBytes       []byte
 	TLSKeyBytes        []byte
@@ -43,7 +43,7 @@ type InstallOptions struct {
 type KubernetesInstallOptions struct {
 	AdminConsolePwd    string
 	AdminConsolePort   int
-	License            licensewrapper.LicenseWrapper
+	License            *licensewrapper.LicenseWrapper
 	IsAirgap           bool
 	TLSCertBytes       []byte
 	TLSKeyBytes        []byte

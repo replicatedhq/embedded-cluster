@@ -176,7 +176,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		return nil, err
 	}
 
-	var license licensewrapper.LicenseWrapper
+	var license *licensewrapper.LicenseWrapper
 	if len(controller.license) > 0 {
 		var err error
 		license, err = helpers.ParseLicenseFromBytes(controller.license)
