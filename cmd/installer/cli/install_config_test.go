@@ -646,8 +646,8 @@ spec:
 				if tt.expectLicense {
 					assert.NotEmpty(t, installCfg.licenseBytes, "License bytes should be populated")
 					assert.NotNil(t, installCfg.license, "License should be parsed")
-					assert.Equal(t, "test-license-id", installCfg.license.Spec.LicenseID)
-					assert.Equal(t, "test-app", installCfg.license.Spec.AppSlug)
+					assert.Equal(t, "test-license-id", installCfg.license.GetLicenseID())
+					assert.Equal(t, "test-app", installCfg.license.GetAppSlug())
 				} else {
 					assert.Empty(t, installCfg.licenseBytes, "License bytes should be empty")
 					assert.Nil(t, installCfg.license, "License should be nil")
