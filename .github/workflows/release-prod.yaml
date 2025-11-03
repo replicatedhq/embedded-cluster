@@ -158,7 +158,9 @@ jobs:
         with:
           path: |
             output/bins
-          key: bins-cache
+          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
+          restore-keys: |
+            bins-cache-
 
       - name: Setup Go
         uses: actions/setup-go@v6
