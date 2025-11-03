@@ -28,6 +28,7 @@ type apiOptions struct {
 	apitypes.APIConfig
 
 	ManagerPort int
+	Headless    bool
 	// The mode the web will be running on, install or upgrade
 	WebMode web.Mode
 
@@ -41,6 +42,7 @@ func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel
 	if err != nil {
 		return fmt.Errorf("unable to create listener: %w", err)
 	}
+	logrus.Debugf("API server listening on port: %d", opts.ManagerPort)
 
 	go func() {
 		// If the api exits, we want to exit the entire process
@@ -52,8 +54,17 @@ func startAPI(ctx context.Context, cert tls.Certificate, opts apiOptions, cancel
 		}
 	}()
 
-	addr := fmt.Sprintf("localhost:%d", opts.ManagerPort)
-	if err := waitForAPI(ctx, addr); err != nil {
+	addr := fmt.Sprintf("https://localhost:%d", opts.ManagerPort)
+	httpClient := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			Proxy: nil,
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+	if err := waitForAPI(ctx, httpClient, addr); err != nil {
 		return fmt.Errorf("unable to wait for api: %w", err)
 	}
 
@@ -84,20 +95,23 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		return fmt.Errorf("new api: %w", err)
 	}
 
-	webServer, err := web.New(web.InitialState{
-		Title:                opts.ReleaseData.Application.Spec.Title,
-		Icon:                 opts.ReleaseData.Application.Spec.Icon,
-		InstallTarget:        string(opts.InstallTarget),
-		Mode:                 opts.WebMode,
-		IsAirgap:             opts.AirgapBundle != "",
-		RequiresInfraUpgrade: opts.RequiresInfraUpgrade,
-	}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
-	if err != nil {
-		return fmt.Errorf("new web server: %w", err)
-	}
-
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
-	webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
+
+	// Only start web server for UI mode, not headless
+	if !opts.Headless {
+		webServer, err := web.New(web.InitialState{
+			Title:                opts.ReleaseData.Application.Spec.Title,
+			Icon:                 opts.ReleaseData.Application.Spec.Icon,
+			InstallTarget:        string(opts.InstallTarget),
+			Mode:                 opts.WebMode,
+			IsAirgap:             opts.AirgapBundle != "",
+			RequiresInfraUpgrade: opts.RequiresInfraUpgrade,
+		}, web.WithLogger(logger), web.WithAssetsFS(opts.WebAssetsFS))
+		if err != nil {
+			return fmt.Errorf("new web server: %w", err)
+		}
+		webServer.RegisterRoutes(router.PathPrefix("/").Subrouter())
+	}
 
 	server := &http.Server{
 		// ErrorLog outputs TLS errors and warnings to the console, we want to make sure we use the same logrus logger for them
@@ -126,16 +140,7 @@ func loggerFromOptions(opts apiOptions) (logrus.FieldLogger, error) {
 	return logger, nil
 }
 
-func waitForAPI(ctx context.Context, addr string) error {
-	httpClient := http.Client{
-		Timeout: 2 * time.Second,
-		Transport: &http.Transport{
-			Proxy: nil,
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
+func waitForAPI(ctx context.Context, httpClient *http.Client, addr string) error {
 	timeout := time.After(10 * time.Second)
 	var lastErr error
 	for {
@@ -148,7 +153,7 @@ func waitForAPI(ctx context.Context, addr string) error {
 			}
 			return fmt.Errorf("api did not start in time")
 		case <-time.Tick(1 * time.Second):
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/api/health", addr), nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/health", addr), nil)
 			if err != nil {
 				lastErr = fmt.Errorf("unable to create request: %w", err)
 				continue

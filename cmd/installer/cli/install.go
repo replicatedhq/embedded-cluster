@@ -62,6 +62,7 @@ type installFlags struct {
 	assumeYes            bool
 	overrides            string
 	configValues         string
+	headless             bool
 
 	// linux flags
 	dataDir                 string
@@ -97,6 +98,7 @@ type installConfig struct {
 	tlsCert                 tls.Certificate
 	tlsCertBytes            []byte
 	tlsKeyBytes             []byte
+	configValues            *kotsv1beta1.ConfigValues
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -129,6 +131,7 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			if err := verifyAndPrompt(ctx, cmd, appSlug, &flags, installCfg, prompts.New()); err != nil {
 				return err
 			}
@@ -346,11 +349,15 @@ func addTLSFlags(cmd *cobra.Command, flags *installFlags) error {
 
 func addManagementConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
+	cmd.Flags().BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 
 	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
 	// not hide the manager-port flag.
 	if !isV3Enabled() {
 		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+			return err
+		}
+		if err := cmd.Flags().MarkHidden("headless"); err != nil {
 			return err
 		}
 	}
@@ -493,12 +500,8 @@ func runManagerExperienceInstall(
 	}
 
 	var configValues apitypes.AppConfigValues
-	if flags.configValues != "" {
-		kotsConfigValues, err := helpers.ParseConfigValues(flags.configValues)
-		if err != nil {
-			return fmt.Errorf("parse config values file: %w", err)
-		}
-		configValues = apitypes.ConvertToAppConfigValues(kotsConfigValues)
+	if installCfg.configValues != nil {
+		configValues = apitypes.ConvertToAppConfigValues(installCfg.configValues)
 	}
 
 	apiConfig := apiOptions{
@@ -532,6 +535,7 @@ func runManagerExperienceInstall(
 		},
 
 		ManagerPort:     flags.managerPort,
+		Headless:        flags.headless,
 		WebMode:         web.ModeInstall,
 		MetricsReporter: metricsReporter,
 	}
@@ -541,6 +545,11 @@ func runManagerExperienceInstall(
 
 	if err := startAPI(ctx, installCfg.tlsCert, apiConfig, cancel); err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
+	}
+
+	if flags.headless {
+		// TODO(PR2): Implement headless installation orchestration
+		return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
@@ -718,10 +727,11 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	logrus.Debugf("checking license matches")
-	license, err := verifyLicense(installCfg.license)
+	err = verifyLicense(installCfg.license)
 	if err != nil {
 		return err
 	}
+
 	if installCfg.airgapMetadata != nil && installCfg.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(installCfg.airgapMetadata.AirgapInfo); err != nil {
@@ -730,7 +740,7 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	if !installCfg.isAirgap {
-		if err := maybePromptForAppUpdate(ctx, prompt, license, flags.assumeYes); err != nil {
+		if err := maybePromptForAppUpdate(ctx, prompt, installCfg.license, flags.assumeYes); err != nil {
 			if errors.As(err, &ErrorNothingElseToAdd{}) {
 				return err
 			}
@@ -796,7 +806,7 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
+func verifyLicense(license *kotsv1beta1.License) error {
 	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
@@ -805,42 +815,42 @@ func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	// 3. a license and no release, which is not OK
 	if rel == nil && license == nil {
 		// no license and no release, this is OK
-		return nil, nil
+		return nil
 	} else if rel == nil && license != nil {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
 	} else if rel != nil && license == nil {
 		// release is present but no license, this is not OK
-		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
 	if err := checkChannelExistence(license, rel); err != nil {
-		return nil, err
+		return err
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
 		// read the expiration date, and check it against the current date
 		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
 		if err != nil {
-			return nil, fmt.Errorf("parse expiration date: %w", err)
+			return fmt.Errorf("parse expiration date: %w", err)
 		}
 		if time.Now().After(expiration) {
-			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+			return fmt.Errorf("license expired on %s, please provide a valid license", expiration)
 		}
 	}
 
 	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+		return fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
-	return license, nil
+	return nil
 }
 
 // checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
