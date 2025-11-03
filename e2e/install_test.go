@@ -1,16 +1,17 @@
 package e2e
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
+	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -890,6 +891,82 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func TestInstallWithConfigValues(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := docker.NewCluster(&docker.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distro:       "almalinux-8",
+		LicensePath:  "licenses/license.yaml",
+		ECBinaryPath: "../output/bin/embedded-cluster",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: installing tar", time.Now().Format(time.RFC3339))
+	line := []string{"yum-install-tar.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check postupgrade state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	hostname := uuid.New().String()
+	password := uuid.New().String()
+
+	// create a config values file on the node
+	configValuesFileContent := fmt.Sprintf(`
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    hostname:
+      value: %s
+    pw:
+      value: %s
+`, hostname, password)
+	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
+	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
+	_, _, err := tc.RunCommandOnNode(0, []string{"mkdir", "-p", "/assets"})
+	if err != nil {
+		t.Fatalf("fail to create config values file directory: %v", err)
+	}
+	_, _, err = tc.RunCommandOnNode(0, []string{"echo", "'" + configValuesFileB64 + "'", "|", "base64", "-d", ">", "/assets/config-values.yaml"})
+	if err != nil {
+		t.Fatalf("fail to create config values file: %v", err)
+	}
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		configValuesFile: "/assets/config-values.yaml",
+	})
+
+	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", hostname, password}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
+
+	checkInstallationState(t, tc)
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	testArgs := []string{appUpgradeVersion, "", hostname}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	checkPostUpgradeState(t, tc)
+
+	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-config-values.sh", "updated-hostname.com", "updated password"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

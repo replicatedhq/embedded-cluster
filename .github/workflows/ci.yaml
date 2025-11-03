@@ -886,6 +886,7 @@ jobs:
           - TestSingleNodeInstallationNoopUpgrade
           - TestCollectSupportBundle
           - TestHostCollectSupportBundleInCluster
+          - TestInstallWithConfigValues
     steps:
       - name: Checkout
         uses: actions/checkout@v5
