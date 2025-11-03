@@ -588,7 +588,7 @@ spec:
 				os.WriteFile(invalidPath, []byte("this is not a valid license file"), 0644)
 				return invalidPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
@@ -602,7 +602,7 @@ metadata:
 				os.WriteFile(wrongKindPath, []byte(wrongKindData), 0644)
 				return wrongKindPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
@@ -618,7 +618,7 @@ spec:
 				os.WriteFile(corruptPath, []byte(corruptData), 0644)
 				return corruptPath
 			}(),
-			wantErr:       "failed to parse the license file",
+			wantErr:       "failed to parse license file",
 			expectLicense: false,
 		},
 		{
