@@ -828,7 +828,7 @@ func verifyLicense(license *licensewrapper.LicenseWrapper) error {
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.GetAppSlug() {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.GetAppSlug(), rel.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
