@@ -1,0 +1,26 @@
+# This should ERROR when API credentials are provided with invalid domains
+# Expected errors (when REPLICATED_API_TOKEN, REPLICATED_API_ORIGIN, REPLICATED_APP are set):
+#   - custom domain "invalid.example.com" not found
+#   - custom domain "fake.proxy.com" not found
+#   - custom domain "notreal.registry.com" not found
+#
+# To test:
+# REPLICATED_API_TOKEN="your-token" \
+# REPLICATED_API_ORIGIN="https://api.replicated.com/vendor" \
+# REPLICATED_APP="your-app-id" \
+# embedded-cluster lint 06-error-custom-domains.yaml
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: invalid-domains
+spec:
+  domains:
+    replicatedAppDomain: invalid.example.com  # ERROR if API check enabled
+    proxyRegistryDomain: fake.proxy.com        # ERROR if API check enabled
+    replicatedRegistryDomain: notreal.registry.com  # ERROR if API check enabled
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: adminconsole
+      values: |
+        service:
+          nodePort: 50000  # OK: Outside range

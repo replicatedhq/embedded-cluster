@@ -377,6 +377,22 @@ func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.Run
 		return nil, err
 	}
 
+	// sync the license if we are in the manager experience and a license is provided and we are
+	// not in airgap mode
+	if installCfg.enableManagerExperience && installCfg.license != nil && !installCfg.isAirgap {
+		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
+		}
+
+		updatedLicense, licenseBytes, err := syncLicense(cmd.Context(), replicatedAPI, installCfg.license)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sync license: %w", err)
+		}
+		installCfg.license = updatedLicense
+		installCfg.licenseBytes = licenseBytes
+	}
+
 	// Set runtime config values from flags
 	rc.SetAdminConsolePort(flags.adminConsolePort)
 	ki.SetAdminConsolePort(flags.adminConsolePort)
@@ -710,6 +726,12 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 		return err
 	}
 
+	logrus.Debugf("checking license matches")
+	err = verifyLicense(installCfg.license)
+	if err != nil {
+		return err
+	}
+
 	if installCfg.airgapMetadata != nil && installCfg.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(installCfg.airgapMetadata.AirgapInfo); err != nil {
@@ -784,56 +806,51 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func getLicenseFromFilepath(licenseFile string) (*kotsv1beta1.License, error) {
+func verifyLicense(license *kotsv1beta1.License) error {
 	rel := release.GetChannelRelease()
 
 	// handle the three cases that do not require parsing the license file
 	// 1. no release and no license, which is OK
 	// 2. no license and a release, which is not OK
 	// 3. a license and no release, which is not OK
-	if rel == nil && licenseFile == "" {
+	if rel == nil && license == nil {
 		// no license and no release, this is OK
-		return nil, nil
-	} else if rel == nil && licenseFile != "" {
+		return nil
+	} else if rel == nil && license != nil {
 		// license is present but no release, this means we would install without vendor charts and k0s overrides
-		return nil, fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && licenseFile == "" {
+		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
+	} else if rel != nil && license == nil {
 		// release is present but no license, this is not OK
-		return nil, fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
-	}
-
-	license, err := helpers.ParseLicense(licenseFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse the license file at %q, please ensure it is not corrupt: %w", licenseFile, err)
+		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
 	}
 
 	// Check if the license matches the application version data
 	if rel.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return nil, fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
 	if err := checkChannelExistence(license, rel); err != nil {
-		return nil, err
+		return err
 	}
 
 	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
 		// read the expiration date, and check it against the current date
 		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
 		if err != nil {
-			return nil, fmt.Errorf("parse expiration date: %w", err)
+			return fmt.Errorf("parse expiration date: %w", err)
 		}
 		if time.Now().After(expiration) {
-			return nil, fmt.Errorf("license expired on %s, please provide a valid license", expiration)
+			return fmt.Errorf("license expired on %s, please provide a valid license", expiration)
 		}
 	}
 
 	if !license.Spec.IsEmbeddedClusterDownloadEnabled {
-		return nil, fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
+		return fmt.Errorf("license does not have embedded cluster enabled, please provide a valid license")
 	}
 
-	return license, nil
+	return nil
 }
 
 // checkChannelExistence verifies that a channel exists in a supplied license, returning a user-friendly
@@ -1158,16 +1175,6 @@ func validateAdminConsolePassword(password, passwordCheck string) bool {
 		return false
 	}
 	return true
-}
-
-func replicatedAppURL() string {
-	domains := getDomains()
-	return netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
-}
-
-func proxyRegistryURL() string {
-	domains := getDomains()
-	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
 func waitForNode(ctx context.Context) error {

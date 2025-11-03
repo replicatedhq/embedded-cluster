@@ -342,10 +342,14 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 		// Create state machine with wrong state
 		stateMachine := s.createStateMachine(states.StateNew)
 
+		// Create mock store with GetConfigValues expectation
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		// Create simple app controller
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(stateMachine),
-			appcontroller.WithStore(&store.MockStore{}),
+			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)
@@ -380,10 +384,14 @@ func (s *AppPreflightTestSuite) TestPostRunAppPreflights() {
 		// Create state machine
 		stateMachine := s.createStateMachine(states.StateApplicationConfigured)
 
+		// Create mock store with GetConfigValues expectation
+		mockStore := &store.MockStore{}
+		mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
 		// Create simple app controller
 		appController, err := appcontroller.NewAppController(
 			appcontroller.WithStateMachine(stateMachine),
-			appcontroller.WithStore(&store.MockStore{}),
+			appcontroller.WithStore(mockStore),
 			appcontroller.WithReleaseData(integration.DefaultReleaseData()),
 			appcontroller.WithHelmClient(&helm.MockClient{}),
 		)

@@ -1,0 +1,26 @@
+# This example shows the difference between warnings and errors
+# - Port issues generate WARNINGS (exit code 0)
+# - Custom domain issues generate ERRORS (exit code 1)
+#
+# Without API credentials: Only port warnings will be shown
+# With API credentials: Both port warnings AND domain errors will be shown
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: mixed-example
+spec:
+  # These domains will cause ERRORS if API validation is enabled
+  domains:
+    replicatedAppDomain: invalid.example.com  # ERROR if API check enabled
+    proxyRegistryDomain: fake.proxy.com        # ERROR if API check enabled
+
+  unsupportedOverrides:
+    builtInExtensions:
+    - name: adminconsole
+      values: |
+        service:
+          nodePort: 8080   # WARNING: In supported range
+    - name: monitoring
+      values: |
+        service:
+          nodePort: 50000  # OK: Outside supported range

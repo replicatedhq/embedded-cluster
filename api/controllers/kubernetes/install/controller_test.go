@@ -219,7 +219,9 @@ func TestConfigureInstallation(t *testing.T) {
 
 			mockManager := &installation.MockInstallationManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
+
 			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
 			tt.setupMock(mockManager, mockInstallation, tt.config, mockStore, mockMetricsReporter)
 
@@ -421,7 +423,10 @@ func TestSetupInfra(t *testing.T) {
 			mockInfraManager := &infra.MockInfraManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
+
 			mockAppConfigManager := &appconfig.MockAppConfigManager{}
+			mockAppConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
+
 			tt.setupMocks(ki, mockInstallationManager, mockInfraManager, mockMetricsReporter, mockStore, mockAppConfigManager)
 
 			appController, err := appcontroller.NewAppController(
