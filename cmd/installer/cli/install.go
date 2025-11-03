@@ -807,31 +807,54 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 }
 
 func verifyLicense(license *kotsv1beta1.License) error {
-	rel := release.GetChannelRelease()
+	channelRelease := release.GetChannelRelease()
+	if err := verifyLicensePresence(license, channelRelease); err != nil {
+		return err
+	}
 
-	// handle the three cases that do not require parsing the license file
-	// 1. no release and no license, which is OK
-	// 2. no license and a release, which is not OK
-	// 3. a license and no release, which is not OK
-	if rel == nil && license == nil {
-		// no license and no release, this is OK
-		return nil
-	} else if rel == nil && license != nil {
-		// license is present but no release, this means we would install without vendor charts and k0s overrides
+	if isV3Enabled() {
+		verifiedLicense, err := verifySignature(license)
+		if err != nil {
+			return fmt.Errorf("license signature verification failed: %w", err)
+		}
+		license = verifiedLicense
+	}
+
+	return verifyLicenseFields(license, channelRelease)
+}
+
+// verifyLicensePresence checks if license presence matches the release requirements
+func verifyLicensePresence(license *kotsv1beta1.License, channelRelease *release.ChannelRelease) error {
+	if channelRelease == nil {
+		if license == nil {
+			// No license, no release - valid
+			return nil
+		}
+		// Valid license, no release - invalid
 		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && license == nil {
-		// release is present but no license, this is not OK
-		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+	}
+	if license == nil {
+		// No license, with release - invalid
+		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", channelRelease.AppSlug)
+	}
+
+	return nil
+}
+
+// verifyLicenseFields validates license fields against the release data
+func verifyLicenseFields(license *kotsv1beta1.License, channelRelease *release.ChannelRelease) error {
+	if channelRelease == nil || license == nil {
+		return nil
 	}
 
 	// Check if the license matches the application version data
-	if rel.AppSlug != license.Spec.AppSlug {
+	if channelRelease.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, channelRelease.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
-	if err := checkChannelExistence(license, rel); err != nil {
+	if err := checkChannelExistence(license, channelRelease); err != nil {
 		return err
 	}
 
