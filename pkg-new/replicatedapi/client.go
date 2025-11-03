@@ -137,6 +137,11 @@ func (c *client) injectHeaders(header http.Header) {
 	header.Set("Authorization", "Basic "+basicAuth(licenseID, licenseID))
 	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
+	// Add license version header for v1beta2 licenses
+	if c.license.IsV2() {
+		header.Set("X-Replicated-License-Version", "v1beta2")
+	}
+
 	c.injectReportingInfoHeaders(header)
 }
 

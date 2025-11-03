@@ -26,15 +26,6 @@ func (c *client) getReportingInfoHeaders() map[string]string {
 		headers["X-Replicated-DownstreamChannelName"] = channel.ChannelName
 	}
 
-	// add license version header
-	if c.license != nil {
-		if c.license.IsV1() {
-			headers["X-Replicated-License-Version"] = "v1beta1"
-		} else if c.license.IsV2() {
-			headers["X-Replicated-License-Version"] = "v1beta2"
-		}
-	}
-
 	headers["X-Replicated-K8sVersion"] = versions.K0sVersion
 	headers["X-Replicated-K8sDistribution"] = DistributionEmbeddedCluster
 	headers["X-Replicated-EmbeddedClusterVersion"] = versions.Version

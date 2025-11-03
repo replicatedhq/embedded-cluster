@@ -21,6 +21,7 @@ func TestSyncLicense(t *testing.T) {
 	tests := []struct {
 		name                string
 		license             kotsv1beta1.License
+		licenseV2           *kotsv1beta2.License
 		releaseData         *release.ReleaseData
 		serverHandler       func(t *testing.T) http.HandlerFunc
 		wantLicenseSequence int64
@@ -66,8 +67,8 @@ func TestSyncLicense(t *testing.T) {
 					assert.NotEmpty(t, authHeader)
 					assert.Contains(t, authHeader, "Basic ")
 
-					// Validate license version header
-					assert.Equal(t, "v1beta1", r.Header.Get("X-Replicated-License-Version"))
+					// Validate license version header is NOT present for v1beta1
+					assert.Empty(t, r.Header.Get("X-Replicated-License-Version"))
 
 					// Return response as YAML
 					resp := kotsv1beta1.License{
@@ -105,7 +106,7 @@ func TestSyncLicense(t *testing.T) {
 			wantIsV1:            true,
 		},
 		{
-			name: "successful license sync with v1beta2",
+			name: "successful license sync with v1beta2 response (from v1beta1)",
 			license: kotsv1beta1.License{
 				Spec: kotsv1beta1.LicenseSpec{
 					AppSlug:         "test-app",
@@ -140,8 +141,8 @@ func TestSyncLicense(t *testing.T) {
 					assert.NotEmpty(t, authHeader)
 					assert.Contains(t, authHeader, "Basic ")
 
-					// Validate license version header
-					assert.Equal(t, "v1beta1", r.Header.Get("X-Replicated-License-Version"))
+					// Validate license version header is NOT present for v1beta1 (request uses v1beta1 license)
+					assert.Empty(t, r.Header.Get("X-Replicated-License-Version"))
 
 					// Return v1beta2 license response
 					resp := `apiVersion: kots.io/v1beta2
@@ -163,6 +164,68 @@ spec:
 			},
 			wantLicenseSequence: 6,
 			wantAppSlug:         "test-app",
+			wantLicenseID:       "test-license-id-v2",
+			wantIsV2:            true,
+		},
+		{
+			name: "successful license sync with v1beta2 request",
+			licenseV2: &kotsv1beta2.License{
+				Spec: kotsv1beta2.LicenseSpec{
+					AppSlug:         "test-app-v2",
+					LicenseID:       "test-license-id-v2",
+					LicenseSequence: 7,
+					ChannelID:       "test-channel-456",
+					ChannelName:     "Beta",
+					Channels: []kotsv1beta2.Channel{
+						{
+							ChannelID:   "test-channel-456",
+							ChannelName: "Beta",
+						},
+					},
+				},
+			},
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					ChannelID: "test-channel-456",
+				},
+			},
+			serverHandler: func(t *testing.T) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					// Validate request
+					assert.Equal(t, http.MethodGet, r.Method)
+					assert.Equal(t, "/license/test-app-v2", r.URL.Path)
+					assert.Equal(t, "7", r.URL.Query().Get("licenseSequence"))
+					assert.Equal(t, "test-channel-456", r.URL.Query().Get("selectedChannelId"))
+					assert.Equal(t, "application/yaml", r.Header.Get("Accept"))
+
+					// Validate auth header
+					authHeader := r.Header.Get("Authorization")
+					assert.NotEmpty(t, authHeader)
+					assert.Contains(t, authHeader, "Basic ")
+
+					// Validate license version header IS present for v1beta2
+					assert.Equal(t, "v1beta2", r.Header.Get("X-Replicated-License-Version"))
+
+					// Return v1beta2 license response
+					resp := `apiVersion: kots.io/v1beta2
+kind: License
+spec:
+  licenseID: test-license-id-v2
+  appSlug: test-app-v2
+  licenseSequence: 8
+  customerName: Test Customer V2
+  channelID: test-channel-456
+  channelName: Beta
+  channels:
+    - channelID: test-channel-456
+      channelName: Beta`
+
+					w.WriteHeader(http.StatusOK)
+					w.Write([]byte(resp))
+				}
+			},
+			wantLicenseSequence: 8,
+			wantAppSlug:         "test-app-v2",
 			wantLicenseID:       "test-license-id-v2",
 			wantIsV2:            true,
 		},
@@ -292,8 +355,13 @@ spec:
 			server := httptest.NewServer(tt.serverHandler(t))
 			defer server.Close()
 
-			// Wrap the v1beta1 license first
-			wrapper := &licensewrapper.LicenseWrapper{V1: &tt.license}
+			// Wrap the license (v1beta1 or v1beta2)
+			var wrapper *licensewrapper.LicenseWrapper
+			if tt.licenseV2 != nil {
+				wrapper = &licensewrapper.LicenseWrapper{V2: tt.licenseV2}
+			} else {
+				wrapper = &licensewrapper.LicenseWrapper{V1: &tt.license}
+			}
 
 			// Create client with wrapper
 			c, err := NewClient(server.URL, wrapper, tt.releaseData)
@@ -364,12 +432,11 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 					},
 				},
 			},
-			expectedCount: 8, // EmbeddedClusterID, ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			expectedCount: 7, // EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
 				"X-Replicated-EmbeddedClusterID":      "cluster-123",
 				"X-Replicated-DownstreamChannelID":    "test-channel-123",
 				"X-Replicated-DownstreamChannelName":  "Stable",
-				"X-Replicated-License-Version":        "v1beta1",
 				"X-Replicated-K8sVersion":             versions.K0sVersion,
 				"X-Replicated-K8sDistribution":        DistributionEmbeddedCluster,
 				"X-Replicated-EmbeddedClusterVersion": versions.Version,
@@ -396,12 +463,11 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 					},
 				},
 			},
-			expectedCount: 8, // EmbeddedClusterID, ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			expectedCount: 7, // EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
 				"X-Replicated-EmbeddedClusterID":      "cluster-456",
 				"X-Replicated-DownstreamChannelID":    "test-channel-456",
 				"X-Replicated-DownstreamChannelName":  "Beta",
-				"X-Replicated-License-Version":        "v1beta2",
 				"X-Replicated-K8sVersion":             versions.K0sVersion,
 				"X-Replicated-K8sDistribution":        DistributionEmbeddedCluster,
 				"X-Replicated-EmbeddedClusterVersion": versions.Version,
@@ -428,10 +494,9 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 					},
 				},
 			},
-			expectedCount: 7, // ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			expectedCount: 6, // ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
-				"X-Replicated-IsKurl":          "false",
-				"X-Replicated-License-Version": "v1beta1",
+				"X-Replicated-IsKurl": "false",
 			},
 		},
 	}
@@ -521,9 +586,11 @@ func TestInjectHeaders(t *testing.T) {
 	req.Equal("test-cluster-id", header.Get("X-Replicated-EmbeddedClusterID"))
 	req.Equal("test-channel-123", header.Get("X-Replicated-DownstreamChannelID"))
 	req.Equal("Stable", header.Get("X-Replicated-DownstreamChannelName"))
-	req.Equal("v1beta1", header.Get("X-Replicated-License-Version"))
 	req.Equal(versions.K0sVersion, header.Get("X-Replicated-K8sVersion"))
 	req.Equal(DistributionEmbeddedCluster, header.Get("X-Replicated-K8sDistribution"))
 	req.Equal(versions.Version, header.Get("X-Replicated-EmbeddedClusterVersion"))
 	req.Equal("false", header.Get("X-Replicated-IsKurl"))
+
+	// Validate license version header is NOT present for v1beta1
+	req.Empty(header.Get("X-Replicated-License-Version"))
 }
