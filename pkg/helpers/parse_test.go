@@ -163,10 +163,12 @@ func TestParseLicense(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
+				require.Nil(t, wrapper)
 				return
 			}
 
 			require.NoError(t, err)
+			require.NotNil(t, wrapper)
 			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
 			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
 			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())
@@ -240,10 +242,12 @@ kind: License`)
 
 			if tt.wantErr {
 				require.Error(t, err)
+				require.Nil(t, wrapper)
 				return
 			}
 
 			require.NoError(t, err)
+			require.NotNil(t, wrapper)
 			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
 			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
 			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())

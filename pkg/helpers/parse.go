@@ -36,22 +36,22 @@ func ParseEndUserConfig(fpath string) (*embeddedclusterv1beta1.Config, error) {
 
 // ParseLicense parses the license from the given file and returns a LicenseWrapper
 // that provides version-agnostic access to both v1beta1 and v1beta2 licenses.
-func ParseLicense(fpath string) (licensewrapper.LicenseWrapper, error) {
+func ParseLicense(fpath string) (*licensewrapper.LicenseWrapper, error) {
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("unable to read license file: %w", err)
+		return nil, fmt.Errorf("unable to read license file: %w", err)
 	}
 	return ParseLicenseFromBytes(data)
 }
 
 // ParseLicenseFromBytes parses license data from bytes and returns a LicenseWrapper
 // that provides version-agnostic access to both v1beta1 and v1beta2 licenses.
-func ParseLicenseFromBytes(data []byte) (licensewrapper.LicenseWrapper, error) {
+func ParseLicenseFromBytes(data []byte) (*licensewrapper.LicenseWrapper, error) {
 	wrapper, err := licensewrapper.LoadLicenseFromBytes(data)
 	if err != nil {
-		return licensewrapper.LicenseWrapper{}, fmt.Errorf("failed to load license: %w", err)
+		return nil, fmt.Errorf("failed to load license: %w", err)
 	}
-	return wrapper, nil
+	return &wrapper, nil
 }
 
 func ParseConfigValues(fpath string) (*kotsv1beta1.ConfigValues, error) {

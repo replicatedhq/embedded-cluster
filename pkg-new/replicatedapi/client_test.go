@@ -286,7 +286,7 @@ spec:
 			defer server.Close()
 
 			// Wrap the v1beta1 license first
-			wrapper := licensewrapper.LicenseWrapper{V1: &tt.license}
+			wrapper := &licensewrapper.LicenseWrapper{V1: &tt.license}
 
 			// Create client with wrapper
 			c, err := NewClient(server.URL, wrapper, tt.releaseData)
@@ -299,8 +299,7 @@ spec:
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.Contains(err.Error(), tt.wantErr)
-				var emptyWrapper licensewrapper.LicenseWrapper
-				assert.Equal(t, emptyWrapper, license)
+				req.Nil(license)
 				req.Nil(rawLicense)
 			} else {
 				req.NoError(err)
@@ -388,7 +387,7 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 			}
 
 			c := &client{
-				license:     licensewrapper.LicenseWrapper{V1: &license},
+				license:     &licensewrapper.LicenseWrapper{V1: &license},
 				releaseData: releaseData,
 				clusterID:   tt.clusterID,
 			}
@@ -433,7 +432,7 @@ func TestInjectHeaders(t *testing.T) {
 	}
 
 	c := &client{
-		license:     licensewrapper.LicenseWrapper{V1: &license},
+		license:     &licensewrapper.LicenseWrapper{V1: &license},
 		releaseData: releaseData,
 		clusterID:   "test-cluster-id",
 	}

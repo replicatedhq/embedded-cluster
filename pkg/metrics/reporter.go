@@ -33,13 +33,23 @@ func (e ErrorNoFail) Error() string {
 }
 
 // LicenseID returns the license id from a LicenseWrapper.
-func LicenseID(license licensewrapper.LicenseWrapper) string {
+func LicenseID(license *licensewrapper.LicenseWrapper) string {
+	if license == nil {
+		return ""
+	}
 	return license.GetLicenseID()
 }
 
-// License returns the parsed license as a LicenseWrapper. If something goes wrong, it returns an empty wrapper.
-func License(licenseFlag string) licensewrapper.LicenseWrapper {
-	license, _ := helpers.ParseLicense(licenseFlag)
+// License returns the parsed license as a LicenseWrapper. If something goes wrong, it returns nil.
+func License(licenseFlag string) *licensewrapper.LicenseWrapper {
+	if licenseFlag == "" {
+		return nil
+	}
+	license, err := helpers.ParseLicense(licenseFlag)
+	if err != nil {
+		logrus.WithError(err).Warn("failed to parse license")
+		return nil
+	}
 	return license
 }
 
