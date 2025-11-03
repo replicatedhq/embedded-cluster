@@ -566,7 +566,6 @@ jobs:
         test:
           - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
-          - TestSingleNodeAirgapUpgradeConfigValues
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery

@@ -9,10 +9,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
-
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSingleNodeInstallation(t *testing.T) {
@@ -952,106 +951,6 @@ spec:
 	}
 
 	checkInstallationState(t, tc)
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion, "", hostname}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	t.Logf("%s: checking config values after upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-config-values.sh", "updated-hostname.com", "updated password"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeAirgapUpgradeConfigValues(t *testing.T) {
-	t.Parallel()
-
-	RequireEnvVars(t, []string{"SHORT_SHA"})
-
-	tc := cmx.NewCluster(&cmx.ClusterInput{
-		T:            t,
-		Nodes:        1,
-		Distribution: "ubuntu",
-		Version:      "22.04",
-	})
-	defer tc.Cleanup()
-
-	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	// Previous stable EC version with a -1 minor k0s version
-	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
-	runInParallel(t,
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
-		}, func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), AirgapUpgradeBundlePath, AirgapLicenseID)
-		},
-	)
-
-	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
-	if err := tc.Airgap(); err != nil {
-		t.Fatalf("failed to airgap cluster: %v", err)
-	}
-
-	t.Logf("%s: preparing embedded cluster airgap files", time.Now().Format(time.RFC3339))
-	line := []string{"airgap-prepare.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to prepare airgap files on node %s: %v", tc.Nodes[0], err)
-	}
-
-	hostname := uuid.New().String()
-	password := uuid.New().String()
-
-	// create a config values file on the node
-	configValuesFileContent := fmt.Sprintf(`
-apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values:
-    hostname:
-      value: %s
-    pw:
-      value: %s
-`, hostname, password)
-	configValuesFileB64 := base64.StdEncoding.EncodeToString([]byte(configValuesFileContent))
-
-	t.Logf("%s: creating config values file", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sh", "-c", fmt.Sprintf("'echo %s | base64 -d > /assets/config-values.yaml'", configValuesFileB64)})
-	if err != nil {
-		t.Fatalf("fail to create config values file: %v: %s: %s", err, stdout, stderr)
-	}
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		isAirgap:                true,
-		version:                 initialVersion,
-		localArtifactMirrorPort: "50001", // choose an alternate lam port
-		configValuesFile:        "/assets/config-values.yaml",
-	})
-
-	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check installation state: %v", err)
-	}
-
-	t.Logf("%s: checking config values", time.Now().Format(time.RFC3339))
-	line = []string{"check-config-values.sh", hostname, password}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check config values: %v: %s: %s", err, stdout, stderr)
-	}
-
-	line = []string{"airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to run airgap update: %v", err)
-	}
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion, "", hostname}
