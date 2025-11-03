@@ -93,7 +93,7 @@ func Test_getCurrentAppChannelRelease(t *testing.T) {
 			}
 
 			// Wrap the license for the new API
-			wrappedLicense := licensewrapper.LicenseWrapper{V1: license}
+			wrappedLicense := &licensewrapper.LicenseWrapper{V1: license}
 
 			got, err := getCurrentAppChannelRelease(context.Background(), wrappedLicense, tt.args.channelID)
 			if tt.wantErr {

@@ -209,7 +209,7 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  false,
-				License: licensewrapper.LicenseWrapper{
+				License: &licensewrapper.LicenseWrapper{
 					V1: &kotsv1beta1.License{
 						Spec: kotsv1beta1.LicenseSpec{
 							IsDisasterRecoverySupported:       true,
@@ -251,7 +251,7 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  true,
-				License: licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
+				License: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: true,
@@ -286,7 +286,7 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  true,
-				License: licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
+				License: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: false,

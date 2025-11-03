@@ -295,7 +295,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
 			// Wrap the license for the new API
-			wrappedLicense := licensewrapper.LicenseWrapper{V1: license}
+			wrappedLicense := &licensewrapper.LicenseWrapper{V1: license}
 
 			err = maybePromptForAppUpdate(context.Background(), prompt, wrappedLicense, false)
 			if tt.wantErr {

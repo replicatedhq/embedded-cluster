@@ -19,8 +19,8 @@ import (
 )
 
 // Helper function to wrap old-style license in LicenseWrapper for testing
-func wrapLicenseForExecuteTests(license *kotsv1beta1.License) licensewrapper.LicenseWrapper {
-	return licensewrapper.LicenseWrapper{
+func wrapLicenseForExecuteTests(license *kotsv1beta1.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
 		V1: license,
 	}
 }

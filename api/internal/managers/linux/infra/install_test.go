@@ -65,7 +65,7 @@ func TestInfraManager_getAddonInstallOpts(t *testing.T) {
 			}
 
 			// Wrap the license
-			wrappedLicense := licensewrapper.LicenseWrapper{
+			wrappedLicense := &licensewrapper.LicenseWrapper{
 				V1: license,
 			}
 

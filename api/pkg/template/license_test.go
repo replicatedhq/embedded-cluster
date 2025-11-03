@@ -16,8 +16,8 @@ import (
 )
 
 // Helper function to wrap old-style license in LicenseWrapper for testing
-func wrapLicense(license *kotsv1beta1.License) licensewrapper.LicenseWrapper {
-	return licensewrapper.LicenseWrapper{
+func wrapLicense(license *kotsv1beta1.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
 		V1: license,
 	}
 }
@@ -640,7 +640,7 @@ func TestEngine_LicenseWrapper(t *testing.T) {
 			wrapper, err := licensewrapper.LoadLicenseFromBytes(licenseData)
 			require.NoError(t, err)
 
-			engine := NewEngine(nil, WithLicense(wrapper))
+			engine := NewEngine(nil, WithLicense(&wrapper))
 
 			assert.Equal(t, tt.wantAppSlug, engine.LicenseAppSlug())
 			assert.Equal(t, tt.wantLicenseID, engine.LicenseID())
