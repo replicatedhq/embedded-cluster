@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,9 @@ func TestSyncLicense(t *testing.T) {
 					authHeader := r.Header.Get("Authorization")
 					assert.NotEmpty(t, authHeader)
 					assert.Contains(t, authHeader, "Basic ")
+
+					// Validate license version header
+					assert.Equal(t, "v1beta1", r.Header.Get("X-Replicated-License-Version"))
 
 					// Return response as YAML
 					resp := kotsv1beta1.License{
@@ -135,6 +139,9 @@ func TestSyncLicense(t *testing.T) {
 					authHeader := r.Header.Get("Authorization")
 					assert.NotEmpty(t, authHeader)
 					assert.Contains(t, authHeader, "Basic ")
+
+					// Validate license version header
+					assert.Equal(t, "v1beta1", r.Header.Get("X-Replicated-License-Version"))
 
 					// Return v1beta2 license response
 					resp := `apiVersion: kots.io/v1beta2
@@ -331,19 +338,38 @@ spec:
 
 func TestGetReportingInfoHeaders(t *testing.T) {
 	tests := []struct {
-		name          string
-		clusterID     string
-		expectedCount int
-		checkHeaders  map[string]string
+		name           string
+		clusterID      string
+		licenseWrapper *licensewrapper.LicenseWrapper
+		expectedCount  int
+		checkHeaders   map[string]string
 	}{
 		{
-			name:          "with cluster ID",
-			clusterID:     "cluster-123",
-			expectedCount: 7, // EmbeddedClusterID, ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			name:      "with cluster ID and v1beta1 license",
+			clusterID: "cluster-123",
+			licenseWrapper: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:         "test-app",
+						LicenseID:       "test-license-id",
+						LicenseSequence: 1,
+						ChannelID:       "test-channel-123",
+						ChannelName:     "Stable",
+						Channels: []kotsv1beta1.Channel{
+							{
+								ChannelID:   "test-channel-123",
+								ChannelName: "Stable",
+							},
+						},
+					},
+				},
+			},
+			expectedCount: 8, // EmbeddedClusterID, ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
 				"X-Replicated-EmbeddedClusterID":      "cluster-123",
 				"X-Replicated-DownstreamChannelID":    "test-channel-123",
 				"X-Replicated-DownstreamChannelName":  "Stable",
+				"X-Replicated-License-Version":        "v1beta1",
 				"X-Replicated-K8sVersion":             versions.K0sVersion,
 				"X-Replicated-K8sDistribution":        DistributionEmbeddedCluster,
 				"X-Replicated-EmbeddedClusterVersion": versions.Version,
@@ -351,11 +377,61 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 			},
 		},
 		{
-			name:          "zero values should be skipped",
-			clusterID:     "",
-			expectedCount: 6, // ChannelID, ChannelName, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			name:      "with cluster ID and v1beta2 license",
+			clusterID: "cluster-456",
+			licenseWrapper: &licensewrapper.LicenseWrapper{
+				V2: &kotsv1beta2.License{
+					Spec: kotsv1beta2.LicenseSpec{
+						AppSlug:         "test-app-v2",
+						LicenseID:       "test-license-id-v2",
+						LicenseSequence: 2,
+						ChannelID:       "test-channel-456",
+						ChannelName:     "Beta",
+						Channels: []kotsv1beta2.Channel{
+							{
+								ChannelID:   "test-channel-456",
+								ChannelName: "Beta",
+							},
+						},
+					},
+				},
+			},
+			expectedCount: 8, // EmbeddedClusterID, ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
 			checkHeaders: map[string]string{
-				"X-Replicated-IsKurl": "false",
+				"X-Replicated-EmbeddedClusterID":      "cluster-456",
+				"X-Replicated-DownstreamChannelID":    "test-channel-456",
+				"X-Replicated-DownstreamChannelName":  "Beta",
+				"X-Replicated-License-Version":        "v1beta2",
+				"X-Replicated-K8sVersion":             versions.K0sVersion,
+				"X-Replicated-K8sDistribution":        DistributionEmbeddedCluster,
+				"X-Replicated-EmbeddedClusterVersion": versions.Version,
+				"X-Replicated-IsKurl":                 "false",
+			},
+		},
+		{
+			name:      "zero values should be skipped",
+			clusterID: "",
+			licenseWrapper: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:         "test-app",
+						LicenseID:       "test-license-id",
+						LicenseSequence: 1,
+						ChannelID:       "test-channel-123",
+						ChannelName:     "Stable",
+						Channels: []kotsv1beta1.Channel{
+							{
+								ChannelID:   "test-channel-123",
+								ChannelName: "Stable",
+							},
+						},
+					},
+				},
+			},
+			expectedCount: 7, // ChannelID, ChannelName, LicenseVersion, K8sVersion, K8sDistribution, EmbeddedClusterVersion, IsKurl
+			checkHeaders: map[string]string{
+				"X-Replicated-IsKurl":          "false",
+				"X-Replicated-License-Version": "v1beta1",
 			},
 		},
 	}
@@ -364,30 +440,19 @@ func TestGetReportingInfoHeaders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			license := kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:         "test-app",
-					LicenseID:       "test-license-id",
-					LicenseSequence: 1,
-					ChannelID:       "test-channel-123",
-					ChannelName:     "Stable",
-					Channels: []kotsv1beta1.Channel{
-						{
-							ChannelID:   "test-channel-123",
-							ChannelName: "Stable",
-						},
-					},
-				},
+			channelID := "test-channel-123"
+			if tt.licenseWrapper != nil && tt.licenseWrapper.GetChannelID() != "" {
+				channelID = tt.licenseWrapper.GetChannelID()
 			}
 
 			releaseData := &release.ReleaseData{
 				ChannelRelease: &release.ChannelRelease{
-					ChannelID: "test-channel-123",
+					ChannelID: channelID,
 				},
 			}
 
 			c := &client{
-				license:     &licensewrapper.LicenseWrapper{V1: &license},
+				license:     tt.licenseWrapper,
 				releaseData: releaseData,
 				clusterID:   tt.clusterID,
 			}
@@ -456,6 +521,7 @@ func TestInjectHeaders(t *testing.T) {
 	req.Equal("test-cluster-id", header.Get("X-Replicated-EmbeddedClusterID"))
 	req.Equal("test-channel-123", header.Get("X-Replicated-DownstreamChannelID"))
 	req.Equal("Stable", header.Get("X-Replicated-DownstreamChannelName"))
+	req.Equal("v1beta1", header.Get("X-Replicated-License-Version"))
 	req.Equal(versions.K0sVersion, header.Get("X-Replicated-K8sVersion"))
 	req.Equal(DistributionEmbeddedCluster, header.Get("X-Replicated-K8sDistribution"))
 	req.Equal(versions.Version, header.Get("X-Replicated-EmbeddedClusterVersion"))
