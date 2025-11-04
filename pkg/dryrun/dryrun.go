@@ -9,6 +9,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -18,6 +19,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -42,6 +45,7 @@ type Client struct {
 	K0sClient                *K0s
 	HelmClient               helm.Client
 	Kotsadm                  *Kotsadm
+	ReplicatedAPIClient      *ReplicatedAPIClient
 	NetworkInterfaceProvider netutils.NetworkInterfaceProvider
 	ChooseHostInterfaceImpl  *ChooseInterfaceImpl
 }
@@ -76,6 +80,11 @@ func Init(outputFile string, client *Client) {
 	if client.HelmClient != nil {
 		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
 			return client.HelmClient, nil
+		})
+	}
+	if client.ReplicatedAPIClient != nil {
+		replicatedapi.SetClientFactory(func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...replicatedapi.ClientOption) (replicatedapi.Client, error) {
+			return client.ReplicatedAPIClient, nil
 		})
 	}
 	if client.NetworkInterfaceProvider != nil {

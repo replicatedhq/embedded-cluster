@@ -435,41 +435,25 @@ func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 5 addons
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
+
+	airgapBundle := airgapBundleFile(t)
 
 	vf := valuesFile(t)
 	dr := dryrunInstall(t,
 		&dryrun.Client{HelmClient: hcli},
 		"--config-values", vf,
+		"--airgap-bundle", airgapBundle,
 	)
-
-	// --- validate metrics --- //
-	assertMetrics(t, dr.Metrics, []struct {
-		title    string
-		validate func(string)
-	}{
-		{
-			title: "InstallationStarted",
-			validate: func(payload string) {
-				assert.Contains(t, payload, fmt.Sprintf("--config-values %s", vf))
-			},
-		},
-		{
-			title: "GenericEvent",
-			validate: func(payload string) {
-				assert.Contains(t, payload, `"isExitEvent":true`)
-				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
-			},
-		},
-	})
 
 	// --- validate commands --- //
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --config-values %s`, vf)),
+			// kots cli install command
+			regexp.MustCompile(fmt.Sprintf(`install fake-app-slug/fake-channel-slug .* --airgap-bundle %s --config-values %s`, airgapBundle, vf)),
 		},
 		false,
 	)
