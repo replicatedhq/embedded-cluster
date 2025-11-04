@@ -167,7 +167,7 @@ func validateK8sVersion(opts UpgradableOptions) error {
 	// Parse the EC version format to extract K8s version: "2.12.0+k8s-1.33-*"
 	currentK8s, err := getK8sVersion(opts.CurrentECVersion)
 	if err != nil {
-		return fmt.Errorf("failed to extract k8s version from curretn version %s: %w", opts.CurrentECVersion, err)
+		return fmt.Errorf("failed to extract k8s version from current version %s: %w", opts.CurrentECVersion, err)
 	}
 
 	targetK8s, err := getK8sVersion(opts.TargetECVersion)
