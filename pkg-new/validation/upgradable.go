@@ -115,11 +115,11 @@ func validateAppVersionDowngrade(opts UpgradableOptions) error {
 	if opts.License.Spec.IsSemverRequired {
 		currentVer, err := semver.NewVersion(opts.CurrentAppVersion)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse current app version %s: %w", opts.CurrentAppVersion, err)
 		}
 		targetVer, err := semver.NewVersion(opts.TargetAppVersion)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to parse target app version %s: %w", opts.TargetAppVersion, err)
 		}
 		if targetVer.LessThan(currentVer) {
 			return NewAppVersionDowngradeError(opts.CurrentAppVersion, opts.TargetAppVersion)

@@ -369,9 +369,10 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 
 	// Validate release upgradable
 	if err := validateIsReleaseUpgradable(ctx, upgradeConfig, kcli, isAirgap); err != nil {
-		if validation.IsValidationError(err) {
+		var ve *validation.ValidationError
+		if errors.As(err, &ve) {
 			// This is a validation error that prevents the upgrade from proceeding, expose the error directly
-			return err
+			return ve
 		}
 		return fmt.Errorf("upgrade validation execution failed: %w", err)
 	}
