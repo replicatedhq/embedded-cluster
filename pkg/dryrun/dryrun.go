@@ -20,7 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -83,7 +83,7 @@ func Init(outputFile string, client *Client) {
 		})
 	}
 	if client.ReplicatedAPIClient != nil {
-		replicatedapi.SetClientFactory(func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...replicatedapi.ClientOption) (replicatedapi.Client, error) {
+		replicatedapi.SetClientFactory(func(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...replicatedapi.ClientOption) (replicatedapi.Client, error) {
 			return client.ReplicatedAPIClient, nil
 		})
 	}

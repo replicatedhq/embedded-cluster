@@ -18,7 +18,7 @@ import (
 var defaultHTTPClient = newRetryableHTTPClient()
 
 // ClientFactory is a function type for creating replicatedapi clients
-type ClientFactory func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error)
+type ClientFactory func(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error)
 
 var clientFactory ClientFactory = defaultNewClient
 
