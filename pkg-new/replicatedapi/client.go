@@ -17,6 +17,16 @@ import (
 
 var defaultHTTPClient = newRetryableHTTPClient()
 
+// ClientFactory is a function type for creating replicatedapi clients
+type ClientFactory func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error)
+
+var clientFactory ClientFactory = defaultNewClient
+
+// SetClientFactory sets a custom factory for creating clients (used for testing/mocking)
+func SetClientFactory(factory ClientFactory) {
+	clientFactory = factory
+}
+
 type Client interface {
 	SyncLicense(ctx context.Context) (*licensewrapper.LicenseWrapper, []byte, error)
 }
@@ -44,6 +54,12 @@ func WithHTTPClient(httpClient *retryablehttp.Client) ClientOption {
 }
 
 func NewClient(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
+	// NewClient creates a new replicatedapi client using the configured factory
+	return clientFactory(replicatedAppURL, license, releaseData, opts...)
+}
+
+// defaultNewClient is the default implementation of NewClient
+func defaultNewClient(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
 	c := &client{
 		replicatedAppURL: replicatedAppURL,
 		license:          license,

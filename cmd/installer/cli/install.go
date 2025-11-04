@@ -549,21 +549,50 @@ func runManagerExperienceInstall(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	if err := startAPI(ctx, installCfg.tlsCert, apiConfig, cancel); err != nil {
+	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiConfig)
+	if err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	if flags.headless {
+		// Setup signal handler with the metrics reporter cleanup function
+		signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
+			metricsReporter.ReportSignalAborted(ctx, sig)
+		})
+
 		// TODO(PR2): Implement headless installation orchestration
-		return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
+		err := fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
+
+		if err != nil {
+			// Check if this is an interrupt error from the terminal
+			if errors.Is(err, terminal.InterruptErr) {
+				metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
+			} else {
+				metricsReporter.ReportInstallationFailed(ctx, err)
+			}
+			return err
+		}
+		metricsReporter.ReportInstallationSucceeded(ctx)
+
+		return nil
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
 		appTitle,
 		getManagerURL(flags.hostname, flags.managerPort))
-	<-ctx.Done()
 
-	return nil
+	// Wait for either user cancellation or API unexpected exit
+	select {
+	case <-ctx.Done():
+		// Normal exit (user interrupted)
+		return nil
+	case err := <-apiExitCh:
+		// API exited unexpectedly
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("api server exited unexpectedly")
+	}
 }
 
 func runInstall(ctx context.Context, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {

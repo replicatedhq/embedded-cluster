@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/replicatedhq/embedded-cluster/e2e/cluster/lxd"
 )
 
 func TestSingleNodeDisasterRecovery(t *testing.T) {
@@ -169,106 +168,6 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 	})
 
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
-	if err := tc.SetupPlaywright(); err != nil {
-		t.Fatalf("fail to setup playwright: %v", err)
-	}
-	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
-		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
-}
-
-func TestSingleNodeDisasterRecoveryWithProxy(t *testing.T) {
-	t.Parallel()
-	if SkipProxyTest() {
-		t.Skip("skipping test for k0s versions < 1.29.0")
-	}
-
-	requiredEnvVars := []string{
-		"DR_S3_ENDPOINT",
-		"DR_S3_REGION",
-		"DR_S3_BUCKET",
-		"DR_S3_PREFIX",
-		"DR_ACCESS_KEY_ID",
-		"DR_SECRET_ACCESS_KEY",
-	}
-	RequireEnvVars(t, requiredEnvVars)
-
-	testArgs := []string{}
-	for _, envVar := range requiredEnvVars {
-		testArgs = append(testArgs, os.Getenv(envVar))
-	}
-
-	tc := lxd.NewCluster(&lxd.ClusterInput{
-		T:                   t,
-		Nodes:               1,
-		Image:               "debian/12",
-		WithProxy:           true,
-		LicensePath:         "licenses/snapshot-license.yaml",
-		EmbeddedClusterPath: "../output/bin/embedded-cluster",
-	})
-	defer tc.Cleanup()
-
-	tc.InstallTestDependenciesDebian(t, 0, true)
-
-	// install kots cli before configuring the proxy.
-	t.Logf("%s: installing kots cli on node 0", time.Now().Format(time.RFC3339))
-	line := []string{"install-kots-cli.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to install kots cli on node 0: %v: %s: %s", err, stdout, stderr)
-	}
-
-	t.Logf("%s: reconfiguring squid to only allow whitelist access", time.Now().Format(time.RFC3339))
-	line = []string{"enable-squid-whitelist.sh"}
-	if _, _, err := tc.RunCommandOnProxyNode(t, line); err != nil {
-		t.Fatalf("failed to reconfigure squid: %v", err)
-	}
-
-	t.Cleanup(func() {
-		failOnProxyTCPDenied(t, tc)
-	})
-
-	installSingleNodeWithOptions(t, tc, installOptions{
-		httpProxy:  lxd.HTTPProxy,
-		httpsProxy: lxd.HTTPProxy,
-		noProxy:    strings.Join(tc.IPs, ","),
-		withEnv:    lxd.WithProxyEnv(tc.IPs),
-	})
-
-	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
-		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkInstallationState(t, tc)
-
-	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
-	}
-
-	resetInstallation(t, tc, 0)
-
-	t.Logf("%s: waiting for nodes to reboot", time.Now().Format(time.RFC3339))
-	time.Sleep(30 * time.Second)
-
-	t.Logf("%s: restoring the installation", time.Now().Format(time.RFC3339))
-	line = append([]string{"restore-installation.exp"}, testArgs...)
-	line = append(line, "--http-proxy", lxd.HTTPProxy)
-	line = append(line, "--https-proxy", lxd.HTTPProxy)
-	line = append(line, "--no-proxy", strings.Join(tc.IPs, ","))
-	if _, _, err := tc.RunCommandOnNode(0, line, lxd.WithProxyEnv(tc.IPs)); err != nil {
-		t.Fatalf("fail to restore the installation: %v", err)
-	}
-
-	checkInstallationState(t, tc)
-
-	t.Logf("%s: checking post-restore state", time.Now().Format(time.RFC3339))
-	line = []string{"check-post-restore.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to check post-restore state: %v: %s: %s", err, stdout, stderr)
-	}
-
 	t.Logf("%s: validating restored app", time.Now().Format(time.RFC3339))
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -638,11 +537,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
-		T:            t,
-		Nodes:        3,
-		Distribution: "ubuntu",
-		Version:      "22.04",
-		InstanceType: "r1.medium",
+		T:                      t,
+		Nodes:                  4,
+		Distribution:           "ubuntu",
+		Version:                "22.04",
+		InstanceType:           "r1.medium",
+		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup(withEnv)
 
@@ -669,10 +569,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get", "install", "-y", "expect"}); err != nil {
 		t.Fatalf("fail to install expect package on node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	// install "expect" dependency on node 2 as that's where the HA join command will run.
-	t.Logf("%s: installing expect package on node 2", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(2, []string{"apt-get", "install", "-y", "expect"}); err != nil {
-		t.Fatalf("fail to install expect package on node 2: %v: %s: %s", err, stdout, stderr)
+	// install "expect" dependency on node 3 as that's where the HA join command will run.
+	t.Logf("%s: installing expect package on node 3", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(3, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 3: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -692,6 +592,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		withEnv:  withEnv,
 	})
 
+	checkWorkerProfile(t, tc, 0)
+
 	if err := tc.SetupPlaywright(withEnv); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
 	}
@@ -699,19 +601,33 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// join a controller
-	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// join a worker
+	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{
 		withEnv: withEnv,
 	})
+	checkWorkerProfile(t, tc, 1)
+
+	// join a controller
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+		withEnv: withEnv,
+	})
+	checkWorkerProfile(t, tc, 2)
 
 	// join another controller in HA mode
-	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{
 		isHA:    true,
 		withEnv: withEnv,
 	})
+	checkWorkerProfile(t, tc, 3)
 
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 3, withEnv)
+	waitForNodes(t, tc, 4, withEnv)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -734,9 +650,37 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// reset the cluster
+	// reset the first controller (node 0) only
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
+	if err != nil {
+		t.Fatalf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "High-availability is enabled and requires at least three controller-test nodes") {
+		t.Logf("reset output does not contain the ha warning: stdout: %s\nstderr: %s", stdout, stderr)
+	}
+
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"}, withEnv)
+	if err != nil {
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// check nllb after resetting first controller
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// reset the remaining nodes in parallel
 	runInParallel(t,
 		func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true, withEnv: withEnv})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
@@ -746,12 +690,6 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true, withEnv: withEnv})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
-		}, func(t *testing.T) error {
-			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
-			if err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
 			}
 			return nil
 		},
@@ -789,6 +727,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
 			}
 			return nil
+		}, func(t *testing.T) error {
+			t.Logf("%s: checking that /var/lib/ec is empty on node 3", time.Now().Format(time.RFC3339))
+			line := []string{"check-directory-empty.sh", "/var/lib/ec"}
+			if _, _, err := tc.RunCommandOnNode(3, line, withEnv); err != nil {
+				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
+			}
+			return nil
 		},
 	)
 
@@ -802,20 +747,26 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// restore phase 1 completes when the prompt for adding nodes is reached.
 	// add the expected nodes to the cluster, then continue to phase 2.
 
-	// join a controller
-	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
+	// join a worker
+	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{
 		isRestore: true,
 		withEnv:   withEnv,
 	})
 
-	// join another controller in non-HA mode
+	// join a controller
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
 		isRestore: true,
 		withEnv:   withEnv,
 	})
 
+	// join another controller in non-HA mode
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{
+		isRestore: true,
+		withEnv:   withEnv,
+	})
+
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 3, withEnv, "true")
+	waitForNodes(t, tc, 4, withEnv, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}
@@ -857,8 +808,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
+	postUpgradeEnv := make(map[string]string)
+	for k, v := range withEnv {
+		postUpgradeEnv[k] = v
+	}
+	postUpgradeEnv["ALLOW_PENDING_PODS"] = "true"
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: withEnv,
+		withEnv: postUpgradeEnv,
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))

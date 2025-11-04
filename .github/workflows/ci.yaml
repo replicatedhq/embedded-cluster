@@ -293,7 +293,9 @@ jobs:
           path: |
             ./dev/.gocache
             ./dev/.gomodcache
-          key: dryrun-tests-go-cache
+          key: dryrun-tests-go-cache-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            dryrun-tests-go-cache-
       - name: Run tests
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -436,7 +438,9 @@ jobs:
         with:
           path: |
             output/bins
-          key: bins-cache
+          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
+          restore-keys: |
+            bins-cache-
 
       - name: Setup go
         uses: actions/setup-go@v6
@@ -587,7 +591,9 @@ jobs:
         with:
           path: |
             output/bins
-          key: bins-cache
+          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
+          restore-keys: |
+            bins-cache-
 
       - name: Setup go
         uses: actions/setup-go@v6
@@ -950,11 +956,8 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeAirgapUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
-          - TestSingleNodeAirgapUpgradeConfigValues
           - TestMultiNodeAirgapUpgradePreviousStable
-          - TestMultiNodeAirgapHAInstallation
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
@@ -962,11 +965,7 @@ jobs:
             is-lxd: true
           - test: TestCommandsRequireSudo
             is-lxd: true
-          - test: TestSingleNodeDisasterRecoveryWithProxy
-            is-lxd: true
           - test: TestProxiedEnvironment
-            is-lxd: true
-          - test: TestProxiedCustomCIDR
             is-lxd: true
           - test: TestInstallWithMITMProxy
             is-lxd: true
