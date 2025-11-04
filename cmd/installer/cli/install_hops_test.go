@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -322,7 +321,7 @@ func Test_buildInstallFlags_CIDRConfig(t *testing.T) {
 			},
 			expected: &newconfig.CIDRConfig{
 				PodCIDR:     "10.0.0.0/24",
-				ServiceCIDR: v1beta1.DefaultNetwork().ServiceCIDR,
+				ServiceCIDR: k0sv1beta1.DefaultNetwork().ServiceCIDR,
 				GlobalCIDR:  nil,
 			},
 		},
@@ -349,7 +348,7 @@ func Test_buildInstallFlags_CIDRConfig(t *testing.T) {
 				flagSet.Set("service-cidr", "10.1.0.0/24")
 			},
 			expected: &newconfig.CIDRConfig{
-				PodCIDR:     v1beta1.DefaultNetwork().PodCIDR,
+				PodCIDR:     k0sv1beta1.DefaultNetwork().PodCIDR,
 				ServiceCIDR: "10.1.0.0/24",
 				GlobalCIDR:  nil,
 			},
@@ -1335,12 +1334,12 @@ func Test_buildAPIOptions(t *testing.T) {
 				req.NotNil(opts.EndUserConfig)
 				req.Equal("cluster-123", opts.ClusterID)
 				req.Equal(apitypes.ModeInstall, opts.Mode)
-				req.Equal(30303, opts.LinuxConfig.RuntimeConfig.AdminConsolePort())
-				req.Equal(30304, opts.KubernetesConfig.Installation.AdminConsolePort())
+				req.Equal(30303, opts.RuntimeConfig.AdminConsolePort())
+				req.Equal(30304, opts.Installation.AdminConsolePort())
 				req.Equal(false, opts.RequiresInfraUpgrade)
 				req.Equal(8800, opts.ManagerPort)
 				req.Equal(false, opts.Headless)
-				req.Equal(true, opts.LinuxConfig.AllowIgnoreHostPreflights)
+				req.Equal(true, opts.AllowIgnoreHostPreflights)
 				req.Equal(web.ModeInstall, opts.WebMode)
 			},
 		},
@@ -1369,7 +1368,7 @@ func Test_buildAPIOptions(t *testing.T) {
 				req.Equal("", opts.TLSConfig.Hostname)
 				req.Equal(30000, opts.ManagerPort)
 				req.Equal(true, opts.Headless)
-				req.Equal(false, opts.LinuxConfig.AllowIgnoreHostPreflights)
+				req.Equal(false, opts.AllowIgnoreHostPreflights)
 			},
 		},
 	}
