@@ -884,7 +884,6 @@ jobs:
           - TestSingleNodeUpgradePreviousStable
           - TestUpgradeFromReplicatedAppPreviousK0s
           - TestMultiNodeInstallation
-          - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeLegacyDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery

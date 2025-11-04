@@ -411,7 +411,7 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 
 	tc := docker.NewCluster(&docker.ClusterInput{
 		T:            t,
-		Nodes:        3,
+		Nodes:        4,
 		Distro:       "debian-bookworm",
 		LicensePath:  "licenses/snapshot-license.yaml",
 		ECBinaryPath: "../output/bin/embedded-cluster",
@@ -424,14 +424,17 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// join a worker
+	joinWorkerNode(t, tc, 1)
+
 	// join a controller
-	joinControllerNode(t, tc, 1)
+	joinControllerNode(t, tc, 2)
 
 	// join another controller in HA mode
-	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isHA: true})
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isHA: true})
 
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 3, nil)
+	waitForNodes(t, tc, 4, nil)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line := []string{"check-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -443,9 +446,37 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 
+	bin := "embedded-cluster"
+	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{bin, "reset", "--yes"})
+	if err != nil {
+		t.Fatalf("fail to remove controller node 0: %v: %s: %s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "High-availability is enabled and requires at least three controller-test nodes") {
+		t.Errorf("reset output does not contain the ha warning")
+		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	}
+
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"})
+	if err != nil {
+		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
+	line = []string{"check-nllb.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(2, line); err != nil {
+		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
+	}
+
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
+			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true})
+			if err != nil {
+				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
+			}
+			return nil
+		}, func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
@@ -455,12 +486,6 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{force: true})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 1: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
-		}, func(t *testing.T) error {
-			stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true})
-			if err != nil {
-				return fmt.Errorf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
 			}
 			return nil
 		},
@@ -479,14 +504,17 @@ func TestMultiNodeHADisasterRecovery(t *testing.T) {
 	// restore phase 1 completes when the prompt for adding nodes is reached.
 	// add the expected nodes to the cluster, then continue to phase 2.
 
-	// join a controller
-	joinControllerNodeWithOptions(t, tc, 1, joinOptions{isRestore: true})
+	// join a worker
+	joinWorkerNode(t, tc, 1)
 
-	// join another controller in non-HA mode
+	// join a controller
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isRestore: true})
 
+	// join another controller in non-HA mode
+	joinControllerNodeWithOptions(t, tc, 3, joinOptions{isRestore: true})
+
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 3, nil, "true")
+	waitForNodes(t, tc, 4, nil, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"restore-multi-node-phase2.exp"}); err != nil {
@@ -808,13 +836,8 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
 	}
 
-	postUpgradeEnv := make(map[string]string)
-	for k, v := range withEnv {
-		postUpgradeEnv[k] = v
-	}
-	postUpgradeEnv["ALLOW_PENDING_PODS"] = "true"
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
-		withEnv: postUpgradeEnv,
+		withEnv: withEnv,
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
