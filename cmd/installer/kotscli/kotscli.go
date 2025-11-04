@@ -478,14 +478,23 @@ func GetCurrentAppVersion(appSlug string, namespace string) (*AppVersionInfo, er
 		return nil, fmt.Errorf("unmarshal versions output: %w", err)
 	}
 
-	// Find the deployed version
+	version, err := getLastDeployedAppVersion(versions)
+	if err != nil {
+		return nil, fmt.Errorf("no deployed version found for app %s", appSlug)
+	}
+	return version, nil
+}
+
+// getLastDeployedAppVersion finds the last deployed version from a slice of versions
+func getLastDeployedAppVersion(versions []AppVersionInfo) (*AppVersionInfo, error) {
+	// Find the last deployed version. This can be either successful or failed deploys.
 	for _, v := range versions {
-		if v.Status == "deployed" {
+		if v.Status == "deployed" || v.Status == "failed" {
 			return &v, nil
 		}
 	}
 
-	return nil, fmt.Errorf("no deployed version found for app %s", appSlug)
+	return nil, fmt.Errorf("no deployed version found")
 }
 
 // GetConfigValuesOptions holds options for getting config values

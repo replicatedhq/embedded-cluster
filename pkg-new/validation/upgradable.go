@@ -27,6 +27,7 @@ type UpgradableOptions struct {
 	requiredReleases   []string
 }
 
+// WithAirgapRequiredReleases extracts the required releases from airgap metadata to be used for validation
 func (opts *UpgradableOptions) WithAirgapRequiredReleases(metadata *airgap.AirgapMetadata) error {
 	if metadata == nil || metadata.AirgapInfo == nil {
 		return fmt.Errorf("airgap metadata is required for validating airgap required releases")
@@ -51,6 +52,7 @@ func (opts *UpgradableOptions) WithAirgapRequiredReleases(metadata *airgap.Airga
 	return nil
 }
 
+// WithOnlineRequiredReleases fetches the pending releases from the current app sequence and extracts the required releases until the target app sequence
 func (opts *UpgradableOptions) WithOnlineRequiredReleases(ctx context.Context, replAPIClient replicatedapi.Client) error {
 	if opts.License == nil {
 		return fmt.Errorf("license is required to check online upgrade required releases")
@@ -70,6 +72,7 @@ func (opts *UpgradableOptions) WithOnlineRequiredReleases(ctx context.Context, r
 	return nil
 }
 
+// handlePendingReleases processes the pending releases to extract required releases between current and target sequences
 func (opts *UpgradableOptions) handlePendingReleases(pendingReleases []replicatedapi.ChannelRelease) {
 	// Find required releases between current and target sequence
 	for _, release := range pendingReleases {
