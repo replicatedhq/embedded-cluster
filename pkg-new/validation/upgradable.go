@@ -175,7 +175,7 @@ func validateK8sVersion(opts UpgradableOptions) error {
 
 	targetK8s, err := getK8sVersion(opts.TargetECVersion)
 	if err != nil {
-		return fmt.Errorf("failed to extract k8s version from target version %s: %w", opts.CurrentECVersion, err)
+		return fmt.Errorf("failed to extract k8s version from target version %s: %w", opts.TargetECVersion, err)
 	}
 
 	// Check if minor version is being skipped
@@ -195,7 +195,7 @@ func getK8sVersion(version string) (*semver.Version, error) {
 	// Parse the EC version format to extract K8s version: "2.12.0+k8s-1.33-*"
 	ecVersion, err := semver.NewVersion(version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse EC version %s: %w", ecVersion, err)
+		return nil, fmt.Errorf("failed to parse EC version %s: %w", version, err)
 	}
 
 	// Parse the build portion of the semver version +k8s-<version> and extract it
