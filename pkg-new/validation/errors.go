@@ -17,15 +17,6 @@ func (e *ValidationError) Error() string {
 	return e.Message
 }
 
-// IsValidationError returns true if err is or wraps a ValidationError
-func IsValidationError(err error) bool {
-	if err == nil {
-		return false
-	}
-	_, ok := err.(*ValidationError)
-	return ok
-}
-
 // NewRequiredReleasesError creates a ValidationError indicating that intermediate
 // required releases must be installed before upgrading to the target version
 func NewRequiredReleasesError(requiredVersions []string, targetVersion string) *ValidationError {

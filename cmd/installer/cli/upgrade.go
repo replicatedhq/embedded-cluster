@@ -258,8 +258,8 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.license = l
 
-	// sync the license if a license is provided and we are not in airgap mode
-	if upgradeConfig.license != nil && flags.airgapBundle == "" {
+	// sync the license and initialize the replicated api client if we are not in airgap mode
+	if flags.airgapBundle == "" {
 		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
 		if err != nil {
 			return fmt.Errorf("failed to create replicated API client: %w", err)
@@ -607,11 +607,9 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfi
 
 	// Build validation options
 	opts := validation.UpgradableOptions{
-		IsAirgap:         isAirgap,
 		CurrentECVersion: currentECVersion,
 		TargetECVersion:  targetECVersion,
 		License:          upgradeConfig.license,
-		AirgapMetadata:   upgradeConfig.airgapMetadata,
 	}
 
 	// Add current app version info if available
@@ -624,10 +622,15 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfi
 	opts.TargetAppVersion = channelRelease.VersionLabel
 	opts.TargetAppSequence = channelRelease.ChannelSequence
 
-	// For online upgrades, add the replicated API client and channel ID
-	if upgradeConfig.replicatedAPIClient != nil {
-		opts.ReplicatedAPI = upgradeConfig.replicatedAPIClient
-		opts.ChannelID = channelRelease.ChannelID
+	// Extract the required releases depending on if it's airgap or online
+	if isAirgap {
+		if err := opts.WithAirgapRequiredReleases(upgradeConfig.airgapMetadata); err != nil {
+			return fmt.Errorf("failed to extract required releases from airgap metadata: %w", err)
+		}
+	} else {
+		if err := opts.WithOnlineRequiredReleases(ctx, upgradeConfig.replicatedAPIClient); err != nil {
+			return fmt.Errorf("failed to extract required releases from replidated API's pending release call: %w", err)
+		}
 	}
 
 	// Perform validation

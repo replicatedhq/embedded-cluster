@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
@@ -16,7 +17,6 @@ var k8sBuildRegex = regexp.MustCompile(`k8s-(\d+\.\d+)`)
 
 // UpgradableOptions holds configuration for validating release deployability
 type UpgradableOptions struct {
-	IsAirgap           bool
 	CurrentAppVersion  string
 	CurrentAppSequence int64
 	CurrentECVersion   string
@@ -24,9 +24,63 @@ type UpgradableOptions struct {
 	TargetAppSequence  int64
 	TargetECVersion    string
 	License            *kotsv1beta1.License
-	AirgapMetadata     *airgap.AirgapMetadata
-	ReplicatedAPI      replicatedapi.Client
-	ChannelID          string
+	requiredReleases   []string
+}
+
+func (opts *UpgradableOptions) WithAirgapRequiredReleases(metadata *airgap.AirgapMetadata) error {
+	if metadata == nil || metadata.AirgapInfo == nil {
+		return fmt.Errorf("airgap metadata is required for validating airgap required releases")
+	}
+
+	// RequiredReleases are in descending order, we need to iterate through the required releases of the target release until we find releases lower than the current installed release
+	requiredReleases := metadata.AirgapInfo.Spec.RequiredReleases
+	if len(requiredReleases) > 0 {
+		// Extract version labels from required releases
+		for _, release := range requiredReleases {
+			sequence, err := strconv.ParseInt(release.UpdateCursor, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse airgap spec required release update cursor %s: %w", release.UpdateCursor, err)
+			}
+			// We've hit a release that is less than or equal to the current installed release, we can stop
+			if sequence <= opts.CurrentAppSequence {
+				return nil
+			}
+			opts.requiredReleases = append(opts.requiredReleases, release.VersionLabel)
+		}
+	}
+	return nil
+}
+
+func (opts *UpgradableOptions) WithOnlineRequiredReleases(ctx context.Context, replAPIClient replicatedapi.Client) error {
+	if opts.License == nil {
+		return fmt.Errorf("license is required to check online upgrade required releases")
+	}
+	options := &replicatedapi.PendingReleasesOptions{
+		IsSemverSupported: opts.License.Spec.IsSemverRequired,
+		SortOrder:         replicatedapi.SortOrderAscending,
+	}
+	// Get pending releases from the current app sequence in asceding order
+	pendingReleases, err := replAPIClient.GetPendingReleases(ctx, opts.License.Spec.ChannelID, opts.CurrentAppSequence, options)
+	if err != nil {
+		return fmt.Errorf("failed to get pending releases while checking required releases for upgrade: %w", err)
+	}
+	if pendingReleases != nil {
+		opts.handlePendingReleases(pendingReleases.ChannelReleases)
+	}
+	return nil
+}
+
+func (opts *UpgradableOptions) handlePendingReleases(pendingReleases []replicatedapi.ChannelRelease) {
+	// Find required releases between current and target sequence
+	for _, release := range pendingReleases {
+		// Releases are in asceding order, we've hit the target sequence so we can break
+		if release.ChannelSequence == opts.TargetAppSequence {
+			break
+		}
+		if release.IsRequired {
+			opts.requiredReleases = append(opts.requiredReleases, release.VersionLabel)
+		}
+	}
 }
 
 // ValidateIsReleaseUpgradable validates that a target release can be safely deployed
@@ -56,54 +110,8 @@ func ValidateIsReleaseUpgradable(ctx context.Context, opts UpgradableOptions) er
 
 // validateRequiredReleases checks if any required releases are being skipped
 func validateRequiredReleases(ctx context.Context, opts UpgradableOptions) error {
-	requiredVersions := []string{}
-	if opts.IsAirgap {
-		// For airgap, check RequiredReleases field in the airgap metadata
-		if opts.AirgapMetadata == nil || opts.AirgapMetadata.AirgapInfo == nil {
-			return fmt.Errorf("airgap metadata is required for airgap validation")
-		}
-
-		requiredReleases := opts.AirgapMetadata.AirgapInfo.Spec.RequiredReleases
-		if len(requiredReleases) > 0 {
-			// Extract version labels from required releases
-			for _, release := range requiredReleases {
-				requiredVersions = append(requiredVersions, release.VersionLabel)
-			}
-		}
-	} else {
-		// For online, call the API
-		if opts.ReplicatedAPI == nil {
-			return fmt.Errorf("replicated API client is required for online validation")
-		}
-
-		if opts.ChannelID == "" {
-			return fmt.Errorf("channel ID is required for online validation")
-		}
-
-		options := &replicatedapi.PendingReleasesOptions{
-			IsSemverSupported: opts.License.Spec.IsSemverRequired,
-			SortOrder:         replicatedapi.SortOrderAscending,
-		}
-		// Get pending releases from the current app seqeuence in asceding order
-		pendingReleases, err := opts.ReplicatedAPI.GetPendingReleases(ctx, opts.ChannelID, opts.CurrentAppSequence, options)
-		if err != nil {
-			return fmt.Errorf("failed to fetch pending releases: %w", err)
-		}
-
-		// Find required releases between current and target sequence
-		for _, release := range pendingReleases.ChannelReleases {
-			// Releases are in asceding order, we've hit the target sequence so we can break
-			if release.ChannelSequence == opts.TargetAppSequence {
-				break
-			}
-			if release.IsRequired {
-				requiredVersions = append(requiredVersions, release.VersionLabel)
-			}
-		}
-	}
-
-	if len(requiredVersions) > 0 {
-		return NewRequiredReleasesError(requiredVersions, opts.TargetAppVersion)
+	if len(opts.requiredReleases) > 0 {
+		return NewRequiredReleasesError(opts.requiredReleases, opts.TargetAppVersion)
 	}
 
 	return nil

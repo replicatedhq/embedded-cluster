@@ -1,8 +1,7 @@
 package validation
 
 import (
-	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
@@ -34,11 +33,17 @@ func newTestLicense(isSemverRequired bool) *kotsv1beta1.License {
 	}
 }
 
-func newTestAirgapMetadata(requiredReleases []string) *airgap.AirgapMetadata {
-	var releases []kotsv1beta1.AirgapReleaseMeta
-	for _, versionLabel := range requiredReleases {
-		releases = append(releases, kotsv1beta1.AirgapReleaseMeta{
-			VersionLabel: versionLabel,
+type airgapReleaseData struct {
+	versionLabel string
+	updateCursor string
+}
+
+func newTestAirgapMetadataWithSequences(releases []airgapReleaseData) *airgap.AirgapMetadata {
+	var releaseMetas []kotsv1beta1.AirgapReleaseMeta
+	for _, r := range releases {
+		releaseMetas = append(releaseMetas, kotsv1beta1.AirgapReleaseMeta{
+			VersionLabel: r.versionLabel,
+			UpdateCursor: r.updateCursor,
 		})
 	}
 
@@ -49,7 +54,7 @@ func newTestAirgapMetadata(requiredReleases []string) *airgap.AirgapMetadata {
 				Kind:       "AirgapInfo",
 			},
 			Spec: kotsv1beta1.AirgapSpec{
-				RequiredReleases: releases,
+				RequiredReleases: releaseMetas,
 			},
 		},
 	}
@@ -57,463 +62,454 @@ func newTestAirgapMetadata(requiredReleases []string) *airgap.AirgapMetadata {
 
 // Tests
 
-func TestValidateIsReleaseUpgradable_AppVersionDowngrade(t *testing.T) {
+func TestWithAirgapRequiredReleases(t *testing.T) {
 	tests := []struct {
-		name               string
-		currentAppVersion  string
-		currentAppSequence int64
-		targetAppVersion   string
-		targetAppSequence  int64
-		isSemverRequired   bool
-		wantErr            bool
-		wantValidationErr  bool
-		wantErrContains    string
+		name             string
+		metadata         *airgap.AirgapMetadata
+		currentSequence  int64
+		expectedReleases []string
+		expectError      bool
+		errorContains    string
 	}{
 		{
-			name:               "app version downgrade with semver - returns ValidationError",
-			currentAppVersion:  "2.0.0",
-			currentAppSequence: 100,
-			targetAppVersion:   "1.9.0",
-			targetAppSequence:  90,
-			isSemverRequired:   true,
-			wantErr:            true,
-			wantValidationErr:  true,
-			wantErrContains:    "downgrade detected",
+			name:             "no required releases",
+			metadata:         newTestAirgapMetadataWithSequences([]airgapReleaseData{}),
+			currentSequence:  100,
+			expectedReleases: []string{},
+			expectError:      false,
 		},
 		{
-			name:               "app version downgrade with sequence - returns ValidationError",
-			currentAppVersion:  "Release 100",
-			currentAppSequence: 100,
-			targetAppVersion:   "Release 50",
-			targetAppSequence:  50,
-			isSemverRequired:   false,
-			wantErr:            true,
-			wantValidationErr:  true,
-			wantErrContains:    "downgrade detected",
+			name: "all releases newer than current",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.5.0", updateCursor: "500"},
+				{versionLabel: "1.4.0", updateCursor: "400"},
+				{versionLabel: "1.3.0", updateCursor: "300"},
+			}),
+			currentSequence:  100,
+			expectedReleases: []string{"1.5.0", "1.4.0", "1.3.0"},
+			expectError:      false,
 		},
 		{
-			name:               "app version upgrade with semver - succeeds",
-			currentAppVersion:  "1.9.0",
-			currentAppSequence: 90,
-			targetAppVersion:   "2.0.0",
-			targetAppSequence:  100,
-			isSemverRequired:   true,
-			wantErr:            false,
-			wantValidationErr:  false,
+			name: "mixed releases - stops at older release",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.5.0", updateCursor: "500"},
+				{versionLabel: "1.4.0", updateCursor: "400"},
+				{versionLabel: "1.2.0", updateCursor: "200"},
+				{versionLabel: "1.1.0", updateCursor: "100"},
+			}),
+			currentSequence:  300,
+			expectedReleases: []string{"1.5.0", "1.4.0"},
+			expectError:      false,
 		},
 		{
-			name:               "app version same version - succeeds",
-			currentAppVersion:  "2.0.0",
-			currentAppSequence: 100,
-			targetAppVersion:   "2.0.0",
-			targetAppSequence:  100,
-			isSemverRequired:   true,
-			wantErr:            false,
-			wantValidationErr:  false,
+			name: "stops at current sequence",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.4.0", updateCursor: "400"},
+				{versionLabel: "1.3.0", updateCursor: "300"},
+				{versionLabel: "1.2.0", updateCursor: "200"},
+			}),
+			currentSequence:  300,
+			expectedReleases: []string{"1.4.0"},
+			expectError:      false,
 		},
 		{
-			name:               "app version invalid semver - returns internal error",
-			currentAppVersion:  "invalid-version",
-			currentAppSequence: 100,
-			targetAppVersion:   "2.0.0",
-			targetAppSequence:  100,
-			isSemverRequired:   true,
-			wantErr:            true,
-			wantValidationErr:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
-			opts := UpgradableOptions{
-				IsAirgap:           true, // Use airgap to skip required releases check
-				CurrentAppVersion:  tt.currentAppVersion,
-				CurrentAppSequence: tt.currentAppSequence,
-				TargetAppVersion:   tt.targetAppVersion,
-				TargetAppSequence:  tt.targetAppSequence,
-				CurrentECVersion:   "2.10.0+k8s-1.31",
-				TargetECVersion:    "2.11.0+k8s-1.32",
-				License:            newTestLicense(tt.isSemverRequired),
-				AirgapMetadata:     newTestAirgapMetadata(nil), // No required releases
-			}
-
-			err := ValidateIsReleaseUpgradable(context.Background(), opts)
-
-			if tt.wantErr {
-				req.Error(err)
-				if tt.wantErrContains != "" {
-					assert.Contains(t, err.Error(), tt.wantErrContains)
-				}
-				if tt.wantValidationErr {
-					assert.True(t, IsValidationError(err), "expected ValidationError")
-				} else {
-					assert.False(t, IsValidationError(err), "expected internal error, not ValidationError")
-				}
-			} else {
-				req.NoError(err)
-			}
-		})
-	}
-}
-
-func TestValidateIsReleaseUpgradable_RequiredReleases(t *testing.T) {
-	tests := []struct {
-		name               string
-		isAirgap           bool
-		airgapMetadata     *airgap.AirgapMetadata
-		replicatedAPI      replicatedapi.Client
-		currentAppSequence int64
-		targetAppSequence  int64
-		wantErr            bool
-		wantValidationErr  bool
-		wantErrContains    string
-	}{
-		{
-			name:               "required releases in airgap mode - returns ValidationError",
-			isAirgap:           true,
-			airgapMetadata:     newTestAirgapMetadata([]string{"1.1.0", "1.2.0"}),
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            true,
-			wantValidationErr:  true,
-			wantErrContains:    "intermediate version(s)",
+			name: "all releases older than current",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.2.0", updateCursor: "200"},
+				{versionLabel: "1.1.0", updateCursor: "100"},
+			}),
+			currentSequence:  300,
+			expectedReleases: []string{},
+			expectError:      false,
 		},
 		{
-			name:     "required releases in online mode - returns ValidationError",
-			isAirgap: false,
-			replicatedAPI: &replicatedapi.MockClient{
-				GetPendingReleasesFunc: func(ctx context.Context, channelID string, currentSequence int64, opts *replicatedapi.PendingReleasesOptions) (*replicatedapi.PendingReleasesResponse, error) {
-					return &replicatedapi.PendingReleasesResponse{
-						ChannelReleases: []replicatedapi.ChannelRelease{
-							{
-								ChannelSequence: 11,
-								VersionLabel:    "1.1.0",
-								IsRequired:      false,
-							},
-							{
-								ChannelSequence: 12,
-								VersionLabel:    "1.2.0",
-								IsRequired:      true,
-							},
-							{
-								ChannelSequence: 13,
-								VersionLabel:    "1.3.0",
-								IsRequired:      false,
-							},
-						},
-					}, nil
-				},
+			name:            "nil metadata",
+			metadata:        nil,
+			currentSequence: 100,
+			expectError:     true,
+			errorContains:   "airgap metadata is required",
+		},
+		{
+			name: "nil airgap info",
+			metadata: &airgap.AirgapMetadata{
+				AirgapInfo: nil,
 			},
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            true,
-			wantValidationErr:  true,
-			wantErrContains:    "1.2.0",
+			currentSequence: 100,
+			expectError:     true,
+			errorContains:   "airgap metadata is required",
 		},
 		{
-			name:               "no required releases in airgap mode - succeeds",
-			isAirgap:           true,
-			airgapMetadata:     newTestAirgapMetadata(nil),
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            false,
-			wantValidationErr:  false,
+			name: "invalid update cursor",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.5.0", updateCursor: "invalid-number"},
+			}),
+			currentSequence: 100,
+			expectError:     true,
+			errorContains:   "failed to parse airgap spec required release update cursor",
 		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := UpgradableOptions{
+				CurrentAppSequence: tt.currentSequence,
+			}
+
+			err := opts.WithAirgapRequiredReleases(tt.metadata)
+
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errorContains)
+			} else {
+				require.NoError(t, err)
+				if len(tt.expectedReleases) == 0 {
+					assert.Empty(t, opts.requiredReleases)
+				} else {
+					assert.Equal(t, tt.expectedReleases, opts.requiredReleases)
+				}
+			}
+		})
+	}
+}
+
+func TestHandlePendingReleases(t *testing.T) {
+	tests := []struct {
+		name             string
+		pendingReleases  []replicatedapi.ChannelRelease
+		currentSequence  int64
+		targetSequence   int64
+		expectedReleases []string
+	}{
 		{
-			name:     "no required releases in online mode - succeeds",
-			isAirgap: false,
-			replicatedAPI: &replicatedapi.MockClient{
-				GetPendingReleasesFunc: func(ctx context.Context, channelID string, currentSequence int64, opts *replicatedapi.PendingReleasesOptions) (*replicatedapi.PendingReleasesResponse, error) {
-					return &replicatedapi.PendingReleasesResponse{
-						ChannelReleases: []replicatedapi.ChannelRelease{
-							{
-								ChannelSequence: 11,
-								VersionLabel:    "1.1.0",
-								IsRequired:      false,
-							},
-							{
-								ChannelSequence: 12,
-								VersionLabel:    "1.2.0",
-								IsRequired:      false,
-							},
-						},
-					}, nil
-				},
+			name: "no required releases",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: false},
+				{ChannelSequence: 102, VersionLabel: "1.2.0", IsRequired: false},
+				{ChannelSequence: 103, VersionLabel: "1.3.0", IsRequired: false},
 			},
-			currentAppSequence: 10,
-			targetAppSequence:  12,
-			wantErr:            false,
-			wantValidationErr:  false,
+			currentSequence:  100,
+			targetSequence:   104,
+			expectedReleases: []string{},
 		},
 		{
-			name:               "required releases missing airgap metadata - returns internal error",
-			isAirgap:           true,
-			airgapMetadata:     nil,
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            true,
-			wantValidationErr:  false,
-			wantErrContains:    "airgap metadata is required",
-		},
-		{
-			name:               "required releases missing API client - returns internal error",
-			isAirgap:           false,
-			replicatedAPI:      nil,
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            true,
-			wantValidationErr:  false,
-			wantErrContains:    "replicated API client is required",
-		},
-		{
-			name:     "required releases API error - returns internal error",
-			isAirgap: false,
-			replicatedAPI: &replicatedapi.MockClient{
-				GetPendingReleasesFunc: func(ctx context.Context, channelID string, currentSequence int64, opts *replicatedapi.PendingReleasesOptions) (*replicatedapi.PendingReleasesResponse, error) {
-					return nil, fmt.Errorf("API connection failed")
-				},
+			name: "all releases required",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+				{ChannelSequence: 102, VersionLabel: "1.2.0", IsRequired: true},
+				{ChannelSequence: 103, VersionLabel: "1.3.0", IsRequired: true},
 			},
-			currentAppSequence: 10,
-			targetAppSequence:  13,
-			wantErr:            true,
-			wantValidationErr:  false,
-			wantErrContains:    "failed to fetch pending releases",
+			currentSequence:  100,
+			targetSequence:   104,
+			expectedReleases: []string{"1.1.0", "1.2.0", "1.3.0"},
+		},
+		{
+			name: "mixed required and not required",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+				{ChannelSequence: 102, VersionLabel: "1.2.0", IsRequired: false},
+				{ChannelSequence: 103, VersionLabel: "1.3.0", IsRequired: true},
+			},
+			currentSequence:  100,
+			targetSequence:   104,
+			expectedReleases: []string{"1.1.0", "1.3.0"},
+		},
+		{
+			name: "stops at target sequence",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+				{ChannelSequence: 102, VersionLabel: "1.2.0", IsRequired: true},
+				{ChannelSequence: 103, VersionLabel: "1.3.0", IsRequired: true},
+				{ChannelSequence: 104, VersionLabel: "1.4.0", IsRequired: true},
+				{ChannelSequence: 105, VersionLabel: "1.5.0", IsRequired: true},
+			},
+			currentSequence:  100,
+			targetSequence:   104,
+			expectedReleases: []string{"1.1.0", "1.2.0", "1.3.0"},
+		},
+		{
+			name:             "empty pending releases",
+			pendingReleases:  []replicatedapi.ChannelRelease{},
+			currentSequence:  100,
+			targetSequence:   104,
+			expectedReleases: []string{},
+		},
+		{
+			name: "single required release",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+			},
+			currentSequence:  100,
+			targetSequence:   102,
+			expectedReleases: []string{"1.1.0"},
+		},
+		{
+			name: "target sequence equals first release - no releases collected",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 100, VersionLabel: "1.0.0", IsRequired: true},
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+			},
+			currentSequence:  99,
+			targetSequence:   100,
+			expectedReleases: []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
 			opts := UpgradableOptions{
-				IsAirgap:           tt.isAirgap,
-				CurrentAppVersion:  "1.0.0",
-				CurrentAppSequence: tt.currentAppSequence,
-				TargetAppVersion:   "1.3.0",
-				TargetAppSequence:  tt.targetAppSequence,
-				CurrentECVersion:   "2.10.0+k8s-1.31",
-				TargetECVersion:    "2.11.0+k8s-1.32",
-				License:            newTestLicense(true),
-				ChannelID:          "test-channel-123",
-				AirgapMetadata:     tt.airgapMetadata,
-				ReplicatedAPI:      tt.replicatedAPI,
+				CurrentAppSequence: tt.currentSequence,
+				TargetAppSequence:  tt.targetSequence,
 			}
 
-			err := ValidateIsReleaseUpgradable(context.Background(), opts)
+			opts.handlePendingReleases(tt.pendingReleases)
 
-			if tt.wantErr {
-				req.Error(err)
-				if tt.wantErrContains != "" {
-					assert.Contains(t, err.Error(), tt.wantErrContains)
-				}
-				if tt.wantValidationErr {
-					assert.True(t, IsValidationError(err), "expected ValidationError")
-				} else {
-					assert.False(t, IsValidationError(err), "expected internal error, not ValidationError")
-				}
+			if len(tt.expectedReleases) == 0 {
+				assert.Empty(t, opts.requiredReleases)
 			} else {
-				req.NoError(err)
+				assert.Equal(t, tt.expectedReleases, opts.requiredReleases)
 			}
 		})
 	}
 }
 
-func TestValidateIsReleaseUpgradable_ECVersionDowngrade(t *testing.T) {
+func TestValidateIsReleaseUpgradable(t *testing.T) {
 	tests := []struct {
-		name              string
-		currentECVersion  string
-		targetECVersion   string
-		wantErr           bool
-		wantValidationErr bool
-		wantErrContains   string
+		name                string
+		opts                UpgradableOptions
+		expectError         bool
+		expectValidationErr bool
 	}{
 		{
-			name:              "EC version downgrade - returns ValidationError",
-			currentECVersion:  "2.11.0+k8s-1.32",
-			targetECVersion:   "2.10.0+k8s-1.31",
-			wantErr:           true,
-			wantValidationErr: true,
-			wantErrContains:   "Embedded Cluster version",
+			name: "valid upgrade - semver",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         false,
+			expectValidationErr: false,
 		},
 		{
-			name:              "EC version upgrade - succeeds",
-			currentECVersion:  "2.10.0+k8s-1.31",
-			targetECVersion:   "2.11.0+k8s-1.32",
-			wantErr:           false,
-			wantValidationErr: false,
+			name: "valid upgrade - sequence-based",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "v100",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "v101",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(false),
+				requiredReleases:   []string{},
+			},
+			expectError:         false,
+			expectValidationErr: false,
 		},
 		{
-			name:              "EC version same - succeeds",
-			currentECVersion:  "2.10.0+k8s-1.31",
-			targetECVersion:   "2.10.0+k8s-1.31",
-			wantErr:           false,
-			wantValidationErr: false,
+			name: "valid k8s minor version upgrade",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.30",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         false,
+			expectValidationErr: false,
 		},
 		{
-			name:              "EC version invalid format - returns internal error",
-			currentECVersion:  "invalid",
-			targetECVersion:   "2.10.0+k8s-1.31",
-			wantErr:           true,
-			wantValidationErr: false,
-			wantErrContains:   "failed to parse",
+			name: "valid upgrade - same versions",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.0.0",
+				TargetAppSequence:  100,
+				TargetECVersion:    "2.0.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         false,
+			expectValidationErr: false,
+		},
+		{
+			name: "valid upgrade - patch version only",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.0.1",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.0.1+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         false,
+			expectValidationErr: false,
+		},
+		{
+			name: "app version downgrade - semver",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "2.0.0",
+				CurrentAppSequence: 200,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.5.0",
+				TargetAppSequence:  150,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "app version downgrade - sequence-based",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "v200",
+				CurrentAppSequence: 200,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "v150",
+				TargetAppSequence:  150,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(false),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "required releases present",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.5.0",
+				TargetAppSequence:  500,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{"1.1.0", "1.2.0"},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "ec version downgrade",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.5.0+k8s-1.30",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.3.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "k8s version skip - one minor version",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.31",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "k8s version skip - multiple minor versions",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.27",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.31",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "invalid semver in app version",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "invalid-version",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.29",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: false, // parsing errors are not ValidationError
+		},
+		{
+			name: "invalid ec version format",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "invalid-version",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: false, // parsing errors are not ValidationError
+		},
+		{
+			name: "invalid k8s version format in ec version",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+invalid-build",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.29",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: false, // parsing errors are not ValidationError
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
+			err := ValidateIsReleaseUpgradable(t.Context(), tt.opts)
 
-			opts := UpgradableOptions{
-				IsAirgap:           true,
-				CurrentAppVersion:  "1.0.0",
-				CurrentAppSequence: 10,
-				TargetAppVersion:   "2.0.0",
-				TargetAppSequence:  20,
-				CurrentECVersion:   tt.currentECVersion,
-				TargetECVersion:    tt.targetECVersion,
-				License:            newTestLicense(true),
-				AirgapMetadata:     newTestAirgapMetadata(nil),
-			}
+			if tt.expectError {
+				require.Error(t, err)
 
-			err := ValidateIsReleaseUpgradable(context.Background(), opts)
+				// Check if it's a ValidationError type
+				var validationErr *ValidationError
+				isValidationErr := errors.As(err, &validationErr)
 
-			if tt.wantErr {
-				req.Error(err)
-				if tt.wantErrContains != "" {
-					assert.Contains(t, err.Error(), tt.wantErrContains)
-				}
-				if tt.wantValidationErr {
-					assert.True(t, IsValidationError(err), "expected ValidationError")
+				if tt.expectValidationErr {
+					assert.True(t, isValidationErr, "expected ValidationError but got: %T", err)
 				} else {
-					assert.False(t, IsValidationError(err), "expected internal error, not ValidationError")
+					assert.False(t, isValidationErr, "expected non-ValidationError but got ValidationError")
 				}
 			} else {
-				req.NoError(err)
+				require.NoError(t, err)
 			}
-		})
-	}
-}
-
-func TestValidateIsReleaseUpgradable_K8sVersionSkip(t *testing.T) {
-	tests := []struct {
-		name              string
-		currentECVersion  string
-		targetECVersion   string
-		wantErr           bool
-		wantValidationErr bool
-		wantErrContains   string
-	}{
-		{
-			name:              "k8s minor version skip - returns ValidationError",
-			currentECVersion:  "2.10.0+k8s-1.30",
-			targetECVersion:   "2.12.0+k8s-1.32",
-			wantErr:           true,
-			wantValidationErr: true,
-			wantErrContains:   "skip detected",
-		},
-		{
-			name:              "k8s minor version increment by one - succeeds",
-			currentECVersion:  "2.10.0+k8s-1.31",
-			targetECVersion:   "2.11.0+k8s-1.32",
-			wantErr:           false,
-			wantValidationErr: false,
-		},
-		{
-			name:              "k8s same version - succeeds",
-			currentECVersion:  "2.10.0+k8s-1.32",
-			targetECVersion:   "2.11.0+k8s-1.32",
-			wantErr:           false,
-			wantValidationErr: false,
-		},
-		{
-			name:              "k8s version extraction fails - returns internal error",
-			currentECVersion:  "2.10.0+invalid-format",
-			targetECVersion:   "2.11.0+k8s-1.32",
-			wantErr:           true,
-			wantValidationErr: false,
-			wantErrContains:   "failed to extract k8s version",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
-			opts := UpgradableOptions{
-				IsAirgap:           true,
-				CurrentAppVersion:  "1.0.0",
-				CurrentAppSequence: 10,
-				TargetAppVersion:   "2.0.0",
-				TargetAppSequence:  20,
-				CurrentECVersion:   tt.currentECVersion,
-				TargetECVersion:    tt.targetECVersion,
-				License:            newTestLicense(true),
-				AirgapMetadata:     newTestAirgapMetadata(nil),
-			}
-
-			err := ValidateIsReleaseUpgradable(context.Background(), opts)
-
-			if tt.wantErr {
-				req.Error(err)
-				if tt.wantErrContains != "" {
-					assert.Contains(t, err.Error(), tt.wantErrContains)
-				}
-				if tt.wantValidationErr {
-					assert.True(t, IsValidationError(err), "expected ValidationError")
-				} else {
-					assert.False(t, IsValidationError(err), "expected internal error, not ValidationError")
-				}
-			} else {
-				req.NoError(err)
-			}
-		})
-	}
-}
-
-func TestIsValidationError(t *testing.T) {
-	tests := []struct {
-		name     string
-		err      error
-		expected bool
-	}{
-		{
-			name:     "nil error",
-			err:      nil,
-			expected: false,
-		},
-		{
-			name:     "ValidationError from NewRequiredReleasesError",
-			err:      NewRequiredReleasesError([]string{"1.0.0"}, "2.0.0"),
-			expected: true,
-		},
-		{
-			name:     "ValidationError from NewAppVersionDowngradeError",
-			err:      NewAppVersionDowngradeError("2.0.0", "1.0.0"),
-			expected: true,
-		},
-		{
-			name:     "ValidationError from NewECVersionDowngradeError",
-			err:      NewECVersionDowngradeError("2.11.0", "2.10.0"),
-			expected: true,
-		},
-		{
-			name:     "ValidationError from NewK8sVersionSkipError",
-			err:      NewK8sVersionSkipError("1.30", "1.32"),
-			expected: true,
-		},
-		{
-			name:     "regular error is not ValidationError",
-			err:      fmt.Errorf("some internal error"),
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsValidationError(tt.err)
-			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
