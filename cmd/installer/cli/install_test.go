@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -757,96 +756,6 @@ func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 				assert.NoError(t, err, "Flag parsing should succeed")
 				// Check the flag value only if parsing succeeded
 				assert.Equal(t, tt.expectedIgnorePreflights, flags.ignoreAppPreflights)
-			}
-		})
-	}
-}
-
-func Test_k0sConfigFromFlags(t *testing.T) {
-	tests := []struct {
-		name                string
-		podCIDR             string
-		serviceCIDR         string
-		globalCIDR          *string
-		expectedPodCIDR     string
-		expectedServiceCIDR string
-		wantErr             bool
-	}{
-		{
-			name:                "pod and service CIDRs set",
-			podCIDR:             "10.0.0.0/24",
-			serviceCIDR:         "10.1.0.0/24",
-			globalCIDR:          nil,
-			expectedPodCIDR:     "10.0.0.0/24",
-			expectedServiceCIDR: "10.1.0.0/24",
-			wantErr:             false,
-		},
-		{
-			name:                "custom pod and service CIDRs",
-			podCIDR:             "192.168.0.0/16",
-			serviceCIDR:         "10.96.0.0/12",
-			globalCIDR:          nil,
-			expectedPodCIDR:     "192.168.0.0/16",
-			expectedServiceCIDR: "10.96.0.0/12",
-			wantErr:             false,
-		},
-		{
-			name:                "global CIDR should not affect k0s config",
-			podCIDR:             "10.0.0.0/25",
-			serviceCIDR:         "10.0.0.128/25",
-			globalCIDR:          stringPtr("10.0.0.0/24"),
-			expectedPodCIDR:     "10.0.0.0/25",
-			expectedServiceCIDR: "10.0.0.128/25",
-			wantErr:             false,
-		},
-		{
-			name:                "IPv4 CIDRs with different masks",
-			podCIDR:             "172.16.0.0/20",
-			serviceCIDR:         "172.17.0.0/20",
-			globalCIDR:          nil,
-			expectedPodCIDR:     "172.16.0.0/20",
-			expectedServiceCIDR: "172.17.0.0/20",
-			wantErr:             false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
-			flags := &installFlags{
-				cidrConfig: &newconfig.CIDRConfig{
-					PodCIDR:     tt.podCIDR,
-					ServiceCIDR: tt.serviceCIDR,
-					GlobalCIDR:  tt.globalCIDR,
-				},
-				networkInterface: "",
-				overrides:        "",
-			}
-			installCfg := &installConfig{}
-
-			cfg, err := k0sConfigFromFlags(flags, installCfg)
-
-			if tt.wantErr {
-				req.Error(err)
-				return
-			}
-
-			req.NoError(err)
-			req.NotNil(cfg)
-			req.NotNil(cfg.Spec)
-			req.NotNil(cfg.Spec.Network)
-
-			// Verify pod CIDR is set correctly if expected
-			if tt.expectedPodCIDR != "" {
-				req.Equal(tt.expectedPodCIDR, cfg.Spec.Network.PodCIDR,
-					"Pod CIDR should be set correctly in k0s config")
-			}
-
-			// Verify service CIDR is set correctly if expected
-			if tt.expectedServiceCIDR != "" {
-				req.Equal(tt.expectedServiceCIDR, cfg.Spec.Network.ServiceCIDR,
-					"Service CIDR should be set correctly in k0s config")
 			}
 		})
 	}
