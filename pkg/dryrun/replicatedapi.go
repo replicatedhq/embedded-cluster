@@ -13,8 +13,9 @@ var _ replicatedapi.Client = (*ReplicatedAPIClient)(nil)
 
 // ReplicatedAPIClient is a mockable implementation of the replicatedapi.Client interface.
 type ReplicatedAPIClient struct {
-	License      *kotsv1beta1.License
-	LicenseBytes []byte
+	License         *kotsv1beta1.License
+	LicenseBytes    []byte
+	PendingReleases []replicatedapi.ChannelRelease
 }
 
 // SyncLicense returns the mocked license data.
@@ -29,4 +30,9 @@ func (c *ReplicatedAPIClient) SyncLicense(ctx context.Context) (*kotsv1beta1.Lic
 	}
 
 	return c.License, c.LicenseBytes, nil
+}
+
+// GetPendingReleases returns the mocked pending releases data.
+func (c *ReplicatedAPIClient) GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *replicatedapi.PendingReleasesOptions) (*replicatedapi.PendingReleasesResponse, error) {
+	return &replicatedapi.PendingReleasesResponse{ChannelReleases: c.PendingReleases}, nil
 }
