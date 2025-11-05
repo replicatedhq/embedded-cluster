@@ -128,6 +128,10 @@ func verifySignature(license *kotsv1beta1.License) (*kotsv1beta1.License, error)
 // verifyRSAPSS verifies an RSA-PSS signature using MD5 hashing
 func verifyRSAPSS(message, signature, publicKeyPEM []byte) error {
 	pubBlock, _ := pem.Decode(publicKeyPEM)
+	if pubBlock == nil {
+		return fmt.Errorf("failed to decode PEM block from public key")
+	}
+
 	publicKey, err := x509.ParsePKIXPublicKey(pubBlock.Bytes)
 	if err != nil {
 		return fmt.Errorf("failed to load public key from PEM: %w", err)
