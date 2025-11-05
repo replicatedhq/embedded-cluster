@@ -81,7 +81,7 @@ spec:
                     digest: ""
         - name: goldpinger
           chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
-          namespace: goldpinger
+          namespace: embedded-cluster
           version: 6.1.2
           order: 11
           values: |

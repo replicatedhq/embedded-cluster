@@ -18,10 +18,12 @@ data:
     spec:
       collectors:
       - goldpinger:
-          namespace: goldpinger
+          namespace: {{ .Release.Namespace }}
           image: {{ .Values.goldpingerImage }}
+          collectDelay: 15s
           podLaunchOptions:
             image: {{ .Values.utilsImage }}
+            namespace: {{ .Release.Namespace }}
           exclude: {{ .Values.isAirgap }}
       analyzers:
       - goldpinger:

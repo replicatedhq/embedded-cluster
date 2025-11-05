@@ -76,7 +76,7 @@ spec:
                     digest: ""
         - name: goldpinger
           chartname: okgolove/goldpinger
-          namespace: goldpinger
+          namespace: embedded-cluster
           version: 6.1.2
           order: 11
           values: |
