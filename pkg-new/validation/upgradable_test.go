@@ -445,6 +445,21 @@ func TestValidateIsReleaseUpgradable(t *testing.T) {
 			expectValidationErr: true,
 		},
 		{
+			name: "k8s version downgrade",
+			opts: UpgradableOptions{
+				CurrentAppVersion:  "1.0.0",
+				CurrentAppSequence: 100,
+				CurrentECVersion:   "2.0.0+k8s-1.33",
+				TargetAppVersion:   "1.1.0",
+				TargetAppSequence:  101,
+				TargetECVersion:    "2.1.0+k8s-1.32",
+				License:            newTestLicense(true),
+				requiredReleases:   []string{},
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
 			name: "invalid semver in app version",
 			opts: UpgradableOptions{
 				CurrentAppVersion:  "invalid-version",

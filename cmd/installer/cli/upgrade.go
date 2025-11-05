@@ -629,7 +629,7 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfi
 		}
 	} else {
 		if err := opts.WithOnlineRequiredReleases(ctx, upgradeConfig.replicatedAPIClient); err != nil {
-			return fmt.Errorf("failed to extract required releases from replidated API's pending release call: %w", err)
+			return fmt.Errorf("failed to extract required releases from replicated API's pending release call: %w", err)
 		}
 	}
 

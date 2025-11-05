@@ -103,7 +103,7 @@ func ValidateIsReleaseUpgradable(ctx context.Context, opts UpgradableOptions) er
 		return err
 	}
 
-	// Check 4: K8s minor version skip
+	// Check 4: K8s minor version skip and downgrade
 	if err := validateK8sVersion(opts); err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func validateECVersionDowngrade(opts UpgradableOptions) error {
 	return nil
 }
 
-// validateK8sVersion checks if the K8s version skips a minor version
+// validateK8sVersion checks if the K8s version skips a minor version or downgrades
 func validateK8sVersion(opts UpgradableOptions) error {
 	// Parse the EC version format to extract K8s version: "2.12.0+k8s-1.33-*"
 	currentK8s, err := getK8sVersion(opts.CurrentECVersion)
@@ -181,8 +181,16 @@ func validateK8sVersion(opts UpgradableOptions) error {
 	// Check if minor version is being skipped
 	if targetK8s.Minor() > currentK8s.Minor()+1 {
 		return NewK8sVersionSkipError(
-			fmt.Sprintf("%d.%d", currentK8s.Major(), currentK8s.Minor()),
-			fmt.Sprintf("%d.%d", targetK8s.Major(), targetK8s.Minor()),
+			currentK8s.String(),
+			targetK8s.String(),
+		)
+	}
+
+	// Check if K8s version is being downgraded
+	if targetK8s.LessThan(currentK8s) {
+		return NewK8sVersionDowngrade(
+			currentK8s.String(),
+			targetK8s.String(),
 		)
 	}
 

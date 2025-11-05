@@ -50,3 +50,12 @@ func NewK8sVersionSkipError(currentVersion, targetVersion string) *ValidationErr
 			currentVersion, targetVersion),
 	}
 }
+
+// NewK8sVersionDowngrade creates a ValidationError indicating that the Kubernetes
+// version upgrade downgrades the kubernetes version used, which is not supported
+func NewK8sVersionDowngrade(currentVersion, targetVersion string) *ValidationError {
+	return &ValidationError{
+		Message: fmt.Sprintf("Kubernetes version downgrade detected: cannot downgrade from k8s %s to %s. Kubernetes downgrades are not supported",
+			currentVersion, targetVersion),
+	}
+}
