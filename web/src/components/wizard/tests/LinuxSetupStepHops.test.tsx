@@ -144,20 +144,15 @@ describe("LinuxSetupStep Hops", () => {
   });
 
   describe("shouldExpandAdvancedSettings", () => {
-    it("stays expanded when already expanded", () => {
-      const result = shouldExpandAdvancedSettings([], true);
-      expect(result).toBe(true);
-    });
-
     it("expands when networkInterface has error", () => {
       const errors = [{ field: "networkInterface", message: "required" }];
-      const result = shouldExpandAdvancedSettings(errors, false);
+      const result = shouldExpandAdvancedSettings(errors);
       expect(result).toBe(true);
     });
 
     it("expands when globalCidr has error", () => {
       const errors = [{ field: "globalCidr", message: "invalid CIDR" }];
-      const result = shouldExpandAdvancedSettings(errors, false);
+      const result = shouldExpandAdvancedSettings(errors);
       expect(result).toBe(true);
     });
 
@@ -166,12 +161,17 @@ describe("LinuxSetupStep Hops", () => {
         { field: "dataDirectory", message: "required" },
         { field: "adminConsolePort", message: "invalid" },
       ];
-      const result = shouldExpandAdvancedSettings(errors, false);
+      const result = shouldExpandAdvancedSettings(errors);
       expect(result).toBe(false);
     });
 
     it("handles undefined errors", () => {
-      const result = shouldExpandAdvancedSettings(undefined, false);
+      const result = shouldExpandAdvancedSettings(undefined);
+      expect(result).toBe(false);
+    });
+
+    it("handles empty error array", () => {
+      const result = shouldExpandAdvancedSettings([]);
       expect(result).toBe(false);
     });
   });

@@ -107,14 +107,8 @@ export function determineLoadingText(isInstallationStatusPolling: boolean): stri
  * Advanced fields include networkInterface and globalCidr.
  */
 export function shouldExpandAdvancedSettings(
-  fieldErrors: FieldError[] | undefined,
-  currentlyExpanded: boolean
+  fieldErrors: FieldError[] | undefined
 ): boolean {
-  // If already expanded, keep it expanded
-  if (currentlyExpanded) {
-    return true;
-  }
-
   // Check if any advanced field has an error
   if (!fieldErrors) {
     return false;

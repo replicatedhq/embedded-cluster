@@ -89,9 +89,8 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
   });
 
   useEffect(() => {
-    const shouldExpand = shouldExpandAdvancedSettings(submitError?.fieldErrors, showAdvanced);
-    if (shouldExpand !== showAdvanced) {
-      setShowAdvanced(shouldExpand);
+    if (shouldExpandAdvancedSettings(submitError?.fieldErrors)) {
+      setShowAdvanced(true);
     }
   }, [submitError]);
 
