@@ -7,44 +7,27 @@ import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
-import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { components } from "../../../types/api";
 import { createAuthedClient, getWizardBasePath } from '../../../api/client';
 import { ApiError } from '../../../api/error';
 import { useLinuxInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
+import {
+  processInputValue,
+  extractFieldError,
+  determineLoadingText,
+  shouldExpandAdvancedSettings,
+  evaluateInstallationStatus,
+  determineLoadingState,
+  fieldNames,
+  Status,
+} from './LinuxSetupStepHops';
 
 type LinuxInstallationConfig = components["schemas"]["types.LinuxInstallationConfig"];
-
-/**
- * Maps internal field names to user-friendly display names.
- * Used for:
- * - Input IDs: <Input id="adminConsolePort" />
- * - Labels: <Input label={fieldNames.adminConsolePort} />
- * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
- */
-const fieldNames = {
-  adminConsolePort: "Admin Console Port",
-  dataDirectory: "Data Directory",
-  localArtifactMirrorPort: "Local Artifact Mirror Port",
-  httpProxy: "HTTP Proxy",
-  httpsProxy: "HTTPS Proxy",
-  noProxy: "Proxy Bypass List",
-  networkInterface: "Network Interface",
-  podCidr: "Pod CIDR",
-  serviceCidr: "Service CIDR",
-  globalCidr: "Reserved Network Range (CIDR)",
-  cidr: "CIDR",
-}
 
 interface LinuxSetupStepProps {
   onNext: () => void;
   onBack: () => void;
-}
-
-interface Status {
-  state: string;
-  description?: string;
 }
 
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
@@ -105,44 +88,33 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     },
   });
 
-  // Expand advanced settings if there is an error in an advanced field
   useEffect(() => {
-    if (submitError?.fieldErrors) {
-      if (submitError.fieldErrors.some(e => e.field === "networkInterface" || e.field === "globalCidr")) {
-        setShowAdvanced(true);
-      }
+    const shouldExpand = shouldExpandAdvancedSettings(submitError?.fieldErrors, showAdvanced);
+    if (shouldExpand !== showAdvanced) {
+      setShowAdvanced(shouldExpand);
     }
-  }, [submitError]);
+  }, [submitError, showAdvanced]);
 
-
-  // Trigger next step when installation status polling finishes
   useEffect(() => {
-    if (installationStatus?.state === "Failed") {
+    const evaluation = evaluateInstallationStatus(installationStatus);
+
+    if (evaluation.shouldStopPolling) {
       setIsInstallationStatusPolling(false);
-      setError(`Installation configuration failed with: ${installationStatus.description}`)
-      return;
     }
-    if (installationStatus?.state === "Succeeded") {
-      setIsInstallationStatusPolling(false);
+
+    if (evaluation.errorMessage) {
+      setError(evaluation.errorMessage);
+    }
+
+    if (evaluation.shouldProceedToNext) {
       onNext();
     }
   }, [installationStatus, onNext]);
 
-
-  // Handle input changes for text and number inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === "adminConsolePort" || id === "localArtifactMirrorPort") {
-      // Only update if the value is empty or a valid number
-      if (value === "") {
-        setConfigValues({ ...configValues, [id]: undefined })
-      }
-      else if (Number.isInteger(Number(value))) {
-        setConfigValues({ ...configValues, [id]: Number.parseInt(value) })
-      }
-    } else {
-      setConfigValues({ ...configValues, [id]: value });
-    }
+    const updatedConfig = processInputValue(id, value, configValues);
+    setConfigValues(updatedConfig);
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -150,20 +122,19 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     setConfigValues({ ...configValues, [id]: value });
   };
 
-  const isLoading = isConfigLoading || isInterfacesLoading || isInstallationStatusPolling;
+  const isLoading = determineLoadingState(
+    isConfigLoading,
+    isInterfacesLoading,
+    isInstallationStatusPolling
+  );
+
   const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
   const getFieldError = (fieldName: string) => {
-    const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
+    return extractFieldError(fieldName, submitError?.fieldErrors, fieldNames);
   };
 
-  const getLoadingText = () => {
-    if (isInstallationStatusPolling) {
-      return "Preparing the host."
-    }
-    return "Loading configuration..."
-  }
+  const loadingText = determineLoadingText(isInstallationStatusPolling);
 
   return (
     <div className="space-y-6" data-testid="linux-setup">
@@ -176,7 +147,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
         {isLoading ? (
           <div className="py-4 text-center" data-testid="linux-setup-loading">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600" data-testid="linux-setup-loading-text">{getLoadingText()}</p>
+            <p className="mt-2 text-gray-600" data-testid="linux-setup-loading-text">{loadingText}</p>
           </div>
         ) : (
           <>
