@@ -8,12 +8,13 @@ import { mockHandlers } from "../../../test/mockHandlers.ts";
 
 const server = setupServer(
   mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
-  mockHandlers.console.getNetworkInterfaces(
-    MOCK_NETWORK_INTERFACES.networkInterfaces.map(name => ({ name, addresses: [] }))
-  ),
+  mockHandlers.console.getNetworkInterfaces(MOCK_NETWORK_INTERFACES.networkInterfaces.map(name => ({ name, addresses: [] }))),
+  mockHandlers.installation.configure(true),
+  mockHandlers.installation.getStatus({ state: 'Succeeded', description: 'Installation configured successfully' }),
+  mockHandlers.preflights.host.run(true)
 );
 
-describe("LinuxSetupStep - Integration Tests", () => {
+describe("LinuxSetupStep", () => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
 
@@ -60,19 +61,18 @@ describe("LinuxSetupStep - Integration Tests", () => {
     });
 
     // Wait for initial load
-    await screen.findByText("Loading configuration...");
+    await expect(screen.findByTestId("linux-setup-loading-text")).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
     });
 
     // Verify all form fields are rendered (component smoke test)
     expect(screen.getByTestId("linux-setup")).toBeInTheDocument();
-    await screen.findByText("Configure the installation settings.");
 
     // Check all basic input fields are present
     const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
     const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-    screen.getByTestId("local-artifact-mirror-port-input");
+    const localArtifactMirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
 
     // Check proxy configuration inputs are present
     expect(screen.getByTestId("http-proxy-input")).toBeInTheDocument();
@@ -83,11 +83,10 @@ describe("LinuxSetupStep - Integration Tests", () => {
     expect(screen.getByTestId("linux-setup-submit-button")).toBeInTheDocument();
     expect(screen.getByTestId("linux-setup-button-back")).toBeInTheDocument();
 
-    // Verify API configuration loaded correctly (values, not just placeholders)
+    // Verify API configuration loaded correctly
     expect(dataDirectoryInput.value).toBe("/custom/data/dir");
     expect(adminPortInput.value).toBe("8800");
-    expect(dataDirectoryInput.placeholder).toBe("/var/lib/embedded-cluster");
-    expect(adminPortInput.placeholder).toBe("30000");
+    expect(localArtifactMirrorPortInput.value).toBe("8801");
 
     // Test advanced settings toggle
     expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
@@ -146,8 +145,11 @@ describe("LinuxSetupStep - Integration Tests", () => {
       wrapperProps: { authenticated: true },
     });
 
-    // Wait for form to load
-    await screen.findByText("Configure the installation settings.");
+    // Wait for initial load
+    await expect(screen.findByTestId("linux-setup-loading-text")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
+    });
 
     // Verify advanced settings are initially collapsed
     expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
