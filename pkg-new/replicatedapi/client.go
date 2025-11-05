@@ -182,7 +182,7 @@ func (c *client) GetPendingReleases(ctx context.Context, channelID string, curre
 
 	params := url.Values{}
 	params.Set("selectedChannelId", channelID)
-	params.Set("currentSequence", fmt.Sprintf("%d", currentSequence))
+	params.Set("channelSequence", fmt.Sprintf("%d", currentSequence))
 	params.Set("isSemverSupported", fmt.Sprintf("%t", opts.IsSemverSupported))
 	if opts.SortOrder != "" {
 		params.Set("sortOrder", string(opts.SortOrder))
