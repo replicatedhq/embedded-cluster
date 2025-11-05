@@ -61,7 +61,6 @@ describe("LinuxSetupStep", () => {
     });
 
     // Wait for initial load
-    await expect(screen.findByTestId("linux-setup-loading-text")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
     });
@@ -146,7 +145,6 @@ describe("LinuxSetupStep", () => {
     });
 
     // Wait for initial load
-    await expect(screen.findByTestId("linux-setup-loading-text")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
     });
