@@ -361,9 +361,11 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 	}
 
 	logrus.Debugf("checking license matches")
-	if err := verifyLicense(upgradeConfig.license); err != nil {
+	verifiedLicense, err := verifyLicense(upgradeConfig.license)
+	if err != nil {
 		return err
 	}
+	upgradeConfig.license = verifiedLicense
 
 	if upgradeConfig.airgapMetadata != nil && upgradeConfig.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")

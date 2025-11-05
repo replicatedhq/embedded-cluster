@@ -756,10 +756,11 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	logrus.Debugf("checking license matches")
-	err = verifyLicense(installCfg.license)
+	verifiedLicense, err := verifyLicense(installCfg.license)
 	if err != nil {
 		return err
 	}
+	installCfg.license = verifiedLicense
 
 	if installCfg.airgapMetadata != nil && installCfg.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
@@ -835,21 +836,25 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func verifyLicense(license *kotsv1beta1.License) error {
+func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	channelRelease := release.GetChannelRelease()
 	if err := verifyLicensePresence(license, channelRelease); err != nil {
-		return err
+		return nil, err
 	}
 
 	if isV3Enabled() {
 		verifiedLicense, err := verifySignature(license)
 		if err != nil {
-			return fmt.Errorf("license signature verification failed: %w", err)
+			return nil, fmt.Errorf("license signature verification failed: %w", err)
 		}
 		license = verifiedLicense
 	}
 
-	return verifyLicenseFields(license, channelRelease)
+	if err := verifyLicenseFields(license, channelRelease); err != nil {
+		return nil, err
+	}
+
+	return license, nil
 }
 
 // verifyLicensePresence checks if license presence matches the release requirements
