@@ -394,7 +394,7 @@ func TestGetPendingReleases(t *testing.T) {
 	tests := []struct {
 		name             string
 		channelID        string
-		currentSequence  int64
+		channelSequence  int64
 		opts             *PendingReleasesOptions
 		serverHandler    func(t *testing.T) http.HandlerFunc
 		expectedResponse *PendingReleasesResponse
@@ -403,7 +403,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "successful pending releases fetch with multiple releases",
 			channelID:       "test-channel-123",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -414,7 +414,7 @@ func TestGetPendingReleases(t *testing.T) {
 					assert.Equal(t, http.MethodGet, r.Method)
 					assert.Equal(t, "/release/test-app/pending", r.URL.Path)
 					assert.Equal(t, "test-channel-123", r.URL.Query().Get("selectedChannelId"))
-					assert.Equal(t, "10", r.URL.Query().Get("currentSequence"))
+					assert.Equal(t, "10", r.URL.Query().Get("channelSequence"))
 					assert.Equal(t, "true", r.URL.Query().Get("isSemverSupported"))
 					assert.Equal(t, "asc", r.URL.Query().Get("sortOrder"))
 					assert.Equal(t, "application/json", r.Header.Get("Accept"))
@@ -484,7 +484,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "successful pending releases fetch with empty results",
 			channelID:       "test-channel-123",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: false,
 				SortOrder:         SortOrderAscending,
@@ -505,7 +505,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "successful pending releases with ascending sort order",
 			channelID:       "test-channel-123",
-			currentSequence: 5,
+			channelSequence: 5,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -537,7 +537,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "successful pending releases with descending sort order",
 			channelID:       "test-channel-123",
-			currentSequence: 5,
+			channelSequence: 5,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: false,
 				SortOrder:         SortOrderDescending,
@@ -569,7 +569,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "returns error on 401 unauthorized",
 			channelID:       "test-channel-123",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -585,7 +585,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "returns error on 404 not found",
 			channelID:       "nonexistent-channel",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -601,7 +601,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "returns error on 500 internal server error",
 			channelID:       "test-channel-123",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -617,7 +617,7 @@ func TestGetPendingReleases(t *testing.T) {
 		{
 			name:            "returns error on invalid JSON response",
 			channelID:       "test-channel-123",
-			currentSequence: 10,
+			channelSequence: 10,
 			opts: &PendingReleasesOptions{
 				IsSemverSupported: true,
 				SortOrder:         SortOrderAscending,
@@ -666,7 +666,7 @@ func TestGetPendingReleases(t *testing.T) {
 			req.NoError(err)
 
 			// Execute test
-			result, err := c.GetPendingReleases(context.Background(), tt.channelID, tt.currentSequence, tt.opts)
+			result, err := c.GetPendingReleases(context.Background(), tt.channelID, tt.channelSequence, tt.opts)
 
 			// Validate results
 			if tt.wantErr != "" {
