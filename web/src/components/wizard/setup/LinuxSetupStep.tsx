@@ -93,7 +93,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     if (shouldExpand !== showAdvanced) {
       setShowAdvanced(shouldExpand);
     }
-  }, [submitError, showAdvanced]);
+  }, [submitError]);
 
   useEffect(() => {
     const evaluation = evaluateInstallationStatus(installationStatus);
