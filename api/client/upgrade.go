@@ -207,7 +207,7 @@ func (c *client) TemplateKubernetesUpgradeAppConfig(ctx context.Context, values 
 }
 
 func (c *client) RunLinuxUpgradeAppPreflights(ctx context.Context) (types.UpgradeAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/upgrade/app-preflights/run", nil)
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/app-preflights/run", nil)
 	if err != nil {
 		return types.UpgradeAppPreflightsStatusResponse{}, err
 	}
@@ -234,7 +234,7 @@ func (c *client) RunLinuxUpgradeAppPreflights(ctx context.Context) (types.Upgrad
 }
 
 func (c *client) GetLinuxUpgradeAppPreflightsStatus(ctx context.Context) (types.UpgradeAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/upgrade/app-preflights/status", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/upgrade/app-preflights/status", nil)
 	if err != nil {
 		return types.UpgradeAppPreflightsStatusResponse{}, err
 	}
