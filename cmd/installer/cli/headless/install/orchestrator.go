@@ -2,9 +2,13 @@ package install
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
+	"github.com/sirupsen/logrus"
 )
 
 // HeadlessInstallOptions contains the configuration options for a headless installation
@@ -42,21 +46,100 @@ type Orchestrator interface {
 	// The installation cannot be resumed if it fails after infrastructure setup begins.
 	// Any failure after that point requires running 'embedded-cluster reset' and retrying.
 	//
-	// Returns an error if any step fails, with a descriptive message for recovery.
-	RunHeadlessInstall(ctx context.Context, opts HeadlessInstallOptions) error
+	// Returns:
+	//   - resetNeeded: true if the failure requires running 'embedded-cluster reset' before retrying
+	//   - err: the error that occurred, or nil on success
+	RunHeadlessInstall(ctx context.Context, opts HeadlessInstallOptions) (resetNeeded bool, err error)
 }
 
-// NewOrchestrator creates a new Orchestrator instance
-func NewOrchestrator() Orchestrator {
-	return &orchestrator{}
-}
-
-// orchestrator is the default implementation of the Orchestrator interface
+// orchestrator is the concrete implementation of the Orchestrator interface
 type orchestrator struct {
+	apiClient      client.Client
+	target         apitypes.InstallTarget // "linux" or "kubernetes"
+	progressWriter spinner.WriteFn        // Output writer for progress messages
+	logger         logrus.FieldLogger     // Logger for detailed logging
+}
+
+// OrchestratorOption is a functional option for configuring the orchestrator
+type OrchestratorOption func(*orchestrator)
+
+// WithProgressWriter sets a custom progress writer for the orchestrator
+func WithProgressWriter(writer spinner.WriteFn) OrchestratorOption {
+	return func(o *orchestrator) {
+		o.progressWriter = writer
+	}
+}
+
+// WithLogger sets a custom logger for the orchestrator
+func WithLogger(logger logrus.FieldLogger) OrchestratorOption {
+	return func(o *orchestrator) {
+		o.logger = logger
+	}
+}
+
+// NewOrchestrator creates a new Orchestrator instance.
+// It authenticates with the API server using the provided password.
+func NewOrchestrator(ctx context.Context, apiClient client.Client, password string, target string, opts ...OrchestratorOption) (Orchestrator, error) {
+	// We do not yet support the "kubernetes" target
+	installTarget := apitypes.InstallTarget(target)
+	if installTarget != apitypes.InstallTargetLinux {
+		return nil, fmt.Errorf("%s target not supported", target)
+	}
+
+	// Authenticate and set token
+	if err := apiClient.Authenticate(ctx, password); err != nil {
+		return nil, fmt.Errorf("authentication failed: %w", err)
+	}
+
+	o := &orchestrator{
+		apiClient:      apiClient,
+		target:         installTarget,
+		progressWriter: fmt.Printf,
+		logger:         logrus.StandardLogger(),
+	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return o, nil
 }
 
 // RunHeadlessInstall executes a complete headless installation workflow
-func (o *orchestrator) RunHeadlessInstall(ctx context.Context, opts HeadlessInstallOptions) error {
-	// TODO(PR2): Implement real headless installation orchestration
-	return fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
+func (o *orchestrator) RunHeadlessInstall(ctx context.Context, opts HeadlessInstallOptions) (bool, error) {
+	// Configure application with config values
+	if err := o.configureApplication(ctx, opts); err != nil {
+		return false, err // Can retry without reset
+	}
+
+	// TODO: Implement remaining steps
+	return false, fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
+}
+
+// configureApplication configures the application with the provided config values
+func (o *orchestrator) configureApplication(ctx context.Context, opts HeadlessInstallOptions) error {
+	o.logger.Debug("Starting application configuration")
+
+	loading := spinner.Start(spinner.WithWriter(o.progressWriter))
+	loading.Infof("Configuring application...")
+
+	// Use the wrapped api/client.Client to patch config values
+	_, err := o.apiClient.PatchLinuxInstallAppConfigValues(ctx, opts.ConfigValues)
+	if err != nil {
+		loading.ErrorClosef("Application configuration failed")
+
+		// Check if it's an APIError with field details
+		var apiErr *apitypes.APIError
+		if errors.As(err, &apiErr) && len(apiErr.Errors) > 0 {
+			// Format and display the structured error
+			formattedErr := formatAPIError(apiErr)
+			return fmt.Errorf("application configuration validation failed: %s", formattedErr)
+		}
+
+		return fmt.Errorf("patch app config values: %w", err)
+	}
+
+	loading.Closef("Application configuration complete")
+	o.logger.Debug("Application configuration complete")
+	return nil
 }
