@@ -13,20 +13,71 @@ import (
 //go:embed testdata/*
 var testdata embed.FS
 
-func Test_VerifySignature(t *testing.T) {
-	req := require.New(t)
+func loadLicenseFromTestdata(t *testing.T, filename string) *kotsv1beta1.License {
+	t.Helper()
 
-	// Read license with modified licenseID field
-	licenseBytes, err := testdata.ReadFile("testdata/invalid-changed-licenseID.yaml")
-	req.NoError(err)
+	licenseBytes, err := testdata.ReadFile(filename)
+	require.NoError(t, err)
 
 	license, err := helpers.ParseLicenseFromBytes(licenseBytes)
-	req.NoError(err)
+	require.NoError(t, err)
 
-	// Verify signature should detect the tampered licenseID field
-	_, err = VerifySignature(license)
-	req.Error(err)
-	req.Contains(err.Error(), `"licenseID" field has changed to "1vusOokxAVp1tkRGuyxnF23PJcq-modified" (license) from "1vusOokxAVp1tkRGuyxnF23PJcq" (within signature)`)
+	return license
+}
+
+func Test_VerifySignature(t *testing.T) {
+	tests := []struct {
+		name          string
+		licenseFile   string
+		modifyLicense func(*kotsv1beta1.License)
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:        "valid signature passes verification",
+			licenseFile: "testdata/valid-license.yaml",
+			expectError: false,
+		},
+		{
+			name:        "tampered license fails verification",
+			licenseFile: "testdata/valid-license.yaml",
+			modifyLicense: func(license *kotsv1beta1.License) {
+				license.Spec.LicenseID = license.Spec.LicenseID + "-modified"
+			},
+			expectError:   true,
+			errorContains: `"licenseID" field has changed`,
+		},
+		{
+			name:          "invalid signature fails verification",
+			licenseFile:   "testdata/invalid-signature.yaml",
+			expectError:   true,
+			errorContains: "signature is invalid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := require.New(t)
+
+			license := loadLicenseFromTestdata(t, tt.licenseFile)
+
+			if tt.modifyLicense != nil {
+				tt.modifyLicense(license)
+			}
+
+			verifiedLicense, err := VerifySignature(license)
+
+			if tt.expectError {
+				req.Error(err)
+				if tt.errorContains != "" {
+					req.Contains(err.Error(), tt.errorContains)
+				}
+			} else {
+				req.NoError(err)
+				req.NotNil(verifiedLicense)
+			}
+		})
+	}
 }
 
 func Test_verifyLicenseData(t *testing.T) {
