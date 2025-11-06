@@ -893,9 +893,10 @@ func verifyLicenseFields(license *kotsv1beta1.License, channelRelease *release.C
 		return err
 	}
 
-	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+	expiresAt, ok := license.Spec.Entitlements["expires_at"]
+	if ok && expiresAt.Value.StrVal != "" {
 		// read the expiration date, and check it against the current date
-		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		expiration, err := time.Parse(time.RFC3339, expiresAt.Value.StrVal)
 		if err != nil {
 			return fmt.Errorf("parse expiration date: %w", err)
 		}
