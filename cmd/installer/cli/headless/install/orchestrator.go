@@ -82,17 +82,12 @@ func WithLogger(logger logrus.FieldLogger) OrchestratorOption {
 }
 
 // NewOrchestrator creates a new Orchestrator instance.
-// It authenticates with the API server using the provided password.
-func NewOrchestrator(ctx context.Context, apiClient client.Client, password string, target string, opts ...OrchestratorOption) (Orchestrator, error) {
+// The apiClient must be authenticated before calling this function.
+func NewOrchestrator(ctx context.Context, apiClient client.Client, target string, opts ...OrchestratorOption) (Orchestrator, error) {
 	// We do not yet support the "kubernetes" target
 	installTarget := apitypes.InstallTarget(target)
 	if installTarget != apitypes.InstallTargetLinux {
 		return nil, fmt.Errorf("%s target not supported", target)
-	}
-
-	// Authenticate and set token
-	if err := apiClient.Authenticate(ctx, password); err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
 	o := &orchestrator{

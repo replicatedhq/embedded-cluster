@@ -32,8 +32,14 @@ func runV3InstallHeadless(
 		metricsReporter.ReportSignalAborted(ctx, sig)
 	})
 
+	// Build API client
+	apiClient, err := newOrchestratorAPIClient(ctx, flags, apiConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create API client: %w", err)
+	}
+
 	// Build orchestrator
-	orchestrator, err := buildOrchestrator(ctx, flags, apiConfig)
+	orchestrator, err := buildOrchestrator(ctx, apiClient, apiConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build orchestrator: %w", err)
 	}
@@ -61,19 +67,14 @@ func runV3InstallHeadless(
 	return nil
 }
 
-// buildOrchestrator (Hop) creates an orchestrator from CLI inputs.
-func buildOrchestrator(
+// newOrchestratorAPIClient creates a new API client for the orchestrator.
+func newOrchestratorAPIClient(
 	ctx context.Context,
 	flags installFlags,
 	apiConfig apiOptions,
-) (install.Orchestrator, error) {
+) (client.Client, error) {
 	// Construct API URL from manager port
 	apiURL := fmt.Sprintf("https://localhost:%d", flags.managerPort)
-
-	// We do not yet support the "kubernetes" target
-	if apiConfig.InstallTarget != apitypes.InstallTargetLinux {
-		return nil, fmt.Errorf("%s target not supported", apiConfig.InstallTarget)
-	}
 
 	// Create HTTP client with InsecureSkipVerify for localhost
 	// Since the API server is in-process and on localhost only, certificate
@@ -88,17 +89,34 @@ func buildOrchestrator(
 		},
 	}
 
-	// Create API client
 	apiClient := client.New(
 		apiURL, // e.g., "https://localhost:30000"
 		client.WithHTTPClient(httpClient),
 	)
 
-	// Create orchestrator
+	// Authenticate with the API server
+	if err := apiClient.Authenticate(ctx, apiConfig.Password); err != nil {
+		return nil, fmt.Errorf("authentication failed: %w", err)
+	}
+
+	return apiClient, nil
+}
+
+// buildOrchestrator (Hop) creates an orchestrator from CLI inputs.
+func buildOrchestrator(
+	ctx context.Context,
+	apiClient client.Client,
+	apiConfig apiOptions,
+) (install.Orchestrator, error) {
+	// We do not yet support the "kubernetes" target
+	if apiConfig.InstallTarget != apitypes.InstallTargetLinux {
+		return nil, fmt.Errorf("%s target not supported", apiConfig.InstallTarget)
+	}
+
+	// Create orchestrator with authenticated client
 	orchestrator, err := install.NewOrchestrator(
 		ctx,
 		apiClient,
-		apiConfig.Password,
 		string(apiConfig.InstallTarget),
 	)
 	if err != nil {

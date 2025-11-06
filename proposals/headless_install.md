@@ -107,7 +107,7 @@ $ ./my-app install --target linux --license license.yaml --config-values config.
 ✔  Disaster Recovery is ready
 ✔  Admin Console is ready
 ✔  Installing additional components (2/2)
-✔  Installation complete
+✔  Application is ready
 
 Installation completed successfully
 ```
@@ -133,7 +133,7 @@ Installation will continue, but the system may not meet requirements (failures b
 ✔  Disaster Recovery is ready
 ✔  Admin Console is ready
 ✔  Installing additional components (2/2)
-✔  Installation complete
+✔  Application is ready
 
 Installation completed successfully
 ```
@@ -1113,7 +1113,7 @@ $ embedded-cluster install --headless --target linux --license license.yaml --co
 ✔  Runtime Operator is ready
 ✔  Disaster Recovery is ready
 ✔  Installing additional components (2/2)
-✔  Installation complete
+✔  Application is ready
 
 Installation completed successfully
 ```
@@ -1695,7 +1695,6 @@ To retry installation, run: embedded-cluster reset and wait for server reboot
 Installation will continue, but the application may not function correctly (failures bypassed with flag).
 
 ✔  Application is ready
-✔  Installation complete
 ```
 
 **Behavior**: When `--ignore-app-preflights` is specified:
@@ -1791,7 +1790,6 @@ $ embedded-cluster install --headless --target linux --config-values config.yaml
 ✔  Additional components are ready
 ✔  Application preflights passed
 ✔  Application is ready
-✔  Installation complete
 ```
 
 ### Why Resumption Isn't Supported (v1)

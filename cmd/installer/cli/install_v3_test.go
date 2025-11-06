@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -241,16 +242,12 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 func Test_buildOrchestrator(t *testing.T) {
 	tests := []struct {
 		name          string
-		flags         installFlags
 		apiConfig     apiOptions
 		expectError   bool
 		expectedError string
 	}{
 		{
 			name: "success with linux target",
-			flags: installFlags{
-				managerPort: 30000,
-			},
 			apiConfig: apiOptions{
 				APIConfig: apitypes.APIConfig{
 					InstallTarget: apitypes.InstallTargetLinux,
@@ -261,9 +258,6 @@ func Test_buildOrchestrator(t *testing.T) {
 		},
 		{
 			name: "error with kubernetes target",
-			flags: installFlags{
-				managerPort: 30000,
-			},
 			apiConfig: apiOptions{
 				APIConfig: apitypes.APIConfig{
 					InstallTarget: apitypes.InstallTargetKubernetes,
@@ -275,9 +269,6 @@ func Test_buildOrchestrator(t *testing.T) {
 		},
 		{
 			name: "error with empty target",
-			flags: installFlags{
-				managerPort: 30000,
-			},
 			apiConfig: apiOptions{
 				APIConfig: apitypes.APIConfig{
 					InstallTarget: "",
@@ -287,42 +278,24 @@ func Test_buildOrchestrator(t *testing.T) {
 			expectError:   true,
 			expectedError: " target not supported",
 		},
-		{
-			name: "success with custom manager port",
-			flags: installFlags{
-				managerPort: 8080,
-			},
-			apiConfig: apiOptions{
-				APIConfig: apitypes.APIConfig{
-					InstallTarget: apitypes.InstallTargetLinux,
-					Password:      "another-password",
-				},
-			},
-			expectError: false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Note: This test requires a real API server to be running for authentication.
-			// In practice, we would need to mock the API client or have a test server.
-			// For now, we'll test the target validation logic which happens before API calls.
-
 			ctx := context.Background()
-			orchestrator, err := buildOrchestrator(ctx, tt.flags, tt.apiConfig)
+
+			// Create a real client that won't actually be used for network calls
+			apiClient := client.New("https://localhost:30000")
+
+			orchestrator, err := buildOrchestrator(ctx, apiClient, tt.apiConfig)
 
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
 				assert.Nil(t, orchestrator)
 			} else {
-				// We expect an error here because there's no actual API server running
-				// but we can verify it's an authentication error, not a target validation error
-				if err != nil {
-					// Authentication will fail without a real API server, which is expected
-					// The important thing is we don't get a "target not supported" error
-					assert.NotContains(t, err.Error(), "target not supported")
-				}
+				require.NoError(t, err)
+				assert.NotNil(t, orchestrator)
 			}
 		})
 	}
