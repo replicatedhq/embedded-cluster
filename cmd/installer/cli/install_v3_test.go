@@ -412,6 +412,9 @@ To retry installation, run: %s reset and wait for server reboot
 	}
 }
 
+// newPlainTextLogger creates a logger that outputs plain text (no timestamps, levels, or colors)
+// to the provided buffer. This is useful for testing log output where you want to verify
+// exact message content without dealing with log formatting.
 func newPlainTextLogger(buf *bytes.Buffer) *logrus.Logger {
 	logger := logrus.New()
 	logger.SetOutput(buf)
@@ -419,9 +422,12 @@ func newPlainTextLogger(buf *bytes.Buffer) *logrus.Logger {
 	return logger
 }
 
+// plainTextFormatter is a logrus formatter that outputs only the message text with no metadata.
+// Used in tests to capture exact log messages without timestamps, levels, or ANSI color codes.
 type plainTextFormatter struct {
 }
 
+// Format implements the logrus.Formatter interface, returning just the message with a newline.
 func (f *plainTextFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(entry.Message + "\n"), nil
 }

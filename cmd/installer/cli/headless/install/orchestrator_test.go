@@ -130,12 +130,22 @@ func Test_orchestrator_configureApplication(t *testing.T) {
 	}
 }
 
-// logMessageCapture is a logrus hook that captures log messages for testing
+// logMessageCapture is a logrus hook that captures log messages for testing.
+// It implements the logrus.Hook interface to intercept all log messages and
+// store them for verification in tests. This allows tests to verify that
+// specific log messages are produced without requiring actual log output.
 type logMessageCapture struct {
 	messages []string
 }
 
-// newLogMessageCapture creates a new log message capture helper
+// newLogMessageCapture creates a new log message capture helper.
+// Usage:
+//
+//	logger := logrus.New()
+//	capture := newLogMessageCapture()
+//	logger.AddHook(capture)
+//	// ... perform operations that log ...
+//	assert.Equal(t, expectedMessages, capture.Messages())
 func newLogMessageCapture() *logMessageCapture {
 	return &logMessageCapture{
 		messages: make([]string, 0),
@@ -161,20 +171,34 @@ func (l *logMessageCapture) Messages() []string {
 	return l.messages
 }
 
-// progressMessageCapture captures progress messages from a spinner.WriteFn for testing
+// progressMessageCapture captures progress messages from a spinner.WriteFn for testing.
+// It parses spinner output (which includes ANSI codes and symbols like ○, ✔, ✗) and
+// extracts just the message text. This allows tests to verify user-visible progress
+// messages without dealing with terminal formatting codes.
 type progressMessageCapture struct {
 	messages    []string
 	lastMessage string
 }
 
-// newProgressMessageCapture creates a new progress message capture helper
+// newProgressMessageCapture creates a new progress message capture helper.
+// Usage:
+//
+//	capture := newProgressMessageCapture()
+//	orchestrator := &orchestrator{
+//	    progressWriter: capture.Writer(),
+//	}
+//	// ... perform operations that display progress ...
+//	assert.Equal(t, expectedMessages, capture.Messages())
 func newProgressMessageCapture() *progressMessageCapture {
 	return &progressMessageCapture{
 		messages: make([]string, 0),
 	}
 }
 
-// Writer returns a spinner.WriteFn that captures progress messages
+// Writer returns a spinner.WriteFn that captures progress messages.
+// The returned function strips ANSI escape codes and spinner symbols (○, ✔, ✗)
+// to extract just the message text. It deduplicates consecutive identical messages
+// to avoid capturing spinner animation frames.
 func (p *progressMessageCapture) Writer() spinner.WriteFn {
 	return func(format string, args ...any) (int, error) {
 		// Remove ANSI escape codes

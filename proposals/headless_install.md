@@ -497,7 +497,7 @@ func runV3InstallHeadless(
     return nil
 }
 
-// Hop: buildOrchestrator creates an orchestrator from CLI inputs.
+// buildOrchestrator (Hop) creates an orchestrator from CLI inputs.
 func buildOrchestrator(
     installCfg *installConfig,
     apiOpts apiOptions,
@@ -542,7 +542,7 @@ func buildOrchestrator(
     return orchestrator, nil
 }
 
-// Hop: buildHeadlessInstallOptions creates HeadlessInstallOptions from CLI inputs.
+// buildHeadlessInstallOptions (Hop) creates HeadlessInstallOptions from CLI inputs.
 func buildHeadlessInstallOptions(
     flags installFlags,
     apiOpts apiOptions,

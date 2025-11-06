@@ -61,7 +61,7 @@ func runV3InstallHeadless(
 	return nil
 }
 
-// Hop: buildOrchestrator creates an orchestrator from CLI inputs.
+// buildOrchestrator (Hop) creates an orchestrator from CLI inputs.
 func buildOrchestrator(
 	ctx context.Context,
 	flags installFlags,
@@ -108,7 +108,7 @@ func buildOrchestrator(
 	return orchestrator, nil
 }
 
-// Hop: buildHeadlessInstallOptions creates HeadlessInstallOptions from CLI inputs.
+// buildHeadlessInstallOptions (Hop) creates HeadlessInstallOptions from CLI inputs.
 func buildHeadlessInstallOptions(
 	flags installFlags,
 	apiConfig apiOptions,
@@ -152,7 +152,7 @@ func buildHeadlessInstallOptions(
 	}
 }
 
-// Hop: displayInstallErrorAndRecoveryInstructions displays the error and recovery instructions to the user.
+// displayInstallErrorAndRecoveryInstructions (Hop) displays the error and recovery instructions to the user.
 func displayInstallErrorAndRecoveryInstructions(err error, resetNeeded bool, binaryName string, logger logrus.FieldLogger) {
 	logger.Errorf("\nError: %v\n", err)
 

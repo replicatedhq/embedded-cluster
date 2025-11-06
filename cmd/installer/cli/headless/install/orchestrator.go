@@ -54,10 +54,14 @@ type Orchestrator interface {
 
 // orchestrator is the concrete implementation of the Orchestrator interface
 type orchestrator struct {
-	apiClient      client.Client
-	target         apitypes.InstallTarget // "linux" or "kubernetes"
-	progressWriter spinner.WriteFn        // Output writer for progress messages
-	logger         logrus.FieldLogger     // Logger for detailed logging
+	// apiClient is the HTTP client for communicating with the v3 API server
+	apiClient client.Client
+	// target specifies the installation target platform ("linux" or "kubernetes")
+	target apitypes.InstallTarget
+	// progressWriter is the output function for user-visible progress messages
+	progressWriter spinner.WriteFn
+	// logger is used for detailed debug and diagnostic logging
+	logger logrus.FieldLogger
 }
 
 // OrchestratorOption is a functional option for configuring the orchestrator
@@ -116,7 +120,10 @@ func (o *orchestrator) RunHeadlessInstall(ctx context.Context, opts HeadlessInst
 	return false, fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
 }
 
-// configureApplication configures the application with the provided config values
+// configureApplication configures the application by submitting config values to the API.
+// It validates the provided config values, patches them via the API, and handles any
+// validation errors by formatting them for user display. This is the first step in the
+// headless installation workflow and can be retried without requiring a system reset.
 func (o *orchestrator) configureApplication(ctx context.Context, opts HeadlessInstallOptions) error {
 	o.logger.Debug("Starting application configuration")
 
