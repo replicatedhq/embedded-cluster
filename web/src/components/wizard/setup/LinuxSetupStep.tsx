@@ -14,6 +14,7 @@ import { ApiError } from '../../../api/error';
 import { useLinuxInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
 import { formatErrorMessage } from "../../../utils/errorMessage";
 
+type Status = components["schemas"]["types.Status"];
 type LinuxInstallationConfig = components["schemas"]["types.LinuxInstallationConfig"];
 
 interface LinuxSetupStepProps {
@@ -303,11 +304,6 @@ export default LinuxSetupStep;
 export interface FieldError {
   field: string;
   message: string;
-}
-
-export interface Status {
-  state: string;
-  description?: string;
 }
 
 export interface InstallationStatusEvaluation {

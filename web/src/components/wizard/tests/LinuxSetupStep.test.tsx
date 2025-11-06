@@ -2,10 +2,9 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
 import { MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
 import { mockHandlers } from "../../../test/mockHandlers.ts";
-import {
+import LinuxSetupStep, {
   processInputValue,
   extractFieldError,
   determineLoadingText,
@@ -13,7 +12,7 @@ import {
   evaluateInstallationStatus,
   determineLoadingState,
   fieldNames,
-} from "../setup/LinuxSetupStep";
+} from "../setup/LinuxSetupStep.tsx";
 
 const server = setupServer(
   mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
@@ -205,6 +204,7 @@ describe("LinuxSetupStep - Unit", () => {
       const result = evaluateInstallationStatus({
         state: "Succeeded",
         description: "Installation configured successfully",
+        lastUpdated: "",
       });
 
       expect(result).toEqual({
@@ -218,6 +218,7 @@ describe("LinuxSetupStep - Unit", () => {
       const result = evaluateInstallationStatus({
         state: "Failed",
         description: "Network configuration error",
+        lastUpdated: "",
       });
 
       expect(result).toEqual({
@@ -228,7 +229,11 @@ describe("LinuxSetupStep - Unit", () => {
     });
 
     it("fails without description", () => {
-      const result = evaluateInstallationStatus({ state: "Failed" });
+      const result = evaluateInstallationStatus({
+        state: "Failed",
+        description: "",
+        lastUpdated: "",
+      });
 
       expect(result).toEqual({
         shouldStopPolling: true,
@@ -241,6 +246,7 @@ describe("LinuxSetupStep - Unit", () => {
       const result = evaluateInstallationStatus({
         state: "Running",
         description: "Processing",
+        lastUpdated: "",
       });
 
       expect(result).toEqual({
@@ -253,6 +259,8 @@ describe("LinuxSetupStep - Unit", () => {
     it("continues polling for unknown states", () => {
       const result = evaluateInstallationStatus({
         state: "Pending",
+        description: "",
+        lastUpdated: "",
       });
 
       expect(result).toEqual({
