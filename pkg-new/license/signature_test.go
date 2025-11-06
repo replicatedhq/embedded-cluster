@@ -4,8 +4,8 @@ import (
 	"embed"
 	"testing"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -40,23 +40,23 @@ func Test_verifyLicenseData(t *testing.T) {
 			Name: "test-license",
 		},
 		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug:                         "test-app-slug",
-			Endpoint:                        "https://replicated.app",
-			CustomerName:                    "Test Customer",
-			CustomerEmail:                   "test@example.com",
-			ChannelID:                       "test-channel-id",
-			ChannelName:                     "test-channel",
-			LicenseSequence:                 42,
-			LicenseID:                       "test-license-id",
-			LicenseType:                     "prod",
-			IsAirgapSupported:               true,
-			IsGitOpsSupported:               false,
-			IsIdentityServiceSupported:      true,
-			IsGeoaxisSupported:              false,
-			IsSnapshotSupported:             true,
-			IsDisasterRecoverySupported:     true,
-			IsSupportBundleUploadSupported:  true,
-			IsSemverRequired:                false,
+			AppSlug:                        "test-app-slug",
+			Endpoint:                       "https://replicated.app",
+			CustomerName:                   "Test Customer",
+			CustomerEmail:                  "test@example.com",
+			ChannelID:                      "test-channel-id",
+			ChannelName:                    "test-channel",
+			LicenseSequence:                42,
+			LicenseID:                      "test-license-id",
+			LicenseType:                    "prod",
+			IsAirgapSupported:              true,
+			IsGitOpsSupported:              false,
+			IsIdentityServiceSupported:     true,
+			IsGeoaxisSupported:             false,
+			IsSnapshotSupported:            true,
+			IsDisasterRecoverySupported:    true,
+			IsSupportBundleUploadSupported: true,
+			IsSemverRequired:               false,
 			Entitlements: map[string]kotsv1beta1.EntitlementField{
 				"expires_at": {
 					Title:       "Expiration",
