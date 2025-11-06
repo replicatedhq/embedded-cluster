@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 var _ Client = (*client)(nil)
@@ -198,7 +199,7 @@ func basicAuth(username, password string) string {
 
 // GetPendingReleases fetches pending releases from the Replicated API
 func (c *client) GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error) {
-	u := fmt.Sprintf("%s/release/%s/pending", c.replicatedAppURL, c.license.Spec.AppSlug)
+	u := fmt.Sprintf("%s/release/%s/pending", c.replicatedAppURL, c.license.GetAppSlug())
 
 	params := url.Values{}
 	params.Set("selectedChannelId", channelID)
