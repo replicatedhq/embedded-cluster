@@ -14,6 +14,7 @@ var _ replicatedapi.Client = (*ReplicatedAPIClient)(nil)
 type ReplicatedAPIClient struct {
 	License      *licensewrapper.LicenseWrapper
 	LicenseBytes []byte
+	PendingReleases []replicatedapi.ChannelRelease
 }
 
 // SyncLicense returns the mocked license data.
@@ -28,4 +29,9 @@ func (c *ReplicatedAPIClient) SyncLicense(ctx context.Context) (*licensewrapper.
 	}
 
 	return c.License, c.LicenseBytes, nil
+}
+
+// GetPendingReleases returns the mocked pending releases data.
+func (c *ReplicatedAPIClient) GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *replicatedapi.PendingReleasesOptions) (*replicatedapi.PendingReleasesResponse, error) {
+	return &replicatedapi.PendingReleasesResponse{ChannelReleases: c.PendingReleases}, nil
 }

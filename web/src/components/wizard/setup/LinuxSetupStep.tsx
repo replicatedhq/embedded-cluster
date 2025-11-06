@@ -7,44 +7,19 @@ import { useInitialState } from "../../../contexts/InitialStateContext";
 import { useWizard } from "../../../contexts/WizardModeContext";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "../../../contexts/AuthContext";
-import { formatErrorMessage } from "../../../utils/errorMessage";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import type { components } from "../../../types/api";
 import { createAuthedClient, getWizardBasePath } from '../../../api/client';
 import { ApiError } from '../../../api/error';
 import { useLinuxInstallConfig, useInstallationStatus, useNetworkInterfaces } from '../../../queries/useQueries';
+import { formatErrorMessage } from "../../../utils/errorMessage";
 
+type Status = components["schemas"]["types.Status"];
 type LinuxInstallationConfig = components["schemas"]["types.LinuxInstallationConfig"];
-
-/**
- * Maps internal field names to user-friendly display names.
- * Used for:
- * - Input IDs: <Input id="adminConsolePort" />
- * - Labels: <Input label={fieldNames.adminConsolePort} />
- * - Error formatting: formatErrorMessage("adminConsolePort invalid") -> "Admin Console Port invalid"
- */
-const fieldNames = {
-  adminConsolePort: "Admin Console Port",
-  dataDirectory: "Data Directory",
-  localArtifactMirrorPort: "Local Artifact Mirror Port",
-  httpProxy: "HTTP Proxy",
-  httpsProxy: "HTTPS Proxy",
-  noProxy: "Proxy Bypass List",
-  networkInterface: "Network Interface",
-  podCidr: "Pod CIDR",
-  serviceCidr: "Service CIDR",
-  globalCidr: "Reserved Network Range (CIDR)",
-  cidr: "CIDR",
-}
 
 interface LinuxSetupStepProps {
   onNext: () => void;
   onBack: () => void;
-}
-
-interface Status {
-  state: string;
-  description?: string;
 }
 
 const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
@@ -105,44 +80,32 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     },
   });
 
-  // Expand advanced settings if there is an error in an advanced field
   useEffect(() => {
-    if (submitError?.fieldErrors) {
-      if (submitError.fieldErrors.some(e => e.field === "networkInterface" || e.field === "globalCidr")) {
-        setShowAdvanced(true);
-      }
+    if (shouldExpandAdvancedSettings(submitError?.fieldErrors)) {
+      setShowAdvanced(true);
     }
   }, [submitError]);
 
-
-  // Trigger next step when installation status polling finishes
   useEffect(() => {
-    if (installationStatus?.state === "Failed") {
+    const evaluation = evaluateInstallationStatus(installationStatus);
+
+    if (evaluation.shouldStopPolling) {
       setIsInstallationStatusPolling(false);
-      setError(`Installation configuration failed with: ${installationStatus.description}`)
-      return;
     }
-    if (installationStatus?.state === "Succeeded") {
-      setIsInstallationStatusPolling(false);
+
+    if (evaluation.errorMessage) {
+      setError(evaluation.errorMessage);
+    }
+
+    if (evaluation.shouldProceedToNext) {
       onNext();
     }
   }, [installationStatus, onNext]);
 
-
-  // Handle input changes for text and number inputs
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    if (id === "adminConsolePort" || id === "localArtifactMirrorPort") {
-      // Only update if the value is empty or a valid number
-      if (value === "") {
-        setConfigValues({ ...configValues, [id]: undefined })
-      }
-      else if (Number.isInteger(Number(value))) {
-        setConfigValues({ ...configValues, [id]: Number.parseInt(value) })
-      }
-    } else {
-      setConfigValues({ ...configValues, [id]: value });
-    }
+    const updatedConfig = processInputValue(id, value, configValues);
+    setConfigValues(updatedConfig);
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -150,20 +113,19 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
     setConfigValues({ ...configValues, [id]: value });
   };
 
-  const isLoading = isConfigLoading || isInterfacesLoading || isInstallationStatusPolling;
+  const isLoading = determineLoadingState(
+    isConfigLoading,
+    isInterfacesLoading,
+    isInstallationStatusPolling
+  );
+
   const availableNetworkInterfaces = networkInterfacesData?.networkInterfaces || [];
 
   const getFieldError = (fieldName: string) => {
-    const fieldError = submitError?.fieldErrors?.find((err) => err.field === fieldName);
-    return fieldError ? formatErrorMessage(fieldError.message, fieldNames) : undefined;
+    return extractFieldError(fieldName, submitError?.fieldErrors, fieldNames);
   };
 
-  const getLoadingText = () => {
-    if (isInstallationStatusPolling) {
-      return "Preparing the host."
-    }
-    return "Loading configuration..."
-  }
+  const loadingText = determineLoadingText(isInstallationStatusPolling);
 
   return (
     <div className="space-y-6" data-testid="linux-setup">
@@ -176,7 +138,7 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
         {isLoading ? (
           <div className="py-4 text-center" data-testid="linux-setup-loading">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-2 text-gray-600" data-testid="linux-setup-loading-text">{getLoadingText()}</p>
+            <p className="mt-2 text-gray-600" data-testid="linux-setup-loading-text">{loadingText}</p>
           </div>
         ) : (
           <>
@@ -338,3 +300,175 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
 };
 
 export default LinuxSetupStep;
+
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
+export interface InstallationStatusEvaluation {
+  shouldStopPolling: boolean;
+  shouldProceedToNext: boolean;
+  errorMessage: string | null;
+}
+
+/**
+ * Maps internal field names to user-friendly display names.
+ */
+export const fieldNames = {
+  adminConsolePort: "Admin Console Port",
+  dataDirectory: "Data Directory",
+  localArtifactMirrorPort: "Local Artifact Mirror Port",
+  httpProxy: "HTTP Proxy",
+  httpsProxy: "HTTPS Proxy",
+  noProxy: "Proxy Bypass List",
+  networkInterface: "Network Interface",
+  podCidr: "Pod CIDR",
+  serviceCidr: "Service CIDR",
+  globalCidr: "Reserved Network Range (CIDR)",
+  cidr: "CIDR",
+};
+
+/**
+ * Hop: processInputValue
+ * Process and validate user input based on field type.
+ * Port fields are converted to numbers or undefined, with validation.
+ * Other fields are stored as strings.
+ */
+export function processInputValue(
+  fieldId: string,
+  value: string,
+  currentValues: LinuxInstallationConfig
+): LinuxInstallationConfig {
+  if (fieldId === "adminConsolePort" || fieldId === "localArtifactMirrorPort") {
+    // Handle port fields - they need to be numbers
+    if (value === "") {
+      // Empty string becomes undefined
+      return { ...currentValues, [fieldId]: undefined };
+    }
+
+    const numValue = Number(value);
+    if (Number.isInteger(numValue)) {
+      // Valid integer - update the value
+      return { ...currentValues, [fieldId]: numValue };
+    }
+
+    // Invalid value (decimal or non-numeric) - don't update
+    return currentValues;
+  }
+
+  // For all other fields, just store the string value
+  return { ...currentValues, [fieldId]: value };
+}
+
+/**
+ * Hop: extractFieldError
+ * Extract and format error message for a specific field.
+ * Uses the formatErrorMessage utility to replace field names with display names.
+ */
+export function extractFieldError(
+  fieldName: string,
+  fieldErrors: FieldError[] | undefined,
+  fieldNameMap: Record<string, string>
+): string | undefined {
+  if (!fieldErrors) {
+    return undefined;
+  }
+
+  const fieldError = fieldErrors.find(err => err.field === fieldName);
+  if (!fieldError) {
+    return undefined;
+  }
+
+  return formatErrorMessage(fieldError.message, fieldNameMap);
+}
+
+/**
+ * Hop: determineLoadingText
+ * Determine which loading message to display based on current state.
+ */
+export function determineLoadingText(isInstallationStatusPolling: boolean): string {
+  if (isInstallationStatusPolling) {
+    return "Preparing the host.";
+  }
+  return "Loading configuration...";
+}
+
+/**
+ * Hop: shouldExpandAdvancedSettings
+ * Determine if advanced settings should auto-expand due to errors.
+ * Advanced fields include networkInterface and globalCidr.
+ */
+export function shouldExpandAdvancedSettings(
+  fieldErrors: FieldError[] | undefined
+): boolean {
+  // Check if any advanced field has an error
+  if (!fieldErrors) {
+    return false;
+  }
+
+  return fieldErrors.some(err =>
+    err.field === "networkInterface" ||
+    err.field === "globalCidr"
+  );
+}
+
+/**
+ * Hop: evaluateInstallationStatus
+ * Evaluate installation status and determine next action.
+ * Returns instructions on whether to stop polling, proceed to next step, or show an error.
+ */
+export function evaluateInstallationStatus(
+  status: Status | undefined
+): InstallationStatusEvaluation {
+  // No status yet - continue polling
+  if (!status) {
+    return {
+      shouldStopPolling: false,
+      shouldProceedToNext: false,
+      errorMessage: null,
+    };
+  }
+
+  // Installation failed
+  if (status.state === "Failed") {
+    const errorMsg = status.description
+      ? `Installation configuration failed with: ${status.description}`
+      : "Installation configuration failed";
+
+    return {
+      shouldStopPolling: true,
+      shouldProceedToNext: false,
+      errorMessage: errorMsg,
+    };
+  }
+
+  // Installation succeeded
+  if (status.state === "Succeeded") {
+    return {
+      shouldStopPolling: true,
+      shouldProceedToNext: true,
+      errorMessage: null,
+    };
+  }
+
+  // Any other state (Running, Pending, etc.) - continue polling
+  return {
+    shouldStopPolling: false,
+    shouldProceedToNext: false,
+    errorMessage: null,
+  };
+}
+
+/**
+ * Hop: determineLoadingState
+ * Aggregate loading states from multiple sources.
+ * Returns true if any source is loading.
+ */
+export function determineLoadingState(
+  isConfigLoading: boolean,
+  isInterfacesLoading: boolean,
+  isInstallationStatusPolling: boolean
+): boolean {
+  return isConfigLoading || isInterfacesLoading || isInstallationStatusPolling;
+}

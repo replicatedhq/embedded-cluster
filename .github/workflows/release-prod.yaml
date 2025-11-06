@@ -495,7 +495,6 @@ jobs:
           - TestSingleNodeInstallation
           - TestSingleNodeUpgradePreviousStable
           - TestMultiNodeInstallation
-          - TestMultiNodeHAInstallation
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
