@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	//go:embed assets/install-license-valid-signature.yaml
-	installLicense string
+	//go:embed assets/real-license.yaml
+	realLicenseData string
 
-	//go:embed assets/install-release-valid-signature.yaml
-	installRelease string
+	//go:embed assets/real-release.yaml
+	realReleaseData string
 )
 
 func TestV3InstallHeadless_HappyPath(t *testing.T) {
@@ -98,7 +98,7 @@ func setupV3HeadlessTest(t *testing.T) (string, string) {
 
 	// Setup release data with V3-specific release data
 	if err := release.SetReleaseDataForTests(map[string][]byte{
-		"release.yaml":        []byte(installRelease),
+		"release.yaml":        []byte(realReleaseData),
 		"cluster-config.yaml": []byte(clusterConfigData),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
@@ -111,13 +111,13 @@ func setupV3HeadlessTest(t *testing.T) (string, string) {
 	dryrun.Init(drFile, &dryrun.Client{
 		ReplicatedAPIClient: &dryrun.ReplicatedAPIClient{
 			License:      nil, // will return the same license that was passed in
-			LicenseBytes: []byte(installLicense),
+			LicenseBytes: []byte(realLicenseData),
 		},
 	})
 
 	// Create license file
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-	require.NoError(t, os.WriteFile(licenseFile, []byte(installLicense), 0644))
+	require.NoError(t, os.WriteFile(licenseFile, []byte(realLicenseData), 0644))
 
 	// Create config values file (required for headless)
 	configFile := filepath.Join(t.TempDir(), "config.yaml")

@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	licensepkg "github.com/replicatedhq/embedded-cluster/pkg-new/license"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
@@ -843,7 +844,7 @@ func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	}
 
 	if isV3Enabled() {
-		verifiedLicense, err := verifySignature(license)
+		verifiedLicense, err := licensepkg.VerifySignature(license)
 		if err != nil {
 			return nil, fmt.Errorf("license signature verification failed: %w", err)
 		}

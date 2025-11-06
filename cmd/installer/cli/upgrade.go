@@ -114,7 +114,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli, appSlug); err != nil {
 				return err
 			}
-			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New(), kcli); err != nil {
+			if err := verifyAndPromptUpgrade(ctx, flags, &upgradeConfig, prompts.New(), kcli); err != nil {
 				return err
 			}
 
@@ -352,7 +352,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	return nil
 }
 
-func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt, kcli client.Client) error {
+func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *upgradeConfig, prompt prompts.Prompt, kcli client.Client) error {
 	isAirgap := flags.airgapBundle != ""
 
 	err := verifyChannelRelease("upgrade", isAirgap, flags.assumeYes)
@@ -585,7 +585,7 @@ func checkRequiresInfraUpgrade(ctx context.Context) (bool, error) {
 }
 
 // validateIsReleaseUpgradable validates that the target release can be safely deployed
-func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig upgradeConfig, kcli client.Client, isAirgap bool) error {
+func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConfig, kcli client.Client, isAirgap bool) error {
 	// Get current installation for version information
 	currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {

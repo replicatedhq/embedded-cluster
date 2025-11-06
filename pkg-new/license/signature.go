@@ -1,4 +1,4 @@
-package cli
+package license
 
 import (
 	"crypto"
@@ -73,9 +73,9 @@ swIDAQAB
 -----END PUBLIC KEY-----`), // Staging
 }
 
-// verifySignature verifies the cryptographic signature of a license.
+// VerifySignature verifies the cryptographic signature of a license.
 // It returns the verified license with the signature field populated, or an error if verification fails.
-func verifySignature(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
+func VerifySignature(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	outerSignature := &OuterSignature{}
 	if err := json.Unmarshal(license.Spec.Signature, outerSignature); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal license outer signature: %w", err)

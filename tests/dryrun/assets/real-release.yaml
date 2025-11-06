@@ -2,7 +2,7 @@
 channelID: "2cHXb1RCttzpR0xvnNWyaZCgDBP"
 channelSlug: "ci"
 appSlug: "embedded-cluster-smoke-test-staging-app"
-versionLabel: "fake-version-label"
+versionLabel: "appver-dev-eC8jy7"
 defaultDomains:
   replicatedAppDomain: "staging.replicated.app"
   proxyRegistryDomain: "proxy.staging.replicated.com"
