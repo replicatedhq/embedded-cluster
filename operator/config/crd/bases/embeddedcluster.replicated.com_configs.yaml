@@ -155,8 +155,14 @@ spec:
                               - IfNotPresent
                               - Never
                               type: string
+                            name:
+                              description: |-
+                                Name is the container name for the plugin initContainer
+                                This name will be used as the initContainer name in the Velero deployment
+                              type: string
                           required:
                           - image
+                          - name
                           type: object
                         type: array
                     type: object

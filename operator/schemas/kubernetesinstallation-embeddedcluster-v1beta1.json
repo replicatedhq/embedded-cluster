@@ -166,7 +166,8 @@
                         "description": "VeleroPlugin defines a custom Velero plugin to be added to the Velero deployment",
                         "type": "object",
                         "required": [
-                          "image"
+                          "image",
+                          "name"
                         ],
                         "properties": {
                           "image": {
@@ -181,6 +182,10 @@
                               "IfNotPresent",
                               "Never"
                             ]
+                          },
+                          "name": {
+                            "description": "Name is the container name for the plugin initContainer\nThis name will be used as the initContainer name in the Velero deployment",
+                            "type": "string"
                           }
                         }
                       }

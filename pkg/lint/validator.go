@@ -385,9 +385,28 @@ func (v *Validator) validateDomains(domains ecv1beta1.Domains, allowedDomains []
 func (v *Validator) validateVeleroPlugins(veleroExt ecv1beta1.VeleroExtensions) []error {
 	var errors []error
 
-	// Check for duplicate plugin images
+	// Check for duplicate plugin names and images
+	seenNames := make(map[string]int)
 	seenImages := make(map[string]int)
 	for i, plugin := range veleroExt.Plugins {
+		// Validate name is not empty (CRD validation should catch this, but double-check)
+		if plugin.Name == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
+				Message: "plugin name is required",
+			})
+		} else {
+			// Check for duplicate names
+			if idx, exists := seenNames[plugin.Name]; exists {
+				errors = append(errors, ValidationError{
+					Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
+					Message: fmt.Sprintf("duplicate plugin name %q (also specified at index %d)", plugin.Name, idx),
+				})
+			} else {
+				seenNames[plugin.Name] = i
+			}
+		}
+
 		// Validate image is not empty (CRD validation should catch this, but double-check)
 		if plugin.Image == "" {
 			errors = append(errors, ValidationError{

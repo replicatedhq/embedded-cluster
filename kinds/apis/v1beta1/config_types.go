@@ -155,6 +155,10 @@ type VeleroExtensions struct {
 
 // VeleroPlugin defines a custom Velero plugin to be added to the Velero deployment
 type VeleroPlugin struct {
+	// Name is the container name for the plugin initContainer
+	// This name will be used as the initContainer name in the Velero deployment
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
 	// Image is the OCI image reference for the plugin container
 	// Examples:
 	//   - "myvendor/velero-postgresql:v1.0.0" (explicit registry)

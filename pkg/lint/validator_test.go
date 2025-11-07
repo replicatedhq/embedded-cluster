@@ -566,7 +566,7 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			name: "valid single plugin",
 			veleroExt: ecv1beta1.VeleroExtensions{
 				Plugins: []ecv1beta1.VeleroPlugin{
-					{Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
 				},
 			},
 			expectError: false,
@@ -575,17 +575,29 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			name: "valid multiple plugins",
 			veleroExt: ecv1beta1.VeleroExtensions{
 				Plugins: []ecv1beta1.VeleroPlugin{
-					{Image: "myvendor/velero-postgresql:v1.0.0"},
-					{Image: "myvendor/velero-mongodb:v2.1.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-mongodb", Image: "myvendor/velero-mongodb:v2.1.0"},
 				},
 			},
 			expectError: false,
 		},
 		{
+			name: "empty name - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].name"},
+			errorMsgs:   []string{"plugin name is required"},
+		},
+		{
 			name: "empty image - should error",
 			veleroExt: ecv1beta1.VeleroExtensions{
 				Plugins: []ecv1beta1.VeleroPlugin{
-					{Image: ""},
+					{Name: "velero-postgresql", Image: ""},
 				},
 			},
 			expectError: true,
@@ -594,11 +606,24 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			errorMsgs:   []string{"plugin image is required"},
 		},
 		{
+			name: "duplicate plugin names - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v2.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[1].name"},
+			errorMsgs:   []string{"duplicate plugin name"},
+		},
+		{
 			name: "duplicate plugin images - should error",
 			veleroExt: ecv1beta1.VeleroExtensions{
 				Plugins: []ecv1beta1.VeleroPlugin{
-					{Image: "myvendor/velero-postgresql:v1.0.0"},
-					{Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql-alt", Image: "myvendor/velero-postgresql:v1.0.0"},
 				},
 			},
 			expectError: true,
@@ -610,7 +635,7 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			name: "image with invalid characters - should error",
 			veleroExt: ecv1beta1.VeleroExtensions{
 				Plugins: []ecv1beta1.VeleroPlugin{
-					{Image: "myvendor/velero postgresql:v1.0.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero postgresql:v1.0.0"},
 				},
 			},
 			expectError: true,
