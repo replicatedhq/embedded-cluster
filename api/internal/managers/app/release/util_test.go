@@ -299,6 +299,7 @@ func createTestChartArchive(t *testing.T, name, version string) []byte {
 	chartYaml := fmt.Sprintf(`apiVersion: v2
 name: %s
 version: %s
+kubeVersion: ">= 1.30.0"
 description: A test Helm chart
 type: application
 `, name, version)
