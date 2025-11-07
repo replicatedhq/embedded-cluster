@@ -552,3 +552,168 @@ func TestValidateDomains(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVeleroPlugins(t *testing.T) {
+	tests := []struct {
+		name        string
+		veleroExt   ecv1beta1.VeleroExtensions
+		expectError bool
+		errorCount  int
+		errorFields []string
+		errorMsgs   []string
+	}{
+		{
+			name: "valid single plugin",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid multiple plugins",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Image: "myvendor/velero-mongodb:v2.1.0"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "empty image - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Image: ""},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].image"},
+			errorMsgs:   []string{"plugin image is required"},
+		},
+		{
+			name: "duplicate plugin images - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[1].image"},
+			errorMsgs:   []string{"duplicate plugin image"},
+		},
+		{
+			name: "image with invalid characters - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Image: "myvendor/velero postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].image"},
+			errorMsgs:   []string{"invalid character"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+			errors := validator.validateVeleroPlugins(tt.veleroExt)
+
+			if tt.expectError {
+				require.Greater(t, len(errors), 0, "Expected errors but got none")
+				if tt.errorCount > 0 {
+					assert.Len(t, errors, tt.errorCount, "Expected %d errors but got %d", tt.errorCount, len(errors))
+				}
+				if len(tt.errorFields) > 0 {
+					for i, expectedField := range tt.errorFields {
+						if i < len(errors) {
+							if ve, ok := errors[i].(ValidationError); ok {
+								assert.Equal(t, expectedField, ve.Field, "Error field mismatch at index %d", i)
+							}
+						}
+					}
+				}
+				if len(tt.errorMsgs) > 0 {
+					for i, expectedMsg := range tt.errorMsgs {
+						if i < len(errors) {
+							assert.Contains(t, errors[i].Error(), expectedMsg, "Error message should contain: %s", expectedMsg)
+						}
+					}
+				}
+			} else {
+				assert.Empty(t, errors, "Expected no errors but got: %v", errors)
+			}
+		})
+	}
+}
+
+func TestValidateImageFormat(t *testing.T) {
+	tests := []struct {
+		name        string
+		image       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:        "valid full image reference",
+			image:       "myvendor/velero-postgresql:v1.0.0",
+			expectError: false,
+		},
+		{
+			name:        "valid image with digest",
+			image:       "myvendor/velero-postgresql@sha256:abc123def456",
+			expectError: false,
+		},
+		{
+			name:        "valid short image name",
+			image:       "velero-plugin-postgres:v1.0.0",
+			expectError: false,
+		},
+		{
+			name:        "empty image",
+			image:       "",
+			expectError: true,
+			errorMsg:    "cannot be empty",
+		},
+		{
+			name:        "image with space",
+			image:       "myvendor/velero postgresql:v1.0.0",
+			expectError: true,
+			errorMsg:    "invalid character",
+		},
+		{
+			name:        "image starting with slash",
+			image:       "/myvendor/velero-postgresql:v1.0.0",
+			expectError: true,
+			errorMsg:    "invalid format",
+		},
+		{
+			name:        "image with registry but no tag",
+			image:       "myvendor/velero-postgresql",
+			expectError: true,
+			errorMsg:    "should include a tag",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+			err := validator.validateImageFormat(tt.image)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected error but got none")
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain: %s", tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+			}
+		})
+	}
+}

@@ -193,6 +193,39 @@ spec:
                               type: object
                             type: array
                         type: object
+                      velero:
+                        description: VeleroExtensions contains Velero-specific extension
+                          settings
+                        properties:
+                          plugins:
+                            description: Plugins is a list of custom Velero plugins
+                              to be added as initContainers
+                            items:
+                              description: VeleroPlugin defines a custom Velero plugin
+                                to be added to the Velero deployment
+                              properties:
+                                image:
+                                  description: |-
+                                    Image is the OCI image reference for the plugin container
+                                    Examples:
+                                      - "myvendor/velero-postgresql:v1.0.0" (explicit registry)
+                                      - "velero-plugin-postgres:v1.0.0" (will use proxy registry)
+                                  type: string
+                                imagePullPolicy:
+                                  description: |-
+                                    ImagePullPolicy is the image pull policy for the plugin container.
+                                    Valid values are: Always, IfNotPresent, Never
+                                    If not specified, defaults to IfNotPresent
+                                  enum:
+                                  - Always
+                                  - IfNotPresent
+                                  - Never
+                                  type: string
+                              required:
+                              - image
+                              type: object
+                            type: array
+                        type: object
                     type: object
                   metadataOverrideUrl:
                     type: string

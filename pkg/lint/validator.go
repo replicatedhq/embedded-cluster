@@ -140,6 +140,10 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 	portWarnings := v.validatePorts(config.Spec.UnsupportedOverrides)
 	result.Warnings = append(result.Warnings, portWarnings...)
 
+	// Validate Velero plugins (returns errors)
+	pluginErrors := v.validateVeleroPlugins(config.Spec.Extensions.Velero)
+	result.Errors = append(result.Errors, pluginErrors...)
+
 	// Validate custom domains if environment variables are set (returns errors)
 	if v.apiClient.isConfigured() {
 		if v.verbose {
@@ -375,4 +379,82 @@ func (v *Validator) validateDomains(domains ecv1beta1.Domains, allowedDomains []
 	}
 
 	return errors
+}
+
+// validateVeleroPlugins validates Velero plugin configurations
+func (v *Validator) validateVeleroPlugins(veleroExt ecv1beta1.VeleroExtensions) []error {
+	var errors []error
+
+	// Check for duplicate plugin images
+	seenImages := make(map[string]int)
+	for i, plugin := range veleroExt.Plugins {
+		// Validate image is not empty (CRD validation should catch this, but double-check)
+		if plugin.Image == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: "plugin image is required",
+			})
+			continue
+		}
+
+		// Check for duplicate images
+		if idx, exists := seenImages[plugin.Image]; exists {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: fmt.Sprintf("duplicate plugin image %q (also specified at index %d)", plugin.Image, idx),
+			})
+		} else {
+			seenImages[plugin.Image] = i
+		}
+
+		// Validate image format (basic check - should be a valid OCI image reference)
+		if err := v.validateImageFormat(plugin.Image); err != nil {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: err.Error(),
+			})
+		}
+	}
+
+	return errors
+}
+
+// validateImageFormat validates that an image string follows a valid OCI image reference format
+// This is a basic validation - full OCI reference validation would be more complex
+func (v *Validator) validateImageFormat(image string) error {
+	if image == "" {
+		return fmt.Errorf("image cannot be empty")
+	}
+
+	// Basic validation: image should not contain invalid characters
+	// Valid formats:
+	//   - "registry.io/repo/image:tag"
+	//   - "registry.io/repo/image@sha256:digest"
+	//   - "repo/image:tag" (will use proxy registry)
+	//   - "image:tag" (will use proxy registry)
+
+	// Check for invalid characters (basic sanity check)
+	invalidChars := []string{" ", "\t", "\n", "\r"}
+	for _, char := range invalidChars {
+		if strings.Contains(image, char) {
+			return fmt.Errorf("image contains invalid character: %q", char)
+		}
+	}
+
+	// Image should not start or end with special characters
+	if strings.HasPrefix(image, "/") || strings.HasPrefix(image, ":") ||
+		strings.HasSuffix(image, "/") || strings.HasSuffix(image, ":") {
+		return fmt.Errorf("image has invalid format: cannot start or end with '/' or ':'")
+	}
+
+	// Check for at least one colon (for tag) or @ (for digest) if it looks like a full reference
+	// But allow short names that will be prepended with registry
+	if strings.Contains(image, "/") {
+		// If it contains a slash, it should have a tag or digest
+		if !strings.Contains(image, ":") && !strings.Contains(image, "@") {
+			return fmt.Errorf("image reference with registry should include a tag (e.g., image:tag) or digest (e.g., image@sha256:digest)")
+		}
+	}
+
+	return nil
 }
