@@ -3,6 +3,7 @@ package velero
 import (
 	"context"
 	_ "embed"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -22,6 +23,11 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, dom
 	hv, err := helmValues()
 	if err != nil {
 		return nil, errors.Wrap(err, "get helm values")
+	}
+
+	// Inject custom Velero plugins from ConfigSpec before any further processing
+	if err := v.injectPluginInitContainers(hv, domains); err != nil {
+		return nil, errors.Wrap(err, "inject plugin init containers")
 	}
 
 	marshalled, err := helm.MarshalValues(hv)
@@ -119,4 +125,74 @@ func helmValues() (map[string]interface{}, error) {
 	}
 
 	return hv, nil
+}
+
+// injectPluginInitContainers injects custom Velero plugin initContainers from ConfigSpec
+func (v *Velero) injectPluginInitContainers(values map[string]interface{}, domains ecv1beta1.Domains) error {
+	// Only use plugins from EmbeddedConfigSpec
+	// EndUserConfigSpec is only used for overrides (via addOnOverrides mechanism)
+	if v.EmbeddedConfigSpec == nil || len(v.EmbeddedConfigSpec.Extensions.Velero.Plugins) == 0 {
+		return nil
+	}
+
+	allPlugins := v.EmbeddedConfigSpec.Extensions.Velero.Plugins
+
+	// Get existing initContainers or create empty slice
+	var existingInitContainers []any
+	if existing, ok := values["initContainers"]; ok {
+		if containers, ok := existing.([]any); ok {
+			existingInitContainers = containers
+		}
+	}
+
+	// Process each plugin and create initContainer
+	for _, plugin := range allPlugins {
+		processedImage := v.processPluginImage(plugin.Image, domains)
+		imagePullPolicy := plugin.ImagePullPolicy
+		if imagePullPolicy == "" {
+			imagePullPolicy = "IfNotPresent" // Default to match AWS plugin
+		}
+
+		initContainer := v.generatePluginContainer(plugin.Name, processedImage, imagePullPolicy)
+		existingInitContainers = append(existingInitContainers, initContainer)
+	}
+
+	// Update values with merged initContainers
+	values["initContainers"] = existingInitContainers
+	return nil
+}
+
+// processPluginImage processes plugin image according to registry prepending rules
+// Priority:
+// 1. If image contains "/", use as-is (explicit registry)
+// 2. If domains.ProxyRegistryDomain is set, prepend it
+// 3. Default to proxy.replicated.com
+func (v *Velero) processPluginImage(image string, domains ecv1beta1.Domains) string {
+	// If image already has a registry (contains "/"), use as-is
+	if strings.Contains(image, "/") {
+		return image
+	}
+
+	// Use custom proxy registry domain if configured
+	if domains.ProxyRegistryDomain != "" {
+		return fmt.Sprintf("%s/%s", domains.ProxyRegistryDomain, image)
+	}
+
+	// Default to Replicated proxy registry
+	return fmt.Sprintf("proxy.replicated.com/%s", image)
+}
+
+// generatePluginContainer creates an initContainer spec for a Velero plugin
+func (v *Velero) generatePluginContainer(name, image, imagePullPolicy string) map[string]interface{} {
+	return map[string]interface{}{
+		"name":            name,
+		"image":           image,
+		"imagePullPolicy": imagePullPolicy,
+		"volumeMounts": []map[string]interface{}{
+			{
+				"mountPath": "/target",
+				"name":      "plugins",
+			},
+		},
+	}
 }
