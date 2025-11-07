@@ -639,6 +639,8 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 				logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
 				return fmt.Errorf("installation cancelled by user")
 			}
+		} else {
+			logrus.Info("\nContinuing with a self-signed certificate...\n")
 		}
 
 		// Get all IP addresses for the certificate
