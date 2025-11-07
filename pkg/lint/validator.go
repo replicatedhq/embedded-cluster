@@ -450,8 +450,11 @@ func (v *Validator) validateImageFormat(image string) error {
 	// Check for at least one colon (for tag) or @ (for digest) if it looks like a full reference
 	// But allow short names that will be prepended with registry
 	if strings.Contains(image, "/") {
-		// If it contains a slash, it should have a tag or digest
-		if !strings.Contains(image, ":") && !strings.Contains(image, "@") {
+		// If it contains a slash, it should have a tag or digest after the last slash
+		// This distinguishes registry ports (registry.io:5000) from tags (image:tag)
+		lastSlash := strings.LastIndex(image, "/")
+		pathAfterSlash := image[lastSlash+1:]
+		if !strings.Contains(pathAfterSlash, ":") && !strings.Contains(pathAfterSlash, "@") {
 			return fmt.Errorf("image reference with registry should include a tag (e.g., image:tag) or digest (e.g., image@sha256:digest)")
 		}
 	}

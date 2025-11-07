@@ -699,6 +699,22 @@ func TestValidateImageFormat(t *testing.T) {
 			expectError: true,
 			errorMsg:    "should include a tag",
 		},
+		{
+			name:        "registry with port but no tag - should error",
+			image:       "registry.io:5000/repo/image",
+			expectError: true,
+			errorMsg:    "should include a tag",
+		},
+		{
+			name:        "registry with port and tag - should pass",
+			image:       "registry.io:5000/repo/image:v1.0.0",
+			expectError: false,
+		},
+		{
+			name:        "registry with port and digest - should pass",
+			image:       "registry.io:5000/repo/image@sha256:abc123",
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
