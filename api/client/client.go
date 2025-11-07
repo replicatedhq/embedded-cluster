@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,38 +11,38 @@ import (
 )
 
 type Client interface {
-	Authenticate(password string) error
-	GetLinuxInstallationConfig() (types.LinuxInstallationConfigResponse, error)
-	GetLinuxInstallationStatus() (types.Status, error)
-	ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error)
-	SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
-	GetLinuxInfraStatus() (types.Infra, error)
-	GetLinuxInstallAppConfigValues() (types.AppConfigValues, error)
-	PatchLinuxInstallAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
-	TemplateLinuxInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error)
-	RunLinuxInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error)
-	GetLinuxInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error)
-	InstallLinuxApp() (types.AppInstall, error)
-	GetLinuxAppInstallStatus() (types.AppInstall, error)
-	GetLinuxUpgradeAppConfigValues() (types.AppConfigValues, error)
-	PatchLinuxUpgradeAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
-	TemplateLinuxUpgradeAppConfig(values types.AppConfigValues) (types.AppConfig, error)
+	Authenticate(ctx context.Context, password string) error
+	GetLinuxInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
+	GetLinuxInstallationStatus(ctx context.Context) (types.Status, error)
+	ConfigureLinuxInstallation(ctx context.Context, config types.LinuxInstallationConfig) (types.Status, error)
+	SetupLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (types.Infra, error)
+	GetLinuxInfraStatus(ctx context.Context) (types.Infra, error)
+	GetLinuxInstallAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
+	PatchLinuxInstallAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateLinuxInstallAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
+	RunLinuxInstallAppPreflights(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error)
+	GetLinuxInstallAppPreflightsStatus(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error)
+	InstallLinuxApp(ctx context.Context) (types.AppInstall, error)
+	GetLinuxAppInstallStatus(ctx context.Context) (types.AppInstall, error)
+	GetLinuxUpgradeAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
+	PatchLinuxUpgradeAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateLinuxUpgradeAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
 
-	GetKubernetesInstallationConfig() (types.KubernetesInstallationConfigResponse, error)
-	ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error)
-	GetKubernetesInstallationStatus() (types.Status, error)
-	SetupKubernetesInfra() (types.Infra, error)
-	GetKubernetesInfraStatus() (types.Infra, error)
-	GetKubernetesInstallAppConfigValues() (types.AppConfigValues, error)
-	PatchKubernetesInstallAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
-	TemplateKubernetesInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error)
-	RunKubernetesInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error)
-	GetKubernetesInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error)
-	InstallKubernetesApp() (types.AppInstall, error)
-	GetKubernetesAppInstallStatus() (types.AppInstall, error)
-	GetKubernetesUpgradeAppConfigValues() (types.AppConfigValues, error)
-	PatchKubernetesUpgradeAppConfigValues(types.AppConfigValues) (types.AppConfigValues, error)
-	TemplateKubernetesUpgradeAppConfig(values types.AppConfigValues) (types.AppConfig, error)
+	GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error)
+	ConfigureKubernetesInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (types.Status, error)
+	GetKubernetesInstallationStatus(ctx context.Context) (types.Status, error)
+	SetupKubernetesInfra(ctx context.Context) (types.Infra, error)
+	GetKubernetesInfraStatus(ctx context.Context) (types.Infra, error)
+	GetKubernetesInstallAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
+	PatchKubernetesInstallAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateKubernetesInstallAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
+	RunKubernetesInstallAppPreflights(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error)
+	GetKubernetesInstallAppPreflightsStatus(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error)
+	InstallKubernetesApp(ctx context.Context) (types.AppInstall, error)
+	GetKubernetesAppInstallStatus(ctx context.Context) (types.AppInstall, error)
+	GetKubernetesUpgradeAppConfigValues(ctx context.Context) (types.AppConfigValues, error)
+	PatchKubernetesUpgradeAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error)
+	TemplateKubernetesUpgradeAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error)
 }
 
 type client struct {

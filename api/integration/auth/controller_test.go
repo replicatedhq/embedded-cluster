@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -157,11 +158,11 @@ func TestAPIClientLogin(t *testing.T) {
 		c := client.New(server.URL)
 
 		// Login with the client
-		err := c.Authenticate("password")
+		err := c.Authenticate(context.Background(), "password")
 		require.NoError(t, err, "API client login should succeed with correct password")
 
 		// Verify we can make authenticated requests after login
-		_, err = c.GetLinuxInstallationStatus()
+		_, err = c.GetLinuxInstallationStatus(context.Background())
 		require.NoError(t, err, "API client should be able to get installation status after successful login")
 	})
 
@@ -171,7 +172,7 @@ func TestAPIClientLogin(t *testing.T) {
 		c := client.New(server.URL)
 
 		// Attempt to login with wrong password
-		err := c.Authenticate("wrong-password")
+		err := c.Authenticate(context.Background(), "wrong-password")
 		require.Error(t, err, "API client login should fail with wrong password")
 
 		// Check that the error is of correct type
@@ -180,7 +181,7 @@ func TestAPIClientLogin(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, apiErr.StatusCode, "Error should have Unauthorized status code")
 
 		// Verify we can't make authenticated requests
-		_, err = c.GetLinuxInstallationStatus()
+		_, err = c.GetLinuxInstallationStatus(context.Background())
 		require.Error(t, err, "API client should not be able to get installation status after failed login")
 	})
 }
