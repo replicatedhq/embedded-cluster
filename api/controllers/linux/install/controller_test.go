@@ -467,14 +467,14 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
-				)
+				// BEFORE: Had to mock all 4 methods even though test only validates the flow
+				// NOW: Only override what matters for this specific test case
+				// Default stubs handle: ClearHostPreflightResults (returns nil)
+				// Override PrepareHostPreflights to return the expected spec
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				// Default stubs handle: RunHostPreflights (returns nil)
+				// Override GetHostPreflightOutput to return successful result
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil)
 			},
 			expectedErr: false,
 		},
@@ -483,14 +483,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsExecutionFailed,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil)
 			},
 			expectedErr: false,
 		},
@@ -499,14 +495,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailed,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil)
 			},
 			expectedErr: false,
 		},
@@ -515,14 +507,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailedBypassed,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil)
 			},
 			expectedErr: false,
 		},
@@ -531,16 +519,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailedBypassed,
 			expectedState: states.StateHostPreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil)
+				mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil)
 			},
 			expectedErr: false,
 		},
@@ -549,15 +533,11 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailedBypassed,
 			expectedState: states.StateHostPreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(nil, assert.AnError),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxPreflightMockStore.On("GetOutput").Return(nil, assert.AnError)
 			},
 			expectedErr: false,
 		},
@@ -566,16 +546,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsExecutionFailed,
 			expectedState: states.StateHostPreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil)
+				mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil)
 			},
 			expectedErr: false,
 		},
@@ -584,16 +560,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailed,
 			expectedState: states.StateHostPreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil)
+				mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil)
 			},
 			expectedErr: false,
 		},
@@ -602,16 +574,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostPreflightsFailedBypassed,
 			expectedState: states.StateHostPreflightsFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil)
+				mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil)
 			},
 			expectedErr: false,
 		},
@@ -620,14 +588,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsExecutionFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, assert.AnError),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, assert.AnError)
 			},
 			expectedErr: false,
 		},
@@ -636,14 +600,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, nil)
 			},
 			expectedErr: false,
 		},
@@ -652,14 +612,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsSucceeded,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(warnPreflightOutput, nil),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil), RunHostPreflights (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(warnPreflightOutput, nil)
 			},
 			expectedErr: false,
 		},
@@ -668,10 +624,10 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostConfigured,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(nil, errors.New("prepare error")),
-				)
+				// BEFORE: Had to explicitly mock ClearHostPreflightResults even though we don't care
+				// NOW: Only mock the failure case we're testing
+				// Default stubs handle: ClearHostPreflightResults (returns nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(nil, errors.New("prepare error"))
 			},
 			expectedErr: true,
 		},
@@ -680,13 +636,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsExecutionFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(errors.New("run preflights error")),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					return expectedHPF == opts.HostPreflightSpec
+				})).Return(errors.New("run preflights error"))
 			},
 			expectedErr: false,
 		},
@@ -695,13 +650,12 @@ func TestRunHostPreflights(t *testing.T) {
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsExecutionFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Panic("this is a panic"),
-				)
+				// Only mock what differs from defaults
+				// Defaults handle: ClearHostPreflightResults (nil)
+				pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil)
+				pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+					return expectedHPF == opts.HostPreflightSpec
+				})).Panic("this is a panic")
 			},
 			expectedErr: false,
 		},
@@ -728,6 +682,8 @@ func TestRunHostPreflights(t *testing.T) {
 
 			sm := NewStateMachine(WithCurrentState(tt.currentState))
 
+			// Use mock with built-in default stubs via maybeRegisterCall
+			// Tests only need to set up On() expectations for methods they care about
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
 			mockMetricsReporter := &metrics.MockReporter{}
 			mockStore := &store.MockStore{}
@@ -789,6 +745,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 		{
 			name: "successful get status",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
+				// Only override the method we care about - defaults handle the rest
 				status := types.Status{
 					State: types.StateFailed,
 				}
@@ -802,6 +759,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 		{
 			name: "get status error",
 			setupMock: func(m *preflight.MockHostPreflightManager) {
+				// Only override the method we care about - defaults handle the rest
 				m.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get status error"))
 			},
 			expectedErr:   true,
@@ -811,6 +769,7 @@ func TestGetHostPreflightStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Simple test - only mock the one method we call, defaults handle the rest
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
@@ -864,6 +823,7 @@ func TestGetHostPreflightOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Simple test - only mock the one method we call, defaults handle the rest
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
@@ -917,6 +877,7 @@ func TestGetHostPreflightTitles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Simple test - only mock the one method we call, defaults handle the rest
 			mockManager := &preflight.MockHostPreflightManager{}
 			tt.setupMock(mockManager)
 
