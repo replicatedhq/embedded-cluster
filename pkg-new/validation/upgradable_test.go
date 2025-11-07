@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,19 +15,21 @@ import (
 
 // Test helpers
 
-func newTestLicense(isSemverRequired bool) *kotsv1beta1.License {
-	return &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug:          "test-app",
-			LicenseID:        "test-license-id",
-			IsSemverRequired: isSemverRequired,
-			ChannelID:        "test-channel-123",
-			ChannelName:      "Stable",
-			LicenseSequence:  1,
-			Channels: []kotsv1beta1.Channel{
-				{
-					ChannelID:   "test-channel-123",
-					ChannelName: "Stable",
+func newTestLicense(isSemverRequired bool) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
+		V1: &kotsv1beta1.License{
+			Spec: kotsv1beta1.LicenseSpec{
+				AppSlug:          "test-app",
+				LicenseID:        "test-license-id",
+				IsSemverRequired: isSemverRequired,
+				ChannelID:        "test-channel-123",
+				ChannelName:      "Stable",
+				LicenseSequence:  1,
+				Channels: []kotsv1beta1.Channel{
+					{
+						ChannelID:   "test-channel-123",
+						ChannelName: "Stable",
+					},
 				},
 			},
 		},

@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -841,16 +842,18 @@ func TestGetPendingReleases(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			license := kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:         "test-app",
-					LicenseID:       "test-license-id",
-					LicenseSequence: 1,
-					ChannelID:       "test-channel-123",
-					Channels: []kotsv1beta1.Channel{
-						{
-							ChannelID:   "test-channel-123",
-							ChannelName: "Stable",
+			license := &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:         "test-app",
+						LicenseID:       "test-license-id",
+						LicenseSequence: 1,
+						ChannelID:       "test-channel-123",
+						Channels: []kotsv1beta1.Channel{
+							{
+								ChannelID:   "test-channel-123",
+								ChannelName: "Stable",
+							},
 						},
 					},
 				},
@@ -867,7 +870,7 @@ func TestGetPendingReleases(t *testing.T) {
 			defer server.Close()
 
 			// Create client
-			c, err := NewClient(server.URL, &license, releaseData)
+			c, err := NewClient(server.URL, license, releaseData)
 			req.NoError(err)
 
 			// Execute test
@@ -905,16 +908,18 @@ func TestGetPendingReleases_ContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	license := kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug:         "test-app",
-			LicenseID:       "test-license-id",
-			LicenseSequence: 1,
-			ChannelID:       "test-channel-123",
-			Channels: []kotsv1beta1.Channel{
-				{
-					ChannelID:   "test-channel-123",
-					ChannelName: "Stable",
+	license := &licensewrapper.LicenseWrapper{
+		V1: &kotsv1beta1.License{
+			Spec: kotsv1beta1.LicenseSpec{
+				AppSlug:         "test-app",
+				LicenseID:       "test-license-id",
+				LicenseSequence: 1,
+				ChannelID:       "test-channel-123",
+				Channels: []kotsv1beta1.Channel{
+					{
+						ChannelID:   "test-channel-123",
+						ChannelName: "Stable",
+					},
 				},
 			},
 		},
@@ -927,7 +932,7 @@ func TestGetPendingReleases_ContextCancellation(t *testing.T) {
 	}
 
 	// Create client
-	c, err := NewClient(server.URL, &license, releaseData)
+	c, err := NewClient(server.URL, license, releaseData)
 	req.NoError(err)
 
 	// Create a context that is already cancelled
