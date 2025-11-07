@@ -62,3 +62,193 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 	assert.Equal(t, "host-ca-bundle", extraVolumeMounts[0]["name"])
 	assert.Equal(t, "/certs/ca-certificates.crt", extraVolumeMounts[0]["mountPath"])
 }
+
+func TestGenerateHelmValues_NoPlugins(t *testing.T) {
+	v := &Velero{
+		EmbeddedConfigSpec: nil,
+	}
+
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+	require.NoError(t, err)
+
+	// Should have at most the default AWS plugin
+	if initContainers, ok := values["initContainers"]; ok {
+		if containers, ok := initContainers.([]any); ok {
+			assert.LessOrEqual(t, len(containers), 1, "Should have at most the default AWS plugin")
+		}
+	}
+}
+
+func TestGenerateHelmValues_SinglePlugin(t *testing.T) {
+	v := &Velero{
+		EmbeddedConfigSpec: &ecv1beta1.ConfigSpec{
+			Extensions: ecv1beta1.Extensions{
+				Velero: ecv1beta1.VeleroExtensions{
+					Plugins: []ecv1beta1.VeleroPlugin{
+						{
+							Name:  "velero-plugin-postgresql",
+							Image: "myvendor/velero-postgresql:v1.0.0",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, values["initContainers"])
+	initContainers := values["initContainers"].([]any)
+
+	// Find our plugin container
+	var pluginContainer map[string]any
+	for _, container := range initContainers {
+		if containerMap, ok := container.(map[string]any); ok {
+			if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
+				pluginContainer = containerMap
+				break
+			}
+		}
+	}
+
+	require.NotNil(t, pluginContainer, "Plugin container should exist")
+	assert.Equal(t, "velero-plugin-postgresql", pluginContainer["name"])
+	assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", pluginContainer["image"])
+	assert.Equal(t, "IfNotPresent", pluginContainer["imagePullPolicy"])
+}
+
+func TestGenerateHelmValues_MultiplePlugins(t *testing.T) {
+	v := &Velero{
+		EmbeddedConfigSpec: &ecv1beta1.ConfigSpec{
+			Extensions: ecv1beta1.Extensions{
+				Velero: ecv1beta1.VeleroExtensions{
+					Plugins: []ecv1beta1.VeleroPlugin{
+						{
+							Name:  "velero-plugin-postgresql",
+							Image: "myvendor/velero-postgresql:v1.0.0",
+						},
+						{
+							Name:  "velero-plugin-mongodb",
+							Image: "myvendor/velero-mongodb:v2.1.0",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, values["initContainers"])
+	initContainers := values["initContainers"].([]any)
+
+	// Find plugin containers by name
+	pluginMap := make(map[string]map[string]any)
+	for _, container := range initContainers {
+		if containerMap, ok := container.(map[string]any); ok {
+			if name, _ := containerMap["name"].(string); name != "velero-plugin-for-aws" {
+				pluginMap[name] = containerMap
+			}
+		}
+	}
+
+	require.Len(t, pluginMap, 2, "Should have exactly 2 plugin containers")
+	assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", pluginMap["velero-plugin-postgresql"]["image"])
+	assert.Equal(t, "myvendor/velero-mongodb:v2.1.0", pluginMap["velero-plugin-mongodb"]["image"])
+}
+
+func TestGenerateHelmValues_PluginWithImagePullPolicy(t *testing.T) {
+	v := &Velero{
+		EmbeddedConfigSpec: &ecv1beta1.ConfigSpec{
+			Extensions: ecv1beta1.Extensions{
+				Velero: ecv1beta1.VeleroExtensions{
+					Plugins: []ecv1beta1.VeleroPlugin{
+						{
+							Name:            "velero-plugin-postgresql",
+							Image:           "myvendor/velero-postgresql:v1.0.0",
+							ImagePullPolicy: "Always",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, values["initContainers"])
+	initContainers := values["initContainers"].([]any)
+
+	// Find our plugin container
+	var pluginContainer map[string]any
+	for _, container := range initContainers {
+		if containerMap, ok := container.(map[string]any); ok {
+			if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
+				pluginContainer = containerMap
+				break
+			}
+		}
+	}
+
+	require.NotNil(t, pluginContainer)
+	assert.Equal(t, "Always", pluginContainer["imagePullPolicy"])
+}
+
+func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
+	v := &Velero{
+		EmbeddedConfigSpec: &ecv1beta1.ConfigSpec{
+			Extensions: ecv1beta1.Extensions{
+				Velero: ecv1beta1.VeleroExtensions{
+					Plugins: []ecv1beta1.VeleroPlugin{
+						{
+							Name:  "velero-plugin-postgresql",
+							Image: "myvendor/velero-postgresql:v1.0.0",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	values, err := v.GenerateHelmValues(context.Background(), nil, ecv1beta1.Domains{}, nil)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, values["initContainers"])
+	initContainers := values["initContainers"].([]any)
+
+	// Find our plugin container
+	var pluginContainer map[string]any
+	for _, container := range initContainers {
+		if containerMap, ok := container.(map[string]any); ok {
+			if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
+				pluginContainer = containerMap
+				break
+			}
+		}
+	}
+
+	require.NotNil(t, pluginContainer)
+	require.Contains(t, pluginContainer, "volumeMounts")
+
+	volumeMountsAny := pluginContainer["volumeMounts"]
+	var volumeMounts []any
+	switch v := volumeMountsAny.(type) {
+	case []any:
+		volumeMounts = v
+	case []map[string]any:
+		volumeMounts = make([]any, len(v))
+		for i, vm := range v {
+			volumeMounts[i] = vm
+		}
+	default:
+		t.Fatalf("volumeMounts has unexpected type: %T", v)
+	}
+
+	require.Len(t, volumeMounts, 1)
+	volumeMount := volumeMounts[0].(map[string]any)
+	assert.Equal(t, "/target", volumeMount["mountPath"])
+	assert.Equal(t, "plugins", volumeMount["name"])
+}
