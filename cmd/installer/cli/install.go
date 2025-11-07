@@ -25,6 +25,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	licensepkg "github.com/replicatedhq/embedded-cluster/pkg-new/license"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
@@ -1019,10 +1020,11 @@ func verifyAndPrompt(ctx context.Context, cmd *cobra.Command, appSlug string, fl
 	}
 
 	logrus.Debugf("checking license matches")
-	err = verifyLicense(installCfg.license)
+	verifiedLicense, err := verifyLicense(installCfg.license)
 	if err != nil {
 		return err
 	}
+	installCfg.license = verifiedLicense
 
 	if installCfg.airgapMetadata != nil && installCfg.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
@@ -1098,38 +1100,66 @@ func ensureAdminConsolePassword(flags *installFlags) error {
 	return nil
 }
 
-func verifyLicense(license *kotsv1beta1.License) error {
-	rel := release.GetChannelRelease()
+func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
+	channelRelease := release.GetChannelRelease()
+	if err := verifyLicensePresence(license, channelRelease); err != nil {
+		return nil, err
+	}
 
-	// handle the three cases that do not require parsing the license file
-	// 1. no release and no license, which is OK
-	// 2. no license and a release, which is not OK
-	// 3. a license and no release, which is not OK
-	if rel == nil && license == nil {
-		// no license and no release, this is OK
-		return nil
-	} else if rel == nil && license != nil {
-		// license is present but no release, this means we would install without vendor charts and k0s overrides
+	if isV3Enabled() {
+		verifiedLicense, err := licensepkg.VerifySignature(license)
+		if err != nil {
+			return nil, fmt.Errorf("license signature verification failed: %w", err)
+		}
+		license = verifiedLicense
+	}
+
+	if err := verifyLicenseFields(license, channelRelease); err != nil {
+		return nil, err
+	}
+
+	return license, nil
+}
+
+// verifyLicensePresence checks if license presence matches the release requirements
+func verifyLicensePresence(license *kotsv1beta1.License, channelRelease *release.ChannelRelease) error {
+	if channelRelease == nil {
+		if license == nil {
+			// No license, no release - valid
+			return nil
+		}
+		// Valid license, no release - invalid
 		return fmt.Errorf("a license was provided but no release was found in binary, please rerun without the license flag")
-	} else if rel != nil && license == nil {
-		// release is present but no license, this is not OK
-		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", rel.AppSlug)
+	}
+	if license == nil {
+		// No license, with release - invalid
+		return fmt.Errorf("no license was provided for %s and one is required, please rerun with '--license <path to license file>'", channelRelease.AppSlug)
+	}
+
+	return nil
+}
+
+// verifyLicenseFields validates license fields against the release data
+func verifyLicenseFields(license *kotsv1beta1.License, channelRelease *release.ChannelRelease) error {
+	if channelRelease == nil || license == nil {
+		return nil
 	}
 
 	// Check if the license matches the application version data
-	if rel.AppSlug != license.Spec.AppSlug {
+	if channelRelease.AppSlug != license.Spec.AppSlug {
 		// if the app is different, we will not be able to provide the correct vendor supplied charts and k0s overrides
-		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, rel.AppSlug)
+		return fmt.Errorf("license app %s does not match binary app %s, please provide the correct license", license.Spec.AppSlug, channelRelease.AppSlug)
 	}
 
 	// Ensure the binary channel actually is present in the supplied license
-	if err := checkChannelExistence(license, rel); err != nil {
+	if err := checkChannelExistence(license, channelRelease); err != nil {
 		return err
 	}
 
-	if license.Spec.Entitlements["expires_at"].Value.StrVal != "" {
+	expiresAt, ok := license.Spec.Entitlements["expires_at"]
+	if ok && expiresAt.Value.StrVal != "" {
 		// read the expiration date, and check it against the current date
-		expiration, err := time.Parse(time.RFC3339, license.Spec.Entitlements["expires_at"].Value.StrVal)
+		expiration, err := time.Parse(time.RFC3339, expiresAt.Value.StrVal)
 		if err != nil {
 			return fmt.Errorf("parse expiration date: %w", err)
 		}

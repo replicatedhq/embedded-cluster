@@ -1,13 +1,23 @@
 package dryrun
 
 import (
+	_ "embed"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	//go:embed assets/real-license.yaml
+	realLicenseData string
+
+	//go:embed assets/real-release.yaml
+	realReleaseData string
 )
 
 func TestV3InstallHeadless_HappyPath(t *testing.T) {
@@ -113,9 +123,14 @@ func setupV3HeadlessTest(t *testing.T) (string, string) {
 	// Set ENABLE_V3 environment variable
 	t.Setenv("ENABLE_V3", "1")
 
-	// Setup release data
-	if err := embedReleaseData(clusterConfigData); err != nil {
-		t.Fatalf("fail to embed release data: %v", err)
+	// Setup release data with V3-specific release data
+	if err := release.SetReleaseDataForTests(map[string][]byte{
+		"release.yaml":        []byte(realReleaseData),
+		"cluster-config.yaml": []byte(clusterConfigData),
+		"application.yaml":    []byte(applicationData),
+		"config.yaml":         []byte(configData),
+	}); err != nil {
+		t.Fatalf("fail to set release data: %v", err)
 	}
 
 	// Initialize dryrun with mock ReplicatedAPIClient
@@ -123,13 +138,13 @@ func setupV3HeadlessTest(t *testing.T) (string, string) {
 	dryrun.Init(drFile, &dryrun.Client{
 		ReplicatedAPIClient: &dryrun.ReplicatedAPIClient{
 			License:      nil, // will return the same license that was passed in
-			LicenseBytes: []byte(licenseData),
+			LicenseBytes: []byte(realLicenseData),
 		},
 	})
 
 	// Create license file
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
+	require.NoError(t, os.WriteFile(licenseFile, []byte(realLicenseData), 0644))
 
 	// Create config values file (required for headless)
 	configFile := filepath.Join(t.TempDir(), "config.yaml")
