@@ -9,22 +9,26 @@ import (
 
 // mockAPIClient is a mock implementation of the client.Client interface for testing
 type mockAPIClient struct {
-	authenticateFunc                       func(ctx context.Context, password string) error
-	patchLinuxInstallAppConfigValuesFunc   func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfigValues, error)
-	getLinuxInstallationConfigFunc         func(ctx context.Context) (apitypes.LinuxInstallationConfigResponse, error)
-	getLinuxInstallationStatusFunc         func(ctx context.Context) (apitypes.Status, error)
-	configureLinuxInstallationFunc         func(ctx context.Context, config apitypes.LinuxInstallationConfig) (apitypes.Status, error)
-	setupLinuxInfraFunc                    func(ctx context.Context, ignoreHostPreflights bool) (apitypes.Infra, error)
-	getLinuxInfraStatusFunc                func(ctx context.Context) (apitypes.Infra, error)
-	getLinuxInstallAppConfigValuesFunc     func(ctx context.Context) (apitypes.AppConfigValues, error)
-	templateLinuxInstallAppConfigFunc      func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfig, error)
-	runLinuxInstallAppPreflightsFunc       func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error)
-	getLinuxInstallAppPreflightsStatusFunc func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error)
-	installLinuxAppFunc                    func(ctx context.Context) (apitypes.AppInstall, error)
-	getLinuxAppInstallStatusFunc           func(ctx context.Context) (apitypes.AppInstall, error)
-	getLinuxUpgradeAppConfigValuesFunc     func(ctx context.Context) (apitypes.AppConfigValues, error)
-	patchLinuxUpgradeAppConfigValuesFunc   func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfigValues, error)
-	templateLinuxUpgradeAppConfigFunc      func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfig, error)
+	authenticateFunc                        func(ctx context.Context, password string) error
+	patchLinuxInstallAppConfigValuesFunc    func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfigValues, error)
+	getLinuxInstallationConfigFunc          func(ctx context.Context) (apitypes.LinuxInstallationConfigResponse, error)
+	getLinuxInstallationStatusFunc          func(ctx context.Context) (apitypes.Status, error)
+	configureLinuxInstallationFunc          func(ctx context.Context, config apitypes.LinuxInstallationConfig) (apitypes.Status, error)
+	runLinuxInstallHostPreflightsFunc       func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error)
+	getLinuxInstallHostPreflightsStatusFunc func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error)
+	setupLinuxInfraFunc                     func(ctx context.Context, ignoreHostPreflights bool) (apitypes.Infra, error)
+	getLinuxInfraStatusFunc                 func(ctx context.Context) (apitypes.Infra, error)
+	processLinuxAirgapFunc                  func(ctx context.Context) (apitypes.Airgap, error)
+	getLinuxAirgapStatusFunc                func(ctx context.Context) (apitypes.Airgap, error)
+	getLinuxInstallAppConfigValuesFunc      func(ctx context.Context) (apitypes.AppConfigValues, error)
+	templateLinuxInstallAppConfigFunc       func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfig, error)
+	runLinuxInstallAppPreflightsFunc        func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error)
+	getLinuxInstallAppPreflightsStatusFunc  func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error)
+	installLinuxAppFunc                     func(ctx context.Context, ignoreAppPreflights bool) (apitypes.AppInstall, error)
+	getLinuxAppInstallStatusFunc            func(ctx context.Context) (apitypes.AppInstall, error)
+	getLinuxUpgradeAppConfigValuesFunc      func(ctx context.Context) (apitypes.AppConfigValues, error)
+	patchLinuxUpgradeAppConfigValuesFunc    func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfigValues, error)
+	templateLinuxUpgradeAppConfigFunc       func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfig, error)
 
 	// Kubernetes methods (not used in current implementation, but required by interface)
 	getKubernetesInstallationConfigFunc         func(ctx context.Context) (apitypes.KubernetesInstallationConfigResponse, error)
@@ -79,6 +83,20 @@ func (m *mockAPIClient) ConfigureLinuxInstallation(ctx context.Context, config a
 	return apitypes.Status{}, nil
 }
 
+func (m *mockAPIClient) RunLinuxInstallHostPreflights(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+	if m.runLinuxInstallHostPreflightsFunc != nil {
+		return m.runLinuxInstallHostPreflightsFunc(ctx)
+	}
+	return apitypes.InstallHostPreflightsStatusResponse{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxInstallHostPreflightsStatus(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+	if m.getLinuxInstallHostPreflightsStatusFunc != nil {
+		return m.getLinuxInstallHostPreflightsStatusFunc(ctx)
+	}
+	return apitypes.InstallHostPreflightsStatusResponse{}, nil
+}
+
 func (m *mockAPIClient) SetupLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (apitypes.Infra, error) {
 	if m.setupLinuxInfraFunc != nil {
 		return m.setupLinuxInfraFunc(ctx, ignoreHostPreflights)
@@ -91,6 +109,20 @@ func (m *mockAPIClient) GetLinuxInfraStatus(ctx context.Context) (apitypes.Infra
 		return m.getLinuxInfraStatusFunc(ctx)
 	}
 	return apitypes.Infra{}, nil
+}
+
+func (m *mockAPIClient) ProcessLinuxAirgap(ctx context.Context) (apitypes.Airgap, error) {
+	if m.processLinuxAirgapFunc != nil {
+		return m.processLinuxAirgapFunc(ctx)
+	}
+	return apitypes.Airgap{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxAirgapStatus(ctx context.Context) (apitypes.Airgap, error) {
+	if m.getLinuxAirgapStatusFunc != nil {
+		return m.getLinuxAirgapStatusFunc(ctx)
+	}
+	return apitypes.Airgap{}, nil
 }
 
 func (m *mockAPIClient) GetLinuxInstallAppConfigValues(ctx context.Context) (apitypes.AppConfigValues, error) {
@@ -121,9 +153,9 @@ func (m *mockAPIClient) GetLinuxInstallAppPreflightsStatus(ctx context.Context) 
 	return apitypes.InstallAppPreflightsStatusResponse{}, nil
 }
 
-func (m *mockAPIClient) InstallLinuxApp(ctx context.Context) (apitypes.AppInstall, error) {
+func (m *mockAPIClient) InstallLinuxApp(ctx context.Context, ignoreAppPreflights bool) (apitypes.AppInstall, error) {
 	if m.installLinuxAppFunc != nil {
-		return m.installLinuxAppFunc(ctx)
+		return m.installLinuxAppFunc(ctx, ignoreAppPreflights)
 	}
 	return apitypes.AppInstall{}, nil
 }

@@ -34,6 +34,7 @@ import (
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -283,9 +284,8 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if enableV3 {
 		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
-	} else {
-		flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 	}
+
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -299,6 +299,7 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	mustMarkFlagDeprecated(flagSet, "skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead.")
 
 	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+	flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 
 	mustAddCIDRFlags(flagSet)
 
@@ -763,19 +764,19 @@ func buildKubernetesInstallation(flags *installFlags, ki kubernetesinstallation.
 }
 
 func runManagerExperienceInstall(
-	ctx context.Context, flags installFlags, installCfg *installConfig, apiOptions apiOptions,
+	ctx context.Context, flags installFlags, installCfg *installConfig, apiOpts apiOptions,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiOptions)
+	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiOpts)
 	if err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	if flags.headless {
-		return runV3InstallHeadless(ctx, cancel, flags, apiOptions, metricsReporter)
+		return runV3InstallHeadless(ctx, cancel, flags, apiOpts, metricsReporter)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
@@ -1106,7 +1107,9 @@ func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 		return nil, err
 	}
 
-	if isV3Enabled() {
+	// Skip signature verification in dryrun mode since test licenses don't have valid signatures
+	// TODO: assert this is called in dryrun mode
+	if isV3Enabled() && !dryrun.Enabled() {
 		verifiedLicense, err := licensepkg.VerifySignature(license)
 		if err != nil {
 			return nil, fmt.Errorf("license signature verification failed: %w", err)

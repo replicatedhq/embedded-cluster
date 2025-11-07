@@ -491,7 +491,7 @@ func SetReleaseDataForTests(data map[string][]byte) error {
 	tw := tar.NewWriter(gw)
 	for name, content := range data {
 		err := tw.WriteHeader(&tar.Header{
-			Name: "name",
+			Name: name,
 			Size: int64(len(content)),
 		})
 		if err != nil {

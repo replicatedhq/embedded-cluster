@@ -47,6 +47,12 @@ var (
 	//go:embed assets/kotskinds-config.yaml
 	configData string
 
+	//go:embed assets/kotskinds-chart.yaml
+	helmChartData string
+
+	//go:embed assets/chart.tgz
+	helmChartArchiveData string
+
 	//go:embed assets/install-license.yaml
 	licenseData string
 )
@@ -130,6 +136,8 @@ func embedReleaseData(clusterConfig string) error {
 		"cluster-config.yaml": []byte(clusterConfig),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
+		"chart.yaml":          []byte(helmChartData),
+		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
