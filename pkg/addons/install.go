@@ -170,9 +170,10 @@ func GetAddOnsForInstall(opts InstallOptions) []types.AddOn {
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:            opts.ProxySpec,
-			HostCABundlePath: opts.HostCABundlePath,
-			K0sDataDir:       opts.K0sDataDir,
+			Proxy:              opts.ProxySpec,
+			HostCABundlePath:   opts.HostCABundlePath,
+			K0sDataDir:         opts.K0sDataDir,
+			EmbeddedConfigSpec: opts.EmbeddedConfigSpec,
 		})
 	}
 
@@ -206,9 +207,10 @@ func GetAddOnsForRestore(opts RestoreOptions) []types.AddOn {
 			OpenEBSDataDir: opts.OpenEBSDataDir,
 		},
 		&velero.Velero{
-			Proxy:            opts.ProxySpec,
-			HostCABundlePath: opts.HostCABundlePath,
-			K0sDataDir:       opts.K0sDataDir,
+			Proxy:              opts.ProxySpec,
+			HostCABundlePath:   opts.HostCABundlePath,
+			K0sDataDir:         opts.K0sDataDir,
+			EmbeddedConfigSpec: opts.EmbeddedConfigSpec,
 		},
 	}
 	return addOns
