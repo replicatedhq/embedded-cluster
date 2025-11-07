@@ -775,7 +775,7 @@ func runManagerExperienceInstall(
 	}
 
 	if flags.headless {
-		return runV3InstallHeadless(ctx, cancel, flags, apiConfig, metricsReporter)
+		return runV3InstallHeadless(ctx, cancel, flags, apiOptions, metricsReporter)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
