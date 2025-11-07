@@ -11,3 +11,19 @@ spec:
         - name: pw
           title: Password
           type: password
+        - name: text_required
+          title: Text Required
+          type: text
+          required: true
+        - name: text_required_with_regex
+          title: Text Required With Regex
+          type: text
+          required: true
+          validation:
+            regex:
+              pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+              message: Please enter a valid email address
+        - name: file_required
+          title: File Required
+          type: file
+          required: true

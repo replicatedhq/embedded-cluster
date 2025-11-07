@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -10,13 +11,13 @@ import (
 
 // Authenticate sends a login request to the API server with the provided password and retrieves a
 // session token. The token is stored in the client struct for subsequent requests.
-func (c *client) Authenticate(password string) error {
+func (c *client) Authenticate(ctx context.Context, password string) error {
 	b, err := json.Marshal(types.AuthRequest{Password: password})
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/auth/login", bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/auth/login", bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}

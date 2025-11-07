@@ -80,6 +80,33 @@ func TestV3InstallHeadless_Metrics(t *testing.T) {
 			},
 		},
 	})
+
+	t.Logf("Test passed: metrics are recorded correctly")
+}
+
+func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
+	licenseFile, configFile := setupV3HeadlessTest(t)
+
+	// Override the config file with invalid values
+	createInvalidConfigValuesFile(t, configFile)
+
+	// Run installer command with headless flag and invalid config values
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	// Expect the command to fail with the specific error message
+	require.EqualError(t, err, `application configuration validation failed: field errors:
+  - Field 'text_required_with_regex': Please enter a valid email address
+  - Field 'file_required': File Required is required`)
+
+	t.Logf("Test passed: config values validation errors are displayed to the user")
 }
 
 func setupV3HeadlessTest(t *testing.T) (string, string) {
@@ -120,8 +147,34 @@ metadata:
   name: test-config
 spec:
   values:
-    database_host:
-      value: "postgres.example.com"
+    text_required:
+      value: "text required value"
+    text_required_with_regex:
+      value: "ethan@replicated.com"
+    password_required:
+      value: "password required value"
+    file_required:
+      value: "ZmlsZSByZXF1aXJlZCB2YWx1ZQo="
+      filename: "file_required.txt"
+`
+	require.NoError(t, os.WriteFile(filename, []byte(configData), 0644))
+}
+
+func createInvalidConfigValuesFile(t *testing.T, filename string) {
+	t.Helper()
+
+	// Create a config values file with values that would fail validation
+	// These would be validated by the API when PatchLinuxInstallAppConfigValues is called
+	configData := `apiVersion: kots.io/v1beta1
+kind: ConfigValues
+metadata:
+  name: test-config
+spec:
+  values:
+    text_required:
+      value: "text required value"
+    text_required_with_regex:
+      value: "invalid email address"
 `
 	require.NoError(t, os.WriteFile(filename, []byte(configData), 0644))
 }

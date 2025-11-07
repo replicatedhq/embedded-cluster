@@ -2,6 +2,7 @@ package install
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -810,7 +811,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 
 	// Test GetLinuxInstallationConfig
 	t.Run("GetLinuxInstallationConfig", func(t *testing.T) {
-		configResponse, err := c.GetLinuxInstallationConfig()
+		configResponse, err := c.GetLinuxInstallationConfig(context.Background())
 		require.NoError(t, err, "GetInstallationConfig should succeed")
 
 		// Verify values
@@ -831,7 +832,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 
 	// Test GetLinuxInstallationStatus
 	t.Run("GetLinuxInstallationStatus", func(t *testing.T) {
-		status, err := c.GetLinuxInstallationStatus()
+		status, err := c.GetLinuxInstallationStatus(context.Background())
 		require.NoError(t, err, "GetLinuxInstallationStatus should succeed")
 		assert.Equal(t, types.StatePending, status.State)
 		assert.Equal(t, "Installation pending", status.Description)
@@ -852,13 +853,13 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		rc.SetDataDir(config.DataDirectory)
 
 		// Configure the installation using the client
-		_, err = c.ConfigureLinuxInstallation(config)
+		_, err = c.ConfigureLinuxInstallation(context.Background(), config)
 		require.NoError(t, err, "ConfigureLinuxInstallation should succeed with valid config")
 
 		// Verify the status was set correctly
 		var installStatus types.Status
 		if !assert.Eventually(t, func() bool {
-			installStatus, err = c.GetLinuxInstallationStatus()
+			installStatus, err = c.GetLinuxInstallationStatus(context.Background())
 			require.NoError(t, err, "GetLinuxInstallationStatus should succeed")
 			return installStatus.State == types.StateSucceeded
 		}, 1*time.Second, 100*time.Millisecond) {
@@ -867,7 +868,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		}
 
 		// Get the config to verify it persisted
-		newConfigResponse, err := c.GetLinuxInstallationConfig()
+		newConfigResponse, err := c.GetLinuxInstallationConfig(context.Background())
 		require.NoError(t, err, "GetLinuxInstallationConfig should succeed after setting config")
 		assert.Equal(t, rc.EmbeddedClusterHomeDirectory(), newConfigResponse.Values.DataDirectory)
 		assert.Equal(t, config.AdminConsolePort, newConfigResponse.Values.AdminConsolePort)
@@ -889,7 +890,7 @@ func TestLinuxInstallationConfigWithAPIClient(t *testing.T) {
 		}
 
 		// Configure the installation using the client
-		_, err := c.ConfigureLinuxInstallation(config)
+		_, err := c.ConfigureLinuxInstallation(context.Background(), config)
 		require.Error(t, err, "ConfigureLinuxInstallation should fail with invalid config")
 
 		// Verify the error is of type APIError

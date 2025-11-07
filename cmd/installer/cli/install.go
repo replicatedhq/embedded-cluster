@@ -774,26 +774,7 @@ func runManagerExperienceInstall(
 	}
 
 	if flags.headless {
-		// Setup signal handler with the metrics reporter cleanup function
-		signalHandler(ctx, cancel, func(ctx context.Context, sig os.Signal) {
-			metricsReporter.ReportSignalAborted(ctx, sig)
-		})
-
-		// TODO(PR2): Implement headless installation orchestration
-		err := fmt.Errorf("headless installation is not yet fully implemented - coming in a future release")
-
-		if err != nil {
-			// Check if this is an interrupt error from the terminal
-			if errors.Is(err, terminal.InterruptErr) {
-				metricsReporter.ReportSignalAborted(ctx, syscall.SIGINT)
-			} else {
-				metricsReporter.ReportInstallationFailed(ctx, err)
-			}
-			return err
-		}
-		metricsReporter.ReportInstallationSucceeded(ctx)
-
-		return nil
+		return runV3InstallHeadless(ctx, cancel, flags, apiConfig, metricsReporter)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
