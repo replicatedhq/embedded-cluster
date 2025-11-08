@@ -27,7 +27,7 @@ type apiChannelRelease struct {
 }
 
 func getCurrentAppChannelRelease(ctx context.Context, license *licensewrapper.LicenseWrapper, channelID string) (*apiChannelRelease, error) {
-	if license == nil {
+	if license.IsEmpty() {
 		return nil, fmt.Errorf("license is required")
 	}
 

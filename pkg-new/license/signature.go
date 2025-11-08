@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 var (
@@ -73,9 +74,39 @@ swIDAQAB
 -----END PUBLIC KEY-----`), // Staging
 }
 
-// VerifySignature verifies the cryptographic signature of a license.
+// VerifySignature verifies the cryptographic signature of a license wrapper.
+// It handles both v1beta1 and v1beta2 licenses, using the appropriate verification method for each.
+// Returns a new wrapper with the verified license, or an error if verification fails.
+func VerifySignature(wrapper *licensewrapper.LicenseWrapper) (*licensewrapper.LicenseWrapper, error) {
+	if wrapper == nil || wrapper.IsEmpty() {
+		// Empty wrapper doesn't need verification
+		return wrapper, nil
+	}
+
+	if wrapper.IsV1() {
+		// Verify v1beta1 license using verifyV1Signature
+		verifiedLicense, err := verifyV1Signature(wrapper.V1)
+		if err != nil {
+			return nil, err
+		}
+		return &licensewrapper.LicenseWrapper{V1: verifiedLicense}, nil
+	}
+
+	// v1beta2 licenses have their own signature validation
+	if wrapper.IsV2() {
+		_, err := wrapper.V2.ValidateLicense()
+		if err != nil {
+			return nil, fmt.Errorf("v1beta2 license validation failed: %w", err)
+		}
+		return wrapper, nil
+	}
+
+	return wrapper, nil
+}
+
+// verifyV1Signature verifies the cryptographic signature of a v1beta1 license.
 // It returns the verified license with the signature field populated, or an error if verification fails.
-func VerifySignature(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
+func verifyV1Signature(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 	outerSignature := &OuterSignature{}
 	if err := json.Unmarshal(license.Spec.Signature, outerSignature); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal license outer signature: %w", err)

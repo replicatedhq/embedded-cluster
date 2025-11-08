@@ -12,28 +12,28 @@ import (
 
 // Helper methods for direct access (used by tests and other code)
 func (e *Engine) LicenseAppSlug() string {
-	if e.license == nil {
+	if e.license.IsEmpty() {
 		return ""
 	}
 	return e.license.GetAppSlug()
 }
 
 func (e *Engine) LicenseID() string {
-	if e.license == nil {
+	if e.license.IsEmpty() {
 		return ""
 	}
 	return e.license.GetLicenseID()
 }
 
 func (e *Engine) LicenseIsEmbeddedClusterDownloadEnabled() bool {
-	if e.license == nil {
+	if e.license.IsEmpty() {
 		return false
 	}
 	return e.license.IsEmbeddedClusterDownloadEnabled()
 }
 
 func (e *Engine) licenseFieldValue(name string) (string, error) {
-	if e.license == nil || (e.license.V1 == nil && e.license.V2 == nil) {
+	if e.license.IsEmpty() {
 		return "", fmt.Errorf("license is nil")
 	}
 
@@ -92,7 +92,7 @@ func (e *Engine) licenseFieldValue(name string) (string, error) {
 }
 
 func (e *Engine) licenseDockerCfg() (string, error) {
-	if e.license == nil || (e.license.V1 == nil && e.license.V2 == nil) {
+	if e.license.IsEmpty() {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {
@@ -141,7 +141,7 @@ func getRegistryProxyInfo(releaseData *release.ReleaseData) *registryProxyInfo {
 }
 
 func (e *Engine) channelName() (string, error) {
-	if e.license == nil || (e.license.V1 == nil && e.license.V2 == nil) {
+	if e.license.IsEmpty() {
 		return "", fmt.Errorf("license is nil")
 	}
 	if e.releaseData == nil {

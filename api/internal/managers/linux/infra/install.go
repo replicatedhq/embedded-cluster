@@ -73,7 +73,7 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 }
 
 func (m *infraManager) initInstallComponentsList(license *licensewrapper.LicenseWrapper) error {
-	if license == nil {
+	if license.IsEmpty() {
 		return fmt.Errorf("license is required for component initialization")
 	}
 
@@ -296,7 +296,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 }
 
 func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
-	if license == nil {
+	if license.IsEmpty() {
 		return addons.InstallOptions{}, fmt.Errorf("license is required for addon installation")
 	}
 

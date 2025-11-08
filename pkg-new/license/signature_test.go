@@ -2,10 +2,13 @@ package license
 
 import (
 	"embed"
+	"encoding/json"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,45 +16,88 @@ import (
 //go:embed testdata/*
 var testdata embed.FS
 
-func loadLicenseFromTestdata(t *testing.T, filename string) *kotsv1beta1.License {
+func loadLicenseFromTestdata(t *testing.T, filename string) *licensewrapper.LicenseWrapper {
 	t.Helper()
 
 	licenseBytes, err := testdata.ReadFile(filename)
 	require.NoError(t, err)
 
-	license, err := helpers.ParseLicenseFromBytes(licenseBytes)
+	wrapper, err := helpers.ParseLicenseFromBytes(licenseBytes)
 	require.NoError(t, err)
 
-	return license
+	return wrapper
 }
 
 func Test_VerifySignature(t *testing.T) {
 	tests := []struct {
 		name          string
 		licenseFile   string
-		modifyLicense func(*kotsv1beta1.License)
+		wrapper       *licensewrapper.LicenseWrapper
+		modifyLicense func(*licensewrapper.LicenseWrapper)
 		expectError   bool
 		errorContains string
 	}{
 		{
-			name:        "valid signature passes verification",
+			name:        "v1beta1: valid signature passes verification",
 			licenseFile: "testdata/valid-license.yaml",
 			expectError: false,
 		},
 		{
-			name:        "tampered license fails verification",
+			name:        "v1beta1: tampered license fails verification",
 			licenseFile: "testdata/valid-license.yaml",
-			modifyLicense: func(license *kotsv1beta1.License) {
-				license.Spec.LicenseID = license.Spec.LicenseID + "-modified"
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.LicenseID = wrapper.V1.Spec.LicenseID + "-modified"
 			},
 			expectError:   true,
 			errorContains: `"licenseID" field has changed`,
 		},
 		{
-			name:          "invalid signature fails verification",
+			name:          "v1beta1: invalid signature fails verification",
 			licenseFile:   "testdata/invalid-signature.yaml",
 			expectError:   true,
 			errorContains: "signature is invalid",
+		},
+		{
+			name:        "nil wrapper returns nil",
+			wrapper:     nil,
+			expectError: false,
+		},
+		{
+			name:        "empty wrapper returns wrapper",
+			wrapper:     &licensewrapper.LicenseWrapper{},
+			expectError: false,
+		},
+		{
+			name:        "v1beta2: valid signature passes verification",
+			licenseFile: "testdata/valid-license-v2.yaml",
+			expectError: false,
+		},
+
+
+
+
+
+
+
+
+
+
+		{
+			name: "v1beta2: invalid signature fails verification",
+			wrapper: &licensewrapper.LicenseWrapper{
+				V2: &kotsv1beta2.License{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "kots.io/v1beta2",
+						Kind:       "License",
+					},
+					Spec: kotsv1beta2.LicenseSpec{
+						LicenseID: "test-license-v2",
+						Signature: json.RawMessage(`{"invalid": "signature"}`),
+					},
+				},
+			},
+			expectError:   true,
+			errorContains: "v1beta2 license validation failed",
 		},
 	}
 
@@ -59,13 +105,18 @@ func Test_VerifySignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			license := loadLicenseFromTestdata(t, tt.licenseFile)
-
-			if tt.modifyLicense != nil {
-				tt.modifyLicense(license)
+			var wrapper *licensewrapper.LicenseWrapper
+			if tt.licenseFile != "" {
+				wrapper = loadLicenseFromTestdata(t, tt.licenseFile)
+			} else if tt.wrapper != nil || tt.name == "nil wrapper returns nil" {
+				wrapper = tt.wrapper
 			}
 
-			verifiedLicense, err := VerifySignature(license)
+			if tt.modifyLicense != nil {
+				tt.modifyLicense(wrapper)
+			}
+
+			verifiedWrapper, err := VerifySignature(wrapper)
 
 			if tt.expectError {
 				req.Error(err)
@@ -74,7 +125,9 @@ func Test_VerifySignature(t *testing.T) {
 				}
 			} else {
 				req.NoError(err)
-				req.NotNil(verifiedLicense)
+				if wrapper != nil {
+					req.NotNil(verifiedWrapper)
+				}
 			}
 		})
 	}

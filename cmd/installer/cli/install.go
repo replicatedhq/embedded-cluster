@@ -376,7 +376,7 @@ func addManagementConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 func buildMetricsReporter(cmd *cobra.Command, installCfg *installConfig) *installReporter {
 	return newInstallReporter(
 		replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-		installCfg.license.Spec.LicenseID, installCfg.clusterID, installCfg.license.Spec.AppSlug,
+		installCfg.license.GetLicenseID(), installCfg.clusterID, installCfg.license.GetAppSlug(),
 	)
 }
 
@@ -1430,7 +1430,7 @@ func maybePromptForAppUpdate(ctx context.Context, prompt prompts.Prompt, license
 		return nil
 	}
 
-	if license == nil || license.GetLicenseID() == "" {
+	if license.IsEmpty() || license.GetLicenseID() == "" {
 		return errors.New("license required")
 	}
 

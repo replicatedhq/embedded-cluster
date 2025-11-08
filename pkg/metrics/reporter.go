@@ -34,7 +34,7 @@ func (e ErrorNoFail) Error() string {
 
 // LicenseID returns the license id from a LicenseWrapper.
 func LicenseID(license *licensewrapper.LicenseWrapper) string {
-	if license == nil {
+	if license.IsEmpty() {
 		return ""
 	}
 	return license.GetLicenseID()

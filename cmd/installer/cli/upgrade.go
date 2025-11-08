@@ -129,7 +129,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			}
 
 			// Verify license is available for metrics reporting
-			if upgradeConfig.license == nil {
+			if upgradeConfig.license.IsEmpty() {
 				return fmt.Errorf("license is required for upgrade")
 			}
 

@@ -81,7 +81,7 @@ func defaultNewClient(replicatedAppURL string, license *licensewrapper.LicenseWr
 
 // SyncLicense fetches the latest license from the Replicated API
 func (c *client) SyncLicense(ctx context.Context) (*licensewrapper.LicenseWrapper, []byte, error) {
-	if c.license == nil {
+	if c.license.IsEmpty() {
 		return nil, nil, fmt.Errorf("no license configured")
 	}
 
@@ -150,7 +150,7 @@ func (c *client) newRetryableRequest(ctx context.Context, method string, url str
 
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
 func (c *client) injectHeaders(header http.Header) {
-	if c.license == nil {
+	if c.license.IsEmpty() {
 		return
 	}
 	licenseID := c.license.GetLicenseID()
@@ -169,7 +169,7 @@ func (c *client) getChannelFromLicense() (*kotsv1beta1.Channel, error) {
 	if c.releaseData == nil || c.releaseData.ChannelRelease == nil || c.releaseData.ChannelRelease.ChannelID == "" {
 		return nil, fmt.Errorf("channel release is empty")
 	}
-	if c.license == nil || c.license.GetLicenseID() == "" {
+	if c.license.IsEmpty() || c.license.GetLicenseID() == "" {
 		return nil, fmt.Errorf("license is empty")
 	}
 

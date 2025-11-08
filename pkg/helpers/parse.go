@@ -49,7 +49,7 @@ func ParseLicense(fpath string) (*licensewrapper.LicenseWrapper, error) {
 func ParseLicenseFromBytes(data []byte) (*licensewrapper.LicenseWrapper, error) {
 	wrapper, err := licensewrapper.LoadLicenseFromBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load license: %w", err)
+		return nil, ErrNotALicenseFile{Err: fmt.Errorf("failed to load license: %w", err)}
 	}
 	return &wrapper, nil
 }

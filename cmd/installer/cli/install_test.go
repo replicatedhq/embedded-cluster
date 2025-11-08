@@ -20,7 +20,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
@@ -669,8 +668,8 @@ spec:
 				if tt.expectLicense {
 					assert.NotEmpty(t, installCfg.licenseBytes, "License bytes should be populated")
 					assert.NotNil(t, installCfg.license, "License should be parsed")
-					assert.Equal(t, "test-license-id", installCfg.license.Spec.LicenseID)
-					assert.Equal(t, "test-app", installCfg.license.Spec.AppSlug)
+					assert.Equal(t, "test-license-id", installCfg.license.GetLicenseID())
+					assert.Equal(t, "test-app", installCfg.license.GetAppSlug())
 				} else {
 					assert.Empty(t, installCfg.licenseBytes, "License bytes should be empty")
 					assert.Nil(t, installCfg.license, "License should be nil")
@@ -1221,12 +1220,12 @@ func Test_buildMetricsReporter(t *testing.T) {
 				return cmd
 			}(),
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-123",
 						AppSlug:   "my-app",
 					},
-				},
+				}},
 				clusterID: "cluster-456",
 			},
 			validate: func(t *testing.T, reporter *installReporter) {
@@ -1244,12 +1243,12 @@ func Test_buildMetricsReporter(t *testing.T) {
 				return cmd
 			}(),
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-789",
 						AppSlug:   "simple-app",
 					},
-				},
+				}},
 				clusterID: "cluster-012",
 			},
 			validate: func(t *testing.T, reporter *installReporter) {
@@ -1471,11 +1470,11 @@ func Test_buildKotsInstallOptions(t *testing.T) {
 		{
 			name: "all options set",
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						AppSlug: "my-app",
 					},
-				},
+				}},
 				licenseBytes: []byte("license-data"),
 				clusterID:    "test-cluster-id",
 			},
@@ -1502,11 +1501,11 @@ func Test_buildKotsInstallOptions(t *testing.T) {
 		{
 			name: "minimal options",
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						AppSlug: "simple-app",
 					},
-				},
+				}},
 				licenseBytes: []byte("license-data"),
 				clusterID:    "cluster-123",
 			},
@@ -1578,12 +1577,12 @@ spec:
 			},
 			installCfg: &installConfig{
 				clusterID: "cluster-123",
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       true,
 						IsEmbeddedClusterMultiNodeEnabled: true,
 					},
-				},
+				}},
 				tlsCertBytes: []byte("cert-data"),
 				tlsKeyBytes:  []byte("key-data"),
 				endUserConfig: &ecv1beta1.Config{
@@ -1646,12 +1645,12 @@ spec:
 			},
 			installCfg: &installConfig{
 				clusterID: "cluster-456",
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: false,
 					},
-				},
+				}},
 				tlsCertBytes: []byte("cert-data"),
 				tlsKeyBytes:  []byte("key-data"),
 			},
@@ -1843,11 +1842,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-123",
 				isAirgap:  true,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				airgapMetadata: &airgap.AirgapMetadata{
 					AirgapInfo: &kotsv1beta1.Airgap{
 						Spec: kotsv1beta1.AirgapSpec{
@@ -1886,11 +1885,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-456",
 				isAirgap:  true,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				airgapMetadata: &airgap.AirgapMetadata{
 					AirgapInfo: nil,
 				},
@@ -1906,11 +1905,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-789",
 				isAirgap:  false,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				endUserConfig: &ecv1beta1.Config{
 					Spec: ecv1beta1.ConfigSpec{},
 				},
@@ -1927,11 +1926,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-abc",
 				isAirgap:  false,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 			},
 			rc: runtimeconfig.New(nil),
 			validate: func(t *testing.T, opts kubeutils.RecordInstallationOptions) {
