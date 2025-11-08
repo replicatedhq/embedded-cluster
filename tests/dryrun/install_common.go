@@ -67,19 +67,8 @@ func validateCustomCIDR(t *testing.T, dr *types.DryRun, hcli *helm.MockClient) {
 	assert.Contains(t, noProxy, "10.2.128.0/17")
 
 	// --- validate cidrs in NO_PROXY Helm value of operator chart --- //
-	var operatorOpts helm.InstallOptions
-	foundOperator := false
-	for _, call := range hcli.Calls {
-		if call.Method == "Install" {
-			opts := call.Arguments[1].(helm.InstallOptions)
-			if opts.ReleaseName == "embedded-cluster-operator" {
-				operatorOpts = opts
-				foundOperator = true
-				break
-			}
-		}
-	}
-	require.True(t, foundOperator, "embedded-cluster-operator install call not found")
+	operatorOpts, foundOperator := isHelmReleaseInstalled(hcli, "embedded-cluster-operator")
+	require.True(t, foundOperator, "embedded-cluster-operator helm release should be installed")
 
 	found := false
 	for _, env := range operatorOpts.Values["extraEnv"].([]map[string]any) {
@@ -94,38 +83,16 @@ func validateCustomCIDR(t *testing.T, dr *types.DryRun, hcli *helm.MockClient) {
 	assert.True(t, found, "NO_PROXY env var not found in operator opts")
 
 	// --- validate custom cidr was used for registry service cluster IP --- //
-	var registryOpts helm.InstallOptions
-	foundRegistry := false
-	for _, call := range hcli.Calls {
-		if call.Method == "Install" {
-			opts := call.Arguments[1].(helm.InstallOptions)
-			if opts.ReleaseName == "docker-registry" {
-				registryOpts = opts
-				foundRegistry = true
-				break
-			}
-		}
-	}
-	require.True(t, foundRegistry, "docker-registry install call not found")
+	registryOpts, foundRegistry := isHelmReleaseInstalled(hcli, "docker-registry")
+	require.True(t, foundRegistry, "docker-registry helm release should be installed")
 
 	assertHelmValues(t, registryOpts.Values, map[string]any{
 		"service.clusterIP": expectedRegistryIP,
 	})
 
 	// --- validate cidrs in NO_PROXY Helm value of velero chart --- //
-	var veleroOpts helm.InstallOptions
-	foundVelero := false
-	for _, call := range hcli.Calls {
-		if call.Method == "Install" {
-			opts := call.Arguments[1].(helm.InstallOptions)
-			if opts.ReleaseName == "velero" {
-				veleroOpts = opts
-				foundVelero = true
-				break
-			}
-		}
-	}
-	require.True(t, foundVelero, "velero install call not found")
+	veleroOpts, foundVelero := isHelmReleaseInstalled(hcli, "velero")
+	require.True(t, foundVelero, "velero helm release should be installed")
 
 	found = false
 	extraEnvVars, err := helm.GetValue(veleroOpts.Values, "configuration.extraEnvVars")
@@ -143,19 +110,8 @@ func validateCustomCIDR(t *testing.T, dr *types.DryRun, hcli *helm.MockClient) {
 	assert.True(t, found, "NO_PROXY env var not found in velero opts")
 
 	// --- validate cidrs in NO_PROXY Helm value of admin console chart --- //
-	var adminConsoleOpts helm.InstallOptions
-	foundAdminConsole := false
-	for _, call := range hcli.Calls {
-		if call.Method == "Install" {
-			opts := call.Arguments[1].(helm.InstallOptions)
-			if opts.ReleaseName == "admin-console" {
-				adminConsoleOpts = opts
-				foundAdminConsole = true
-				break
-			}
-		}
-	}
-	require.True(t, foundAdminConsole, "admin-console install call not found")
+	adminConsoleOpts, foundAdminConsole := isHelmReleaseInstalled(hcli, "admin-console")
+	require.True(t, foundAdminConsole, "admin-console helm release should be installed")
 
 	found = false
 	for _, env := range adminConsoleOpts.Values["extraEnv"].([]map[string]any) {

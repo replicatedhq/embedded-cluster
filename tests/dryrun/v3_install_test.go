@@ -8,7 +8,9 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +18,10 @@ import (
 )
 
 func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
-	licenseFile, configFile := setupV3HeadlessTest(t, nil)
+	hcli := setupV3HeadlessTestHelmClient()
+	licenseFile, configFile := setupV3HeadlessTest(t, hcli)
+
+	adminConsoleNamespace := "fake-app-slug"
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -29,14 +34,82 @@ func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 		"--yes",
 	)
 
-	// Expect the command to fail with the specific error message
 	require.NoError(t, err, "headless installation should succeed")
 
-	t.Logf("Test passed: headless installation correctly returns not implemented error")
+	// Load dryrun output to validate registry resources are NOT created
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "failed to load dryrun output")
+
+	kcli, err := dr.KubeClient()
+	require.NoError(t, err, "failed to get kube client")
+
+	// Validate Installation object has correct AirGap settings
+	in, err := kubeutils.GetLatestInstallation(t.Context(), kcli)
+	require.NoError(t, err, "failed to get latest installation")
+	assert.False(t, in.Spec.AirGap, "Installation.Spec.AirGap should be false for online installations")
+	assert.Equal(t, int64(0), in.Spec.AirgapUncompressedSize, "Installation.Spec.AirgapUncompressedSize should be 0 for online installations")
+
+	// Validate that HTTP collectors are present in host preflight spec for online installations
+	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
+		match    func(*troubleshootv1beta2.HostCollect) bool
+		validate func(*troubleshootv1beta2.HostCollect)
+	}{
+		"http-replicated-app": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.NotEmpty(t, hc.HTTP.Get.URL, "http-replicated-app collector should have a URL")
+				assert.Equal(t, "false", hc.HTTP.Exclude.String(), "http-replicated-app collector should not be excluded in online installations")
+			},
+		},
+		"http-proxy-replicated-com": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.NotEmpty(t, hc.HTTP.Get.URL, "http-proxy-replicated-com collector should have a URL")
+				assert.Equal(t, "false", hc.HTTP.Exclude.String(), "http-proxy-replicated-com collector should not be excluded in online installations")
+			},
+		},
+	})
+
+	// Validate that embedded-cluster-path-usage collector is NOT present for online installations
+	// This collector is only needed for airgap installations to check disk space for bundle processing
+	for _, analyzer := range dr.HostPreflightSpec.Analyzers {
+		if analyzer.DiskUsage != nil && analyzer.DiskUsage.CheckName == "Airgap Storage Space" {
+			assert.Fail(t, "Airgap Storage Space analyzer should not be present in online installations")
+		}
+	}
+
+	// Validate that registry addon is NOT installed for online installations
+	_, found := isHelmReleaseInstalled(hcli, "docker-registry")
+	require.False(t, found, "docker-registry helm release should not be installed")
+
+	// Validate that isAirgap helm value is set to false in admin console chart
+	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
+	require.True(t, found, "admin-console helm release should be installed")
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"isAirgap": false,
+	})
+
+	// Validate that isAirgap helm value is not set in embedded-cluster-operator chart for online installations
+	operatorOpts, found := isHelmReleaseInstalled(hcli, "embedded-cluster-operator")
+	require.True(t, found, "embedded-cluster-operator helm release should be installed")
+	_, hasIsAirgap := operatorOpts.Values["isAirgap"]
+	assert.False(t, hasIsAirgap, "embedded-cluster-operator should not have isAirgap helm value for online installations")
+
+	// Validate that registry-creds secret is NOT created for online installations
+	assertSecretNotExists(t, kcli, "registry-creds", adminConsoleNamespace)
+
+	t.Logf("Test passed: headless online installation does not create registry addon or registry-creds secret")
 }
 
 func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
-	licenseFile, configFile := setupV3HeadlessTest(t, nil)
+	hcli := setupV3HeadlessTestHelmClient()
+	licenseFile, configFile := setupV3HeadlessTest(t, hcli)
+
+	adminConsoleNamespace := "fake-app-slug"
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -50,10 +123,85 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 		"--yes",
 	)
 
-	// Expect the command to fail with the specific error message
 	require.NoError(t, err, "headless installation should succeed")
 
-	t.Logf("Test passed: headless installation correctly returns not implemented error")
+	// Load dryrun output to validate registry resources ARE created
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "failed to load dryrun output")
+
+	kcli, err := dr.KubeClient()
+	require.NoError(t, err, "failed to get kube client")
+
+	// Validate Installation object has correct AirGap settings
+	in, err := kubeutils.GetLatestInstallation(t.Context(), kcli)
+	require.NoError(t, err, "failed to get latest installation")
+	assert.True(t, in.Spec.AirGap, "Installation.Spec.AirGap should be true for airgap installations")
+	assert.Greater(t, in.Spec.AirgapUncompressedSize, int64(0), "Installation.Spec.AirgapUncompressedSize should be greater than 0 for airgap installations")
+
+	// Validate that HTTP collectors are NOT present in host preflight spec for airgap installations
+	// These collectors check connectivity to replicated.app and proxy.replicated.com which are excluded in airgap mode
+	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
+		match    func(*troubleshootv1beta2.HostCollect) bool
+		validate func(*troubleshootv1beta2.HostCollect)
+	}{
+		"http-replicated-app": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-replicated-app"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.NotEmpty(t, hc.HTTP.Get.URL, "http-replicated-app collector should have a URL")
+				assert.Equal(t, "true", hc.HTTP.Exclude.String(), "http-replicated-app collector should be excluded in online installations")
+			},
+		},
+		"http-proxy-replicated-com": {
+			match: func(hc *troubleshootv1beta2.HostCollect) bool {
+				return hc.HTTP != nil && hc.HTTP.CollectorName == "http-proxy-replicated-com"
+			},
+			validate: func(hc *troubleshootv1beta2.HostCollect) {
+				assert.NotEmpty(t, hc.HTTP.Get.URL, "http-proxy-replicated-com collector should have a URL")
+				assert.Equal(t, "true", hc.HTTP.Exclude.String(), "http-proxy-replicated-com collector should be excluded in online installations")
+			},
+		},
+	})
+
+	// Validate that Airgap Storage Space analyzer IS present for airgap installations
+	// This analyzer checks if there's sufficient disk space to process the airgap bundle
+	assertAnalyzers(t, dr.HostPreflightSpec.Analyzers, map[string]struct {
+		match    func(*troubleshootv1beta2.HostAnalyze) bool
+		validate func(*troubleshootv1beta2.HostAnalyze)
+	}{
+		"Airgap Storage Space": {
+			match: func(hc *troubleshootv1beta2.HostAnalyze) bool {
+				return hc.DiskUsage != nil && hc.DiskUsage.CheckName == "Airgap Storage Space"
+			},
+			validate: func(hc *troubleshootv1beta2.HostAnalyze) {
+				assert.Equal(t, "Airgap Storage Space", hc.DiskUsage.CheckName, "Airgap Storage Space analyzer should check airgap storage space")
+			},
+		},
+	})
+
+	// Validate that registry addon IS installed for airgap installations
+	_, found := isHelmReleaseInstalled(hcli, "docker-registry")
+	require.True(t, found, "docker-registry helm release should be installed")
+
+	// Validate that isAirgap helm value is set to true in admin console chart
+	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
+	require.True(t, found, "admin-console helm release should be installed")
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+		"isAirgap": true,
+	})
+
+	// Validate that isAirgap helm value is set to "true" in embedded-cluster-operator chart for airgap installations
+	operatorOpts, found := isHelmReleaseInstalled(hcli, "embedded-cluster-operator")
+	require.True(t, found, "embedded-cluster-operator helm release should be installed")
+	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
+		"isAirgap": "true",
+	})
+
+	// Validate that registry-creds secret IS created for airgap installations
+	assertSecretExists(t, kcli, "registry-creds", adminConsoleNamespace)
+
+	t.Logf("Test passed: headless airgap installation creates registry addon and registry-creds secret")
 }
 
 func TestV3InstallHeadless_Metrics(t *testing.T) {

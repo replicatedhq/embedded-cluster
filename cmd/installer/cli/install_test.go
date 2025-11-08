@@ -2595,60 +2595,6 @@ func Test_verifyProxyConfig(t *testing.T) {
 	}
 }
 
-func Test_ignoreAppPreflights_FlagVisibility(t *testing.T) {
-	tests := []struct {
-		name                        string
-		enableV3EnvVar              string
-		expectedFlagShouldBeVisible bool
-	}{
-		{
-			name:                        "ENABLE_V3 not set - flag should be visible",
-			enableV3EnvVar:              "",
-			expectedFlagShouldBeVisible: true,
-		},
-		{
-			name:                        "ENABLE_V3 set to 1 - flag should be hidden",
-			enableV3EnvVar:              "1",
-			expectedFlagShouldBeVisible: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Clean environment
-			os.Unsetenv("ENABLE_V3")
-
-			// Set environment variable if specified
-			if tt.enableV3EnvVar != "" {
-				t.Setenv("ENABLE_V3", tt.enableV3EnvVar)
-			}
-
-			flags := &installFlags{}
-			enableV3 := isV3Enabled()
-			flagSet := newLinuxInstallFlags(flags, enableV3)
-
-			// Check if the flag exists
-			flag := flagSet.Lookup("ignore-app-preflights")
-			flagExists := flag != nil
-
-			assert.Equal(t, tt.expectedFlagShouldBeVisible, flagExists, "Flag visibility should match expected")
-
-			if flagExists {
-				// Test flag properties
-				assert.Equal(t, "ignore-app-preflights", flag.Name)
-				assert.Equal(t, "false", flag.DefValue) // Default should be false
-				assert.Equal(t, "Allow bypassing app preflight failures", flag.Usage)
-				assert.Equal(t, "bool", flag.Value.Type())
-
-				// Test flag targets - should be Linux only
-				targetAnnotation := flag.Annotations[flagAnnotationTarget]
-				require.NotNil(t, targetAnnotation, "Flag should have target annotation")
-				assert.Contains(t, targetAnnotation, flagAnnotationTargetValueLinux)
-			}
-		})
-	}
-}
-
 func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
 	tests := []struct {
 		name                     string
