@@ -75,8 +75,8 @@ swIDAQAB
 }
 
 // VerifySignature verifies the cryptographic signature of a license wrapper.
-// It handles both v1beta1 and v1beta2 licenses, using the appropriate verification method for each.
-// Returns a new wrapper with the verified license, or an error if verification fails.
+// It handles both v1beta1 and v1beta2 licenses by delegating to their ValidateLicense methods.
+// Returns the wrapper unchanged if validation succeeds, or an error if validation fails.
 func VerifySignature(wrapper *licensewrapper.LicenseWrapper) (*licensewrapper.LicenseWrapper, error) {
 	if wrapper == nil || wrapper.IsEmpty() {
 		// Empty wrapper doesn't need verification
@@ -84,15 +84,13 @@ func VerifySignature(wrapper *licensewrapper.LicenseWrapper) (*licensewrapper.Li
 	}
 
 	if wrapper.IsV1() {
-		// Verify v1beta1 license using verifyV1Signature
-		verifiedLicense, err := verifyV1Signature(wrapper.V1)
+		_, err := wrapper.V1.ValidateLicense()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("v1beta1 license validation failed: %w", err)
 		}
-		return &licensewrapper.LicenseWrapper{V1: verifiedLicense}, nil
+		return wrapper, nil
 	}
 
-	// v1beta2 licenses have their own signature validation
 	if wrapper.IsV2() {
 		_, err := wrapper.V2.ValidateLicense()
 		if err != nil {
@@ -102,58 +100,6 @@ func VerifySignature(wrapper *licensewrapper.LicenseWrapper) (*licensewrapper.Li
 	}
 
 	return wrapper, nil
-}
-
-// verifyV1Signature verifies the cryptographic signature of a v1beta1 license.
-// It returns the verified license with the signature field populated, or an error if verification fails.
-func verifyV1Signature(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
-	outerSignature := &OuterSignature{}
-	if err := json.Unmarshal(license.Spec.Signature, outerSignature); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal license outer signature: %w", err)
-	}
-
-	isOldFormat := len(outerSignature.InnerSignature) == 0
-	if isOldFormat {
-		return verifyOldSignature(license)
-	}
-
-	innerSignature := &InnerSignature{}
-	if err := json.Unmarshal(outerSignature.InnerSignature, innerSignature); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal license inner signature: %w", err)
-	}
-
-	keySignature := &KeySignature{}
-	if err := json.Unmarshal(innerSignature.KeySignature, keySignature); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal key signature: %w", err)
-	}
-
-	globalKeyPEM, ok := PublicKeys[keySignature.GlobalKeyId]
-	if !ok {
-		return nil, fmt.Errorf("unknown global key")
-	}
-
-	// verify that the app public key is properly signed with a replicated private key
-	if err := verifyRSAPSS([]byte(innerSignature.PublicKey), keySignature.Signature, globalKeyPEM); err != nil {
-		return nil, fmt.Errorf("failed to verify key signature: %w", err)
-	}
-
-	// verify that the license data is properly signed with the app private key
-	if err := verifyRSAPSS(outerSignature.LicenseData, innerSignature.LicenseSignature, []byte(innerSignature.PublicKey)); err != nil {
-		return nil, fmt.Errorf("failed to verify license signature: %w", err)
-	}
-
-	verifiedLicense := &kotsv1beta1.License{}
-	if err := json.Unmarshal(outerSignature.LicenseData, verifiedLicense); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal license data: %w", err)
-	}
-
-	if err := verifyLicenseData(license, verifiedLicense); err != nil {
-		return nil, LicenseDataError{message: err.Error()}
-	}
-
-	verifiedLicense.Spec.Signature = license.Spec.Signature
-
-	return verifiedLicense, nil
 }
 
 // verifyRSAPSS verifies an RSA-PSS signature using MD5 hashing

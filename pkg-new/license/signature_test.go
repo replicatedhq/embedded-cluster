@@ -55,7 +55,7 @@ func Test_VerifySignature(t *testing.T) {
 			name:          "v1beta1: invalid signature fails verification",
 			licenseFile:   "testdata/invalid-signature.yaml",
 			expectError:   true,
-			errorContains: "signature is invalid",
+			errorContains: "verification error",
 		},
 		{
 			name:        "nil wrapper returns nil",
