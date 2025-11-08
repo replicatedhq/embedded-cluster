@@ -12,8 +12,8 @@ var _ replicatedapi.Client = (*ReplicatedAPIClient)(nil)
 
 // ReplicatedAPIClient is a mockable implementation of the replicatedapi.Client interface.
 type ReplicatedAPIClient struct {
-	License      *licensewrapper.LicenseWrapper
-	LicenseBytes []byte
+	License         *licensewrapper.LicenseWrapper
+	LicenseBytes    []byte
 	PendingReleases []replicatedapi.ChannelRelease
 }
 

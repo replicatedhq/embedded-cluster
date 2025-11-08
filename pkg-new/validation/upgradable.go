@@ -9,7 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-  "github.com/replicatedhq/kotskinds/pkg/licensewrapper"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 // k8sBuildRegex holds the regex pattern we use for the build portion of our EC version - i.e. 2.11.3+k8s-1.33

@@ -73,15 +73,6 @@ func Test_VerifySignature(t *testing.T) {
 			expectError: false,
 		},
 
-
-
-
-
-
-
-
-
-
 		{
 			name: "v1beta2: invalid signature fails verification",
 			wrapper: &licensewrapper.LicenseWrapper{
