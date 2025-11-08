@@ -270,6 +270,24 @@ func assertSecretExists(t *testing.T, kcli client.Client, name string, namespace
 	assert.NoError(t, err, "failed to get secret %s in namespace %s", name, namespace)
 }
 
+func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	var secret corev1.Secret
+	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
+	assert.Error(t, err, "secret %s should not exist in namespace %s", name, namespace)
+}
+
+func isHelmReleaseInstalled(hcli *helm.MockClient, releaseName string) (helm.InstallOptions, bool) {
+	for _, call := range hcli.Calls {
+		if call.Method == "Install" {
+			opts := call.Arguments[1].(helm.InstallOptions)
+			if opts.ReleaseName == releaseName {
+				return opts, true
+			}
+		}
+	}
+	return helm.InstallOptions{}, false
+}
+
 func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expectedValues map[string]interface{}) {
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)

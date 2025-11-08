@@ -89,7 +89,7 @@ func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 	// Validate that isAirgap helm value is set to false in admin console chart
 	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
 	require.True(t, found, "admin-console helm release should be installed")
-	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"isAirgap": false,
 	})
 
@@ -188,14 +188,14 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 	// Validate that isAirgap helm value is set to true in admin console chart
 	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
 	require.True(t, found, "admin-console helm release should be installed")
-	assertHelmValues(t, adminConsoleOpts.Values, map[string]interface{}{
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
 		"isAirgap": true,
 	})
 
 	// Validate that isAirgap helm value is set to "true" in embedded-cluster-operator chart for airgap installations
 	operatorOpts, found := isHelmReleaseInstalled(hcli, "embedded-cluster-operator")
 	require.True(t, found, "embedded-cluster-operator helm release should be installed")
-	assertHelmValues(t, operatorOpts.Values, map[string]interface{}{
+	assertHelmValues(t, operatorOpts.Values, map[string]any{
 		"isAirgap": "true",
 	})
 
