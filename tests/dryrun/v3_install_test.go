@@ -70,7 +70,6 @@ func TestV3InstallHeadless_Metrics(t *testing.T) {
 		"--yes",
 	)
 
-	// Expect the command to fail with the specific error message
 	require.NoError(t, err, "headless installation should succeed")
 
 	dr, err := dryrun.Load()

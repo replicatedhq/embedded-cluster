@@ -34,7 +34,6 @@ import (
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/configutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -1109,9 +1108,7 @@ func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 		return nil, err
 	}
 
-	// Skip signature verification in dryrun mode since test licenses don't have valid signatures
-	// TODO: assert this is called in dryrun mode
-	if isV3Enabled() && !dryrun.Enabled() {
+	if isV3Enabled() {
 		verifiedLicense, err := licensepkg.VerifySignature(license)
 		if err != nil {
 			return nil, fmt.Errorf("license signature verification failed: %w", err)

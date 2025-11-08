@@ -71,6 +71,16 @@ num6SOF+eBuERXQGbEfnd6eSRVokWhfMCfXNPTYtq14DaK9tvX4uzHsub+Asn6UN
 OBIAESJntpZfdDDrNqbfOQYql2rqx1lJtU7lVFbTQTkKhj4teInEGO6FvLzy0UE9
 swIDAQAB
 -----END PUBLIC KEY-----`), // Staging
+
+	"6f21b4d9865f45b8a15bd884fb4028d2": []byte(`-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwWEoVA/AQhzgG81k4V+C
+7c7xoNKSnP8XKSkuYiCbsYyicsWxMtwExkueVKXvEa/DQm7NCDBOdFQFhFQKzKvn
+Jh2rXnPZn3OyNQ9Ru+4XBi4kOa1V9g5VFSgwbBttuVtWtPZC2B4vdCVXyX4TzLYe
+c0rGbq+obBb4RNKBBGTdoWy+IHlObc5QOpEzubUmJ1VqmCTUyduKeOn24b+TvcmJ
+i5PY1r8iKGhJJOAPt4KjBlIj67uqcGq3N9RA8pHQjn0ZXsfiLOmCeR6kFHbnNr4n
+L7HvoEDR12K2Ci4+n7A/EAowHI/ZywcM7wADcWx4tOERPz0Pm2SUvVCjPVPc0xdN
+KwIDAQAB
+-----END PUBLIC KEY-----`), // Dryrun (test-only, private key in tests/dryrun/assets)
 }
 
 // VerifySignature verifies the cryptographic signature of a license.

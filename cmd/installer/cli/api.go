@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/web"
 	"github.com/sirupsen/logrus"
@@ -116,13 +115,13 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		}
 		apiOpts = append(apiOpts, api.WithHelmClient(hcli))
 
-		kcli, err := kubeutils.KubeClient()
+		kcli, err := dryrun.KubeClient()
 		if err != nil {
 			return fmt.Errorf("create dryrun kube client: %w", err)
 		}
 		apiOpts = append(apiOpts, api.WithKubeClient(kcli))
 
-		metadataClient, err := kubeutils.MetadataClient()
+		metadataClient, err := dryrun.MetadataClient()
 		if err != nil {
 			return fmt.Errorf("create dryrun metadata client: %w", err)
 		}
