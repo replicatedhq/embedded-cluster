@@ -670,7 +670,7 @@ func TestV3InstallHeadless_CustomLocalArtifactMirror(t *testing.T) {
 	t.Logf("Test passed: custom local artifact mirror port correctly propagates to Installation object and host preflights")
 }
 
-func TestV3InstallHeadless_UnsupportedOverrides(t *testing.T) {
+func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 	hcli := setupV3HeadlessTestHelmClient()
 	licenseFile, configFile := setupV3HeadlessTest(t, hcli)
 
@@ -714,7 +714,20 @@ func TestV3InstallHeadless_UnsupportedOverrides(t *testing.T) {
 	sysctls := profileConfig["allowedUnsafeSysctls"].([]any)
 	assert.Equal(t, "net.ipv4.ip_forward", sysctls[0], "allowedUnsafeSysctls should contain net.ipv4.ip_forward from unsupported-overrides")
 
-	t.Logf("Test passed: unsupported overrides correctly apply to k0s cluster config")
+	// Validate controller role name and labels are passed to k0s install command
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "failed to load dryrun output")
+
+	// Find the k0s install controller command and validate labels
+	k0sInstallCmd := findCommand(t, dr.Commands, regexp.MustCompile(`k0s install controller`))
+	require.NotNil(t, k0sInstallCmd, "k0s install controller command should exist")
+
+	// Validate all labels are present (order doesn't matter since they're comma-separated)
+	assert.Regexp(t, `--labels.*test-label-key=test-label-value`, k0sInstallCmd.Cmd, "k0s install command should contain test-label-key label")
+	assert.Regexp(t, `--labels.*another-label=another-value`, k0sInstallCmd.Cmd, "k0s install command should contain another-label label")
+	assert.Regexp(t, `--labels.*kots\.io/embedded-cluster-role-0=test-controller-role`, k0sInstallCmd.Cmd, "k0s install command should contain controller role name label")
+
+	t.Logf("Test passed: cluster config with unsupported overrides, controller role name, and labels correctly apply to k0s cluster config and commands")
 }
 
 var (

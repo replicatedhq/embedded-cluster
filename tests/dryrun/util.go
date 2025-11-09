@@ -258,6 +258,17 @@ func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []inter
 	}
 }
 
+// findCommand finds the first command that matches the regex and returns it
+// if no command is found, it returns nil
+func findCommand(t *testing.T, commands []dryruntypes.Command, regex *regexp.Regexp) *dryruntypes.Command {
+	for _, cmd := range commands {
+		if regex.MatchString(cmd.Cmd) {
+			return &cmd
+		}
+	}
+	return nil
+}
+
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {
 	var cm corev1.ConfigMap
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &cm)

@@ -7,6 +7,12 @@ spec:
  domains:
    replicatedAppDomain: "fake-endpoint.com"
    proxyRegistryDomain: "fake-replicated-proxy.test.net"
+ roles:
+   controller:
+     name: test-controller-role
+     labels:
+       test-label-key: test-label-value
+       another-label: another-value
  unsupportedOverrides:
    k0s: |
      config:
