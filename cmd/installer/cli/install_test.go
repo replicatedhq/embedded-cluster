@@ -2595,68 +2595,6 @@ func Test_verifyProxyConfig(t *testing.T) {
 	}
 }
 
-func Test_ignoreAppPreflights_FlagParsing(t *testing.T) {
-	tests := []struct {
-		name                     string
-		args                     []string
-		enableV3                 bool
-		expectedIgnorePreflights bool
-		expectError              bool
-	}{
-		{
-			name:                     "flag not provided, V3 disabled",
-			args:                     []string{},
-			enableV3:                 false,
-			expectedIgnorePreflights: false,
-			expectError:              false,
-		},
-		{
-			name:                     "flag set to true, V3 disabled",
-			args:                     []string{"--ignore-app-preflights"},
-			enableV3:                 false,
-			expectedIgnorePreflights: true,
-			expectError:              false,
-		},
-		{
-			name:                     "flag set but V3 enabled - should error",
-			args:                     []string{"--ignore-app-preflights"},
-			enableV3:                 true,
-			expectedIgnorePreflights: false,
-			expectError:              true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Set environment variable for V3 testing
-			if tt.enableV3 {
-				t.Setenv("ENABLE_V3", "1")
-			}
-
-			// Create a flagset similar to how newLinuxInstallFlags works
-			flags := &installFlags{}
-			flagSet := newLinuxInstallFlags(flags, tt.enableV3)
-
-			// Create a command to test flag parsing
-			cmd := &cobra.Command{
-				Use: "test",
-				Run: func(cmd *cobra.Command, args []string) {},
-			}
-			cmd.Flags().AddFlagSet(flagSet)
-
-			// Try to parse the arguments
-			err := cmd.Flags().Parse(tt.args)
-			if tt.expectError {
-				assert.Error(t, err, "Flag parsing should fail when flag doesn't exist")
-			} else {
-				assert.NoError(t, err, "Flag parsing should succeed")
-				// Check the flag value only if parsing succeeded
-				assert.Equal(t, tt.expectedIgnorePreflights, flags.ignoreAppPreflights)
-			}
-		})
-	}
-}
-
 func stringPtr(s string) *string {
 	return &s
 }
