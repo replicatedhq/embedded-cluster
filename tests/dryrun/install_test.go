@@ -34,8 +34,8 @@ func testDefaultInstallationImpl(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -233,8 +233,8 @@ func TestCustomDataDir(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -322,8 +322,8 @@ func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -433,8 +433,8 @@ func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 5 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		// 5 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -497,8 +497,8 @@ func TestCustomCidrInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 5 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		// 5 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -692,8 +692,8 @@ oxhVqyhpk86rf0rT5DcD/sBw
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -762,8 +762,8 @@ func TestIgnoreAppPreflightsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 

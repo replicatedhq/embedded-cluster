@@ -25,8 +25,8 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -96,8 +96,8 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 			"hostPath": map[string]any{
 				"path": hostCABundle,
 				"type": "FileOrCreate",
-			},
-		}},
+			}},
+		},
 		"extraVolumeMounts": []map[string]any{{
 			"mountPath": "/certs/ca-certificates.crt",
 			"name":      "host-ca-bundle",
@@ -158,43 +158,47 @@ func TestHTTPProxyWithCABundleConfiguration(t *testing.T) {
 	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
 
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
-		"extraEnv": []map[string]any{
-			{
+		"extraEnv": []any{
+			map[string]any{
 				"name":  "ENABLE_IMPROVED_DR",
 				"value": "true",
 			},
-			{
+			map[string]any{
 				"name":  "SSL_CERT_CONFIGMAP",
 				"value": "kotsadm-private-cas",
 			},
-			{
+			map[string]any{
 				"name":  "HTTP_PROXY",
 				"value": "http://localhost:3128",
 			},
-			{
+			map[string]any{
 				"name":  "HTTPS_PROXY",
 				"value": "https://localhost:3128",
 			},
-			{
+			map[string]any{
 				"name":  "NO_PROXY",
 				"value": noProxy,
 			},
-			{
+			map[string]any{
 				"name":  "SSL_CERT_DIR",
 				"value": "/certs",
 			},
 		},
-		"extraVolumes": []map[string]any{{
-			"name": "host-ca-bundle",
-			"hostPath": map[string]any{
-				"path": hostCABundle,
-				"type": "FileOrCreate",
+		"extraVolumes": []any{
+			map[string]any{
+				"name": "host-ca-bundle",
+				"hostPath": map[string]any{
+					"path": hostCABundle,
+					"type": "FileOrCreate",
+				},
 			},
-		}},
-		"extraVolumeMounts": []map[string]any{{
-			"mountPath": "/certs/ca-certificates.crt",
-			"name":      "host-ca-bundle",
-		}},
+		},
+		"extraVolumeMounts": []any{
+			map[string]any{
+				"mountPath": "/certs/ca-certificates.crt",
+				"name":      "host-ca-bundle",
+			},
+		},
 	})
 
 	// --- validate environment variables --- //
@@ -249,8 +253,8 @@ func TestHTTPProxyValidateEnvVarsFromFlags(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -297,8 +301,8 @@ func TestHTTPProxyValidateEnvVarsPrecedence(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 

@@ -303,7 +303,7 @@ func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expecte
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedValue, actualValue)
+		assert.Equal(t, expectedValue, actualValue, "expected value for key %s to be %v, got %v", expectedKey, expectedValue, actualValue)
 	}
 }
 
@@ -327,6 +327,27 @@ func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, 
 			return
 		}
 	}
+}
+
+func getHelmExtraEnvValue(t *testing.T, values map[string]interface{}, key string, envName string) (string, bool) {
+	extraEnvValue, err := helm.GetValue(values, key)
+	require.NoError(t, err, "failed to get helm value for key %s", key)
+	switch extraEnvValue := extraEnvValue.(type) {
+	case []map[string]any:
+		for _, env := range extraEnvValue {
+			if env["name"] == envName {
+				return env["value"].(string), true
+			}
+		}
+	case []any:
+		for _, env := range extraEnvValue {
+			envMap, _ := env.(map[string]any)
+			if envMap["name"] == envName {
+				return envMap["value"].(string), true
+			}
+		}
+	}
+	return "", false
 }
 
 // createTarGzFile creates a valid tar.gz file with the given files and returns a ReadCloser

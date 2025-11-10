@@ -69,104 +69,36 @@ func validateCustomCIDR(t *testing.T, dr *types.DryRun, hcli *helm.MockClient) {
 	operatorOpts, foundOperator := isHelmReleaseInstalled(hcli, "embedded-cluster-operator")
 	require.True(t, foundOperator, "embedded-cluster-operator helm release should be installed")
 
-	found := false
-	extraEnvValue := operatorOpts.Values["extraEnv"]
-	switch extraEnv := extraEnvValue.(type) {
-	case []any:
-		for _, envItem := range extraEnv {
-			env := envItem.(map[string]any)
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	case []map[string]any:
-		for _, env := range extraEnv {
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in operator opts")
+	noProxyValue, ok := getHelmExtraEnvValue(t, operatorOpts.Values, "extraEnv", "NO_PROXY")
+	require.True(t, ok, "NO_PROXY env var not found in operator opts")
+	assert.Contains(t, noProxyValue, "10.2.0.0/17", "operator NO_PROXY should contain pod CIDR")
+	assert.Contains(t, noProxyValue, "10.2.128.0/17", "operator NO_PROXY should contain service CIDR")
 
 	// Validate custom CIDR was used for registry service cluster IP
 	registryOpts, foundRegistry := isHelmReleaseInstalled(hcli, "docker-registry")
 	require.True(t, foundRegistry, "docker-registry helm release should be installed")
 
 	assertHelmValues(t, registryOpts.Values, map[string]any{
-		"service.clusterIP": expectedRegistryIP,
+		".service.clusterIP": expectedRegistryIP,
 	})
 
 	// Validate CIDRs in NO_PROXY Helm value of velero chart
 	veleroOpts, foundVelero := isHelmReleaseInstalled(hcli, "velero")
 	require.True(t, foundVelero, "velero helm release should be installed")
 
-	found = false
-	extraEnvVars, err := helm.GetValue(veleroOpts.Values, "configuration.extraEnvVars")
-	require.NoError(t, err)
-
-	switch extraEnv := extraEnvVars.(type) {
-	case []any:
-		for _, envItem := range extraEnv {
-			env := envItem.(map[string]any)
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	case []map[string]any:
-		for _, env := range extraEnv {
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in velero opts")
+	noProxyValue, ok = getHelmExtraEnvValue(t, veleroOpts.Values, "configuration.extraEnvVars", "NO_PROXY")
+	require.True(t, ok, "NO_PROXY env var not found in velero opts")
+	assert.Contains(t, noProxyValue, "10.2.0.0/17", "velero NO_PROXY should contain pod CIDR")
+	assert.Contains(t, noProxyValue, "10.2.128.0/17", "velero NO_PROXY should contain service CIDR")
 
 	// Validate CIDRs in NO_PROXY Helm value of admin console chart
 	adminConsoleOpts, foundAdminConsole := isHelmReleaseInstalled(hcli, "admin-console")
 	require.True(t, foundAdminConsole, "admin-console helm release should be installed")
 
-	found = false
-	extraEnvValue = adminConsoleOpts.Values["extraEnv"]
-	switch extraEnv := extraEnvValue.(type) {
-	case []any:
-		for _, envItem := range extraEnv {
-			env := envItem.(map[string]any)
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	case []map[string]any:
-		for _, env := range extraEnv {
-			if env["name"] == "NO_PROXY" {
-				noProxyValue, ok := env["value"].(string)
-				require.True(t, ok, "NO_PROXY value should be a string")
-				assert.Contains(t, noProxyValue, "10.2.0.0/17", "NO_PROXY should contain pod CIDR")
-				assert.Contains(t, noProxyValue, "10.2.128.0/17", "NO_PROXY should contain service CIDR")
-				found = true
-			}
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in admin console opts")
+	noProxyValue, ok = getHelmExtraEnvValue(t, adminConsoleOpts.Values, "extraEnv", "NO_PROXY")
+	require.True(t, ok, "NO_PROXY env var not found in admin console opts")
+	assert.Contains(t, noProxyValue, "10.2.0.0/17", "admin console NO_PROXY should contain pod CIDR")
+	assert.Contains(t, noProxyValue, "10.2.128.0/17", "admin console NO_PROXY should contain service CIDR")
 
 	// Validate custom CIDRs in NO_PROXY in http-proxy.conf file
 	proxyConfPath := "/etc/systemd/system/k0scontroller.service.d/http-proxy.conf"
