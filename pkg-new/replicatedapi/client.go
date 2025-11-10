@@ -150,11 +150,7 @@ func (c *client) newRetryableRequest(ctx context.Context, method string, url str
 
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
 func (c *client) injectHeaders(header http.Header) {
-	if c.license.IsEmpty() {
-		return
-	}
 	licenseID := c.license.GetLicenseID()
-	header.Set("Authorization", "Basic "+basicAuth(licenseID, licenseID))
 	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
 	// Add license version header for v1beta2 licenses
