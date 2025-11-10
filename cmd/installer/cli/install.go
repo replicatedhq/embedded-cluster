@@ -1359,18 +1359,23 @@ func getDomains() ecv1beta1.Domains {
 
 func installExtensions(ctx context.Context, hcli helm.Client) error {
 	progressChan := make(chan extensions.ExtensionsProgress)
-	defer close(progressChan)
 
 	loading := spinner.Start()
 	loading.Infof("Installing additional components")
 
+	// Use a done channel to signal when the progress goroutine has finished
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for progress := range progressChan {
 			loading.Infof("Installing additional components (%d/%d)", progress.Current, progress.Total)
 		}
 	}()
 
-	if err := extensions.Install(ctx, hcli, progressChan); err != nil {
+	err := extensions.Install(ctx, hcli, progressChan)
+	<-done // Wait for the goroutine to finish processing all progress updates
+
+	if err != nil {
 		loading.ErrorClosef("Failed to install additional components")
 		return fmt.Errorf("failed to install extensions: %w", err)
 	}
