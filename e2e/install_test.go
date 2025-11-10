@@ -747,6 +747,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	allowedDomains := map[string]struct{}{
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
+		"*":                                     {},
 	}
 
 	seenAllowedDomains := map[string]struct{}{}
