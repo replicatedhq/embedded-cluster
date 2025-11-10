@@ -5,17 +5,21 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	_ "embed"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
@@ -378,4 +382,57 @@ func createTarGzFile(t *testing.T, files map[string]string) io.ReadCloser {
 
 	// Create a ReadCloser from the buffer
 	return io.NopCloser(bytes.NewReader(buf.Bytes()))
+}
+
+func insecureHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			Proxy:           nil,
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+}
+
+func waitForAPIReady(t *testing.T, hc *http.Client, url string) {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		require.NoError(t, err)
+		resp, err := hc.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			_ = resp.Body.Close()
+			return
+		}
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	require.FailNow(t, "API did not become ready in time")
+}
+
+func assertEventuallySucceeded(t *testing.T, contextMsg string, getStatus func() (apitypes.State, string, error)) {
+	t.Helper()
+
+	var lastState apitypes.State
+	var lastMsg string
+	var lastErr error
+
+	timeout := 10 * time.Second
+	interval := 100 * time.Millisecond
+
+	ok := assert.Eventually(t, func() bool {
+		st, msg, err := getStatus()
+		lastState, lastMsg, lastErr = st, msg, err
+		if err != nil {
+			return false
+		}
+		return st == apitypes.StateSucceeded
+	}, timeout, interval, "%s: lastState=%s, lastMsg=%s, lastErr=%v", contextMsg, lastState, lastMsg, lastErr)
+
+	if !ok && lastState == apitypes.StateFailed {
+		require.FailNowf(t, "operation failed", "%s: failed with message: %s", contextMsg, lastMsg)
+	}
 }
