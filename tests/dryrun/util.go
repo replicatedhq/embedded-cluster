@@ -332,6 +332,8 @@ func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, 
 func getHelmExtraEnvValue(t *testing.T, values map[string]interface{}, key string, envName string) (string, bool) {
 	extraEnvValue, err := helm.GetValue(values, key)
 	require.NoError(t, err, "failed to get helm value for key %s", key)
+	// this can be one of two types due to whether or not there are any overrides from the vendor
+	// or end user as we call helm.PatchValues which marshals and unmarshals the values
 	switch extraEnvValue := extraEnvValue.(type) {
 	case []map[string]any:
 		for _, env := range extraEnvValue {
