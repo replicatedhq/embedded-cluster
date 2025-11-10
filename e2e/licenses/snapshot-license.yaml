@@ -1,11 +1,3 @@
-HTTP/2 200 
-date: Sat, 08 Nov 2025 22:34:51 GMT
-content-type: text/yaml
-access-control-allow-origin: *
-cf-cache-status: DYNAMIC
-server: cloudflare
-cf-ray: 99b88a47ff95228f-BOS
-
 apiVersion: kots.io/v1beta2
 kind: License
 metadata:
