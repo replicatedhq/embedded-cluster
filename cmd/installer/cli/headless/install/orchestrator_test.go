@@ -122,7 +122,11 @@ func Test_orchestrator_configureApplication(t *testing.T) {
 			}
 
 			// Assert log messages
-			assert.Equal(t, tt.expectedLogMessages, logCapture.AllEntries(), "log messages should match")
+			allMessages := []string{}
+			for _, entry := range logCapture.AllEntries() {
+				allMessages = append(allMessages, entry.Message)
+			}
+			assert.Equal(t, tt.expectedLogMessages, allMessages, "log messages should match")
 
 			// Assert progress messages
 			assert.Equal(t, tt.expectedProgressMessages, progressCapture.Messages(), "progress messages should match")
@@ -305,9 +309,9 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			expectError:      true,
 			expectedErrorMsg: "host preflight checks completed with failures",
 			expectedLogMessages: []string{
-				"⚠ Warning: Host preflight checks completed with failures",
+				"\n⚠ Warning: Host preflight checks completed with failures\n",
 				"  [ERROR] Disk space: Insufficient disk space",
-				"Please correct the above issues and retry, or run with --ignore-host-preflights to bypass (not recommended).",
+				"\nPlease correct the above issues and retry, or run with --ignore-host-preflights to bypass (not recommended).\n",
 			},
 			expectedProgressMessages: []string{
 				"Running host preflights...",
@@ -346,7 +350,11 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Equal(t, tt.expectedLogMessages, logCapture.AllEntries())
+			allMessages := []string{}
+			for _, entry := range logCapture.AllEntries() {
+				allMessages = append(allMessages, entry.Message)
+			}
+			assert.Equal(t, tt.expectedLogMessages, allMessages)
 			assert.Equal(t, tt.expectedProgressMessages, progressCapture.Messages())
 		})
 	}
@@ -593,9 +601,9 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			ignoreFailures: true,
 			expectError:    false,
 			expectedLogMessages: []string{
-				"⚠ Warning: Application preflight checks completed with failures",
+				"\n⚠ Warning: Application preflight checks completed with failures\n",
 				"  [ERROR] Database connectivity: Cannot connect to database",
-				"Installation will continue, but the application may not function correctly (failures bypassed with flag).",
+				"\nInstallation will continue, but the application may not function correctly (failures bypassed with flag).\n",
 			},
 			expectedProgressMessages: []string{
 				"Running app preflights...",
@@ -626,9 +634,9 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			expectError:      true,
 			expectedErrorMsg: "app preflight checks completed with failures",
 			expectedLogMessages: []string{
-				"⚠ Warning: Application preflight checks completed with failures",
+				"\n⚠ Warning: Application preflight checks completed with failures\n",
 				"  [ERROR] Database connectivity: Cannot connect to database",
-				"Please correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).",
+				"\nPlease correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).\n",
 			},
 			expectedProgressMessages: []string{
 				"Running app preflights...",
@@ -667,7 +675,11 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			assert.Equal(t, tt.expectedLogMessages, logCapture.AllEntries())
+			allMessages := []string{}
+			for _, entry := range logCapture.AllEntries() {
+				allMessages = append(allMessages, entry.Message)
+			}
+			assert.Equal(t, tt.expectedLogMessages, allMessages)
 			assert.Equal(t, tt.expectedProgressMessages, progressCapture.Messages())
 		})
 	}

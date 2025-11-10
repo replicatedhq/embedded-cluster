@@ -1053,9 +1053,7 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
     if hasFailures {
         loading.ErrorClosef("App preflights completed with failures")
 
-        o.logger.Warn("")
-        o.logger.Warn("⚠ Warning: Application preflight checks completed with failures"))
-        o.logger.Warn("")
+        o.logger.Warn("\n⚠ Warning: Application preflight checks completed with failures\n"))
 
         // Display failed checks
         for _, result := range resp.Results {
@@ -1070,14 +1068,10 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 
         if ignoreFailures {
             // Display failures but continue installation
-            o.logger.Warn("")
-            o.logger.Warn("Installation will continue, but the application may not function correctly (failures bypassed with flag).")
-            o.logger.Warn("")
+            o.logger.Warn("\nInstallation will continue, but the application may not function correctly (failures bypassed with flag).\n")
         } else {
             // Failures are not being bypassed - return error
-            o.logger.Warn("")
-            o.logger.Warn("Please correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).")
-            o.logger.Warn("")
+            o.logger.Warn("\nPlease correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).\n")
             return fmt.Errorf("app preflight checks completed with failures")
         }
     } else {

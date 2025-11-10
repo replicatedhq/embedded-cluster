@@ -167,7 +167,9 @@ func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 		false,
 	)
 
-	t.Logf("Test passed: headless online installation does not create registry addon or registry-creds secret")
+	if !t.Failed() {
+		t.Logf("Test passed: headless online installation does not create registry addon or registry-creds secret")
+	}
 }
 
 func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
@@ -281,7 +283,9 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 		false,
 	)
 
-	t.Logf("Test passed: headless airgap installation creates registry addon and registry-creds secret")
+	if !t.Failed() {
+		t.Logf("Test passed: headless airgap installation creates registry addon and registry-creds secret")
+	}
 }
 
 func TestV3InstallHeadless_Metrics(t *testing.T) {
@@ -342,7 +346,9 @@ func TestV3InstallHeadless_Metrics(t *testing.T) {
 		},
 	})
 
-	t.Logf("Test passed: metrics are recorded correctly")
+	if !t.Failed() {
+		t.Logf("Test passed: metrics are recorded correctly")
+	}
 }
 
 func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
@@ -367,7 +373,9 @@ func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
   - Field 'text_required_with_regex': Please enter a valid email address
   - Field 'file_required': File Required is required`)
 
-	t.Logf("Test passed: config values validation errors are displayed to the user")
+	if !t.Failed() {
+		t.Logf("Test passed: config values validation errors are displayed to the user")
+	}
 }
 
 func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
@@ -400,7 +408,7 @@ func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
 	validateCustomCIDR(t, dr, hcli)
 
 	if !t.Failed() {
-		t.Logf("Test passed: custom CIDR correctly propagates to all external dependencies")
+		t.Logf("Test passed: custom CIDR correctly propagates to all external dependencies and cluster config")
 	}
 }
 
@@ -562,7 +570,9 @@ func TestV3InstallHeadless_CustomDataDir(t *testing.T) {
 		},
 	})
 
-	t.Logf("Test passed: custom data directory correctly propagates to all external dependencies")
+	if !t.Failed() {
+		t.Logf("Test passed: custom data directory correctly propagates to all external dependencies")
+	}
 }
 
 func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
@@ -618,7 +628,9 @@ func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
 		},
 	})
 
-	t.Logf("Test passed: custom admin console port correctly propagates to Installation object, admin-console helm chart, and host preflights")
+	if !t.Failed() {
+		t.Logf("Test passed: custom admin console port correctly propagates to Installation object, admin-console helm chart, and host preflights")
+	}
 }
 
 func TestV3InstallHeadless_CustomLocalArtifactMirror(t *testing.T) {
@@ -667,7 +679,9 @@ func TestV3InstallHeadless_CustomLocalArtifactMirror(t *testing.T) {
 		},
 	})
 
-	t.Logf("Test passed: custom local artifact mirror port correctly propagates to Installation object and host preflights")
+	if !t.Failed() {
+		t.Logf("Test passed: custom local artifact mirror port correctly propagates to Installation object and host preflights")
+	}
 }
 
 func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
@@ -727,7 +741,25 @@ func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 	assert.Regexp(t, `--labels.*another-label=another-value`, k0sInstallCmd.Cmd, "k0s install command should contain another-label label")
 	assert.Regexp(t, `--labels.*kots\.io/embedded-cluster-role-0=test-controller-role`, k0sInstallCmd.Cmd, "k0s install command should contain controller role name label")
 
-	t.Logf("Test passed: cluster config with unsupported overrides, controller role name, and labels correctly apply to k0s cluster config and commands")
+	// Validate builtInExtensions custom values for admin-console
+	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
+	require.True(t, found, "admin-console helm release should be installed")
+	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
+		"['labels']['release-custom-label']": "release-clustom-value",
+	})
+
+	// Validate extensions.helm.charts - goldpinger chart should be installed
+	goldpingerOpts, found := isHelmReleaseInstalled(hcli, "goldpinger")
+	require.True(t, found, "goldpinger helm release should be installed")
+	assert.Equal(t, "goldpinger", goldpingerOpts.Namespace, "goldpinger should be installed in goldpinger namespace")
+	assert.Equal(t, "6.1.2", goldpingerOpts.ChartVersion, "goldpinger should have version 6.1.2")
+	assertHelmValues(t, goldpingerOpts.Values, map[string]any{
+		"['image']['repository']": "ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger",
+	})
+
+	if !t.Failed() {
+		t.Logf("Test passed: cluster config with unsupported overrides, controller role name, labels, builtInExtensions, and helm extensions correctly apply to k0s cluster config and helm releases")
+	}
 }
 
 var (
