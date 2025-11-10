@@ -691,7 +691,7 @@ func TestValidateImageFormat(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "valid full image reference with registry and tag",
+			name:        "valid full image reference with registry, tag and digest",
 			image:       "registry.io:5000/repo/image:v1.0.0@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 			expectError: false,
 		},
