@@ -24,7 +24,7 @@ func runV3InstallHeadless(
 	ctx context.Context,
 	cancel context.CancelFunc,
 	flags installFlags,
-	apiConfig apiOptions,
+	apiOpts apiOptions,
 	metricsReporter metrics.ReporterInterface,
 ) error {
 	// Setup signal handler
@@ -33,19 +33,19 @@ func runV3InstallHeadless(
 	})
 
 	// Build API client
-	apiClient, err := newOrchestratorAPIClient(ctx, flags, apiConfig)
+	apiClient, err := newOrchestratorAPIClient(ctx, flags, apiOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	// Build orchestrator
-	orchestrator, err := buildOrchestrator(ctx, apiClient, apiConfig)
+	orchestrator, err := buildOrchestrator(ctx, apiClient, apiOpts)
 	if err != nil {
 		return fmt.Errorf("failed to build orchestrator: %w", err)
 	}
 
 	// Build install options
-	opts := buildHeadlessInstallOptions(flags, apiConfig)
+	opts := buildHeadlessInstallOptions(flags, apiOpts)
 
 	resetNeeded, err := orchestrator.RunHeadlessInstall(ctx, opts)
 	if err != nil {
@@ -63,7 +63,8 @@ func runV3InstallHeadless(
 	// Display success message
 	logrus.Info("\nInstallation completed successfully")
 
-	metricsReporter.ReportInstallationSucceeded(ctx)
+	// API event handlers will report installation succeeded
+
 	return nil
 }
 
@@ -71,7 +72,7 @@ func runV3InstallHeadless(
 func newOrchestratorAPIClient(
 	ctx context.Context,
 	flags installFlags,
-	apiConfig apiOptions,
+	apiOpts apiOptions,
 ) (client.Client, error) {
 	// Construct API URL from manager port
 	apiURL := fmt.Sprintf("https://localhost:%d", flags.managerPort)
@@ -95,7 +96,7 @@ func newOrchestratorAPIClient(
 	)
 
 	// Authenticate with the API server
-	if err := apiClient.Authenticate(ctx, apiConfig.Password); err != nil {
+	if err := apiClient.Authenticate(ctx, apiOpts.Password); err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
@@ -106,18 +107,18 @@ func newOrchestratorAPIClient(
 func buildOrchestrator(
 	ctx context.Context,
 	apiClient client.Client,
-	apiConfig apiOptions,
+	apiOpts apiOptions,
 ) (install.Orchestrator, error) {
 	// We do not yet support the "kubernetes" target
-	if apiConfig.InstallTarget != apitypes.InstallTargetLinux {
-		return nil, fmt.Errorf("%s target not supported", apiConfig.InstallTarget)
+	if apiOpts.InstallTarget != apitypes.InstallTargetLinux {
+		return nil, fmt.Errorf("%s target not supported", apiOpts.InstallTarget)
 	}
 
 	// Create orchestrator with authenticated client
 	orchestrator, err := install.NewOrchestrator(
 		ctx,
 		apiClient,
-		string(apiConfig.InstallTarget),
+		string(apiOpts.InstallTarget),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create orchestrator: %w", err)
@@ -129,7 +130,7 @@ func buildOrchestrator(
 // buildHeadlessInstallOptions (Hop) creates HeadlessInstallOptions from CLI inputs.
 func buildHeadlessInstallOptions(
 	flags installFlags,
-	apiConfig apiOptions,
+	apiOpts apiOptions,
 ) install.HeadlessInstallOptions {
 	// Build Linux installation config from flags
 	linuxInstallationConfig := apitypes.LinuxInstallationConfig{
@@ -162,7 +163,7 @@ func buildHeadlessInstallOptions(
 	}
 
 	return install.HeadlessInstallOptions{
-		ConfigValues:            apiConfig.ConfigValues,
+		ConfigValues:            apiOpts.ConfigValues,
 		LinuxInstallationConfig: linuxInstallationConfig,
 		IgnoreHostPreflights:    flags.ignoreHostPreflights,
 		IgnoreAppPreflights:     flags.ignoreAppPreflights,

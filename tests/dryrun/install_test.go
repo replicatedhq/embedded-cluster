@@ -2,10 +2,8 @@ package dryrun
 
 import (
 	"context"
-	"crypto/x509"
 	_ "embed"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,8 +34,8 @@ func testDefaultInstallationImpl(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -235,8 +233,8 @@ func TestCustomDataDir(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -324,8 +322,8 @@ func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -435,8 +433,8 @@ func TestConfigValuesInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 5 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		// 5 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -499,8 +497,8 @@ func TestCustomCidrInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 5 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		// 5 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -513,114 +511,11 @@ func TestCustomCidrInstallation(t *testing.T) {
 		"--no-proxy", "localhost,127.0.0.1,10.0.0.0/8",
 	)
 
-	// --- validate commands --- //
-	assertCommands(t, dr.Commands,
-		[]interface{}{
-			"firewall-cmd --info-zone ec-net",
-			"firewall-cmd --add-source 10.2.0.0/17 --permanent --zone ec-net",
-			"firewall-cmd --add-source 10.2.128.0/17 --permanent --zone ec-net",
-			"firewall-cmd --reload",
-		},
-		false,
-	)
+	validateCustomCIDR(t, &dr, hcli)
 
-	// --- validate k0s cluster config --- //
-	k0sConfig := readK0sConfig(t)
-
-	assert.Equal(t, "10.2.0.0/17", k0sConfig.Spec.Network.PodCIDR)
-	assert.Equal(t, "10.2.128.0/17", k0sConfig.Spec.Network.ServiceCIDR)
-
-	// --- validate registry --- //
-	expectedRegistryIP := "10.2.128.11" // lower band index 10
-
-	kcli, err := dr.KubeClient()
-	require.NoError(t, err, "get kube client")
-
-	var registrySecret corev1.Secret
-	err = kcli.Get(context.TODO(), types.NamespacedName{Name: "registry-tls", Namespace: "registry"}, &registrySecret)
-	require.NoError(t, err, "get registry TLS secret")
-
-	certData, ok := registrySecret.StringData["tls.crt"]
-	require.True(t, ok, "registry TLS secret must contain tls.crt")
-
-	// parse certificate and verify it contains the expected IP
-	block, _ := pem.Decode([]byte(certData))
-	require.NotNil(t, block, "failed to decode certificate PEM")
-	cert, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err, "failed to parse certificate")
-
-	// check if certificate contains the expected registry IP (convert to strings for comparison)
-	ipStrings := make([]string, len(cert.IPAddresses))
-	for i, ip := range cert.IPAddresses {
-		ipStrings[i] = ip.String()
+	if !t.Failed() {
+		t.Logf("Test passed: custom CIDR correctly propagates to all external dependencies")
 	}
-	assert.Contains(t, ipStrings, expectedRegistryIP, "certificate should contain registry IP %s, found IPs: %v", expectedRegistryIP, cert.IPAddresses)
-
-	// --- validate cidrs in NO_PROXY OS env var --- //
-	noProxy := dr.OSEnv["NO_PROXY"]
-	assert.Contains(t, noProxy, "10.2.0.0/17")
-	assert.Contains(t, noProxy, "10.2.128.0/17")
-
-	// --- validate cidrs in NO_PROXY Helm value of operator chart --- //
-	assert.Equal(t, "Install", hcli.Calls[1].Method)
-	operatorOpts := hcli.Calls[1].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "embedded-cluster-operator", operatorOpts.ReleaseName)
-
-	found := false
-	for _, env := range operatorOpts.Values["extraEnv"].([]map[string]interface{}) {
-		if env["name"] == "NO_PROXY" {
-			assert.Equal(t, noProxy, env["value"])
-			found = true
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in operator opts")
-
-	// --- validate custom cidr was used for registry service cluster IP --- //
-	assert.Equal(t, "Install", hcli.Calls[2].Method)
-	registryOpts := hcli.Calls[2].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "docker-registry", registryOpts.ReleaseName)
-	assertHelmValues(t, registryOpts.Values, map[string]interface{}{
-		"service.clusterIP": expectedRegistryIP,
-	})
-
-	// --- validate cidrs in NO_PROXY Helm value of velero chart --- //
-	assert.Equal(t, "Install", hcli.Calls[3].Method)
-	veleroOpts := hcli.Calls[3].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "velero", veleroOpts.ReleaseName)
-	found = false
-
-	extraEnvVars, err := helm.GetValue(veleroOpts.Values, "configuration.extraEnvVars")
-	require.NoError(t, err)
-
-	for _, env := range extraEnvVars.([]map[string]interface{}) {
-		if env["name"] == "NO_PROXY" {
-			assert.Equal(t, noProxy, env["value"])
-			found = true
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in velero opts")
-
-	// --- validate cidrs in NO_PROXY Helm value of admin console chart --- //
-	assert.Equal(t, "Install", hcli.Calls[4].Method)
-	adminConsoleOpts := hcli.Calls[4].Arguments[1].(helm.InstallOptions)
-	assert.Equal(t, "admin-console", adminConsoleOpts.ReleaseName)
-
-	found = false
-	for _, env := range adminConsoleOpts.Values["extraEnv"].([]map[string]interface{}) {
-		if env["name"] == "NO_PROXY" {
-			assert.Equal(t, noProxy, env["value"])
-			found = true
-		}
-	}
-	assert.True(t, found, "NO_PROXY env var not found in admin console opts")
-
-	// --- validate custom cidrs in NO_PROXY in http-proxy.conf file --- //
-	proxyConfPath := "/etc/systemd/system/k0scontroller.service.d/http-proxy.conf"
-	proxyConfContent, err := os.ReadFile(proxyConfPath)
-	require.NoError(t, err, "failed to read http-proxy.conf file")
-	assert.Contains(t, string(proxyConfContent), fmt.Sprintf(`Environment="NO_PROXY=%s"`, noProxy), "http-proxy.conf should contain NO_PROXY with custom CIDRs")
-
-	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
 // this test is to ensure that when no domains are provided in the cluster config that the domains from the embedded release file are used
@@ -797,8 +692,8 @@ oxhVqyhpk86rf0rT5DcD/sBw
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -867,8 +762,8 @@ func TestIgnoreAppPreflightsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 

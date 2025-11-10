@@ -283,9 +283,8 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	defaultDataDir := ecv1beta1.DefaultDataDir
 	if enableV3 {
 		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
-	} else {
-		flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 	}
+
 	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
@@ -299,6 +298,7 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	mustMarkFlagDeprecated(flagSet, "skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead.")
 
 	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
+	flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
 
 	mustAddCIDRFlags(flagSet)
 
@@ -638,6 +638,8 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 				logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
 				return fmt.Errorf("installation cancelled by user")
 			}
+		} else {
+			logrus.Info("\nContinuing with a self-signed certificate...\n")
 		}
 
 		// Get all IP addresses for the certificate
@@ -763,19 +765,19 @@ func buildKubernetesInstallation(flags *installFlags, ki kubernetesinstallation.
 }
 
 func runManagerExperienceInstall(
-	ctx context.Context, flags installFlags, installCfg *installConfig, apiOptions apiOptions,
+	ctx context.Context, flags installFlags, installCfg *installConfig, apiOpts apiOptions,
 	metricsReporter metrics.ReporterInterface, appTitle string,
 ) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiOptions)
+	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiOpts)
 	if err != nil {
 		return fmt.Errorf("failed to start api: %w", err)
 	}
 
 	if flags.headless {
-		return runV3InstallHeadless(ctx, cancel, flags, apiOptions, metricsReporter)
+		return runV3InstallHeadless(ctx, cancel, flags, apiOpts, metricsReporter)
 	}
 
 	logrus.Infof("\nVisit the %s manager to continue: %s\n",
@@ -1357,18 +1359,23 @@ func getDomains() ecv1beta1.Domains {
 
 func installExtensions(ctx context.Context, hcli helm.Client) error {
 	progressChan := make(chan extensions.ExtensionsProgress)
-	defer close(progressChan)
 
 	loading := spinner.Start()
 	loading.Infof("Installing additional components")
 
+	// Use a done channel to signal when the progress goroutine has finished
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for progress := range progressChan {
 			loading.Infof("Installing additional components (%d/%d)", progress.Current, progress.Total)
 		}
 	}()
 
-	if err := extensions.Install(ctx, hcli, progressChan); err != nil {
+	err := extensions.Install(ctx, hcli, progressChan)
+	<-done // Wait for the goroutine to finish processing all progress updates
+
+	if err != nil {
 		loading.ErrorClosef("Failed to install additional components")
 		return fmt.Errorf("failed to install extensions: %w", err)
 	}

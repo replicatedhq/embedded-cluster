@@ -47,6 +47,12 @@ var (
 	//go:embed assets/kotskinds-config.yaml
 	configData string
 
+	//go:embed assets/kotskinds-chart.yaml
+	helmChartData string
+
+	//go:embed assets/chart.tgz
+	helmChartArchiveData string
+
 	//go:embed assets/install-license.yaml
 	licenseData string
 )
@@ -130,6 +136,8 @@ func embedReleaseData(clusterConfig string) error {
 		"cluster-config.yaml": []byte(clusterConfig),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
+		"chart.yaml":          []byte(helmChartData),
+		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
@@ -250,6 +258,17 @@ func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []inter
 	}
 }
 
+// findCommand finds the first command that matches the regex and returns it
+// if no command is found, it returns nil
+func findCommand(t *testing.T, commands []dryruntypes.Command, regex *regexp.Regexp) *dryruntypes.Command {
+	for _, cmd := range commands {
+		if regex.MatchString(cmd.Cmd) {
+			return &cmd
+		}
+	}
+	return nil
+}
+
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {
 	var cm corev1.ConfigMap
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &cm)
@@ -262,11 +281,29 @@ func assertSecretExists(t *testing.T, kcli client.Client, name string, namespace
 	assert.NoError(t, err, "failed to get secret %s in namespace %s", name, namespace)
 }
 
+func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	var secret corev1.Secret
+	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
+	assert.Error(t, err, "secret %s should not exist in namespace %s", name, namespace)
+}
+
+func isHelmReleaseInstalled(hcli *helm.MockClient, releaseName string) (helm.InstallOptions, bool) {
+	for _, call := range hcli.Calls {
+		if call.Method == "Install" {
+			opts := call.Arguments[1].(helm.InstallOptions)
+			if opts.ReleaseName == releaseName {
+				return opts, true
+			}
+		}
+	}
+	return helm.InstallOptions{}, false
+}
+
 func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expectedValues map[string]interface{}) {
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedValue, actualValue)
+		assert.Equal(t, expectedValue, actualValue, "expected value for key %s to be %v, got %v", expectedKey, expectedValue, actualValue)
 	}
 }
 
@@ -290,6 +327,29 @@ func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, 
 			return
 		}
 	}
+}
+
+func getHelmExtraEnvValue(t *testing.T, values map[string]interface{}, key string, envName string) (string, bool) {
+	extraEnvValue, err := helm.GetValue(values, key)
+	require.NoError(t, err, "failed to get helm value for key %s", key)
+	// this can be one of two types due to whether or not there are any overrides from the vendor
+	// or end user as we call helm.PatchValues which marshals and unmarshals the values
+	switch extraEnvValue := extraEnvValue.(type) {
+	case []map[string]any:
+		for _, env := range extraEnvValue {
+			if env["name"] == envName {
+				return env["value"].(string), true
+			}
+		}
+	case []any:
+		for _, env := range extraEnvValue {
+			envMap, _ := env.(map[string]any)
+			if envMap["name"] == envName {
+				return envMap["value"].(string), true
+			}
+		}
+	}
+	return "", false
 }
 
 // createTarGzFile creates a valid tar.gz file with the given files and returns a ReadCloser

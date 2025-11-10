@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -72,6 +73,7 @@ type InstallController struct {
 	rc                        runtimeconfig.RuntimeConfig
 	hcli                      helm.Client
 	kcli                      client.Client
+	mcli                      metadata.Interface
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
@@ -231,6 +233,12 @@ func WithKubeClient(kcli client.Client) InstallControllerOption {
 	}
 }
 
+func WithMetadataClient(mcli metadata.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.mcli = mcli
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -319,6 +327,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 			infra.WithHelmClient(controller.hcli),
+			infra.WithKubeClient(controller.kcli),
+			infra.WithMetadataClient(controller.mcli),
 		)
 	}
 

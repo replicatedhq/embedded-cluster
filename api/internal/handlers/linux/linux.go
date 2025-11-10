@@ -13,6 +13,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Handler struct {
@@ -26,6 +28,8 @@ type Handler struct {
 	hostUtils         hostutils.HostUtilsInterface
 	metricsReporter   metrics.ReporterInterface
 	hcli              helm.Client
+	kcli              client.Client
+	mcli              metadata.Interface
 }
 
 type Option func(*Handler)
@@ -63,6 +67,18 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 func WithHelmClient(hcli helm.Client) Option {
 	return func(h *Handler) {
 		h.hcli = hcli
+	}
+}
+
+func WithKubeClient(kcli client.Client) Option {
+	return func(h *Handler) {
+		h.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) Option {
+	return func(h *Handler) {
+		h.mcli = mcli
 	}
 }
 
@@ -105,6 +121,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				install.WithClusterID(h.cfg.ClusterID),
 				install.WithAllowIgnoreHostPreflights(h.cfg.AllowIgnoreHostPreflights),
 				install.WithHelmClient(h.hcli),
+				install.WithKubeClient(h.kcli),
+				install.WithMetadataClient(h.mcli),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new install controller: %w", err)
@@ -140,6 +158,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithInitialVersion(h.cfg.InitialVersion),
 				upgrade.WithInfraUpgradeRequired(h.cfg.RequiresInfraUpgrade),
 				upgrade.WithHelmClient(h.hcli),
+				upgrade.WithKubeClient(h.kcli),
+				upgrade.WithMetadataClient(h.mcli),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new upgrade controller: %w", err)

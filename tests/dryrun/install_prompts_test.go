@@ -84,8 +84,8 @@ defaultDomains:
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// Installation should proceed when user accepts
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension - installation should proceed when user accepts
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 
@@ -130,8 +130,8 @@ defaultDomains:
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons - installation should proceed normally
-		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
+		// 4 addons + Goldpinger extension - installation should proceed normally
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 

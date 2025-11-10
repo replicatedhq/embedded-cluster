@@ -72,7 +72,9 @@ func Init(outputFile string, client *Client) {
 		client.Metrics = &Sender{}
 	}
 	if client.K0sClient == nil {
-		client.K0sClient = &K0s{}
+		client.K0sClient = &K0s{
+			k0s: new(k0s.K0s),
+		}
 	}
 	if client.Kotsadm == nil {
 		client.Kotsadm = NewKotsadm()
@@ -98,6 +100,9 @@ func Init(outputFile string, client *Client) {
 	firewalld.SetUtil(client.FirewalldUtil)
 	metrics.Set(client.Metrics)
 	k0s.Set(client.K0sClient)
+	k0s.SetClientFactory(func() k0s.K0sInterface {
+		return &K0s{}
+	})
 	kotsadm.Set(client.Kotsadm)
 
 	logrus.SetLevel(logrus.DebugLevel)
@@ -174,6 +179,13 @@ func RecordHostPreflightSpec(hpf *troubleshootv1beta2.HostPreflightSpec) {
 	defer mu.Unlock()
 
 	dr.HostPreflightSpec = hpf
+}
+
+func RecordAppPreflightSpec(apf *troubleshootv1beta2.PreflightSpec) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	dr.AppPreflightSpec = apf
 }
 
 func KubeClient() (client.Client, error) {

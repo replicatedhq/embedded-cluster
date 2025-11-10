@@ -31,6 +31,7 @@ type DryRun struct {
 	Commands          []Command                              `json:"commands"`
 	Metrics           []Metric                               `json:"metrics"`
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
+	AppPreflightSpec  *troubleshootv1beta2.PreflightSpec     `json:"appPreflightSpec"`
 
 	// These fields are set on marshal
 	OSEnv      map[string]string `json:"osEnv"`

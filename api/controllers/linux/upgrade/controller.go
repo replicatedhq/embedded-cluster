@@ -23,6 +23,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,6 +59,7 @@ type UpgradeController struct {
 	rc                   runtimeconfig.RuntimeConfig
 	hcli                 helm.Client
 	kcli                 client.Client
+	mcli                 metadata.Interface
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
@@ -189,6 +191,12 @@ func WithKubeClient(kcli client.Client) UpgradeControllerOption {
 	}
 }
 
+func WithMetadataClient(mcli metadata.Interface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.mcli = mcli
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.endUserConfig = endUserConfig
@@ -262,6 +270,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 			infra.WithHelmClient(controller.hcli),
+			infra.WithKubeClient(controller.kcli),
+			infra.WithMetadataClient(controller.mcli),
 		)
 	}
 
