@@ -15,7 +15,9 @@ type ExtensionsProgress struct {
 }
 
 func Install(ctx context.Context, hcli helm.Client, progressChan chan<- ExtensionsProgress) error {
-	defer close(progressChan)
+	if progressChan != nil {
+		defer close(progressChan)
+	}
 
 	// check if there are any extensions
 	if len(config.AdditionalCharts()) == 0 {
