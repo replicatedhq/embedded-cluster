@@ -394,7 +394,7 @@ func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.Run
 
 	// sync the license if we are in the manager experience and a license is provided and we are
 	// not in airgap mode
-	if installCfg.enableManagerExperience && installCfg.license.GetLicenseID() != "" && !installCfg.isAirgap {
+	if installCfg.enableManagerExperience && !installCfg.license.IsEmpty() && installCfg.license.GetLicenseID() != "" && !installCfg.isAirgap {
 		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
