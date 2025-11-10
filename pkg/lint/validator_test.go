@@ -691,14 +691,20 @@ func TestValidateImageFormat(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "valid full image reference with registry and tag",
+			image:       "registry.io:5000/repo/image:v1.0.0@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
+			expectError: false,
+		},
+		{
 			name:        "valid image with digest",
-			image:       "myvendor/velero-postgresql@sha256:abc123def456",
+			image:       "myvendor/velero-postgresql@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 			expectError: false,
 		},
 		{
 			name:        "valid short image name",
 			image:       "velero-plugin-postgres:v1.0.0",
-			expectError: false,
+			expectError: true,
+			errorMsg:    "missing registry or repository",
 		},
 		{
 			name:        "empty image",
@@ -710,25 +716,24 @@ func TestValidateImageFormat(t *testing.T) {
 			name:        "image with space",
 			image:       "myvendor/velero postgresql:v1.0.0",
 			expectError: true,
-			errorMsg:    "invalid character",
+			errorMsg:    "invalid repository",
 		},
 		{
 			name:        "image starting with slash",
 			image:       "/myvendor/velero-postgresql:v1.0.0",
 			expectError: true,
-			errorMsg:    "invalid format",
+			errorMsg:    "invalid registry",
 		},
 		{
 			name:        "image with registry but no tag",
 			image:       "myvendor/velero-postgresql",
-			expectError: true,
-			errorMsg:    "should include a tag",
+			expectError: false,
 		},
 		{
-			name:        "registry with port but no tag - should error",
-			image:       "registry.io:5000/repo/image",
+			name:        "invalid digest",
+			image:       "registry.io:5000/repo/image@sha256:3b9d51d",
 			expectError: true,
-			errorMsg:    "should include a tag",
+			errorMsg:    "invalid checksum digest length",
 		},
 		{
 			name:        "registry with port and tag - should pass",
@@ -737,7 +742,7 @@ func TestValidateImageFormat(t *testing.T) {
 		},
 		{
 			name:        "registry with port and digest - should pass",
-			image:       "registry.io:5000/repo/image@sha256:abc123",
+			image:       "registry.io:5000/repo/image@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 			expectError: false,
 		},
 	}

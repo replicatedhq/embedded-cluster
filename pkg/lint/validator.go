@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"oras.land/oras-go/v2/registry"
+
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -439,43 +441,21 @@ func (v *Validator) validateVeleroPlugins(veleroExt ecv1beta1.VeleroExtensions) 
 }
 
 // validateImageFormat validates that an image string follows a valid OCI image reference format
-// This is a basic validation - full OCI reference validation would be more complex
 func (v *Validator) validateImageFormat(image string) error {
 	if image == "" {
 		return fmt.Errorf("image cannot be empty")
 	}
 
 	// Basic validation: image should not contain invalid characters
-	// Valid formats:
+	// Some valid image format examples:
 	//   - "registry.io/repo/image:tag"
 	//   - "registry.io/repo/image@sha256:digest"
 	//   - "repo/image:tag" (will use proxy registry)
 	//   - "image:tag" (will use proxy registry)
 
-	// Check for invalid characters (basic sanity check)
-	invalidChars := []string{" ", "\t", "\n", "\r"}
-	for _, char := range invalidChars {
-		if strings.Contains(image, char) {
-			return fmt.Errorf("image contains invalid character: %q", char)
-		}
-	}
-
-	// Image should not start or end with special characters
-	if strings.HasPrefix(image, "/") || strings.HasPrefix(image, ":") ||
-		strings.HasSuffix(image, "/") || strings.HasSuffix(image, ":") {
-		return fmt.Errorf("image has invalid format: cannot start or end with '/' or ':'")
-	}
-
-	// Check for at least one colon (for tag) or @ (for digest) if it looks like a full reference
-	// But allow short names that will be prepended with registry
-	if strings.Contains(image, "/") {
-		// If it contains a slash, it should have a tag or digest after the last slash
-		// This distinguishes registry ports (registry.io:5000) from tags (image:tag)
-		lastSlash := strings.LastIndex(image, "/")
-		pathAfterSlash := image[lastSlash+1:]
-		if !strings.Contains(pathAfterSlash, ":") && !strings.Contains(pathAfterSlash, "@") {
-			return fmt.Errorf("image reference with registry should include a tag (e.g., image:tag) or digest (e.g., image@sha256:digest)")
-		}
+	_, err := registry.ParseReference(image)
+	if err != nil {
+		return fmt.Errorf("invalid image reference %q: %w", image, err)
 	}
 
 	return nil
