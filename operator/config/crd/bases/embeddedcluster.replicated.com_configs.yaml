@@ -53,7 +53,7 @@ spec:
                 maxItems: 2
                 minItems: 1
                 type: array
-                uniqueItems: true
+                x-kubernetes-list-type: set
               binaryOverrideUrl:
                 type: string
               domains:

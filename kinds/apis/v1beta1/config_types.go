@@ -174,7 +174,7 @@ type ConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=2
-	// +kubebuilder:validation:UniqueItems=true
+	// +listType=set
 	Architecture []Architecture `json:"architecture,omitempty"`
 }
 
