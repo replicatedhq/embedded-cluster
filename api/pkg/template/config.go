@@ -78,7 +78,8 @@ func (e *Engine) configOption(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.Debugf("ConfigOption(%q) failed to resolve, returning empty string: %v", name, err)
+		return "", nil
 	}
 	return resolved.Effective, nil
 }
@@ -88,13 +89,15 @@ func (e *Engine) configOptionData(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.Debugf("ConfigOptionData(%q) failed to resolve, returning empty string: %v", name, err)
+		return "", nil
 	}
 
 	// Base64 decode for file content
 	decoded, err := base64.StdEncoding.DecodeString(resolved.Effective)
 	if err != nil {
-		return "", fmt.Errorf("decode base64 value: %w", err)
+		e.logger.Debugf("ConfigOptionData(%q) base64 decode failed, returning empty string: %v", name, err)
+		return "", nil
 	}
 	return string(decoded), nil
 }
@@ -104,7 +107,8 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return false, fmt.Errorf("resolve config item: %w", err)
+		e.logger.Debugf("ConfigOptionEquals(%q, %q) failed to resolve, returning false: %v", name, expected, err)
+		return false, nil
 	}
 	return resolved.Effective == expected, nil
 }
@@ -114,8 +118,9 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		// NOTE: this is parity from KOTS but I would expect this to return true
-		return false, fmt.Errorf("resolve config item: %w", err)
+		// NOTE: logically one might expect this to return true, but this matches KOTS behavior
+		e.logger.Debugf("ConfigOptionNotEquals(%q, %q) failed to resolve, returning false: %v", name, expected, err)
+		return false, nil
 	}
 	return resolved.Effective != expected, nil
 }
@@ -125,7 +130,8 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.Debugf("ConfigOptionFilename(%q) failed to resolve, returning empty string: %v", name, err)
+		return "", nil
 	}
 
 	// Only return user filename, not config filename for KOTS parity
