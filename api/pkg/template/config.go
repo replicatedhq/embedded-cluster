@@ -46,7 +46,11 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 		for j := range cfg.Spec.Groups[i].Items {
 			resolved, err := e.resolveConfigItem(cfg.Spec.Groups[i].Items[j].Name)
 			if err != nil {
-				return nil, err
+				e.logger.WithError(err).WithField("item", cfg.Spec.Groups[i].Items[j].Name).Warn("failed to resolve item, using empty values")
+				cfg.Spec.Groups[i].Items[j].Value = multitype.FromString("")
+				cfg.Spec.Groups[i].Items[j].Default = multitype.FromString("")
+				cfg.Spec.Groups[i].Items[j].Filename = ""
+				continue
 			}
 
 			// Apply user value if it exists, otherwise use the templated config value (but not the default)
@@ -78,7 +82,8 @@ func (e *Engine) configOption(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
+		return "", nil
 	}
 	return resolved.Effective, nil
 }
@@ -88,13 +93,15 @@ func (e *Engine) configOptionData(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
+		return "", nil
 	}
 
 	// Base64 decode for file content
 	decoded, err := base64.StdEncoding.DecodeString(resolved.Effective)
 	if err != nil {
-		return "", fmt.Errorf("decode base64 value: %w", err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to decode base64 for item, returning empty string")
+		return "", nil
 	}
 	return string(decoded), nil
 }
@@ -104,7 +111,8 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return false, fmt.Errorf("resolve config item: %w", err)
+		e.logger.WithError(err).WithField("item", name).WithField("expected", expected).Warn("failed to resolve item, returning false")
+		return false, nil
 	}
 	return resolved.Effective == expected, nil
 }
@@ -114,8 +122,9 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		// NOTE: this is parity from KOTS but I would expect this to return true
-		return false, fmt.Errorf("resolve config item: %w", err)
+		// NOTE: logically one might expect this to return true, but this matches KOTS behavior
+		e.logger.WithError(err).WithField("item", name).WithField("expected", expected).Warn("failed to resolve item, returning false")
+		return false, nil
 	}
 	return resolved.Effective != expected, nil
 }
@@ -125,7 +134,8 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		return "", fmt.Errorf("resolve config item: %w", err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
+		return "", nil
 	}
 
 	// Only return user filename, not config filename for KOTS parity
