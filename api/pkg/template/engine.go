@@ -6,10 +6,12 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -31,6 +33,7 @@ type Engine struct {
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
 	kubeClient                 client.Client
+	logger                     logrus.FieldLogger
 
 	// ExecOptions
 	proxySpec        *ecv1beta1.ProxySpec    // Proxy spec for the proxy template functions, if applicable
@@ -85,6 +88,12 @@ func WithKubeClient(kcli client.Client) EngineOption {
 	}
 }
 
+func WithLogger(logger logrus.FieldLogger) EngineOption {
+	return func(e *Engine) {
+		e.logger = logger
+	}
+}
+
 func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 	engine := &Engine{
 		mode:             ModeGeneric, // default to generic mode
@@ -99,6 +108,10 @@ func NewEngine(config *kotsv1beta1.Config, opts ...EngineOption) *Engine {
 
 	for _, opt := range opts {
 		opt(engine)
+	}
+
+	if engine.logger == nil {
+		engine.logger = logger.NewDiscardLogger()
 	}
 
 	// Initialize funcMap once
