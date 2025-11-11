@@ -171,7 +171,7 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 
 	// Validate architecture values if provided
 	for i, arch := range config.Spec.Architecture {
-		val := strings.ToLower(string(arch))
+		val := string(arch)
 		switch val {
 		case "aarch64", "x86_64":
 			// ok
