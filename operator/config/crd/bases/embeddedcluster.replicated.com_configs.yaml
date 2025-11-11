@@ -50,8 +50,6 @@ spec:
                   - aarch64
                   - x86_64
                   type: string
-                maxItems: 2
-                minItems: 1
                 type: array
                 x-kubernetes-list-type: set
               binaryOverrideUrl:

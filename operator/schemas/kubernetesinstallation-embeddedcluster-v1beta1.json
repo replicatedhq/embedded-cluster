@@ -46,9 +46,6 @@
             "architecture": {
               "description": "Architecture holds the list of CPU architectures supported by this release.\nIf omitted, x86_64 is assumed for backward compatibility.",
               "type": "array",
-              "maxItems": 2,
-              "minItems": 1,
-              "uniqueItems": true,
               "items": {
                 "description": "Architecture represents a supported CPU architecture identifier.",
                 "type": "string",
@@ -56,7 +53,8 @@
                   "aarch64",
                   "x86_64"
                 ]
-              }
+              },
+              "x-kubernetes-list-type": "set"
             },
             "binaryOverrideUrl": {
               "type": "string"

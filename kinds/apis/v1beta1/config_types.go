@@ -172,8 +172,6 @@ type ConfigSpec struct {
 	// Architecture holds the list of CPU architectures supported by this release.
 	// If omitted, x86_64 is assumed for backward compatibility.
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	// +kubebuilder:validation:MaxItems=2
 	// +listType=set
 	Architecture []Architecture `json:"architecture,omitempty"`
 }
