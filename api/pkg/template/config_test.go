@@ -265,6 +265,59 @@ func TestEngine_templateConfigItems(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "graceful failure on template error - returns empty values",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "test",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "valid_item",
+									Value: multitype.FromString("valid_value"),
+								},
+								{
+									Name:  "invalid_template",
+									Value: multitype.FromString("repl{{ NonExistentFunc }}"),
+								},
+								{
+									Name:  "another_valid",
+									Value: multitype.FromString("another_value"),
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "test",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "valid_item",
+									Value:   multitype.FromString("valid_value"),
+									Default: multitype.FromString(""),
+								},
+								{
+									Name:     "invalid_template",
+									Value:    multitype.FromString(""),
+									Default:  multitype.FromString(""),
+									Filename: "",
+								},
+								{
+									Name:    "another_valid",
+									Value:   multitype.FromString("another_value"),
+									Default: multitype.FromString(""),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

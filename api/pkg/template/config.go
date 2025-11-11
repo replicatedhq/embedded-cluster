@@ -46,7 +46,11 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 		for j := range cfg.Spec.Groups[i].Items {
 			resolved, err := e.resolveConfigItem(cfg.Spec.Groups[i].Items[j].Name)
 			if err != nil {
-				return nil, err
+				e.logger.Debugf("templateConfigItems: failed to resolve item %q, using empty values: %v", cfg.Spec.Groups[i].Items[j].Name, err)
+				cfg.Spec.Groups[i].Items[j].Value = multitype.FromString("")
+				cfg.Spec.Groups[i].Items[j].Default = multitype.FromString("")
+				cfg.Spec.Groups[i].Items[j].Filename = ""
+				continue
 			}
 
 			// Apply user value if it exists, otherwise use the templated config value (but not the default)
