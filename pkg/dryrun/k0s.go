@@ -13,6 +13,7 @@ var _ k0s.K0sInterface = (*K0s)(nil)
 
 type K0s struct {
 	Status *k0s.K0sStatus
+	k0s    *k0s.K0s
 }
 
 func (c *K0s) GetStatus(ctx context.Context) (*k0s.K0sStatus, error) {
@@ -20,7 +21,7 @@ func (c *K0s) GetStatus(ctx context.Context) (*k0s.K0sStatus, error) {
 }
 
 func (c *K0s) Install(rc runtimeconfig.RuntimeConfig, hostname string) error {
-	return k0s.New().Install(rc, hostname) // actual implementation accounts for dryrun
+	return c.k0s.Install(rc, hostname) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) IsInstalled() (bool, error) {
@@ -28,15 +29,15 @@ func (c *K0s) IsInstalled() (bool, error) {
 }
 
 func (c *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
-	return k0s.New().NewK0sConfig(networkInterface, isAirgap, podCIDR, serviceCIDR, eucfg, mutate) // actual implementation accounts for dryrun
+	return c.k0s.NewK0sConfig(networkInterface, isAirgap, podCIDR, serviceCIDR, eucfg, mutate) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
-	return k0s.New().WriteK0sConfig(ctx, cfg) // actual implementation accounts for dryrun
+	return c.k0s.WriteK0sConfig(ctx, cfg) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) PatchK0sConfig(path string, patch string) error {
-	return k0s.New().PatchK0sConfig(path, patch) // actual implementation accounts for dryrun
+	return c.k0s.PatchK0sConfig(path, patch) // actual implementation accounts for dryrun
 }
 
 func (c *K0s) WaitForK0s() error {

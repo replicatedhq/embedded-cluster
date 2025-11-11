@@ -428,7 +428,10 @@ func TestWaitForAutopilotPlan_RetriesOnTransientErrors(t *testing.T) {
 		currentCount: &callCount,
 	}
 
-	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	result, err := waitForAutopilotPlanWithBackoff(t.Context(), cli, logger, wait.Backoff{
+		Duration: 1 * time.Millisecond,
+		Steps:    10,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, "autopilot", result.Name)
 	assert.Equal(t, int32(4), callCount.Load(), "Should have retried 3 times before succeeding")
@@ -477,7 +480,10 @@ func TestWaitForAutopilotPlan_WaitsForCompletion(t *testing.T) {
 		callsUntil: 3, // Will complete after 3 calls
 	}
 
-	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	result, err := waitForAutopilotPlanWithBackoff(t.Context(), cli, logger, wait.Backoff{
+		Duration: 1 * time.Millisecond,
+		Steps:    10,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, "autopilot", result.Name)
 	assert.Equal(t, core.PlanCompleted, result.Status.State)
@@ -510,7 +516,10 @@ func TestWaitForAutopilotPlan_LongRunningUpgrade(t *testing.T) {
 		callsUntil: 10, // Will complete after 10 calls - exceeds buggy 5-attempt limit
 	}
 
-	result, err := waitForAutopilotPlan(t.Context(), cli, logger)
+	result, err := waitForAutopilotPlanWithBackoff(t.Context(), cli, logger, wait.Backoff{
+		Duration: 1 * time.Millisecond,
+		Steps:    20,
+	})
 	require.NoError(t, err, "Should not timeout for long-running upgrades")
 	assert.Equal(t, "autopilot", result.Name)
 	assert.Equal(t, core.PlanCompleted, result.Status.State)
@@ -624,6 +633,10 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 					initialVersion: "v1.29.0+k0s",
 				}
 			},
+			backoff: &wait.Backoff{
+				Duration: 1 * time.Millisecond,
+				Steps:    10,
+			},
 			expectError: false,
 			validate: func(t *testing.T, cli client.Client) {
 				if mock, ok := cli.(*mockClientWithNodeVersionUpdate); ok {
@@ -668,6 +681,10 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 					targetVersion: "v1.30.0+k0s",
 				}
 			},
+			backoff: &wait.Backoff{
+				Duration: 1 * time.Millisecond,
+				Steps:    20,
+			},
 			expectError: false,
 			validate: func(t *testing.T, cli client.Client) {
 				if mock, ok := cli.(*mockClientWithStaggeredNodeUpdates); ok {
@@ -696,8 +713,6 @@ func TestWaitForClusterNodesMatchVersion(t *testing.T) {
 			backoff: &wait.Backoff{
 				Duration: 100 * time.Millisecond,
 				Steps:    3,
-				Factor:   1.0,
-				Jitter:   0.1,
 			},
 			expectError:   true,
 			errorContains: "cluster nodes did not match version v1.30.0+k0s after upgrade",

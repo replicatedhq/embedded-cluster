@@ -5,17 +5,21 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	_ "embed"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/cli"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	dryruntypes "github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
@@ -46,6 +50,12 @@ var (
 
 	//go:embed assets/kotskinds-config.yaml
 	configData string
+
+	//go:embed assets/kotskinds-chart.yaml
+	helmChartData string
+
+	//go:embed assets/chart.tgz
+	helmChartArchiveData string
 
 	//go:embed assets/install-license.yaml
 	licenseData string
@@ -130,6 +140,8 @@ func embedReleaseData(clusterConfig string) error {
 		"cluster-config.yaml": []byte(clusterConfig),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
+		"chart.yaml":          []byte(helmChartData),
+		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}
@@ -250,6 +262,17 @@ func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []inter
 	}
 }
 
+// findCommand finds the first command that matches the regex and returns it
+// if no command is found, it returns nil
+func findCommand(t *testing.T, commands []dryruntypes.Command, regex *regexp.Regexp) *dryruntypes.Command {
+	for _, cmd := range commands {
+		if regex.MatchString(cmd.Cmd) {
+			return &cmd
+		}
+	}
+	return nil
+}
+
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {
 	var cm corev1.ConfigMap
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &cm)
@@ -262,11 +285,29 @@ func assertSecretExists(t *testing.T, kcli client.Client, name string, namespace
 	assert.NoError(t, err, "failed to get secret %s in namespace %s", name, namespace)
 }
 
+func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	var secret corev1.Secret
+	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
+	assert.Error(t, err, "secret %s should not exist in namespace %s", name, namespace)
+}
+
+func isHelmReleaseInstalled(hcli *helm.MockClient, releaseName string) (helm.InstallOptions, bool) {
+	for _, call := range hcli.Calls {
+		if call.Method == "Install" {
+			opts := call.Arguments[1].(helm.InstallOptions)
+			if opts.ReleaseName == releaseName {
+				return opts, true
+			}
+		}
+	}
+	return helm.InstallOptions{}, false
+}
+
 func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expectedValues map[string]interface{}) {
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
-		assert.Equal(t, expectedValue, actualValue)
+		assert.Equal(t, expectedValue, actualValue, "expected value for key %s to be %v, got %v", expectedKey, expectedValue, actualValue)
 	}
 }
 
@@ -290,6 +331,29 @@ func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, 
 			return
 		}
 	}
+}
+
+func getHelmExtraEnvValue(t *testing.T, values map[string]interface{}, key string, envName string) (string, bool) {
+	extraEnvValue, err := helm.GetValue(values, key)
+	require.NoError(t, err, "failed to get helm value for key %s", key)
+	// this can be one of two types due to whether or not there are any overrides from the vendor
+	// or end user as we call helm.PatchValues which marshals and unmarshals the values
+	switch extraEnvValue := extraEnvValue.(type) {
+	case []map[string]any:
+		for _, env := range extraEnvValue {
+			if env["name"] == envName {
+				return env["value"].(string), true
+			}
+		}
+	case []any:
+		for _, env := range extraEnvValue {
+			envMap, _ := env.(map[string]any)
+			if envMap["name"] == envName {
+				return envMap["value"].(string), true
+			}
+		}
+	}
+	return "", false
 }
 
 // createTarGzFile creates a valid tar.gz file with the given files and returns a ReadCloser
@@ -318,4 +382,57 @@ func createTarGzFile(t *testing.T, files map[string]string) io.ReadCloser {
 
 	// Create a ReadCloser from the buffer
 	return io.NopCloser(bytes.NewReader(buf.Bytes()))
+}
+
+func insecureHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			Proxy:           nil,
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+}
+
+func waitForAPIReady(t *testing.T, hc *http.Client, url string) {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		require.NoError(t, err)
+		resp, err := hc.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			_ = resp.Body.Close()
+			return
+		}
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	require.FailNow(t, "API did not become ready in time")
+}
+
+func assertEventuallySucceeded(t *testing.T, contextMsg string, getStatus func() (apitypes.State, string, error)) {
+	t.Helper()
+
+	var lastState apitypes.State
+	var lastMsg string
+	var lastErr error
+
+	timeout := 10 * time.Second
+	interval := 100 * time.Millisecond
+
+	ok := assert.Eventually(t, func() bool {
+		st, msg, err := getStatus()
+		lastState, lastMsg, lastErr = st, msg, err
+		if err != nil {
+			return false
+		}
+		return st == apitypes.StateSucceeded
+	}, timeout, interval, "%s: lastState=%s, lastMsg=%s, lastErr=%v", contextMsg, lastState, lastMsg, lastErr)
+
+	if !ok && lastState == apitypes.StateFailed {
+		require.FailNowf(t, "operation failed", "%s: failed with message: %s", contextMsg, lastMsg)
+	}
 }

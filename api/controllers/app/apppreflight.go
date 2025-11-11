@@ -53,6 +53,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}
 	if appPreflightSpec == nil {
+		// TODO: support for installing without an app preflight spec
 		return fmt.Errorf("no app preflight spec found")
 	}
 

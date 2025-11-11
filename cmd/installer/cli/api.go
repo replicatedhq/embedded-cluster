@@ -17,6 +17,8 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/cloudutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/web"
 	"github.com/sirupsen/logrus"
@@ -91,16 +93,42 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 		return fmt.Errorf("application not found")
 	}
 
+	if dryrun.Enabled() {
+		logger := logrus.New() // log to stdout for dryrun
+		opts.Logger = logger
+	}
+
 	logger, err := loggerFromOptions(opts)
 	if err != nil {
 		return fmt.Errorf("new api logger: %w", err)
 	}
 
-	api, err := api.New(
-		opts.APIConfig,
+	apiOpts := []api.Option{
 		api.WithLogger(logger),
 		api.WithMetricsReporter(opts.MetricsReporter),
-	)
+	}
+
+	if dryrun.Enabled() {
+		hcli, err := helm.NewClient(helm.HelmOptions{})
+		if err != nil {
+			return fmt.Errorf("create dryrun helm client: %w", err)
+		}
+		apiOpts = append(apiOpts, api.WithHelmClient(hcli))
+
+		kcli, err := dryrun.KubeClient()
+		if err != nil {
+			return fmt.Errorf("create dryrun kube client: %w", err)
+		}
+		apiOpts = append(apiOpts, api.WithKubeClient(kcli))
+
+		metadataClient, err := dryrun.MetadataClient()
+		if err != nil {
+			return fmt.Errorf("create dryrun metadata client: %w", err)
+		}
+		apiOpts = append(apiOpts, api.WithMetadataClient(metadataClient))
+	}
+
+	api, err := api.New(opts.APIConfig, apiOpts...)
 	if err != nil {
 		return fmt.Errorf("new api: %w", err)
 	}

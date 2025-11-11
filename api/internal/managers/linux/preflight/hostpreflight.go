@@ -9,6 +9,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
@@ -104,6 +105,17 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 		ProxySpec:           rc.ProxySpec(),
 		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
 	}
+
+	// TODO: use dependency injection for the preflights runner
+	if dryrun.Enabled() {
+		if err := m.setCompletedStatus(types.StateSucceeded, "Host preflights passed", nil); err != nil {
+			return fmt.Errorf("set succeeded status: %w", err)
+		}
+
+		dryrun.RecordHostPreflightSpec(opts.HostPreflightSpec)
+		return nil
+	}
+
 	output, stderr, err := m.runner.RunHostPreflights(ctx, opts.HostPreflightSpec, runOpts)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)

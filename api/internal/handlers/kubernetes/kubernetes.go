@@ -12,6 +12,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Handler struct {
@@ -24,6 +26,8 @@ type Handler struct {
 	logger            logrus.FieldLogger
 	metricsReporter   metrics.ReporterInterface
 	hcli              helm.Client
+	kcli              client.Client
+	mcli              metadata.Interface
 }
 
 type Option func(*Handler)
@@ -58,6 +62,18 @@ func WithHelmClient(hcli helm.Client) Option {
 	}
 }
 
+func WithKubeClient(kcli client.Client) Option {
+	return func(h *Handler) {
+		h.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) Option {
+	return func(h *Handler) {
+		h.mcli = mcli
+	}
+}
+
 func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 	h := &Handler{
 		cfg: cfg,
@@ -85,6 +101,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				//nolint:staticcheck // QF1008 this is very ambiguous, we should re-think the config struct
 				install.WithInstallation(h.cfg.KubernetesConfig.Installation),
 				install.WithHelmClient(h.hcli),
+				install.WithKubeClient(h.kcli),
+				install.WithMetadataClient(h.mcli),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new install controller: %w", err)
@@ -110,6 +128,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
 				upgrade.WithConfigValues(h.cfg.ConfigValues),
 				upgrade.WithHelmClient(h.hcli),
+				upgrade.WithKubeClient(h.kcli),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new upgrade controller: %w", err)

@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,6 +41,7 @@ type InstallController struct {
 	metricsReporter       metrics.ReporterInterface
 	hcli                  helm.Client
 	kcli                  client.Client
+	mcli                  metadata.Interface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	password              string
@@ -85,6 +87,12 @@ func WithHelmClient(hcli helm.Client) InstallControllerOption {
 func WithKubeClient(kcli client.Client) InstallControllerOption {
 	return func(c *InstallController) {
 		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.mcli = mcli
 	}
 }
 
@@ -229,6 +237,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithHelmClient(controller.hcli),
+			infra.WithKubeClient(controller.kcli),
+			infra.WithMetadataClient(controller.mcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create infra manager: %w", err)

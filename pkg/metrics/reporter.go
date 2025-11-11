@@ -227,7 +227,7 @@ func (r *Reporter) ReportHostPreflightsBypassed(ctx context.Context, output *api
 // ReportHostPreflightsSucceeded reports that the host preflights succeeded.
 func (r *Reporter) ReportHostPreflightsSucceeded(ctx context.Context) {
 	ev := types.PreflightsSucceeded{
-		GenericEvent: r.newGenericEvent(types.EventTypeHostPreflightsSucceeded, "", true),
+		GenericEvent: r.newGenericEvent(types.EventTypeHostPreflightsSucceeded, "", false),
 		NodeName:     getHostname(),
 	}
 	Send(ctx, r.baseURL, ev)
@@ -268,7 +268,7 @@ func (r *Reporter) ReportAppPreflightsBypassed(ctx context.Context, output *apit
 // ReportAppPreflightsSucceeded reports that the app preflights succeeded.
 func (r *Reporter) ReportAppPreflightsSucceeded(ctx context.Context) {
 	ev := types.PreflightsSucceeded{
-		GenericEvent: r.newGenericEvent(types.EventTypeAppPreflightsSucceeded, "", true),
+		GenericEvent: r.newGenericEvent(types.EventTypeAppPreflightsSucceeded, "", false),
 		NodeName:     getHostname(),
 	}
 	Send(ctx, r.baseURL, ev)
