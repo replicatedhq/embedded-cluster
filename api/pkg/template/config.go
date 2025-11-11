@@ -46,7 +46,7 @@ func (e *Engine) templateConfigItems() (*kotsv1beta1.Config, error) {
 		for j := range cfg.Spec.Groups[i].Items {
 			resolved, err := e.resolveConfigItem(cfg.Spec.Groups[i].Items[j].Name)
 			if err != nil {
-				e.logger.Debugf("templateConfigItems: failed to resolve item %q, using empty values: %v", cfg.Spec.Groups[i].Items[j].Name, err)
+				e.logger.WithError(err).WithField("item", cfg.Spec.Groups[i].Items[j].Name).Warn("failed to resolve item, using empty values")
 				cfg.Spec.Groups[i].Items[j].Value = multitype.FromString("")
 				cfg.Spec.Groups[i].Items[j].Default = multitype.FromString("")
 				cfg.Spec.Groups[i].Items[j].Filename = ""
@@ -82,7 +82,7 @@ func (e *Engine) configOption(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		e.logger.Debugf("ConfigOption(%q) failed to resolve, returning empty string: %v", name, err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
 		return "", nil
 	}
 	return resolved.Effective, nil
@@ -93,14 +93,14 @@ func (e *Engine) configOptionData(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		e.logger.Debugf("ConfigOptionData(%q) failed to resolve, returning empty string: %v", name, err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
 		return "", nil
 	}
 
 	// Base64 decode for file content
 	decoded, err := base64.StdEncoding.DecodeString(resolved.Effective)
 	if err != nil {
-		e.logger.Debugf("ConfigOptionData(%q) base64 decode failed, returning empty string: %v", name, err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to decode base64 for item, returning empty string")
 		return "", nil
 	}
 	return string(decoded), nil
@@ -111,7 +111,7 @@ func (e *Engine) configOptionEquals(name, expected string) (bool, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		e.logger.Debugf("ConfigOptionEquals(%q, %q) failed to resolve, returning false: %v", name, expected, err)
+		e.logger.WithError(err).WithField("item", name).WithField("expected", expected).Warn("failed to resolve item, returning false")
 		return false, nil
 	}
 	return resolved.Effective == expected, nil
@@ -123,7 +123,7 @@ func (e *Engine) configOptionNotEquals(name, expected string) (bool, error) {
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
 		// NOTE: logically one might expect this to return true, but this matches KOTS behavior
-		e.logger.Debugf("ConfigOptionNotEquals(%q, %q) failed to resolve, returning false: %v", name, expected, err)
+		e.logger.WithError(err).WithField("item", name).WithField("expected", expected).Warn("failed to resolve item, returning false")
 		return false, nil
 	}
 	return resolved.Effective != expected, nil
@@ -134,7 +134,7 @@ func (e *Engine) configOptionFilename(name string) (string, error) {
 
 	resolved, err := e.resolveConfigItem(name)
 	if err != nil {
-		e.logger.Debugf("ConfigOptionFilename(%q) failed to resolve, returning empty string: %v", name, err)
+		e.logger.WithError(err).WithField("item", name).Warn("failed to resolve item, returning empty string")
 		return "", nil
 	}
 
