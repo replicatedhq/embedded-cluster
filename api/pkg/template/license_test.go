@@ -4,20 +4,29 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// Helper function to wrap old-style license in LicenseWrapper for testing
+// Helper function to wrap v1beta1 license in LicenseWrapper for testing
 func wrapLicense(license *kotsv1beta1.License) *licensewrapper.LicenseWrapper {
 	return &licensewrapper.LicenseWrapper{
 		V1: license,
+	}
+}
+
+// Helper function to wrap v1beta2 license in LicenseWrapper for testing
+func wrapLicenseV2(license *kotsv1beta2.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
+		V2: license,
 	}
 }
 
@@ -175,8 +184,8 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 }
 
 func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
+	license := &kotsv1beta2.License{
+		Spec: kotsv1beta2.LicenseSpec{
 			CustomerName: "Acme Corp",
 			LicenseID:    "license-123",
 		},
@@ -188,7 +197,7 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(wrapLicense(license)))
+	engine := NewEngine(config, WithLicense(wrapLicenseV2(license)))
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
@@ -605,114 +614,4 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 	_, err = engine.Execute(nil, WithProxySpec(&ecv1beta1.ProxySpec{}))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "channel unknown-channel-id not found in license")
-}
-
-func TestEngine_LicenseWrapper(t *testing.T) {
-	licenseV1Beta1 := `apiVersion: kots.io/v1beta1
-kind: License
-metadata:
-  name: test-license
-spec:
-  appSlug: embedded-cluster-test
-  licenseID: test-license-id-v1
-  licenseType: dev
-  customerName: Test Customer V1
-  customerEmail: test@example.com
-  endpoint: https://replicated.app
-  channelID: test-channel-id
-  channelName: Stable
-  licenseSequence: 1
-  isAirgapSupported: true
-  isGitOpsSupported: false
-  isIdentityServiceSupported: false
-  isGeoaxisSupported: false
-  isSnapshotSupported: true
-  isSupportBundleUploadSupported: true
-  isSemverRequired: true
-  isDisasterRecoverySupported: true
-  isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultiNodeEnabled: true
-  replicatedProxyDomain: proxy.replicated.com
-  entitlements:
-    expires_at:
-      title: Expiration
-      description: License Expiration
-      value: ""
-      valueType: String
-      signature: {}
-  channels: []
-  signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==
-`
-
-	licenseV1Beta2 := `apiVersion: kots.io/v1beta2
-kind: License
-metadata:
-  name: test-license
-spec:
-  appSlug: embedded-cluster-test
-  licenseID: test-license-id-v2
-  licenseType: dev
-  customerName: Test Customer V2
-  customerEmail: test@example.com
-  endpoint: https://replicated.app
-  channelID: test-channel-id
-  channelName: Stable
-  licenseSequence: 1
-  isAirgapSupported: true
-  isGitOpsSupported: false
-  isIdentityServiceSupported: false
-  isGeoaxisSupported: false
-  isSnapshotSupported: true
-  isSupportBundleUploadSupported: true
-  isSemverRequired: true
-  isDisasterRecoverySupported: true
-  isEmbeddedClusterDownloadEnabled: true
-  isEmbeddedClusterMultiNodeEnabled: true
-  replicatedProxyDomain: proxy.replicated.com
-  entitlements:
-    expires_at:
-      title: Expiration
-      description: License Expiration
-      value: ""
-      valueType: String
-      signature: {}
-  channels: []
-  signature: dGVzdC1saWNlbnNlLXNpZ25hdHVyZQ==
-`
-
-	tests := []struct {
-		name          string
-		licenseData   string
-		wantAppSlug   string
-		wantLicenseID string
-		wantECEnabled bool
-	}{
-		{
-			name:          "v1beta1 license",
-			licenseData:   licenseV1Beta1,
-			wantAppSlug:   "embedded-cluster-test",
-			wantLicenseID: "test-license-id-v1",
-			wantECEnabled: true,
-		},
-		{
-			name:          "v1beta2 license",
-			licenseData:   licenseV1Beta2,
-			wantAppSlug:   "embedded-cluster-test",
-			wantLicenseID: "test-license-id-v2",
-			wantECEnabled: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			wrapper, err := licensewrapper.LoadLicenseFromBytes([]byte(tt.licenseData))
-			require.NoError(t, err)
-
-			engine := NewEngine(nil, WithLicense(&wrapper))
-
-			assert.Equal(t, tt.wantAppSlug, engine.LicenseAppSlug())
-			assert.Equal(t, tt.wantLicenseID, engine.LicenseID())
-			assert.Equal(t, tt.wantECEnabled, engine.LicenseIsEmbeddedClusterDownloadEnabled())
-		})
-	}
 }

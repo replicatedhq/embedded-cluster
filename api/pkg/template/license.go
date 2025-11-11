@@ -10,28 +10,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
-// Helper methods for direct access (used by tests and other code)
-func (e *Engine) LicenseAppSlug() string {
-	if e.license.IsEmpty() {
-		return ""
-	}
-	return e.license.GetAppSlug()
-}
-
-func (e *Engine) LicenseID() string {
-	if e.license.IsEmpty() {
-		return ""
-	}
-	return e.license.GetLicenseID()
-}
-
-func (e *Engine) LicenseIsEmbeddedClusterDownloadEnabled() bool {
-	if e.license.IsEmpty() {
-		return false
-	}
-	return e.license.IsEmbeddedClusterDownloadEnabled()
-}
-
 func (e *Engine) licenseFieldValue(name string) (string, error) {
 	if e.license.IsEmpty() {
 		return "", fmt.Errorf("license is nil")

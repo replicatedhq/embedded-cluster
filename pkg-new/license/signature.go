@@ -78,11 +78,6 @@ swIDAQAB
 // It handles both v1beta1 and v1beta2 licenses by delegating to their ValidateLicense methods.
 // Returns the wrapper unchanged if validation succeeds, or an error if validation fails.
 func VerifySignature(wrapper *licensewrapper.LicenseWrapper) (*licensewrapper.LicenseWrapper, error) {
-	if wrapper == nil || wrapper.IsEmpty() {
-		// Empty wrapper doesn't need verification
-		return wrapper, nil
-	}
-
 	if wrapper.IsV1() {
 		_, err := wrapper.V1.ValidateLicense()
 		if err != nil {

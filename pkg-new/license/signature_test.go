@@ -58,16 +58,6 @@ func Test_VerifySignature(t *testing.T) {
 			errorContains: "verification error",
 		},
 		{
-			name:        "nil wrapper returns nil",
-			wrapper:     nil,
-			expectError: false,
-		},
-		{
-			name:        "empty wrapper returns wrapper",
-			wrapper:     &licensewrapper.LicenseWrapper{},
-			expectError: false,
-		},
-		{
 			name:        "v1beta2: valid signature passes verification",
 			licenseFile: "testdata/valid-license-v2.yaml",
 			expectError: false,
