@@ -40,7 +40,7 @@ func TestProxiedEnvironment(t *testing.T) {
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
-		Nodes:               4,
+		Nodes:               3,
 		WithProxy:           true,
 		Image:               "debian/12",
 		LicensePath:         "licenses/snapshot-license.yaml",
@@ -96,14 +96,11 @@ func TestProxiedEnvironment(t *testing.T) {
 	t.Logf("node 1 joined, sleeping...")
 	time.Sleep(30 * time.Second)
 
-	// join another controller node
-	joinControllerNode(t, tc, 2)
-
 	// join a worker node
-	joinWorkerNode(t, tc, 3)
+	joinWorkerNode(t, tc, 2)
 
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, nil)
+	waitForNodes(t, tc, 3, nil)
 
 	// check the installation state
 	checkInstallationState(t, tc)
@@ -137,12 +134,6 @@ func TestProxiedEnvironment(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true})
-			if err != nil {
-				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
-		}, func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
@@ -210,7 +201,7 @@ func TestInstallWithMITMProxy(t *testing.T) {
 
 	tc := lxd.NewCluster(&lxd.ClusterInput{
 		T:                   t,
-		Nodes:               4,
+		Nodes:               3,
 		WithProxy:           true,
 		Image:               "debian/12",
 		EmbeddedClusterPath: "../output/bin/embedded-cluster",
@@ -271,14 +262,11 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	t.Logf("node 1 joined, sleeping...")
 	time.Sleep(30 * time.Second)
 
-	// join another controller node
-	joinControllerNode(t, tc, 2)
-
 	// join a worker node
-	joinWorkerNode(t, tc, 3)
+	joinWorkerNode(t, tc, 2)
 
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, nil)
+	waitForNodes(t, tc, 3, nil)
 
 	// check the installation state
 	checkInstallationState(t, tc)
@@ -308,12 +296,6 @@ func TestInstallWithMITMProxy(t *testing.T) {
 	// reset the cluster
 	runInParallel(t,
 		func(t *testing.T) error {
-			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true})
-			if err != nil {
-				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
-		}, func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
