@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useWizard } from "../contexts/WizardModeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { getWizardBasePath, createAuthedClient } from "../api/client";
+import { ApiError } from "../api/error";
 
 /**
  * Query hook to fetch airgap status
@@ -221,6 +222,8 @@ export function useInstallationStatus(options?: {
 
       return data;
     },
+    retry: retryOnConflictError,
+    retryDelay: 1000,
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
     gcTime: options?.gcTime,
@@ -246,4 +249,12 @@ export function useNetworkInterfaces() {
       return data;
     },
   });
+}
+
+function retryOnConflictError(failureCount: number, error: Error) {
+  const statusCode = error instanceof ApiError ? error.statusCode : undefined;
+
+  // Retry on 409 conflict errors up to 3 times (api is still transitioning)
+  if (statusCode === 409 && failureCount < 3) return true;
+  return false;
 }
