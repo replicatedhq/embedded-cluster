@@ -1201,6 +1201,9 @@ func setupV3Test(t *testing.T, hcli helm.Client) (string, string) {
 	// Set ENABLE_V3 environment variable
 	t.Setenv("ENABLE_V3", "1")
 
+	// Ensure UI assets are available when starting API in non-headless tests
+	prepareWebAssetsForTests(t)
+
 	// Setup release data with V3-specific release data
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
@@ -1252,6 +1255,24 @@ func setupV3TestHelmClient() *helm.MockClient {
 	hcli.On("Close").Return(nil).Maybe()
 
 	return hcli
+}
+
+// prepareWebAssetsForTests creates a minimal UI template and enables dev mode,
+// so the web server can start without embedded assets.
+func prepareWebAssetsForTests(t *testing.T) {
+	t.Helper()
+	t.Setenv("EC_DEV_ENV", "1")
+
+	indexPath := "web/dist/index.html"
+	if err := os.MkdirAll(filepath.Dir(indexPath), 0o755); err != nil {
+		t.Fatalf("fail to create test web dist directory: %v", err)
+	}
+
+	// Minimal template that satisfies web.loadHTMLTemplate
+	const indexHTML = "<!doctype html><html><head><meta charset=\"utf-8\"><title>{{ .Title }}</title></head><body><div id=\"root\"></div></body></html>\n"
+	if err := os.WriteFile(indexPath, []byte(indexHTML), 0o644); err != nil {
+		t.Fatalf("fail to write test index.html: %v", err)
+	}
 }
 
 // createConfigValuesFile creates a config values file that passes validation
