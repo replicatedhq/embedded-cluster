@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	clusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,8 +16,6 @@ import (
 
 const (
 	RegistryCredsSecretName = "registry-creds"
-
-	kotsadmNamespace = "kotsadm"
 )
 
 // EnsureRegistrySecretInECNamespace reads the registry secret from the kotsadm namespace and
@@ -25,10 +24,14 @@ const (
 func EnsureRegistrySecretInECNamespace(ctx context.Context, cli client.Client, in *clusterv1beta1.Installation) (controllerutil.OperationResult, error) {
 	op := controllerutil.OperationResultNone
 
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return op, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
 	nsn := types.NamespacedName{Name: RegistryCredsSecretName, Namespace: kotsadmNamespace}
 	var kotsadmSecret corev1.Secret
-	err := cli.Get(ctx, nsn, &kotsadmSecret)
-	if err != nil {
+	if err := cli.Get(ctx, nsn, &kotsadmSecret); err != nil {
 		return op, fmt.Errorf("get secret in kotsadm namespace: %w", err)
 	}
 

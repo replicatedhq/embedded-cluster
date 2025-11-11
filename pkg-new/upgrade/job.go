@@ -11,18 +11,17 @@ import (
 	"github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -432,32 +431,11 @@ func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, rc r
 		return fmt.Errorf("ensure autopilot plan: %w", err)
 	}
 
-	nsn := types.NamespacedName{Name: "autopilot"}
-	plan := v1beta2.Plan{}
-
 	log.Info("Waiting for container images to be uploaded...")
 
-	err = wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
-		err := cli.Get(ctx, nsn, &plan)
-		if err != nil {
-			return false, fmt.Errorf("get autopilot plan: %w", err)
-		}
-		if plan.Annotations[artifacts.InstallationNameAnnotation] != in.Name {
-			return false, fmt.Errorf("autopilot plan for different installation")
-		}
-
-		switch {
-		case autopilot.HasPlanSucceeded(plan):
-			return true, nil
-		case autopilot.HasPlanFailed(plan):
-			reason := autopilot.ReasonForState(plan)
-			return false, fmt.Errorf("autopilot plan failed: %s", reason)
-		}
-		// plan is still running
-		return false, nil
-	})
+	err = k0s.WaitForAirgapArtifactsAutopilotPlan(ctx, cli, in)
 	if err != nil {
-		return fmt.Errorf("wait for autopilot plan: %w", err)
+		return fmt.Errorf("wait for airgap artifacts autopilot plan: %w", err)
 	}
 
 	log.Info("Container images uploaded")

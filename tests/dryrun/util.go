@@ -42,6 +42,12 @@ var (
 	//go:embed assets/cluster-config.yaml
 	clusterConfigData string
 
+	//go:embed assets/upgrade-release.yaml
+	upgradeReleaseData string
+
+	//go:embed assets/upgrade-cluster-config.yaml
+	upgradeClusterConfigData string
+
 	//go:embed assets/cluster-config-nodomains.yaml
 	clusterConfigNoDomainsData string
 
@@ -59,6 +65,12 @@ var (
 
 	//go:embed assets/install-license.yaml
 	licenseData string
+
+	//go:embed assets/test-cert.pem
+	testCertPEM []byte
+
+	//go:embed assets/test-key.pem
+	testKeyPEM []byte
 )
 
 func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
@@ -253,7 +265,7 @@ func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []inter
 			}
 		}
 		if !found {
-			t.Errorf("expected command %v not found", exp)
+			t.Errorf("expected command %v not found in %v", exp, actual)
 		}
 	}
 

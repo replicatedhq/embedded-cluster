@@ -3,10 +3,13 @@ package k0s
 import (
 	"context"
 
+	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ K0sInterface = (*MockK0s)(nil)
@@ -61,5 +64,32 @@ func (m *MockK0s) PatchK0sConfig(path string, patch string) error {
 // WaitForK0s mocks the WaitForK0s method
 func (m *MockK0s) WaitForK0s() error {
 	args := m.Called()
+	return args.Error(0)
+}
+
+// WaitForAutopilotPlan mocks the WaitForAutopilotPlan method
+func (m *MockK0s) WaitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
+	args := m.Called(ctx, cli, logger)
+	if args.Get(0) == nil {
+		return apv1b2.Plan{}, args.Error(1)
+	}
+	return args.Get(0).(apv1b2.Plan), args.Error(1)
+}
+
+// WaitForClusterNodesMatchVersion mocks the WaitForClusterNodesMatchVersion method
+func (m *MockK0s) WaitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
+	args := m.Called(ctx, cli, desiredVersion, logger)
+	return args.Error(0)
+}
+
+// ClusterNodesMatchVersion mocks the ClusterNodesMatchVersion method
+func (m *MockK0s) ClusterNodesMatchVersion(ctx context.Context, cli client.Client, version string) (bool, error) {
+	args := m.Called(ctx, cli, version)
+	return args.Bool(0), args.Error(1)
+}
+
+// WaitForAirgapArtifactsAutopilotPlan mocks the WaitForAirgapArtifactsAutopilotPlan method
+func (m *MockK0s) WaitForAirgapArtifactsAutopilotPlan(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	args := m.Called(ctx, cli, in)
 	return args.Error(0)
 }
