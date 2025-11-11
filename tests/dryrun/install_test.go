@@ -424,8 +424,10 @@ var (
 )
 
 func valuesFile(t *testing.T) string {
+	t.Helper()
+
 	valuesYamlFilename := filepath.Join(t.TempDir(), "values.yaml")
-	require.NoError(t, os.WriteFile(valuesYamlFilename, valuesYaml, 0644))
+	writeFile(t, valuesYamlFilename, string(valuesYaml))
 	return valuesYamlFilename
 }
 
@@ -684,10 +686,8 @@ r3glM4yhSJwf/cAWmt1A7DGOYnV7FF2wkDJJPX/Vag1uEsqrzwnAdFBymK5dwDsu
 oxhVqyhpk86rf0rT5DcD/sBw
 -----END PRIVATE KEY-----`
 
-	err := os.WriteFile(certPath, []byte(certData), 0644)
-	require.NoError(t, err)
-	err = os.WriteFile(keyPath, []byte(keyData), 0644)
-	require.NoError(t, err)
+	writeFile(t, certPath, certData)
+	writeFile(t, keyPath, keyData)
 
 	hcli := &helm.MockClient{}
 

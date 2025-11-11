@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -74,6 +75,7 @@ type InstallController struct {
 	hcli                      helm.Client
 	kcli                      client.Client
 	mcli                      metadata.Interface
+	preflightRunner           preflights.PreflightRunnerInterface
 	stateMachine              statemachine.Interface
 	logger                    logrus.FieldLogger
 	allowIgnoreHostPreflights bool
@@ -239,6 +241,12 @@ func WithMetadataClient(mcli metadata.Interface) InstallControllerOption {
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -288,6 +296,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			preflight.WithLogger(controller.logger),
 			preflight.WithHostPreflightStore(controller.store.LinuxPreflightStore()),
 			preflight.WithNetUtils(controller.netUtils),
+			preflight.WithPreflightRunner(controller.preflightRunner),
 		)
 	}
 
@@ -306,6 +315,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

@@ -7,8 +7,10 @@ import (
 	"strings"
 	"sync"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/config"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -24,6 +26,7 @@ import (
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,11 +46,12 @@ type Client struct {
 	FirewalldUtil            *FirewalldUtil
 	Metrics                  *Sender
 	K0sClient                *K0s
-	HelmClient               helm.Client
 	Kotsadm                  *Kotsadm
 	ReplicatedAPIClient      *ReplicatedAPIClient
 	NetworkInterfaceProvider netutils.NetworkInterfaceProvider
 	ChooseHostInterfaceImpl  *ChooseInterfaceImpl
+	HelmClient               helm.Client
+	PreflightRunner          preflights.PreflightRunnerInterface
 }
 
 func Init(outputFile string, client *Client) {
@@ -79,11 +83,6 @@ func Init(outputFile string, client *Client) {
 	if client.Kotsadm == nil {
 		client.Kotsadm = NewKotsadm()
 	}
-	if client.HelmClient != nil {
-		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
-			return client.HelmClient, nil
-		})
-	}
 	if client.ReplicatedAPIClient != nil {
 		replicatedapi.SetClientFactory(func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...replicatedapi.ClientOption) (replicatedapi.Client, error) {
 			return client.ReplicatedAPIClient, nil
@@ -101,9 +100,25 @@ func Init(outputFile string, client *Client) {
 	metrics.Set(client.Metrics)
 	k0s.Set(client.K0sClient)
 	k0s.SetClientFactory(func() k0s.K0sInterface {
-		return &K0s{}
+		return &K0s{
+			k0s: new(k0s.K0s),
+		}
 	})
 	kotsadm.Set(client.Kotsadm)
+
+	if client.HelmClient != nil {
+		_helmClient = client.HelmClient
+	}
+	if client.HelmClient != nil {
+		helm.SetClientFactory(func(opts helm.HelmOptions) (helm.Client, error) {
+			return GetHelmClient(), nil
+		})
+	}
+
+	if client.PreflightRunner != nil {
+		_preflightRunner = client.PreflightRunner
+	}
+	preflights.Set(_preflightRunner)
 
 	logrus.SetLevel(logrus.DebugLevel)
 	logrus.SetOutput(dr.LogBuffer)
@@ -198,6 +213,53 @@ func MetadataClient() (metadata.Interface, error) {
 
 func GetClientSet() (kubernetes.Interface, error) {
 	return dr.GetClientset()
+}
+
+var _helmClient helm.Client
+
+func GetHelmClient() helm.Client {
+	if _helmClient == nil {
+		_helmClient = &helm.MockClient{}
+	}
+	return _helmClient
+}
+
+var _preflightRunner preflights.PreflightRunnerInterface
+
+func GetPreflightRunner() preflights.PreflightRunnerInterface {
+	if _preflightRunner == nil {
+		preflightRunner := &preflights.MockPreflightRunner{}
+		preflightRunner.
+			On("RunHostPreflights", mock.Anything, mock.Anything, mock.Anything).
+			Once().
+			Run(func(args mock.Arguments) {
+				RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+			}).
+			Return(&apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Test Check",
+						Message: "Test check passed",
+					},
+				},
+			}, "", nil)
+		preflightRunner.
+			On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).
+			Once().
+			Run(func(args mock.Arguments) {
+				RecordAppPreflightSpec(args.Get(1).(*troubleshootv1beta2.PreflightSpec))
+			}).
+			Return(&apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Test Check",
+						Message: "Test check passed",
+					},
+				},
+			}, "", nil)
+		_preflightRunner = preflightRunner
+	}
+	return _preflightRunner
 }
 
 func Enabled() bool {

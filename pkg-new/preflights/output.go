@@ -5,21 +5,46 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/term"
 )
 
+// CopyBundleTo copies the preflight bundle to the destination directory.
+// The bundle is expected to be in the current working directory.
+func CopyBundleTo(dst string) error {
+	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
+	if err != nil {
+		return fmt.Errorf("find preflight bundle: %w", err)
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+	// get the newest bundle
+	src := matches[0]
+	for _, match := range matches {
+		if filepath.Base(match) > filepath.Base(src) {
+			src = match
+		}
+	}
+	if err := helpers.MoveFile(src, dst); err != nil {
+		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
+	}
+	return nil
+}
+
 // PrintTable prints the preflight output in a table format.
-func (p *PreflightsRunner) PrintTable(o *apitypes.PreflightsOutput) {
+func PrintTable(o *apitypes.PreflightsOutput) {
 	printTable(o)
 }
 
 // PrintTableWithoutInfo prints the preflight output in a table format without info results.
-func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
+func PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	withoutInfo := apitypes.PreflightsOutput{
 		Warn: o.Warn,
 		Fail: o.Fail,
@@ -28,7 +53,7 @@ func (p *PreflightsRunner) PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	printTable(&withoutInfo)
 }
 
-func (p *PreflightsRunner) SaveToDisk(o *apitypes.PreflightsOutput, path string) error {
+func SaveToDisk(o *apitypes.PreflightsOutput, path string) error {
 	// Store results on disk of the host that ran the preflights
 	data, err := json.MarshalIndent(o, "", "  ")
 	if err != nil {
@@ -46,7 +71,7 @@ func (p *PreflightsRunner) SaveToDisk(o *apitypes.PreflightsOutput, path string)
 
 // OutputFromReader reads the provided reader and returns a Output
 // object. Expects the reader to contain a valid JSON object.
-func (p *PreflightsRunner) OutputFromReader(from io.Reader) (*apitypes.PreflightsOutput, error) {
+func OutputFromReader(from io.Reader) (*apitypes.PreflightsOutput, error) {
 	result := &apitypes.PreflightsOutput{}
 	if err := json.NewDecoder(from).Decode(result); err != nil {
 		return result, fmt.Errorf("unable to decode preflight output: %w", err)

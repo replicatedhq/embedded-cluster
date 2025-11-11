@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -42,6 +43,7 @@ type InstallController struct {
 	hcli                  helm.Client
 	kcli                  client.Client
 	mcli                  metadata.Interface
+	preflightRunner       preflights.PreflightRunnerInterface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	password              string
@@ -174,6 +176,12 @@ func WithStore(store store.Store) InstallControllerOption {
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -218,6 +226,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)

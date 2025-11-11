@@ -108,17 +108,31 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 }
 
 func (c *InstallController) getStateFromPreflightsOutput(ctx context.Context) statemachine.State {
-	output, err := c.GetHostPreflightOutput(ctx)
-	// If there was an error getting the state we assume preflight execution failed
+	status, err := c.GetHostPreflightStatus(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("error getting preflight output")
+		c.logger.WithError(err).Error("error getting preflight status")
 		return states.StateHostPreflightsExecutionFailed
 	}
-	// If there is no output, we assume preflights succeeded
-	if output == nil || !output.HasFail() {
+	switch status.State {
+	case types.StateSucceeded:
 		return states.StateHostPreflightsSucceeded
+	case types.StateFailed:
+		output, err := c.GetHostPreflightOutput(ctx)
+		// If there was an error getting the state we assume preflight execution failed
+		if err != nil {
+			c.logger.WithError(err).Error("error getting preflight output")
+			return states.StateHostPreflightsExecutionFailed
+		}
+		// If there are failures, we return the failed state
+		if output != nil && output.HasFail() {
+			return states.StateHostPreflightsFailed
+		}
+		// Otherwise, we assume preflight execution failed
+		return states.StateHostPreflightsExecutionFailed
+	default:
+		c.logger.Errorf("unexpected preflight status: %s", status.State)
+		return states.StateHostPreflightsExecutionFailed
 	}
-	return states.StateHostPreflightsFailed
 }
 
 func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {

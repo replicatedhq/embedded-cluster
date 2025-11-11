@@ -286,7 +286,7 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			},
 		},
 		{
-			name: "failures",
+			name: "check failures without bypass",
 			mockRunFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
 				return apitypes.InstallHostPreflightsStatusResponse{
 					Status: apitypes.Status{State: apitypes.StatePending},
@@ -295,7 +295,7 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
 				return apitypes.InstallHostPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateSucceeded,
+						State:       apitypes.StateFailed,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -316,6 +316,117 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			expectedProgressMessages: []string{
 				"Running host preflights...",
 				"Host preflights completed with failures",
+			},
+		},
+		{
+			name: "check failures with bypass",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "Completed with failures",
+					},
+					Output: &apitypes.PreflightsOutput{
+						Fail: []apitypes.PreflightsRecord{
+							{Title: "Disk space", Message: "Insufficient disk space"},
+						},
+					},
+				}, nil
+			},
+			ignoreFailures: true,
+			expectError:    false,
+			expectedLogMessages: []string{
+				"\n⚠ Warning: Host preflight checks completed with failures\n",
+				"  [ERROR] Disk space: Insufficient disk space",
+				"\nInstallation will continue, but the system may not meet requirements (failures bypassed with flag).\n",
+			},
+			expectedProgressMessages: []string{
+				"Running host preflights...",
+				"Host preflights completed with failures",
+			},
+		},
+		{
+			name: "execution failure - nil output",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "preflight binary crashed",
+					},
+					Output: nil,
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "preflight binary crashed",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running host preflights...",
+				"Host preflights execution failed",
+			},
+		},
+		{
+			name: "execution failure - no failures in output",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "preflight binary exited with code 1",
+					},
+					Output: &apitypes.PreflightsOutput{
+						Pass: []apitypes.PreflightsRecord{},
+						Warn: []apitypes.PreflightsRecord{},
+						Fail: []apitypes.PreflightsRecord{},
+					},
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "preflight binary exited with code 1",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running host preflights...",
+				"Host preflights execution failed",
+			},
+		},
+		{
+			name: "execution failure - default message",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
+				return apitypes.InstallHostPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "",
+					},
+					Output: nil,
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "host preflights execution failed",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running host preflights...",
+				"Host preflights execution failed",
 			},
 		},
 	}
@@ -579,7 +690,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			},
 		},
 		{
-			name: "failures with bypass",
+			name: "check failures with bypass",
 			mockRunFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{State: apitypes.StatePending},
@@ -588,7 +699,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateSucceeded,
+						State:       apitypes.StateFailed,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -611,7 +722,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			},
 		},
 		{
-			name: "failures without bypass",
+			name: "check failures without bypass",
 			mockRunFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{State: apitypes.StatePending},
@@ -620,7 +731,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateSucceeded,
+						State:       apitypes.StateFailed,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -641,6 +752,85 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			expectedProgressMessages: []string{
 				"Running app preflights...",
 				"App preflights completed with failures",
+			},
+		},
+		{
+			name: "execution failure - nil output",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "app preflight binary crashed",
+					},
+					Output: nil,
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "app preflight binary crashed",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running app preflights...",
+				"App preflights execution failed",
+			},
+		},
+		{
+			name: "execution failure - no failures in output",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "app preflight binary exited with code 1",
+					},
+					Output: &apitypes.PreflightsOutput{
+						Pass: []apitypes.PreflightsRecord{},
+						Warn: []apitypes.PreflightsRecord{},
+						Fail: []apitypes.PreflightsRecord{},
+					},
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "app preflight binary exited with code 1",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running app preflights...",
+				"App preflights execution failed",
+			},
+		},
+		{
+			name: "execution failure - default message",
+			mockRunFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{State: apitypes.StatePending},
+				}, nil
+			},
+			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
+				return apitypes.InstallAppPreflightsStatusResponse{
+					Status: apitypes.Status{
+						State:       apitypes.StateFailed,
+						Description: "",
+					},
+					Output: nil,
+				}, nil
+			},
+			ignoreFailures:      false,
+			expectError:         true,
+			expectedErrorMsg:    "app preflights execution failed",
+			expectedLogMessages: []string{},
+			expectedProgressMessages: []string{
+				"Running app preflights...",
+				"App preflights execution failed",
 			},
 		},
 	}

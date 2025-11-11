@@ -20,7 +20,7 @@ type AppPreflightManager interface {
 
 type appPreflightManager struct {
 	appPreflightStore preflight.Store
-	runner            preflights.PreflightsRunnerInterface
+	runner            preflights.PreflightRunnerInterface
 	logger            logrus.FieldLogger
 }
 
@@ -38,7 +38,7 @@ func WithAppPreflightStore(appPreflightStore preflight.Store) AppPreflightManage
 	}
 }
 
-func WithPreflightRunner(runner preflights.PreflightsRunnerInterface) AppPreflightManagerOption {
+func WithPreflightRunner(runner preflights.PreflightRunnerInterface) AppPreflightManagerOption {
 	return func(m *appPreflightManager) {
 		m.runner = runner
 	}

@@ -225,13 +225,8 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-						Pass: []types.PreflightsRecord{
-							{
-								Title:   "Test Check",
-								Message: "Test check passed",
-							},
-						},
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
 					}, nil),
 				)
 			},
@@ -251,13 +246,8 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-						Pass: []types.PreflightsRecord{
-							{
-								Title:   "Test Check",
-								Message: "Test check passed",
-							},
-						},
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
 					}, nil),
 				)
 			},
@@ -277,13 +267,8 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-						Pass: []types.PreflightsRecord{
-							{
-								Title:   "Test Check",
-								Message: "Test check passed",
-							},
-						},
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
 					}, nil),
 				)
 			},
@@ -303,6 +288,9 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
 						Fail: []types.PreflightsRecord{
 							{
@@ -316,7 +304,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedErr: false,
 		},
 		{
-			name: "execution succeeded but failed to get preflight output",
+			name: "failed run preflights with get preflight output error",
 			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
@@ -329,18 +317,21 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					apm.On("GetAppPreflightOutput", mock.Anything).Return(nil, errors.New("get output error")),
 				)
 			},
 			expectedErr: false,
 		},
 		{
-			name: "successful execution with nil preflight output",
+			name: "failed run preflights with nil preflight output",
 			opts: appcontroller.RunAppPreflightOptions{
 				PreflightBinaryPath: "/usr/bin/preflight",
 			},
 			currentState:  states.StateInfrastructureInstalled,
-			expectedState: states.StateAppPreflightsSucceeded,
+			expectedState: states.StateAppPreflightsExecutionFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
@@ -348,33 +339,10 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
 					})).Return(nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(nil, nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "successful execution with preflight warnings",
-			opts: appcontroller.RunAppPreflightOptions{
-				PreflightBinaryPath: "/usr/bin/preflight",
-			},
-			currentState:  states.StateInfrastructureInstalled,
-			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
-					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
-					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
-						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-						Warn: []types.PreflightsRecord{
-							{
-								Title:   "Test Check",
-								Message: "Test check warning",
-							},
-						},
+					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
 					}, nil),
+					apm.On("GetAppPreflightOutput", mock.Anything).Return(nil, nil),
 				)
 			},
 			expectedErr: false,
