@@ -170,7 +170,7 @@ type ConfigSpec struct {
 	Extensions           Extensions           `json:"extensions,omitempty"`
 	Domains              Domains              `json:"domains,omitempty"`
 	// Architecture holds the list of CPU architectures supported by this release.
-	// If omitted, both architectures are assumed to be supported.
+	// If omitted, x86_64 is assumed for backward compatibility.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=2
