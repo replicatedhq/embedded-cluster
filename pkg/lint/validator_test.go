@@ -641,7 +641,7 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			expectError: true,
 			errorCount:  1,
 			errorFields: []string{"extensions.velero.plugins[0].image"},
-			errorMsgs:   []string{"invalid character"},
+			errorMsgs:   []string{"invalid repository"},
 		},
 	}
 
