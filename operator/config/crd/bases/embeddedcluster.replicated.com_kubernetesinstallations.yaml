@@ -63,6 +63,21 @@ spec:
               config:
                 description: Config holds the configuration used at installation time.
                 properties:
+                  architecture:
+                    description: |-
+                      Architecture holds the list of CPU architectures supported by this release.
+                      If omitted, x86_64 is assumed for backward compatibility.
+                    items:
+                      description: Architecture represents a supported CPU architecture
+                        identifier.
+                      enum:
+                      - aarch64
+                      - x86_64
+                      type: string
+                    maxItems: 2
+                    minItems: 1
+                    type: array
+                    uniqueItems: true
                   binaryOverrideUrl:
                     type: string
                   domains:

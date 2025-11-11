@@ -40,8 +40,12 @@ spec:
             description: ConfigSpec defines the desired state of Config
             properties:
               architecture:
-                description: Architecture holds the list of CPU architectures supported by this release.
+                description: |-
+                  Architecture holds the list of CPU architectures supported by this release.
+                  If omitted, x86_64 is assumed for backward compatibility.
                 items:
+                  description: Architecture represents a supported CPU architecture
+                    identifier.
                   enum:
                   - aarch64
                   - x86_64
