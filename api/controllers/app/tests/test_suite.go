@@ -509,6 +509,15 @@ func (s *AppControllerTestSuite) TestGetAppInstallStatus() {
 }
 
 func (s *AppControllerTestSuite) TestInstallApp() {
+	runHook := func(state types.State) func(args mock.Arguments) {
+		return func(args mock.Arguments) {
+			hfn := args.Get(2).(func(status types.Status) error)
+			hfn(types.Status{
+				State: state,
+			})
+		}
+	}
+
 	tests := []struct {
 		name                string
 		ignoreAppPreflights bool
@@ -550,7 +559,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 					}, nil),
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -570,7 +579,27 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 					}, nil),
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "failed app installation from app preflights succeeded state",
+			currentState:  states.StateAppPreflightsSucceeded,
+			expectedState: states.StateAppInstallFailed,
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+				mock.InOrder(
+					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
+						Spec: kotsv1beta1.ConfigValuesSpec{
+							Values: map[string]kotsv1beta1.ConfigValue{
+								"test-key": {Value: "test-value"},
+							},
+						},
+					}, nil),
+					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
+						return cv.Spec.Values["test-key"].Value == "test-value"
+					}), mock.Anything).Run(runHook(types.StateFailed)).Return(errors.New("install error")),
 				)
 			},
 			expectedErr: false,
@@ -610,7 +639,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 					}, nil),
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					})).Return(nil),
+					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
 				)
 			},
 			expectedErr: false,
