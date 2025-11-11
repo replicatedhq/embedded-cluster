@@ -345,10 +345,11 @@ func TestSplitYAMLDocuments(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, result, tt.expected, "Expected %d documents but got %d", tt.expected, len(result))
 
-			// Verify each document is valid (non-empty and trimmed)
+			// Verify each document is valid (non-empty)
 			for i, doc := range result {
 				assert.NotEmpty(t, doc, "Document %d should not be empty", i)
-				assert.Equal(t, string(bytes.TrimSpace(doc)), string(bytes.TrimSpace(doc)), "Document %d should be trimmed", i)
+				// Verify document contains actual content (not just whitespace)
+				assert.NotEmpty(t, bytes.TrimSpace(doc), "Document %d should contain non-whitespace content", i)
 			}
 		})
 	}
