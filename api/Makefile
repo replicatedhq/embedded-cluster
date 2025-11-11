@@ -15,7 +15,3 @@ swag:
 .PHONY: unit-tests
 unit-tests:
 	go test -race -tags $(GO_BUILD_TAGS) -v $(shell go list ./... | grep -v '/integration')
-
-.PHONY: test-integration
-test-integration:
-	go test -race -tags $(GO_BUILD_TAGS) -v ./integration/...
