@@ -162,7 +162,6 @@ type VeleroPlugin struct {
 	// Image is the OCI image reference for the plugin container
 	// Examples:
 	//   - "myvendor/velero-postgresql:v1.0.0" (explicit registry)
-	//   - "velero-plugin-postgres:v1.0.0" (will use proxy registry)
 	// +kubebuilder:validation:Required
 	Image string `json:"image"`
 	// ImagePullPolicy is the image pull policy for the plugin container.
