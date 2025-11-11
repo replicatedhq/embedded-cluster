@@ -17,6 +17,20 @@
       "description": "ConfigSpec defines the desired state of Config",
       "type": "object",
       "properties": {
+        "architecture": {
+          "description": "Architecture holds the list of CPU architectures supported by this release.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "aarch64",
+              "x86_64"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
         "binaryOverrideUrl": {
           "type": "string"
         },

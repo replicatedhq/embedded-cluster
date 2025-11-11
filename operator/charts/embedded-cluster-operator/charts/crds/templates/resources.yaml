@@ -41,6 +41,17 @@ spec:
           spec:
             description: ConfigSpec defines the desired state of Config
             properties:
+              architecture:
+                description: Architecture holds the list of CPU architectures supported by this release.
+                items:
+                  enum:
+                  - aarch64
+                  - x86_64
+                  type: string
+                maxItems: 2
+                minItems: 1
+                type: array
+                uniqueItems: true
               binaryOverrideUrl:
                 type: string
               domains:
@@ -362,6 +373,17 @@ spec:
               config:
                 description: Config holds the configuration used at installation time.
                 properties:
+                  architecture:
+                    description: Architecture holds the list of CPU architectures supported by this release.
+                    items:
+                      enum:
+                      - aarch64
+                      - x86_64
+                      type: string
+                    maxItems: 2
+                    minItems: 1
+                    type: array
+                    uniqueItems: true
                   binaryOverrideUrl:
                     type: string
                   domains:
