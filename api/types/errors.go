@@ -47,26 +47,6 @@ func (e *APIError) Unwrap() error {
 	return e.err
 }
 
-func AsAPIError(err error) *APIError {
-	var apiErr *APIError
-	if errors.As(err, &apiErr) {
-		return apiErr
-	}
-	return nil
-}
-
-func IsAPIError(err error) bool {
-	return AsAPIError(err) != nil
-}
-
-func IsAPIErrorWithStatusCode(err error, statusCode int) bool {
-	apiErr := AsAPIError(err)
-	if apiErr == nil {
-		return false
-	}
-	return apiErr.StatusCode == statusCode
-}
-
 func NewBadRequestError(err error) *APIError {
 	return &APIError{
 		StatusCode: http.StatusBadRequest,
@@ -81,10 +61,6 @@ func NewConflictError(err error) *APIError {
 		Message:    err.Error(),
 		err:        err,
 	}
-}
-
-func IsConflictError(err error) bool {
-	return IsAPIErrorWithStatusCode(err, http.StatusConflict)
 }
 
 func NewForbiddenError(err error) *APIError {

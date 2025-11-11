@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
-	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -104,27 +102,6 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 	return nil
 }
 
-var statusStateMap = map[types.State]statemachine.State{
-	types.StatePending:   states.StateAppInstalling,
-	types.StateRunning:   states.StateAppInstalling,
-	types.StateSucceeded: states.StateSucceeded,
-	types.StateFailed:    states.StateAppInstallFailed,
-}
-
-var transitionableStates = []statemachine.State{
-	states.StateAppInstalling,
-}
-
 func (c *AppController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
-	status, err := c.appInstallManager.GetStatus()
-	if err != nil {
-		return types.AppInstall{}, err
-	}
-
-	err = utils.CheckStateMismatch(statusStateMap, transitionableStates, status.Status.State, c.stateMachine.CurrentState())
-	if err != nil {
-		return types.AppInstall{}, err
-	}
-
-	return status, nil
+	return c.appInstallManager.GetStatus()
 }

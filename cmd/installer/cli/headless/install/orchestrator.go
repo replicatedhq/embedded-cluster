@@ -510,20 +510,21 @@ func pollUntilComplete(ctx context.Context, getStatus func() (apitypes.State, st
 		case <-ctx.Done():
 			return "", "", ctx.Err()
 		case <-ticker.C:
-			// Retry getStatus() up to 3 times on conflict errors (api is still transitioning)
+			// Retry getStatus() up to 3 times on error
 			var state apitypes.State
 			var message string
 			var err error
 
-			attempt := 0
-			for timer := time.NewTimer(0); attempt < 3; timer.Reset(1 * time.Second) {
-				<-timer.C
-
+			for attempt := 1; attempt <= 3; attempt++ {
 				state, message, err = getStatus()
-				if !apitypes.IsConflictError(err) {
+				if err == nil {
 					break
 				}
-				attempt++
+
+				// If not the last attempt, wait a bit before retrying
+				if attempt < 3 {
+					time.Sleep(time.Second)
+				}
 			}
 
 			// If still erroring after 3 attempts, fail
