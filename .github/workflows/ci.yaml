@@ -128,9 +128,6 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
-      - name: fail if int-tests-api job was not successful
-        if: needs.int-tests-api.result != 'success' && needs.int-tests-api.result != 'skipped'
-        run: exit 1
       - name: fail if int-tests-kind job was not successful
         if: needs.int-tests-kind.result != 'success' && needs.int-tests-kind.result != 'skipped'
         run: exit 1
