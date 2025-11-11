@@ -289,10 +289,6 @@ unit-tests: envtest
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
 
-.PHONY: test-integration
-test-integration: static-dryrun
-	$(MAKE) -C api test-integration
-
 .PHONY: vet
 vet:
 	go vet -tags $(GO_BUILD_TAGS) ./...
