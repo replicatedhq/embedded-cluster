@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/require"
@@ -114,373 +113,101 @@ func Test_VerifySignature(t *testing.T) {
 	}
 }
 
-func Test_verifyLicenseData(t *testing.T) {
-	// Create a base license to use for all tests
-	baseLicense := &kotsv1beta1.License{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "kots.io/v1beta1",
-			Kind:       "License",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-license",
-		},
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug:                        "test-app-slug",
-			Endpoint:                       "https://replicated.app",
-			CustomerName:                   "Test Customer",
-			CustomerEmail:                  "test@example.com",
-			ChannelID:                      "test-channel-id",
-			ChannelName:                    "test-channel",
-			LicenseSequence:                42,
-			LicenseID:                      "test-license-id",
-			LicenseType:                    "prod",
-			IsAirgapSupported:              true,
-			IsGitOpsSupported:              false,
-			IsIdentityServiceSupported:     true,
-			IsGeoaxisSupported:             false,
-			IsSnapshotSupported:            true,
-			IsDisasterRecoverySupported:    true,
-			IsSupportBundleUploadSupported: true,
-			IsSemverRequired:               false,
-			Entitlements: map[string]kotsv1beta1.EntitlementField{
-				"expires_at": {
-					Title:       "Expiration",
-					Description: "License Expiration",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2025-12-31"},
-					ValueType:   "String",
-				},
-			},
-		},
-	}
+// Test_LicenseTamperDetection verifies that the kotskinds ValidateLicense() properly detects
+// when any critical license field has been tampered with after signing.
+// This is an end-to-end test that ensures the validation logic in kotskinds catches all tampering.
+func Test_LicenseTamperDetection(t *testing.T) {
+	// All tests use a valid license from testdata and modify it to simulate tampering
+	baseLicenseFile := "testdata/valid-license.yaml"
 
 	tests := []struct {
-		name       string
-		outer      *kotsv1beta1.License
-		inner      *kotsv1beta1.License
-		wantErr    bool
-		wantErrMsg string
+		name          string
+		modifyLicense func(*licensewrapper.LicenseWrapper)
+		errorContains string
 	}{
 		{
-			name:    "happy path - all fields match",
-			outer:   baseLicense.DeepCopy(),
-			inner:   baseLicense.DeepCopy(),
-			wantErr: false,
+			name: "appSlug tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.AppSlug = wrapper.V1.Spec.AppSlug + "-modified"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "appSlug changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.AppSlug = "modified-app-slug"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"appSlug" field has changed to "modified-app-slug" (license) from "test-app-slug" (within signature)`,
+			name: "endpoint tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.Endpoint = "https://tampered.app"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "endpoint changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Endpoint = "https://modified.app"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"endpoint" field has changed to "https://modified.app" (license) from "https://replicated.app" (within signature)`,
+			name: "customerName tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.CustomerName = "Tampered Customer"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "customerName changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.CustomerName = "Modified Customer"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"CustomerName" field has changed to "Modified Customer" (license) from "Test Customer" (within signature)`,
+			name: "customerEmail tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.CustomerEmail = "tampered@example.com"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "customerEmail changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.CustomerEmail = "modified@example.com"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"CustomerEmail" field has changed to "modified@example.com" (license) from "test@example.com" (within signature)`,
+			name: "channelID tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.ChannelID = "tampered-channel-id"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "channelID changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.ChannelID = "modified-channel-id"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"channelID" field has changed to "modified-channel-id" (license) from "test-channel-id" (within signature)`,
+			name: "channelName tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.ChannelName = "tampered-channel"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "channelName changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.ChannelName = "modified-channel"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"channelName" field has changed to "modified-channel" (license) from "test-channel" (within signature)`,
+			name: "licenseSequence tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.LicenseSequence = 999999
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "licenseSequence changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.LicenseSequence = 99
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"licenseSequence" field has changed`,
+			name: "licenseID tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.LicenseID = "tampered-license-id"
+			},
+			errorContains: "license data validation failed",
 		},
 		{
-			name: "licenseID changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.LicenseID = "modified-license-id"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"licenseID" field has changed to "modified-license-id" (license) from "test-license-id" (within signature)`,
+			name: "licenseType tampered",
+			modifyLicense: func(wrapper *licensewrapper.LicenseWrapper) {
+				wrapper.V1.Spec.LicenseType = "tampered"
+			},
+			errorContains: "license data validation failed",
 		},
-		{
-			name: "licenseType changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.LicenseType = "dev"
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"LicenseType" field has changed to "dev" (license) from "prod" (within signature)`,
-		},
-		{
-			name: "isAirgapSupported changed from true to false",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsAirgapSupported = false
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsAirgapSupported" field has changed to false (license) from true (within signature)`,
-		},
-		{
-			name: "isGitOpsSupported changed from false to true",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsGitOpsSupported = true
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsGitOpsSupported" field has changed to true (license) from false (within signature)`,
-		},
-		{
-			name: "isIdentityServiceSupported changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsIdentityServiceSupported = false
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsIdentityServiceSupported" field has changed to false (license) from true (within signature)`,
-		},
-		{
-			name: "isGeoaxisSupported changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsGeoaxisSupported = true
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsGeoaxisSupported" field has changed to true (license) from false (within signature)`,
-		},
-		{
-			name: "isSnapshotSupported changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsSnapshotSupported = false
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsSnapshotSupported" field has changed to false (license) from true (within signature)`,
-		},
-		{
-			name: "isDisasterRecoverySupported changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsDisasterRecoverySupported = false
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsDisasterRecoverySupported" field has changed to false (license) from true (within signature)`,
-		},
-		{
-			name: "isSupportBundleUploadSupported changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsSupportBundleUploadSupported = false
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsSupportBundleUploadSupported" field has changed to false (license) from true (within signature)`,
-		},
-		{
-			name: "isSemverRequired changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.IsSemverRequired = true
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"IsSemverRequired" field has changed to true (license) from false (within signature)`,
-		},
-		{
-			name: "entitlements - different lengths",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["new_entitlement"] = kotsv1beta1.EntitlementField{
-					Title: "New Entitlement",
-					Value: kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "value"},
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `"entitlements" field length has changed to 2 (license) from 1 (within signature)`,
-		},
-		{
-			name: "entitlements - value changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["expires_at"] = kotsv1beta1.EntitlementField{
-					Title:       "Expiration",
-					Description: "License Expiration",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2026-12-31"},
-					ValueType:   "String",
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `entitlement "expires_at" value has changed to "2026-12-31" (license) from "2025-12-31" (within signature)`,
-		},
-		{
-			name: "entitlements - title changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["expires_at"] = kotsv1beta1.EntitlementField{
-					Title:       "Modified Expiration",
-					Description: "License Expiration",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2025-12-31"},
-					ValueType:   "String",
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `entitlement "expires_at" title has changed to "Modified Expiration" (license) from "Expiration" (within signature)`,
-		},
-		{
-			name: "entitlements - description changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["expires_at"] = kotsv1beta1.EntitlementField{
-					Title:       "Expiration",
-					Description: "Modified Description",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2025-12-31"},
-					ValueType:   "String",
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `entitlement "expires_at" description has changed to "Modified Description" (license) from "License Expiration" (within signature)`,
-		},
-		{
-			name: "entitlements - hidden changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["expires_at"] = kotsv1beta1.EntitlementField{
-					Title:       "Expiration",
-					Description: "License Expiration",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2025-12-31"},
-					ValueType:   "String",
-					IsHidden:    true,
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `entitlement "expires_at" hidden has changed to true (license) from false (within signature)`,
-		},
-		{
-			name: "entitlements - valueType changed",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["expires_at"] = kotsv1beta1.EntitlementField{
-					Title:       "Expiration",
-					Description: "License Expiration",
-					Value:       kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "2025-12-31"},
-					ValueType:   "Integer",
-				}
-				return l
-			}(),
-			inner:      baseLicense.DeepCopy(),
-			wantErr:    true,
-			wantErrMsg: `entitlement "expires_at" value type has changed to "Integer" (license) from "String" (within signature)`,
-		},
-		{
-			name: "entitlements - missing entitlement in inner",
-			outer: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements["new_key"] = kotsv1beta1.EntitlementField{
-					Title: "New",
-					Value: kotsv1beta1.EntitlementValue{Type: kotsv1beta1.String, StrVal: "value"},
-				}
-				return l
-			}(),
-			inner: func() *kotsv1beta1.License {
-				l := baseLicense.DeepCopy()
-				l.Spec.Entitlements = map[string]kotsv1beta1.EntitlementField{} // empty entitlements
-				return l
-			}(),
-			wantErr:    true,
-			wantErrMsg: `"entitlements" field length has changed`,
-		},
+		// Note: Entitlement tampering is validated separately by kotskinds using individual
+		// entitlement signatures (EntitlementField.Signature.V1). The main license signature
+		// protects the core license fields above. Entitlement validation is tested in
+		// Test_VerifySignature/v1beta1:_tampered_license_fails_verification
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			err := verifyLicenseData(tt.outer, tt.inner)
-			if tt.wantErr {
-				req.Error(err)
-				if tt.wantErrMsg != "" {
-					req.Contains(err.Error(), tt.wantErrMsg)
-				}
-			} else {
-				req.NoError(err)
-			}
+			// Load a valid signed license
+			wrapper := loadLicenseFromTestdata(t, baseLicenseFile)
+
+			// Tamper with the license
+			tt.modifyLicense(wrapper)
+
+			// Verify that kotskinds detects the tampering
+			_, err := VerifySignature(wrapper)
+			req.Error(err, "expected kotskinds to detect tampering")
+			req.Contains(err.Error(), tt.errorContains)
 		})
 	}
 }
