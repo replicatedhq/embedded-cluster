@@ -691,7 +691,6 @@ spec:
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// Temporarily disable network test until the reporting is enriched to the point where we can properly filter out domains as part of a CNAME chain
 func TestSingleNodeNetworkReport(t *testing.T) {
 	t.Parallel()
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -747,7 +746,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	allowedDomains := map[string]struct{}{
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
-		"*":                                     {},
+		"*":                                     {}, // Triggered by host preflight wildcard-check
 	}
 
 	seenAllowedDomains := map[string]struct{}{}
