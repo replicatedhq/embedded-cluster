@@ -265,6 +265,59 @@ func TestEngine_templateConfigItems(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "graceful failure on template error - returns empty values",
+			config: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "test",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:  "valid_item",
+									Value: multitype.FromString("valid_value"),
+								},
+								{
+									Name:  "invalid_template",
+									Value: multitype.FromString("repl{{ NonExistentFunc }}"),
+								},
+								{
+									Name:  "another_valid",
+									Value: multitype.FromString("another_value"),
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "test",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:    "valid_item",
+									Value:   multitype.FromString("valid_value"),
+									Default: multitype.FromString(""),
+								},
+								{
+									Name:     "invalid_template",
+									Value:    multitype.FromString(""),
+									Default:  multitype.FromString(""),
+									Filename: "",
+								},
+								{
+									Name:    "another_valid",
+									Value:   multitype.FromString("another_value"),
+									Default: multitype.FromString(""),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -543,4 +596,89 @@ func TestEngine_ShouldInvalidateItem(t *testing.T) {
 	engine.configValues = types.AppConfigValues{}
 	engine.depsTree = map[string][]string{}
 	assert.False(t, engine.shouldInvalidateItem("item1"), "should not invalidate item1 as it doesn't exist in either config values")
+}
+
+// TestEngine_ConfigOption_HandlesFailuresGracefully tests that ConfigOption functions return empty
+// strings/false instead of propagating errors, allowing templates to complete successfully
+func TestEngine_ConfigOption_HandlesFailuresGracefully(t *testing.T) {
+	tests := []struct {
+		name         string
+		configItem   kotsv1beta1.ConfigItem
+		template     string
+		expectResult string
+	}{
+		{
+			name: "template error in value - ConfigOption returns empty string",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "bad_template",
+				Value: multitype.FromString("repl{{ NonExistentFunc }}"),
+			},
+			template:     "value:repl{{ ConfigOption \"bad_template\" }}",
+			expectResult: "value:",
+		},
+		{
+			name: "invalid base64 - ConfigOptionData returns empty string",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "invalid_base64",
+				Value: multitype.FromString("not-valid-base64!@#$"),
+			},
+			template:     "data:repl{{ ConfigOptionData \"invalid_base64\" }}",
+			expectResult: "data:",
+		},
+		{
+			name: "nonexistent item in middle of template",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "existing",
+				Value: multitype.FromString("exists"),
+			},
+			template:     "prefix-repl{{ ConfigOption \"nonexistent\" }}-suffix",
+			expectResult: "prefix--suffix",
+		},
+		{
+			name: "ConfigOptionEquals with nonexistent returns false",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "item",
+				Value: multitype.FromString("value"),
+			},
+			template:     "repl{{ if ConfigOptionEquals \"nonexistent\" \"test\" }}yes repl{{ else }}no repl{{ end }}",
+			expectResult: "no ",
+		},
+		{
+			name: "ConfigOptionNotEquals with nonexistent returns false",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "item",
+				Value: multitype.FromString("value"),
+			},
+			template:     "repl{{ if ConfigOptionNotEquals \"nonexistent\" \"test\" }}yes repl{{ else }}no repl{{ end }}",
+			expectResult: "no ",
+		},
+		{
+			name: "multiline YAML with failed ConfigOption",
+			configItem: kotsv1beta1.ConfigItem{
+				Name:  "existing",
+				Value: multitype.FromString("value1"),
+			},
+			template:     "line1: repl{{ ConfigOption \"existing\" }}\nline2: repl{{ ConfigOption \"nonexistent\" }}\nline3: value3",
+			expectResult: "line1: value1\nline2: \nline3: value3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name:  "test",
+							Items: []kotsv1beta1.ConfigItem{tt.configItem},
+						},
+					},
+				},
+			}
+			engine := NewEngine(config)
+			result, err := engine.processTemplate(tt.template)
+			require.NoError(t, err, "template execution should not fail")
+			assert.Equal(t, tt.expectResult, result)
+		})
+	}
 }

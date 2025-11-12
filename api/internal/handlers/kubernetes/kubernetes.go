@@ -9,9 +9,12 @@ import (
 	k8supgrade "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Handler struct {
@@ -24,6 +27,9 @@ type Handler struct {
 	logger            logrus.FieldLogger
 	metricsReporter   metrics.ReporterInterface
 	hcli              helm.Client
+	kcli              client.Client
+	mcli              metadata.Interface
+	preflightRunner   preflights.PreflightRunnerInterface
 }
 
 type Option func(*Handler)
@@ -58,6 +64,24 @@ func WithHelmClient(hcli helm.Client) Option {
 	}
 }
 
+func WithKubeClient(kcli client.Client) Option {
+	return func(h *Handler) {
+		h.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) Option {
+	return func(h *Handler) {
+		h.mcli = mcli
+	}
+}
+
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) Option {
+	return func(h *Handler) {
+		h.preflightRunner = preflightRunner
+	}
+}
+
 func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 	h := &Handler{
 		cfg: cfg,
@@ -85,6 +109,9 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				//nolint:staticcheck // QF1008 this is very ambiguous, we should re-think the config struct
 				install.WithInstallation(h.cfg.KubernetesConfig.Installation),
 				install.WithHelmClient(h.hcli),
+				install.WithKubeClient(h.kcli),
+				install.WithMetadataClient(h.mcli),
+				install.WithPreflightRunner(h.preflightRunner),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new install controller: %w", err)
@@ -110,6 +137,8 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithAirgapBundle(h.cfg.AirgapBundle),
 				upgrade.WithConfigValues(h.cfg.ConfigValues),
 				upgrade.WithHelmClient(h.hcli),
+				upgrade.WithKubeClient(h.kcli),
+				upgrade.WithPreflightRunner(h.preflightRunner),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new upgrade controller: %w", err)

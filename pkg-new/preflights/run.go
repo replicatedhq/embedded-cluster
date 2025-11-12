@@ -9,18 +9,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"sigs.k8s.io/yaml"
 )
 
 // RunHostPreflights runs the provided host preflight spec locally.
-func (p *PreflightsRunner) RunHostPreflights(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+func (p *PreflightRunner) RunHostPreflights(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -34,7 +32,7 @@ func (p *PreflightsRunner) RunHostPreflights(ctx context.Context, spec *troubles
 }
 
 // RunAppPreflights runs the provided app preflight spec locally.
-func (p *PreflightsRunner) RunAppPreflights(ctx context.Context, spec *troubleshootv1beta2.PreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+func (p *PreflightRunner) RunAppPreflights(ctx context.Context, spec *troubleshootv1beta2.PreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	// Deduplicate collectors and analyzers before running preflights
 	spec.Collectors = dedup(spec.Collectors)
 	spec.Analyzers = dedup(spec.Analyzers)
@@ -48,7 +46,7 @@ func (p *PreflightsRunner) RunAppPreflights(ctx context.Context, spec *troublesh
 }
 
 // runPreflights is the shared logic for running both host and app preflights
-func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
+func (p *PreflightRunner) runPreflights(_ context.Context, specYAML []byte, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	// Write spec to temporary file
 	fpath, err := saveSpecToTempFile(specYAML)
 	if err != nil {
@@ -66,7 +64,7 @@ func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opt
 
 	err = cmd.Run()
 	if err == nil {
-		out, err := p.OutputFromReader(stdout)
+		out, err := OutputFromReader(stdout)
 		return out, stderr.String(), err
 	}
 
@@ -75,7 +73,7 @@ func (p *PreflightsRunner) runPreflights(_ context.Context, specYAML []byte, opt
 		return nil, stderr.String(), fmt.Errorf("error running preflight: %w, stderr=%q", err, stderr.String())
 	}
 
-	out, err := p.OutputFromReader(stdout)
+	out, err := OutputFromReader(stdout)
 	return out, stderr.String(), err
 }
 
@@ -117,27 +115,6 @@ func saveSpecToTempFile(specYAML []byte) (string, error) {
 	}
 
 	return tmpfile.Name(), nil
-}
-
-func (p *PreflightsRunner) CopyBundleTo(dst string) error {
-	matches, err := filepath.Glob("preflightbundle-*.tar.gz")
-	if err != nil {
-		return fmt.Errorf("find preflight bundle: %w", err)
-	}
-	if len(matches) == 0 {
-		return nil
-	}
-	// get the newest bundle
-	src := matches[0]
-	for _, match := range matches {
-		if filepath.Base(match) > filepath.Base(src) {
-			src = match
-		}
-	}
-	if err := helpers.MoveFile(src, dst); err != nil {
-		return fmt.Errorf("move preflight bundle to %s: %w", dst, err)
-	}
-	return nil
 }
 
 func dedup[T any](objs []T) []T {

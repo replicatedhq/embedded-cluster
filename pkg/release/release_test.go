@@ -307,6 +307,36 @@ func TestSplitYAMLDocuments(t *testing.T) {
 			input:    "---\napiVersion: v1\nkind: Test1\n---\napiVersion: v1\nkind: Test2\n---\napiVersion: v1\nkind: Test3",
 			expected: 3,
 		},
+		{
+			name:     "leading separator with kots config",
+			input:    "---\napiVersion: kots.io/v1beta1\nkind: Config\nmetadata:\n  name: test\n  annotations:\n    kots.io/exclude: \"true\"",
+			expected: 1,
+		},
+		{
+			name:     "multiline string with block scalar",
+			input:    "apiVersion: v1\nkind: Config\ntitle: |-\n  Line 1\n  Line 2",
+			expected: 1,
+		},
+		{
+			name:     "empty document between separators",
+			input:    "---\napiVersion: v1\nkind: Test1\n---\n---\napiVersion: v1\nkind: Test2",
+			expected: 2, // empty documents should be skipped
+		},
+		{
+			name:     "separator in quoted string (should not split)",
+			input:    "apiVersion: v1\ndata: \"---\"",
+			expected: 1,
+		},
+		{
+			name:     "separator in comment (should not split)",
+			input:    "apiVersion: v1\n# Comment with ---\nkind: Test",
+			expected: 1,
+		},
+		{
+			name:     "windows line endings",
+			input:    "---\r\napiVersion: v1\r\nkind: Test1\r\n---\r\napiVersion: v1\r\nkind: Test2",
+			expected: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -315,13 +345,75 @@ func TestSplitYAMLDocuments(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Len(t, result, tt.expected, "Expected %d documents but got %d", tt.expected, len(result))
 
-			// Verify each document is valid (non-empty and trimmed)
+			// Verify each document is valid (non-empty)
 			for i, doc := range result {
 				assert.NotEmpty(t, doc, "Document %d should not be empty", i)
-				assert.Equal(t, string(bytes.TrimSpace(doc)), string(bytes.TrimSpace(doc)), "Document %d should be trimmed", i)
+				// Verify document contains actual content (not just whitespace)
+				assert.NotEmpty(t, bytes.TrimSpace(doc), "Document %d should contain non-whitespace content", i)
 			}
 		})
 	}
+}
+
+func TestParseConfigWithLeadingSeparator(t *testing.T) {
+	// This test verifies the full parsing pipeline for SC-131165
+	// With the old decode/re-marshal approach, this would fail at kyaml.Unmarshal
+	// With YAMLReader preserving original bytes, kyaml succeeds
+
+	configYAML := `---
+apiVersion: kots.io/v1beta1
+kind: Config
+metadata:
+  name: test-config
+  annotations:
+    kots.io/exclude: "true"
+spec:
+  groups:
+    - name: intro
+      title: Intro
+      items:
+        - name: description
+          type: label
+          title: |-
+
+            Welcome to the Self-Hosted Installer!`
+
+	testData := map[string][]byte{
+		"kots-config.yaml": []byte(configYAML),
+	}
+
+	// Create tar.gz from test data
+	buf := bytes.NewBuffer([]byte{})
+	gw := gzip.NewWriter(buf)
+	tw := tar.NewWriter(gw)
+
+	for name, content := range testData {
+		err := tw.WriteHeader(&tar.Header{
+			Name: name,
+			Size: int64(len(content)),
+		})
+		require.NoError(t, err)
+		_, err = tw.Write(content)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, tw.Close())
+	require.NoError(t, gw.Close())
+
+	// Parse the release data - this is where the old implementation would fail
+	release, err := newReleaseDataFrom(buf.Bytes())
+	require.NoError(t, err, "Should parse config with leading separator through full pipeline")
+	require.NotNil(t, release)
+
+	// Verify the Config was actually parsed by kyaml (not just split)
+	require.NotNil(t, release.AppConfig, "AppConfig should be parsed by kyaml")
+	assert.Equal(t, "test-config", release.AppConfig.Name)
+	require.Len(t, release.AppConfig.Spec.Groups, 1)
+	assert.Equal(t, "intro", release.AppConfig.Spec.Groups[0].Name)
+
+	// Verify multiline string was preserved (would be corrupted by decode/re-marshal)
+	require.Len(t, release.AppConfig.Spec.Groups[0].Items, 1)
+	assert.Contains(t, release.AppConfig.Spec.Groups[0].Items[0].Title, "Welcome to the Self-Hosted Installer")
 }
 
 func generateReleaseTGZ(t *testing.T, content []byte) []byte {

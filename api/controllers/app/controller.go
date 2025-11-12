@@ -14,6 +14,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -51,6 +52,7 @@ type AppController struct {
 	releaseData                *release.ReleaseData
 	hcli                       helm.Client
 	kcli                       client.Client
+	preflightRunner            preflights.PreflightRunnerInterface
 	kubernetesEnvSettings      *helmcli.EnvSettings
 	store                      store.Store
 	configValues               types.AppConfigValues
@@ -163,6 +165,12 @@ func WithAppUpgradeManager(appUpgradeManager appupgrademanager.AppUpgradeManager
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) AppControllerOption {
+	return func(c *AppController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 	controller := &AppController{
 		logger: logger.NewDiscardLogger(),
@@ -224,6 +232,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		controller.appPreflightManager = apppreflightmanager.NewAppPreflightManager(
 			apppreflightmanager.WithLogger(controller.logger),
 			apppreflightmanager.WithAppPreflightStore(controller.store.AppPreflightStore()),
+			apppreflightmanager.WithPreflightRunner(controller.preflightRunner),
 		)
 	}
 

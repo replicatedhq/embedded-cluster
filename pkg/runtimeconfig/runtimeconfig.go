@@ -203,6 +203,17 @@ func (rc *runtimeConfig) SetEnv() error {
 	if err := rc.envSetter.Setenv("TMPDIR", rc.EmbeddedClusterTmpSubDir()); err != nil {
 		return fmt.Errorf("set TMPDIR: %w", err)
 	}
+	if rc.spec.Proxy != nil {
+		if err := rc.envSetter.Setenv("HTTP_PROXY", rc.spec.Proxy.HTTPProxy); err != nil {
+			return fmt.Errorf("set HTTP_PROXY: %w", err)
+		}
+		if err := rc.envSetter.Setenv("HTTPS_PROXY", rc.spec.Proxy.HTTPSProxy); err != nil {
+			return fmt.Errorf("set HTTPS_PROXY: %w", err)
+		}
+		if err := rc.envSetter.Setenv("NO_PROXY", rc.spec.Proxy.NoProxy); err != nil {
+			return fmt.Errorf("set NO_PROXY: %w", err)
+		}
+	}
 	return nil
 }
 

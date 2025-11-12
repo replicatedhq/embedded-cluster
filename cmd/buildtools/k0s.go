@@ -151,10 +151,6 @@ func getK0sVersion() (*semver.Version, error) {
 }
 
 func getCalicoTag(opts addonComponentOptions) (string, error) {
-	// TODO: Revert this check once securebuild 3.29.4 have been purged or made official
-	if opts.upstreamVersion.Major() == 3 && opts.upstreamVersion.Minor() == 29 {
-		return "v3.29.3", nil
-	}
 	calicoVersion := getCalicoVersion(opts)
 	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
 	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)

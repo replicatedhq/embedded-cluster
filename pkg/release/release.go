@@ -2,6 +2,7 @@ package release
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"go.yaml.in/yaml/v3"
 	kruntime "k8s.io/apimachinery/pkg/runtime"
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -439,27 +441,34 @@ func (r *ReleaseData) processYAMLDocument(content []byte, headerName string) err
 	return nil
 }
 
-// splitYAMLDocuments splits a multi-document YAML file into individual documents.
+// splitYAMLDocuments splits a multi-document YAML file into individual documents
+// while preserving the original byte structure of each document.
+// Uses k8s.io/apimachinery/pkg/util/yaml.YAMLReader which properly handles
+// YAML document boundaries, comments, strings, anchors, and block scalars.
 func splitYAMLDocuments(data []byte) ([][]byte, error) {
-	dec := yaml.NewDecoder(bytes.NewReader(data))
+	var documents [][]byte
 
-	var res [][]byte
+	reader := utilyaml.NewYAMLReader(bufio.NewReader(bytes.NewReader(data)))
+
 	for {
-		var value interface{}
-		err := dec.Decode(&value)
+		// Read one YAML document at a time, until io.EOF is returned
+		doc, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("decode: %w", err)
+			return nil, fmt.Errorf("read YAML document: %w", err)
 		}
-		valueBytes, err := yaml.Marshal(value)
-		if err != nil {
-			return nil, fmt.Errorf("marshal: %w", err)
+
+		// Skip empty documents
+		if len(bytes.TrimSpace(doc)) == 0 {
+			continue
 		}
-		res = append(res, valueBytes)
+
+		documents = append(documents, doc)
 	}
-	return res, nil
+
+	return documents, nil
 }
 
 // isSystemFile returns true if the filename represents a system file that should be ignored
@@ -491,7 +500,7 @@ func SetReleaseDataForTests(data map[string][]byte) error {
 	tw := tar.NewWriter(gw)
 	for name, content := range data {
 		err := tw.WriteHeader(&tar.Header{
-			Name: "name",
+			Name: name,
 			Size: int64(len(content)),
 		})
 		if err != nil {

@@ -73,25 +73,22 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 
 		defer lock.Release()
 
-		defer func() {
-			if r := recover(); r != nil {
-				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-			}
-			if finalErr != nil {
-				c.logger.Error(finalErr)
-
+		prehookFn := func(status types.Status) error {
+			switch status.State {
+			case types.StateFailed:
 				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+					return fmt.Errorf("failed to transition states: %w", err)
 				}
-			} else {
+			case types.StateSucceeded:
 				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+					return fmt.Errorf("failed to transition states: %w", err)
 				}
 			}
-		}()
+			return nil
+		}
 
 		// Install the app
-		err := c.appInstallManager.Install(ctx, configValues)
+		err := c.appInstallManager.Install(ctx, configValues, prehookFn)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}

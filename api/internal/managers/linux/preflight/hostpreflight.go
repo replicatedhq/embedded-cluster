@@ -39,6 +39,19 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		return nil, fmt.Errorf("determine node ip: %w", err)
 	}
 
+	prepareOpts := buildPrepareHostPreflightOptions(rc, opts, nodeIP)
+
+	// Use the shared Prepare function to prepare host preflights
+	hpf, err := preflights.PrepareHostPreflights(ctx, prepareOpts)
+	if err != nil {
+		return nil, fmt.Errorf("prepare host preflights: %w", err)
+	}
+
+	return hpf, nil
+}
+
+// buildPrepareHostPreflightOptions (Hop): builds the options for the preflights.PrepareHostPreflights function
+func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions, nodeIP string) preflights.PrepareHostPreflightOptions {
 	// Calculate airgap storage space requirement (2x uncompressed size for controller nodes)
 	var controllerAirgapStorageSpace string
 	if opts.AirgapInfo != nil {
@@ -50,7 +63,6 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		})
 	}
 
-	// Use the shared Prepare function to prepare host preflights
 	prepareOpts := preflights.PrepareHostPreflightOptions{
 		HostPreflightSpec:            opts.HostPreflightSpec,
 		ReplicatedAppURL:             opts.ReplicatedAppURL,
@@ -74,13 +86,7 @@ func (m *hostPreflightManager) PrepareHostPreflights(ctx context.Context, rc run
 		prepareOpts.GlobalCIDR = &cidr
 	}
 
-	// Use the shared Prepare function to prepare host preflights
-	hpf, err := m.runner.PrepareHostPreflights(ctx, prepareOpts)
-	if err != nil {
-		return nil, fmt.Errorf("prepare host preflights: %w", err)
-	}
-
-	return hpf, nil
+	return prepareOpts
 }
 
 func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (finalErr error) {
@@ -104,6 +110,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 		ProxySpec:           rc.ProxySpec(),
 		ExtraPaths:          []string{rc.EmbeddedClusterBinsSubDir()},
 	}
+
 	output, stderr, err := m.runner.RunHostPreflights(ctx, opts.HostPreflightSpec, runOpts)
 	if err != nil {
 		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
@@ -117,11 +124,11 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 		return
 	}
 
-	if err := m.runner.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
+	if err := preflights.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
 		m.logger.WithError(err).Warn("save preflights output")
 	}
 
-	if err := m.runner.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
+	if err := preflights.CopyBundleTo(rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")); err != nil {
 		m.logger.WithError(err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
