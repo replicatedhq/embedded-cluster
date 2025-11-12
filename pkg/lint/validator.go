@@ -447,6 +447,7 @@ func (v *Validator) validateImageFormat(image string) error {
 	}
 
 	// Use oras library to parse the image reference
+	// ParseReference finds short image names like "velero-plugin-postgres:v1.0.0" as valid which we want
 	_, err := registry.ParseReference(image)
 	if err != nil {
 		return fmt.Errorf("invalid image reference %q: %w", image, err)
