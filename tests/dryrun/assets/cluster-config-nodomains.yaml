@@ -4,3 +4,9 @@ metadata:
  name: "testconfig"
 spec:
  version: "testversion"
+ extensions:
+   velero:
+     plugins:
+       - name: velero-plugin-postgresql
+         image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+         imagePullPolicy: Always

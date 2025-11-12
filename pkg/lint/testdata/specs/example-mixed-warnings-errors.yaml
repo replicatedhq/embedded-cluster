@@ -14,6 +14,12 @@ spec:
     replicatedAppDomain: invalid.example.com  # ERROR if API check enabled
     proxyRegistryDomain: fake.proxy.com        # ERROR if API check enabled
 
+  extensions:
+    velero:
+      plugins:
+        - name: velero-plugin-postgresql
+          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+          imagePullPolicy: Always
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

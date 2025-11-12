@@ -4,6 +4,12 @@ secretData:
     kind: Config
     spec:
       version: 1.29.1+ec.100
+      extensions:
+        velero:
+          plugins:
+            - name: velero-plugin-postgresql
+              image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+              imagePullPolicy: Always
       this:
         is:
           an:
@@ -12,3 +18,9 @@ configSpec:
   version: 1.29.1+ec.1
 expected:
   version: 1.29.1+ec.100
+  extensions:
+    velero:
+      plugins:
+        - name: velero-plugin-postgresql
+          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+          imagePullPolicy: Always

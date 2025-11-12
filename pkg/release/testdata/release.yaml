@@ -33,6 +33,12 @@ config.yaml: |-
         - labels:
             xyz-test-label: xyz-value
           name: xyz
+    extensions:
+      velero:
+        plugins:
+          - name: velero-plugin-postgresql
+            image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+            imagePullPolicy: Always
     unsupportedOverrides:
       k0s: |
         config:
