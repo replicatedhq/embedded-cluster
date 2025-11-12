@@ -26,7 +26,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -118,7 +117,13 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return err
 			}
 
-			targetVersion := versions.Version
+			// Get target embedded cluster version from release data
+			releaseData := release.GetReleaseData()
+			if releaseData == nil || releaseData.EmbeddedClusterConfig == nil {
+				return fmt.Errorf("release data or embedded cluster config not found")
+			}
+
+			targetVersion := releaseData.EmbeddedClusterConfig.Spec.Version
 			initialVersion := ""
 			currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 			if err != nil {
@@ -604,13 +609,18 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConf
 		return fmt.Errorf("channel release not found in release data")
 	}
 
+	// Get target embedded cluster version from the release data
+	targetECConfig := releaseData.EmbeddedClusterConfig
+	if targetECConfig == nil {
+		return fmt.Errorf("target embedded cluster config not found in release data")
+	}
+	targetECVersion := targetECConfig.Spec.Version
+
 	// Get current and target EC/K8s versions
 	var currentECVersion string
 	if currentInstallation.Spec.Config != nil {
 		currentECVersion = currentInstallation.Spec.Config.Version
 	}
-
-	targetECVersion := versions.Version
 
 	// Build validation options
 	opts := validation.UpgradableOptions{

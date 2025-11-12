@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	corev1 "k8s.io/api/core/v1"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
@@ -26,7 +27,12 @@ type dockerConfigEntry struct {
 // registry. The authentication store is read from the cluster secret named
 // 'registry-creds' in the 'kotsadm' namespace.
 func registryAuth(ctx context.Context, cli client.Client) (credentials.Store, error) {
-	nsn := client.ObjectKey{Namespace: "kotsadm", Name: "registry-creds"}
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, cli)
+	if err != nil {
+		return nil, fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
+	nsn := client.ObjectKey{Namespace: kotsadmNamespace, Name: "registry-creds"}
 	var sct corev1.Secret
 	if err := cli.Get(ctx, nsn, &sct); err != nil {
 		return nil, fmt.Errorf("get registry-creds secret: %w", err)

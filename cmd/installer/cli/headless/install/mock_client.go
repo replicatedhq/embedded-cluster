@@ -29,6 +29,14 @@ type mockAPIClient struct {
 	getLinuxUpgradeAppConfigValuesFunc      func(ctx context.Context) (apitypes.AppConfigValues, error)
 	patchLinuxUpgradeAppConfigValuesFunc    func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfigValues, error)
 	templateLinuxUpgradeAppConfigFunc       func(ctx context.Context, values apitypes.AppConfigValues) (apitypes.AppConfig, error)
+	runLinuxUpgradeAppPreflightsFunc        func(ctx context.Context) (apitypes.UpgradeAppPreflightsStatusResponse, error)
+	getLinuxUpgradeAppPreflightsStatusFunc  func(ctx context.Context) (apitypes.UpgradeAppPreflightsStatusResponse, error)
+	upgradeLinuxAppFunc                     func(ctx context.Context, ignoreAppPreflights bool) (apitypes.AppUpgrade, error)
+	getLinuxAppUpgradeStatusFunc            func(ctx context.Context) (apitypes.AppUpgrade, error)
+	upgradeLinuxInfraFunc                   func(ctx context.Context) (apitypes.Infra, error)
+	getLinuxUpgradeInfraStatusFunc          func(ctx context.Context) (apitypes.Infra, error)
+	processLinuxUpgradeAirgapFunc           func(ctx context.Context) (apitypes.Airgap, error)
+	getLinuxUpgradeAirgapStatusFunc         func(ctx context.Context) (apitypes.Airgap, error)
 
 	// Kubernetes methods (not used in current implementation, but required by interface)
 	getKubernetesInstallationConfigFunc         func(ctx context.Context) (apitypes.KubernetesInstallationConfigResponse, error)
@@ -186,6 +194,62 @@ func (m *mockAPIClient) TemplateLinuxUpgradeAppConfig(ctx context.Context, value
 		return m.templateLinuxUpgradeAppConfigFunc(ctx, values)
 	}
 	return apitypes.AppConfig{}, nil
+}
+
+func (m *mockAPIClient) RunLinuxUpgradeAppPreflights(ctx context.Context) (apitypes.UpgradeAppPreflightsStatusResponse, error) {
+	if m.runLinuxUpgradeAppPreflightsFunc != nil {
+		return m.runLinuxUpgradeAppPreflightsFunc(ctx)
+	}
+	return apitypes.UpgradeAppPreflightsStatusResponse{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxUpgradeAppPreflightsStatus(ctx context.Context) (apitypes.UpgradeAppPreflightsStatusResponse, error) {
+	if m.getLinuxUpgradeAppPreflightsStatusFunc != nil {
+		return m.getLinuxUpgradeAppPreflightsStatusFunc(ctx)
+	}
+	return apitypes.UpgradeAppPreflightsStatusResponse{}, nil
+}
+
+func (m *mockAPIClient) UpgradeLinuxApp(ctx context.Context, ignoreAppPreflights bool) (apitypes.AppUpgrade, error) {
+	if m.upgradeLinuxAppFunc != nil {
+		return m.upgradeLinuxAppFunc(ctx, ignoreAppPreflights)
+	}
+	return apitypes.AppUpgrade{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxAppUpgradeStatus(ctx context.Context) (apitypes.AppUpgrade, error) {
+	if m.getLinuxAppUpgradeStatusFunc != nil {
+		return m.getLinuxAppUpgradeStatusFunc(ctx)
+	}
+	return apitypes.AppUpgrade{}, nil
+}
+
+func (m *mockAPIClient) UpgradeLinuxInfra(ctx context.Context) (apitypes.Infra, error) {
+	if m.upgradeLinuxInfraFunc != nil {
+		return m.upgradeLinuxInfraFunc(ctx)
+	}
+	return apitypes.Infra{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxUpgradeInfraStatus(ctx context.Context) (apitypes.Infra, error) {
+	if m.getLinuxUpgradeInfraStatusFunc != nil {
+		return m.getLinuxUpgradeInfraStatusFunc(ctx)
+	}
+	return apitypes.Infra{}, nil
+}
+
+func (m *mockAPIClient) ProcessLinuxUpgradeAirgap(ctx context.Context) (apitypes.Airgap, error) {
+	if m.processLinuxUpgradeAirgapFunc != nil {
+		return m.processLinuxUpgradeAirgapFunc(ctx)
+	}
+	return apitypes.Airgap{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxUpgradeAirgapStatus(ctx context.Context) (apitypes.Airgap, error) {
+	if m.getLinuxUpgradeAirgapStatusFunc != nil {
+		return m.getLinuxUpgradeAirgapStatusFunc(ctx)
+	}
+	return apitypes.Airgap{}, nil
 }
 
 // Kubernetes method implementations (not used in current implementation)
