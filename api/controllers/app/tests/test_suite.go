@@ -2,6 +2,7 @@ package tests
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -208,7 +209,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 		opts          appcontroller.RunAppPreflightOptions
 		currentState  statemachine.State
 		expectedState statemachine.State
-		setupMocks    func(*apppreflightmanager.MockAppPreflightManager, *appreleasemanager.MockAppReleaseManager, *appconfig.MockAppConfigManager)
+		setupMocks    func(*apppreflightmanager.MockAppPreflightManager, *appreleasemanager.MockAppReleaseManager, *appconfig.MockAppConfigManager, *store.MockStore)
 		expectedErr   bool
 	}{
 		{
@@ -218,16 +219,30 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
+					})).Return(&types.PreflightsOutput{
+						Pass: []types.PreflightsRecord{
+							{
+								Title:   "Test Check",
+								Message: "Test check passed",
+							},
+						},
 					}, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -239,16 +254,30 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateAppPreflightsExecutionFailed,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
+					})).Return(&types.PreflightsOutput{
+						Pass: []types.PreflightsRecord{
+							{
+								Title:   "Test Check",
+								Message: "Test check passed",
+							},
+						},
 					}, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -260,16 +289,30 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateAppPreflightsFailed,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
+					})).Return(&types.PreflightsOutput{
+						Pass: []types.PreflightsRecord{
+							{
+								Title:   "Test Check",
+								Message: "Test check passed",
+							},
+						},
 					}, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -281,17 +324,19 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAppPreflightsFailed,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+					})).Return(&types.PreflightsOutput{
 						Fail: []types.PreflightsRecord{
 							{
 								Title:   "Test Check",
@@ -299,50 +344,10 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 							},
 						},
 					}, nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "failed run preflights with get preflight output error",
-			opts: appcontroller.RunAppPreflightOptions{
-				PreflightBinaryPath: "/usr/bin/preflight",
-			},
-			currentState:  states.StateInfrastructureInstalled,
-			expectedState: states.StateAppPreflightsExecutionFailed,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
-					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
-					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
-						return expectedAPF == opts.AppPreflightSpec
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(nil, errors.New("get output error")),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "failed run preflights with nil preflight output",
-			opts: appcontroller.RunAppPreflightOptions{
-				PreflightBinaryPath: "/usr/bin/preflight",
-			},
-			currentState:  states.StateInfrastructureInstalled,
-			expectedState: states.StateAppPreflightsExecutionFailed,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
-				mock.InOrder(
-					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
-					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
-					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
-						return expectedAPF == opts.AppPreflightSpec
-					})).Return(nil),
-					apm.On("GetAppPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					apm.On("GetAppPreflightOutput", mock.Anything).Return(nil, nil),
 				)
 			},
 			expectedErr: false,
@@ -354,9 +359,10 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateInfrastructureInstalled,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(nil, errors.New("extraction error")),
 				)
 			},
@@ -369,13 +375,23 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAppPreflightsExecutionFailed,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
+
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					apm.On("RunAppPreflights", mock.Anything, mock.MatchedBy(func(opts apppreflightmanager.RunAppPreflightOptions) bool {
 						return expectedAPF == opts.AppPreflightSpec
-					})).Return(errors.New("run preflights error")),
+					})).Return(nil, errors.New("run preflights error")),
+
+					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.Contains(status.Description, "run preflights error")
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -387,7 +403,8 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			},
 			currentState:  states.StateInfrastructureInstalling,
 			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager) {
+			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
+				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
 		},
@@ -403,17 +420,19 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
+			store := &store.MockStore{}
+
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithAppConfigManager(appConfigManager),
 				appcontroller.WithAppPreflightManager(appPreflightManager),
 				appcontroller.WithAppReleaseManager(appReleaseManager),
-				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithStore(store),
 				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
-			tt.setupMocks(appPreflightManager, appReleaseManager, appConfigManager)
+			tt.setupMocks(appPreflightManager, appReleaseManager, appConfigManager, store)
 			err = controller.RunAppPreflights(t.Context(), tt.opts)
 
 			if tt.expectedErr {
@@ -439,98 +458,20 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 	}
 }
 
-func (s *AppControllerTestSuite) TestGetAppInstallStatus() {
-	expectedAppInstall := types.AppInstall{
-		Status: types.Status{
-			State:       types.StateRunning,
-			Description: "Installing application",
-			LastUpdated: time.Now(),
-		},
-		Logs: "Installation logs\n",
-	}
-
-	tests := []struct {
-		name        string
-		setupMocks  func(*appinstallmanager.MockAppInstallManager)
-		expectedErr bool
-	}{
-		{
-			name: "successful status retrieval",
-			setupMocks: func(aim *appinstallmanager.MockAppInstallManager) {
-				aim.On("GetStatus").Return(expectedAppInstall, nil)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "manager returns error",
-			setupMocks: func(aim *appinstallmanager.MockAppInstallManager) {
-				aim.On("GetStatus").Return(types.AppInstall{}, errors.New("status error"))
-			},
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		s.T().Run(tt.name, func(t *testing.T) {
-			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
-			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			sm := s.CreateInstallStateMachine(states.StateNew)
-
-			appConfigManager := &appconfig.MockAppConfigManager{}
-			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
-
-			controller, err := appcontroller.NewAppController(
-				appcontroller.WithStateMachine(sm),
-				appcontroller.WithAppConfigManager(appConfigManager),
-				appcontroller.WithAppPreflightManager(appPreflightManager),
-				appcontroller.WithAppReleaseManager(appReleaseManager),
-				appcontroller.WithAppInstallManager(appInstallManager),
-				appcontroller.WithStore(&store.MockStore{}),
-				appcontroller.WithReleaseData(&release.ReleaseData{}),
-			)
-			require.NoError(t, err, "failed to create install controller")
-
-			tt.setupMocks(appInstallManager)
-			result, err := controller.GetAppInstallStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.AppInstall{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, expectedAppInstall, result)
-			}
-
-			appConfigManager.AssertExpectations(s.T())
-			appInstallManager.AssertExpectations(s.T())
-		})
-	}
-}
-
 func (s *AppControllerTestSuite) TestInstallApp() {
-	runHook := func(state types.State) func(args mock.Arguments) {
-		return func(args mock.Arguments) {
-			hfn := args.Get(2).(func(status types.Status) error)
-			hfn(types.Status{
-				State: state,
-			})
-		}
-	}
-
 	tests := []struct {
 		name                string
 		ignoreAppPreflights bool
 		currentState        statemachine.State
 		expectedState       statemachine.State
-		setupMocks          func(*appconfig.MockAppConfigManager, *appinstallmanager.MockAppInstallManager, *apppreflightmanager.MockAppPreflightManager)
+		setupMocks          func(*appconfig.MockAppConfigManager, *appinstallmanager.MockAppInstallManager, *apppreflightmanager.MockAppPreflightManager, *store.MockStore)
 		expectedErr         bool
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
 			currentState:  states.StateSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -539,7 +480,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			name:          "invalid state transition from infrastructure installing state",
 			currentState:  states.StateInfrastructureInstalling,
 			expectedState: states.StateInfrastructureInstalling,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -548,7 +489,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			name:          "successful app installation from app preflights succeeded state",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -557,9 +498,18 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 							},
 						},
 					}, nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
+					}), mock.Anything).Return(nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -568,7 +518,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			name:          "successful app installation from app preflights failed bypassed state",
 			currentState:  states.StateAppPreflightsFailedBypassed,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -577,9 +527,18 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 							},
 						},
 					}, nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
+					}), mock.Anything).Return(nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -588,7 +547,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			name:          "failed app installation from app preflights succeeded state",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppInstallFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -597,9 +556,18 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 							},
 						},
 					}, nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					}), mock.Anything).Run(runHook(types.StateFailed)).Return(errors.New("install error")),
+					}), mock.Anything).Return(errors.New("install error")),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.Contains(status.Description, "install error")
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -608,8 +576,10 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			name:          "get config values error",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
-				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
+				mock.InOrder(
+					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error")),
+				)
 			},
 			expectedErr: true,
 		},
@@ -618,18 +588,19 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: true,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
-				// Mock GetAppPreflightOutput to return non-strict failures (can be bypassed)
-				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{
-						{
-							Title:   "Non-strict preflight failure",
-							Message: "This is a non-strict failure",
-							Strict:  false, // This allows bypass
-						},
-					},
-				}, nil)
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
 				mock.InOrder(
+					// Mock GetAppPreflightOutput to return non-strict failures (can be bypassed)
+					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+						Fail: []types.PreflightsRecord{
+							{
+								Title:   "Non-strict preflight failure",
+								Message: "This is a non-strict failure",
+								Strict:  false, // This allows bypass
+							},
+						},
+					}, nil),
+
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
 							Values: map[string]kotsv1beta1.ConfigValue{
@@ -637,9 +608,18 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 							},
 						},
 					}, nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+
 					aim.On("Install", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
-					}), mock.Anything).Run(runHook(types.StateSucceeded)).Return(nil),
+					}), mock.Anything).Return(nil),
+
+					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -649,17 +629,19 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: false,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateAppPreflightsFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
-				// Mock GetAppPreflightOutput to return non-strict failures (method should be called but bypass denied)
-				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{
-						{
-							Title:   "Non-strict preflight failure",
-							Message: "This is a non-strict failure",
-							Strict:  false, // Non-strict but bypass still denied due to ignoreAppPreflights=false
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
+				mock.InOrder(
+					// Mock GetAppPreflightOutput to return non-strict failures (method should be called but bypass denied)
+					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+						Fail: []types.PreflightsRecord{
+							{
+								Title:   "Non-strict preflight failure",
+								Message: "This is a non-strict failure",
+								Strict:  false, // Non-strict but bypass still denied due to ignoreAppPreflights=false
+							},
 						},
-					},
-				}, nil)
+					}, nil),
+				)
 			},
 			expectedErr: true,
 		},
@@ -668,17 +650,19 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			ignoreAppPreflights: true,
 			currentState:        states.StateAppPreflightsFailed,
 			expectedState:       states.StateAppPreflightsFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager) {
-				// Mock GetAppPreflightOutput to return strict failures (cannot be bypassed)
-				apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{
-						{
-							Title:   "Strict preflight failure",
-							Message: "This is a strict failure that cannot be bypassed",
-							Strict:  true, // Strict failure - cannot be bypassed
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aim *appinstallmanager.MockAppInstallManager, apm *apppreflightmanager.MockAppPreflightManager, store *store.MockStore) {
+				mock.InOrder(
+					// Mock GetAppPreflightOutput to return strict failures (cannot be bypassed)
+					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
+						Fail: []types.PreflightsRecord{
+							{
+								Title:   "Strict preflight failure",
+								Message: "This is a strict failure that cannot be bypassed",
+								Strict:  true, // Strict failure - cannot be bypassed
+							},
 						},
-					},
-				}, nil)
+					}, nil),
+				)
 			},
 			expectedErr: true,
 		},
@@ -694,18 +678,20 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
+			store := &store.MockStore{}
+
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithAppConfigManager(appConfigManager),
 				appcontroller.WithAppPreflightManager(appPreflightManager),
 				appcontroller.WithAppReleaseManager(appReleaseManager),
 				appcontroller.WithAppInstallManager(appInstallManager),
-				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithStore(store),
 				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create install controller")
 
-			tt.setupMocks(appConfigManager, appInstallManager, appPreflightManager)
+			tt.setupMocks(appConfigManager, appInstallManager, appPreflightManager, store)
 			err = controller.InstallApp(t.Context(), tt.ignoreAppPreflights)
 
 			if tt.expectedErr {

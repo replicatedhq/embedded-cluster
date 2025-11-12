@@ -15,9 +15,12 @@ type MockAppPreflightManager struct {
 }
 
 // RunAppPreflights mocks the RunAppPreflights method
-func (m *MockAppPreflightManager) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) error {
+func (m *MockAppPreflightManager) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (*types.PreflightsOutput, error) {
 	args := m.Called(ctx, opts)
-	return args.Error(0)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.PreflightsOutput), args.Error(1)
 }
 
 // GetAppPreflightStatus mocks the GetAppPreflightStatus method

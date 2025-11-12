@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"errors"
 	"net/http"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
@@ -261,16 +262,27 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if status.State == types.StateSucceeded && output == nil {
+		err := errors.New("preflight output is empty")
+		utils.LogError(r, err, h.logger, "app preflights succeeded but output is nil")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
 	response := types.UpgradeAppPreflightsStatusResponse{
 		Titles:                        titles,
 		Output:                        output,
 		Status:                        status,
 		HasStrictAppPreflightFailures: false,
-		AllowIgnoreAppPreflights:      true, // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
 	}
 
-	// Set hasStrictAppPreflightFailures based on app preflights output
+	if status.State == types.StateSucceeded {
+		response.AllowIgnoreAppPreflights = true // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
+	}
+
 	if output != nil {
+		response.HasFailures = output.HasFail()
+		response.HasWarnings = output.HasWarn()
 		response.HasStrictAppPreflightFailures = output.HasStrictFailures()
 	}
 

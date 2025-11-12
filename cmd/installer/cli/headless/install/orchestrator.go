@@ -405,7 +405,7 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 	// Poll for completion
 	// For preflights, we poll until the operation completes (either succeeded or failed),
 	// then check if there are failures and decide whether to continue based on ignoreFailures
-	_, _, err = pollUntilComplete(ctx, func() (apitypes.State, string, error) {
+	state, message, err := pollUntilComplete(ctx, func() (apitypes.State, string, error) {
 		resp, err = o.apiClient.GetLinuxInstallAppPreflightsStatus(ctx)
 		if err != nil {
 			return apitypes.State(""), "", err
@@ -413,42 +413,37 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 		return resp.Status.State, resp.Status.Description, nil
 	})
 	if err != nil {
-		loading.ErrorClosef("App preflights failed")
-		return fmt.Errorf("poll preflights until complete: %w", err)
+		loading.ErrorClosef("App preflights execution failed")
+		return fmt.Errorf("poll until complete: %w", err)
 	}
 
-	if resp.Status.State == apitypes.StateFailed {
-		// Check if there are any failures in the preflight results
-		hasFailures := resp.Output != nil && resp.Output.HasFail()
-		if hasFailures {
-			loading.ErrorClosef("App preflights completed with failures")
+	if state == apitypes.StateFailed {
+		loading.ErrorClosef("App preflights execution failed")
+		return fmt.Errorf("app preflights execution failed: %s", message)
+	}
 
-			o.logger.Warn("\n⚠ Warning: Application preflight checks completed with failures\n")
+	// Check if there are any failures in the preflight results
+	hasFailures := resp.Output != nil && resp.Output.HasFail()
+	if hasFailures {
+		loading.ErrorClosef("App preflights completed with failures")
 
-			// Display failed checks
-			for _, result := range resp.Output.Fail {
-				o.logger.Warnf("  [ERROR] %s: %s", result.Title, result.Message)
-			}
-			for _, result := range resp.Output.Warn {
-				o.logger.Warnf("  [WARN] %s: %s", result.Title, result.Message)
-			}
+		o.logger.Warn("\n⚠ Warning: Application preflight checks completed with failures\n")
 
-			if ignoreFailures {
-				// Display failures but continue installation
-				o.logger.Warn("\nInstallation will continue, but the application may not function correctly (failures bypassed with flag).\n")
-			} else {
-				// Failures are not being bypassed - return error
-				o.logger.Warn("\nPlease correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).\n")
-				return fmt.Errorf("app preflight checks completed with failures")
-			}
+		// Display failed checks
+		for _, result := range resp.Output.Fail {
+			o.logger.Warnf("  [ERROR] %s: %s", result.Title, result.Message)
+		}
+		for _, result := range resp.Output.Warn {
+			o.logger.Warnf("  [WARN] %s: %s", result.Title, result.Message)
+		}
+
+		if ignoreFailures {
+			// Display failures but continue installation
+			o.logger.Warn("\nInstallation will continue, but the application may not function correctly (failures bypassed with flag).\n")
 		} else {
-			// Otherwise, we assume preflight execution failed
-			loading.ErrorClosef("App preflights execution failed")
-			errMsg := resp.Status.Description
-			if errMsg == "" {
-				errMsg = "app preflights execution failed"
-			}
-			return errors.New(errMsg)
+			// Failures are not being bypassed - return error
+			o.logger.Warn("\nPlease correct the above issues and retry, or run with --ignore-app-preflights to bypass (not recommended).\n")
+			return fmt.Errorf("app preflight checks completed with failures")
 		}
 	} else {
 		loading.Closef("App preflights passed")

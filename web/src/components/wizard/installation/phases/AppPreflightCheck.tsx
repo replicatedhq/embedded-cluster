@@ -24,7 +24,8 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
   const hasStrictFailures = (response?: AppPreflightsResponse) => response?.hasStrictAppPreflightFailures ?? false;
-  const isSuccessful = (response?: AppPreflightsResponse) => response?.status?.state === "Succeeded";
+  const isSuccessful = (response?: AppPreflightsResponse) => response?.status?.state === "Succeeded" && !hasFailures(response?.output);
+  const isApiError = (response?: AppPreflightsResponse) => response?.status?.state === "Failed";
 
   const getErrorMessage = () => {
     if (runAppPreflights.error) {
@@ -66,7 +67,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
       setIsPreflightsPolling(false);
       onComplete(
-        !hasFailures(preflightResponse.output),
+        isSuccessful(preflightResponse),
         preflightResponse.allowIgnoreAppPreflights ?? false,
         hasStrictFailures(preflightResponse)
       );
@@ -98,8 +99,7 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
     );
   }
 
-  // If there are no failures and no warnings then we have an api error
-  if (!hasFailures(preflightResponse?.output) && !hasWarnings(preflightResponse?.output)) {
+  if (isApiError(preflightResponse)) {
     return (
       <div className="bg-white rounded-lg border border-red-200 p-4">
         <div className="flex items-start">
