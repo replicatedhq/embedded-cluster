@@ -446,13 +446,7 @@ func (v *Validator) validateImageFormat(image string) error {
 		return fmt.Errorf("image cannot be empty")
 	}
 
-	// Basic validation: image should not contain invalid characters
-	// Some valid image format examples:
-	//   - "registry.io/repo/image:tag"
-	//   - "registry.io/repo/image@sha256:digest"
-	//   - "repo/image:tag" (will use proxy registry)
-	//   - "image:tag" (will use proxy registry)
-
+	// Use oras library to parse the image reference
 	_, err := registry.ParseReference(image)
 	if err != nil {
 		return fmt.Errorf("invalid image reference %q: %w", image, err)
