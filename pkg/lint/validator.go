@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"oras.land/oras-go/v2/registry"
-
+	"github.com/distribution/reference"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -448,9 +447,9 @@ func (v *Validator) validateImageFormat(image string) error {
 
 	// Use oras library to parse the image reference
 	// ParseReference finds short image names like "velero-plugin-postgres:v1.0.0" as valid which we want
-	_, err := registry.ParseReference(image)
-	if err != nil {
-		return fmt.Errorf("invalid image reference %q: %w", image, err)
+	ok := reference.ReferenceRegexp.MatchString(image)
+	if !ok {
+		return fmt.Errorf("invalid image reference %q", image)
 	}
 
 	return nil

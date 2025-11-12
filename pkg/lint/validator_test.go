@@ -686,25 +686,24 @@ func TestValidateImageFormat(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "valid full image reference",
-			image:       "myvendor/velero-postgresql:v1.0.0",
-			expectError: false,
+			name:  "valid full image reference",
+			image: "myvendor/velero-postgresql:v1.0.0",
 		},
 		{
-			name:        "valid full image reference with registry, tag and digest",
-			image:       "registry.io:5000/repo/image:v1.0.0@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
-			expectError: false,
+			name:  "valid full image reference with registry, tag and digest",
+			image: "registry.io:5000/repo/image:v1.0.0@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 		},
 		{
-			name:        "valid image with digest",
-			image:       "myvendor/velero-postgresql@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
-			expectError: false,
+			name:  "valid image with digest",
+			image: "myvendor/velero-postgresql@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 		},
 		{
-			name:        "valid short image name",
-			image:       "velero-plugin-postgres:v1.0.0",
-			expectError: true,
-			errorMsg:    "missing registry or repository",
+			name:  "valid short image name with tag",
+			image: "velero-plugin-postgres:v1.0.0",
+		},
+		{
+			name:  "valid short image name",
+			image: "velero-plugin-postgres",
 		},
 		{
 			name:        "empty image",
@@ -716,34 +715,31 @@ func TestValidateImageFormat(t *testing.T) {
 			name:        "image with space",
 			image:       "myvendor/velero postgresql:v1.0.0",
 			expectError: true,
-			errorMsg:    "invalid repository",
+			errorMsg:    "invalid image reference",
 		},
 		{
 			name:        "image starting with slash",
 			image:       "/myvendor/velero-postgresql:v1.0.0",
 			expectError: true,
-			errorMsg:    "invalid registry",
+			errorMsg:    "invalid image reference",
 		},
 		{
-			name:        "image with registry but no tag",
-			image:       "myvendor/velero-postgresql",
-			expectError: false,
+			name:  "image with registry but no tag",
+			image: "myvendor/velero-postgresql",
 		},
 		{
 			name:        "invalid digest",
 			image:       "registry.io:5000/repo/image@sha256:3b9d51d",
 			expectError: true,
-			errorMsg:    "invalid checksum digest length",
+			errorMsg:    "invalid image reference",
 		},
 		{
-			name:        "registry with port and tag - should pass",
-			image:       "registry.io:5000/repo/image:v1.0.0",
-			expectError: false,
+			name:  "registry with port and tag - should pass",
+			image: "registry.io:5000/repo/image:v1.0.0",
 		},
 		{
-			name:        "registry with port and digest - should pass",
-			image:       "registry.io:5000/repo/image@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
-			expectError: false,
+			name:  "registry with port and digest - should pass",
+			image: "registry.io:5000/repo/image@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
 		},
 	}
 
