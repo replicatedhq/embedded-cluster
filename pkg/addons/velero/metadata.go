@@ -48,8 +48,8 @@ func GetAdditionalImages() []string {
 	return images
 }
 
-func GenerateChartConfig() ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
-	hv, err := helmValues()
+func GenerateChartConfig(ecConfig *ecv1beta1.ConfigSpec) ([]ecv1beta1.Chart, []k0sv1beta1.Repository, error) {
+	hv, err := helmValues(ecConfig, ecv1beta1.Domains{})
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "get helm values")
 	}
