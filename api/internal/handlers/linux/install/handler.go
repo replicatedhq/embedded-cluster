@@ -1,7 +1,6 @@
 package install
 
 import (
-	"errors"
 	"net/http"
 
 	appcontroller "github.com/replicatedhq/embedded-cluster/api/controllers/app"
@@ -195,23 +194,11 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if status.State == types.StateSucceeded && output == nil {
-		err := errors.New("preflight output is empty")
-		utils.LogError(r, err, h.logger, "host preflights succeeded but output is nil")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
 	response := types.InstallHostPreflightsStatusResponse{
 		Titles:                    titles,
 		Output:                    output,
 		Status:                    status,
 		AllowIgnoreHostPreflights: h.cfg.AllowIgnoreHostPreflights,
-	}
-
-	if output != nil {
-		response.HasFailures = output.HasFail()
-		response.HasWarnings = output.HasWarn()
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
@@ -284,27 +271,16 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if status.State == types.StateSucceeded && output == nil {
-		err := errors.New("preflight output is empty")
-		utils.LogError(r, err, h.logger, "app preflights succeeded but output is nil")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
 	response := types.InstallAppPreflightsStatusResponse{
 		Titles:                        titles,
 		Output:                        output,
 		Status:                        status,
 		HasStrictAppPreflightFailures: false,
+		AllowIgnoreAppPreflights:      true, // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
 	}
 
-	if status.State == types.StateSucceeded {
-		response.AllowIgnoreAppPreflights = true // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
-	}
-
+	// Set hasStrictAppPreflightFailures based on app preflights output
 	if output != nil {
-		response.HasFailures = output.HasFail()
-		response.HasWarnings = output.HasWarn()
 		response.HasStrictAppPreflightFailures = output.HasStrictFailures()
 	}
 
