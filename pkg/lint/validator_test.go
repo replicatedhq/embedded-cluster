@@ -641,7 +641,24 @@ func TestValidateVeleroPlugins(t *testing.T) {
 			expectError: true,
 			errorCount:  1,
 			errorFields: []string{"extensions.velero.plugins[0].image"},
-			errorMsgs:   []string{"invalid repository"},
+			errorMsgs:   []string{"invalid image reference"},
+		},
+		{
+			name: "empty name with valid image - should only error on name, not image",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					// First plugin has empty name but valid image - should only error on name
+					{Name: "", Image: "myvendor/velero-postgresql:v1.0.0"},
+					// Second plugin has valid name and same image - should NOT be flagged as duplicate
+					// because the first plugin is invalid (empty name) and skipped from image validation
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			// Should only return 1 error (empty name), not a false duplicate image error
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].name"},
+			errorMsgs:   []string{"plugin name is required"},
 		},
 	}
 

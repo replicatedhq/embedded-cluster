@@ -396,16 +396,17 @@ func (v *Validator) validateVeleroPlugins(veleroExt ecv1beta1.VeleroExtensions) 
 				Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
 				Message: "plugin name is required",
 			})
+			continue
+		}
+
+		// Check for duplicate names
+		if idx, exists := seenNames[plugin.Name]; exists {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
+				Message: fmt.Sprintf("duplicate plugin name %q (also specified at index %d)", plugin.Name, idx),
+			})
 		} else {
-			// Check for duplicate names
-			if idx, exists := seenNames[plugin.Name]; exists {
-				errors = append(errors, ValidationError{
-					Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
-					Message: fmt.Sprintf("duplicate plugin name %q (also specified at index %d)", plugin.Name, idx),
-				})
-			} else {
-				seenNames[plugin.Name] = i
-			}
+			seenNames[plugin.Name] = i
 		}
 
 		// Validate image is not empty (CRD validation should catch this, but double-check)
