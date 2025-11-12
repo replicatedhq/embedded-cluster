@@ -3,7 +3,6 @@ package velero
 import (
 	"context"
 	_ "embed"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -20,7 +19,7 @@ var (
 )
 
 func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
-	hv, err := helmValues(v.EmbeddedConfigSpec, domains)
+	hv, err := helmValues(v.EmbeddedConfigSpec)
 	if err != nil {
 		return nil, errors.Wrap(err, "get helm values")
 	}
@@ -113,14 +112,14 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, dom
 	return copiedValues, nil
 }
 
-func helmValues(ecConfig *ecv1beta1.ConfigSpec, domains ecv1beta1.Domains) (map[string]interface{}, error) {
+func helmValues(ecConfig *ecv1beta1.ConfigSpec) (map[string]interface{}, error) {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "render helm values")
 	}
 
 	// Inject custom Velero plugins from ConfigSpec if available
-	if err := injectPluginInitContainers(hv, domains, ecConfig); err != nil {
+	if err := injectPluginInitContainers(hv, ecConfig); err != nil {
 		return nil, errors.Wrap(err, "inject plugin init containers")
 	}
 
@@ -128,7 +127,7 @@ func helmValues(ecConfig *ecv1beta1.ConfigSpec, domains ecv1beta1.Domains) (map[
 }
 
 // injectPluginInitContainers injects custom Velero plugin initContainers from ConfigSpec
-func injectPluginInitContainers(values map[string]interface{}, domains ecv1beta1.Domains, ecConfig *ecv1beta1.ConfigSpec) error {
+func injectPluginInitContainers(values map[string]interface{}, ecConfig *ecv1beta1.ConfigSpec) error {
 	if ecConfig == nil || len(ecConfig.Extensions.Velero.Plugins) == 0 {
 		return nil
 	}
@@ -145,39 +144,18 @@ func injectPluginInitContainers(values map[string]interface{}, domains ecv1beta1
 
 	// Process each plugin and create initContainer
 	for _, plugin := range allPlugins {
-		processedImage := processPluginImage(plugin.Image, domains)
 		imagePullPolicy := plugin.ImagePullPolicy
 		if imagePullPolicy == "" {
 			imagePullPolicy = "IfNotPresent" // Default to match AWS plugin
 		}
 
-		initContainer := generatePluginContainer(plugin.Name, processedImage, imagePullPolicy)
+		initContainer := generatePluginContainer(plugin.Name, plugin.Image, imagePullPolicy)
 		existingInitContainers = append(existingInitContainers, initContainer)
 	}
 
 	// Update values with merged initContainers
 	values["initContainers"] = existingInitContainers
 	return nil
-}
-
-// processPluginImage processes plugin image according to registry prepending rules
-// Priority:
-// 1. If image contains "/", use as-is (explicit registry)
-// 2. If domains.ProxyRegistryDomain is set, prepend it
-// 3. Default to proxy.replicated.com
-func processPluginImage(image string, domains ecv1beta1.Domains) string {
-	// If image already has a registry (contains "/"), use as-is
-	if strings.Contains(image, "/") {
-		return image
-	}
-
-	// Use custom proxy registry domain if configured
-	if domains.ProxyRegistryDomain != "" {
-		return fmt.Sprintf("%s/%s", domains.ProxyRegistryDomain, image)
-	}
-
-	// Default to Replicated proxy registry
-	return fmt.Sprintf("proxy.replicated.com/%s", image)
 }
 
 // generatePluginContainer creates an initContainer spec for a Velero plugin
