@@ -5,8 +5,6 @@ type InstallHostPreflightsStatusResponse struct {
 	Titles                    []string          `json:"titles"`
 	Output                    *PreflightsOutput `json:"output,omitempty" validate:"optional"`
 	Status                    Status            `json:"status,omitempty" validate:"optional"`
-	HasFailures               bool              `json:"hasFailures"`
-	HasWarnings               bool              `json:"hasWarnings"`
 	AllowIgnoreHostPreflights bool              `json:"allowIgnoreHostPreflights"`
 }
 
@@ -15,8 +13,6 @@ type InstallAppPreflightsStatusResponse struct {
 	Titles                        []string          `json:"titles"`
 	Output                        *PreflightsOutput `json:"output,omitempty" validate:"optional"`
 	Status                        Status            `json:"status"`
-	HasFailures                   bool              `json:"hasFailures"`
-	HasWarnings                   bool              `json:"hasWarnings"`
 	HasStrictAppPreflightFailures bool              `json:"hasStrictAppPreflightFailures"`
 	AllowIgnoreAppPreflights      bool              `json:"allowIgnoreAppPreflights"`
 }
@@ -26,8 +22,6 @@ type UpgradeAppPreflightsStatusResponse struct {
 	Titles                        []string          `json:"titles"`
 	Output                        *PreflightsOutput `json:"output,omitempty" validate:"optional"`
 	Status                        Status            `json:"status"`
-	HasFailures                   bool              `json:"hasFailures"`
-	HasWarnings                   bool              `json:"hasWarnings"`
 	HasStrictAppPreflightFailures bool              `json:"hasStrictAppPreflightFailures"`
 	AllowIgnoreAppPreflights      bool              `json:"allowIgnoreAppPreflights"`
 }
