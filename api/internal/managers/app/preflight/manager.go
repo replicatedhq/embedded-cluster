@@ -12,7 +12,7 @@ import (
 
 // AppPreflightManager provides methods for running app preflights
 type AppPreflightManager interface {
-	RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) error
+	RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (*types.PreflightsOutput, error)
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
