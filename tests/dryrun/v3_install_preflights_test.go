@@ -14,7 +14,9 @@ import (
 
 func TestV3InstallHeadless_HostPreflights_WithFailuresBlocking(t *testing.T) {
 	preflightRunner := setupV3TestHostPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command without ignore-host-preflights flag
 	err := runInstallerCmd(
@@ -38,7 +40,9 @@ func TestV3InstallHeadless_HostPreflights_WithFailuresBlocking(t *testing.T) {
 
 func TestV3InstallHeadless_HostPreflights_WithFailuresBypass(t *testing.T) {
 	preflightRunner := setupV3TestHostPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command with ignore-host-preflights flag
 	err := runInstallerCmd(
@@ -63,7 +67,9 @@ func TestV3InstallHeadless_HostPreflights_WithFailuresBypass(t *testing.T) {
 
 func TestV3Install_HostPreflights_WithFailuresBypass(t *testing.T) {
 	preflightRunner := setupV3TestHostPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -100,7 +106,9 @@ func TestV3Install_HostPreflights_WithFailuresBypass(t *testing.T) {
 
 func TestV3InstallHeadless_HostPreflights_Fail(t *testing.T) {
 	preflightRunner := setupV3TestHostPreflightsRunnerFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command without ignore-host-preflights flag
 	err := runInstallerCmd(
@@ -125,7 +133,9 @@ func TestV3InstallHeadless_HostPreflights_Fail(t *testing.T) {
 
 func TestV3InstallHeadless_HostPreflights_FailNoBypass(t *testing.T) {
 	preflightRunner := setupV3TestHostPreflightsRunnerFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command without ignore-host-preflights flag
 	err := runInstallerCmd(
@@ -151,7 +161,9 @@ func TestV3InstallHeadless_HostPreflights_FailNoBypass(t *testing.T) {
 
 func TestV3InstallHeadless_AppPreflights_WithFailuresBlocking(t *testing.T) {
 	preflightRunner := setupV3TestAppPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command without ignore-app-preflights flag
 	err := runInstallerCmd(
@@ -173,9 +185,13 @@ func TestV3InstallHeadless_AppPreflights_WithFailuresBlocking(t *testing.T) {
 	}
 }
 
+// TODO: TestV3Install_AppPreflights_WithFailuresBlocking
+
 func TestV3InstallHeadless_AppPreflights_WithFailuresBypass(t *testing.T) {
 	preflightRunner := setupV3TestAppPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command with ignore-app-preflights flag
 	err := runInstallerCmd(
@@ -200,7 +216,9 @@ func TestV3InstallHeadless_AppPreflights_WithFailuresBypass(t *testing.T) {
 
 func TestV3Install_AppPreflights_WithFailuresBypass(t *testing.T) {
 	preflightRunner := setupV3TestAppPreflightsRunnerWithFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -237,7 +255,9 @@ func TestV3Install_AppPreflights_WithFailuresBypass(t *testing.T) {
 
 func TestV3InstallHeadless_AppPreflights_Fail(t *testing.T) {
 	preflightRunner := setupV3TestAppPreflightsRunnerFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command without ignore-app-preflights flag
 	err := runInstallerCmd(
@@ -262,7 +282,9 @@ func TestV3InstallHeadless_AppPreflights_Fail(t *testing.T) {
 
 func TestV3InstallHeadless_AppPreflights_FailNoBypass(t *testing.T) {
 	preflightRunner := setupV3TestAppPreflightsRunnerFail()
-	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		preflightRunner: preflightRunner,
+	})
 
 	// Run installer command with ignore-app-preflights flag - execution failures cannot be bypassed
 	err := runInstallerCmd(

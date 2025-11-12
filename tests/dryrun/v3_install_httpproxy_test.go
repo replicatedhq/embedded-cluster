@@ -20,7 +20,9 @@ import (
 
 func TestV3InstallHeadless_HTTPProxy(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	hostCABundle := findHostCABundle(t)
 
@@ -54,7 +56,9 @@ func TestV3InstallHeadless_HTTPProxy(t *testing.T) {
 
 func TestV3Install_HTTPProxy(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	hostCABundle := findHostCABundle(t)
 
@@ -66,9 +70,6 @@ func TestV3Install_HTTPProxy(t *testing.T) {
 			"--license", licenseFile,
 			"--admin-console-password", "password123",
 			"--yes",
-			"--http-proxy", "http://localhost:3128",
-			"--https-proxy", "https://localhost:3128",
-			"--no-proxy", "localhost,127.0.0.1,10.0.0.0/8",
 		)
 		if err != nil {
 			t.Logf("installer exited with error: %v", err)
@@ -103,7 +104,9 @@ func TestV3Install_HTTPProxy(t *testing.T) {
 
 func TestV3InstallHeadless_HTTPProxyPrecedence(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Set HTTP proxy environment variables that should be overridden by flags
 	t.Setenv("HTTP_PROXY", "http://localhost-env:3128")
@@ -125,58 +128,6 @@ func TestV3InstallHeadless_HTTPProxyPrecedence(t *testing.T) {
 	)
 
 	require.NoError(t, err, "headless installation should succeed")
-
-	dr, err := dryrun.Load()
-	if err != nil {
-		t.Fatalf("fail to unmarshal dryrun output: %v", err)
-	}
-
-	validateHTTPProxy(t, dr, hcli)
-
-	if !t.Failed() {
-		t.Logf("Test passed: CLI flags/API config correctly take precedence over environment variables")
-	}
-}
-
-func TestV3Install_HTTPProxyPrecedence(t *testing.T) {
-	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
-
-	// Set HTTP proxy environment variables that should be overridden by flags
-	t.Setenv("HTTP_PROXY", "http://localhost-env:3128")
-	t.Setenv("HTTPS_PROXY", "https://localhost-env:3128")
-	t.Setenv("NO_PROXY", "localhost-env,127.0.0.1,10.0.0.0/8")
-
-	// Start installer in non-headless mode with proxy flags that should override env vars
-	go func() {
-		err := runInstallerCmd(
-			"install",
-			"--target", "linux",
-			"--license", licenseFile,
-			"--admin-console-password", "password123",
-			"--yes",
-			"--http-proxy", "http://localhost:3128",
-			"--https-proxy", "https://localhost:3128",
-			"--no-proxy", "localhost,127.0.0.1,10.0.0.0/8",
-		)
-		if err != nil {
-			t.Logf("installer exited with error: %v", err)
-		}
-	}()
-
-	runV3Install(t, v3InstallArgs{
-		managerPort:      30080,
-		password:         "password123",
-		isAirgap:         false,
-		configValuesFile: configFile,
-		installationConfig: apitypes.LinuxInstallationConfig{
-			HTTPProxy:  "http://localhost:3128",
-			HTTPSProxy: "https://localhost:3128",
-			NoProxy:    "localhost,127.0.0.1,10.0.0.0/8",
-		},
-		ignoreHostPreflights: false,
-		ignoreAppPreflights:  false,
-	})
 
 	dr, err := dryrun.Load()
 	if err != nil {

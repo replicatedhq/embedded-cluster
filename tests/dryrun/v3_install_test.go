@@ -30,7 +30,9 @@ import (
 
 func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -54,7 +56,9 @@ func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 
 func TestV3Install_HappyPathOnline(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -223,7 +227,9 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 
 func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	airgapBundleFile := airgapBundleFile(t)
 
@@ -250,7 +256,9 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 
 func TestV3Install_HappyPathAirgap(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	airgapBundleFile := airgapBundleFile(t)
 
@@ -382,7 +390,7 @@ func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFi
 }
 
 func TestV3InstallHeadless_Metrics(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -405,7 +413,7 @@ func TestV3InstallHeadless_Metrics(t *testing.T) {
 }
 
 func TestV3Install_Metrics(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -489,7 +497,7 @@ func validateMetrics(t *testing.T, headless bool) {
 }
 
 func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Override the config file with invalid values
 	createInvalidConfigValuesFile(t, configFile)
@@ -516,7 +524,7 @@ func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
 }
 
 func TestV3Install_ConfigValidationErrors(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Override the config file with invalid values
 	createInvalidConfigValuesFile(t, configFile)
@@ -561,7 +569,9 @@ func TestV3Install_ConfigValidationErrors(t *testing.T) {
 
 func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Run installer command with custom CIDR and proxy settings
 	err := runInstallerCmd(
@@ -594,8 +604,9 @@ func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
 
 func TestV3Install_CustomCIDR(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -641,7 +652,9 @@ func TestV3Install_CustomCIDR(t *testing.T) {
 
 func TestV3InstallHeadless_CustomDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -663,7 +676,9 @@ func TestV3InstallHeadless_CustomDomains(t *testing.T) {
 
 func TestV3Install_CustomDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -749,7 +764,10 @@ func validateCustomDomains(t *testing.T, hcli *helm.MockClient) {
 // the domains from the embedded release file are used
 func TestV3InstallHeadless_NoDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3TestWithClusterConfig(t, hcli, nil, clusterConfigNoDomainsData)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient:        hcli,
+		clusterConfigData: clusterConfigNoDomainsData,
+	})
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -773,7 +791,10 @@ func TestV3InstallHeadless_NoDomains(t *testing.T) {
 // domains from the embedded release file are used
 func TestV3Install_NoDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3TestWithClusterConfig(t, hcli, nil, clusterConfigNoDomainsData)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient:        hcli,
+		clusterConfigData: clusterConfigNoDomainsData,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -871,7 +892,9 @@ func validateNoDomains(t *testing.T, hcli *helm.MockClient) {
 
 func TestV3InstallHeadless_CustomDataDir(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	customDataDir := "/custom/data/dir"
 
@@ -898,7 +921,9 @@ func TestV3InstallHeadless_CustomDataDir(t *testing.T) {
 
 func TestV3Install_CustomDataDir(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	customDataDir := "/custom/data/dir"
 
@@ -1014,7 +1039,9 @@ func validateCustomDataDir(t *testing.T, hcli *helm.MockClient, customDataDir st
 
 func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	customPort := 30001
 
@@ -1041,7 +1068,9 @@ func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
 
 func TestV3Install_CustomAdminConsolePort(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	customPort := 30001
 
@@ -1116,7 +1145,7 @@ func validateCustomAdminConsolePort(t *testing.T, hcli *helm.MockClient, customP
 }
 
 func TestV3InstallHeadless_CustomLocalArtifactMirrorPort(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	customPort := 50001
 
@@ -1142,7 +1171,7 @@ func TestV3InstallHeadless_CustomLocalArtifactMirrorPort(t *testing.T) {
 }
 
 func TestV3Install_CustomLocalArtifactMirrorPort(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	customPort := 50001
 
@@ -1211,7 +1240,9 @@ func validateCustomLocalArtifactMirrorPort(t *testing.T, customPort int) {
 
 func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -1235,7 +1266,9 @@ func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 
 func TestV3Install_ClusterConfig(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
+		helmClient: hcli,
+	})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -1333,7 +1366,7 @@ func TestV3InstallHeadless_RestrictiveUmask(t *testing.T) {
 	oldUmask := syscall.Umask(0o077)
 	defer syscall.Umask(oldUmask)
 
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Run installer command with headless flag
 	err := runInstallerCmd(
@@ -1360,7 +1393,7 @@ func TestV3Install_RestrictiveUmask(t *testing.T) {
 	oldUmask := syscall.Umask(0o077)
 	defer syscall.Umask(oldUmask)
 
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -1425,7 +1458,7 @@ func validateRestrictiveUmask(t *testing.T) {
 }
 
 func TestV3InstallHeadless_CustomTLSConfiguration(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Create test certificate and key files
 	tmpdir := t.TempDir()
@@ -1511,7 +1544,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 }
 
 func TestV3Install_CustomTLSConfiguration(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil, nil)
+	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{})
 
 	// Create test certificate and key files
 	tmpdir := t.TempDir()
@@ -1652,13 +1685,13 @@ var (
 	configValuesInvalidData string
 )
 
-func setupV3Test(t *testing.T, hcli helm.Client, preflightRunner preflights.PreflightRunnerInterface) (string, string) {
-	t.Helper()
-
-	return setupV3TestWithClusterConfig(t, hcli, preflightRunner, clusterConfigData)
+type setupV3TestOpts struct {
+	helmClient        helm.Client
+	preflightRunner   preflights.PreflightRunnerInterface
+	clusterConfigData string
 }
 
-func setupV3TestWithClusterConfig(t *testing.T, hcli helm.Client, preflightRunner preflights.PreflightRunnerInterface, clusterConfig string) (string, string) {
+func setupV3Test(t *testing.T, opts setupV3TestOpts) (string, string) {
 	t.Helper()
 
 	// Set ENABLE_V3 environment variable
@@ -1670,7 +1703,7 @@ func setupV3TestWithClusterConfig(t *testing.T, hcli helm.Client, preflightRunne
 	// Setup release data with V3-specific release data, using provided cluster config
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
-		"cluster-config.yaml": []byte(clusterConfig),
+		"cluster-config.yaml": []byte(opts.clusterConfigData),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
@@ -1679,10 +1712,12 @@ func setupV3TestWithClusterConfig(t *testing.T, hcli helm.Client, preflightRunne
 		t.Fatalf("fail to set release data: %v", err)
 	}
 
+	hcli := opts.helmClient
 	if hcli == nil {
 		hcli = setupV3TestHelmClient()
 	}
 
+	preflightRunner := opts.preflightRunner
 	if preflightRunner == nil {
 		preflightRunner = setupV3TestPreflightsRunner()
 	}
