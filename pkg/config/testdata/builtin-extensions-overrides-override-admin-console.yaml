@@ -5,6 +5,12 @@ releaseConfig: |
     name: "testconfig"
   spec:
     version: 1.1.0+k8s-1.28
+    extensions:
+      velero:
+        plugins:
+          - name: velero-plugin-postgresql
+            image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+            imagePullPolicy: Always
     unsupportedOverrides:
       builtInExtensions:
         - name: admin-console
