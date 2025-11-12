@@ -17,8 +17,8 @@ import (
 )
 
 // Install installs the app with the provided config values
-func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) (finalErr error) {
-	if err := m.setStatus(types.StateRunning, "Installing application"); err != nil {
+func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta1.ConfigValues, statusChangeHook func(status types.Status) error) (finalErr error) {
+	if err := m.setStatus(types.StateRunning, "Installing application", statusChangeHook); err != nil {
 		return fmt.Errorf("set status: %w", err)
 	}
 
@@ -27,11 +27,11 @@ func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 		}
 		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
+			if err := m.setStatus(types.StateFailed, finalErr.Error(), statusChangeHook); err != nil {
 				m.logger.WithError(err).Error("set failed status")
 			}
 		} else {
-			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
+			if err := m.setStatus(types.StateSucceeded, "Installation complete", statusChangeHook); err != nil {
 				m.logger.WithError(err).Error("set succeeded status")
 			}
 		}

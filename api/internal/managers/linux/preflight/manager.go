@@ -25,7 +25,7 @@ type HostPreflightManager interface {
 
 type hostPreflightManager struct {
 	hostPreflightStore preflight.Store
-	runner             preflights.PreflightsRunnerInterface
+	runner             preflights.PreflightRunnerInterface
 	netUtils           utils.NetUtils
 	logger             logrus.FieldLogger
 }
@@ -44,7 +44,7 @@ func WithHostPreflightStore(hostPreflightStore preflight.Store) HostPreflightMan
 	}
 }
 
-func WithPreflightRunner(runner preflights.PreflightsRunnerInterface) HostPreflightManagerOption {
+func WithPreflightRunner(runner preflights.PreflightRunnerInterface) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.runner = runner
 	}

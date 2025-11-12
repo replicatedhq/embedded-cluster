@@ -1226,6 +1226,13 @@ func TestClient_InstallLinuxApp(t *testing.T) {
 		assert.Equal(t, "/api/linux/install/app/install", r.URL.Path)
 		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
+		// Decode request body
+		var config types.InstallAppRequest
+		err := json.NewDecoder(r.Body).Decode(&config)
+		require.NoError(t, err, "Failed to decode request body")
+
+		assert.True(t, config.IgnoreAppPreflights)
+
 		appInstall := types.AppInstall{
 			Status: types.Status{State: types.StateRunning, Description: "Installing app"},
 			Logs:   "Installation started\n",
@@ -1236,7 +1243,7 @@ func TestClient_InstallLinuxApp(t *testing.T) {
 	defer server.Close()
 
 	c := New(server.URL, WithToken("test-token"))
-	appInstall, err := c.InstallLinuxApp(context.Background())
+	appInstall, err := c.InstallLinuxApp(context.Background(), true)
 
 	require.NoError(t, err)
 	assert.Equal(t, types.StateRunning, appInstall.Status.State)
@@ -1331,7 +1338,7 @@ func TestClient_AppInstallErrorHandling(t *testing.T) {
 	c := New(server.URL, WithToken("test-token"))
 
 	t.Run("InstallLinuxApp error", func(t *testing.T) {
-		_, err := c.InstallLinuxApp(context.Background())
+		_, err := c.InstallLinuxApp(context.Background(), true)
 		require.Error(t, err)
 		apiErr, ok := err.(*types.APIError)
 		require.True(t, ok)
@@ -1382,7 +1389,7 @@ func TestClient_AppInstallWithoutToken(t *testing.T) {
 	c := New(server.URL) // No token provided
 
 	t.Run("InstallLinuxApp without token", func(t *testing.T) {
-		_, err := c.InstallLinuxApp(context.Background())
+		_, err := c.InstallLinuxApp(context.Background(), true)
 		require.Error(t, err)
 		apiErr, ok := err.(*types.APIError)
 		require.True(t, ok)

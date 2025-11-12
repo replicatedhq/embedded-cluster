@@ -114,6 +114,7 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithIsAirgap(manager.isAirgap),
 			apitemplate.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 			apitemplate.WithKubeClient(manager.kcli),
+			apitemplate.WithLogger(manager.logger),
 		)
 	}
 

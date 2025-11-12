@@ -11,27 +11,25 @@ import (
 	"github.com/stretchr/testify/require"
 
 	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
-	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
-func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
+func Test_buildPrepareHostPreflightOptions(t *testing.T) {
 	tests := []struct {
-		name          string
-		opts          PrepareHostPreflightOptions
-		runtimeSpec   *ecv1beta1.RuntimeConfigSpec
-		setupMocks    func(*preflights.MockPreflightRunner, *utils.MockNetUtils)
-		expectedHPF   *troubleshootv1beta2.HostPreflightSpec
-		expectedError string
-		assertResult  func(t *testing.T, hpf *troubleshootv1beta2.HostPreflightSpec)
+		name        string
+		opts        PrepareHostPreflightOptions
+		runtimeSpec *ecv1beta1.RuntimeConfigSpec
+		nodeIP      string
+		assertOpts  func(t *testing.T, result preflights.PrepareHostPreflightOptions)
 	}{
 		{
-			name: "success with proxy configuration",
+			name: "with proxy configuration and global CIDR",
 			opts: PrepareHostPreflightOptions{
 				ReplicatedAppURL:       "https://replicated.app",
 				ProxyRegistryURL:       "proxy.registry.url",
@@ -40,6 +38,7 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 				TCPConnectionsRequired: []string{"6443", "2379"},
 				IsAirgap:               false,
 				IsJoin:                 false,
+				IsUI:                   true,
 			},
 			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
 				DataDir: "/var/lib/embedded-cluster",
@@ -62,27 +61,32 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 					NoProxy:    "localhost,127.0.0.1",
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
-				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
-					return opts.AdminConsolePort == 30000 &&
-						opts.LocalArtifactMirrorPort == 50000 &&
-						opts.DataDir == "/var/lib/embedded-cluster" &&
-						opts.PodCIDR == "10.244.0.0/16" &&
-						opts.ServiceCIDR == "10.96.0.0/12" &&
-						*opts.GlobalCIDR == "10.128.0.0/16" &&
-						opts.Proxy != nil &&
-						opts.Proxy.HTTPProxy == "http://proxy:8080" &&
-						!opts.IsAirgap &&
-						!opts.IsJoin &&
-						opts.K0sDataDir == "/var/lib/embedded-cluster/k0s" &&
-						opts.OpenEBSDataDir == "/var/lib/embedded-cluster/openebs-local"
-				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
+			nodeIP: "192.0.100.1",
+			assertOpts: func(t *testing.T, result preflights.PrepareHostPreflightOptions) {
+				assert.Equal(t, "https://replicated.app", result.ReplicatedAppURL)
+				assert.Equal(t, "proxy.registry.url", result.ProxyRegistryURL)
+				assert.Equal(t, 30000, result.AdminConsolePort)
+				assert.Equal(t, 50000, result.LocalArtifactMirrorPort)
+				assert.Equal(t, "/var/lib/embedded-cluster", result.DataDir)
+				assert.Equal(t, "/var/lib/embedded-cluster/k0s", result.K0sDataDir)
+				assert.Equal(t, "/var/lib/embedded-cluster/openebs-local", result.OpenEBSDataDir)
+				assert.Equal(t, "10.244.0.0/16", result.PodCIDR)
+				assert.Equal(t, "10.96.0.0/12", result.ServiceCIDR)
+				assert.NotNil(t, result.GlobalCIDR)
+				assert.Equal(t, "10.128.0.0/16", *result.GlobalCIDR)
+				assert.NotNil(t, result.Proxy)
+				assert.Equal(t, "http://proxy:8080", result.Proxy.HTTPProxy)
+				assert.Equal(t, "https://proxy:8080", result.Proxy.HTTPSProxy)
+				assert.Equal(t, "localhost,127.0.0.1", result.Proxy.NoProxy)
+				assert.Equal(t, "192.0.100.1", result.NodeIP)
+				assert.False(t, result.IsAirgap)
+				assert.False(t, result.IsJoin)
+				assert.True(t, result.IsUI)
+				assert.Equal(t, []string{"6443", "2379"}, result.TCPConnectionsRequired)
 			},
-			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
 		},
 		{
-			name: "success without proxy configuration",
+			name: "without proxy configuration and without global CIDR",
 			opts: PrepareHostPreflightOptions{
 				ReplicatedAppURL:       "https://replicated.app",
 				HostPreflightSpec:      &troubleshootv1beta2.HostPreflightSpec{},
@@ -105,19 +109,18 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 					NodePortRange:    "80-32767",
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
-				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
-					return opts.Proxy == nil &&
-						opts.GlobalCIDR == nil &&
-						opts.IsAirgap &&
-						opts.IsJoin
-				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
+			nodeIP: "192.0.100.1",
+			assertOpts: func(t *testing.T, result preflights.PrepareHostPreflightOptions) {
+				assert.Nil(t, result.Proxy)
+				assert.Nil(t, result.GlobalCIDR)
+				assert.True(t, result.IsAirgap)
+				assert.True(t, result.IsJoin)
+				assert.Equal(t, "192.0.100.1", result.NodeIP)
+				assert.Equal(t, []string{"6443"}, result.TCPConnectionsRequired)
 			},
-			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
 		},
 		{
-			name: "success with custom k0s and openebs data dirs",
+			name: "with custom k0s and openebs data dirs",
 			opts: PrepareHostPreflightOptions{
 				ReplicatedAppURL:  "https://replicated.app",
 				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
@@ -139,19 +142,26 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 					NodePortRange:    "80-32767",
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
-				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("PrepareHostPreflights", mock.Anything, mock.MatchedBy(func(opts preflights.PrepareHostPreflightOptions) bool {
-					return opts.DataDir == "/custom/data" &&
-						opts.K0sDataDir == "/custom/k0s" &&
-						opts.OpenEBSDataDir == "/custom/openebs"
-				})).Return(&troubleshootv1beta2.HostPreflightSpec{}, nil)
+			nodeIP: "192.0.100.1",
+			assertOpts: func(t *testing.T, result preflights.PrepareHostPreflightOptions) {
+				assert.Equal(t, "/custom/data", result.DataDir)
+				assert.Equal(t, "/custom/k0s", result.K0sDataDir)
+				assert.Equal(t, "/custom/openebs", result.OpenEBSDataDir)
 			},
-			expectedHPF: &troubleshootv1beta2.HostPreflightSpec{},
 		},
 		{
-			name: "error when runner prepare fails",
-			opts: PrepareHostPreflightOptions{},
+			name: "with airgap storage space calculation",
+			opts: PrepareHostPreflightOptions{
+				ReplicatedAppURL:  "https://replicated.app",
+				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
+				IsAirgap:          true,
+				AirgapInfo: &kotsv1beta1.Airgap{
+					Spec: kotsv1beta1.AirgapSpec{
+						UncompressedSize: 1024 * 1024 * 1024, // 1Gi
+					},
+				},
+				EmbeddedAssetsSize: 500 * 1024 * 1024, // 500Mi
+			},
 			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
 				DataDir: "/var/lib/embedded-cluster",
 				AdminConsole: ecv1beta1.AdminConsoleSpec{
@@ -167,76 +177,29 @@ func TestHostPreflightManager_PrepareHostPreflights(t *testing.T) {
 					NodePortRange:    "80-32767",
 				},
 			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
-				netUtils.On("FirstValidAddress", "eth0").Return("192.0.100.1", nil)
-				runner.On("PrepareHostPreflights", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("prepare failed"))
+			nodeIP: "192.0.100.1",
+			assertOpts: func(t *testing.T, result preflights.PrepareHostPreflightOptions) {
+				assert.NotEmpty(t, result.ControllerAirgapStorageSpace)
+				assert.True(t, result.IsAirgap)
 			},
-			expectedError: "prepare host preflights: prepare failed",
-		},
-		{
-			name: "error when determining the node IP fails",
-			opts: PrepareHostPreflightOptions{},
-			runtimeSpec: &ecv1beta1.RuntimeConfigSpec{
-				DataDir: "/var/lib/embedded-cluster",
-				AdminConsole: ecv1beta1.AdminConsoleSpec{
-					Port: 30000,
-				},
-				LocalArtifactMirror: ecv1beta1.LocalArtifactMirrorSpec{
-					Port: 50000,
-				},
-				Network: ecv1beta1.NetworkSpec{
-					NetworkInterface: "eth0",
-					PodCIDR:          "10.244.0.0/16",
-					ServiceCIDR:      "10.96.0.0/12",
-					NodePortRange:    "80-32767",
-				},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, netUtils *utils.MockNetUtils) {
-				netUtils.On("FirstValidAddress", "eth0").Return("", assert.AnError)
-			},
-			expectedError: "determine node ip",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup mocks
-			mockRunner := &preflights.MockPreflightRunner{}
-			mockStore := &preflightstore.MockStore{}
-			mockNetUtils := &utils.MockNetUtils{}
-
 			// Create real runtime config
 			rc := runtimeconfig.New(tt.runtimeSpec)
 
-			tt.setupMocks(mockRunner, mockNetUtils)
-
-			// Create manager using builder pattern
-			manager := NewHostPreflightManager(
-				WithPreflightRunner(mockRunner),
-				WithHostPreflightStore(mockStore),
-				WithLogger(logger.NewDiscardLogger()),
-				WithNetUtils(mockNetUtils),
-			)
-
 			// Execute
-			hpf, err := manager.PrepareHostPreflights(context.Background(), rc, tt.opts)
+			result := buildPrepareHostPreflightOptions(rc, tt.opts, tt.nodeIP)
 
-			// Assert
-			if tt.expectedError != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
-				assert.Nil(t, hpf)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectedHPF, hpf)
+			// Assert common fields
+			assert.Equal(t, tt.opts.HostPreflightSpec, result.HostPreflightSpec)
 
-				if tt.assertResult != nil {
-					tt.assertResult(t, hpf)
-				}
+			// Run custom assertions
+			if tt.assertOpts != nil {
+				tt.assertOpts(t, result)
 			}
-
-			// Verify mocks
-			mockRunner.AssertExpectations(t)
 		})
 	}
 }
@@ -265,10 +228,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				// Mock successful preflight execution
 				output := &types.PreflightsOutput{}
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations in order
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
 			},
 			expectedFinalState: types.StateSucceeded,
 		},
@@ -292,10 +251,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				}
 
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
 			},
 			expectedFinalState: types.StateFailed,
 		},
@@ -319,10 +274,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				}
 
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
 			},
 			expectedFinalState: types.StateSucceeded,
 		},
@@ -350,10 +301,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				}
 
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
 			},
 			expectedFinalState: types.StateFailed,
 		},
@@ -372,48 +319,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(nil, "stderr output", assert.AnError)
 			},
 			expectedFinalState: types.StateFailed,
-		},
-		{
-			name: "SaveToDisk fails but execution continues",
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock successful preflight execution
-				output := &types.PreflightsOutput{}
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations - SaveToDisk fails but execution continues
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(assert.AnError)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(nil)
-			},
-			expectedFinalState: types.StateSucceeded,
-		},
-		{
-			name: "CopyBundleTo fails but execution continues",
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock successful preflight execution
-				output := &types.PreflightsOutput{}
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-
-				// Mock save operations - CopyBundleTo fails but execution continues
-				runner.On("SaveToDisk", output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")).Return(nil)
-				runner.On("CopyBundleTo", rc.PathToEmbeddedClusterSupportFile("preflight-bundle.tar.gz")).Return(assert.AnError)
-			},
-			expectedFinalState: types.StateSucceeded,
 		},
 	}
 

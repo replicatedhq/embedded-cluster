@@ -31,8 +31,21 @@ var _ K0sInterface = (*K0s)(nil)
 type K0s struct {
 }
 
-func New() *K0s {
+func New() K0sInterface {
+	if _clientFactory != nil {
+		return _clientFactory()
+	}
 	return &K0s{}
+}
+
+var (
+	_clientFactory ClientFactory
+)
+
+type ClientFactory func() K0sInterface
+
+func SetClientFactory(fn ClientFactory) {
+	_clientFactory = fn
 }
 
 // GetStatus calls the k0s status command and returns information about system init, PID, k0s role,

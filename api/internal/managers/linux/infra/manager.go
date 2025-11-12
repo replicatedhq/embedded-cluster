@@ -43,9 +43,9 @@ type infraManager struct {
 	clusterID          string
 	logger             logrus.FieldLogger
 	k0scli             k0s.K0sInterface
+	hcli               helm.Client
 	kcli               client.Client
 	mcli               metadata.Interface
-	hcli               helm.Client
 	hostUtils          hostutils.HostUtilsInterface
 	upgrader           upgrade.InfraUpgrader
 	mu                 sync.RWMutex
@@ -125,6 +125,12 @@ func WithK0s(k0s k0s.K0sInterface) InfraManagerOption {
 	}
 }
 
+func WithHelmClient(hcli helm.Client) InfraManagerOption {
+	return func(c *infraManager) {
+		c.hcli = hcli
+	}
+}
+
 func WithKubeClient(kcli client.Client) InfraManagerOption {
 	return func(c *infraManager) {
 		c.kcli = kcli
@@ -134,12 +140,6 @@ func WithKubeClient(kcli client.Client) InfraManagerOption {
 func WithMetadataClient(mcli metadata.Interface) InfraManagerOption {
 	return func(c *infraManager) {
 		c.mcli = mcli
-	}
-}
-
-func WithHelmClient(hcli helm.Client) InfraManagerOption {
-	return func(c *infraManager) {
-		c.hcli = hcli
 	}
 }
 

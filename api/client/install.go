@@ -95,6 +95,67 @@ func (c *client) GetLinuxInstallationStatus(ctx context.Context) (types.Status, 
 	return status, nil
 }
 
+func (c *client) RunLinuxInstallHostPreflights(ctx context.Context) (types.InstallHostPreflightsStatusResponse, error) {
+	b, err := json.Marshal(types.PostInstallRunHostPreflightsRequest{
+		IsUI: false,
+	})
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/host-preflights/run", bytes.NewBuffer(b))
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallHostPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallHostPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) GetLinuxInstallHostPreflightsStatus(ctx context.Context) (types.InstallHostPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/host-preflights/status", nil)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallHostPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallHostPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
 func (c *client) SetupLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (types.Infra, error) {
 	b, err := json.Marshal(types.LinuxInfraSetupRequest{
 		IgnoreHostPreflights: ignoreHostPreflights,
@@ -154,6 +215,60 @@ func (c *client) GetLinuxInfraStatus(ctx context.Context) (types.Infra, error) {
 	}
 
 	return infra, nil
+}
+
+func (c *client) ProcessLinuxAirgap(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/airgap/process", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var airgap types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&airgap)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+
+	return airgap, nil
+}
+
+func (c *client) GetLinuxAirgapStatus(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/airgap/status", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var airgap types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&airgap)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+
+	return airgap, nil
 }
 
 func (c *client) GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error) {
@@ -601,8 +716,16 @@ func (c *client) GetKubernetesInstallAppPreflightsStatus(ctx context.Context) (t
 	return status, nil
 }
 
-func (c *client) InstallLinuxApp(ctx context.Context) (types.AppInstall, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/app/install", nil)
+func (c *client) InstallLinuxApp(ctx context.Context, ignoreAppPreflights bool) (types.AppInstall, error) {
+	request := types.InstallAppRequest{
+		IgnoreAppPreflights: ignoreAppPreflights,
+	}
+	b, err := json.Marshal(request)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/app/install", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppInstall{}, err
 	}

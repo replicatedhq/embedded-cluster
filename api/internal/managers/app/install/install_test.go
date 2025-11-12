@@ -141,7 +141,7 @@ spec:
 		require.NoError(t, err)
 
 		// Run installation
-		err = manager.Install(context.Background(), configValues)
+		err = manager.Install(context.Background(), configValues, nil)
 		require.NoError(t, err)
 
 		mockKotsCLI.AssertExpectations(t)
@@ -178,8 +178,14 @@ spec:
 		require.NoError(t, err)
 		assert.Equal(t, types.StatePending, appInstall.Status.State)
 
+		calledStates := map[types.State]int{}
+		hook := func(status types.Status) error {
+			calledStates[status.State]++
+			return nil
+		}
+
 		// Run installation
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{})
+		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{}, hook)
 		require.NoError(t, err)
 
 		// Verify final status
@@ -189,6 +195,10 @@ spec:
 		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
 		mockKotsCLI.AssertExpectations(t)
+
+		// Verify hook was called
+		assert.Equal(t, 1, calledStates[types.StateRunning])
+		assert.Equal(t, 1, calledStates[types.StateSucceeded])
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
@@ -217,8 +227,14 @@ spec:
 		)
 		require.NoError(t, err)
 
+		calledStates := map[types.State]int{}
+		hook := func(status types.Status) error {
+			calledStates[status.State]++
+			return nil
+		}
+
 		// Run installation (should fail)
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{})
+		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{}, hook)
 		assert.Error(t, err)
 
 		// Verify final status
@@ -226,6 +242,10 @@ spec:
 		require.NoError(t, err)
 		assert.Equal(t, types.StateFailed, appInstall.Status.State)
 		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
+
+		// Verify hook was called
+		assert.Equal(t, 1, calledStates[types.StateRunning])
+		assert.Equal(t, 1, calledStates[types.StateFailed])
 
 		mockKotsCLI.AssertExpectations(t)
 	})

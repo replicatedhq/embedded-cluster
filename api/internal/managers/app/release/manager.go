@@ -115,6 +115,7 @@ func NewAppReleaseManager(config kotsv1beta1.Config, opts ...AppReleaseManagerOp
 			template.WithIsAirgap(manager.isAirgap),
 			template.WithPrivateCACertConfigMapName(manager.privateCACertConfigMapName),
 			template.WithKubeClient(manager.kcli),
+			template.WithLogger(manager.logger),
 		)
 	}
 

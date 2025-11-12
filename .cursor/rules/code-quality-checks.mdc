@@ -35,9 +35,6 @@ make vet
 
 # Run unit tests
 make unit-tests
-
-# Run integration tests
-make test-integration
 ```
 
 ## Pre-commit Checklist
