@@ -1700,10 +1700,15 @@ func setupV3Test(t *testing.T, opts setupV3TestOpts) (string, string) {
 	// Ensure UI assets are available when starting API in non-headless tests
 	prepareWebAssetsForTests(t)
 
+	clusterConfig := opts.clusterConfigData
+	if clusterConfig == "" {
+		clusterConfig = clusterConfigData
+	}
+
 	// Setup release data with V3-specific release data, using provided cluster config
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
-		"cluster-config.yaml": []byte(opts.clusterConfigData),
+		"cluster-config.yaml": []byte(clusterConfig),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
