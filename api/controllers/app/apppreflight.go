@@ -115,7 +115,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			}
 
 			if err := c.setAppPreflightStatus(types.StateFailed, "App preflights failed"); err != nil {
-				return fmt.Errorf("set status to succeeded: %w", err)
+				return fmt.Errorf("set status to failed: %w", err)
 			}
 		} else {
 			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsSucceeded); err != nil {
