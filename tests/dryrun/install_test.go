@@ -802,3 +802,30 @@ func TestIgnoreAppPreflightsInstallation(t *testing.T) {
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
+
+func TestVeleroPluginsInstallation(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
+
+	// --- validate velero addon --- //
+	veleroOpts, found := isHelmReleaseInstalled(hcli, "velero")
+	require.True(t, found, "velero helm release should be installed")
+
+	// Validate basic Velero values
+	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
+		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
+		"image.repository":        "fake-replicated-proxy.test.net/library/velero",
+	})
+
+	// Validate plugin configuration
+	validateVeleroPlugin(t, hcli)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}

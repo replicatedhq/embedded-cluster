@@ -1569,6 +1569,133 @@ func TestV3InstallHeadless_AppPreflights_FailNoBypass(t *testing.T) {
 	}
 }
 
+func TestV3InstallHeadless_VeleroPlugin(t *testing.T) {
+	hcli := setupV3TestHelmClient()
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
+
+	// Run installer command with headless flag and required arguments
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.NoError(t, err, "headless installation should succeed")
+
+	validateVeleroPlugin(t, hcli)
+
+	if !t.Failed() {
+		t.Logf("V3 headless velero plugin test passed")
+	}
+}
+
+func TestV3Install_VeleroPlugin(t *testing.T) {
+	hcli := setupV3TestHelmClient()
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
+
+	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
+	go func() {
+		err := runInstallerCmd(
+			"install",
+			"--target", "linux",
+			"--license", licenseFile,
+			"--admin-console-password", "password123",
+			"--yes",
+		)
+		if err != nil {
+			t.Logf("installer exited with error: %v", err)
+		}
+	}()
+
+	runV3Install(t, v3InstallArgs{
+		managerPort:          30080,
+		password:             "password123",
+		isAirgap:             false,
+		configValuesFile:     configFile,
+		installationConfig:   apitypes.LinuxInstallationConfig{},
+		ignoreHostPreflights: false,
+		ignoreAppPreflights:  false,
+	})
+
+	validateVeleroPlugin(t, hcli)
+
+	if !t.Failed() {
+		t.Logf("V3 velero plugin test passed")
+	}
+}
+
+func validateVeleroPlugin(t *testing.T, hcli *helm.MockClient) {
+	t.Helper()
+
+	// Validate velero addon is installed
+	veleroOpts, found := isHelmReleaseInstalled(hcli, "velero")
+	require.True(t, found, "velero helm release should be installed")
+
+	// Validate initContainers exist and contain the plugin
+	require.Contains(t, veleroOpts.Values, "initContainers", "initContainers should exist in Velero helm values")
+	initContainersAny := veleroOpts.Values["initContainers"]
+	require.NotNil(t, initContainersAny, "initContainers should not be nil")
+
+	initContainers, ok := initContainersAny.([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	require.NotEmpty(t, initContainers, "initContainers should not be empty")
+
+	// Find the plugin container by name
+	var pluginContainer map[string]any
+	for _, container := range initContainers {
+		if containerMap, ok := container.(map[string]any); ok {
+			if name, _ := containerMap["name"].(string); name == "velero-plugin-example" {
+				pluginContainer = containerMap
+				break
+			}
+		}
+	}
+
+	require.NotNil(t, pluginContainer, "velero-plugin-example container should exist in initContainers")
+	assert.Equal(t, "velero-plugin-example", pluginContainer["name"], "plugin container should have correct name")
+	assert.Equal(t, "docker.io/library/velero-plugin-example:latest", pluginContainer["image"], "plugin container should have correct image")
+	assert.Equal(t, "Always", pluginContainer["imagePullPolicy"], "plugin container should have correct imagePullPolicy")
+
+	// Validate volumeMounts
+	require.Contains(t, pluginContainer, "volumeMounts", "plugin container should have volumeMounts")
+	volumeMountsAny := pluginContainer["volumeMounts"]
+	require.NotNil(t, volumeMountsAny, "volumeMounts should not be nil")
+
+	var volumeMounts []any
+	switch v := volumeMountsAny.(type) {
+	case []any:
+		volumeMounts = v
+	case []map[string]any:
+		volumeMounts = make([]any, len(v))
+		for i, vm := range v {
+			volumeMounts[i] = vm
+		}
+	default:
+		t.Fatalf("volumeMounts should be a slice, got %T", v)
+	}
+
+	require.NotEmpty(t, volumeMounts, "volumeMounts should not be empty")
+
+	// Find the plugins volume mount
+	var pluginsVolumeMount map[string]any
+	for _, vm := range volumeMounts {
+		if vmMap, ok := vm.(map[string]any); ok {
+			if name, _ := vmMap["name"].(string); name == "plugins" {
+				pluginsVolumeMount = vmMap
+				break
+			}
+		}
+	}
+
+	require.NotNil(t, pluginsVolumeMount, "plugins volumeMount should exist")
+	assert.Equal(t, "plugins", pluginsVolumeMount["name"], "volumeMount should have correct name")
+	assert.Equal(t, "/target", pluginsVolumeMount["mountPath"], "volumeMount should have correct mountPath")
+}
+
 var (
 	//go:embed assets/rendered-chart-preflight.yaml
 	renderedChartPreflightData string

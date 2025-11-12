@@ -37,8 +37,8 @@ spec:
   extensions:
     velero:
       plugins:
-        - name: velero-plugin-postgresql
-          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+        - name: velero-plugin-example
+          image: docker.io/library/velero-plugin-example:latest
           imagePullPolicy: Always
     helm:
       charts:
