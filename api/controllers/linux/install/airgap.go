@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -30,10 +31,10 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -45,12 +46,16 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+
+				if err := c.setAirgapStatus(types.StateFailed, finalErr.Error()); err != nil {
+					c.logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
+
+		if err := c.setAirgapStatus(types.StateRunning, "Processing airgap bundle"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
 
 		// Calculate registry settings for the airgap processing
 		registrySettings, err := c.CalculateRegistrySettings(ctx)
@@ -62,6 +67,14 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 			return fmt.Errorf("failed to process airgap: %w", err)
 		}
 
+		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setAirgapStatus(types.StateSucceeded, "Airgap bundle processed"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
+		}
+
 		return nil
 	}()
 
@@ -69,5 +82,13 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 }
 
 func (c *InstallController) GetAirgapStatus(ctx context.Context) (types.Airgap, error) {
-	return c.airgapManager.GetStatus()
+	return c.store.AirgapStore().Get()
+}
+
+func (c *InstallController) setAirgapStatus(state types.State, description string) error {
+	return c.store.AirgapStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

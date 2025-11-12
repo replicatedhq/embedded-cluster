@@ -5,7 +5,6 @@ import (
 
 	appupgradestore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -20,8 +19,6 @@ var _ AppUpgradeManager = &appUpgradeManager{}
 type AppUpgradeManager interface {
 	// Upgrade upgrades the app with the provided config values
 	Upgrade(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
-	// GetStatus returns the current app upgrade status
-	GetStatus() (types.AppUpgrade, error)
 }
 
 // appUpgradeManager is an implementation of the AppUpgradeManager interface

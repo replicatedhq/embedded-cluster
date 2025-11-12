@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -41,10 +42,10 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -56,17 +57,29 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 				if err := c.stateMachine.Transition(lock, states.StateAppUpgradeFailed); err != nil {
 					c.logger.Errorf("failed to transition states: %w", err)
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+
+				if err := c.setAppUpgradeStatus(types.StateFailed, finalErr.Error()); err != nil {
+					c.logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
+
+		if err := c.setAppUpgradeStatus(types.StateRunning, "Upgrading application"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
 
 		// Upgrade the app
 		err := c.appUpgradeManager.Upgrade(ctx, configValues)
 		if err != nil {
 			return fmt.Errorf("upgrade app: %w", err)
+		}
+
+		if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setAppUpgradeStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
@@ -76,5 +89,13 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 }
 
 func (c *AppController) GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error) {
-	return c.appUpgradeManager.GetStatus()
+	return c.store.AppUpgradeStore().Get()
+}
+
+func (c *AppController) setAppUpgradeStatus(state types.State, description string) error {
+	return c.store.AppUpgradeStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

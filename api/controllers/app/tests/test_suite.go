@@ -870,20 +870,20 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 
 	tests := []struct {
 		name        string
-		setupMocks  func(*appupgrademanager.MockAppUpgradeManager)
+		setupMocks  func(*store.MockStore)
 		expectedErr bool
 	}{
 		{
 			name: "successful status retrieval",
-			setupMocks: func(aum *appupgrademanager.MockAppUpgradeManager) {
-				aum.On("GetStatus").Return(expectedAppUpgrade, nil)
+			setupMocks: func(ms *store.MockStore) {
+				ms.AppUpgradeMockStore.On("Get").Return(expectedAppUpgrade, nil)
 			},
 			expectedErr: false,
 		},
 		{
-			name: "manager returns error",
-			setupMocks: func(aum *appupgrademanager.MockAppUpgradeManager) {
-				aum.On("GetStatus").Return(types.AppUpgrade{}, errors.New("status error"))
+			name: "store returns error",
+			setupMocks: func(ms *store.MockStore) {
+				ms.AppUpgradeMockStore.On("Get").Return(types.AppUpgrade{}, errors.New("status error"))
 			},
 			expectedErr: true,
 		},
@@ -895,6 +895,7 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
 			appInstallManager := &appinstallmanager.MockAppInstallManager{}
 			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
+			mockStore := &store.MockStore{}
 			sm := s.CreateUpgradeStateMachine(states.StateNew)
 
 			appConfigManager := &appconfig.MockAppConfigManager{}
@@ -907,12 +908,12 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 				appcontroller.WithAppReleaseManager(appReleaseManager),
 				appcontroller.WithAppInstallManager(appInstallManager),
 				appcontroller.WithAppUpgradeManager(appUpgradeManager),
-				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create app controller")
 
-			tt.setupMocks(appUpgradeManager)
+			tt.setupMocks(mockStore)
 			result, err := controller.GetAppUpgradeStatus(t.Context())
 
 			if tt.expectedErr {
@@ -923,7 +924,7 @@ func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
 				assert.Equal(t, expectedAppUpgrade, result)
 			}
 
-			appUpgradeManager.AssertExpectations(t)
+			mockStore.AppUpgradeMockStore.AssertExpectations(t)
 		})
 	}
 }
