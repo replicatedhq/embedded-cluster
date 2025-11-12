@@ -164,7 +164,7 @@ func runInstallerCmd(args ...string) error {
 	fullArgs := append([]string{"dryrun"}, args...)
 	os.Args = fullArgs // for reporting
 
-	installerCmd := cli.RootCmd(context.Background())
+	installerCmd := cli.RootCmd(context.TODO())
 	installerCmd.SetArgs(args)
 	return installerCmd.Execute()
 }
@@ -450,6 +450,12 @@ func waitForAPIReady(t *testing.T, hc *http.Client, url string) {
 func assertEventuallySucceeded(t *testing.T, contextMsg string, getStatus func() (apitypes.State, string, error)) {
 	t.Helper()
 
+	assertEventuallyState(t, contextMsg, apitypes.StateSucceeded, getStatus)
+}
+
+func assertEventuallyState(t *testing.T, contextMsg string, expectedState apitypes.State, getStatus func() (apitypes.State, string, error)) {
+	t.Helper()
+
 	var lastState apitypes.State
 	var lastMsg string
 	var lastErr error
@@ -463,11 +469,11 @@ func assertEventuallySucceeded(t *testing.T, contextMsg string, getStatus func()
 		if err != nil {
 			return false
 		}
-		return st == apitypes.StateSucceeded
+		return st == expectedState
 	}, timeout, interval, "%s: lastState=%s, lastMsg=%s, lastErr=%v", contextMsg, lastState, lastMsg, lastErr)
 
-	if !ok && lastState == apitypes.StateFailed {
-		require.FailNowf(t, "operation failed", "%s: failed with message: %s", contextMsg, lastMsg)
+	if !ok {
+		require.FailNowf(t, "did not reach expected state", "%s: expected state=%s, got state=%s with message: %s", contextMsg, expectedState, lastState, lastMsg)
 	}
 }
 
