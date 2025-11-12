@@ -8,7 +8,6 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	troubleshootanalyze "github.com/replicatedhq/troubleshoot/pkg/analyze"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
@@ -31,16 +30,6 @@ func (m *appPreflightManager) RunAppPreflights(ctx context.Context, opts RunAppP
 
 	if err := m.setRunningStatus(opts.AppPreflightSpec); err != nil {
 		return fmt.Errorf("set running status: %w", err)
-	}
-
-	// TODO: use dependency injection for the preflights runner
-	if dryrun.Enabled() {
-		if err := m.setCompletedStatus(types.StateSucceeded, "App preflights passed", nil); err != nil {
-			return fmt.Errorf("set succeeded status: %w", err)
-		}
-
-		dryrun.RecordAppPreflightSpec(opts.AppPreflightSpec)
-		return nil
 	}
 
 	// Run the app preflights using the shared core function

@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -60,6 +61,7 @@ type UpgradeController struct {
 	hcli                 helm.Client
 	kcli                 client.Client
 	mcli                 metadata.Interface
+	preflightRunner      preflights.PreflightRunnerInterface
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
@@ -197,6 +199,12 @@ func WithMetadataClient(mcli metadata.Interface) UpgradeControllerOption {
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.endUserConfig = endUserConfig
@@ -312,6 +320,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

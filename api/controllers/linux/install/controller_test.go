@@ -473,7 +473,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
+					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -489,7 +491,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
+					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -505,7 +509,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
+					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -521,7 +527,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateSucceeded,
+					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -537,6 +545,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
@@ -555,6 +566,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
 					st.LinuxPreflightMockStore.On("GetOutput").Return(nil, assert.AnError),
 				)
@@ -572,6 +586,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
@@ -590,6 +607,9 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
@@ -608,15 +628,17 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
 					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
 				)
 			},
 			expectedErr: false,
 		},
 		{
-			name:          "successful run preflights with get preflight output error",
+			name:          "failed run preflights with get preflight output error",
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostPreflightsExecutionFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
@@ -626,15 +648,18 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, assert.AnError),
 				)
 			},
 			expectedErr: false,
 		},
 		{
-			name:          "successful run preflights with nil preflight output",
+			name:          "failed run preflights with nil preflight output",
 			currentState:  states.StateHostConfigured,
-			expectedState: states.StateHostPreflightsSucceeded,
+			expectedState: states.StateHostPreflightsExecutionFailed,
 			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
@@ -642,23 +667,10 @@ func TestRunHostPreflights(t *testing.T) {
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Return(nil),
+					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+						State: types.StateFailed,
+					}, nil),
 					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name:          "successful run preflights with preflight warnings",
-			currentState:  states.StateHostConfigured,
-			expectedState: states.StateHostPreflightsSucceeded,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(warnPreflightOutput, nil),
 				)
 			},
 			expectedErr: false,

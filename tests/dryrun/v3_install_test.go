@@ -3,29 +3,35 @@ package dryrun
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 	"testing"
 
 	apiclient "github.com/replicatedhq/embedded-cluster/api/client"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -49,7 +55,7 @@ func TestV3InstallHeadless_HappyPathOnline(t *testing.T) {
 
 func TestV3Install_HappyPathOnline(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -83,6 +89,8 @@ func TestV3Install_HappyPathOnline(t *testing.T) {
 }
 
 func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
+	t.Helper()
+
 	adminConsoleNamespace := "fake-app-slug"
 
 	// Load dryrun output to validate registry resources are NOT created
@@ -216,7 +224,7 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 
 func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	airgapBundleFile := airgapBundleFile(t)
 
@@ -243,7 +251,7 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 
 func TestV3Install_HappyPathAirgap(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	airgapBundleFile := airgapBundleFile(t)
 
@@ -280,6 +288,8 @@ func TestV3Install_HappyPathAirgap(t *testing.T) {
 }
 
 func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFile string) {
+	t.Helper()
+
 	adminConsoleNamespace := "fake-app-slug"
 
 	// Load dryrun output to validate registry resources ARE created
@@ -373,7 +383,7 @@ func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFi
 }
 
 func TestV3InstallHeadless_Metrics(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil)
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -396,7 +406,7 @@ func TestV3InstallHeadless_Metrics(t *testing.T) {
 }
 
 func TestV3Install_Metrics(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil)
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -430,6 +440,8 @@ func TestV3Install_Metrics(t *testing.T) {
 }
 
 func validateMetrics(t *testing.T, headless bool) {
+	t.Helper()
+
 	dr, err := dryrun.Load()
 	if err != nil {
 		t.Fatalf("fail to unmarshal dryrun output: %v", err)
@@ -478,7 +490,7 @@ func validateMetrics(t *testing.T, headless bool) {
 }
 
 func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil)
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	// Override the config file with invalid values
 	createInvalidConfigValuesFile(t, configFile)
@@ -505,7 +517,7 @@ func TestV3InstallHeadless_ConfigValidationErrors(t *testing.T) {
 }
 
 func TestV3Install_ConfigValidationErrors(t *testing.T) {
-	licenseFile, configFile := setupV3Test(t, nil)
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	// Override the config file with invalid values
 	createInvalidConfigValuesFile(t, configFile)
@@ -550,8 +562,7 @@ func TestV3Install_ConfigValidationErrors(t *testing.T) {
 
 func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Run installer command with custom CIDR and proxy settings
 	err := runInstallerCmd(
@@ -585,7 +596,7 @@ func TestV3InstallHeadless_CustomCIDR(t *testing.T) {
 func TestV3Install_CustomCIDR(t *testing.T) {
 	hcli := setupV3TestHelmClient()
 
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -631,7 +642,7 @@ func TestV3Install_CustomCIDR(t *testing.T) {
 
 func TestV3InstallHeadless_CustomDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -653,7 +664,7 @@ func TestV3InstallHeadless_CustomDomains(t *testing.T) {
 
 func TestV3Install_CustomDomains(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -687,6 +698,8 @@ func TestV3Install_CustomDomains(t *testing.T) {
 }
 
 func validateCustomDomains(t *testing.T, hcli *helm.MockClient) {
+	t.Helper()
+
 	// Validate addon image registries/repositories use custom domains
 
 	// Validate openebs addon uses custom domain
@@ -735,7 +748,7 @@ func validateCustomDomains(t *testing.T, hcli *helm.MockClient) {
 
 func TestV3InstallHeadless_CustomDataDir(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	customDataDir := "/custom/data/dir"
 
@@ -762,7 +775,7 @@ func TestV3InstallHeadless_CustomDataDir(t *testing.T) {
 
 func TestV3Install_CustomDataDir(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	customDataDir := "/custom/data/dir"
 
@@ -800,6 +813,8 @@ func TestV3Install_CustomDataDir(t *testing.T) {
 }
 
 func validateCustomDataDir(t *testing.T, hcli *helm.MockClient, customDataDir string) {
+	t.Helper()
+
 	// Load dryrun output
 	dr, err := dryrun.Load()
 	require.NoError(t, err, "failed to load dryrun output")
@@ -876,7 +891,7 @@ func validateCustomDataDir(t *testing.T, hcli *helm.MockClient, customDataDir st
 
 func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	customPort := 30001
 
@@ -903,7 +918,7 @@ func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
 
 func TestV3Install_CustomAdminConsolePort(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	customPort := 30001
 
@@ -941,6 +956,8 @@ func TestV3Install_CustomAdminConsolePort(t *testing.T) {
 }
 
 func validateCustomAdminConsolePort(t *testing.T, hcli *helm.MockClient, customPort int) {
+	t.Helper()
+
 	dr, err := dryrun.Load()
 	require.NoError(t, err, "failed to load dryrun output")
 
@@ -975,9 +992,8 @@ func validateCustomAdminConsolePort(t *testing.T, hcli *helm.MockClient, customP
 	})
 }
 
-func TestV3InstallHeadless_CustomLocalArtifactMirror(t *testing.T) {
-	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+func TestV3InstallHeadless_CustomLocalArtifactMirrorPort(t *testing.T) {
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	customPort := 50001
 
@@ -1003,8 +1019,7 @@ func TestV3InstallHeadless_CustomLocalArtifactMirror(t *testing.T) {
 }
 
 func TestV3Install_CustomLocalArtifactMirrorPort(t *testing.T) {
-	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, nil, nil)
 
 	customPort := 50001
 
@@ -1042,6 +1057,8 @@ func TestV3Install_CustomLocalArtifactMirrorPort(t *testing.T) {
 }
 
 func validateCustomLocalArtifactMirrorPort(t *testing.T, customPort int) {
+	t.Helper()
+
 	dr, err := dryrun.Load()
 	require.NoError(t, err, "failed to load dryrun output")
 
@@ -1071,7 +1088,7 @@ func validateCustomLocalArtifactMirrorPort(t *testing.T, customPort int) {
 
 func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -1095,7 +1112,7 @@ func TestV3InstallHeadless_ClusterConfig(t *testing.T) {
 
 func TestV3Install_ClusterConfig(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli)
+	licenseFile, configFile := setupV3Test(t, hcli, nil)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -1129,6 +1146,8 @@ func TestV3Install_ClusterConfig(t *testing.T) {
 }
 
 func validateClusterConfig(t *testing.T, hcli *helm.MockClient) {
+	t.Helper()
+
 	// Validate k0s cluster config has unsupported overrides applied
 	k0sConfig := readK0sConfig(t)
 
@@ -1186,6 +1205,370 @@ func validateClusterConfig(t *testing.T, hcli *helm.MockClient) {
 	})
 }
 
+func TestV3InstallHeadless_RestrictiveUmask(t *testing.T) {
+	// Set restrictive umask and defer restoration
+	oldUmask := syscall.Umask(0o077)
+	defer syscall.Umask(oldUmask)
+
+	licenseFile, configFile := setupV3Test(t, nil, nil)
+
+	// Run installer command with headless flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.NoError(t, err, "headless installation should succeed")
+
+	// Check that folders created in this test have the right permissions
+	rc := runtimeconfig.New(nil)
+	rc.SetDataDir("/var/lib/fake-app-slug")
+	folderList := []string{
+		runtimeconfig.EmbeddedClusterLogsSubDir(),
+		rc.EmbeddedClusterHomeDirectory(),
+		rc.EmbeddedClusterBinsSubDir(),
+		rc.EmbeddedClusterChartsSubDir(),
+		rc.PathToEmbeddedClusterBinary("kubectl-preflight"),
+	}
+	gotFailure := false
+	for _, folder := range folderList {
+		stat, err := os.Stat(folder)
+		if err != nil {
+			t.Logf("failed to stat %s: %v", folder, err)
+			gotFailure = true
+			continue
+		}
+		if stat.Mode().Perm() != 0755 {
+			t.Logf("expected folder %s to have mode 0755, got %O", folder, stat.Mode().Perm())
+			gotFailure = true
+		}
+	}
+	if gotFailure {
+		t.Fatalf("at least one folder had incorrect permissions")
+	}
+
+	if !t.Failed() {
+		t.Logf("Test passed: folders created with correct permissions (0755) despite restrictive umask (0o077)")
+	}
+}
+
+func TestV3InstallHeadless_CustomTLSConfiguration(t *testing.T) {
+	licenseFile, configFile := setupV3Test(t, nil, nil)
+
+	// Create test certificate and key files
+	tmpdir := t.TempDir()
+	certPath := filepath.Join(tmpdir, "test-cert.pem")
+	keyPath := filepath.Join(tmpdir, "test-key.pem")
+
+	// Valid test certificate and key data
+	certData := `-----BEGIN CERTIFICATE-----
+MIIDizCCAnOgAwIBAgIUJaAILNY7l9MR4mfMP4WiUObo6TIwDQYJKoZIhvcNAQEL
+BQAwVTELMAkGA1UEBhMCVVMxDTALBgNVBAgMBFRlc3QxDTALBgNVBAcMBFRlc3Qx
+DTALBgNVBAoMBFRlc3QxGTAXBgNVBAMMEHRlc3QuZXhhbXBsZS5jb20wHhcNMjUw
+ODE5MTcwNTU4WhcNMjYwODE5MTcwNTU4WjBVMQswCQYDVQQGEwJVUzENMAsGA1UE
+CAwEVGVzdDENMAsGA1UEBwwEVGVzdDENMAsGA1UECgwEVGVzdDEZMBcGA1UEAwwQ
+dGVzdC5leGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+AMhkRyxUJE4JLrTbqq/Etdvd2osmkZJA5GXCRkWcGLBppNNqO1v8K0zy5dV9jgno
+gjeQD2nTqZ++vmzR3wPObeB6MJY+2SYtFHvnT3G9HR4DcSX3uHUOBDjbUsW0OT6z
+weT3t3eTVqNIY96rZRHz9VYrdC4EPlWyfoYTCHceZey3AqSgHWnHIxVaATWT/LFQ
+yvRRlEBNf7/M5NX0qis91wKgGwe6u+P/ebmT1cXURufM0jSAMUbDIqr73Qq5m6t4
+fv6/8XKAiVpA1VcACvR79kTi6hYMls88ShHuYLJK175ZQfkeJx77TI/UebALL9CZ
+SCI1B08SMZOsr9GQMOKNIl8CAwEAAaNTMFEwHQYDVR0OBBYEFCQWAH7mJ0w4Iehv
+PL72t8GCJ90uMB8GA1UdIwQYMBaAFCQWAH7mJ0w4IehvPL72t8GCJ90uMA8GA1Ud
+EwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAFfEICcE4eFZkRfjcEkvrJ3T
+KmMikNP2nPXv3h5Ie0DpprejPkDyOWe+UJBanYwAf8xXVwRTmE5PqQhEik2zTBlN
+N745Izq1cUYIlyt9GHHycx384osYHKkGE9lAPEvyftlc9hCLSu/FVQ3+8CGwGm9i
+cFNYLx/qrKkJxT0Lohi7VCAf7+S9UWjIiLaETGlejm6kPNLRZ0VoxIPgUmqePXfp
+6gY5FSIzvH1kZ+bPZ3nqsGyT1l7TsubeTPDDGhpKgIFzcJX9WeY//bI4q1SpU1Fl
+koNnBhDuuJxjiafIFCz4qVlf0kmRrz4jeXGXym8IjxUq0EpMgxGuSIkguPKiwFQ=
+-----END CERTIFICATE-----`
+
+	keyData := `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDIZEcsVCROCS60
+26qvxLXb3dqLJpGSQORlwkZFnBiwaaTTajtb/CtM8uXVfY4J6II3kA9p06mfvr5s
+0d8Dzm3gejCWPtkmLRR7509xvR0eA3El97h1DgQ421LFtDk+s8Hk97d3k1ajSGPe
+q2UR8/VWK3QuBD5Vsn6GEwh3HmXstwKkoB1pxyMVWgE1k/yxUMr0UZRATX+/zOTV
+9KorPdcCoBsHurvj/3m5k9XF1EbnzNI0gDFGwyKq+90KuZureH7+v/FygIlaQNVX
+AAr0e/ZE4uoWDJbPPEoR7mCySte+WUH5Hice+0yP1HmwCy/QmUgiNQdPEjGTrK/R
+kDDijSJfAgMBAAECggEAHnl1g23GWaG22yU+110cZPPfrOKwJ6Q7t6fsRODAtm9S
+dB5HKa13LkwQHL/rzmDwEKAVX/wi4xrAXc8q0areddFPO0IShuY7I76hC8R9PZe7
+aNE72X1IshbUhyFpxTnUBkyPt50OA2XaXj4FcE3/5NtV3zug+SpcaGpTkr3qNS24
+0Qf5X8AA1STec81c4BaXc8GgLsXz/4kWUSiwK0fjXcIpHkW28gtUyVmYu3FAPSdo
+4bKdbqNUiYxF+JYLCQ9PyvFAqy7EhFLM4QkMICnSBNqNCPq3hVOr8K4V9luNnAmS
+oU5gEHXmGM8a+kkdvLoZn3dO5tRk8ctV0vnLMYnXrQKBgQDl4/HDbv3oMiqS9nJK
++vQ7/yzLUb00fVzvWbvSLdEfGCgbRlDRKkNMgI5/BnFTJcbG5o3rIdBW37FY3iAy
+p4iIm+VGiDz4lFApAQdiQXk9d2/mfB9ZVryUsKskvk6WTjom6+BRSvakqe2jIa/i
+udnMFNGkJj6HzZqss1LKDiR5DQKBgQDfJqj5AlCyNUxjokWMH0BapuBVSHYZnxxD
+xR5xX/5Q5fKDBpp4hMn8vFS4L8a5mCOBUPbuxEj7KY0Ho5bqYWmt+HyxP5TvDS9h
+ZqgDdJuWdLB4hfzlUKekufFrpALvUT4AbmYdQ+ufkggU0mWGCfKaijlk4Hy/VRH7
+w5ConbJWGwKBgADkF0XIoldKCnwzVFISEuxAmu3WzULs0XVkBaRU5SCXuWARr7J/
+1W7weJzpa3sFBHY04ovsv5/2kftkMP/BQng1EnhpgsL74Cuog1zQICYq1lYwWPbB
+rU1uOduUmT1f5D3OYDowbjBJMFCXitT4H235Dq7yLv/bviO5NjLuRxnpAoGBAJBj
+LnA4jEhS7kOFiuSYkAZX9c2Y3jnD1wEOuZz4VNC5iMo46phSq3Np1JN87mPGSirx
+XWWvAd3py8QGmK69KykTIHN7xX1MFb07NDlQKSAYDttdLv6dymtumQRiEjgRZEHZ
+LR+AhCQy1CHM5T3uj9ho2awpCO6wN7uklaRUrUDDAoGBAK/EPsIxm5yj+kFIc/qk
+SGwCw13pfbshh9hyU6O//h3czLnN9dgTllfsC7qqxsgrMCVZO9ZIfh5eb44+p7Id
+r3glM4yhSJwf/cAWmt1A7DGOYnV7FF2wkDJJPX/Vag1uEsqrzwnAdFBymK5dwDsu
+oxhVqyhpk86rf0rT5DcD/sBw
+-----END PRIVATE KEY-----`
+
+	writeFile(t, certPath, certData)
+	writeFile(t, keyPath, keyData)
+
+	// Run installer command with TLS configuration
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--tls-cert", certPath,
+		"--tls-key", keyPath,
+		"--hostname", "test.example.com",
+		// No need to pass --yes here because we are setting tls cert and key
+	)
+
+	require.NoError(t, err, "headless installation should succeed")
+
+	// Load dryrun output
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "failed to load dryrun output")
+
+	kcli, err := dr.KubeClient()
+	require.NoError(t, err, "failed to get kube client")
+
+	// Validate that TLS secret exists
+	assertSecretExists(t, kcli, "kotsadm-tls", "fake-app-slug")
+
+	// Validate TLS secret contents
+	var tlsSecret corev1.Secret
+	err = kcli.Get(t.Context(), types.NamespacedName{Name: "kotsadm-tls", Namespace: "fake-app-slug"}, &tlsSecret)
+	require.NoError(t, err)
+
+	// Check secret type
+	assert.Equal(t, corev1.SecretTypeTLS, tlsSecret.Type, "secret should have type kubernetes.io/tls")
+
+	// Check certificate data
+	assert.Equal(t, []byte(certData), tlsSecret.Data["tls.crt"], "certificate data should match")
+	assert.Equal(t, []byte(keyData), tlsSecret.Data["tls.key"], "key data should match")
+
+	// Check hostname in StringData
+	assert.Equal(t, "test.example.com", tlsSecret.StringData["hostname"], "hostname should match")
+
+	// Check annotations
+	assert.Equal(t, "0", tlsSecret.Annotations["acceptAnonymousUploads"], "should have acceptAnonymousUploads annotation")
+
+	if !t.Failed() {
+		t.Logf("Test passed: custom TLS configuration correctly creates kotsadm-tls secret with proper certificate, key, hostname, and annotation")
+	}
+}
+
+func TestV3InstallHeadless_HostPreflights_WithFailuresBlocking(t *testing.T) {
+	preflightRunner := setupV3TestHostPreflightsRunnerWithFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command without ignore-host-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "host preflight checks completed with failures")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: host preflight failures blocking installation")
+	}
+}
+
+func TestV3InstallHeadless_HostPreflights_WithFailuresBypass(t *testing.T) {
+	preflightRunner := setupV3TestHostPreflightsRunnerWithFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command with ignore-host-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--ignore-host-preflights",
+		"--yes",
+	)
+
+	require.NoError(t, err, "headless installation should succeed")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: --ignore-host-preflights flag correctly bypasses host preflight failures")
+	}
+}
+
+func TestV3InstallHeadless_HostPreflights_Fail(t *testing.T) {
+	preflightRunner := setupV3TestHostPreflightsRunnerFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command without ignore-host-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "preflights failed to run")
+	require.ErrorContains(t, err, "exit code 1")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: preflights failed to run")
+	}
+}
+
+func TestV3InstallHeadless_HostPreflights_FailNoBypass(t *testing.T) {
+	preflightRunner := setupV3TestHostPreflightsRunnerFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command without ignore-host-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--ignore-host-preflights",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "preflights failed to run")
+	require.ErrorContains(t, err, "exit code 1")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: preflights failed to run")
+	}
+}
+
+func TestV3InstallHeadless_AppPreflights_WithFailuresBlocking(t *testing.T) {
+	preflightRunner := setupV3TestAppPreflightsRunnerWithFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command without ignore-app-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "app preflight checks completed with failures")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: app preflight failures blocking installation")
+	}
+}
+
+func TestV3InstallHeadless_AppPreflights_WithFailuresBypass(t *testing.T) {
+	preflightRunner := setupV3TestAppPreflightsRunnerWithFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command with ignore-app-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--ignore-app-preflights",
+		"--yes",
+	)
+
+	require.NoError(t, err, "headless installation should succeed")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: --ignore-app-preflights flag correctly bypasses app preflight failures")
+	}
+}
+
+func TestV3InstallHeadless_AppPreflights_Fail(t *testing.T) {
+	preflightRunner := setupV3TestAppPreflightsRunnerFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command without ignore-app-preflights flag
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "app preflights failed to run")
+	require.ErrorContains(t, err, "exit code 1")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: app preflights execution failed")
+	}
+}
+
+func TestV3InstallHeadless_AppPreflights_FailNoBypass(t *testing.T) {
+	preflightRunner := setupV3TestAppPreflightsRunnerFail()
+	licenseFile, configFile := setupV3Test(t, nil, preflightRunner)
+
+	// Run installer command with ignore-app-preflights flag - execution failures cannot be bypassed
+	err := runInstallerCmd(
+		"install",
+		"--headless",
+		"--target", "linux",
+		"--license", licenseFile,
+		"--config-values", configFile,
+		"--admin-console-password", "password123",
+		"--ignore-app-preflights",
+		"--yes",
+	)
+
+	require.ErrorContains(t, err, "app preflights failed to run")
+	require.ErrorContains(t, err, "exit code 1")
+
+	preflightRunner.AssertExpectations(t)
+
+	if !t.Failed() {
+		t.Logf("Test passed: app preflights execution failure cannot be bypassed")
+	}
+}
+
 var (
 	//go:embed assets/rendered-chart-preflight.yaml
 	renderedChartPreflightData string
@@ -1197,7 +1580,9 @@ var (
 	configValuesInvalidData string
 )
 
-func setupV3Test(t *testing.T, hcli helm.Client) (string, string) {
+func setupV3Test(t *testing.T, hcli helm.Client, preflightRunner preflights.PreflightRunnerInterface) (string, string) {
+	t.Helper()
+
 	// Set ENABLE_V3 environment variable
 	t.Setenv("ENABLE_V3", "1")
 
@@ -1220,6 +1605,10 @@ func setupV3Test(t *testing.T, hcli helm.Client) (string, string) {
 		hcli = setupV3TestHelmClient()
 	}
 
+	if preflightRunner == nil {
+		preflightRunner = setupV3TestPreflightsRunner()
+	}
+
 	// Initialize dryrun with mock ReplicatedAPIClient
 	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
 	dryrun.Init(drFile, &dryrun.Client{
@@ -1227,14 +1616,15 @@ func setupV3Test(t *testing.T, hcli helm.Client) (string, string) {
 			License:      nil, // will return the same license that was passed in
 			LicenseBytes: []byte(licenseData),
 		},
-		HelmClient: hcli,
+		HelmClient:      hcli,
+		PreflightRunner: preflightRunner,
 	})
 	logrus.SetLevel(logrus.InfoLevel)
 	logrus.SetOutput(os.Stdout)
 
 	// Create license file
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
-	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
+	writeFile(t, licenseFile, licenseData)
 
 	// Create config values file (required for headless)
 	configFile := filepath.Join(t.TempDir(), "config.yaml")
@@ -1255,6 +1645,167 @@ func setupV3TestHelmClient() *helm.MockClient {
 	hcli.On("Close").Return(nil).Maybe()
 
 	return hcli
+}
+
+func setupV3TestPreflightsRunner() *preflights.MockPreflightRunner {
+	preflightRunner := &preflights.MockPreflightRunner{}
+	preflightRunner.
+		On("RunHostPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+		}, "", nil)
+	preflightRunner.
+		On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordAppPreflightSpec(args.Get(1).(*troubleshootv1beta2.PreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+		}, "", nil)
+	return preflightRunner
+}
+
+func setupV3TestHostPreflightsRunnerWithFail() *preflights.MockPreflightRunner {
+	opts := preflights.RunOptions{
+		PreflightBinaryPath: "/var/lib/fake-app-slug/bin/kubectl-preflight",
+		ProxySpec:           nil,
+		ExtraPaths:          []string{"/var/lib/fake-app-slug/bin"},
+	}
+
+	preflightRunner := &preflights.MockPreflightRunner{}
+	preflightRunner.
+		On("RunHostPreflights", mock.Anything, mock.AnythingOfType("*v1beta2.HostPreflightSpec"), opts).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+			Fail: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check failed",
+				},
+			},
+		}, "", nil)
+	preflightRunner.
+		On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Maybe(). // Will run if bypass flag is set
+		Run(func(args mock.Arguments) {
+			dryrun.RecordAppPreflightSpec(args.Get(1).(*troubleshootv1beta2.PreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+		}, "", nil)
+	return preflightRunner
+}
+
+func setupV3TestHostPreflightsRunnerFail() *preflights.MockPreflightRunner {
+	opts := preflights.RunOptions{
+		PreflightBinaryPath: "/var/lib/fake-app-slug/bin/kubectl-preflight",
+		ProxySpec:           nil,
+		ExtraPaths:          []string{"/var/lib/fake-app-slug/bin"},
+	}
+
+	preflightRunner := &preflights.MockPreflightRunner{}
+	preflightRunner.
+		On("RunHostPreflights", mock.Anything, mock.AnythingOfType("*v1beta2.HostPreflightSpec"), opts).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+		}).
+		Return(nil, "exit code 1", errors.New("preflights failed to run"))
+	return preflightRunner
+}
+
+func setupV3TestAppPreflightsRunnerWithFail() *preflights.MockPreflightRunner {
+	preflightRunner := &preflights.MockPreflightRunner{}
+	preflightRunner.
+		On("RunHostPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+		}, "", nil)
+	preflightRunner.
+		On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordAppPreflightSpec(args.Get(1).(*troubleshootv1beta2.PreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+			Fail: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check failed",
+				},
+			},
+		}, "", nil)
+	return preflightRunner
+}
+
+func setupV3TestAppPreflightsRunnerFail() *preflights.MockPreflightRunner {
+	preflightRunner := &preflights.MockPreflightRunner{}
+	preflightRunner.
+		On("RunHostPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordHostPreflightSpec(args.Get(1).(*troubleshootv1beta2.HostPreflightSpec))
+		}).
+		Return(&apitypes.PreflightsOutput{
+			Pass: []apitypes.PreflightsRecord{
+				{
+					Title:   "Test Check",
+					Message: "Test check passed",
+				},
+			},
+		}, "", nil)
+	preflightRunner.
+		On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).
+		Once().
+		Run(func(args mock.Arguments) {
+			dryrun.RecordAppPreflightSpec(args.Get(1).(*troubleshootv1beta2.PreflightSpec))
+		}).
+		Return(nil, "exit code 1", errors.New("app preflights failed to run"))
+	return preflightRunner
 }
 
 // prepareWebAssetsForTests creates a minimal UI template and enables dev mode,
@@ -1278,13 +1829,15 @@ func prepareWebAssetsForTests(t *testing.T) {
 // createConfigValuesFile creates a config values file that passes validation
 func createConfigValuesFile(t *testing.T, filename string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(filename, []byte(configValuesData), 0644))
+
+	writeFile(t, filename, configValuesData)
 }
 
 // createInvalidConfigValuesFile creates a config values file that fails validation
 func createInvalidConfigValuesFile(t *testing.T, filename string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(filename, []byte(configValuesInvalidData), 0644))
+
+	writeFile(t, filename, configValuesInvalidData)
 }
 
 // v3InstallArgs are the configurable request arguments for the reusable non-headless flow

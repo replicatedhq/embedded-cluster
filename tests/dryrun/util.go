@@ -173,6 +173,8 @@ func assertCollectors(t *testing.T, actual []*troubleshootv1beta2.HostCollect, e
 	match    func(*troubleshootv1beta2.HostCollect) bool
 	validate func(*troubleshootv1beta2.HostCollect)
 }) {
+	t.Helper()
+
 	found := make(map[string]bool)
 	for _, collector := range actual {
 		for name, assertion := range expected {
@@ -191,6 +193,8 @@ func assertAnalyzers(t *testing.T, actual []*troubleshootv1beta2.HostAnalyze, ex
 	match    func(*troubleshootv1beta2.HostAnalyze) bool
 	validate func(*troubleshootv1beta2.HostAnalyze)
 }) {
+	t.Helper()
+
 	found := make(map[string]bool)
 	for _, collector := range actual {
 		for name, assertion := range expected {
@@ -209,6 +213,8 @@ func assertMetrics(t *testing.T, actual []dryruntypes.Metric, expected []struct 
 	title    string
 	validate func(string)
 }) {
+	t.Helper()
+
 	if len(actual) != len(expected) {
 		t.Errorf("expected %d metrics, got %d", len(expected), len(actual))
 		return
@@ -224,6 +230,8 @@ func assertMetrics(t *testing.T, actual []dryruntypes.Metric, expected []struct 
 }
 
 func assertEnv(t *testing.T, actual, expected map[string]string) {
+	t.Helper()
+
 	for expectedKey, expectedValue := range expected {
 		assert.Equal(t, expectedValue, actual[expectedKey])
 	}
@@ -232,6 +240,8 @@ func assertEnv(t *testing.T, actual, expected map[string]string) {
 // assertCommands asserts that the expected commands are present in the actual commands
 // if assertAll is true, it will fail the test if any command is present in the actual commands that was not expected
 func assertCommands(t *testing.T, actual []dryruntypes.Command, expected []interface{}, assertAll bool) {
+	t.Helper()
+
 	for _, exp := range expected {
 		found := false
 		for i, a := range actual {
@@ -274,18 +284,24 @@ func findCommand(t *testing.T, commands []dryruntypes.Command, regex *regexp.Reg
 }
 
 func assertConfigMapExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	t.Helper()
+
 	var cm corev1.ConfigMap
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &cm)
 	assert.NoError(t, err, "failed to get configmap %s in namespace %s", name, namespace)
 }
 
 func assertSecretExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	t.Helper()
+
 	var secret corev1.Secret
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
 	assert.NoError(t, err, "failed to get secret %s in namespace %s", name, namespace)
 }
 
 func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namespace string) {
+	t.Helper()
+
 	var secret corev1.Secret
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
 	assert.Error(t, err, "secret %s should not exist in namespace %s", name, namespace)
@@ -304,6 +320,8 @@ func isHelmReleaseInstalled(hcli *helm.MockClient, releaseName string) (helm.Ins
 }
 
 func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expectedValues map[string]interface{}) {
+	t.Helper()
+
 	for expectedKey, expectedValue := range expectedValues {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
@@ -312,6 +330,8 @@ func assertHelmValues(t *testing.T, actualValues map[string]interface{}, expecte
 }
 
 func assertHelmValuePrefixes(t *testing.T, actualValues map[string]interface{}, expectedPrefixes map[string]string) {
+	t.Helper()
+
 	for expectedKey, expectedPrefix := range expectedPrefixes {
 		actualValue, err := helm.GetValue(actualValues, expectedKey)
 		assert.NoError(t, err)
@@ -358,6 +378,8 @@ func getHelmExtraEnvValue(t *testing.T, values map[string]interface{}, key strin
 
 // createTarGzFile creates a valid tar.gz file with the given files and returns a ReadCloser
 func createTarGzFile(t *testing.T, files map[string]string) io.ReadCloser {
+	t.Helper()
+
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gw)
@@ -435,4 +457,10 @@ func assertEventuallySucceeded(t *testing.T, contextMsg string, getStatus func()
 	if !ok && lastState == apitypes.StateFailed {
 		require.FailNowf(t, "operation failed", "%s: failed with message: %s", contextMsg, lastMsg)
 	}
+}
+
+func writeFile(t *testing.T, path string, content string) {
+	t.Helper()
+
+	require.NoError(t, os.WriteFile(path, []byte(content), 0644), "failed to write file %s", path)
 }

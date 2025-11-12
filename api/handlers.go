@@ -61,6 +61,7 @@ func (a *API) initHandlers() error {
 			linuxhandler.WithHelmClient(a.hcli),
 			linuxhandler.WithKubeClient(a.kcli),
 			linuxhandler.WithMetadataClient(a.mcli),
+			linuxhandler.WithPreflightRunner(a.preflightRunner),
 		)
 		if err != nil {
 			return fmt.Errorf("new linux handler: %w", err)
@@ -76,6 +77,7 @@ func (a *API) initHandlers() error {
 			kuberneteshandler.WithHelmClient(a.hcli),
 			kuberneteshandler.WithKubeClient(a.kcli),
 			kuberneteshandler.WithMetadataClient(a.mcli),
+			kuberneteshandler.WithPreflightRunner(a.preflightRunner),
 		)
 		if err != nil {
 			return fmt.Errorf("new kubernetes handler: %w", err)

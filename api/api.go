@@ -11,6 +11,7 @@ import (
 	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -45,6 +46,7 @@ type API struct {
 	hcli            helm.Client
 	kcli            client.Client
 	mcli            metadata.Interface
+	preflightRunner preflights.PreflightRunnerInterface
 	logger          logrus.FieldLogger
 	metricsReporter metrics.ReporterInterface
 
@@ -135,6 +137,13 @@ func WithKubeClient(kcli client.Client) Option {
 func WithMetadataClient(mcli metadata.Interface) Option {
 	return func(a *API) {
 		a.mcli = mcli
+	}
+}
+
+// WithPreflightRunner configures the preflight runner for the API.
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) Option {
+	return func(a *API) {
+		a.preflightRunner = preflightRunner
 	}
 }
 

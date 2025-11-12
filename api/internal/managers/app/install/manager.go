@@ -18,8 +18,9 @@ var _ AppInstallManager = &appInstallManager{}
 
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
-	// Install installs the app with the provided config values
-	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
+	// Install installs the app with the provided config values and calls the status change hook
+	// before each state change
+	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues, statusChangeHook func(status types.Status) error) error
 	// GetStatus returns the current app installation status
 	GetStatus() (types.AppInstall, error)
 }

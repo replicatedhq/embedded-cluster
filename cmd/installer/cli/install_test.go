@@ -2062,6 +2062,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 	tests := []struct {
 		name                  string
 		channelRelease        *release.ChannelRelease
+		license               *kotsv1beta1.License
 		apiHandler            func(http.ResponseWriter, *http.Request)
 		assumeYes             bool
 		answerYes             bool
@@ -2072,8 +2073,14 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 		{
 			name:           "no channel release",
 			channelRelease: nil,
-			wantPrompt:     false,
-			wantErr:        false,
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
+			},
+			wantPrompt: false,
+			wantErr:    false,
 		},
 		{
 			name: "no license",
@@ -2082,6 +2089,13 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				ChannelSlug:  "test",
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
+			},
+			license: nil,
+			apiHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				response := `{"channelReleases":[{"channelId":"test-channel","versionLabel":"v1.0.0"}]}`
+				w.Write([]byte(response))
 			},
 			wantPrompt: false,
 			wantErr:    true, // will fail during the test because license is required
@@ -2093,6 +2107,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				ChannelSlug:  "test",
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
+			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -2110,6 +2130,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				ChannelSlug:  "test",
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
+			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -2129,6 +2155,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
 			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
+			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -2146,6 +2178,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				ChannelSlug:  "test",
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
+			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -2166,6 +2204,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
 			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
+			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
@@ -2179,6 +2223,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				ChannelSlug:  "test",
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
+			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
 			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
@@ -2197,6 +2247,12 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 				AppSlug:      "app-slug",
 				VersionLabel: "v1.0.0",
 			},
+			license: &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{
+					LicenseID: "license-id",
+					AppSlug:   "app-slug",
+				},
+			},
 			apiHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -2208,19 +2264,11 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var license *kotsv1beta1.License
 			releaseDataMap := map[string][]byte{}
-			if tt.channelRelease != nil {
+			if tt.channelRelease != nil && tt.apiHandler != nil {
 				handler := getReleasesHandler(t, tt.channelRelease.ChannelID, tt.apiHandler)
 				ts := httptest.NewServer(handler)
 				t.Cleanup(ts.Close)
-
-				license = &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
-						LicenseID: "license-id",
-						AppSlug:   "app-slug",
-					},
-				}
 
 				embedStr := "# channel release object\nchannelID: %s\nchannelSlug: %s\nappSlug: %s\nversionLabel: %s\ndefaultDomains:\n  replicatedAppDomain: %s"
 				releaseDataMap["release.yaml"] = []byte(fmt.Sprintf(
@@ -2252,7 +2300,7 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			prompts.SetTerminal(true)
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
-			err = maybePromptForAppUpdate(context.Background(), prompt, license, tt.assumeYes)
+			err = maybePromptForAppUpdate(context.Background(), prompt, tt.license, tt.assumeYes)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {

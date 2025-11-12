@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/sirupsen/logrus"
@@ -30,6 +31,7 @@ type Handler struct {
 	hcli              helm.Client
 	kcli              client.Client
 	mcli              metadata.Interface
+	preflightRunner   preflights.PreflightRunnerInterface
 }
 
 type Option func(*Handler)
@@ -82,6 +84,12 @@ func WithMetadataClient(mcli metadata.Interface) Option {
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) Option {
+	return func(h *Handler) {
+		h.preflightRunner = preflightRunner
+	}
+}
+
 func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 	h := &Handler{
 		cfg: cfg,
@@ -123,6 +131,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				install.WithHelmClient(h.hcli),
 				install.WithKubeClient(h.kcli),
 				install.WithMetadataClient(h.mcli),
+				install.WithPreflightRunner(h.preflightRunner),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new install controller: %w", err)
@@ -160,6 +169,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithHelmClient(h.hcli),
 				upgrade.WithKubeClient(h.kcli),
 				upgrade.WithMetadataClient(h.mcli),
+				upgrade.WithPreflightRunner(h.preflightRunner),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("new upgrade controller: %w", err)

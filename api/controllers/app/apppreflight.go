@@ -117,17 +117,31 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 }
 
 func (c *AppController) getStateFromAppPreflightsOutput(ctx context.Context) statemachine.State {
-	output, err := c.GetAppPreflightOutput(ctx)
-	// If there was an error getting the state we assume preflight execution failed
+	status, err := c.GetAppPreflightStatus(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("error getting app preflight output")
+		c.logger.WithError(err).Error("error getting preflight status")
 		return states.StateAppPreflightsExecutionFailed
 	}
-	// If there is no output, we assume preflights succeeded
-	if output == nil || !output.HasFail() {
+	switch status.State {
+	case types.StateSucceeded:
 		return states.StateAppPreflightsSucceeded
+	case types.StateFailed:
+		output, err := c.GetAppPreflightOutput(ctx)
+		// If there was an error getting the state we assume preflight execution failed
+		if err != nil {
+			c.logger.WithError(err).Error("error getting preflight output")
+			return states.StateAppPreflightsExecutionFailed
+		}
+		// If there are failures, we return the failed state
+		if output != nil && output.HasFail() {
+			return states.StateAppPreflightsFailed
+		}
+		// Otherwise, we assume preflight execution failed
+		return states.StateAppPreflightsExecutionFailed
+	default:
+		c.logger.Errorf("unexpected preflight status: %s", status.State)
+		return states.StateAppPreflightsExecutionFailed
 	}
-	return states.StateAppPreflightsFailed
 }
 
 func (c *AppController) GetAppPreflightStatus(ctx context.Context) (types.Status, error) {
