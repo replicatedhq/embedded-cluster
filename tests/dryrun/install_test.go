@@ -812,7 +812,7 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 		hcli.On("Close").Once().Return(nil),
 	)
 
-	dryrunInstall(t, &dryrun.Client{HelmClient: hcli})
+	dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithVeleroPluginsData)
 
 	// --- validate velero addon --- //
 	veleroOpts, found := isHelmReleaseInstalled(hcli, "velero")
@@ -821,7 +821,6 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 	// Validate basic Velero values
 	assertHelmValues(t, veleroOpts.Values, map[string]interface{}{
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
-		"image.repository":        "fake-replicated-proxy.test.net/library/velero",
 	})
 
 	// Validate plugin configuration

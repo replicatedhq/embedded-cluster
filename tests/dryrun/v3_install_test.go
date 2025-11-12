@@ -1571,7 +1571,7 @@ func TestV3InstallHeadless_AppPreflights_FailNoBypass(t *testing.T) {
 
 func TestV3InstallHeadless_VeleroPlugin(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3TestWithClusterConfig(t, hcli, nil, clusterConfigWithVeleroPluginsData)
 
 	// Run installer command with headless flag and required arguments
 	err := runInstallerCmd(
@@ -1595,7 +1595,7 @@ func TestV3InstallHeadless_VeleroPlugin(t *testing.T) {
 
 func TestV3Install_VeleroPlugin(t *testing.T) {
 	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, hcli, nil)
+	licenseFile, configFile := setupV3TestWithClusterConfig(t, hcli, nil, clusterConfigWithVeleroPluginsData)
 
 	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
 	go func() {
@@ -1708,6 +1708,10 @@ var (
 )
 
 func setupV3Test(t *testing.T, hcli helm.Client, preflightRunner preflights.PreflightRunnerInterface) (string, string) {
+	return setupV3TestWithClusterConfig(t, hcli, preflightRunner, clusterConfigData)
+}
+
+func setupV3TestWithClusterConfig(t *testing.T, hcli helm.Client, preflightRunner preflights.PreflightRunnerInterface, clusterConfig string) (string, string) {
 	t.Helper()
 
 	// Set ENABLE_V3 environment variable
@@ -1719,7 +1723,7 @@ func setupV3Test(t *testing.T, hcli helm.Client, preflightRunner preflights.Pref
 	// Setup release data with V3-specific release data
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
-		"cluster-config.yaml": []byte(clusterConfigData),
+		"cluster-config.yaml": []byte(clusterConfig),
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
