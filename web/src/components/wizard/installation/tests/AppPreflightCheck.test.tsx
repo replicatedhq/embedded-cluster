@@ -9,7 +9,7 @@ const TEST_TOKEN = "test-auth-token";
 
 const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   mockHandlers.preflights.app.getStatus({
-    status: { state: "Succeeded" },
+    status: { state: "Failed" },
     output: {
       pass: [{ title: "CPU Check", message: "CPU requirements met" }],
       warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
@@ -100,36 +100,6 @@ describe.each([
     expect(mockOnComplete).toHaveBeenCalledWith(true, false, false); // success: true, allowIgnore: false, hasStrictFailures: false
   });
 
-  it("shows API error when preflight execution fails", async () => {
-    const errorMessage = "Failed to run preflight checks: connection timeout";
-    server.use(
-      mockHandlers.preflights.app.getStatus({
-        status: {
-          state: "Failed",
-          description: errorMessage
-        },
-        output: undefined,
-        allowIgnoreAppPreflights: false
-      }, target, 'install')
-    );
-
-    renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
-      wrapperProps: {
-        target,
-        authToken: TEST_TOKEN,
-      },
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Unable to complete application requirement checks")).toBeInTheDocument();
-      expect(screen.getByText(errorMessage)).toBeInTheDocument();
-    });
-
-    // Should not show normal preflight results UI
-    expect(screen.queryByText("Application Requirements Not Met")).not.toBeInTheDocument();
-    expect(screen.queryByText("Run Validation Again")).not.toBeInTheDocument();
-  });
-
   it("allows re-running validation when there are failures", async () => {
     renderWithProviders(<AppPreflightCheck onRun={mockOnRun} onComplete={mockOnComplete} />, {
       wrapperProps: {
@@ -164,7 +134,7 @@ describe.each([
     // Mock preflight status endpoint with allowIgnoreAppPreflights: true
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Succeeded" },
+        status: { state: "Failed" },
         output: {
           pass: [{ title: "CPU Check", message: "CPU requirements met" }],
           warn: [],
@@ -194,7 +164,7 @@ describe.each([
     // Mock preflight status endpoint with allowIgnoreAppPreflights: false
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Succeeded" },
+        status: { state: "Failed" },
         output: {
           pass: [{ title: "CPU Check", message: "CPU requirements met" }],
           warn: [],
@@ -225,7 +195,7 @@ describe.each([
     // Mock preflight status endpoint with strict and non-strict failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Succeeded" },
+        status: { state: "Failed" },
         output: {
           pass: [],
           warn: [],
@@ -265,7 +235,7 @@ describe.each([
     // Mock preflight status endpoint with strict failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Succeeded" },
+        status: { state: "Failed" },
         output: {
           pass: [],
           warn: [],
@@ -295,7 +265,7 @@ describe.each([
     // Mock preflight status endpoint with hasStrictAppPreflightFailures field
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Succeeded" },
+        status: { state: "Failed" },
         output: {
           pass: [],
           warn: [],

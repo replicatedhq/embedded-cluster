@@ -346,7 +346,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 					}, nil),
 
 					store.AppPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
-						return status.State == types.StateSucceeded
+						return status.State == types.StateFailed
 					})).Return(nil),
 				)
 			},

@@ -113,14 +113,18 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsFailed); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
+
+			if err := c.setAppPreflightStatus(types.StateFailed, "App preflights failed"); err != nil {
+				return fmt.Errorf("set status to succeeded: %w", err)
+			}
 		} else {
 			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsSucceeded); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
-		}
 
-		if err := c.setAppPreflightStatus(types.StateSucceeded, "App preflight execution succeeded"); err != nil {
-			return fmt.Errorf("set status to succeeded: %w", err)
+			if err := c.setAppPreflightStatus(types.StateSucceeded, "App preflights succeeded"); err != nil {
+				return fmt.Errorf("set status to succeeded: %w", err)
+			}
 		}
 
 		return nil

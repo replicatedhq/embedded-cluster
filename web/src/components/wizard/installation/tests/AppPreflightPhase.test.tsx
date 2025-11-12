@@ -40,7 +40,7 @@ describe.each([
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install')
@@ -76,7 +76,7 @@ describe.each([
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: false
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: false
       }, target, 'install')
@@ -118,7 +118,7 @@ describe.each([
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install')
@@ -278,7 +278,7 @@ describe.each([
     // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install'),
@@ -375,7 +375,7 @@ describe.each([
     // Mock preflight status endpoint - returns strict failures with allowIgnoreAppPreflights: true
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: {
           fail: [
             { title: 'Critical Security Check', message: 'Security requirement not met', strict: true },
@@ -419,7 +419,7 @@ describe.each([
     // Mock preflight status endpoint - returns strict failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: {
           fail: [
             { title: 'Critical Security Check', message: 'Security requirement not met', strict: true }
@@ -546,7 +546,7 @@ describe.each([
     // Mock preflight status endpoint - returns failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: false
       }, target, 'install')
@@ -569,7 +569,7 @@ describe.each([
       expect(screen.getByText('Application Requirements Not Met')).toBeInTheDocument();
     });
 
-    // Expect sequence: Running (mount), Failed (complete with failures in output)
+    // Expect sequence: Running (mount), Failed (complete)
     const calls = mockOnStateChange.mock.calls.map(args => args[0]);
     expect(calls).toEqual(['Running', 'Failed']);
     expect(mockOnStateChange).toHaveBeenCalledTimes(2);
@@ -579,7 +579,7 @@ describe.each([
     // Mock preflight status to show failures initially
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Succeeded' },
+        status: { state: 'Failed' },
         output: preflightPresets.failed('Not enough disk space'),
         allowIgnoreAppPreflights: false
       }, target, 'install'),

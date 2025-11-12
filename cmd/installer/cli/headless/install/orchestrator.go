@@ -253,7 +253,9 @@ func (o *orchestrator) runHostPreflights(ctx context.Context, ignoreFailures boo
 		return fmt.Errorf("run linux install host preflights: %w", err)
 	}
 
-	_, _, err = pollUntilComplete(ctx, func() (apitypes.State, string, error) {
+	// For preflights, we poll until the operation completes (either succeeded or failed),
+	// then check if there are failures and decide whether to continue based on ignoreFailures
+	state, message, err := pollUntilComplete(ctx, func() (apitypes.State, string, error) {
 		resp, err = o.apiClient.GetLinuxInstallHostPreflightsStatus(ctx)
 		if err != nil {
 			return apitypes.State(""), "", err
@@ -261,42 +263,38 @@ func (o *orchestrator) runHostPreflights(ctx context.Context, ignoreFailures boo
 		return resp.Status.State, resp.Status.Description, nil
 	})
 	if err != nil {
-		loading.ErrorClosef("Host preflights failed")
-		return fmt.Errorf("poll preflights until complete: %w", err)
+		loading.ErrorClosef("Host preflights execution failed")
+		return fmt.Errorf("poll until complete: %w", err)
 	}
 
-	if resp.Status.State == apitypes.StateFailed {
-		// Check if there are any failures in the preflight results
+	if state == apitypes.StateFailed {
 		hasFailures := resp.Output != nil && resp.Output.HasFail()
-		if hasFailures {
-			loading.ErrorClosef("Host preflights completed with failures")
 
-			o.logger.Warn("\n⚠ Warning: Host preflight checks completed with failures\n")
-
-			// Display failed checks
-			for _, result := range resp.Output.Fail {
-				o.logger.Warnf("  [ERROR] %s: %s", result.Title, result.Message)
-			}
-			for _, result := range resp.Output.Warn {
-				o.logger.Warnf("  [WARN] %s: %s", result.Title, result.Message)
-			}
-
-			if ignoreFailures {
-				// Display failures but continue installation
-				o.logger.Warn("\nInstallation will continue, but the system may not meet requirements (failures bypassed with flag).\n")
-			} else {
-				// Failures are not being bypassed - return error
-				o.logger.Warn("\nPlease correct the above issues and retry, or run with --ignore-host-preflights to bypass (not recommended).\n")
-				return fmt.Errorf("host preflight checks completed with failures")
-			}
-		} else {
-			// Otherwise, we assume preflight execution failed
+		// If there are no failures, it means the execution failed
+		if !hasFailures {
 			loading.ErrorClosef("Host preflights execution failed")
-			errMsg := resp.Status.Description
-			if errMsg == "" {
-				errMsg = "host preflights execution failed"
-			}
-			return errors.New(errMsg)
+			return fmt.Errorf("host preflights execution failed: %s", message)
+		}
+
+		loading.ErrorClosef("Host preflights completed with failures")
+
+		o.logger.Warn("\n⚠ Warning: Host preflight checks completed with failures\n")
+
+		// Display failed checks
+		for _, result := range resp.Output.Fail {
+			o.logger.Warnf("  [ERROR] %s: %s", result.Title, result.Message)
+		}
+		for _, result := range resp.Output.Warn {
+			o.logger.Warnf("  [WARN] %s: %s", result.Title, result.Message)
+		}
+
+		if ignoreFailures {
+			// Display failures but continue installation
+			o.logger.Warn("\nInstallation will continue, but the system may not meet requirements (failures bypassed with flag).\n")
+		} else {
+			// Failures are not being bypassed - return error
+			o.logger.Warn("\nPlease correct the above issues and retry, or run with --ignore-host-preflights to bypass (not recommended).\n")
+			return fmt.Errorf("host preflight checks completed with failures")
 		}
 	} else {
 		loading.Closef("Host preflights passed")
@@ -402,7 +400,6 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 		return fmt.Errorf("run linux install app preflights: %w", err)
 	}
 
-	// Poll for completion
 	// For preflights, we poll until the operation completes (either succeeded or failed),
 	// then check if there are failures and decide whether to continue based on ignoreFailures
 	state, message, err := pollUntilComplete(ctx, func() (apitypes.State, string, error) {
@@ -418,13 +415,14 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 	}
 
 	if state == apitypes.StateFailed {
-		loading.ErrorClosef("App preflights execution failed")
-		return fmt.Errorf("app preflights execution failed: %s", message)
-	}
+		hasFailures := resp.Output != nil && resp.Output.HasFail()
 
-	// Check if there are any failures in the preflight results
-	hasFailures := resp.Output != nil && resp.Output.HasFail()
-	if hasFailures {
+		// If there are no failures, it means the execution failed
+		if !hasFailures {
+			loading.ErrorClosef("App preflights execution failed")
+			return fmt.Errorf("app preflights execution failed: %s", message)
+		}
+
 		loading.ErrorClosef("App preflights completed with failures")
 
 		o.logger.Warn("\n⚠ Warning: Application preflight checks completed with failures\n")
