@@ -218,10 +218,15 @@ func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppC
 		configValue.Value = item.Value.String()
 	}
 
-	// Apply stored value override if it exists
+	// Apply value override if it exists
 	if v, ok := configValues[item.Name]; ok {
 		if item.Type == "password" {
-			configValue.ValuePlaintext = v.Value
+			// Headless installs provide ValuePlaintext directly while others don't
+			if v.ValuePlaintext != "" {
+				configValue.ValuePlaintext = v.ValuePlaintext
+			} else {
+				configValue.ValuePlaintext = v.Value
+			}
 		} else {
 			configValue.Value = v.Value
 		}
@@ -247,7 +252,12 @@ func getConfigValueFromChildItem(item kotsv1beta1.ConfigItem, childItem kotsv1be
 	// Apply stored value override if it exists
 	if v, ok := configValues[childItem.Name]; ok {
 		if item.Type == "password" {
-			configValue.ValuePlaintext = v.Value
+			// Headless installs provide ValuePlaintext directly while others don't
+			if v.ValuePlaintext != "" {
+				configValue.ValuePlaintext = v.ValuePlaintext
+			} else {
+				configValue.ValuePlaintext = v.Value
+			}
 		} else {
 			configValue.Value = v.Value
 		}

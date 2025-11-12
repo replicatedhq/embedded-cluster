@@ -3040,6 +3040,44 @@ func TestValidateConfigValues(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "passwords can be set using ValuePlaintext",
+			config: kotsv1beta1.Config{
+				Spec: kotsv1beta1.ConfigSpec{
+					Groups: []kotsv1beta1.ConfigGroup{
+						{
+							Name: "group1",
+							Items: []kotsv1beta1.ConfigItem{
+								{
+									Name:     "required_password",
+									Required: true,
+									Type:     "password",
+									Value:    multitype.BoolOrString{},
+									Default:  multitype.BoolOrString{},
+								},
+								{
+									Name:  "another_password_with_child_items",
+									Type:  "password",
+									Value: multitype.BoolOrString{},
+									When:  "true",
+									Items: []kotsv1beta1.ConfigChildItem{
+										{
+											Name:  "password_child_item",
+											Value: multitype.BoolOrString{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"required_password":   types.AppConfigValue{ValuePlaintext: "password1"},
+				"password_child_item": types.AppConfigValue{ValuePlaintext: "password2"},
+			},
+			wantErr: false,
+		},
+		{
 			name: "missing required item",
 			config: kotsv1beta1.Config{
 				Spec: kotsv1beta1.ConfigSpec{
