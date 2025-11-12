@@ -142,7 +142,34 @@ type Helm struct {
 }
 
 type Extensions struct {
-	Helm *Helm `json:"helm,omitempty"`
+	Helm   *Helm            `json:"helm,omitempty"`
+	Velero VeleroExtensions `json:"velero,omitempty"`
+}
+
+// VeleroExtensions contains Velero-specific extension settings
+type VeleroExtensions struct {
+	// Plugins is a list of custom Velero plugins to be added as initContainers
+	// +kubebuilder:validation:Optional
+	Plugins []VeleroPlugin `json:"plugins,omitempty"`
+}
+
+// VeleroPlugin defines a custom Velero plugin to be added to the Velero deployment
+type VeleroPlugin struct {
+	// Name is the container name for the plugin initContainer
+	// This name will be used as the initContainer name in the Velero deployment
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+	// Image is the OCI image reference for the plugin container
+	// Examples:
+	//   - "myvendor/velero-postgresql:v1.0.0" (explicit registry)
+	// +kubebuilder:validation:Required
+	Image string `json:"image"`
+	// ImagePullPolicy is the image pull policy for the plugin container.
+	// Valid values are: Always, IfNotPresent, Never
+	// If not specified, defaults to IfNotPresent
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 }
 
 type Domains struct {
