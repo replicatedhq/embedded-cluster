@@ -33,7 +33,6 @@ config.yaml: |-
         - labels:
             xyz-test-label: xyz-value
           name: xyz
-    extensions:
     unsupportedOverrides:
       k0s: |
         config:

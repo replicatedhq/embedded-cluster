@@ -8,7 +8,6 @@ kind: Config
 metadata:
   name: multiple-invalid-ports
 spec:
-  extensions:
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

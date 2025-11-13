@@ -5,7 +5,6 @@ kind: Config
 metadata:
   name: valid-config
 spec:
-  extensions:
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

@@ -5,7 +5,6 @@ kind: Config
 metadata:
   name: test-config
 spec:
-  extensions:
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

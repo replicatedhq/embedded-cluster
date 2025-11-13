@@ -15,7 +15,6 @@ multi.yaml: |-
     roles:
       controller:
         name: controller-test
-    extensions:
   ---
   apiVersion: troubleshoot.sh/v1beta2
   kind: HostPreflight

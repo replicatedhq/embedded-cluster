@@ -5,7 +5,6 @@ releaseConfig: |
     name: "testconfig"
   spec:
     version: 1.1.0+k8s-1.28
-    extensions:
     unsupportedOverrides:
       builtInExtensions:
         - name: admin-console

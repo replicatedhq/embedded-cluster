@@ -14,7 +14,6 @@ spec:
     replicatedAppDomain: invalid.example.com  # ERROR if API check enabled
     proxyRegistryDomain: fake.proxy.com        # ERROR if API check enabled
 
-  extensions:
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole
