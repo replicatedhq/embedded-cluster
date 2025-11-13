@@ -235,7 +235,7 @@ func TestConfigureInstallation(t *testing.T) {
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "validate: validation error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
@@ -255,7 +255,7 @@ func TestConfigureInstallation(t *testing.T) {
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "validate: validation error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
@@ -273,7 +273,7 @@ func TestConfigureInstallation(t *testing.T) {
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "write: set config error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
@@ -291,7 +291,7 @@ func TestConfigureInstallation(t *testing.T) {
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "write: set config error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
@@ -309,7 +309,7 @@ func TestConfigureInstallation(t *testing.T) {
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "write: set config error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
@@ -329,7 +329,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "configure host error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
@@ -349,7 +349,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "configure host error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
@@ -369,7 +369,7 @@ func TestConfigureInstallation(t *testing.T) {
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
+					st.AppUpgradeMockStore.On("Get").Return(types.Status{Description: "configure host error"}, nil),
 					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
 				)
 			},
