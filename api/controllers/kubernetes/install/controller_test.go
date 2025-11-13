@@ -166,8 +166,9 @@ func TestConfigureInstallation(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("configure installation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure installation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure installation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure installation error"
+					})).Return(),
 				)
 			},
 			expectedErr: true,
@@ -180,8 +181,9 @@ func TestConfigureInstallation(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "validation error"
+					})).Return(),
 				)
 			},
 			expectedErr: true,
@@ -194,8 +196,9 @@ func TestConfigureInstallation(t *testing.T) {
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "validation error"
+					})).Return(),
 				)
 			},
 			expectedErr: true,

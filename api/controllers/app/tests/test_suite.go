@@ -221,6 +221,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
@@ -256,6 +257,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
@@ -291,6 +293,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateAppPreflightsSucceeded,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
@@ -326,6 +329,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateAppPreflightsFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
@@ -361,6 +365,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateInfrastructureInstalled,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(nil, errors.New("extraction error")),
@@ -377,6 +382,7 @@ func (s *AppControllerTestSuite) TestRunAppPreflights() {
 			expectedState: states.StateAppPreflightsExecutionFailed,
 			setupMocks: func(apm *apppreflightmanager.MockAppPreflightManager, arm *appreleasemanager.MockAppReleaseManager, acm *appconfig.MockAppConfigManager, store *store.MockStore) {
 				mock.InOrder(
+					apm.On("ClearAppPreflightResults", mock.Anything).Return(nil),
 					acm.On("GetConfigValues").Return(types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, nil),
 
 					arm.On("ExtractAppPreflightSpec", mock.Anything, types.AppConfigValues{"test-item": types.AppConfigValue{Value: "test-value"}}, mock.Anything, mock.Anything).Return(expectedAPF, nil),
