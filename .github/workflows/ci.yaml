@@ -180,7 +180,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
-        run: |
+        run: &free-disk-space |
           df -h
           sudo rm -rf \
             /usr/share/swift \
@@ -415,6 +415,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
@@ -567,6 +570,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
 
       - name: Cache embedded bins
         uses: actions/cache@v4
