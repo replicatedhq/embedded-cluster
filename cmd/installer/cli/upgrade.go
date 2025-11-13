@@ -92,6 +92,26 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			// this does not return an error - it returns the previous umask
 			_ = syscall.Umask(0o022)
 
+			// Check if this is a kURL cluster that needs migration to Embedded Cluster.
+			migrationNeeded, err := detectKurlMigration(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to detect migration scenario: %w", err)
+			}
+
+			if migrationNeeded {
+				logrus.Info("Preparing to upgrade to Embedded Cluster...")
+				logrus.Info("")
+				logrus.Info("This upgrade will be available in a future release.")
+				logrus.Info("")
+				// TBD: In a future story, this will:
+				// 1. Export the kURL password hash for authentication compatibility
+				// 2. Generate TLS certificates for the migration API
+				// 3. Start the Admin Console API in migration mode
+				// 4. Display the manager URL for the user to complete the upgrade via UI
+				// 5. Block until the user completes the upgrade or interrupts (Ctrl+C)
+				return nil
+			}
+
 			// Set up environment variables from existing runtime config
 			existingRC, err := rcutil.GetRuntimeConfigFromCluster(ctx)
 			if err != nil {
