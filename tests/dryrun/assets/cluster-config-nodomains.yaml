@@ -26,6 +26,11 @@ spec:
               values:
                 allowedUnsafeSysctls:
                   - net.ipv4.ip_forward
+    builtInExtensions:
+      - name: admin-console
+        values: |
+          labels:
+            release-custom-label: release-clustom-value
   extensions:
     helm:
       charts:
@@ -37,8 +42,3 @@ spec:
           values: |
             image:
               repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
-    builtInExtensions:
-      - name: admin-console
-        values: |
-          labels:
-            release-custom-label: release-clustom-value
