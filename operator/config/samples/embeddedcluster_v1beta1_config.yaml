@@ -10,9 +10,3 @@ metadata:
   name: config-sample
 spec:
   # TODO(user): Add fields here
-  extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always

@@ -14,8 +14,3 @@ spec:
   airGap: false
   config:
     extensions:
-      velero:
-        plugins:
-          - name: velero-plugin-postgresql
-            image: velero-plugin-cnpg-restore:latest
-            imagePullPolicy: Always

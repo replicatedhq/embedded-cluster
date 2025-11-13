@@ -19,11 +19,6 @@ spec:
     proxyRegistryDomain: fake.proxy.com        # ERROR if API check enabled
     replicatedRegistryDomain: notreal.registry.com  # ERROR if API check enabled
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

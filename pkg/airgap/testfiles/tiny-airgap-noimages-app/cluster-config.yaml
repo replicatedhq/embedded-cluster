@@ -30,11 +30,6 @@ spec:
             extraArgs:
               service-node-port-range: 3001-32767
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
     helm:
       repositories:
         - name: ingress-nginx

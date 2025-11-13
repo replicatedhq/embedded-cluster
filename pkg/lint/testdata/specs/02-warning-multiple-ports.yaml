@@ -9,11 +9,6 @@ metadata:
   name: multiple-invalid-ports
 spec:
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
   unsupportedOverrides:
     builtInExtensions:
     - name: adminconsole

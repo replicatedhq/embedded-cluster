@@ -46,13 +46,6 @@ spec:
               allowedUnsafeSysctls:
               - net.ipv4.ip_forward
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
-    helm:
-      charts:
         - name: ingress-nginx
           chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/ingress-nginx
           namespace: ingress-nginx

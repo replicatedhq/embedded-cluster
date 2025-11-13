@@ -5,11 +5,6 @@ secretData:
     spec:
       version: 1.29.1+ec.100
       extensions:
-        velero:
-          plugins:
-            - name: velero-plugin-postgresql
-              image: velero-plugin-cnpg-restore:latest
-              imagePullPolicy: Always
         helm:
           repositories:
             - name: ingress-nginx
@@ -44,11 +39,6 @@ configSpec:
 expected:
   version:  1.29.1+ec.100
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
     helm:
       repositories:
         - name: ingress-nginx

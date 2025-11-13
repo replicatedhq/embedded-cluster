@@ -11,11 +11,6 @@ spec:
         test-label-key: test-label-value
         another-label: another-value
   extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
     helm:
       charts:
         - name: goldpinger

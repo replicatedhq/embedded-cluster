@@ -20,11 +20,6 @@ override: |-
   kind: Config
   spec:
     extensions:
-      velero:
-        plugins:
-          - name: velero-plugin-postgresql
-            image: velero-plugin-cnpg-restore:latest
-            imagePullPolicy: Always
     unsupportedOverrides:
       k0s: |
         config:

@@ -11,11 +11,6 @@ spec:
   config:
     binaryOverrideUrl: https://dev-embedded-cluster-bin.s3.amazonaws.com/releases/v1.20.1%2Bk8s-1.30-pr2-29-ga2eb-salah-upgrade-INd4Xi.tgz
     extensions:
-      velero:
-        plugins:
-          - name: velero-plugin-postgresql
-            image: velero-plugin-cnpg-restore:latest
-            imagePullPolicy: Always
       helm:
         charts:
         - chartname: ingress-nginx/ingress-nginx

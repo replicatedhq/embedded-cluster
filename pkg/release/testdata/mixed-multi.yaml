@@ -16,11 +16,6 @@ multi.yaml: |-
       controller:
         name: controller-test
     extensions:
-      velero:
-        plugins:
-          - name: velero-plugin-postgresql
-            image: velero-plugin-cnpg-restore:latest
-            imagePullPolicy: Always
   ---
   apiVersion: troubleshoot.sh/v1beta2
   kind: HostPreflight
