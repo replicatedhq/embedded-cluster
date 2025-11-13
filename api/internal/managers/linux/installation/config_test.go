@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -577,7 +576,7 @@ func TestConfigureHost(t *testing.T) {
 	tests := []struct {
 		name        string
 		rc          runtimeconfig.RuntimeConfig
-		setupMocks  func(*hostutils.MockHostUtils, *installation.MockStore)
+		setupMocks  func(*hostutils.MockHostUtils)
 		expectedErr bool
 	}{
 		{
@@ -592,9 +591,8 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
+			setupMocks: func(hum *hostutils.MockHostUtils) {
 				mock.InOrder(
-					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
 							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster" &&
@@ -605,7 +603,6 @@ func TestConfigureHost(t *testing.T) {
 							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
 						}).Return(nil),
-					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateSucceeded })).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -618,9 +615,8 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
+			setupMocks: func(hum *hostutils.MockHostUtils) {
 				mock.InOrder(
-					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateRunning })).Return(nil),
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
 							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster"
@@ -630,22 +626,6 @@ func TestConfigureHost(t *testing.T) {
 							AirgapBundle: "bundle.tar",
 						},
 					).Return(errors.New("configuration failed")),
-					im.On("SetStatus", mock.MatchedBy(func(status types.Status) bool { return status.State == types.StateFailed })).Return(nil),
-				)
-			},
-			expectedErr: true,
-		},
-		{
-			name: "set running status fails",
-			rc: func() runtimeconfig.RuntimeConfig {
-				rc := runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
-					DataDir: "/var/lib/embedded-cluster",
-				})
-				return rc
-			}(),
-			setupMocks: func(hum *hostutils.MockHostUtils, im *installation.MockStore) {
-				mock.InOrder(
-					im.On("SetStatus", mock.Anything).Return(errors.New("failed to set status")),
 				)
 			},
 			expectedErr: true,
@@ -658,15 +638,13 @@ func TestConfigureHost(t *testing.T) {
 
 			// Create mocks
 			mockHostUtils := &hostutils.MockHostUtils{}
-			mockStore := &installation.MockStore{}
 
 			// Setup mocks
-			tt.setupMocks(mockHostUtils, mockStore)
+			tt.setupMocks(mockHostUtils)
 
 			// Create manager with mocks
 			manager := NewInstallationManager(
 				WithHostUtils(mockHostUtils),
-				WithInstallationStore(mockStore),
 				WithLicense([]byte("metadata:\n  name: test-license")),
 				WithAirgapBundle("bundle.tar"),
 			)
@@ -682,7 +660,6 @@ func TestConfigureHost(t *testing.T) {
 			}
 
 			// Verify all mock expectations were met
-			mockStore.AssertExpectations(t)
 			mockHostUtils.AssertExpectations(t)
 		})
 	}
