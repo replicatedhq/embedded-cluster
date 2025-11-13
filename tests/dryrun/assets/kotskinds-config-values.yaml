@@ -9,7 +9,7 @@ spec:
     text_required_with_regex:
       value: "ethan@replicated.com"
     password_required:
-      value: "password required value"
+      valuePlaintext: "password required value"
     file_required:
       value: "ZmlsZSByZXF1aXJlZCB2YWx1ZQo="
       filename: "file_required.txt"

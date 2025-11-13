@@ -13,7 +13,6 @@ type AppConfigValue struct {
 	Default        string `json:"default,omitempty" validate:"optional"`
 	Value          string `json:"value"`
 	Data           string `json:"data,omitempty" validate:"optional"`
-	ValuePlaintext string `json:"valuePlaintext,omitempty" validate:"optional"`
 	DataPlaintext  string `json:"dataPlaintext,omitempty" validate:"optional"`
 	Filename       string `json:"filename,omitempty" validate:"optional"`
 	RepeatableItem string `json:"repeatableItem,omitempty" validate:"optional"`
@@ -36,11 +35,15 @@ func ConvertToAppConfigValues(kotsConfigValues *kotsv1beta1.ConfigValues) AppCon
 
 	configValues := make(AppConfigValues)
 	for key, value := range kotsConfigValues.Spec.Values {
+		// password types will have ValuePlaintext set instead of Value. Let's not break compatibility for now
+		finalValue := value.Value
+		if value.Value == "" && value.ValuePlaintext != "" {
+			finalValue = value.ValuePlaintext
+		}
 		configValues[key] = AppConfigValue{
 			Default:        value.Default,
-			Value:          value.Value,
+			Value:          finalValue,
 			Data:           value.Data,
-			ValuePlaintext: value.ValuePlaintext,
 			DataPlaintext:  value.DataPlaintext,
 			Filename:       value.Filename,
 			RepeatableItem: value.RepeatableItem,

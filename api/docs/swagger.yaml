@@ -59,8 +59,6 @@ components:
           type: string
         value:
           type: string
-        valuePlaintext:
-          type: string
       required:
       - value
       type: object
