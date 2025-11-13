@@ -905,7 +905,7 @@ jobs:
           SHORT_SHA: dev-${{ needs.output-vars.outputs.git_sha }}
           DR_S3_ENDPOINT: https://s3.amazonaws.com
           DR_S3_REGION: us-east-1
-          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_BUCKET: embedded-cluster-e2e-snapshots
           DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
           DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
           DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}

@@ -75,7 +75,7 @@ runs:
       export REPLICATED_API_TOKEN=${{ inputs.cmx-api-token }}
       export DR_S3_ENDPOINT=https://s3.amazonaws.com
       export DR_S3_REGION=us-east-1
-      export DR_S3_BUCKET=kots-testim-snapshots
+      export DR_S3_BUCKET=embedded-cluster-e2e-snapshots
       export DR_S3_PREFIX=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}
       export DR_S3_PREFIX_AIRGAP=${{ inputs.test-name }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
       export DR_ACCESS_KEY_ID=${{ inputs.dr-aws-access-key-id }}
