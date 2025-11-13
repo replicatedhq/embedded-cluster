@@ -10,17 +10,6 @@ spec:
       labels:
         test-label-key: test-label-value
         another-label: another-value
-  extensions:
-    helm:
-      charts:
-        - name: goldpinger
-          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
-          namespace: goldpinger
-          version: 6.1.2
-          order: 11
-          values: |
-            image:
-              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
   unsupportedOverrides:
     k0s: |
       config:
@@ -37,6 +26,17 @@ spec:
               values:
                 allowedUnsafeSysctls:
                   - net.ipv4.ip_forward
+  extensions:
+    helm:
+      charts:
+        - name: goldpinger
+          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
+          namespace: goldpinger
+          version: 6.1.2
+          order: 11
+          values: |
+            image:
+              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
     builtInExtensions:
       - name: admin-console
         values: |
