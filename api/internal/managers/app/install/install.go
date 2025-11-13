@@ -15,7 +15,7 @@ import (
 )
 
 // Install installs the app with the provided config values
-func (m *appInstallManager) install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
+func (m *appInstallManager) Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
 	licenseWrapper, err := licensewrapper.LoadLicenseFromBytes(m.license)
 	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
