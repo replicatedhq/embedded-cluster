@@ -100,21 +100,29 @@ func TestGenerateHelmValues_SinglePlugin(t *testing.T) {
 	require.NotEmpty(t, values["initContainers"])
 	initContainers, ok := values["initContainers"].([]any)
 	require.True(t, ok, "initContainers should be a slice")
-	assert.LessOrEqual(t, len(initContainers), 2, "Should have at most 2 init containers, AWS and velero-plugin-postgresql")
+	assert.Equal(t, len(initContainers), 2, "Should have exactly 2 init containers: velero-plugin-postgresql and AWS plugin")
 
-	// Should have the custom plugin
-	assert.Contains(t, initContainers, map[string]any{
-		"name":            "velero-plugin-postgresql",
-		"image":           "myvendor/velero-postgresql:v1.0.0",
-		"imagePullPolicy": "IfNotPresent",
-	})
+	// Check that we have the custom plugin with volumeMounts
+	var foundPostgresPlugin bool
+	var foundAWSPlugin bool
+	for _, container := range initContainers {
+		containerMap, ok := container.(map[string]any)
+		require.True(t, ok, "container should be a map")
 
-	// Should have the AWS plugin
-	assert.Contains(t, initContainers, map[string]any{
-		"name":            "velero-plugin-for-aws",
-		"image":           "velero/velero-plugin-for-aws:v1.10.0",
-		"imagePullPolicy": "IfNotPresent",
-	})
+		if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
+			foundPostgresPlugin = true
+			assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", containerMap["image"])
+			assert.Equal(t, "IfNotPresent", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		} else if name == "velero-plugin-for-aws" {
+			foundAWSPlugin = true
+			assert.Equal(t, "IfNotPresent", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		}
+	}
+
+	assert.True(t, foundPostgresPlugin, "Should have velero-plugin-postgresql")
+	assert.True(t, foundAWSPlugin, "Should have velero-plugin-for-aws")
 }
 
 func TestGenerateHelmValues_MultiplePlugins(t *testing.T) {
@@ -143,19 +151,38 @@ func TestGenerateHelmValues_MultiplePlugins(t *testing.T) {
 	require.NotEmpty(t, values["initContainers"])
 	initContainers, ok := values["initContainers"].([]any)
 	require.True(t, ok, "initContainers should be a slice")
-	assert.LessOrEqual(t, len(initContainers), 2, "Should have at most 2 init containers, AWS and velero-plugin-postgresql")
+	assert.Equal(t, len(initContainers), 3, "Should have exactly 3 init containers: AWS, velero-plugin-postgresql, and velero-plugin-mongodb")
 
-	// Should have the custom plugins
-	assert.Contains(t, initContainers, map[string]any{
-		"name":            "velero-plugin-postgresql",
-		"image":           "myvendor/velero-postgresql:v1.0.0",
-		"imagePullPolicy": "IfNotPresent",
-	})
-	assert.Contains(t, initContainers, map[string]any{
-		"name":            "velero-plugin-mongodb",
-		"image":           "myvendor/velero-mongodb:v2.1.0",
-		"imagePullPolicy": "IfNotPresent",
-	})
+	// Check that we have the custom plugins with volumeMounts
+	var foundPostgresPlugin bool
+	var foundMongoDBPlugin bool
+	var foundAWSPlugin bool
+	for _, container := range initContainers {
+		containerMap, ok := container.(map[string]any)
+		require.True(t, ok, "container should be a map")
+
+		name, _ := containerMap["name"].(string)
+		switch name {
+		case "velero-plugin-postgresql":
+			foundPostgresPlugin = true
+			assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", containerMap["image"])
+			assert.Equal(t, "IfNotPresent", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		case "velero-plugin-mongodb":
+			foundMongoDBPlugin = true
+			assert.Equal(t, "myvendor/velero-mongodb:v2.1.0", containerMap["image"])
+			assert.Equal(t, "IfNotPresent", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		case "velero-plugin-for-aws":
+			foundAWSPlugin = true
+			assert.Equal(t, "IfNotPresent", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		}
+	}
+
+	assert.True(t, foundPostgresPlugin, "Should have velero-plugin-postgresql")
+	assert.True(t, foundMongoDBPlugin, "Should have velero-plugin-mongodb")
+	assert.True(t, foundAWSPlugin, "Should have velero-plugin-for-aws")
 }
 
 func TestGenerateHelmValues_PluginWithImagePullPolicy(t *testing.T) {
@@ -181,14 +208,23 @@ func TestGenerateHelmValues_PluginWithImagePullPolicy(t *testing.T) {
 	require.NotEmpty(t, values["initContainers"])
 	initContainers, ok := values["initContainers"].([]any)
 	require.True(t, ok, "initContainers should be a slice")
-	assert.Equal(t, len(initContainers), 1, "Should have exactly 1 init container, velero-plugin-postgresql")
+	assert.Equal(t, len(initContainers), 2, "Should have exactly 2 init containers: velero-plugin-postgresql and AWS plugin")
 
-	// Should have the custom plugin
-	assert.Contains(t, initContainers, map[string]any{
-		"name":            "velero-plugin-postgresql",
-		"image":           "myvendor/velero-postgresql:v1.0.0",
-		"imagePullPolicy": "Always",
-	})
+	// Check that we have the custom plugin with the custom imagePullPolicy
+	var foundPostgresPlugin bool
+	for _, container := range initContainers {
+		containerMap, ok := container.(map[string]any)
+		require.True(t, ok, "container should be a map")
+
+		if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
+			foundPostgresPlugin = true
+			assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", containerMap["image"])
+			assert.Equal(t, "Always", containerMap["imagePullPolicy"])
+			assert.Contains(t, containerMap, "volumeMounts")
+		}
+	}
+
+	assert.True(t, foundPostgresPlugin, "Should have velero-plugin-postgresql with ImagePullPolicy=Always")
 }
 
 func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
@@ -213,7 +249,7 @@ func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
 	require.NotEmpty(t, values["initContainers"])
 	initContainers, ok := values["initContainers"].([]any)
 	require.True(t, ok, "initContainers should be a slice")
-	assert.Equal(t, len(initContainers), 1, "Should have exactly 1 init container, velero-plugin-postgresql")
+	assert.Equal(t, len(initContainers), 2, "Should have exactly 2 init containers, velero-plugin-postgresql and AWS")
 
 	// Find our plugin container
 	var pluginContainer map[string]any
