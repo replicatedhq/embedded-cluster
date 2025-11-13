@@ -16,6 +16,8 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "setup-infra")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -62,14 +64,14 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setInfraStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -87,7 +89,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 
 		if err := c.setInfraStatus(types.StateSucceeded, "Installation complete"); err != nil {
-			return fmt.Errorf("set status to succeeded: %w", err)
+			logger.WithError(err).Error("failed to set status to succeeded")
 		}
 
 		return nil

@@ -15,6 +15,8 @@ import (
 )
 
 func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) (finalErr error) {
+	logger := c.logger.WithField("operation", "run-host-preflights")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -77,14 +79,14 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateHostPreflightsExecutionFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setHostPreflightStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -117,7 +119,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			}
 
 			if err := c.setHostPreflightStatus(types.StateSucceeded, "Host preflights succeeded"); err != nil {
-				return fmt.Errorf("set status to succeeded: %w", err)
+				logger.WithError(err).Error("failed to set status to succeeded")
 			}
 		}
 

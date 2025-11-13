@@ -23,6 +23,8 @@ type RunAppPreflightOptions struct {
 }
 
 func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
+	logger := c.logger.WithField("operation", "run-app-preflights")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -83,14 +85,14 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAppPreflightsExecutionFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAppPreflightStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -128,7 +130,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			}
 
 			if err := c.setAppPreflightStatus(types.StateSucceeded, "App preflights succeeded"); err != nil {
-				return fmt.Errorf("set status to succeeded: %w", err)
+				logger.WithError(err).Error("failed to set status to succeeded")
 			}
 		}
 

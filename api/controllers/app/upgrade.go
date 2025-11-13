@@ -12,6 +12,8 @@ import (
 
 // UpgradeApp triggers app upgrade with proper state transitions and panic handling
 func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "upgrade-app")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -52,14 +54,14 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAppUpgradeFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAppUpgradeStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -79,7 +81,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 		}
 
 		if err := c.setAppUpgradeStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
-			return fmt.Errorf("set status to succeeded: %w", err)
+			logger.WithError(err).Error("failed to set status to succeeded")
 		}
 
 		return nil

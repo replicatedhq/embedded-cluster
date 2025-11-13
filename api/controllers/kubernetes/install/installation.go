@@ -37,6 +37,8 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.Ku
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (finalErr error) {
+	logger := c.logger.WithField("operation", "configure-installation")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -57,14 +59,14 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 		}
 		if finalErr != nil {
-			c.logger.Error(finalErr)
+			logger.Error(finalErr)
 
 			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed, finalErr); err != nil {
-				c.logger.WithError(err).Error("failed to transition states")
+				logger.WithError(err).Error("failed to transition states")
 			}
 
 			if err = c.setInstallationStatus(types.StateFailed, finalErr.Error()); err != nil {
-				c.logger.WithError(err).Error("failed to set status to failed")
+				logger.WithError(err).Error("failed to set status to failed")
 			}
 		}
 	}()
@@ -82,7 +84,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	}
 
 	if err := c.setInstallationStatus(types.StateSucceeded, "Installation configured"); err != nil {
-		return fmt.Errorf("set status to succeeded: %w", err)
+		logger.WithError(err).Error("failed to set status to succeeded")
 	}
 
 	return nil

@@ -17,6 +17,8 @@ var (
 
 // InstallApp triggers app installation with proper state transitions and panic handling
 func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "install-app")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -79,14 +81,14 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAppInstallStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -106,7 +108,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 		}
 
 		if err := c.setAppInstallStatus(types.StateSucceeded, "Installation complete"); err != nil {
-			return fmt.Errorf("set status to succeeded: %w", err)
+			logger.WithError(err).Error("failed to set status to succeeded")
 		}
 
 		return nil

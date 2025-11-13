@@ -11,6 +11,8 @@ import (
 )
 
 func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) {
+	logger := c.logger.WithField("operation", "process-airgap")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -41,14 +43,14 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed, finalErr); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAirgapStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -72,7 +74,7 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 		}
 
 		if err := c.setAirgapStatus(types.StateSucceeded, "Airgap bundle processed"); err != nil {
-			return fmt.Errorf("set status to succeeded: %w", err)
+			logger.WithError(err).Error("failed to set status to succeeded")
 		}
 
 		return nil
