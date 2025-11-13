@@ -60,11 +60,11 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 		// Get registry settings for airgap upgrades
 		registrySettings, err := c.GetRegistrySettings(ctx, c.rc)
 		if err != nil {
-			return fmt.Errorf("failed to get registry settings: %w", err)
+			return fmt.Errorf("get registry settings: %w", err)
 		}
 
 		if err := c.infraManager.Upgrade(ctx, c.rc, registrySettings); err != nil {
-			return fmt.Errorf("failed to upgrade infrastructure: %w", err)
+			return fmt.Errorf("upgrade infrastructure: %w", err)
 		}
 
 		if err := c.stateMachine.Transition(lock, states.StateInfrastructureUpgraded, nil); err != nil {

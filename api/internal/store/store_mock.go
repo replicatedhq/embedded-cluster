@@ -1,6 +1,8 @@
 package store
 
 import (
+	"testing"
+
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/airgap"
 	appconfig "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	appinstall "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
@@ -76,4 +78,17 @@ func (m *MockStore) AppUpgradeStore() appupgrade.Store {
 // AirgapStore returns the mock airgap store
 func (m *MockStore) AirgapStore() airgap.Store {
 	return &m.AirgapMockStore
+}
+
+func (m *MockStore) AssertExpectations(t *testing.T) {
+	m.LinuxPreflightMockStore.AssertExpectations(t)
+	m.LinuxInstallationMockStore.AssertExpectations(t)
+	m.LinuxInfraMockStore.AssertExpectations(t)
+	m.KubernetesInstallationMockStore.AssertExpectations(t)
+	m.KubernetesInfraMockStore.AssertExpectations(t)
+	m.AppConfigMockStore.AssertExpectations(t)
+	m.AppPreflightMockStore.AssertExpectations(t)
+	m.AppInstallMockStore.AssertExpectations(t)
+	m.AppUpgradeMockStore.AssertExpectations(t)
+	m.AirgapMockStore.AssertExpectations(t)
 }

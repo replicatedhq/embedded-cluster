@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -257,25 +256,6 @@ func (m *installationManager) validateDataDirectory(config types.LinuxInstallati
 }
 
 func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
-	if err := m.setRunningStatus("Configuring installation"); err != nil {
-		return fmt.Errorf("set running status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setFailedStatus(finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setCompletedStatus(types.StateSucceeded, "Installation configured"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
-
 	opts := hostutils.InitForInstallOptions{
 		License:      m.license,
 		AirgapBundle: m.airgapBundle,

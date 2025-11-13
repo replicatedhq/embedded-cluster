@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -82,26 +81,7 @@ func (m *installationManager) validateAdminConsolePort(config types.KubernetesIn
 	return nil
 }
 
-func (m *installationManager) ConfigureInstallation(ctx context.Context, ki kubernetesinstallation.Installation, config types.KubernetesInstallationConfig) (finalErr error) {
-	if err := m.setStatus(types.StateRunning, ""); err != nil {
-		return fmt.Errorf("set status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setStatus(types.StateSucceeded, "Installation configured"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
-
+func (m *installationManager) ConfigureInstallation(ctx context.Context, ki kubernetesinstallation.Installation, config types.KubernetesInstallationConfig) error {
 	// Store the user provided values before applying the defaults
 	if err := m.SetConfigValues(config); err != nil {
 		return fmt.Errorf("write: %w", err)

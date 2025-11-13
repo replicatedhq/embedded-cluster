@@ -79,7 +79,7 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		}
 
 		if err := c.infraManager.Install(ctx, c.rc); err != nil {
-			return fmt.Errorf("failed to install infrastructure: %w", err)
+			return fmt.Errorf("install infrastructure: %w", err)
 		}
 
 		if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstalled, nil); err != nil {

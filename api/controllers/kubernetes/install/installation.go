@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -61,20 +62,40 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed, finalErr); err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
+
+			if err = c.setInstallationStatus(types.StateFailed, finalErr.Error()); err != nil {
+				c.logger.WithError(err).Error("failed to set status to failed")
+			}
 		}
 	}()
 
+	if err := c.setInstallationStatus(types.StateRunning, "Configuring installation"); err != nil {
+		return fmt.Errorf("set status to running: %w", err)
+	}
+
 	if err := c.installationManager.ConfigureInstallation(ctx, c.ki, config); err != nil {
-		return err
+		return fmt.Errorf("configure installation: %w", err)
 	}
 
 	if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured, nil); err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
+	if err := c.setInstallationStatus(types.StateSucceeded, "Installation configured"); err != nil {
+		return fmt.Errorf("set status to succeeded: %w", err)
+	}
+
 	return nil
 }
 
 func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
-	return c.installationManager.GetStatus()
+	return c.store.KubernetesInstallationStore().GetStatus()
+}
+
+func (c *InstallController) setInstallationStatus(state types.State, description string) error {
+	return c.store.KubernetesInstallationStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

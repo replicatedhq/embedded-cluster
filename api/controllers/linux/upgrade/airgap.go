@@ -60,11 +60,11 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 		// Get registry settings from the cluster for upgrades
 		registrySettings, err := c.GetRegistrySettings(ctx, c.rc)
 		if err != nil {
-			return fmt.Errorf("failed to get registry settings: %w", err)
+			return fmt.Errorf("get registry settings: %w", err)
 		}
 
 		if err := c.airgapManager.Process(ctx, registrySettings); err != nil {
-			return fmt.Errorf("failed to process airgap: %w", err)
+			return fmt.Errorf("process airgap: %w", err)
 		}
 
 		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed, nil); err != nil {

@@ -23,8 +23,6 @@ type InstallationManager interface {
 	GetConfigValues() (types.LinuxInstallationConfig, error)
 	SetConfigValues(config types.LinuxInstallationConfig) error
 	GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
-	GetStatus() (types.Status, error)
-	SetStatus(status types.Status) error
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)

@@ -60,11 +60,11 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 		// Calculate registry settings for the airgap processing
 		registrySettings, err := c.CalculateRegistrySettings(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to calculate registry settings: %w", err)
+			return fmt.Errorf("calculate registry settings: %w", err)
 		}
 
 		if err := c.airgapManager.Process(ctx, registrySettings); err != nil {
-			return fmt.Errorf("failed to process airgap: %w", err)
+			return fmt.Errorf("process airgap: %w", err)
 		}
 
 		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed, nil); err != nil {
