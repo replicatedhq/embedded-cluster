@@ -1,16 +1,20 @@
 package helpers
 
 import (
-	"errors"
+	"embed"
 	"os"
 	"path/filepath"
 	"testing"
 
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+//go:embed testdata/*
+var testdata embed.FS
 
 func TestParseEndUserConfig(t *testing.T) {
 	tests := []struct {
@@ -113,108 +117,160 @@ kind: Config`,
 
 func TestParseLicense(t *testing.T) {
 	tests := []struct {
-		name        string
-		fpath       string
-		fileContent string
-		expected    *kotsv1beta1.License
-		wantErr     error
+		name          string
+		licenseFile   string
+		wantErr       bool
+		wantIsV1      bool
+		wantIsV2      bool
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+		wantCustomer  string
 	}{
 		{
-			name:    "file does not exist",
-			fpath:   "nonexistent.yaml",
-			wantErr: os.ErrNotExist,
+			name:          "v1beta1 license",
+			licenseFile:   "testdata/license-v1beta1.yaml",
+			wantErr:       false,
+			wantIsV1:      true,
+			wantIsV2:      false,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+			wantCustomer:  "Test Customer V1",
 		},
 		{
-			name:  "invalid YAML returns ErrNotALicenseFile",
-			fpath: "invalid.yaml",
-			fileContent: `invalid: yaml: content: [
-			unclosed bracket`,
-			wantErr: ErrNotALicenseFile{},
+			name:          "v1beta2 license",
+			licenseFile:   "testdata/license-v1beta2.yaml",
+			wantErr:       false,
+			wantIsV1:      false,
+			wantIsV2:      true,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+			wantCustomer:  "Test Customer V2",
 		},
 		{
-			name:  "valid YAML but not a license returns ErrNotALicenseFile",
-			fpath: "not-license.yaml",
-			fileContent: `apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: test`,
-			wantErr: ErrNotALicenseFile{},
+			name:        "invalid version (v1beta3)",
+			licenseFile: "testdata/license-invalid-version.yaml",
+			wantErr:     true,
 		},
 		{
-			name:  "valid license",
-			fpath: "license.yaml",
-			fileContent: `apiVersion: kots.io/v1beta1
-kind: License
-metadata:
-  name: test-license
-spec:
-  licenseID: "test-license-id"
-  appSlug: "test-app"
-  endpoint: "https://replicated.app"`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "License",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-license",
-				},
-				Spec: kotsv1beta1.LicenseSpec{
-					LicenseID: "test-license-id",
-					AppSlug:   "test-app",
-					Endpoint:  "https://replicated.app",
-				},
-			},
-		},
-		{
-			name:  "minimal valid license",
-			fpath: "minimal-license.yaml",
-			fileContent: `apiVersion: kots.io/v1beta1
-kind: License
-spec:
-  licenseID: "test-license-id"`,
-			expected: &kotsv1beta1.License{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "kots.io/v1beta1",
-					Kind:       "License",
-				},
-				Spec: kotsv1beta1.LicenseSpec{
-					LicenseID: "test-license-id",
-				},
-			},
+			name:        "file not found",
+			licenseFile: "testdata/nonexistent.yaml",
+			wantErr:     true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
 			var testFile string
-			if tt.fileContent != "" {
-				// Create temporary file
+			if tt.licenseFile != "testdata/nonexistent.yaml" {
+				// Read from embedded filesystem and write to temp file
+				data, err := testdata.ReadFile(tt.licenseFile)
+				require.NoError(t, err)
 				tmpDir := t.TempDir()
-				testFile = filepath.Join(tmpDir, tt.fpath)
-				err := os.WriteFile(testFile, []byte(tt.fileContent), 0644)
-				req.NoError(err)
+				testFile = filepath.Join(tmpDir, filepath.Base(tt.licenseFile))
+				err = os.WriteFile(testFile, data, 0644)
+				require.NoError(t, err)
 			} else {
-				// Use the fpath as-is for non-existent file tests
-				testFile = tt.fpath
+				// Use non-existent path for the error case
+				testFile = tt.licenseFile
 			}
 
-			result, err := ParseLicense(testFile)
+			wrapper, err := ParseLicense(testFile)
 
-			if tt.wantErr != nil {
-				req.Error(err)
-				if errors.Is(tt.wantErr, ErrNotALicenseFile{}) {
-					req.ErrorAs(err, &tt.wantErr)
-				} else {
-					req.ErrorIs(err, tt.wantErr)
-				}
-				req.Nil(result)
-			} else {
-				req.NoError(err)
-				req.Equal(tt.expected, result)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Nil(t, wrapper)
+				return
 			}
+
+			require.NoError(t, err)
+			require.NotNil(t, wrapper)
+			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
+			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
+			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())
+			assert.Equal(t, tt.wantLicenseID, wrapper.GetLicenseID())
+			assert.Equal(t, tt.wantECEnabled, wrapper.IsEmbeddedClusterDownloadEnabled())
+			assert.Equal(t, tt.wantCustomer, wrapper.GetCustomerName())
+		})
+	}
+}
+
+func TestParseLicenseFromBytes(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupData     func(t *testing.T) []byte
+		wantErr       bool
+		wantIsV1      bool
+		wantIsV2      bool
+		wantAppSlug   string
+		wantLicenseID string
+		wantECEnabled bool
+	}{
+		{
+			name: "v1beta1 license",
+			setupData: func(t *testing.T) []byte {
+				data, err := testdata.ReadFile("testdata/license-v1beta1.yaml")
+				require.NoError(t, err)
+				return data
+			},
+			wantErr:       false,
+			wantIsV1:      true,
+			wantIsV2:      false,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v1",
+			wantECEnabled: true,
+		},
+		{
+			name: "v1beta2 license",
+			setupData: func(t *testing.T) []byte {
+				data, err := testdata.ReadFile("testdata/license-v1beta2.yaml")
+				require.NoError(t, err)
+				return data
+			},
+			wantErr:       false,
+			wantIsV1:      false,
+			wantIsV2:      true,
+			wantAppSlug:   "embedded-cluster-test",
+			wantLicenseID: "test-license-id-v2",
+			wantECEnabled: true,
+		},
+		{
+			name: "invalid version (v1beta3)",
+			setupData: func(t *testing.T) []byte {
+				return []byte(`apiVersion: kots.io/v1beta3
+kind: License`)
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid YAML",
+			setupData: func(t *testing.T) []byte {
+				return []byte(`this is not valid yaml: [[[`)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := tt.setupData(t)
+			wrapper, err := ParseLicenseFromBytes(data)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Nil(t, wrapper)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, wrapper)
+			assert.Equal(t, tt.wantIsV1, wrapper.IsV1())
+			assert.Equal(t, tt.wantIsV2, wrapper.IsV2())
+			assert.Equal(t, tt.wantAppSlug, wrapper.GetAppSlug())
+			assert.Equal(t, tt.wantLicenseID, wrapper.GetLicenseID())
+			assert.Equal(t, tt.wantECEnabled, wrapper.IsEmbeddedClusterDownloadEnabled())
 		})
 	}
 }

@@ -29,6 +29,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -666,8 +668,8 @@ spec:
 				if tt.expectLicense {
 					assert.NotEmpty(t, installCfg.licenseBytes, "License bytes should be populated")
 					assert.NotNil(t, installCfg.license, "License should be parsed")
-					assert.Equal(t, "test-license-id", installCfg.license.Spec.LicenseID)
-					assert.Equal(t, "test-app", installCfg.license.Spec.AppSlug)
+					assert.Equal(t, "test-license-id", installCfg.license.GetLicenseID())
+					assert.Equal(t, "test-app", installCfg.license.GetAppSlug())
 				} else {
 					assert.Empty(t, installCfg.licenseBytes, "License bytes should be empty")
 					assert.Nil(t, installCfg.license, "License should be nil")
@@ -1218,12 +1220,12 @@ func Test_buildMetricsReporter(t *testing.T) {
 				return cmd
 			}(),
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-123",
 						AppSlug:   "my-app",
 					},
-				},
+				}},
 				clusterID: "cluster-456",
 			},
 			validate: func(t *testing.T, reporter *installReporter) {
@@ -1241,12 +1243,12 @@ func Test_buildMetricsReporter(t *testing.T) {
 				return cmd
 			}(),
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						LicenseID: "license-789",
 						AppSlug:   "simple-app",
 					},
-				},
+				}},
 				clusterID: "cluster-012",
 			},
 			validate: func(t *testing.T, reporter *installReporter) {
@@ -1468,11 +1470,11 @@ func Test_buildKotsInstallOptions(t *testing.T) {
 		{
 			name: "all options set",
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						AppSlug: "my-app",
 					},
-				},
+				}},
 				licenseBytes: []byte("license-data"),
 				clusterID:    "test-cluster-id",
 			},
@@ -1499,11 +1501,11 @@ func Test_buildKotsInstallOptions(t *testing.T) {
 		{
 			name: "minimal options",
 			installCfg: &installConfig{
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						AppSlug: "simple-app",
 					},
-				},
+				}},
 				licenseBytes: []byte("license-data"),
 				clusterID:    "cluster-123",
 			},
@@ -1575,12 +1577,12 @@ spec:
 			},
 			installCfg: &installConfig{
 				clusterID: "cluster-123",
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       true,
 						IsEmbeddedClusterMultiNodeEnabled: true,
 					},
-				},
+				}},
 				tlsCertBytes: []byte("cert-data"),
 				tlsKeyBytes:  []byte("key-data"),
 				endUserConfig: &ecv1beta1.Config{
@@ -1643,12 +1645,12 @@ spec:
 			},
 			installCfg: &installConfig{
 				clusterID: "cluster-456",
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: false,
 					},
-				},
+				}},
 				tlsCertBytes: []byte("cert-data"),
 				tlsKeyBytes:  []byte("key-data"),
 			},
@@ -1840,11 +1842,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-123",
 				isAirgap:  true,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				airgapMetadata: &airgap.AirgapMetadata{
 					AirgapInfo: &kotsv1beta1.Airgap{
 						Spec: kotsv1beta1.AirgapSpec{
@@ -1883,11 +1885,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-456",
 				isAirgap:  true,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				airgapMetadata: &airgap.AirgapMetadata{
 					AirgapInfo: nil,
 				},
@@ -1903,11 +1905,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-789",
 				isAirgap:  false,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 				endUserConfig: &ecv1beta1.Config{
 					Spec: ecv1beta1.ConfigSpec{},
 				},
@@ -1924,11 +1926,11 @@ spec:
 			installCfg: &installConfig{
 				clusterID: "cluster-abc",
 				isAirgap:  false,
-				license: &kotsv1beta1.License{
+				license: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-license",
 					},
-				},
+				}},
 			},
 			rc: runtimeconfig.New(nil),
 			validate: func(t *testing.T, opts kubeutils.RecordInstallationOptions) {
@@ -2300,7 +2302,10 @@ func Test_maybePromptForAppUpdate(t *testing.T) {
 			prompts.SetTerminal(true)
 			t.Cleanup(func() { prompts.SetTerminal(false) })
 
-			err = maybePromptForAppUpdate(context.Background(), prompt, tt.license, tt.assumeYes)
+			// Wrap the license for the new API
+			wrappedLicense := &licensewrapper.LicenseWrapper{V1: tt.license}
+			err = maybePromptForAppUpdate(context.Background(), prompt, wrappedLicense, tt.assumeYes)
+
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -2352,7 +2357,7 @@ func Test_verifyLicensePresence(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		license *kotsv1beta1.License
+		license *licensewrapper.LicenseWrapper
 		release *release.ChannelRelease
 		wantErr string
 	}{
@@ -2367,11 +2372,18 @@ func Test_verifyLicensePresence(t *testing.T) {
 		},
 		{
 			name: "valid license, no release",
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "kots.io/v1beta1",
+						Kind:       "License",
+					},
+					Spec: kotsv1beta1.LicenseSpec{
+						LicenseID:                        "test-license-no-release",
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+					},
 				},
 			},
 			wantErr: "a license was provided but no release was found in binary, please rerun without the license flag",
@@ -2400,41 +2412,58 @@ func Test_verifyLicenseFields(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		license *kotsv1beta1.License
+		license *licensewrapper.LicenseWrapper
 		release *release.ChannelRelease
 		wantErr string
 	}{
 		{
-			name:    "valid license, with release",
+			name:    "valid license (v2), with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
+			license: &licensewrapper.LicenseWrapper{
+				V2: &kotsv1beta2.License{
+					Spec: kotsv1beta2.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+					},
+				},
+			},
+		},
+		{
+			name:    "valid license (v1), with release",
+			release: testRelease,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+					},
 				},
 			},
 		},
 		{
 			name:    "valid multi-channel license, with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "OtherChannelID",
-					IsEmbeddedClusterDownloadEnabled: true,
-					Channels: []kotsv1beta1.Channel{
-						{
-							ChannelID:   "OtherChannelID",
-							ChannelName: "OtherChannel",
-							ChannelSlug: "other-channel",
-							IsDefault:   true,
-						},
-						{
-							ChannelID:   "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-							ChannelName: "ExpectedChannel",
-							ChannelSlug: "expected-channel",
-							IsDefault:   false,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "OtherChannelID",
+						IsEmbeddedClusterDownloadEnabled: true,
+						Channels: []kotsv1beta1.Channel{
+							{
+								ChannelID:   "OtherChannelID",
+								ChannelName: "OtherChannel",
+								ChannelSlug: "other-channel",
+								IsDefault:   true,
+							},
+							{
+								ChannelID:   "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+								ChannelName: "ExpectedChannel",
+								ChannelSlug: "expected-channel",
+								IsDefault:   false,
+							},
 						},
 					},
 				},
@@ -2443,16 +2472,18 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "expired license, with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
-					Entitlements: map[string]kotsv1beta1.EntitlementField{
-						"expires_at": {
-							Value: kotsv1beta1.EntitlementValue{
-								Type:   kotsv1beta1.String,
-								StrVal: "2024-06-03T00:00:00Z",
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+						Entitlements: map[string]kotsv1beta1.EntitlementField{
+							"expires_at": {
+								Value: kotsv1beta1.EntitlementValue{
+									Type:   kotsv1beta1.String,
+									StrVal: "2024-06-03T00:00:00Z",
+								},
 							},
 						},
 					},
@@ -2463,16 +2494,18 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "license with no expiration, with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
-					Entitlements: map[string]kotsv1beta1.EntitlementField{
-						"expires_at": {
-							Value: kotsv1beta1.EntitlementValue{
-								Type:   kotsv1beta1.String,
-								StrVal: "",
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+						Entitlements: map[string]kotsv1beta1.EntitlementField{
+							"expires_at": {
+								Value: kotsv1beta1.EntitlementValue{
+									Type:   kotsv1beta1.String,
+									StrVal: "",
+								},
 							},
 						},
 					},
@@ -2482,16 +2515,18 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "license with 100 year expiration, with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: true,
-					Entitlements: map[string]kotsv1beta1.EntitlementField{
-						"expires_at": {
-							Value: kotsv1beta1.EntitlementValue{
-								Type:   kotsv1beta1.String,
-								StrVal: "2124-06-03T00:00:00Z",
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: true,
+						Entitlements: map[string]kotsv1beta1.EntitlementField{
+							"expires_at": {
+								Value: kotsv1beta1.EntitlementValue{
+									Type:   kotsv1beta1.String,
+									StrVal: "2124-06-03T00:00:00Z",
+								},
 							},
 						},
 					},
@@ -2501,11 +2536,13 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "embedded cluster not enabled, with release",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
-					IsEmbeddedClusterDownloadEnabled: false,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2cHXb1RCttzpR0xvnNWyaZCgDBP",
+						IsEmbeddedClusterDownloadEnabled: false,
+					},
 				},
 			},
 			wantErr: "license does not have embedded cluster enabled, please provide a valid license",
@@ -2513,23 +2550,25 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "incorrect license (multichan license)",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
-					IsEmbeddedClusterDownloadEnabled: false,
-					Channels: []kotsv1beta1.Channel{
-						{
-							ChannelID:   "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
-							ChannelName: "Stable",
-							ChannelSlug: "stable",
-							IsDefault:   true,
-						},
-						{
-							ChannelID:   "4l9fCbxTNIhuAOaC6MoKMVeV3K",
-							ChannelName: "Alternate",
-							ChannelSlug: "alternate",
-							IsDefault:   false,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
+						IsEmbeddedClusterDownloadEnabled: false,
+						Channels: []kotsv1beta1.Channel{
+							{
+								ChannelID:   "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
+								ChannelName: "Stable",
+								ChannelSlug: "stable",
+								IsDefault:   true,
+							},
+							{
+								ChannelID:   "4l9fCbxTNIhuAOaC6MoKMVeV3K",
+								ChannelName: "Alternate",
+								ChannelSlug: "alternate",
+								IsDefault:   false,
+							},
 						},
 					},
 				},
@@ -2539,12 +2578,14 @@ func Test_verifyLicenseFields(t *testing.T) {
 		{
 			name:    "incorrect license (pre-multichan license)",
 			release: testRelease,
-			license: &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{
-					AppSlug:                          "embedded-cluster-smoke-test-staging-app",
-					ChannelID:                        "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
-					ChannelName:                      "Stable",
-					IsEmbeddedClusterDownloadEnabled: false,
+			license: &licensewrapper.LicenseWrapper{
+				V1: &kotsv1beta1.License{
+					Spec: kotsv1beta1.LicenseSpec{
+						AppSlug:                          "embedded-cluster-smoke-test-staging-app",
+						ChannelID:                        "2i9fCbxTNIhuAOaC6MoKMVeGzuK",
+						ChannelName:                      "Stable",
+						IsEmbeddedClusterDownloadEnabled: false,
+					},
 				},
 			},
 			wantErr: "binary channel 2cHXb1RCttzpR0xvnNWyaZCgDBP (CI) not present in license, channels allowed by license are: Stable (2i9fCbxTNIhuAOaC6MoKMVeGzuK)",
