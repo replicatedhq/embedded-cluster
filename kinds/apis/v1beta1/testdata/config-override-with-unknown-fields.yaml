@@ -8,7 +8,7 @@ secretData:
         velero:
           plugins:
             - name: velero-plugin-postgresql
-              image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+              image: velero-plugin-cnpg-restore:latest
               imagePullPolicy: Always
       this:
         is:
@@ -22,5 +22,5 @@ expected:
     velero:
       plugins:
         - name: velero-plugin-postgresql
-          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+          image: velero-plugin-cnpg-restore:latest
           imagePullPolicy: Always

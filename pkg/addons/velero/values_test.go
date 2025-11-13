@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -251,4 +252,49 @@ func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
 	volumeMount := volumeMounts[0].(map[string]any)
 	assert.Equal(t, "/target", volumeMount["mountPath"])
 	assert.Equal(t, "plugins", volumeMount["name"])
+}
+
+func TestGenerateHelmValues_CustomDomainReplacement(t *testing.T) {
+	tests := []struct {
+		name                string
+		proxyRegistryDomain string
+		expectReplacement   bool
+		expectedDomain      string
+	}{
+		{
+			name:                "empty domain should not replace",
+			proxyRegistryDomain: "",
+			expectReplacement:   false,
+		},
+		{
+			name:                "custom domain should replace",
+			proxyRegistryDomain: "custom-registry.example.com",
+			expectReplacement:   true,
+			expectedDomain:      "custom-registry.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := &Velero{}
+			domains := ecv1beta1.Domains{
+				ProxyRegistryDomain: tt.proxyRegistryDomain,
+			}
+
+			values, err := v.GenerateHelmValues(context.Background(), nil, domains, nil)
+			require.NoError(t, err)
+
+			// Marshal values back to YAML to check for domain replacement
+			marshalled, err := helm.MarshalValues(values)
+			require.NoError(t, err)
+			marshalledStr := string(marshalled)
+
+			if tt.expectReplacement {
+				assert.NotContains(t, marshalledStr, "proxy.replicated.com", "should not contain proxy.replicated.com")
+				assert.Contains(t, marshalledStr, tt.expectedDomain, "should contain custom domain")
+			} else {
+				assert.Contains(t, marshalledStr, "proxy.replicated.com", "should contain proxy.replicated.com when domain is empty")
+			}
+		})
+	}
 }

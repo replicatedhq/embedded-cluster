@@ -807,8 +807,8 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 
 	mock.InOrder(
-		// 4 addons + Goldpinger extension
-		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		// 4 addons (no extensions in this cluster config)
+		hcli.On("Install", mock.Anything, mock.Anything).Times(4).Return(nil, nil),
 		hcli.On("Close").Once().Return(nil),
 	)
 

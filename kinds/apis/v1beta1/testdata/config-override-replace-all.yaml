@@ -8,7 +8,7 @@ secretData:
         velero:
           plugins:
             - name: velero-plugin-postgresql
-              image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+              image: velero-plugin-cnpg-restore:latest
               imagePullPolicy: Always
 configSpec:
   version: 1.29.1+ec.6
@@ -51,5 +51,5 @@ expected:
     velero:
       plugins:
         - name: velero-plugin-postgresql
-          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+          image: velero-plugin-cnpg-restore:latest
           imagePullPolicy: Always
