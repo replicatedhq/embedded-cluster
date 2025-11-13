@@ -73,11 +73,9 @@ func TestGenerateHelmValues_NoPlugins(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should have at most the default AWS plugin
-	if initContainers, ok := values["initContainers"]; ok {
-		if containers, ok := initContainers.([]any); ok {
-			assert.LessOrEqual(t, len(containers), 1, "Should have at most the default AWS plugin")
-		}
-	}
+	initContainers, ok := values["initContainers"].([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	assert.LessOrEqual(t, len(initContainers), 1, "Should have at most the default AWS plugin")
 }
 
 func TestGenerateHelmValues_SinglePlugin(t *testing.T) {
@@ -100,23 +98,23 @@ func TestGenerateHelmValues_SinglePlugin(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, values["initContainers"])
-	initContainers := values["initContainers"].([]any)
+	initContainers, ok := values["initContainers"].([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	assert.LessOrEqual(t, len(initContainers), 2, "Should have at most 2 init containers, AWS and velero-plugin-postgresql")
 
-	// Find our plugin container
-	var pluginContainer map[string]any
-	for _, container := range initContainers {
-		if containerMap, ok := container.(map[string]any); ok {
-			if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
-				pluginContainer = containerMap
-				break
-			}
-		}
-	}
+	// Should have the custom plugin
+	assert.Contains(t, initContainers, map[string]any{
+		"name":            "velero-plugin-postgresql",
+		"image":           "myvendor/velero-postgresql:v1.0.0",
+		"imagePullPolicy": "IfNotPresent",
+	})
 
-	require.NotNil(t, pluginContainer, "Plugin container should exist")
-	assert.Equal(t, "velero-plugin-postgresql", pluginContainer["name"])
-	assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", pluginContainer["image"])
-	assert.Equal(t, "IfNotPresent", pluginContainer["imagePullPolicy"])
+	// Should have the AWS plugin
+	assert.Contains(t, initContainers, map[string]any{
+		"name":            "velero-plugin-for-aws",
+		"image":           "velero/velero-plugin-for-aws:v1.10.0",
+		"imagePullPolicy": "IfNotPresent",
+	})
 }
 
 func TestGenerateHelmValues_MultiplePlugins(t *testing.T) {
@@ -143,21 +141,21 @@ func TestGenerateHelmValues_MultiplePlugins(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, values["initContainers"])
-	initContainers := values["initContainers"].([]any)
+	initContainers, ok := values["initContainers"].([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	assert.LessOrEqual(t, len(initContainers), 2, "Should have at most 2 init containers, AWS and velero-plugin-postgresql")
 
-	// Find plugin containers by name
-	pluginMap := make(map[string]map[string]any)
-	for _, container := range initContainers {
-		if containerMap, ok := container.(map[string]any); ok {
-			if name, _ := containerMap["name"].(string); name != "velero-plugin-for-aws" {
-				pluginMap[name] = containerMap
-			}
-		}
-	}
-
-	require.Len(t, pluginMap, 2, "Should have exactly 2 plugin containers")
-	assert.Equal(t, "myvendor/velero-postgresql:v1.0.0", pluginMap["velero-plugin-postgresql"]["image"])
-	assert.Equal(t, "myvendor/velero-mongodb:v2.1.0", pluginMap["velero-plugin-mongodb"]["image"])
+	// Should have the custom plugins
+	assert.Contains(t, initContainers, map[string]any{
+		"name":            "velero-plugin-postgresql",
+		"image":           "myvendor/velero-postgresql:v1.0.0",
+		"imagePullPolicy": "IfNotPresent",
+	})
+	assert.Contains(t, initContainers, map[string]any{
+		"name":            "velero-plugin-mongodb",
+		"image":           "myvendor/velero-mongodb:v2.1.0",
+		"imagePullPolicy": "IfNotPresent",
+	})
 }
 
 func TestGenerateHelmValues_PluginWithImagePullPolicy(t *testing.T) {
@@ -181,21 +179,16 @@ func TestGenerateHelmValues_PluginWithImagePullPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, values["initContainers"])
-	initContainers := values["initContainers"].([]any)
+	initContainers, ok := values["initContainers"].([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	assert.Equal(t, len(initContainers), 1, "Should have exactly 1 init container, velero-plugin-postgresql")
 
-	// Find our plugin container
-	var pluginContainer map[string]any
-	for _, container := range initContainers {
-		if containerMap, ok := container.(map[string]any); ok {
-			if name, _ := containerMap["name"].(string); name == "velero-plugin-postgresql" {
-				pluginContainer = containerMap
-				break
-			}
-		}
-	}
-
-	require.NotNil(t, pluginContainer)
-	assert.Equal(t, "Always", pluginContainer["imagePullPolicy"])
+	// Should have the custom plugin
+	assert.Contains(t, initContainers, map[string]any{
+		"name":            "velero-plugin-postgresql",
+		"image":           "myvendor/velero-postgresql:v1.0.0",
+		"imagePullPolicy": "Always",
+	})
 }
 
 func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
@@ -218,7 +211,9 @@ func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotEmpty(t, values["initContainers"])
-	initContainers := values["initContainers"].([]any)
+	initContainers, ok := values["initContainers"].([]any)
+	require.True(t, ok, "initContainers should be a slice")
+	assert.Equal(t, len(initContainers), 1, "Should have exactly 1 init container, velero-plugin-postgresql")
 
 	// Find our plugin container
 	var pluginContainer map[string]any
@@ -234,22 +229,12 @@ func TestGenerateHelmValues_PluginVolumeMounts(t *testing.T) {
 	require.NotNil(t, pluginContainer)
 	require.Contains(t, pluginContainer, "volumeMounts")
 
-	volumeMountsAny := pluginContainer["volumeMounts"]
-	var volumeMounts []any
-	switch v := volumeMountsAny.(type) {
-	case []any:
-		volumeMounts = v
-	case []map[string]any:
-		volumeMounts = make([]any, len(v))
-		for i, vm := range v {
-			volumeMounts[i] = vm
-		}
-	default:
-		t.Fatalf("volumeMounts has unexpected type: %T", v)
-	}
+	volumeMounts, ok := pluginContainer["volumeMounts"].([]any)
+	require.True(t, ok, "volumeMounts should be []any")
 
 	require.Len(t, volumeMounts, 1)
-	volumeMount := volumeMounts[0].(map[string]any)
+	volumeMount, ok := volumeMounts[0].(map[string]any)
+	require.True(t, ok, "volumeMount should be map[string]any")
 	assert.Equal(t, "/target", volumeMount["mountPath"])
 	assert.Equal(t, "plugins", volumeMount["name"])
 }
