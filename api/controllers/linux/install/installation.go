@@ -186,7 +186,7 @@ func (c *InstallController) configureHost(ctx context.Context, logger logrus.Fie
 	}
 
 	if err := c.setInstallationStatus(types.StateSucceeded, "Installation configured"); err != nil {
-		logger.WithError(err).Error("failed to set status to succeeded")
+		return fmt.Errorf("set status to succeeded: %w", err)
 	}
 
 	return nil

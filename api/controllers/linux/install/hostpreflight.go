@@ -119,7 +119,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			}
 
 			if err := c.setHostPreflightStatus(types.StateSucceeded, "Host preflights succeeded"); err != nil {
-				logger.WithError(err).Error("failed to set status to succeeded")
+				return fmt.Errorf("set status to succeeded: %w", err)
 			}
 		}
 

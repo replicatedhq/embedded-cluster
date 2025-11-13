@@ -84,7 +84,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 	}
 
 	if err := c.setInstallationStatus(types.StateSucceeded, "Installation configured"); err != nil {
-		logger.WithError(err).Error("failed to set status to succeeded")
+		return fmt.Errorf("set status to succeeded: %w", err)
 	}
 
 	return nil

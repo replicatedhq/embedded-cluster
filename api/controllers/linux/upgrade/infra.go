@@ -74,7 +74,7 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 		}
 
 		if err := c.setInfraStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
-			logger.WithError(err).Error("failed to set status to succeeded")
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil

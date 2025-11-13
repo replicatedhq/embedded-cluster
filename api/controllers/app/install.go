@@ -108,7 +108,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 		}
 
 		if err := c.setAppInstallStatus(types.StateSucceeded, "Installation complete"); err != nil {
-			logger.WithError(err).Error("failed to set status to succeeded")
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil

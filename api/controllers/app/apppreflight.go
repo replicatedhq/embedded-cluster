@@ -130,7 +130,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			}
 
 			if err := c.setAppPreflightStatus(types.StateSucceeded, "App preflights succeeded"); err != nil {
-				logger.WithError(err).Error("failed to set status to succeeded")
+				return fmt.Errorf("set status to succeeded: %w", err)
 			}
 		}
 

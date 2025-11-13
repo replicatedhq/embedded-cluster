@@ -81,7 +81,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 		}
 
 		if err := c.setAppUpgradeStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
-			logger.WithError(err).Error("failed to set status to succeeded")
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
