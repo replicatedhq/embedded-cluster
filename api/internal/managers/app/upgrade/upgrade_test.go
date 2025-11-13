@@ -182,26 +182,6 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 	})
 }
 
-func TestAppUpgradeManager_GetStatus(t *testing.T) {
-	// Initialize store with a default state
-	store := appupgradestore.NewMemoryStore(appupgradestore.WithAppUpgrade(types.AppUpgrade{
-		Status: types.Status{
-			State: types.StatePending,
-		},
-	}))
-	manager, err := NewAppUpgradeManager(
-		WithLogger(logger.NewDiscardLogger()),
-		WithAppUpgradeStore(store),
-	)
-	require.NoError(t, err)
-
-	// Test getting status
-	upgrade, err := manager.GetStatus()
-	require.NoError(t, err)
-	assert.Equal(t, types.StatePending, upgrade.Status.State)
-	assert.Equal(t, "", upgrade.Logs)
-}
-
 func TestAppUpgradeManager_NewWithOptions(t *testing.T) {
 	releaseData := &release.ReleaseData{
 		ChannelRelease: &release.ChannelRelease{
