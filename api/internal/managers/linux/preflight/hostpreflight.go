@@ -3,8 +3,6 @@ package preflight
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
-	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -89,19 +87,18 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 	return prepareOpts
 }
 
-func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (finalErr error) {
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (*types.PreflightsOutput, error) {
+	titles, err := m.getTitles(opts.HostPreflightSpec)
+	if err != nil {
+		return nil, fmt.Errorf("get titles: %w", err)
+	}
 
-			if err := m.setFailedStatus("Host preflights failed to run: panic"); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		}
-	}()
+	if err := m.hostPreflightStore.SetTitles(titles); err != nil {
+		return nil, fmt.Errorf("set titles: %w", err)
+	}
 
-	if err := m.setRunningStatus(opts.HostPreflightSpec); err != nil {
-		return fmt.Errorf("set running status: %w", err)
+	if err := m.hostPreflightStore.SetOutput(nil); err != nil {
+		return nil, fmt.Errorf("reset output: %w", err)
 	}
 
 	// Run the preflights using the shared core function
@@ -113,15 +110,15 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 
 	output, stderr, err := m.runner.RunHostPreflights(ctx, opts.HostPreflightSpec, runOpts)
 	if err != nil {
-		errMsg := fmt.Sprintf("Host preflights failed to run: %v", err)
 		if stderr != "" {
-			errMsg += fmt.Sprintf(" (stderr: %s)", stderr)
+			return nil, fmt.Errorf("host preflights failed to run: %w (stderr: %s)", err, stderr)
 		}
-		m.logger.Error(errMsg)
-		if err := m.setFailedStatus(errMsg); err != nil {
-			return fmt.Errorf("set failed status: %w", err)
-		}
-		return
+		return nil, fmt.Errorf("host preflights failed to run: %w", err)
+	}
+
+	// Set final status based on results
+	if err := m.hostPreflightStore.SetOutput(output); err != nil {
+		return nil, fmt.Errorf("set output: %w", err)
 	}
 
 	if err := preflights.SaveToDisk(output, rc.PathToEmbeddedClusterSupportFile("host-preflight-results.json")); err != nil {
@@ -132,19 +129,7 @@ func (m *hostPreflightManager) RunHostPreflights(ctx context.Context, rc runtime
 		m.logger.WithError(err).Warn("copy preflight bundle to embedded-cluster support dir")
 	}
 
-	// Set final status based on results
-	// TODO @jgantunes: we're currently not handling warnings in the output.
-	if output.HasFail() {
-		if err := m.setCompletedStatus(types.StateFailed, "Host preflights failed", output); err != nil {
-			return fmt.Errorf("set failed status: %w", err)
-		}
-	} else {
-		if err := m.setCompletedStatus(types.StateSucceeded, "Host preflights passed", output); err != nil {
-			return fmt.Errorf("set succeeded status: %w", err)
-		}
-	}
-
-	return nil
+	return output, nil
 }
 
 func (m *hostPreflightManager) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
@@ -161,51 +146,6 @@ func (m *hostPreflightManager) GetHostPreflightTitles(ctx context.Context) ([]st
 
 func (m *hostPreflightManager) ClearHostPreflightResults(ctx context.Context) error {
 	return m.hostPreflightStore.Clear()
-}
-
-func (m *hostPreflightManager) setRunningStatus(hpf *troubleshootv1beta2.HostPreflightSpec) error {
-	titles, err := m.getTitles(hpf)
-	if err != nil {
-		return fmt.Errorf("get titles: %w", err)
-	}
-
-	if err := m.hostPreflightStore.SetTitles(titles); err != nil {
-		return fmt.Errorf("set titles: %w", err)
-	}
-
-	if err := m.hostPreflightStore.SetOutput(nil); err != nil {
-		return fmt.Errorf("reset output: %w", err)
-	}
-
-	if err := m.hostPreflightStore.SetStatus(types.Status{
-		State:       types.StateRunning,
-		Description: "Running host preflights",
-		LastUpdated: time.Now(),
-	}); err != nil {
-		return fmt.Errorf("set status: %w", err)
-	}
-
-	return nil
-}
-
-func (m *hostPreflightManager) setFailedStatus(description string) error {
-	return m.hostPreflightStore.SetStatus(types.Status{
-		State:       types.StateFailed,
-		Description: description,
-		LastUpdated: time.Now(),
-	})
-}
-
-func (m *hostPreflightManager) setCompletedStatus(state types.State, description string, output *types.PreflightsOutput) error {
-	if err := m.hostPreflightStore.SetOutput(output); err != nil {
-		return fmt.Errorf("set output: %w", err)
-	}
-
-	return m.hostPreflightStore.SetStatus(types.Status{
-		State:       state,
-		Description: description,
-		LastUpdated: time.Now(),
-	})
 }
 
 func (m *hostPreflightManager) getTitles(hpf *troubleshootv1beta2.HostPreflightSpec) ([]string, error) {

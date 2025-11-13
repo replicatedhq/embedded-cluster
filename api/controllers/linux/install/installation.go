@@ -107,12 +107,12 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 				LastUpdated: time.Now(),
 			}
 
-			if err = c.store.LinuxInstallationStore().SetStatus(failureStatus); err != nil {
-				c.logger.Errorf("failed to update status: %w", err)
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
+				c.logger.WithError(err).Error("failed to transition states")
 			}
 
-			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+			if err = c.store.LinuxInstallationStore().SetStatus(failureStatus); err != nil {
+				c.logger.WithError(err).Error("failed to update status")
 			}
 		}
 	}()

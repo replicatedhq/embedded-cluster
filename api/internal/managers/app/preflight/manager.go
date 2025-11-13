@@ -16,6 +16,7 @@ type AppPreflightManager interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
+	ClearAppPreflightResults(ctx context.Context) error
 }
 
 type appPreflightManager struct {

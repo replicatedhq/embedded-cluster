@@ -33,7 +33,7 @@ func (c *AppController) PatchAppConfigValues(ctx context.Context, values types.A
 
 		if finalErr != nil {
 			if err := c.stateMachine.Transition(lock, states.StateApplicationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+				c.logger.WithError(err).Error("failed to transition states")
 			}
 		}
 	}()

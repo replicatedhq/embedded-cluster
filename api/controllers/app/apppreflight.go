@@ -41,6 +41,11 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		return types.NewConflictError(err)
 	}
 
+	// Clear any previous preflight results immediately to prevent serving stale data
+	if err := c.appPreflightManager.ClearAppPreflightResults(ctx); err != nil {
+		return fmt.Errorf("clear previous preflight results: %w", err)
+	}
+
 	// Get the app config values
 	configValues, err := c.GetAppConfigValues(ctx)
 	if err != nil {

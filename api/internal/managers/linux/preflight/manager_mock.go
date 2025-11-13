@@ -26,9 +26,12 @@ func (m *MockHostPreflightManager) PrepareHostPreflights(ctx context.Context, rc
 }
 
 // RunHostPreflights mocks the RunHostPreflights method
-func (m *MockHostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) error {
+func (m *MockHostPreflightManager) RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (*types.PreflightsOutput, error) {
 	args := m.Called(ctx, rc, opts)
-	return args.Error(0)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*types.PreflightsOutput), args.Error(1)
 }
 
 // GetHostPreflightStatus mocks the GetHostPreflightStatus method

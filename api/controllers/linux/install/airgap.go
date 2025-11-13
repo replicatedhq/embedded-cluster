@@ -44,7 +44,7 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 				c.logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+					c.logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAirgapStatus(types.StateFailed, finalErr.Error()); err != nil {

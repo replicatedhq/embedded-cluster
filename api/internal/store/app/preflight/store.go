@@ -17,6 +17,7 @@ type Store interface {
 	SetOutput(output *types.PreflightsOutput) error
 	GetStatus() (types.Status, error)
 	SetStatus(status types.Status) error
+	Clear() error
 }
 
 type memoryStore struct {
@@ -110,5 +111,13 @@ func (s *memoryStore) SetStatus(status types.Status) error {
 	defer s.mu.Unlock()
 
 	s.appPreflight.Status = status
+	return nil
+}
+
+func (s *memoryStore) Clear() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.appPreflight = types.AppPreflights{}
 	return nil
 }

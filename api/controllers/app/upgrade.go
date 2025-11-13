@@ -55,7 +55,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 				c.logger.Error(finalErr)
 
 				if err := c.stateMachine.Transition(lock, states.StateAppUpgradeFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+					c.logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAppUpgradeStatus(types.StateFailed, finalErr.Error()); err != nil {

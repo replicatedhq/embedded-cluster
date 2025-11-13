@@ -59,17 +59,17 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 			c.logger.Error(finalErr)
 
 			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
-			}
-		} else {
-			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+				c.logger.WithError(err).Error("failed to transition states")
 			}
 		}
 	}()
 
 	if err := c.installationManager.ConfigureInstallation(ctx, c.ki, config); err != nil {
 		return err
+	}
+
+	if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured); err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
 	return nil
