@@ -62,7 +62,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		return fmt.Errorf("no app preflight spec found")
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateAppPreflightsRunning)
+	err = c.stateMachine.Transition(lock, states.StateAppPreflightsRunning, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -85,7 +85,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAppPreflightsExecutionFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateAppPreflightsExecutionFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -115,7 +115,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		}
 
 		if output.HasFail() {
-			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsFailed, output); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
 
@@ -123,7 +123,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 				return fmt.Errorf("set status to failed: %w", err)
 			}
 		} else {
-			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsSucceeded); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsSucceeded, output); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
 

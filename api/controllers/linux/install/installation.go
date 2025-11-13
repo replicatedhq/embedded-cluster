@@ -55,7 +55,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		}
 		defer lock.Release()
 
-		err = c.stateMachine.Transition(lock, states.StateHostConfiguring)
+		err = c.stateMachine.Transition(lock, states.StateHostConfiguring, nil)
 		if err != nil {
 			c.logger.WithError(err).Error("failed to transition states")
 			return
@@ -65,12 +65,12 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 
 		if err != nil {
 			c.logger.WithError(err).Error("failed to configure host")
-			err = c.stateMachine.Transition(lock, states.StateHostConfigurationFailed)
+			err = c.stateMachine.Transition(lock, states.StateHostConfigurationFailed, err)
 			if err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
 		} else {
-			err = c.stateMachine.Transition(lock, states.StateHostConfigured)
+			err = c.stateMachine.Transition(lock, states.StateHostConfigured, nil)
 			if err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
@@ -91,7 +91,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -107,7 +107,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 				LastUpdated: time.Now(),
 			}
 
-			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed, finalErr); err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
 
@@ -158,7 +158,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInstallationConfigured)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfigured, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}

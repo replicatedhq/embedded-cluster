@@ -25,7 +25,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 		}
 	}()
 
-	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling)
+	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling, nil)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
@@ -43,7 +43,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -61,7 +61,7 @@ func (c *InstallController) SetupInfra(ctx context.Context) (finalErr error) {
 			return fmt.Errorf("failed to install infrastructure: %w", err)
 		}
 
-		if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstalled); err != nil {
+		if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstalled, nil); err != nil {
 			return fmt.Errorf("transition states: %w", err)
 		}
 

@@ -61,7 +61,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		return fmt.Errorf("prepare host preflights: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateHostPreflightsRunning)
+	err = c.stateMachine.Transition(lock, states.StateHostPreflightsRunning, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -79,7 +79,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateHostPreflightsExecutionFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateHostPreflightsExecutionFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -104,7 +104,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		}
 
 		if output.HasFail() {
-			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsFailed, output); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
 
@@ -112,7 +112,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 				return fmt.Errorf("set status to failed: %w", err)
 			}
 		} else {
-			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsSucceeded); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsSucceeded, output); err != nil {
 				return fmt.Errorf("transition states: %w", err)
 			}
 

@@ -7,7 +7,9 @@ import (
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun/types"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -31,7 +33,42 @@ func TestV3InstallHeadless_HostPreflights_WithFailuresBlocking(t *testing.T) {
 
 	require.ErrorContains(t, err, "host preflight checks completed with failures")
 
+	// PostRun hooks do not run if the command fails, so we need to dump the dryrun output manually
+	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
+
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "fail to load dryrun output")
+
 	preflightRunner.AssertExpectations(t)
+
+	// Validate metrics events
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"InstallationStarted"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `\"message\":\"Test check failed\"`) // preflight output
+				assert.Contains(t, payload, `"eventType":"PreflightsFailed"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationFailed"`)
+			},
+		},
+	})
 
 	if !t.Failed() {
 		t.Logf("Test passed: host preflight failures blocking installation")
@@ -58,7 +95,13 @@ func TestV3InstallHeadless_HostPreflights_WithFailuresBypass(t *testing.T) {
 
 	require.NoError(t, err, "headless installation should succeed")
 
-	preflightRunner.AssertExpectations(t)
+	// PostRun hooks do not run if the command fails, so we need to dump the dryrun output manually
+	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
+
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "fail to load dryrun output")
+
+	validateHostPreflightsWithFailuresBypass(t, dr, preflightRunner)
 
 	if !t.Failed() {
 		t.Logf("Test passed: --ignore-host-preflights flag correctly bypasses host preflight failures")
@@ -97,11 +140,64 @@ func TestV3Install_HostPreflights_WithFailuresBypass(t *testing.T) {
 		shouldHostPreflightsFail: true,
 	})
 
-	preflightRunner.AssertExpectations(t)
+	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
+
+	dr, err := dryrun.Load()
+	require.NoError(t, err, "fail to load dryrun output")
+
+	validateHostPreflightsWithFailuresBypass(t, dr, preflightRunner)
 
 	if !t.Failed() {
 		t.Logf("Test passed: ignoreHostPreflights flag correctly bypasses host preflight failures via API")
 	}
+}
+
+func validateHostPreflightsWithFailuresBypass(t *testing.T, dr *types.DryRun, preflightRunner *preflights.MockPreflightRunner) {
+	preflightRunner.AssertExpectations(t)
+
+	// Validate metrics events
+	assertMetrics(t, dr.Metrics, []struct {
+		title    string
+		validate func(string)
+	}{
+		{
+			title: "InstallationStarted",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"InstallationStarted"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `\"message\":\"Test check failed\"`) // preflight output
+				assert.Contains(t, payload, `"eventType":"PreflightsFailed"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `\"message\":\"Test check failed\"`) // preflight output
+				assert.Contains(t, payload, `"eventType":"PreflightsBypassed"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":false`)
+				assert.Contains(t, payload, `"eventType":"AppPreflightsSucceeded"`)
+			},
+		},
+		{
+			title: "GenericEvent",
+			validate: func(payload string) {
+				assert.Contains(t, payload, `"isExitEvent":true`)
+				assert.Contains(t, payload, `"eventType":"InstallationSucceeded"`)
+			},
+		},
+	})
 }
 
 func TestV3InstallHeadless_HostPreflights_Fail(t *testing.T) {

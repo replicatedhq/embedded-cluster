@@ -25,7 +25,7 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 		}
 	}()
 
-	err = c.stateMachine.Transition(lock, states.StateAirgapProcessing)
+	err = c.stateMachine.Transition(lock, states.StateAirgapProcessing, nil)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
@@ -43,7 +43,7 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -67,7 +67,7 @@ func (c *UpgradeController) ProcessAirgap(ctx context.Context) (finalErr error) 
 			return fmt.Errorf("failed to process airgap: %w", err)
 		}
 
-		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed); err != nil {
+		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed, nil); err != nil {
 			return fmt.Errorf("transition states: %w", err)
 		}
 

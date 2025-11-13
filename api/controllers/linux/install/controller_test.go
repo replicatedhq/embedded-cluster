@@ -189,8 +189,7 @@ func TestConfigureInstallation(t *testing.T) {
 				DataDirectory:           t.TempDir(),
 			},
 			currentState:  states.StateApplicationConfigured,
-			expectedState: states.StateHostConfigured,
-
+			expectedState: states.StateInstallationConfigured,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
 					m.On("SetConfigValues", config).Return(nil),

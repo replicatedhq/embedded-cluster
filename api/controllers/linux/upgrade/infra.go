@@ -25,7 +25,7 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 		}
 	}()
 
-	err = c.stateMachine.Transition(lock, states.StateInfrastructureUpgrading)
+	err = c.stateMachine.Transition(lock, states.StateInfrastructureUpgrading, nil)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
@@ -43,7 +43,7 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateInfrastructureUpgradeFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateInfrastructureUpgradeFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -67,7 +67,7 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 			return fmt.Errorf("failed to upgrade infrastructure: %w", err)
 		}
 
-		if err := c.stateMachine.Transition(lock, states.StateInfrastructureUpgraded); err != nil {
+		if err := c.stateMachine.Transition(lock, states.StateInfrastructureUpgraded, nil); err != nil {
 			return fmt.Errorf("transition states: %w", err)
 		}
 

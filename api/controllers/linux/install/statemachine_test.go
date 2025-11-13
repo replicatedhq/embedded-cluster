@@ -308,7 +308,7 @@ func TestStateMachineTransitions(t *testing.T) {
 				}
 				defer lock.Release()
 
-				err = sm.Transition(lock, nextState)
+				err = sm.Transition(lock, nextState, nil)
 				if !slices.Contains(tt.validTransitions, nextState) {
 					assert.Error(t, err, "expected error for transition from %s to %s", tt.startState, nextState)
 				} else {

@@ -36,7 +36,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 		return fmt.Errorf("get kotsadm config values for app upgrade: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateAppUpgrading)
+	err = c.stateMachine.Transition(lock, states.StateAppUpgrading, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -54,7 +54,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 			if finalErr != nil {
 				c.logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAppUpgradeFailed); err != nil {
+				if err := c.stateMachine.Transition(lock, states.StateAppUpgradeFailed, finalErr); err != nil {
 					c.logger.WithError(err).Error("failed to transition states")
 				}
 
@@ -74,7 +74,7 @@ func (c *AppController) UpgradeApp(ctx context.Context, ignoreAppPreflights bool
 			return fmt.Errorf("upgrade app: %w", err)
 		}
 
-		if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+		if err := c.stateMachine.Transition(lock, states.StateSucceeded, nil); err != nil {
 			return fmt.Errorf("transition states: %w", err)
 		}
 

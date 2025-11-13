@@ -199,7 +199,7 @@ func (r *Reporter) ReportHostPreflightsFailed(ctx context.Context, output *apity
 	}
 
 	ev := types.PreflightsFailed{
-		GenericEvent:    r.newGenericEvent(types.EventTypeHostPreflightsFailed, "", true),
+		GenericEvent:    r.newGenericEvent(types.EventTypeHostPreflightsFailed, "", false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}
@@ -242,7 +242,7 @@ func (r *Reporter) ReportAppPreflightsFailed(ctx context.Context, output *apityp
 	}
 
 	ev := types.PreflightsFailed{
-		GenericEvent:    r.newGenericEvent(types.EventTypeAppPreflightsFailed, "", true),
+		GenericEvent:    r.newGenericEvent(types.EventTypeAppPreflightsFailed, "", false),
 		NodeName:        getHostname(),
 		PreflightOutput: string(outputJSON),
 	}

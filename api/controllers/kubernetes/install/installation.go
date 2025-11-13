@@ -46,7 +46,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -58,7 +58,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		if finalErr != nil {
 			c.logger.Error(finalErr)
 
-			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed, finalErr); err != nil {
 				c.logger.WithError(err).Error("failed to transition states")
 			}
 		}
@@ -68,7 +68,7 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		return err
 	}
 
-	if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured); err != nil {
+	if err := c.stateMachine.Transition(lock, states.StateInstallationConfigured, nil); err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
 
