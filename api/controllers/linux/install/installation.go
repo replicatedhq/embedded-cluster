@@ -64,6 +64,10 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 	}
 	defer lock.Release()
 
+	if err := c.stateMachine.ValidateTransition(lock, states.StateInstallationConfiguring, states.StateInstallationConfigured); err != nil {
+		return types.NewConflictError(err)
+	}
+
 	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)

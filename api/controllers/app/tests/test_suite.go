@@ -727,14 +727,14 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 		ignoreAppPreflights bool
 		currentState        statemachine.State
 		expectedState       statemachine.State
-		setupMocks          func(*appconfig.MockAppConfigManager, *appupgrademanager.MockAppUpgradeManager)
+		setupMocks          func(*appconfig.MockAppConfigManager, *appupgrademanager.MockAppUpgradeManager, *store.MockStore)
 		expectedErr         bool
 	}{
 		{
 			name:          "invalid state transition from succeeded state",
 			currentState:  states.StateSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -743,7 +743,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "invalid state transition from app upgrading state",
 			currentState:  states.StateAppUpgrading,
 			expectedState: states.StateAppUpgrading,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -752,7 +752,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "invalid state transition from app upgrade failed state",
 			currentState:  states.StateAppUpgradeFailed,
 			expectedState: states.StateAppUpgradeFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -761,7 +761,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "invalid state transition from app configured state",
 			currentState:  states.StateApplicationConfigured,
 			expectedState: states.StateApplicationConfigured,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				// No mocks needed for invalid state transition
 			},
 			expectedErr: true,
@@ -770,7 +770,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "successful app upgrade from app preflights succeeded state",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -779,8 +779,14 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 							},
 						},
 					}, nil),
+					st.AppUpgradeMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					aum.On("Upgrade", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
+					})).Return(nil),
+					st.AppUpgradeMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
 				)
 			},
@@ -790,7 +796,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "get config values error",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppPreflightsSucceeded,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{}, errors.New("config values error"))
 			},
 			expectedErr: true,
@@ -799,7 +805,7 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			name:          "app upgrade manager error",
 			currentState:  states.StateAppPreflightsSucceeded,
 			expectedState: states.StateAppUpgradeFailed,
-			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager) {
+			setupMocks: func(acm *appconfig.MockAppConfigManager, aum *appupgrademanager.MockAppUpgradeManager, st *store.MockStore) {
 				mock.InOrder(
 					acm.On("GetKotsadmConfigValues").Return(kotsv1beta1.ConfigValues{
 						Spec: kotsv1beta1.ConfigValuesSpec{
@@ -808,9 +814,15 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 							},
 						},
 					}, nil),
+					st.AppUpgradeMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					aum.On("Upgrade", mock.Anything, mock.MatchedBy(func(cv kotsv1beta1.ConfigValues) bool {
 						return cv.Spec.Values["test-key"].Value == "test-value"
 					})).Return(errors.New("upgrade error")),
+					st.AppUpgradeMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "upgrade app: upgrade error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -828,6 +840,8 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 			appConfigManager := &appconfig.MockAppConfigManager{}
 			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
 
+			mockStore := &store.MockStore{}
+
 			controller, err := appcontroller.NewAppController(
 				appcontroller.WithStateMachine(sm),
 				appcontroller.WithAppConfigManager(appConfigManager),
@@ -835,12 +849,12 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 				appcontroller.WithAppReleaseManager(appReleaseManager),
 				appcontroller.WithAppInstallManager(appInstallManager),
 				appcontroller.WithAppUpgradeManager(appUpgradeManager),
-				appcontroller.WithStore(&store.MockStore{}),
+				appcontroller.WithStore(mockStore),
 				appcontroller.WithReleaseData(&release.ReleaseData{}),
 			)
 			require.NoError(t, err, "failed to create app controller")
 
-			tt.setupMocks(appConfigManager, appUpgradeManager)
+			tt.setupMocks(appConfigManager, appUpgradeManager, mockStore)
 			err = controller.UpgradeApp(t.Context(), tt.ignoreAppPreflights)
 
 			if tt.expectedErr {
@@ -860,77 +874,6 @@ func (s *AppControllerTestSuite) TestUpgradeApp() {
 
 			appConfigManager.AssertExpectations(t)
 			appUpgradeManager.AssertExpectations(t)
-		})
-	}
-}
-
-func (s *AppControllerTestSuite) TestGetAppUpgradeStatus() {
-	expectedAppUpgrade := types.AppUpgrade{
-		Status: types.Status{
-			State:       types.StateRunning,
-			Description: "Upgrading application",
-			LastUpdated: time.Now(),
-		},
-		Logs: "Upgrade logs\n",
-	}
-
-	tests := []struct {
-		name        string
-		setupMocks  func(*store.MockStore)
-		expectedErr bool
-	}{
-		{
-			name: "successful status retrieval",
-			setupMocks: func(ms *store.MockStore) {
-				ms.AppUpgradeMockStore.On("Get").Return(expectedAppUpgrade, nil)
-			},
-			expectedErr: false,
-		},
-		{
-			name: "store returns error",
-			setupMocks: func(ms *store.MockStore) {
-				ms.AppUpgradeMockStore.On("Get").Return(types.AppUpgrade{}, errors.New("status error"))
-			},
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		s.T().Run(tt.name, func(t *testing.T) {
-			appPreflightManager := &apppreflightmanager.MockAppPreflightManager{}
-			appReleaseManager := &appreleasemanager.MockAppReleaseManager{}
-			appInstallManager := &appinstallmanager.MockAppInstallManager{}
-			appUpgradeManager := &appupgrademanager.MockAppUpgradeManager{}
-			mockStore := &store.MockStore{}
-			sm := s.CreateUpgradeStateMachine(states.StateNew)
-
-			appConfigManager := &appconfig.MockAppConfigManager{}
-			appConfigManager.On("TemplateConfig", types.AppConfigValues{}, false, false).Return(types.AppConfig{}, nil)
-
-			controller, err := appcontroller.NewAppController(
-				appcontroller.WithStateMachine(sm),
-				appcontroller.WithAppConfigManager(appConfigManager),
-				appcontroller.WithAppPreflightManager(appPreflightManager),
-				appcontroller.WithAppReleaseManager(appReleaseManager),
-				appcontroller.WithAppInstallManager(appInstallManager),
-				appcontroller.WithAppUpgradeManager(appUpgradeManager),
-				appcontroller.WithStore(mockStore),
-				appcontroller.WithReleaseData(&release.ReleaseData{}),
-			)
-			require.NoError(t, err, "failed to create app controller")
-
-			tt.setupMocks(mockStore)
-			result, err := controller.GetAppUpgradeStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.AppUpgrade{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, expectedAppUpgrade, result)
-			}
-
-			mockStore.AppUpgradeMockStore.AssertExpectations(t)
 		})
 	}
 }
