@@ -194,6 +194,9 @@ func (e *Engine) getFuncMap() template.FuncMap {
 
 		// App template functions
 		"Namespace": e.namespace,
+
+		// Cluster template functions
+		"NodeCount": e.nodeCount,
 	}
 }
 
