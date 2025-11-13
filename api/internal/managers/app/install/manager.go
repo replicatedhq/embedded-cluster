@@ -5,7 +5,6 @@ import (
 
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -18,11 +17,8 @@ var _ AppInstallManager = &appInstallManager{}
 
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
-	// Install installs the app with the provided config values and calls the status change hook
-	// before each state change
-	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues, statusChangeHook func(status types.Status) error) error
-	// GetStatus returns the current app installation status
-	GetStatus() (types.AppInstall, error)
+	// Install installs the app with the provided config values
+	Install(ctx context.Context, configValues kotsv1beta1.ConfigValues) error
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface

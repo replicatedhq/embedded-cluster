@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -68,29 +69,44 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
 
-		defer lock.Release()
+		defer func() {
+			if r := recover(); r != nil {
+				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+			}
+			if finalErr != nil {
+				c.logger.Error(finalErr)
 
-		prehookFn := func(status types.Status) error {
-			switch status.State {
-			case types.StateFailed:
 				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
-					return fmt.Errorf("failed to transition states: %w", err)
+					c.logger.WithError(err).Error("failed to transition states")
 				}
-			case types.StateSucceeded:
-				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-					return fmt.Errorf("failed to transition states: %w", err)
+
+				if err := c.setAppInstallStatus(types.StateFailed, finalErr.Error()); err != nil {
+					c.logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
-			return nil
+		}()
+
+		if err := c.setAppInstallStatus(types.StateRunning, "Installing application"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
 		}
 
 		// Install the app
-		err := c.appInstallManager.Install(ctx, configValues, prehookFn)
+		err := c.appInstallManager.Install(ctx, configValues)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
+		}
+
+		if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setAppInstallStatus(types.StateSucceeded, "Installation complete"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
@@ -100,5 +116,13 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 }
 
 func (c *AppController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
-	return c.appInstallManager.GetStatus()
+	return c.store.AppInstallStore().Get()
+}
+
+func (c *AppController) setAppInstallStatus(state types.State, description string) error {
+	return c.store.AppInstallStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

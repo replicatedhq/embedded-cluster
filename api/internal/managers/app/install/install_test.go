@@ -4,11 +4,8 @@ import (
 	"context"
 	"os"
 	"testing"
-	"time"
 
-	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -141,139 +138,10 @@ spec:
 		require.NoError(t, err)
 
 		// Run installation
-		err = manager.Install(context.Background(), configValues, nil)
+		err = manager.Install(context.Background(), configValues)
 		require.NoError(t, err)
 
 		mockKotsCLI.AssertExpectations(t)
-	})
-
-	t.Run("Install updates status correctly", func(t *testing.T) {
-		// Create mock installer that succeeds
-		mockKotsCLI := &kotscli.MockKotsCLI{}
-		mockKotsCLI.On("Install", mock.Anything).Return(nil)
-
-		// Create fake kube client
-		sch := runtime.NewScheme()
-		require.NoError(t, corev1.AddToScheme(sch))
-		require.NoError(t, scheme.AddToScheme(sch))
-		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
-
-		// Create manager with initialized store
-		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
-			Status: types.Status{State: types.StatePending},
-		}))
-		manager, err := NewAppInstallManager(
-			WithLicense(licenseBytes),
-			WithClusterID("test-cluster"),
-			WithReleaseData(releaseData),
-			WithKotsCLI(mockKotsCLI),
-			WithLogger(logger.NewDiscardLogger()),
-			WithAppInstallStore(store),
-			WithKubeClient(fakeKcli),
-		)
-		require.NoError(t, err)
-
-		// Verify initial status
-		appInstall, err := manager.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StatePending, appInstall.Status.State)
-
-		calledStates := map[types.State]int{}
-		hook := func(status types.Status) error {
-			calledStates[status.State]++
-			return nil
-		}
-
-		// Run installation
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{}, hook)
-		require.NoError(t, err)
-
-		// Verify final status
-		appInstall, err = manager.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
-		assert.Equal(t, "Installation complete", appInstall.Status.Description)
-
-		mockKotsCLI.AssertExpectations(t)
-
-		// Verify hook was called
-		assert.Equal(t, 1, calledStates[types.StateRunning])
-		assert.Equal(t, 1, calledStates[types.StateSucceeded])
-	})
-
-	t.Run("Install handles errors correctly", func(t *testing.T) {
-		// Create mock installer that fails
-		mockKotsCLI := &kotscli.MockKotsCLI{}
-		mockKotsCLI.On("Install", mock.Anything).Return(assert.AnError)
-
-		// Create fake kube client
-		sch := runtime.NewScheme()
-		require.NoError(t, corev1.AddToScheme(sch))
-		require.NoError(t, scheme.AddToScheme(sch))
-		fakeKcli := clientfake.NewClientBuilder().WithScheme(sch).Build()
-
-		// Create manager with initialized store
-		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
-			Status: types.Status{State: types.StatePending},
-		}))
-		manager, err := NewAppInstallManager(
-			WithLicense(licenseBytes),
-			WithClusterID("test-cluster"),
-			WithReleaseData(releaseData),
-			WithKotsCLI(mockKotsCLI),
-			WithLogger(logger.NewDiscardLogger()),
-			WithAppInstallStore(store),
-			WithKubeClient(fakeKcli),
-		)
-		require.NoError(t, err)
-
-		calledStates := map[types.State]int{}
-		hook := func(status types.Status) error {
-			calledStates[status.State]++
-			return nil
-		}
-
-		// Run installation (should fail)
-		err = manager.Install(context.Background(), kotsv1beta1.ConfigValues{}, hook)
-		assert.Error(t, err)
-
-		// Verify final status
-		appInstall, err := manager.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateFailed, appInstall.Status.State)
-		assert.Equal(t, assert.AnError.Error(), appInstall.Status.Description)
-
-		// Verify hook was called
-		assert.Equal(t, 1, calledStates[types.StateRunning])
-		assert.Equal(t, 1, calledStates[types.StateFailed])
-
-		mockKotsCLI.AssertExpectations(t)
-	})
-
-	t.Run("GetStatus returns current app install state", func(t *testing.T) {
-		// Create test store with known status
-		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
-			Status: types.Status{
-				State:       types.StateRunning,
-				Description: "Installing application",
-				LastUpdated: time.Now(),
-			},
-			Logs: "Installation started\n",
-		}))
-
-		// Create manager with test store
-		manager, err := NewAppInstallManager(
-			WithLogger(logger.NewDiscardLogger()),
-			WithAppInstallStore(store),
-		)
-		require.NoError(t, err)
-
-		// Test GetStatus
-		appInstall, err := manager.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateRunning, appInstall.Status.State)
-		assert.Equal(t, "Installing application", appInstall.Status.Description)
-		assert.Equal(t, "Installation started\n", appInstall.Logs)
 	})
 }
 

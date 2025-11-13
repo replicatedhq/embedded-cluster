@@ -71,6 +71,68 @@ func (c *client) PatchLinuxUpgradeAppConfigValues(ctx context.Context, values ty
 	return config.Values, nil
 }
 
+func (c *client) UpgradeLinuxApp(ctx context.Context, ignoreAppPreflights bool) (types.AppUpgrade, error) {
+	request := types.UpgradeAppRequest{
+		IgnoreAppPreflights: ignoreAppPreflights,
+	}
+	b, err := json.Marshal(request)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/app/upgrade", bytes.NewBuffer(b))
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppUpgrade{}, errorFromResponse(resp)
+	}
+
+	var status types.AppUpgrade
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) GetLinuxAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/upgrade/app/status", nil)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.AppUpgrade{}, errorFromResponse(resp)
+	}
+
+	var status types.AppUpgrade
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.AppUpgrade{}, err
+	}
+
+	return status, nil
+}
+
 func (c *client) GetKubernetesUpgradeAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/upgrade/app/config/values", nil)
 	if err != nil {
@@ -257,6 +319,110 @@ func (c *client) GetLinuxUpgradeAppPreflightsStatus(ctx context.Context) (types.
 		return types.UpgradeAppPreflightsStatusResponse{}, err
 	}
 
+	return status, nil
+}
+
+func (c *client) UpgradeLinuxInfra(ctx context.Context) (types.Infra, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/infra/upgrade", nil)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Infra{}, errorFromResponse(resp)
+	}
+
+	var status types.Infra
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	return status, nil
+}
+
+func (c *client) GetLinuxUpgradeInfraStatus(ctx context.Context) (types.Infra, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/upgrade/infra/status", nil)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Infra{}, errorFromResponse(resp)
+	}
+
+	var status types.Infra
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.Infra{}, err
+	}
+	return status, nil
+}
+
+func (c *client) ProcessLinuxUpgradeAirgap(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/airgap/process", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var status types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	return status, nil
+}
+
+func (c *client) GetLinuxUpgradeAirgapStatus(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/upgrade/airgap/status", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var status types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.Airgap{}, err
+	}
 	return status, nil
 }
 

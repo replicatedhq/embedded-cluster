@@ -218,7 +218,7 @@ func getConfigValueFromItem(item kotsv1beta1.ConfigItem, configValues types.AppC
 		configValue.Value = item.Value.String()
 	}
 
-	// Apply stored value override if it exists
+	// Apply value override if it exists
 	if v, ok := configValues[item.Name]; ok {
 		if item.Type == "password" {
 			configValue.ValuePlaintext = v.Value

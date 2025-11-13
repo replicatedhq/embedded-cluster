@@ -948,7 +948,6 @@ export interface components {
             filename?: string;
             repeatableItem?: string;
             value: string;
-            valuePlaintext?: string;
         };
         "types.AppConfigValues": {
             [key: string]: components["schemas"]["types.AppConfigValue"];
