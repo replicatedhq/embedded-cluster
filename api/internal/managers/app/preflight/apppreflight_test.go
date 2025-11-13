@@ -6,30 +6,54 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-
 	preflightstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAppPreflightManager_RunAppPreflights(t *testing.T) {
 	tests := []struct {
-		name               string
-		opts               RunAppPreflightOptions
-		initialState       types.AppPreflights
-		setupMocks         func(*preflights.MockPreflightRunner)
-		expectedFinalState types.State
-		expectedError      string
+		name           string
+		opts           RunAppPreflightOptions
+		initialState   types.AppPreflights
+		setupMocks     func(*preflights.MockPreflightRunner)
+		expectedError  string
+		expectedTitles []string
+		expectedOutput *types.PreflightsOutput
 	}{
 		{
-			name: "successful execution with no failures or warnings",
+			name: "successful execution",
 			opts: RunAppPreflightOptions{
-				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{},
+				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{
+					Analyzers: []*troubleshootv1beta2.Analyze{
+						{
+							ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Kubernetes Version Check",
+								},
+							},
+						},
+						{
+							NodeResources: &troubleshootv1beta2.NodeResources{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Node Resources Check",
+								},
+							},
+						},
+						{
+							ImagePullSecret: &troubleshootv1beta2.ImagePullSecret{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Image Pull Secret Check",
+								},
+							},
+						},
+					},
+				},
 				RunOptions: preflights.RunOptions{
 					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
 					ExtraPaths:          []string{"/usr/local/bin"},
@@ -41,104 +65,73 @@ func TestAppPreflightManager_RunAppPreflights(t *testing.T) {
 				},
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner) {
-				output := &types.PreflightsOutput{}
-				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateSucceeded,
-		},
-		{
-			name: "execution with preflight failures",
-			opts: RunAppPreflightOptions{
-				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{},
-				RunOptions: preflights.RunOptions{
-					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
-				},
-			},
-			initialState: types.AppPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner) {
 				output := &types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{{
-						Title:   "RBAC Check Failed",
-						Message: "Insufficient RBAC permissions.",
-					}},
-				}
-				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateFailed,
-		},
-		{
-			name: "execution with preflight warnings",
-			initialState: types.AppPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunAppPreflightOptions{
-				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{},
-				RunOptions: preflights.RunOptions{
-					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
-				},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner) {
-				output := &types.PreflightsOutput{
-					Warn: []types.PreflightsRecord{{
-						Title:   "Image Pull Warning",
-						Message: "Some images may take longer to pull.",
-					}},
-				}
-				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateSucceeded,
-		},
-		{
-			name: "execution with both failures and warnings",
-			initialState: types.AppPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunAppPreflightOptions{
-				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{},
-				RunOptions: preflights.RunOptions{
-					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
-				},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner) {
-				output := &types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{{
-						Title:   "Connectivity Check Failed",
-						Message: "Cannot reach required services.",
+					Pass: []types.PreflightsRecord{{
+						Title:   "Kubernetes Version Check",
+						Message: "Kubernetes version is supported",
 					}},
 					Warn: []types.PreflightsRecord{{
-						Title:   "Performance Warning",
-						Message: "Performance may be degraded.",
+						Title:   "Node Resources Check",
+						Message: "Node resources are below recommended levels",
+					}},
+					Fail: []types.PreflightsRecord{{
+						Title:   "Image Pull Secret Check",
+						Message: "Image pull secret is invalid",
 					}},
 				}
 				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(output, "", nil)
 			},
-			expectedFinalState: types.StateFailed,
+			expectedTitles: []string{
+				"Kubernetes Version Check",
+				"Node Resources Check",
+				"Image Pull Secret Check",
+			},
+			expectedOutput: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{{
+					Title:   "Kubernetes Version Check",
+					Message: "Kubernetes version is supported",
+				}},
+				Warn: []types.PreflightsRecord{{
+					Title:   "Node Resources Check",
+					Message: "Node resources are below recommended levels",
+				}},
+				Fail: []types.PreflightsRecord{{
+					Title:   "Image Pull Secret Check",
+					Message: "Image pull secret is invalid",
+				}},
+			},
 		},
 		{
 			name: "runner execution fails",
+			opts: RunAppPreflightOptions{
+				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{
+					Analyzers: []*troubleshootv1beta2.Analyze{
+						{
+							ClusterVersion: &troubleshootv1beta2.ClusterVersion{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Kubernetes Version Check",
+								},
+							},
+						},
+					},
+				},
+				RunOptions: preflights.RunOptions{
+					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
+					ExtraPaths:          []string{"/usr/local/bin"},
+				},
+			},
 			initialState: types.AppPreflights{
 				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
-			opts: RunAppPreflightOptions{
-				AppPreflightSpec: &troubleshootv1beta2.PreflightSpec{},
-				RunOptions: preflights.RunOptions{
-					PreflightBinaryPath: "/usr/local/bin/kubectl-preflight",
-				},
-			},
 			setupMocks: func(runner *preflights.MockPreflightRunner) {
-				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(nil, "stderr output", assert.AnError)
+				runner.On("RunAppPreflights", mock.Anything, mock.Anything, mock.Anything).Return(nil, "", fmt.Errorf("failed to execute preflights"))
 			},
-			expectedFinalState: types.StateFailed,
+			expectedError: "failed to execute preflights",
+			expectedTitles: []string{
+				"Kubernetes Version Check",
+			},
 		},
 	}
 
@@ -156,17 +149,23 @@ func TestAppPreflightManager_RunAppPreflights(t *testing.T) {
 			)
 
 			// Execute
-			err := manager.RunAppPreflights(context.Background(), tt.opts)
+			output, err := manager.RunAppPreflights(t.Context(), tt.opts)
 			if tt.expectedError != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
+				require.Error(t, err, "expected error running app preflights")
+				assert.Contains(t, err.Error(), tt.expectedError, "error mismatch")
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, err, "unexpected error running app preflights")
 			}
 
-			status, err := manager.GetAppPreflightStatus(context.Background())
-			require.NoError(t, err)
-			assert.Equal(t, tt.expectedFinalState, status.State)
+			assert.Equal(t, tt.expectedOutput, output, "output mismatch")
+
+			titles, err := manager.GetAppPreflightTitles(t.Context())
+			require.NoError(t, err, "failed to get titles")
+			assert.Equal(t, tt.expectedTitles, titles, "titles mismatch")
+
+			output, err = manager.GetAppPreflightOutput(t.Context())
+			require.NoError(t, err, "failed to get output")
+			assert.Equal(t, tt.expectedOutput, output, "output mismatch")
 
 			// Verify mocks
 			mockRunner.AssertExpectations(t)

@@ -3,29 +3,16 @@ kind: Config
 metadata:
   name: "testconfig"
 spec:
-  version: "testversion"
+  version: "2.12.0+k8s-1.33"
+  domains:
+    replicatedAppDomain: "fake-endpoint.com"
+    proxyRegistryDomain: "fake-replicated-proxy.test.net"
   roles:
     controller:
       name: test-controller-role
       labels:
         test-label-key: test-label-value
         another-label: another-value
-  extensions:
-    velero:
-      plugins:
-        - name: velero-plugin-postgresql
-          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
-          imagePullPolicy: Always
-    helm:
-      charts:
-        - name: goldpinger
-          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
-          namespace: goldpinger
-          version: 6.1.2
-          order: 11
-          values: |
-            image:
-              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
   unsupportedOverrides:
     k0s: |
       config:
@@ -47,3 +34,16 @@ spec:
         values: |
           labels:
             release-custom-label: release-clustom-value
+  extensions:
+    helm:
+      charts:
+        - name: goldpinger
+          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
+          namespace: goldpinger
+          version: 6.1.2
+          order: 11
+          values: |
+            image:
+              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger
+
+

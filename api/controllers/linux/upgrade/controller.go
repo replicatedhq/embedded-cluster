@@ -263,6 +263,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			installation.WithReleaseData(controller.releaseData),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
+			installation.WithKubeClient(controller.kcli),
+			installation.WithMetadataClient(controller.mcli),
 		)
 	}
 
