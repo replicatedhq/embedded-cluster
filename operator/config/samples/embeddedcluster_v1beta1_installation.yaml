@@ -12,5 +12,3 @@ spec:
   clusterID: 4023E9A9-096D-47B6-BFEF-BA9041F74B94
   metricsBaseURL: https://replicated-app-ricardomaraschini.okteto.repldev.com
   airGap: false
-  config:
-    extensions:

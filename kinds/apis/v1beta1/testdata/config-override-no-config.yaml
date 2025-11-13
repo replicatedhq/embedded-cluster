@@ -4,7 +4,5 @@ secretData:
     kind: Config
     spec:
       version: 1.29.1+ec.6
-      extensions:
 expected:
   version:  1.29.1+ec.6
-  extensions:

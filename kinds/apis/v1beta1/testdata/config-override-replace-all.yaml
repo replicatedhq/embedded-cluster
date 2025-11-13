@@ -4,7 +4,6 @@ secretData:
     kind: Config
     spec:
       version: 1.29.1+ec.100
-      extensions:
 configSpec:
   version: 1.29.1+ec.6
   roles:
@@ -42,4 +41,3 @@ configSpec:
               service-node-port-range: 80-32767
 expected:
   version:  1.29.1+ec.100
-  extensions:

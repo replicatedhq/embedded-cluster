@@ -15,7 +15,6 @@ override: |-
   apiVersion: embeddedcluster.replicated.com/v1beta1
   kind: Config
   spec:
-    extensions:
     unsupportedOverrides:
       k0s: ""
 expected: |-
