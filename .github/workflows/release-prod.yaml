@@ -212,6 +212,12 @@ jobs:
           mkdir -p build
           ./output/bin/embedded-cluster version metadata > build/metadata.json
 
+      - name: Upload binary artifact for metadata generation
+        uses: actions/upload-artifact@v6
+        with:
+          name: embedded-cluster-linux-amd64
+          path: output/bin/embedded-cluster
+
       - name: Cache Staging Files
         env:
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
@@ -246,6 +252,72 @@ jobs:
           files: |
             build/*.tgz
             build/metadata.json
+
+  generate-metadata:
+    runs-on: ubuntu-latest
+    needs: [get-tag, release]
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download AMD64 binary
+        uses: actions/download-artifact@v6
+        with:
+          name: embedded-cluster-linux-amd64
+          path: output/bin
+
+      - name: Make binary executable
+        run: chmod +x output/bin/embedded-cluster
+
+      - name: Generate ${{ matrix.arch }} metadata
+        run: |
+          mkdir -p build
+          CLUSTER_ARCH=${{ matrix.arch }} ./output/bin/embedded-cluster version metadata > build/metadata-${{ matrix.arch }}.json
+
+      - name: Upload metadata artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: metadata-${{ matrix.arch }}
+          path: build/metadata-${{ matrix.arch }}.json
+
+  upload-metadata:
+    runs-on: ubuntu-latest
+    needs: [get-tag, generate-metadata]
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download metadata
+        uses: actions/download-artifact@v6
+        with:
+          name: metadata-${{ matrix.arch }}
+          path: build
+
+      - name: Upload to S3
+        env:
+          EC_VERSION: ${{ needs.get-tag.outputs.tag-name }}
+          ARCH: ${{ matrix.arch }}
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+        run: |
+          ./scripts/ci-upload-binaries.sh metadata
+
+      - name: Upload to S3 (Prod)
+        env:
+          EC_VERSION: ${{ needs.get-tag.outputs.tag-name }}
+          ARCH: ${{ matrix.arch }}
+          S3_BUCKET: "tf-embedded-cluster-binaries"
+          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+        run: |
+          ./scripts/ci-upload-binaries.sh metadata
 
   find-previous-stable:
     name: Determine previous stable version
