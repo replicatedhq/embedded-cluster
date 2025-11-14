@@ -52,6 +52,11 @@ spec:
               allowedUnsafeSysctls:
               - net.ipv4.ip_forward
   extensions:
+    velero:
+      plugins:
+        - name: banjoh-velero-plugin-cnpg-restore
+          image: ghcr.io/banjoh/velero-plugin-cnpg-restore:latest
+          imagePullPolicy: Always
     helm:
       charts:
         - name: ingress-nginx
