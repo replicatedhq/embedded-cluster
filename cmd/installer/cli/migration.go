@@ -13,8 +13,15 @@ import (
 )
 
 // detectKurlMigration checks if this is a kURL cluster that needs migration to EC.
+//
+// Migration detection works by checking two SEPARATE clusters:
+//  1. kURL cluster - accessed via /etc/kubernetes/admin.conf
+//  2. EC cluster - accessed via EC's kubeconfig path (if it exists)
+//
+// The migration scenario is: kURL cluster exists, but EC cluster does not.
+//
 // Returns:
-//   - (true, nil): Migration is needed (kURL cluster without EC installed)
+//   - (true, nil): Migration is needed (kURL cluster exists without EC cluster)
 //   - (false, nil): Not a migration scenario, caller should continue with normal upgrade
 //   - (false, error): Detection failed
 func detectKurlMigration(ctx context.Context) (bool, error) {
@@ -30,8 +37,8 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 
 	logrus.Debugf("Detected kURL cluster with install directory: %s", kurlCfg.InstallDir)
 
-	// Check if EC is already installed using the kURL client
-	ecInstalled, err := isECInstalled(ctx, kurlCfg)
+	// Check if EC is already installed (checks separate EC cluster)
+	ecInstalled, err := isECInstalled(ctx)
 	if err != nil {
 		logrus.Debugf("Failed to check EC installation status: %v", err)
 		return false, nil // Not fatal, continue with normal flow
@@ -41,18 +48,17 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 		return false, nil // EC already installed, do normal upgrade
 	}
 
-	// Migration needed - kURL cluster without EC
+	// Migration needed - kURL cluster exists without EC cluster
 	return true, nil
 }
 
-// isECInstalled checks if Embedded Cluster is already installed by:
-// 1. Attempting to create a kubernetes client using the EC kubeconfig
-// 2. Checking if an Installation resource exists using kubeutils.GetLatestInstallation
-func isECInstalled(ctx context.Context, kurlCfg *kurl.Config) (bool, error) {
+// isECInstalled checks if Embedded Cluster is already installed by checking for
+// an EC Installation resource.
+func isECInstalled(ctx context.Context) (bool, error) {
 	rc := runtimeconfig.New(nil)
 	kubeconfigPath := rc.PathToKubeConfig()
 
-	// Try to create a client using EC kubeconfig
+	// Try to create a client using EC kubeconfig (separate from kURL cluster)
 	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		// EC kubeconfig doesn't exist or can't connect
