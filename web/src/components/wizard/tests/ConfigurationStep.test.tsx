@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } 
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import ConfigurationStep from "../config/ConfigurationStep.tsx";
+import ConfigurationStep, { getGeneralErrorMsgForSubmission } from "../config/ConfigurationStep.tsx";
 import { mockHandlers, type Target, type Mode } from "../../../test/mockHandlers.ts";
+import { ApiError } from "../../../api/error.ts";
 import '@testing-library/jest-dom/vitest';
 
 import type { components } from "../../../types/api";
@@ -1954,9 +1955,9 @@ describe.each([
         expect(screen.getByText("Required Field is required")).toBeInTheDocument();
       });
 
-      // Verify the raw server error message at the bottom
+      // Verify error component at the bottom exists
       await waitFor(() => {
-        expect(screen.getByText("required fields not completed")).toBeInTheDocument();
+        expect(screen.getByTestId("config-submit-error")).toBeInTheDocument();
       });
 
       // Verify onNext was not called due to validation error
@@ -2786,6 +2787,56 @@ describe.each([
       // Verify submitted values
       expect(submittedValues).not.toBeNull();
       expect(submittedValues!.values.db_type).toEqual({ value: 'mysql' });
+    });
+  });
+
+  describe("getGeneralErrorMsgForSubmission", () => {
+    it("returns 'Required items are missing' when error has field errors", () => {
+      const error = new ApiError(400, "Validation error");
+      error.fieldErrors = [
+        { field: "app_name", message: "This field is required" },
+      ];
+
+      const result = getGeneralErrorMsgForSubmission(error);
+
+      expect(result).toBe("Required items are missing");
+    });
+
+    it("returns error.details when no field errors but details exist", () => {
+      const error = new ApiError(500, "Generic message");
+      error.details = "Detailed error message";
+
+      const result = getGeneralErrorMsgForSubmission(error);
+
+      expect(result).toBe("Detailed error message");
+    });
+
+    it("returns error.message when no field errors or details", () => {
+      const error = new ApiError(500, "Generic error message");
+
+      const result = getGeneralErrorMsgForSubmission(error);
+
+      expect(result).toBe("Generic error message");
+    });
+
+    it("returns fallback message when error has no field errors, details, or message", () => {
+      const error = new ApiError(500, "");
+
+      const result = getGeneralErrorMsgForSubmission(error);
+
+      expect(result).toBe("Failed to save configuration");
+    });
+
+    it("prioritizes field errors message over details and message", () => {
+      const error = new ApiError(400, "Some other message");
+      error.fieldErrors = [
+        { field: "app_name", message: "This field is required" },
+      ];
+      error.details = "Some other details";
+
+      const result = getGeneralErrorMsgForSubmission(error);
+
+      expect(result).toBe("Required items are missing");
     });
   });
 });
