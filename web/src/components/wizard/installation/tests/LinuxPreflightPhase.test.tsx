@@ -34,10 +34,10 @@ describe('LinuxPreflightPhase', () => {
   });
 
   it('enables Start Installation button when allowIgnoreHostPreflights is true and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreHostPreflights: true,
       })
@@ -69,10 +69,10 @@ describe('LinuxPreflightPhase', () => {
   });
 
   it('disables Start Installation button when allowIgnoreHostPreflights is false and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: false
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreHostPreflights: false,
       })
@@ -110,10 +110,10 @@ describe('LinuxPreflightPhase', () => {
   });
 
   it('shows modal when Start Installation clicked and allowIgnoreHostPreflights is true and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreHostPreflights: true,
       })
@@ -267,10 +267,10 @@ describe('LinuxPreflightPhase', () => {
 
   // Verify ignoreHostPreflights parameter is sent
   it('sends ignoreHostPreflights parameter when starting installation with failed preflights', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreHostPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreHostPreflights: true,
       }),
@@ -372,10 +372,10 @@ describe('LinuxPreflightPhase - Error Handling & Edge Cases', () => {
   });
 
   it('properly handles modal cancellation flow', async () => {
-    // Mock preflight status endpoint - returns failures
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space'),
         allowIgnoreHostPreflights: true,
       })
@@ -496,10 +496,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   });
 
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
-    // Mock preflight status endpoint - returns failures
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreHostPreflights: false,
       })
@@ -529,10 +529,10 @@ describe('LinuxPreflightPhase - onStateChange Tests', () => {
   });
 
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
-    // Mock preflight status to show failures initially
+    // Mock preflight status to show failures initially - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space'),
         allowIgnoreHostPreflights: false,
       })

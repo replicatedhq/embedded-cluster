@@ -9,7 +9,7 @@ const TEST_TOKEN = "test-auth-token";
 
 const server = setupServer(
   mockHandlers.preflights.host.getStatus({
-    status: { state: "Failed" },
+    status: { state: "Succeeded" },
     output: {
       pass: [{ title: "CPU Check", message: "CPU requirements met" }],
       warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
@@ -118,10 +118,10 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("receives allowIgnoreHostPreflights field in preflight response", async () => {
-    // Mock preflight status endpoint with allowIgnoreHostPreflights: true
+    // Mock preflight status endpoint with allowIgnoreHostPreflights: true - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: preflightPresets.failed("Insufficient disk space"),
         allowIgnoreHostPreflights: true,
       })
@@ -143,10 +143,10 @@ describe("LinuxPreflightCheck", () => {
   });
 
   it("passes allowIgnoreHostPreflights false to onComplete callback", async () => {
-    // Mock preflight status endpoint with allowIgnoreHostPreflights: false
+    // Mock preflight status endpoint with allowIgnoreHostPreflights: false - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.host.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: preflightPresets.failed("Insufficient disk space"),
         allowIgnoreHostPreflights: false,
       })

@@ -37,10 +37,10 @@ describe.each([
   });
 
   it('enables Start Installation button when allowIgnoreAppPreflights is true and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install')
@@ -73,10 +73,10 @@ describe.each([
   });
 
   it('disables Start Installation button when allowIgnoreAppPreflights is false and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: false
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: false
       }, target, 'install')
@@ -115,10 +115,10 @@ describe.each([
   });
 
   it('shows modal when Start Installation clicked and allowIgnoreAppPreflights is true and preflights fail', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install')
@@ -275,10 +275,10 @@ describe.each([
 
   // Verify ignoreAppPreflights parameter is sent
   it('sends ignoreAppPreflights parameter when starting installation with failed preflights', async () => {
-    // Mock preflight status endpoint - returns failures with allowIgnoreAppPreflights: true
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: true
       }, target, 'install'),
@@ -372,10 +372,10 @@ describe.each([
 
   // New tests for strict preflight blocking
   it('disables Start Installation button when strict failures exist regardless of allowIgnoreAppPreflights', async () => {
-    // Mock preflight status endpoint - returns strict failures with allowIgnoreAppPreflights: true
+    // Mock preflight status endpoint - execution succeeds but has strict failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: {
           fail: [
             { title: 'Critical Security Check', message: 'Security requirement not met', strict: true },
@@ -416,10 +416,10 @@ describe.each([
   });
 
   it('does not show modal when strict failures exist because button is disabled', async () => {
-    // Mock preflight status endpoint - returns strict failures
+    // Mock preflight status endpoint - execution succeeds but has strict failures
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: {
           fail: [
             { title: 'Critical Security Check', message: 'Security requirement not met', strict: true }
@@ -543,10 +543,10 @@ describe.each([
   });
 
   it('calls onStateChange with "Failed" when preflights complete with failures', async () => {
-    // Mock preflight status endpoint - returns failures
+    // Mock preflight status endpoint - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space available'),
         allowIgnoreAppPreflights: false
       }, target, 'install')
@@ -576,10 +576,10 @@ describe.each([
   });
 
   it('calls onStateChange("Running") when rerun button is clicked', async () => {
-    // Mock preflight status to show failures initially
+    // Mock preflight status to show failures initially - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: 'Failed' },
+        status: { state: 'Succeeded' },
         output: preflightPresets.failed('Not enough disk space'),
         allowIgnoreAppPreflights: false
       }, target, 'install'),
