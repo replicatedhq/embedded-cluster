@@ -8,7 +8,7 @@ import (
 // ReleaseMetadata holds the metadata about a specific release, including addons and
 // their versions.
 type ReleaseMetadata struct {
-	Architecture string            `json:"architecture"` // "amd64" or "arm64"
+	Architecture string `json:"architecture"` // "amd64" or "arm64"
 	Versions     map[string]string
 	K0sSHA       string
 	K0sBinaryURL string

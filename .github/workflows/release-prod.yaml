@@ -682,6 +682,7 @@ jobs:
       - e2e-docker
       - release
       - release-app
+      - upload-metadata
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -690,6 +691,9 @@ jobs:
         run: exit 1
       - name: fail if e2e-docker job was not successful
         if: needs.e2e-docker.result != 'success'
+        run: exit 1
+      - name: fail if upload-metadata job was not successful
+        if: needs.upload-metadata.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
