@@ -13,7 +13,7 @@ spec:
     - name: adminconsole
       values: |
         service:
-          nodePort: 8080 
+          nodePort: 8080
     - name: openebs
       values: |
         apiServer:
@@ -25,4 +25,4 @@ spec:
     - name: registry
       values: |
         service:
-          nodePort: 9090 
+          nodePort: 9090

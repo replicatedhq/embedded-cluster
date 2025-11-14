@@ -37,6 +37,10 @@ type Velero struct {
 	HostCABundlePath string
 	K0sDataDir       string
 
+	// EmbeddedConfigSpec contains the embedded cluster config spec
+	// Note: EndUserConfigSpec is not stored here as it's only used for overrides via addOnOverrides
+	EmbeddedConfigSpec *ecv1beta1.ConfigSpec
+
 	// DryRun is a flag to enable dry-run mode for Velero.
 	// If true, Velero will only render the helm template and additional manifests, but not install
 	// the release.

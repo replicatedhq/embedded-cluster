@@ -19,7 +19,7 @@ var (
 )
 
 func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, domains ecv1beta1.Domains, overrides []string) (map[string]interface{}, error) {
-	hv, err := helmValues()
+	hv, err := helmValues(v.EmbeddedConfigSpec)
 	if err != nil {
 		return nil, errors.Wrap(err, "get helm values")
 	}
@@ -112,11 +112,63 @@ func (v *Velero) GenerateHelmValues(ctx context.Context, kcli client.Client, dom
 	return copiedValues, nil
 }
 
-func helmValues() (map[string]interface{}, error) {
+func helmValues(ecConfig *ecv1beta1.ConfigSpec) (map[string]interface{}, error) {
 	hv, err := release.RenderHelmValues(rawvalues, Metadata)
 	if err != nil {
 		return nil, errors.Wrap(err, "render helm values")
 	}
 
+	// Inject custom Velero plugins from ConfigSpec if available
+	if err := injectPluginInitContainers(hv, ecConfig); err != nil {
+		return nil, errors.Wrap(err, "inject plugin init containers")
+	}
+
 	return hv, nil
+}
+
+// injectPluginInitContainers injects custom Velero plugin initContainers from ConfigSpec
+func injectPluginInitContainers(values map[string]interface{}, ecConfig *ecv1beta1.ConfigSpec) error {
+	if ecConfig == nil || len(ecConfig.Extensions.Velero.Plugins) == 0 {
+		return nil
+	}
+
+	allPlugins := ecConfig.Extensions.Velero.Plugins
+
+	// Get existing initContainers or create empty slice
+	var existingInitContainers []any
+	if existing, ok := values["initContainers"]; ok {
+		if containers, ok := existing.([]any); ok {
+			existingInitContainers = containers
+		}
+	}
+
+	// Process each plugin and create initContainer
+	for _, plugin := range allPlugins {
+		imagePullPolicy := plugin.ImagePullPolicy
+		if imagePullPolicy == "" {
+			imagePullPolicy = "IfNotPresent" // Default to match AWS plugin
+		}
+
+		initContainer := generatePluginContainer(plugin.Name, plugin.Image, imagePullPolicy)
+		existingInitContainers = append(existingInitContainers, initContainer)
+	}
+
+	// Update values with merged initContainers
+	values["initContainers"] = existingInitContainers
+	return nil
+}
+
+// generatePluginContainer creates an initContainer spec for a Velero plugin
+func generatePluginContainer(name, image, imagePullPolicy string) map[string]interface{} {
+	return map[string]interface{}{
+		"name":            name,
+		"image":           image,
+		"imagePullPolicy": imagePullPolicy,
+		"volumeMounts": []map[string]interface{}{
+			{
+				"mountPath": "/target",
+				"name":      "plugins",
+			},
+		},
+	}
 }
