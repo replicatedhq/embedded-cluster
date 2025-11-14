@@ -3,11 +3,13 @@ package kurl
 import (
 	"context"
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
 
@@ -33,17 +35,33 @@ type Config struct {
 // GetConfig attempts to detect and return configuration for a kURL cluster.
 // Returns nil if no kURL cluster is detected, or an error if detection fails.
 func GetConfig(ctx context.Context) (*Config, error) {
-	// Try to create a client using kURL's kubeconfig at /etc/kubernetes/admin.conf
-	// In production, this connects to the kURL cluster.
-	// In dryrun tests where this file doesn't exist, we fall back to kubeutils.KubeClient()
-	kcli, err := createKubeClientFromPath(KubeconfigPath)
-	if err != nil {
-		// kURL kubeconfig doesn't exist or can't connect
-		// Fall back to standard client (enables dryrun testing)
-		kcli, err = kubeutils.KubeClient()
+	var kcli client.Client
+	var err error
+
+	// Check if kURL's kubeconfig file exists
+	if _, statErr := os.Stat(KubeconfigPath); statErr != nil {
+		if os.IsNotExist(statErr) {
+			// File doesn't exist - not a kURL cluster in production
+			// In dryrun mode, fall back to mocked client for testing
+			if !dryrun.Enabled() {
+				return nil, nil
+			}
+
+			// Dryrun testing: use mocked client to simulate kURL cluster
+			kcli, err = kubeutils.KubeClient()
+			if err != nil {
+				return nil, nil
+			}
+		} else {
+			// File exists but can't stat it - that's an error
+			return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", KubeconfigPath, statErr)
+		}
+	} else {
+		// File exists - try to create client from it
+		kcli, err = createKubeClientFromPath(KubeconfigPath)
 		if err != nil {
-			// No client available
-			return nil, nil
+			// File exists but can't create client - that's an error
+			return nil, fmt.Errorf("kurl kubeconfig exists but failed to create client: %w", err)
 		}
 	}
 
