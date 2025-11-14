@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	kurlConfigMapName        = "kurl"
+	kurlConfigMapName        = "kurl-config"
 	kurlConfigMapKey         = "kurl_install_directory"
 	kurlDefaultInstallDir    = "/var/lib/kurl"
 	kotsadmNamespace         = "kotsadm"

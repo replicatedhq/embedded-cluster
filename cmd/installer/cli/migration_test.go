@@ -23,11 +23,11 @@ func TestGetKurlInstallDirectory(t *testing.T) {
 			name: "successfully reads custom install directory",
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kurlConfigMapName,
-					Namespace: kubeSystemNamespace,
+					Name:      "kurl-config",
+					Namespace: "kube-system",
 				},
 				Data: map[string]string{
-					kurlConfigMapKey: "/custom/kurl/path",
+					"kurl_install_directory": "/custom/kurl/path",
 				},
 			},
 			wantDir: "/custom/kurl/path",
@@ -37,11 +37,11 @@ func TestGetKurlInstallDirectory(t *testing.T) {
 			name: "successfully reads default install directory",
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kurlConfigMapName,
-					Namespace: kubeSystemNamespace,
+					Name:      "kurl-config",
+					Namespace: "kube-system",
 				},
 				Data: map[string]string{
-					kurlConfigMapKey: "/var/lib/kurl",
+					"kurl_install_directory": "/var/lib/kurl",
 				},
 			},
 			wantDir: "/var/lib/kurl",
@@ -58,26 +58,26 @@ func TestGetKurlInstallDirectory(t *testing.T) {
 			name: "configmap missing key - returns default",
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kurlConfigMapName,
-					Namespace: kubeSystemNamespace,
+					Name:      "kurl-config",
+					Namespace: "kube-system",
 				},
 				Data: map[string]string{},
 			},
-			wantDir: kurlDefaultInstallDir,
+			wantDir: "/var/lib/kurl",
 			wantErr: false,
 		},
 		{
 			name: "configmap has empty key value - returns default",
 			configMap: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kurlConfigMapName,
-					Namespace: kubeSystemNamespace,
+					Name:      "kurl-config",
+					Namespace: "kube-system",
 				},
 				Data: map[string]string{
-					kurlConfigMapKey: "",
+					"kurl_install_directory": "",
 				},
 			},
-			wantDir: kurlDefaultInstallDir,
+			wantDir: "/var/lib/kurl",
 			wantErr: false,
 		},
 	}
