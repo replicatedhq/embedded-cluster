@@ -17,6 +17,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -84,7 +85,8 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf(`invalid --target (must be: "linux")`)
 			}
 
-			if os.Getuid() != 0 {
+			// Skip root check if dryrun mode is enabled
+			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("upgrade command must be run as root")
 			}
 

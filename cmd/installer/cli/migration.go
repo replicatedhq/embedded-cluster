@@ -4,12 +4,9 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kurl"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 // detectKurlMigration checks if this is a kURL cluster that needs migration to EC.
@@ -55,19 +52,9 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 // isECInstalled checks if Embedded Cluster is already installed by checking for
 // an EC Installation resource.
 func isECInstalled(ctx context.Context) (bool, error) {
-	rc := runtimeconfig.New(nil)
-	kubeconfigPath := rc.PathToKubeConfig()
-
-	// Try to create a client using EC kubeconfig (separate from kURL cluster)
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		// EC kubeconfig doesn't exist or can't connect
-		return false, nil
-	}
-
-	kcli, err := client.New(cfg, client.Options{Scheme: kubeutils.Scheme})
-	if err != nil {
-		// Can't create client
 		return false, nil
 	}
 

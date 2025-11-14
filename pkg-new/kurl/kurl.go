@@ -33,11 +33,18 @@ type Config struct {
 // GetConfig attempts to detect and return configuration for a kURL cluster.
 // Returns nil if no kURL cluster is detected, or an error if detection fails.
 func GetConfig(ctx context.Context) (*Config, error) {
-	// Try to create a client using kURL kubeconfig
+	// Try to create a client using kURL's kubeconfig at /etc/kubernetes/admin.conf
+	// In production, this connects to the kURL cluster.
+	// In dryrun tests where this file doesn't exist, we fall back to kubeutils.KubeClient()
 	kcli, err := createKubeClientFromPath(KubeconfigPath)
 	if err != nil {
 		// kURL kubeconfig doesn't exist or can't connect
-		return nil, nil
+		// Fall back to standard client (enables dryrun testing)
+		kcli, err = kubeutils.KubeClient()
+		if err != nil {
+			// No client available
+			return nil, nil
+		}
 	}
 
 	// Check for kURL ConfigMap and get install directory
