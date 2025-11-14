@@ -559,7 +559,9 @@ func (h *HelmClient) getActionCfg(namespace string, logFn LogFn) (*action.Config
 
 func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, chartVersion string) (*chart.Chart, error) {
 	var localPath string
-	if h.airgapPath != "" {
+	if _, err := os.Stat(chartPath); err == nil {
+		localPath = chartPath
+	} else if h.airgapPath != "" {
 		// airgapped, use chart from airgap path
 		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
 		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion))
@@ -572,8 +574,10 @@ func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, char
 			return nil, fmt.Errorf("pull: %w", err)
 		}
 		defer os.RemoveAll(localPath)
-	} else {
-		localPath = chartPath
+	}
+
+	if localPath == "" {
+		return nil, fmt.Errorf("chart path not found: %s", chartPath)
 	}
 
 	chartRequested, err := loader.Load(localPath)
