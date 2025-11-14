@@ -17,6 +17,8 @@ var (
 
 // InstallApp triggers app installation with proper state transitions and panic handling
 func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "install-app")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -47,7 +49,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
 		}
 
-		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
+		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed, preflightOutput)
 		if err != nil {
 			return fmt.Errorf("failed to transition states: %w", err)
 		}
@@ -63,7 +65,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 		return fmt.Errorf("get kotsadm config values for app install: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateAppInstalling)
+	err = c.stateMachine.Transition(lock, states.StateAppInstalling, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
@@ -79,14 +81,14 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
-					c.logger.WithError(err).Error("failed to transition states")
+				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed, finalErr); err != nil {
+					logger.WithError(err).Error("failed to transition states")
 				}
 
 				if err := c.setAppInstallStatus(types.StateFailed, finalErr.Error()); err != nil {
-					c.logger.WithError(err).Error("failed to set status to failed")
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
@@ -101,7 +103,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 			return fmt.Errorf("install app: %w", err)
 		}
 
-		if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
+		if err := c.stateMachine.Transition(lock, states.StateSucceeded, nil); err != nil {
 			return fmt.Errorf("transition states: %w", err)
 		}
 

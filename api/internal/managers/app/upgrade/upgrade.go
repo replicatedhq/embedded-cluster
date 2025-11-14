@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -16,34 +14,7 @@ import (
 )
 
 // Upgrade upgrades the app with the provided config values
-func (m *appUpgradeManager) Upgrade(ctx context.Context, configValues kotsv1beta1.ConfigValues) (finalErr error) {
-	if err := m.setStatus(types.StateRunning, "Upgrading application"); err != nil {
-		return fmt.Errorf("set status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
-
-	if err := m.upgrade(ctx, configValues); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *appUpgradeManager) upgrade(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
+func (m *appUpgradeManager) Upgrade(ctx context.Context, configValues kotsv1beta1.ConfigValues) error {
 	ecDomains := utils.GetDomains(m.releaseData)
 
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {

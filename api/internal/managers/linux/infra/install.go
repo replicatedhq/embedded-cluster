@@ -37,7 +37,7 @@ func AlreadyInstalledError() error {
 	)
 }
 
-func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
 	installed, err := m.k0scli.IsInstalled()
 	if err != nil {
 		return fmt.Errorf("check if k0s is installed: %w", err)
@@ -45,25 +45,6 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	if installed {
 		return AlreadyInstalledError()
 	}
-
-	if err := m.setStatus(types.StateRunning, ""); err != nil {
-		return fmt.Errorf("set status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
 
 	if err := m.install(ctx, rc); err != nil {
 		return err

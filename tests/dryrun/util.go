@@ -228,6 +228,7 @@ func assertMetrics(t *testing.T, actual []dryruntypes.Metric, expected []struct 
 	t.Helper()
 
 	if len(actual) != len(expected) {
+		t.Logf("actual metrics: %v", actual)
 		t.Errorf("expected %d metrics, got %d", len(expected), len(actual))
 		return
 	}

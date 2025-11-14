@@ -454,7 +454,7 @@ func validateMetrics(t *testing.T, headless bool) {
 		t.Fatalf("fail to unmarshal dryrun output: %v", err)
 	}
 
-	// --- validate metrics --- //
+	// Validate metrics events
 	assertMetrics(t, dr.Metrics, []struct {
 		title    string
 		validate func(string)

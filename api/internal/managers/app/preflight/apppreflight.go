@@ -77,3 +77,7 @@ func (m *appPreflightManager) getTitles(apf *troubleshootv1beta2.PreflightSpec) 
 
 	return titles, nil
 }
+
+func (m *appPreflightManager) ClearAppPreflightResults(ctx context.Context) error {
+	return m.appPreflightStore.Clear()
+}

@@ -6,7 +6,6 @@ import (
 
 	appupgradestore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
-	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
@@ -88,12 +87,6 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		err = manager.Upgrade(context.Background(), configValues)
 		require.NoError(t, err)
 
-		// Verify final status
-		status, err := store.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateSucceeded, status.State)
-		assert.Equal(t, "Upgrade complete", status.Description)
-
 		// Verify mock was called
 		mockKotsCLI.AssertExpectations(t)
 	})
@@ -126,12 +119,6 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		// Execute upgrade
 		err = manager.Upgrade(context.Background(), configValues)
 		require.Error(t, err)
-
-		// Verify failed status
-		status, err := store.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateFailed, status.State)
-		assert.Contains(t, status.Description, assert.AnError.Error())
 
 		// Verify mock was called
 		mockKotsCLI.AssertExpectations(t)
@@ -180,26 +167,6 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		// Verify mock was called with correct airgap bundle
 		mockKotsCLI.AssertExpectations(t)
 	})
-}
-
-func TestAppUpgradeManager_GetStatus(t *testing.T) {
-	// Initialize store with a default state
-	store := appupgradestore.NewMemoryStore(appupgradestore.WithAppUpgrade(types.AppUpgrade{
-		Status: types.Status{
-			State: types.StatePending,
-		},
-	}))
-	manager, err := NewAppUpgradeManager(
-		WithLogger(logger.NewDiscardLogger()),
-		WithAppUpgradeStore(store),
-	)
-	require.NoError(t, err)
-
-	// Test getting status
-	upgrade, err := manager.GetStatus()
-	require.NoError(t, err)
-	assert.Equal(t, types.StatePending, upgrade.Status.State)
-	assert.Equal(t, "", upgrade.Logs)
 }
 
 func TestAppUpgradeManager_NewWithOptions(t *testing.T) {

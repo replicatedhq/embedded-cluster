@@ -49,3 +49,9 @@ func (m *MockAppPreflightManager) GetAppPreflightTitles(ctx context.Context) ([]
 	}
 	return args.Get(0).([]string), args.Error(1)
 }
+
+// ClearAppPreflightResults mocks the ClearAppPreflightResults method
+func (m *MockAppPreflightManager) ClearAppPreflightResults(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
