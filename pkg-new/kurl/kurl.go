@@ -6,6 +6,7 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -50,7 +51,7 @@ func GetConfig(ctx context.Context) (*Config, error) {
 			// Dryrun testing: use mocked client to simulate kURL cluster
 			kcli, err = kubeutils.KubeClient()
 			if err != nil {
-				return nil, nil
+				return nil, fmt.Errorf("dryrun mode: failed to get mocked client: %w", err)
 			}
 		} else {
 			// File exists but can't stat it - that's an error
@@ -68,8 +69,10 @@ func GetConfig(ctx context.Context) (*Config, error) {
 	// Check for kURL ConfigMap and get install directory
 	installDir, err := getInstallDirectory(ctx, kcli)
 	if err != nil {
-		// ConfigMap doesn't exist, not a kURL cluster
-		return nil, nil
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to check for kurl configmap: %w", err)
 	}
 
 	return &Config{
