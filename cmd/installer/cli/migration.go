@@ -25,8 +25,7 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 	// Check if this is a kURL cluster
 	kurlCfg, err := kurl.GetConfig(ctx)
 	if err != nil {
-		logrus.Debugf("Failed to detect kURL cluster: %v", err)
-		return false, nil // Not fatal, continue with normal flow
+		return false, err
 	}
 	if kurlCfg == nil {
 		return false, nil // Not kURL, continue normally
@@ -37,8 +36,7 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 	// Check if EC is already installed (checks separate EC cluster)
 	ecInstalled, err := isECInstalled(ctx)
 	if err != nil {
-		logrus.Debugf("Failed to check EC installation status: %v", err)
-		return false, nil // Not fatal, continue with normal flow
+		return false, err
 	}
 	if ecInstalled {
 		logrus.Debugf("Embedded Cluster already installed, proceeding with normal upgrade")
@@ -52,9 +50,11 @@ func detectKurlMigration(ctx context.Context) (bool, error) {
 // isECInstalled checks if Embedded Cluster is already installed by checking for
 // an EC Installation resource.
 func isECInstalled(ctx context.Context) (bool, error) {
+	// Try to create a client using EC kubeconfig (separate from kURL cluster)
+	// Using kubeutils.KubeClient() allows this to work with dryrun tests
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		// EC kubeconfig doesn't exist or can't connect
+		// EC kubeconfig doesn't exist or can't connect - not installed
 		return false, nil
 	}
 
@@ -63,12 +63,11 @@ func isECInstalled(ctx context.Context) (bool, error) {
 	// which returns ErrNoInstallations{} if no installations exist
 	_, err = kubeutils.GetLatestInstallation(ctx, kcli)
 	if err != nil {
-		// If the error is ErrNoInstallations, EC is not installed
+		// If the error is ErrNoInstallations, EC is not installed (normal case)
 		if _, ok := err.(kubeutils.ErrNoInstallations); ok {
 			return false, nil
 		}
-		// Other errors (like CRD doesn't exist) also mean not installed
-		return false, nil
+		return false, err
 	}
 
 	// Installation exists, EC is installed
