@@ -71,11 +71,5 @@ func TestUpgradeKURLMigrationDetection(t *testing.T) {
 	// Dump dryrun output for inspection
 	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
 
-	// TODO: Once we have logging/output capture in dryrun, verify the migration message appears
-
 	t.Logf("Test passed: kURL migration detection works correctly")
 }
-
-// TODO: Add test for no false positive kURL detection
-// This would require setting up a complete EC installation in the test
-// to allow the upgrade command to continue past the migration check.
