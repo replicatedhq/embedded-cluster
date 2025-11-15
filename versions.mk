@@ -17,17 +17,17 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 K0S_GO_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 
 # Troubleshoot Version
-TROUBLESHOOT_VERSION = v0.122.0
+TROUBLESHOOT_VERSION = v0.123.12
 
 # Helm Version
-HELM_VERSION = v3.19.0
+HELM_VERSION = v4.0.0
 
 # FIO Version (for performance testing)
 FIO_VERSION = 3.41
 
 # Kubernetes Development Tool Versions
 CONTROLLER_TOOLS_VERSION = v0.19.0
-KUSTOMIZE_VERSION = v5.7.1
+KUSTOMIZE_VERSION = v5.8.0
 
 ### Overrides ###
 
