@@ -41,7 +41,7 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	})
 
 	// Get the kURL mock cluster client to set up kURL resources
-	kurlKubeClient, err := kubeUtils.KURLKubeClient(kurlKubeconfigPath)
+	kurlKubeClient, err := kubeUtils.KURLKubeClient()
 	require.NoError(t, err)
 
 	// Create the kURL ConfigMap in the kURL cluster

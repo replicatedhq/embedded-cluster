@@ -20,7 +20,6 @@ const (
 	KubeSystemNamespace      = "kube-system"
 	KotsadmPasswordSecret    = "kotsadm-password"
 	KotsadmPasswordSecretKey = "passwordBcrypt"
-	KubeconfigPath           = "/etc/kubernetes/admin.conf"
 )
 
 // Config holds configuration information about a kURL cluster.
@@ -35,10 +34,10 @@ type Config struct {
 // Returns nil if no kURL cluster is detected, or an error if detection fails.
 // The KURL_KUBECONFIG_PATH environment variable can override the default path for testing.
 func GetConfig(ctx context.Context) (*Config, error) {
-	// Use environment variable override for tests, otherwise use default
+	// Determine the kubeconfig path (same logic as KURLKubeClient)
 	kubeconfigPath := os.Getenv("KURL_KUBECONFIG_PATH")
 	if kubeconfigPath == "" {
-		kubeconfigPath = KubeconfigPath
+		kubeconfigPath = kubeutils.KURLKubeconfigPath
 	}
 
 	// Check if kURL's kubeconfig file exists
@@ -51,8 +50,8 @@ func GetConfig(ctx context.Context) (*Config, error) {
 		return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", kubeconfigPath, err)
 	}
 
-	// Create kURL client
-	kcli, err := kubeutils.KURLKubeClient(kubeconfigPath)
+	// Create kURL client (will use the same path logic)
+	kcli, err := kubeutils.KURLKubeClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kurl client: %w", err)
 	}

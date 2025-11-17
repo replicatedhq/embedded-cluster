@@ -41,7 +41,7 @@ type KubeUtilsInterface interface {
 	WaitForKubernetes(ctx context.Context, cli client.Client) <-chan error
 	WaitForCRDToBeReady(ctx context.Context, cli client.Client, name string) error
 	KubeClient() (client.Client, error)
-	KURLKubeClient(kubeconfigPath string) (client.Client, error)
+	KURLKubeClient() (client.Client, error)
 	MetadataClient() (metadata.Interface, error)
 	GetClientset() (kubernetes.Interface, error)
 }
@@ -133,8 +133,8 @@ func KubeClient() (client.Client, error) {
 	return kb.KubeClient()
 }
 
-func KURLKubeClient(kubeconfigPath string) (client.Client, error) {
-	return kb.KURLKubeClient(kubeconfigPath)
+func KURLKubeClient() (client.Client, error) {
+	return kb.KURLKubeClient()
 }
 
 func MetadataClient() (metadata.Interface, error) {

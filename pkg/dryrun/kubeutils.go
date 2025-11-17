@@ -98,7 +98,7 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 	return KubeClient()
 }
 
-func (k *KubeUtils) KURLKubeClient(kubeconfigPath string) (client.Client, error) {
+func (k *KubeUtils) KURLKubeClient() (client.Client, error) {
 	return KURLKubeClient()
 }
 
