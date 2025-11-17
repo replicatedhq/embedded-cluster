@@ -22,18 +22,29 @@ import (
 func TestUpgradeKURLMigration(t *testing.T) {
 	t.Setenv("ENABLE_V3", "1")
 
+	// Create a dummy kURL kubeconfig file in temp directory
+	// This file doesn't need to be a valid kubeconfig since dryrun mode
+	// will use the mock client. It just needs to exist for the file check.
+	tempDir := t.TempDir()
+	kurlKubeconfigPath := filepath.Join(tempDir, "kurl-kubeconfig")
+	require.NoError(t, os.WriteFile(kurlKubeconfigPath, []byte("dummy-kubeconfig"), 0644))
+
+	// Set environment variable to override the default kURL kubeconfig path
+	t.Setenv("KURL_KUBECONFIG_PATH", kurlKubeconfigPath)
+
 	// Setup the kURL cluster environment by creating the kURL ConfigMap
 	kubeUtils := &dryrun.KubeUtils{}
 
-	drFile := filepath.Join(t.TempDir(), "ec-dryrun.yaml")
+	drFile := filepath.Join(tempDir, "ec-dryrun.yaml")
 	dryrun.Init(drFile, &dryrun.Client{
 		KubeUtils: kubeUtils,
 	})
 
-	kubeClient, err := kubeUtils.KubeClient()
+	// Get the kURL mock cluster client to set up kURL resources
+	kurlKubeClient, err := kubeUtils.KURLKubeClient(kurlKubeconfigPath)
 	require.NoError(t, err)
 
-	// Create the kURL ConfigMap in kube-system namespace
+	// Create the kURL ConfigMap in the kURL cluster
 	// This simulates a kURL installation
 	kurlConfigMap := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -48,7 +59,7 @@ func TestUpgradeKURLMigration(t *testing.T) {
 			"kurl_install_directory": "/var/lib/kurl",
 		},
 	}
-	err = kubeClient.Create(context.Background(), kurlConfigMap, &ctrlclient.CreateOptions{})
+	err = kurlKubeClient.Create(context.Background(), kurlConfigMap, &ctrlclient.CreateOptions{})
 	require.NoError(t, err, "failed to create kURL ConfigMap")
 
 	// Setup release data
@@ -57,7 +68,7 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	}
 
 	// Create license file
-	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
+	licenseFile := filepath.Join(tempDir, "license.yaml")
 	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
 	// Capture log output to verify migration message

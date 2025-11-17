@@ -2,6 +2,7 @@ package kurl
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,64 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
+
+// TestGetConfig tests the GetConfig function's file checking logic.
+func TestGetConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupEnv    func(t *testing.T) (cleanup func())
+		wantConfig  bool // true if we expect a non-nil config
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "file does not exist - not a kURL cluster",
+			setupEnv: func(t *testing.T) func() {
+				// Point to a non-existent file
+				tempDir := t.TempDir()
+				t.Setenv("KURL_KUBECONFIG_PATH", filepath.Join(tempDir, "does-not-exist"))
+				return func() {}
+			},
+			wantConfig: false,
+			wantErr:    false,
+		},
+		{
+			name: "uses default path when env var not set",
+			setupEnv: func(t *testing.T) func() {
+				// Don't set KURL_KUBECONFIG_PATH
+				// This will use /etc/kubernetes/admin.conf which likely doesn't exist
+				// in test environment, so should return nil, nil
+				return func() {}
+			},
+			wantConfig: false,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cleanup := tt.setupEnv(t)
+			defer cleanup()
+
+			ctx := context.Background()
+			cfg, err := GetConfig(ctx)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+				if tt.wantConfig {
+					assert.NotNil(t, cfg)
+				} else {
+					assert.Nil(t, cfg)
+				}
+			}
+		})
+	}
+}
 
 func TestGetInstallDirectory(t *testing.T) {
 	tests := []struct {

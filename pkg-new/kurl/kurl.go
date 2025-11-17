@@ -7,10 +7,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 )
 
@@ -35,35 +33,28 @@ type Config struct {
 
 // GetConfig attempts to detect and return configuration for a kURL cluster.
 // Returns nil if no kURL cluster is detected, or an error if detection fails.
+// The KURL_KUBECONFIG_PATH environment variable can override the default path for testing.
 func GetConfig(ctx context.Context) (*Config, error) {
-	var kcli client.Client
-	var err error
+	// Use environment variable override for tests, otherwise use default
+	kubeconfigPath := os.Getenv("KURL_KUBECONFIG_PATH")
+	if kubeconfigPath == "" {
+		kubeconfigPath = KubeconfigPath
+	}
 
 	// Check if kURL's kubeconfig file exists
-	if _, statErr := os.Stat(KubeconfigPath); statErr != nil {
-		if os.IsNotExist(statErr) {
-			// File doesn't exist - not a kURL cluster in production
-			// In dryrun mode, fall back to mocked client for testing
-			if !dryrun.Enabled() {
-				return nil, nil
-			}
+	if _, err := os.Stat(kubeconfigPath); err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist - not a kURL cluster
+			return nil, nil
+		}
+		// File exists but can't stat it - that's an error
+		return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", kubeconfigPath, err)
+	}
 
-			// Dryrun testing: use mocked client to simulate kURL cluster
-			kcli, err = kubeutils.KubeClient()
-			if err != nil {
-				return nil, fmt.Errorf("dryrun mode: failed to get mocked client: %w", err)
-			}
-		} else {
-			// File exists but can't stat it - that's an error
-			return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", KubeconfigPath, statErr)
-		}
-	} else {
-		// File exists - try to create client from it
-		kcli, err = createKubeClientFromPath(KubeconfigPath)
-		if err != nil {
-			// File exists but can't create client - that's an error
-			return nil, fmt.Errorf("kurl kubeconfig exists but failed to create client: %w", err)
-		}
+	// Create kURL client
+	kcli, err := kubeutils.KURLKubeClient(kubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kurl client: %w", err)
 	}
 
 	// Check for kURL ConfigMap and get install directory
@@ -79,16 +70,6 @@ func GetConfig(ctx context.Context) (*Config, error) {
 		Client:     kcli,
 		InstallDir: installDir,
 	}, nil
-}
-
-// createKubeClientFromPath creates a kubernetes client from a specific kubeconfig path.
-func createKubeClientFromPath(kubeconfigPath string) (client.Client, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("build config from kubeconfig %s: %w", kubeconfigPath, err)
-	}
-
-	return client.New(cfg, client.Options{Scheme: kubeutils.Scheme})
 }
 
 // getInstallDirectory reads the kURL ConfigMap in kube-system namespace

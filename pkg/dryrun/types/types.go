@@ -40,9 +40,11 @@ type DryRun struct {
 	LogBuffer *bytes.Buffer `json:"-"`
 
 	// These fields are used as mocks
-	kcli    client.Client        `json:"-"`
-	mcli    metadata.Interface   `json:"-"`
-	kclient kubernetes.Interface `json:"-"`
+	kcli         client.Client        `json:"-"` // EC cluster mock
+	kurlKcli     client.Client        `json:"-"` // kURL cluster mock (separate)
+	mcli         metadata.Interface   `json:"-"`
+	kclient      kubernetes.Interface `json:"-"`
+	kurlKclient  kubernetes.Interface `json:"-"` // kURL kubernetes clientset
 }
 
 type Metric struct {
@@ -221,6 +223,19 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 			Build()
 	}
 	return d.kcli, nil
+}
+
+// KURLKubeClient returns a separate mock client for the kURL cluster.
+// This simulates the production scenario where kURL and EC are separate clusters.
+func (d *DryRun) KURLKubeClient() (client.Client, error) {
+	if d.kurlKcli == nil {
+		scheme := kubeutils.Scheme
+		// Initialize with empty kURL cluster - tests will populate it
+		d.kurlKcli = fake.NewClientBuilder().
+			WithScheme(scheme).
+			Build()
+	}
+	return d.kurlKcli, nil
 }
 
 func (d *DryRun) MetadataClient() (metadata.Interface, error) {
