@@ -76,8 +76,8 @@ func (d *DryRun) MarshalJSON() ([]byte, error) {
 }
 
 // k8sObjectsFromClient is a helper that marshals k8s objects from a client.
-// It takes a client and a callback that lists resources and adds them via addToResult.
-func k8sObjectsFromClient(ctx context.Context, kcli client.Client, listResourcesFn func(addToResult func(runtime.Object) error) error) ([]string, error) {
+// It always lists common resources, and optionally lists additional resources via callback.
+func k8sObjectsFromClient(ctx context.Context, kcli client.Client, listAdditionalResourcesFn func(addToResult func(runtime.Object) error) error) ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
@@ -94,8 +94,16 @@ func k8sObjectsFromClient(ctx context.Context, kcli client.Client, listResources
 		return nil
 	}
 
-	if err := listResourcesFn(addToResult); err != nil {
+	// Always list common resources
+	if err := listCommonK8sResources(ctx, kcli, addToResult); err != nil {
 		return nil, err
+	}
+
+	// Optionally list additional resources
+	if listAdditionalResourcesFn != nil {
+		if err := listAdditionalResourcesFn(addToResult); err != nil {
+			return nil, err
+		}
 	}
 
 	return result, nil
@@ -213,12 +221,8 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	}
 
 	ctx := context.Background()
+	// List common resources + EC-specific Installation CRs
 	return k8sObjectsFromClient(ctx, kcli, func(addToResult func(runtime.Object) error) error {
-		// List all common k8s resources (Services, Deployments, ConfigMaps, Secrets, etc.)
-		if err := listCommonK8sResources(ctx, kcli, addToResult); err != nil {
-			return err
-		}
-
 		// EC-specific: Installation CRs
 		var installations ecv1beta1.InstallationList
 		if err := kcli.List(ctx, &installations); err != nil {
@@ -241,11 +245,8 @@ func (d *DryRun) K8sObjectsFromKURLClient() ([]string, error) {
 	}
 
 	ctx := context.Background()
-	return k8sObjectsFromClient(ctx, kcli, func(addToResult func(runtime.Object) error) error {
-		// List all common k8s resources from kURL cluster
-		// This includes ConfigMaps (for kurl-config), Secrets (for password migration), etc.
-		return listCommonK8sResources(ctx, kcli, addToResult)
-	})
+	// List common resources only (no additional resources for kURL cluster)
+	return k8sObjectsFromClient(ctx, kcli, nil)
 }
 
 func (d *DryRun) KubeClient() (client.Client, error) {

@@ -26,9 +26,7 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	// Create the kURL kubeconfig file at the production path
 	// This file doesn't need to be a valid kubeconfig since dryrun mode
 	// will use the mock client. It just needs to exist for the file check.
-	if err := os.MkdirAll(filepath.Dir(kubeutils.KURLKubeconfigPath), 0755); err != nil {
-		t.Skipf("Skipping test: cannot create %s (needs root/Docker): %v", filepath.Dir(kubeutils.KURLKubeconfigPath), err)
-	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(kubeutils.KURLKubeconfigPath), 0755))
 	require.NoError(t, os.WriteFile(kubeutils.KURLKubeconfigPath, []byte("dummy-kubeconfig"), 0644))
 
 	tempDir := t.TempDir()
