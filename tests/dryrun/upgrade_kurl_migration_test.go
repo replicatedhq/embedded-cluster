@@ -1,11 +1,14 @@
 package dryrun
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,9 +17,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestUpgradeKURLMigrationDetection tests that the upgrade command correctly detects
+// TestUpgradeKURLMigration tests that the upgrade command correctly detects
 // a kURL cluster and shows the migration message when ENABLE_V3=1.
-func TestUpgradeKURLMigrationDetection(t *testing.T) {
+func TestUpgradeKURLMigration(t *testing.T) {
 	t.Setenv("ENABLE_V3", "1")
 
 	// Setup the kURL cluster environment by creating the kURL ConfigMap
@@ -57,6 +60,12 @@ func TestUpgradeKURLMigrationDetection(t *testing.T) {
 	licenseFile := filepath.Join(t.TempDir(), "license.yaml")
 	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
+	// Capture log output to verify migration message
+	var logOutput bytes.Buffer
+	originalOutput := logrus.StandardLogger().Out
+	logrus.SetOutput(io.MultiWriter(originalOutput, &logOutput))
+	defer logrus.SetOutput(originalOutput)
+
 	// Run upgrade command - should detect kURL and exit gracefully
 	err = runInstallerCmd(
 		"upgrade",
@@ -68,8 +77,13 @@ func TestUpgradeKURLMigrationDetection(t *testing.T) {
 	// (it displays a message to the user and returns nil)
 	require.NoError(t, err, "upgrade should exit cleanly when kURL migration is detected")
 
+	// Verify the migration message was displayed
+	output := logOutput.String()
+	require.Contains(t, output, "This upgrade will be available in a future release",
+		"expected migration message not found in output")
+
 	// Dump dryrun output for inspection
 	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
 
-	t.Logf("Test passed: kURL migration detection works correctly")
+	t.Logf("Test passed: kURL migration detected and correct message displayed")
 }
