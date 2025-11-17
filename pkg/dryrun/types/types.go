@@ -33,19 +33,19 @@ type DryRun struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
 
 	// These fields are set on marshal
-	OSEnv           map[string]string `json:"osEnv"`
-	K8sObjects      []string          `json:"k8sObjects"`
-	KURLK8sObjects  []string          `json:"kurlK8sObjects"`
+	OSEnv          map[string]string `json:"osEnv"`
+	K8sObjects     []string          `json:"k8sObjects"`
+	KURLK8sObjects []string          `json:"kurlK8sObjects"`
 
 	LogOutput string        `json:"logOutput"`
 	LogBuffer *bytes.Buffer `json:"-"`
 
 	// These fields are used as mocks
-	kcli         client.Client        `json:"-"` // EC cluster mock
-	kurlKcli     client.Client        `json:"-"` // kURL cluster mock (separate)
-	mcli         metadata.Interface   `json:"-"`
-	kclient      kubernetes.Interface `json:"-"`
-	kurlKclient  kubernetes.Interface `json:"-"` // kURL kubernetes clientset
+	kcli        client.Client        `json:"-"` // EC cluster mock
+	kurlKcli    client.Client        `json:"-"` // kURL cluster mock (separate)
+	mcli        metadata.Interface   `json:"-"`
+	kclient     kubernetes.Interface `json:"-"`
+	kurlKclient kubernetes.Interface `json:"-"` // kURL kubernetes clientset
 }
 
 type Metric struct {
