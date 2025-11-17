@@ -2,7 +2,6 @@ package kubeutils
 
 import (
 	"fmt"
-	"os"
 
 	autopilotv1beta2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
@@ -25,8 +24,7 @@ var (
 )
 
 const (
-	// KURLKubeconfigPath is the default location of kURL's kubeconfig file.
-	// Can be overridden with KURL_KUBECONFIG_PATH environment variable for testing.
+	// KURLKubeconfigPath is the location of kURL's kubeconfig file.
 	KURLKubeconfigPath = "/etc/kubernetes/admin.conf"
 )
 
@@ -51,16 +49,10 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 }
 
 // KURLKubeClient returns a kubernetes client for a kURL cluster.
-// In production this reads from KURLKubeconfigPath (default /etc/kubernetes/admin.conf).
-// The path can be overridden with KURL_KUBECONFIG_PATH environment variable.
+// In production this reads from KURLKubeconfigPath (/etc/kubernetes/admin.conf).
 // In dryrun mode this is overridden to return the mock client.
 func (k *KubeUtils) KURLKubeClient() (client.Client, error) {
-	kubeconfigPath := os.Getenv("KURL_KUBECONFIG_PATH")
-	if kubeconfigPath == "" {
-		kubeconfigPath = KURLKubeconfigPath
-	}
-
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	cfg, err := clientcmd.BuildConfigFromFlags("", KURLKubeconfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to build kurl kubeconfig: %w", err)
 	}

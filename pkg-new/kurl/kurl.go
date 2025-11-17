@@ -32,22 +32,15 @@ type Config struct {
 
 // GetConfig attempts to detect and return configuration for a kURL cluster.
 // Returns nil if no kURL cluster is detected, or an error if detection fails.
-// The KURL_KUBECONFIG_PATH environment variable can override the default path for testing.
 func GetConfig(ctx context.Context) (*Config, error) {
-	// Determine the kubeconfig path (same logic as KURLKubeClient)
-	kubeconfigPath := os.Getenv("KURL_KUBECONFIG_PATH")
-	if kubeconfigPath == "" {
-		kubeconfigPath = kubeutils.KURLKubeconfigPath
-	}
-
 	// Check if kURL's kubeconfig file exists
-	if _, err := os.Stat(kubeconfigPath); err != nil {
+	if _, err := os.Stat(kubeutils.KURLKubeconfigPath); err != nil {
 		if os.IsNotExist(err) {
 			// File doesn't exist - not a kURL cluster
 			return nil, nil
 		}
 		// File exists but can't stat it - that's an error
-		return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", kubeconfigPath, err)
+		return nil, fmt.Errorf("failed to check kurl kubeconfig at %s: %w", kubeutils.KURLKubeconfigPath, err)
 	}
 
 	// Create kURL client (will use the same path logic)

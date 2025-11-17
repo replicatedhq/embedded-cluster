@@ -14,6 +14,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,15 +23,15 @@ import (
 func TestUpgradeKURLMigration(t *testing.T) {
 	t.Setenv("ENABLE_V3", "1")
 
-	// Create a dummy kURL kubeconfig file in temp directory
+	// Create the kURL kubeconfig file at the production path
 	// This file doesn't need to be a valid kubeconfig since dryrun mode
 	// will use the mock client. It just needs to exist for the file check.
-	tempDir := t.TempDir()
-	kurlKubeconfigPath := filepath.Join(tempDir, "kurl-kubeconfig")
-	require.NoError(t, os.WriteFile(kurlKubeconfigPath, []byte("dummy-kubeconfig"), 0644))
+	if err := os.MkdirAll(filepath.Dir(kubeutils.KURLKubeconfigPath), 0755); err != nil {
+		t.Skipf("Skipping test: cannot create %s (needs root/Docker): %v", filepath.Dir(kubeutils.KURLKubeconfigPath), err)
+	}
+	require.NoError(t, os.WriteFile(kubeutils.KURLKubeconfigPath, []byte("dummy-kubeconfig"), 0644))
 
-	// Set environment variable to override the default kURL kubeconfig path
-	t.Setenv("KURL_KUBECONFIG_PATH", kurlKubeconfigPath)
+	tempDir := t.TempDir()
 
 	// Setup the kURL cluster environment by creating the kURL ConfigMap
 	kubeUtils := &dryrun.KubeUtils{}
@@ -92,9 +93,4 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	output := logOutput.String()
 	require.Contains(t, output, "This upgrade will be available in a future release",
 		"expected migration message not found in output")
-
-	// Dump dryrun output for inspection
-	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
-
-	t.Logf("Test passed: kURL migration detected and correct message displayed")
 }

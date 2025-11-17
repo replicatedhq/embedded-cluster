@@ -33,8 +33,9 @@ type DryRun struct {
 	HostPreflightSpec *troubleshootv1beta2.HostPreflightSpec `json:"hostPreflightSpec"`
 
 	// These fields are set on marshal
-	OSEnv      map[string]string `json:"osEnv"`
-	K8sObjects []string          `json:"k8sObjects"`
+	OSEnv           map[string]string `json:"osEnv"`
+	K8sObjects      []string          `json:"k8sObjects"`
+	KURLK8sObjects  []string          `json:"kurlK8sObjects"`
 
 	LogOutput string        `json:"logOutput"`
 	LogBuffer *bytes.Buffer `json:"-"`
@@ -63,9 +64,14 @@ func (d *DryRun) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get k8s objects: %w", err)
 	}
+	kurlK8sObjects, err := d.K8sObjectsFromKURLClient()
+	if err != nil {
+		return nil, fmt.Errorf("get kurl k8s objects: %w", err)
+	}
 	alias := *d
 	alias.OSEnv = getOSEnv()
 	alias.K8sObjects = k8sObjects
+	alias.KURLK8sObjects = kurlK8sObjects
 	return json.Marshal(alias)
 }
 
@@ -205,6 +211,43 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 	return result, nil
 }
 
+func (d *DryRun) K8sObjectsFromKURLClient() ([]string, error) {
+	kcli, err := d.KURLKubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("get kurl kube client: %w", err)
+	}
+
+	ctx := context.Background()
+	result := []string{}
+
+	addToResult := func(o runtime.Object) error {
+		if err := kubeutils.EnsureGVK(ctx, kcli, o); err != nil {
+			return fmt.Errorf("ensure gvk: %w", err)
+		}
+
+		data, err := yaml.Marshal(o)
+		if err != nil {
+			return fmt.Errorf("marshal object: %w", err)
+		}
+		result = append(result, string(data))
+
+		return nil
+	}
+
+	// Only get ConfigMaps for kURL cluster (that's where kurl-config lives)
+	var configMaps corev1.ConfigMapList
+	if err := kcli.List(ctx, &configMaps); err != nil {
+		return nil, fmt.Errorf("list configmaps: %w", err)
+	}
+	for _, cm := range configMaps.Items {
+		if err := addToResult(&cm); err != nil {
+			return nil, fmt.Errorf("add to result: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
 func (d *DryRun) KubeClient() (client.Client, error) {
 	if d.kcli == nil {
 		scheme := kubeutils.Scheme
@@ -230,9 +273,17 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 func (d *DryRun) KURLKubeClient() (client.Client, error) {
 	if d.kurlKcli == nil {
 		scheme := kubeutils.Scheme
-		// Initialize with empty kURL cluster - tests will populate it
+		clientObjs := []client.Object{}
+		for _, o := range d.KURLK8sObjects {
+			var u unstructured.Unstructured
+			if err := yaml.Unmarshal([]byte(o), &u.Object); err != nil {
+				return nil, fmt.Errorf("unmarshal: %w", err)
+			}
+			clientObjs = append(clientObjs, &u)
+		}
 		d.kurlKcli = fake.NewClientBuilder().
 			WithScheme(scheme).
+			WithObjects(clientObjs...).
 			Build()
 	}
 	return d.kurlKcli, nil
