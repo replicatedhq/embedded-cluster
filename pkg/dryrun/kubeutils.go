@@ -98,6 +98,10 @@ func (k *KubeUtils) KubeClient() (client.Client, error) {
 	return KubeClient()
 }
 
+func (k *KubeUtils) KURLKubeClient() (client.Client, error) {
+	return KURLKubeClient()
+}
+
 func (k *KubeUtils) MetadataClient() (metadata.Interface, error) {
 	return MetadataClient()
 }
