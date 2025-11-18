@@ -74,7 +74,8 @@ func getInstallDirectory(ctx context.Context, kcli client.Client) (string, error
 		Name:      ConfigMapName,
 	}, cm)
 	if err != nil {
-		return "", fmt.Errorf("get kurl configmap from %s namespace: %w", KubeSystemNamespace, err)
+		// Return error directly without wrapping so apierrors.IsNotFound() works
+		return "", err
 	}
 
 	installDir, exists := cm.Data[ConfigMapKey]

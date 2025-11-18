@@ -53,7 +53,7 @@ func TestGetInstallDirectory(t *testing.T) {
 			configMap:   nil,
 			wantDir:     "",
 			wantErr:     true,
-			errContains: "get kurl configmap",
+			errContains: "not found",
 		},
 		{
 			name: "configmap missing key - returns default",
