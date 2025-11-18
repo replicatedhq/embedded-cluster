@@ -1162,8 +1162,7 @@ func verifyLicenseFields(license *licensewrapper.LicenseWrapper, channelRelease 
 	// Check expiration date
 	entitlements := license.GetEntitlements()
 	if expiresAtField, ok := entitlements["expires_at"]; ok {
-		entValue := expiresAtField.GetValue()
-		expiresAtValue := entValue.Value()
+		expiresAtValue := expiresAtField.GetValue()
 		if expiresAtStr, ok := expiresAtValue.(string); ok && expiresAtStr != "" {
 			// read the expiration date, and check it against the current date
 			expiration, err := time.Parse(time.RFC3339, expiresAtStr)

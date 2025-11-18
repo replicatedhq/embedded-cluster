@@ -56,7 +56,7 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	_, err := m.recordInstallation(ctx, m.kcli, license, ki)
+	_, err = m.recordInstallation(ctx, m.kcli, license, ki)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}

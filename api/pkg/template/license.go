@@ -63,7 +63,7 @@ func (e *Engine) licenseFieldValue(name string) (string, error) {
 		entitlement, ok := entitlements[name]
 		if ok {
 			val := entitlement.GetValue()
-			return fmt.Sprintf("%v", val.Value()), nil
+			return fmt.Sprintf("%v", val), nil
 		}
 		return "", nil
 	}
