@@ -45,6 +45,9 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 func (a *API) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
+	// Migration routes (not mode-specific)
+	a.registerMigrationRoutes(linuxRouter)
+
 	if a.cfg.Mode == types.ModeInstall {
 		installRouter := linuxRouter.PathPrefix("/install").Subrouter()
 		installRouter.HandleFunc("/installation/config", a.handlers.linux.Install.GetInstallationConfig).Methods("GET")
@@ -131,4 +134,11 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 func (a *API) registerConsoleRoutes(router *mux.Router) {
 	consoleRouter := router.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.handlers.console.GetListAvailableNetworkInterfaces).Methods("GET")
+}
+
+func (a *API) registerMigrationRoutes(router *mux.Router) {
+	migrationRouter := router.PathPrefix("/migration").Subrouter()
+	migrationRouter.HandleFunc("/config", a.handlers.migration.GetInstallationConfig).Methods("GET")
+	migrationRouter.HandleFunc("/start", a.handlers.migration.PostStartMigration).Methods("POST")
+	migrationRouter.HandleFunc("/status", a.handlers.migration.GetMigrationStatus).Methods("GET")
 }

@@ -8,6 +8,7 @@ import (
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
 	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
+	migrationhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/migration"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -17,6 +18,7 @@ type handlers struct {
 	health     *healthhandler.Handler
 	linux      *linuxhandler.Handler
 	kubernetes *kuberneteshandler.Handler
+	migration  *migrationhandler.Handler
 }
 
 func (a *API) initHandlers() error {
@@ -64,6 +66,13 @@ func (a *API) initHandlers() error {
 			return fmt.Errorf("new linux handler: %w", err)
 		}
 		a.handlers.linux = linuxHandler
+
+		// Migration handler (Linux only)
+		migrationHandler := migrationhandler.New(
+			migrationhandler.WithLogger(a.logger),
+			migrationhandler.WithController(a.migrationController),
+		)
+		a.handlers.migration = migrationHandler
 	} else {
 		// Kubernetes handler
 		kubernetesHandler, err := kuberneteshandler.New(

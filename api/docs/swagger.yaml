@@ -1009,6 +1009,8 @@ components:
       - ignoreHostPreflights
       type: object
     types.LinuxInstallationConfig:
+      description: Config contains optional installation configuration that will be
+        merged with defaults
       properties:
         adminConsolePort:
           type: integer
@@ -1043,6 +1045,61 @@ components:
       - defaults
       - resolved
       - values
+      type: object
+    types.MigrationPhase:
+      description: Phase is the current phase of the migration process
+      enum:
+      - Discovery
+      - Preparation
+      - ECInstall
+      - DataTransfer
+      - Completed
+      example: Discovery
+      type: string
+      x-enum-varnames:
+      - MigrationPhaseDiscovery
+      - MigrationPhasePreparation
+      - MigrationPhaseECInstall
+      - MigrationPhaseDataTransfer
+      - MigrationPhaseCompleted
+    types.MigrationState:
+      description: State is the current state of the migration
+      enum:
+      - NotStarted
+      - InProgress
+      - Completed
+      - Failed
+      example: InProgress
+      type: string
+      x-enum-varnames:
+      - MigrationStateNotStarted
+      - MigrationStateInProgress
+      - MigrationStateCompleted
+      - MigrationStateFailed
+    types.MigrationStatusResponse:
+      description: Current status and progress of a migration
+      properties:
+        error:
+          description: Error contains the error message if the migration failed
+          example: ""
+          type: string
+        message:
+          description: Message is a user-facing message describing the current status
+          example: Discovering kURL cluster configuration
+          type: string
+        phase:
+          $ref: '#/components/schemas/types.MigrationPhase'
+        progress:
+          description: Progress is the completion percentage (0-100)
+          example: 25
+          type: integer
+        state:
+          $ref: '#/components/schemas/types.MigrationState'
+      required:
+      - message
+      - phase
+      - progress
+      - state
       type: object
     types.PatchAppConfigValuesRequest:
       properties:
@@ -1093,6 +1150,31 @@ components:
       - strict
       - title
       type: object
+    types.StartMigrationRequest:
+      description: Request body for starting a migration from kURL to Embedded Cluster
+      properties:
+        config:
+          $ref: '#/components/schemas/types.LinuxInstallationConfig'
+        transferMode:
+          $ref: '#/components/schemas/types.TransferMode'
+      required:
+      - transferMode
+      type: object
+    types.StartMigrationResponse:
+      description: Response returned when a migration is successfully started
+      properties:
+        message:
+          description: Message is a user-facing message about the migration status
+          example: Migration started successfully
+          type: string
+        migrationId:
+          description: MigrationID is the unique identifier for this migration
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+      required:
+      - message
+      - migrationId
+      type: object
     types.State:
       enum:
       - Pending
@@ -1126,6 +1208,16 @@ components:
       required:
       - values
       type: object
+    types.TransferMode:
+      description: TransferMode specifies whether to copy or move data during migration
+      enum:
+      - copy
+      - move
+      example: copy
+      type: string
+      x-enum-varnames:
+      - TransferModeCopy
+      - TransferModeMove
     types.UpgradeAppPreflightsStatusResponse:
       properties:
         allowIgnoreAppPreflights:
@@ -2508,5 +2600,80 @@ paths:
       summary: Upgrade the infrastructure
       tags:
       - linux-upgrade
+  /migration/config:
+    get:
+      description: Get the installation config extracted from kURL merged with EC
+        defaults
+      operationId: getMigrationInstallationConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.LinuxInstallationConfigResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the installation config for migration
+      tags:
+      - migration
+  /migration/start:
+    post:
+      description: Start a migration from kURL to Embedded Cluster with the provided
+        configuration
+      operationId: postStartMigration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.StartMigrationRequest'
+        description: Start Migration Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.StartMigrationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Conflict
+      security:
+      - bearerauth: []
+      summary: Start a migration from kURL to Embedded Cluster
+      tags:
+      - migration
+  /migration/status:
+    get:
+      description: Get the current status and progress of the migration
+      operationId: getMigrationStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.MigrationStatusResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Not Found
+      security:
+      - bearerauth: []
+      summary: Get the status of the migration
+      tags:
+      - migration
 servers:
 - url: /api

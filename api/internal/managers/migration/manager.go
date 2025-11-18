@@ -1,0 +1,214 @@
+package migration
+
+import (
+	"context"
+	"fmt"
+
+	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+var _ Manager = &migrationManager{}
+
+// Manager provides methods for managing kURL to EC migrations
+type Manager interface {
+	// GetKurlConfig extracts configuration from the running kURL cluster
+	GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error)
+
+	// GetECDefaults returns EC default configuration
+	GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error)
+
+	// MergeConfigs merges user, kURL, and default configs with proper precedence
+	// Precedence order: userConfig > kurlConfig > defaults
+	MergeConfigs(userConfig, kurlConfig, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig
+
+	// ValidateTransferMode validates the transfer mode is "copy" or "move"
+	ValidateTransferMode(mode types.TransferMode) error
+
+	// ExecutePhase executes a migration phase
+	ExecutePhase(ctx context.Context, phase types.MigrationPhase) error
+}
+
+// migrationManager is an implementation of the Manager interface
+type migrationManager struct {
+	kubeClient          client.Client
+	kurlPasswordHash    string
+	installationManager linuxinstallation.InstallationManager
+	logger              logrus.FieldLogger
+}
+
+type ManagerOption func(*migrationManager)
+
+func WithLogger(logger logrus.FieldLogger) ManagerOption {
+	return func(m *migrationManager) {
+		m.logger = logger
+	}
+}
+
+func WithKubeClient(kcli client.Client) ManagerOption {
+	return func(m *migrationManager) {
+		m.kubeClient = kcli
+	}
+}
+
+func WithKurlPasswordHash(hash string) ManagerOption {
+	return func(m *migrationManager) {
+		m.kurlPasswordHash = hash
+	}
+}
+
+func WithInstallationManager(im linuxinstallation.InstallationManager) ManagerOption {
+	return func(m *migrationManager) {
+		m.installationManager = im
+	}
+}
+
+// NewManager creates a new migration Manager with the provided options
+func NewManager(opts ...ManagerOption) *migrationManager {
+	manager := &migrationManager{}
+
+	for _, opt := range opts {
+		opt(manager)
+	}
+
+	if manager.logger == nil {
+		manager.logger = logger.NewDiscardLogger()
+	}
+
+	return manager
+}
+
+// GetKurlConfig extracts configuration from the running kURL cluster
+func (m *migrationManager) GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
+	// TODO: Implement kURL cluster configuration extraction in future PR
+	// This will query the kURL cluster for:
+	// - Pod and Service CIDRs from kube-controller-manager
+	// - Network configuration
+	// - Admin console port
+	// - Data directory
+	// - Local artifact mirror port
+	// - Proxy settings
+	m.logger.Debug("GetKurlConfig: Skeleton implementation, returning empty config")
+	return types.LinuxInstallationConfig{}, nil
+}
+
+// GetECDefaults returns EC default configuration
+func (m *migrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error) {
+	if m.installationManager == nil {
+		return types.LinuxInstallationConfig{}, fmt.Errorf("installation manager not configured")
+	}
+
+	// TODO: Pass proper RuntimeConfig when available
+	// For now, we'll need to determine how to get the runtime config in the migration context
+	m.logger.Debug("GetECDefaults: Delegating to installation manager")
+	return types.LinuxInstallationConfig{}, fmt.Errorf("GetECDefaults: requires RuntimeConfig - implement in future PR")
+}
+
+// MergeConfigs merges user, kURL, and default configs with proper precedence
+// Precedence order: userConfig > kurlConfig > defaults
+func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig {
+	merged := types.LinuxInstallationConfig{}
+
+	// Start with defaults as the base
+	merged = defaults
+
+	// Apply kURL config, overwriting defaults only for non-zero values
+	if kurlConfig.AdminConsolePort != 0 {
+		merged.AdminConsolePort = kurlConfig.AdminConsolePort
+	}
+	if kurlConfig.DataDirectory != "" {
+		merged.DataDirectory = kurlConfig.DataDirectory
+	}
+	if kurlConfig.LocalArtifactMirrorPort != 0 {
+		merged.LocalArtifactMirrorPort = kurlConfig.LocalArtifactMirrorPort
+	}
+	if kurlConfig.HTTPProxy != "" {
+		merged.HTTPProxy = kurlConfig.HTTPProxy
+	}
+	if kurlConfig.HTTPSProxy != "" {
+		merged.HTTPSProxy = kurlConfig.HTTPSProxy
+	}
+	if kurlConfig.NoProxy != "" {
+		merged.NoProxy = kurlConfig.NoProxy
+	}
+	if kurlConfig.NetworkInterface != "" {
+		merged.NetworkInterface = kurlConfig.NetworkInterface
+	}
+	if kurlConfig.PodCIDR != "" {
+		merged.PodCIDR = kurlConfig.PodCIDR
+	}
+	if kurlConfig.ServiceCIDR != "" {
+		merged.ServiceCIDR = kurlConfig.ServiceCIDR
+	}
+	if kurlConfig.GlobalCIDR != "" {
+		merged.GlobalCIDR = kurlConfig.GlobalCIDR
+	}
+
+	// Apply user config, overwriting merged values only for non-zero values
+	// This gives user config the highest precedence
+	if userConfig.AdminConsolePort != 0 {
+		merged.AdminConsolePort = userConfig.AdminConsolePort
+	}
+	if userConfig.DataDirectory != "" {
+		merged.DataDirectory = userConfig.DataDirectory
+	}
+	if userConfig.LocalArtifactMirrorPort != 0 {
+		merged.LocalArtifactMirrorPort = userConfig.LocalArtifactMirrorPort
+	}
+	if userConfig.HTTPProxy != "" {
+		merged.HTTPProxy = userConfig.HTTPProxy
+	}
+	if userConfig.HTTPSProxy != "" {
+		merged.HTTPSProxy = userConfig.HTTPSProxy
+	}
+	if userConfig.NoProxy != "" {
+		merged.NoProxy = userConfig.NoProxy
+	}
+	if userConfig.NetworkInterface != "" {
+		merged.NetworkInterface = userConfig.NetworkInterface
+	}
+	if userConfig.PodCIDR != "" {
+		merged.PodCIDR = userConfig.PodCIDR
+	}
+	if userConfig.ServiceCIDR != "" {
+		merged.ServiceCIDR = userConfig.ServiceCIDR
+	}
+	if userConfig.GlobalCIDR != "" {
+		merged.GlobalCIDR = userConfig.GlobalCIDR
+	}
+
+	m.logger.WithFields(logrus.Fields{
+		"userConfig":   userConfig,
+		"kurlConfig":   kurlConfig,
+		"defaults":     defaults,
+		"mergedConfig": merged,
+	}).Debug("MergeConfigs: Merged configuration with precedence user > kURL > defaults")
+
+	return merged
+}
+
+// ValidateTransferMode validates the transfer mode is "copy" or "move"
+func (m *migrationManager) ValidateTransferMode(mode types.TransferMode) error {
+	switch mode {
+	case types.TransferModeCopy, types.TransferModeMove:
+		return nil
+	default:
+		return fmt.Errorf("%w: must be 'copy' or 'move', got '%s'", types.ErrInvalidTransferMode, mode)
+	}
+}
+
+// ExecutePhase executes a migration phase
+func (m *migrationManager) ExecutePhase(ctx context.Context, phase types.MigrationPhase) error {
+	// TODO: Implement phase execution in PR 8
+	// This will handle:
+	// - Discovery phase: GetKurlConfig, validate cluster
+	// - Preparation phase: Backup, pre-migration checks
+	// - ECInstall phase: Install EC alongside kURL
+	// - DataTransfer phase: Copy/move data from kURL to EC
+	// - Completed phase: Final validation, cleanup
+	m.logger.WithField("phase", phase).Debug("ExecutePhase: Skeleton implementation")
+	return fmt.Errorf("ExecutePhase: not yet implemented (coming in PR 8)")
+}
