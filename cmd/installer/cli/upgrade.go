@@ -19,6 +19,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -87,13 +88,34 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				return fmt.Errorf(`invalid --target (must be: "linux")`)
 			}
 
-			if os.Getuid() != 0 {
+			// Skip root check if dryrun mode is enabled
+			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("upgrade command must be run as root")
 			}
 
 			// set the umask to 022 so that we can create files/directories with 755 permissions
 			// this does not return an error - it returns the previous umask
 			_ = syscall.Umask(0o022)
+
+			// Check if this is a kURL cluster that needs migration to Embedded Cluster.
+			migrationNeeded, err := detectKurlMigration(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to detect migration scenario: %w", err)
+			}
+
+			if migrationNeeded {
+				logrus.Info("Preparing to upgrade to Embedded Cluster...")
+				logrus.Info("")
+				logrus.Info("This upgrade will be available in a future release.")
+				logrus.Info("")
+				// TBD: In a future story, this will:
+				// 1. Export the kURL password hash for authentication compatibility
+				// 2. Generate TLS certificates for the migration API
+				// 3. Start the Admin Console API in migration mode
+				// 4. Display the manager URL for the user to complete the upgrade via UI
+				// 5. Block until the user completes the upgrade or interrupts (Ctrl+C)
+				return nil
+			}
 
 			// Set up environment variables from existing runtime config
 			existingRC, err := rcutil.GetRuntimeConfigFromCluster(ctx)
