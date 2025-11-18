@@ -410,27 +410,38 @@ func incrementCIDR(cidr string) (string, error)
 ## Testing
 
 ### Unit Tests
-**Controller Tests** (`controller_test.go` - already implemented):
+**Controller Tests** (`api/controllers/migration/controller_test.go`):
 - GetInstallationConfig with various config combinations
-- StartMigration with different transfer modes
-- Migration already in progress (409 conflict)
-- Invalid transfer mode (400 bad request)
+- StartMigration with different transfer modes (copy/move)
+- Migration already in progress returns 409 conflict (ErrMigrationAlreadyStarted)
+- Invalid transfer mode returns 400 bad request
 - GetMigrationStatus with active/inactive migrations
+- Background goroutine execution and state transitions
 
-**Manager Tests** (to be added):
+**Manager Tests** (`api/internal/managers/migration/manager_test.go`):
 - Config merging precedence (user > kURL > defaults)
-- Transfer mode validation
-- **CIDR exclusion logic (CRITICAL):**
-  - `TestCalculateNonOverlappingCIDRs_ExcludesKurlRanges()` - Verify EC ranges don't overlap kURL
-  - `TestCalculateNonOverlappingCIDRs_MultipleExclusions()` - Test with multiple excluded ranges
-  - `TestCalculateNonOverlappingCIDRs_WithinGlobalCIDR()` - Verify calculated ranges respect global CIDR
-  - `TestCalculateNonOverlappingCIDRs_NoAvailableRange()` - Handle exhaustion scenarios
-- kURL config extraction from Kubernetes resources
+- Transfer mode validation (copy/move only)
+- GetECDefaults delegates to InstallationManager.GetDefaults()
+- MergeConfigs properly overrides with correct precedence
 
-**Store Tests** (to be added):
-- Thread-safe concurrent access
-- State transitions
-- Deep copy verification
+**Network Tests** (`api/internal/managers/migration/network_test.go` - CRITICAL):
+- `TestCalculateNonOverlappingCIDRs_ExcludesKurlRanges()` - Verify EC ranges don't overlap kURL
+- `TestCalculateNonOverlappingCIDRs_MultipleExclusions()` - Test with multiple excluded ranges
+- `TestCalculateNonOverlappingCIDRs_WithinGlobalCIDR()` - Verify calculated ranges respect global CIDR
+- `TestCalculateNonOverlappingCIDRs_NoAvailableRange()` - Handle exhaustion scenarios
+
+**kURL Config Tests** (`api/internal/managers/migration/kurl_config_test.go`):
+- discoverKotsadmNamespace finds Service in default namespace first
+- discoverKotsadmNamespace falls back to searching all namespaces
+- extractAdminConsolePort reads NodePort from discovered Service
+- extractProxySettings reads env vars from kotsadm Deployment
+
+**Store Tests** (`api/internal/store/migration/store_test.go`):
+- NewInMemoryStore with WithMigration option for test initialization
+- Thread-safe concurrent access (multiple goroutines reading/writing)
+- State transitions (NotStarted → InProgress → Completed/Failed)
+- Deep copy verification (GetMigration returns copy, not reference)
+- InitializeMigration returns ErrMigrationAlreadyStarted when exists
 
 ### Integration Tests
 - End-to-end API flow simulation
@@ -438,38 +449,36 @@ func incrementCIDR(cidr string) (string, error)
 - Error propagation through layers
 
 ### Dryrun Tests
-Update or create dryrun tests following existing patterns from `cmd/installer/cli/install_test.go`:
-- Test POST /start → verify migration starts and transitions to Failed state
-- Test GET /status after start → verify error message contains `ErrMigrationPhaseNotImplemented`
-- Validates that the skeleton implementation correctly handles errors before full phase execution is implemented
+**Extend existing test:** `tests/dryrun/upgrade_kurl_migration_test.go::TestUpgradeKURLMigration`
 
-### Test Setup Pattern
-Follow existing v3 test patterns from `cmd/installer/cli/install_test.go` (see `Test_k0sConfigFromFlags`):
+The existing test validates CLI migration detection. Extend it to test the migration API foundation:
+
 ```go
-func Test_StartMigration_DryRun(t *testing.T) {
-    tests := []struct {
-        name         string
-        transferMode string
-        kurlConfig   types.LinuxInstallationConfig
-        userConfig   *types.LinuxInstallationConfig
-        expectedErr  string
-    }{
-        {
-            name:         "copy mode with default config",
-            transferMode: "copy",
-            kurlConfig: types.LinuxInstallationConfig{
-                AdminConsolePort: 8800,
-                PodCIDR:          "10.32.0.0/20",      // kURL's existing CIDRs
-                ServiceCIDR:      "10.96.0.0/12",
-                DataDirectory:    "/var/lib/kurl",
-            },
-            expectedErr: "migration phase execution not yet implemented", // ErrMigrationPhaseNotImplemented
-        },
-        // Add more test cases...
-    }
-    // Test implementation using controller with mock store/manager
+func TestUpgradeKURLMigration(t *testing.T) {
+    // Existing setup: ENABLE_V3=1, mock kURL kubeconfig, dryrun.KubeUtils
+    // Existing setup: Create kurl-config ConfigMap in kube-system namespace
+    // Existing test: Verify CLI upgrade detection and messaging
+
+    // NEW: Test Migration API endpoints
+    t.Run("migration API skeleton", func(t *testing.T) {
+        // Start the API server with migration mode
+        // POST /api/kurl-migration/start with transferMode="copy"
+        // Verify response: migrationID returned with 200
+
+        // GET /api/kurl-migration/status
+        // Verify response: state=Failed, error contains "migration phase execution not yet implemented"
+        // This validates ErrMigrationPhaseNotImplemented is properly returned
+    })
 }
 ```
+
+**Test Pattern:**
+- Uses `dryrun.KubeUtils{}` for mock Kubernetes clients
+- Creates kURL kubeconfig at `kubeutils.KURLKubeconfigPath`
+- Creates `kurl-config` ConfigMap: `Data["kurl_install_directory"] = "/var/lib/kurl"`
+- Uses `embedReleaseData()` helper for release artifacts
+- Captures logrus output for assertion
+- Runs actual CLI commands with flags
 
 **CIDR Exclusion Test** (critical validation):
 ```go
