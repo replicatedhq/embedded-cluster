@@ -2,7 +2,7 @@
 
 ## TL;DR (solution in one paragraph)
 
-Build REST API endpoints to enable Admin Console UI integration for migrating single-node kURL clusters to Embedded Cluster V3. The API provides three core endpoints: GET /api/migration/config for configuration discovery, POST /api/migration/start for initiating async migration, and GET /api/migration/status for progress monitoring. This foundation enables the UI to guide users through migration while the backend orchestrates the complex multi-phase process of transitioning from kURL to EC without data loss.
+Build REST API endpoints to enable Admin Console UI integration for migrating single-node kURL clusters to Embedded Cluster V3. The API provides three core endpoints: GET /api/kurl-migration/config for configuration discovery, POST /api/kurl-migration/start for initiating async migration, and GET /api/kurl-migration/status for progress monitoring. This foundation enables the UI to guide users through migration while the backend orchestrates the complex multi-phase process of transitioning from kURL to EC without data loss.
 
 ## The problem
 
@@ -12,13 +12,13 @@ kURL users need a path to migrate to Embedded Cluster V3, but the migration proc
 
 ### API Flow Diagram
 ```
-┌─────────────┐     GET /config      ┌─────────────┐
-│   Admin     │ ◄──────────────────► │  Migration  │
+┌─────────────┐     GET /config       ┌─────────────┐
+│   Admin     │ ◄──────────────────►  │  Migration  │
 │   Console   │                       │     API     │
 │     UI      │  POST /start ────────►│             │
 │             │                       │  ┌────────┐ │
 │             │  GET /status ────────►│  │Backend │ │
-└─────────────┘      (polling)       │  │Process │ │
+└─────────────┘      (polling)        │  │Process │ │
                                       └──┴────────┴─┘
                                              │
                                              ▼
@@ -73,13 +73,13 @@ No new subagents or commands will be created in this PR. The API foundation prov
 
 ## Implementation plan
 
-### Files/services to touch:
+### Pseudo Code - Key Components
 
 **Already Implemented (review/enhance):**
 
 **`api/routes.go`** - Route registration
 ```go
-// Register migration routes under /api/linux/migration/ with auth middleware
+// Register migration routes under /api/kurl-migration/ with auth middleware
 // GET  /config - Get installation configuration
 // POST /start  - Start migration with transfer mode and optional config
 // GET  /status - Poll migration status
@@ -103,32 +103,28 @@ type Handler struct {
 func NewHandler(controller Controller, store Store, logger *logrus.Logger) *Handler
 
 // GetInstallationConfig returns kURL config merged with EC defaults (values/defaults/resolved)
-// @Router /api/linux/migration/config [get]
+// @Router /api/kurl-migration/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
-    // Call controller.GetInstallationConfig()
-    // Return LinuxInstallationConfigResponse with 200
-    // Handle errors with 500
+    // Call controller.GetInstallationConfig(r.Context())
+    // Use utils.JSON() to return LinuxInstallationConfigResponse with 200
+    // Use utils.JSONError() to handle errors (controller returns typed errors)
 }
 
 // PostStartMigration initiates migration with transfer mode and optional config overrides
-// @Router /api/linux/migration/start [post]
+// @Router /api/kurl-migration/start [post]
 func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
-    // Parse StartMigrationRequest body
-    // Default transferMode to "copy" if empty
-    // Validate transferMode is "copy" or "move" (400 if invalid)
-    // Call controller.StartMigration()
-    // Return migrationID with 200
-    // Handle ErrMigrationAlreadyStarted with 409
-    // Handle other errors with 500
+    // Use utils.BindJSON() to parse StartMigrationRequest body
+    // Call controller.StartMigration(r.Context(), req.TransferMode, req.Config)
+    // Use utils.JSON() to return StartMigrationResponse with 200
+    // Use utils.JSONError() to handle errors (controller returns typed errors like BadRequest/Conflict)
 }
 
 // GetMigrationStatus returns current state, phase, progress, and errors
-// @Router /api/linux/migration/status [get]
+// @Router /api/kurl-migration/status [get]
 func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
-    // Call controller.GetMigrationStatus()
-    // Return MigrationStatusResponse with 200
-    // Handle ErrNoActiveMigration with 404
-    // Handle other errors with 500
+    // Call controller.GetMigrationStatus(r.Context())
+    // Use utils.JSON() to return MigrationStatusResponse with 200
+    // Use utils.JSONError() to handle errors (controller returns typed errors)
 }
 ```
 
@@ -136,9 +132,10 @@ func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
 ```go
 // Error constants
 var (
-    ErrNoActiveMigration       = errors.New("no active migration")
-    ErrMigrationAlreadyStarted = errors.New("migration already started")
-    ErrInvalidTransferMode     = errors.New("invalid transfer mode: must be 'copy' or 'move'")
+    ErrNoActiveMigration           = errors.New("no active migration")
+    ErrMigrationAlreadyStarted     = errors.New("migration already started")
+    ErrInvalidTransferMode         = errors.New("invalid transfer mode: must be 'copy' or 'move'")
+    ErrMigrationPhaseNotImplemented = errors.New("migration phase execution not yet implemented")
 )
 
 // MigrationState: NotStarted, InProgress, Completed, Failed
@@ -173,11 +170,17 @@ type Controller interface {
     GetMigrationStatus(ctx context.Context) (*types.MigrationStatusResponse, error)
 }
 
+// InstallationManager interface from api/internal/managers/linux/installation
+type InstallationManager interface {
+    GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
+    ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
+}
+
 type MigrationController struct {
     logger              *logrus.Logger
     store               Store
     manager             Manager
-    installationManager InstallationManager
+    installationManager InstallationManager // Reuses existing validation and defaults
 }
 
 func NewController(store Store, manager Manager, installationMgr InstallationManager, logger *logrus.Logger) *MigrationController
@@ -192,11 +195,12 @@ func (mc *MigrationController) GetInstallationConfig(ctx context.Context) (*type
 
 // StartMigration initializes and starts the migration process
 func (mc *MigrationController) StartMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (string, error) {
-    // Check if migration already exists (return ErrMigrationAlreadyStarted)
-    // Validate transfer mode
-    // Get base config (kURL + defaults)
-    // Merge with user config (user > kURL > defaults)
-    // Validate final config
+    // Check if migration already exists (return types.NewConflictError(ErrMigrationAlreadyStarted))
+    // Default transferMode to "copy" if empty
+    // Validate transfer mode using manager.ValidateTransferMode() (return types.NewBadRequestError(err) if invalid)
+    // Get base config (kURL + defaults) using mc.GetInstallationConfig()
+    // Merge with user config (user > kURL > defaults) using manager.MergeConfigs()
+    // Validate final config using installationManager.ValidateConfig() (return types.NewBadRequestError(err) if invalid)
     // Generate migration ID (uuid)
     // Initialize migration in store
     // Launch background goroutine mc.runMigration()
@@ -213,8 +217,11 @@ func (mc *MigrationController) GetMigrationStatus(ctx context.Context) (*types.M
 // runMigration executes migration phases in background (SKELETON ONLY in this PR)
 func (mc *MigrationController) runMigration(ctx context.Context, migrationID string) {
     // Set state to InProgress
+    // Set phase to Discovery
+    // Return ErrMigrationPhaseNotImplemented error (for dryrun testing)
+    // Set error in store
+    // Set state to Failed
     // TODO (PR 8): Execute phases: Discovery, Preparation, ECInstall, DataTransfer, Completed
-    // For now: Sleep 5s then set to Completed (for testing)
 }
 
 func (mc *MigrationController) calculateProgress(phase types.MigrationPhase) int
@@ -226,19 +233,22 @@ type Manager interface {
     GetKurlConfig(ctx context.Context) (*types.LinuxInstallationConfig, error)
     GetECDefaults(ctx context.Context) (*types.LinuxInstallationConfig, error)
     MergeConfigs(user, kurl, defaults *types.LinuxInstallationConfig) *types.LinuxInstallationConfig
-    ValidateInstallationConfig(config *types.LinuxInstallationConfig) error
     ValidateTransferMode(mode string) error
 }
 
 type manager struct {
-    logger     *logrus.Logger
-    kubeClient client.Client
+    logger              *logrus.Logger
+    kubeClient          client.Client
+    installationManager InstallationManager // For reusing existing validation
 }
 
-func NewManager(kubeClient client.Client, logger *logrus.Logger) Manager
+func NewManager(kubeClient client.Client, installationMgr InstallationManager, logger *logrus.Logger) Manager
 
-// GetECDefaults returns standard EC defaults (AdminConsolePort: 30000, DataDirectory: /var/lib/embedded-cluster, etc.)
-func (m *manager) GetECDefaults(ctx context.Context) (*types.LinuxInstallationConfig, error)
+// GetECDefaults delegates to installationManager.GetDefaults() to reuse existing defaults logic
+func (m *manager) GetECDefaults(ctx context.Context) (*types.LinuxInstallationConfig, error) {
+    // Call installationManager.GetDefaults(runtimeConfig)
+    // Returns: AdminConsolePort: 30000, DataDirectory: /var/lib/embedded-cluster, GlobalCIDR, proxy defaults, etc.
+}
 
 // MergeConfigs merges configs with precedence: user > kURL > defaults
 func (m *manager) MergeConfigs(user, kurl, defaults *types.LinuxInstallationConfig) *types.LinuxInstallationConfig {
@@ -250,6 +260,9 @@ func (m *manager) MergeConfigs(user, kurl, defaults *types.LinuxInstallationConf
 
 // ValidateTransferMode checks mode is "copy" or "move"
 func (m *manager) ValidateTransferMode(mode string) error
+
+// NOTE: Config validation reuses installationManager.ValidateConfig() instead of duplicating validation logic
+// Validates: globalCIDR, podCIDR, serviceCIDR, networkInterface, adminConsolePort, localArtifactMirrorPort, dataDirectory
 ```
 
 **`api/internal/store/migration/store.go`** - In-memory state storage
@@ -280,7 +293,16 @@ type inMemoryStore struct {
     migration *Migration
 }
 
-func NewInMemoryStore() Store
+type StoreOption func(*inMemoryStore)
+
+func WithMigration(migration Migration) StoreOption
+
+// NewInMemoryStore creates a new in-memory migration store with optional initialization
+func NewInMemoryStore(opts ...StoreOption) Store {
+    // Initialize empty store
+    // Apply options (e.g., WithMigration for testing)
+    // Return store
+}
 
 // GetMigration returns current migration with deep copy, or ErrNoActiveMigration if none exists
 func (s *inMemoryStore) GetMigration() (*Migration, error)
@@ -303,30 +325,44 @@ func (s *inMemoryStore) SetError(errorMsg string) error
 
 **To Be Implemented:**
 
+**CLI-API Integration Pattern:**
+The API leverages existing kURL detection utilities from the `pkg-new/kurl` package (implemented in story sc-130962). The CLI handles password export via `exportKurlPasswordHash()`, while the API focuses on configuration extraction and migration orchestration. This separation ensures the API doesn't duplicate CLI detection logic.
+
 **`api/internal/managers/migration/kurl_config.go`** - Extract kURL configuration
 ```go
+import (
+    "github.com/replicatedhq/embedded-cluster/pkg-new/kurl"
+)
+
 // GetKurlConfig extracts configuration from kURL cluster and returns EC-ready config with non-overlapping CIDRs
 func (m *Manager) GetKurlConfig(ctx context.Context) (*types.LinuxInstallationConfig, error) {
+    // Use existing pkg-new/kurl.GetConfig() to get base kURL configuration
     // Extract kURL's pod/service CIDRs from kube-controller-manager
-    // Extract admin console port, proxy settings, data directory
-    // Calculate NEW non-overlapping CIDRs for EC
+    // Extract admin console port, proxy settings from kotsadm resources
+    // Calculate NEW non-overlapping CIDRs for EC (using calculateNonOverlappingCIDRs)
     // Return LinuxInstallationConfig with EC-ready values
+    // NOTE: Password hash is handled by CLI (exportKurlPasswordHash), not API
+    // NOTE: Install directory comes from kurl.Config.InstallDir (already retrieved from ConfigMap)
 }
 
 // extractKurlNetworkConfig extracts kURL's existing pod and service CIDRs from kube-controller-manager pod
-func extractKurlNetworkConfig(ctx context.Context) (podCIDR, serviceCIDR string, err error)
+func extractKurlNetworkConfig(ctx context.Context, kurlClient client.Client) (podCIDR, serviceCIDR string, err error)
 
-// extractAdminConsolePort gets NodePort from kotsadm Service
-func extractAdminConsolePort(ctx context.Context) (int, error)
+// discoverKotsadmNamespace finds the namespace containing kotsadm Service
+// Checks "default" first, then searches all namespaces for Service with label "app=kotsadm"
+// Returns namespace name or error if not found
+func discoverKotsadmNamespace(ctx context.Context, kurlClient client.Client) (string, error)
 
-// extractProxySettings gets HTTP_PROXY/HTTPS_PROXY from kotsadm Deployment env
-func extractProxySettings(ctx context.Context) (*ProxyConfig, error)
+// extractAdminConsolePort discovers and gets NodePort from kotsadm Service
+// Uses discoverKotsadmNamespace to handle vendors who deploy KOTS outside default namespace
+func extractAdminConsolePort(ctx context.Context, kurlClient client.Client) (int, error)
 
-// extractDataDirectory reads kurl_install_directory from kube-system/kurl ConfigMap
-func extractDataDirectory(ctx context.Context) (string, error)
+// extractProxySettings discovers kotsadm Deployment and gets HTTP_PROXY/HTTPS_PROXY env vars
+// Uses same namespace discovery logic as extractAdminConsolePort
+func extractProxySettings(ctx context.Context, kurlClient client.Client) (*ProxyConfig, error)
 
 // extractNetworkInterface reads network_interface from kube-system/kurl ConfigMap
-func extractNetworkInterface(ctx context.Context) (string, error)
+func extractNetworkInterface(ctx context.Context, kurlClient client.Client) (string, error)
 ```
 
 **`api/internal/managers/migration/network.go`** - CIDR calculation logic
@@ -352,158 +388,6 @@ func isWithinGlobal(cidr, globalCIDR string) (bool, error)
 func incrementCIDR(cidr string) (string, error)
 ```
 
-**`api/internal/managers/migration/validation.go`** - Config validation
-```go
-// ValidateInstallationConfig validates user-provided installation config
-func (m *Manager) ValidateInstallationConfig(config *types.LinuxInstallationConfig) error {
-    // Validate ports are in range 1024-65535 and don't conflict
-    // Validate CIDRs are valid IPv4 ranges
-    // Validate data directory is absolute path
-    // Validate proxy URLs have valid scheme and host
-    // Validate network interface name format
-}
-
-// validatePort checks port is in valid non-privileged range
-func validatePort(port int, name string) error
-
-// validateCIDR parses and validates CIDR string
-func validateCIDR(cidr, name string) error
-
-// validateProxyURL checks proxy URL has valid scheme and host
-func validateProxyURL(proxyURL, name string) error
-
-// validateNetworkInterface checks interface name is valid
-func validateNetworkInterface(iface string) error
-
-// ValidateTransferMode validates mode is "copy" or "move"
-func ValidateTransferMode(mode string) error
-```
-
-### Pseudo Code - Key Components
-
-**kURL Config Extraction (Returns EC-ready config):**
-```pseudo
-function GetKurlConfig(ctx):
-    // Read kube-system/kurl ConfigMap
-    configMap = kubeClient.Get("kube-system", "kurl")
-
-    // Extract kURL's EXISTING network config from kube-controller-manager
-    controllerPod = findPod("kube-controller-manager")
-    kurlPodCIDR = extractFlag(controllerPod, "--cluster-cidr")
-    kurlServiceCIDR = extractFlag(controllerPod, "--service-cluster-ip-range")
-
-    // Extract reusable settings
-    adminService = kubeClient.GetService("kotsadm")
-    adminPort = adminService.Spec.Ports[0].NodePort
-    httpProxy = extractProxyFromEnv()
-    httpsProxy = extractProxyFromEnv()
-    dataDir = configMap.Data["dataDir"]
-
-    // Calculate NEW CIDRs for EC that don't conflict with kURL
-    globalCIDR = "10.0.0.0/8"  // or from user config
-    ecPodCIDR, ecServiceCIDR = CalculateNonOverlappingCIDRs(
-        kurlPodCIDR,      // Exclude kURL's pod CIDR
-        kurlServiceCIDR,  // Exclude kURL's service CIDR
-        globalCIDR,
-    )
-
-    // Return LinuxInstallationConfig with EC-ready values
-    // CIDRs are ALREADY calculated to avoid conflicts
-    return LinuxInstallationConfig{
-        PodCIDR: ecPodCIDR,              // NEW non-overlapping range for EC
-        ServiceCIDR: ecServiceCIDR,       // NEW non-overlapping range for EC
-        GlobalCIDR: globalCIDR,
-        AdminConsolePort: adminPort,
-        HttpProxy: httpProxy,
-        HttpsProxy: httpsProxy,
-        DataDirectory: dataDir,
-        // ... other fields
-    }
-```
-
-**CIDR Calculation (Avoiding kURL Conflicts):**
-```pseudo
-function CalculateNonOverlappingCIDRs(kurlPodCIDR, kurlServiceCIDR, globalCIDR):
-    // IMPORTANT: We EXCLUDE kURL ranges to avoid network conflicts
-    // During migration, both clusters may run simultaneously
-    excludedRanges = [kurlPodCIDR, kurlServiceCIDR]
-
-    // Calculate NEW EC pod CIDR that doesn't overlap with kURL
-    ecPodCIDR = findNextAvailable(
-        defaultRange: "10.32.0.0/16",
-        excludeRanges: excludedRanges,
-        withinGlobal: globalCIDR
-    )
-
-    // Calculate NEW EC service CIDR that doesn't overlap with kURL
-    ecServiceCIDR = findNextAvailable(
-        defaultRange: "10.96.0.0/12",
-        excludeRanges: excludedRanges,
-        withinGlobal: globalCIDR
-    )
-
-    return LinuxInstallationConfig{
-        PodCIDR: ecPodCIDR,        // NEW range, NOT reused from kURL
-        ServiceCIDR: ecServiceCIDR, // NEW range, NOT reused from kURL
-        GlobalCIDR: globalCIDR,
-    }
-```
-
-**Critical Design Decision:**
-We do NOT reuse kURL's CIDRs for the EC cluster. Instead, we:
-1. Extract kURL's pod and service CIDR ranges
-2. Pass them as exclusion parameters to the CIDR calculation function
-3. Calculate NEW non-overlapping ranges for EC
-4. This prevents network conflicts when both clusters are running during migration
-
-**Complete Configuration Flow:**
-```pseudo
-function GetInstallationConfig(ctx):
-    // Step 1: Get config from kURL
-    // GetKurlConfig internally extracts kURL CIDRs and calculates non-overlapping EC CIDRs
-    kurlConfig = GetKurlConfig(ctx)
-    // kurlConfig.PodCIDR = "10.48.0.0/20" (NEW, doesn't overlap kURL's 10.32.0.0/20)
-    // kurlConfig.ServiceCIDR = "10.112.0.0/12" (NEW, doesn't overlap kURL's 10.96.0.0/12)
-    // kurlConfig.AdminConsolePort = 8800 (from kURL)
-    // kurlConfig.DataDirectory = "/var/lib/kurl" (from kURL)
-
-    // Step 2: Get EC defaults
-    ecDefaults = GetECDefaults()
-
-    // Step 3: Merge configs (user overrides > kURL extraction > EC defaults)
-    userConfig = request.Body.Config  // May be empty
-    finalConfig = MergeConfigs(userConfig, kurlConfig, ecDefaults)
-    // Precedence: user > kURL-extracted > defaults
-
-    return LinuxInstallationConfigResponse{
-        Values: finalConfig,
-        Defaults: ecDefaults,
-        Resolved: finalConfig,
-    }
-```
-
-**Migration Orchestration (skeleton):**
-```pseudo
-function Run(ctx):
-    status = store.GetStatus()
-
-    if status.State == InProgress:
-        // Resume from current phase
-        resumeFrom(status.Phase)
-
-    for phase in [Discovery, Preparation, ECInstall, DataTransfer, Completed]:
-        store.SetState(InProgress)
-        store.SetPhase(phase)
-
-        try:
-            manager.ExecutePhase(ctx, phase)
-        catch error:
-            store.SetState(Failed)
-            store.SetError(error.Message)
-            return error
-
-    store.SetState(Completed)
-```
 
 ### Handlers/Controllers
 - Migration handlers are Linux-only (not available for Kubernetes target)
@@ -553,37 +437,63 @@ function Run(ctx):
 - Background goroutine execution
 - Error propagation through layers
 
-### Test Data/Fixtures
+### Dryrun Tests
+Update or create dryrun tests following existing patterns from `cmd/installer/cli/install_test.go`:
+- Test POST /start → verify migration starts and transitions to Failed state
+- Test GET /status after start → verify error message contains `ErrMigrationPhaseNotImplemented`
+- Validates that the skeleton implementation correctly handles errors before full phase execution is implemented
+
+### Test Setup Pattern
+Follow existing v3 test patterns from `cmd/installer/cli/install_test.go` (see `Test_k0sConfigFromFlags`):
 ```go
-// Test configs
-kurlConfig := LinuxInstallationConfig{
-    AdminConsolePort: 8800,
-    PodCIDR: "10.32.0.0/20",      // kURL's existing pod CIDR
-    ServiceCIDR: "10.96.0.0/12",  // kURL's existing service CIDR
+func Test_StartMigration_DryRun(t *testing.T) {
+    tests := []struct {
+        name         string
+        transferMode string
+        kurlConfig   types.LinuxInstallationConfig
+        userConfig   *types.LinuxInstallationConfig
+        expectedErr  string
+    }{
+        {
+            name:         "copy mode with default config",
+            transferMode: "copy",
+            kurlConfig: types.LinuxInstallationConfig{
+                AdminConsolePort: 8800,
+                PodCIDR:          "10.32.0.0/20",      // kURL's existing CIDRs
+                ServiceCIDR:      "10.96.0.0/12",
+                DataDirectory:    "/var/lib/kurl",
+            },
+            expectedErr: "migration phase execution not yet implemented", // ErrMigrationPhaseNotImplemented
+        },
+        // Add more test cases...
+    }
+    // Test implementation using controller with mock store/manager
 }
+```
 
-ecDefaults := LinuxInstallationConfig{
-    AdminConsolePort: 30000,
-    DataDirectory: "/var/lib/embedded-cluster",
-    GlobalCIDR: "10.0.0.0/8",
-}
-
-// CIDR Exclusion Test Case
-testCase := CIDRCalculationTest{
-    name: "Excludes kURL ranges",
-    kurlPodCIDR: "10.32.0.0/20",
-    kurlServiceCIDR: "10.96.0.0/12",
-    globalCIDR: "10.0.0.0/8",
-    expectedECPodCIDR: "10.48.0.0/20",       // Different from kURL
-    expectedECServiceCIDR: "10.112.0.0/12",  // Different from kURL
-    shouldNotOverlap: true,
-}
-
-// Mock Kubernetes responses
-mockConfigMap := &corev1.ConfigMap{
-    Data: map[string]string{
-        "dataDir": "/var/lib/kurl",
-    },
+**CIDR Exclusion Test** (critical validation):
+```go
+func Test_CalculateNonOverlappingCIDRs(t *testing.T) {
+    tests := []struct {
+        name                string
+        kurlPodCIDR         string
+        kurlServiceCIDR     string
+        globalCIDR          string
+        expectedECPodCIDR   string
+        expectedECServiceCIDR string
+        shouldNotOverlap    bool
+    }{
+        {
+            name:                "excludes kURL ranges",
+            kurlPodCIDR:         "10.32.0.0/20",
+            kurlServiceCIDR:     "10.96.0.0/12",
+            globalCIDR:          "10.0.0.0/8",
+            expectedECPodCIDR:   "10.48.0.0/20",       // Different from kURL
+            expectedECServiceCIDR: "10.112.0.0/12",   // Different from kURL
+            shouldNotOverlap:    true,
+        },
+    }
+    // Verify EC CIDRs don't overlap with kURL CIDRs
 }
 ```
 
