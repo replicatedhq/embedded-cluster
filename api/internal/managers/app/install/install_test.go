@@ -141,6 +141,7 @@ spec:
 		err = manager.Install(context.Background(), configValues)
 		require.NoError(t, err)
 
+		// Verify mock was called
 		mockKotsCLI.AssertExpectations(t)
 	})
 }

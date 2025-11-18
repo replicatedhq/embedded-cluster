@@ -34,16 +34,19 @@ type DryRun struct {
 	AppPreflightSpec  *troubleshootv1beta2.PreflightSpec     `json:"appPreflightSpec"`
 
 	// These fields are set on marshal
-	OSEnv      map[string]string `json:"osEnv"`
-	K8sObjects []string          `json:"k8sObjects"`
+	OSEnv          map[string]string `json:"osEnv"`
+	K8sObjects     []string          `json:"k8sObjects"`
+	KURLK8sObjects []string          `json:"kurlK8sObjects"`
 
 	LogOutput string        `json:"logOutput"`
 	LogBuffer *bytes.Buffer `json:"-"`
 
 	// These fields are used as mocks
-	kcli    client.Client        `json:"-"`
-	mcli    metadata.Interface   `json:"-"`
-	kclient kubernetes.Interface `json:"-"`
+	kcli        client.Client        `json:"-"` // EC cluster mock
+	kurlKcli    client.Client        `json:"-"` // kURL cluster mock (separate)
+	mcli        metadata.Interface   `json:"-"`
+	kclient     kubernetes.Interface `json:"-"`
+	kurlKclient kubernetes.Interface `json:"-"` // kURL kubernetes clientset
 }
 
 type Metric struct {
@@ -62,19 +65,20 @@ func (d *DryRun) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get k8s objects: %w", err)
 	}
+	kurlK8sObjects, err := d.K8sObjectsFromKURLClient()
+	if err != nil {
+		return nil, fmt.Errorf("get kurl k8s objects: %w", err)
+	}
 	alias := *d
 	alias.OSEnv = getOSEnv()
 	alias.K8sObjects = k8sObjects
+	alias.KURLK8sObjects = kurlK8sObjects
 	return json.Marshal(alias)
 }
 
-func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
-	kcli, err := d.KubeClient()
-	if err != nil {
-		return nil, fmt.Errorf("get kube client: %w", err)
-	}
-
-	ctx := context.Background()
+// k8sObjectsFromClient is a helper that marshals k8s objects from a client.
+// It always lists common resources, and optionally lists additional resources via callback.
+func k8sObjectsFromClient(ctx context.Context, kcli client.Client, listAdditionalResourcesFn func(addToResult func(runtime.Object) error) error) ([]string, error) {
 	result := []string{}
 
 	addToResult := func(o runtime.Object) error {
@@ -91,117 +95,159 @@ func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
 		return nil
 	}
 
+	// Always list common resources
+	if err := listCommonK8sResources(ctx, kcli, addToResult); err != nil {
+		return nil, err
+	}
+
+	// Optionally list additional resources
+	if listAdditionalResourcesFn != nil {
+		if err := listAdditionalResourcesFn(addToResult); err != nil {
+			return nil, err
+		}
+	}
+
+	return result, nil
+}
+
+// listCommonK8sResources lists common Kubernetes resources that are typically needed
+// for cluster state capture. This can be reused by both EC and kURL clusters.
+func listCommonK8sResources(ctx context.Context, kcli client.Client, addToResult func(runtime.Object) error) error {
 	// Services
 	var services corev1.ServiceList
 	if err := kcli.List(ctx, &services); err != nil {
-		return nil, fmt.Errorf("list services: %w", err)
+		return fmt.Errorf("list services: %w", err)
 	}
 	for _, svc := range services.Items {
 		if err := addToResult(&svc); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// Deployments
 	var deployments appsv1.DeploymentList
 	if err := kcli.List(ctx, &deployments); err != nil {
-		return nil, fmt.Errorf("list deployments: %w", err)
+		return fmt.Errorf("list deployments: %w", err)
 	}
 	for _, dpl := range deployments.Items {
 		if err := addToResult(&dpl); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// StatefulSets
 	var statefulSets appsv1.StatefulSetList
 	if err := kcli.List(ctx, &statefulSets); err != nil {
-		return nil, fmt.Errorf("list statefulsets: %w", err)
+		return fmt.Errorf("list statefulsets: %w", err)
 	}
 	for _, sts := range statefulSets.Items {
 		if err := addToResult(&sts); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// DaemonSets
 	var daemonSets appsv1.DaemonSetList
 	if err := kcli.List(ctx, &daemonSets); err != nil {
-		return nil, fmt.Errorf("list daemonsets: %w", err)
+		return fmt.Errorf("list daemonsets: %w", err)
 	}
 	for _, ds := range daemonSets.Items {
 		if err := addToResult(&ds); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// Nodes
 	var nodes corev1.NodeList
 	if err := kcli.List(ctx, &nodes); err != nil {
-		return nil, fmt.Errorf("list nodes: %w", err)
+		return fmt.Errorf("list nodes: %w", err)
 	}
 	for _, node := range nodes.Items {
 		if err := addToResult(&node); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// ConfigMaps
 	var configMaps corev1.ConfigMapList
 	if err := kcli.List(ctx, &configMaps); err != nil {
-		return nil, fmt.Errorf("list configmaps: %w", err)
+		return fmt.Errorf("list configmaps: %w", err)
 	}
 	for _, cm := range configMaps.Items {
 		if err := addToResult(&cm); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// Secrets
 	var secrets corev1.SecretList
 	if err := kcli.List(ctx, &secrets); err != nil {
-		return nil, fmt.Errorf("list secrets: %w", err)
+		return fmt.Errorf("list secrets: %w", err)
 	}
 	for _, secret := range secrets.Items {
 		if err := addToResult(&secret); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// Roles
 	var roles rbacv1.RoleList
 	if err := kcli.List(ctx, &roles); err != nil {
-		return nil, fmt.Errorf("list roles: %w", err)
+		return fmt.Errorf("list roles: %w", err)
 	}
 	for _, role := range roles.Items {
 		if err := addToResult(&role); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
 	// RoleBindings
 	var roleBindings rbacv1.RoleBindingList
 	if err := kcli.List(ctx, &roleBindings); err != nil {
-		return nil, fmt.Errorf("list rolebindings: %w", err)
+		return fmt.Errorf("list rolebindings: %w", err)
 	}
 	for _, rb := range roleBindings.Items {
 		if err := addToResult(&rb); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
+			return fmt.Errorf("add to result: %w", err)
 		}
 	}
 
-	// Installation CRs
-	var installations ecv1beta1.InstallationList
-	if err := kcli.List(ctx, &installations); err != nil {
-		return nil, fmt.Errorf("list installations: %w", err)
-	}
-	for _, install := range installations.Items {
-		if err := addToResult(&install); err != nil {
-			return nil, fmt.Errorf("add to result: %w", err)
-		}
+	return nil
+}
+
+func (d *DryRun) K8sObjectsFromClient() ([]string, error) {
+	kcli, err := d.KubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("get kube client: %w", err)
 	}
 
-	return result, nil
+	ctx := context.Background()
+	// List common resources + EC-specific Installation CRs
+	return k8sObjectsFromClient(ctx, kcli, func(addToResult func(runtime.Object) error) error {
+		// EC-specific: Installation CRs
+		var installations ecv1beta1.InstallationList
+		if err := kcli.List(ctx, &installations); err != nil {
+			return fmt.Errorf("list installations: %w", err)
+		}
+		for _, install := range installations.Items {
+			if err := addToResult(&install); err != nil {
+				return fmt.Errorf("add to result: %w", err)
+			}
+		}
+
+		return nil
+	})
+}
+
+func (d *DryRun) K8sObjectsFromKURLClient() ([]string, error) {
+	kcli, err := d.KURLKubeClient()
+	if err != nil {
+		return nil, fmt.Errorf("get kurl kube client: %w", err)
+	}
+
+	ctx := context.Background()
+	// List common resources only (no additional resources for kURL cluster)
+	return k8sObjectsFromClient(ctx, kcli, nil)
 }
 
 func (d *DryRun) KubeClient() (client.Client, error) {
@@ -222,6 +268,27 @@ func (d *DryRun) KubeClient() (client.Client, error) {
 			Build()
 	}
 	return d.kcli, nil
+}
+
+// KURLKubeClient returns a separate mock client for the kURL cluster.
+// This simulates the production scenario where kURL and EC are separate clusters.
+func (d *DryRun) KURLKubeClient() (client.Client, error) {
+	if d.kurlKcli == nil {
+		scheme := kubeutils.Scheme
+		clientObjs := []client.Object{}
+		for _, o := range d.KURLK8sObjects {
+			var u unstructured.Unstructured
+			if err := yaml.Unmarshal([]byte(o), &u.Object); err != nil {
+				return nil, fmt.Errorf("unmarshal: %w", err)
+			}
+			clientObjs = append(clientObjs, &u)
+		}
+		d.kurlKcli = fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(clientObjs...).
+			Build()
+	}
+	return d.kurlKcli, nil
 }
 
 func (d *DryRun) MetadataClient() (metadata.Interface, error) {

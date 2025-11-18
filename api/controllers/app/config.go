@@ -21,7 +21,7 @@ func (c *AppController) PatchAppConfigValues(ctx context.Context, values types.A
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateApplicationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateApplicationConfiguring, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -32,8 +32,8 @@ func (c *AppController) PatchAppConfigValues(ctx context.Context, values types.A
 		}
 
 		if finalErr != nil {
-			if err := c.stateMachine.Transition(lock, states.StateApplicationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+			if err := c.stateMachine.Transition(lock, states.StateApplicationConfigurationFailed, finalErr); err != nil {
+				c.logger.WithError(err).Error("failed to transition states")
 			}
 		}
 	}()
@@ -48,7 +48,7 @@ func (c *AppController) PatchAppConfigValues(ctx context.Context, values types.A
 		return fmt.Errorf("patch app config values: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateApplicationConfigured)
+	err = c.stateMachine.Transition(lock, states.StateApplicationConfigured, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}

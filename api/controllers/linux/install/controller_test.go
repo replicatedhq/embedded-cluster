@@ -2,6 +2,7 @@ package install
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,15 +45,6 @@ var successfulPreflightOutput = &types.PreflightsOutput{
 		{
 			Title:   "Test Check",
 			Message: "Test check passed",
-		},
-	},
-}
-
-var warnPreflightOutput = &types.PreflightsOutput{
-	Warn: []types.PreflightsRecord{
-		{
-			Title:   "Test Check",
-			Message: "Test check warning",
 		},
 	},
 }
@@ -190,13 +182,18 @@ func TestConfigureInstallation(t *testing.T) {
 			},
 			currentState:  states.StateApplicationConfigured,
 			expectedState: states.StateHostConfigured,
-
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(nil),
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -208,15 +205,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "validate: validation error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -228,15 +229,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "validate: validation error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -248,15 +253,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "validate: validation error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "validate: validation error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validate: validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validate: validation error")),
 				)
 			},
 			expectedErr: true,
@@ -268,13 +277,17 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(errors.New("set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "write: set config error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -286,13 +299,17 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(errors.New("set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "write: set config error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -304,13 +321,17 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(errors.New("set config error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "write: set config error"
+					})).Return(),
 					// Status is set in the store by the controller when configuring the installation
 					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && status.Description == "write: set config error"
 					})).Return(nil),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "write: set config error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("write: set config error")),
 				)
 			},
 			expectedErr: true,
@@ -325,12 +346,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateHostConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure host: configure host error"
+					})).Return(),
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure host: configure host error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -345,12 +373,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateHostConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure host: configure host error"
+					})).Return(),
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure host: configure host error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -365,12 +400,19 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateHostConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig, config types.LinuxInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("SetConfigValues", config).Return(nil),
 					m.On("GetConfig", rc).Return(config, nil),
 					m.On("ValidateConfig", config, 9001).Return(nil),
 					m.On("ConfigureHost", mock.Anything, rc).Return(errors.New("configure host error")),
-					st.LinuxInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure host error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure host error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure host: configure host error"
+					})).Return(),
+					st.LinuxInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure host: configure host error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -433,10 +475,8 @@ func TestConfigureInstallation(t *testing.T) {
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			mockManager.AssertExpectations(t)
-			mockStore.LinuxInfraMockStore.AssertExpectations(t)
-			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
-			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
-			mockStore.AppConfigMockStore.AssertExpectations(t)
+
+			mockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
 			// TODO: find a better way to do this
@@ -470,12 +510,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
+					})).Return(successfulPreflightOutput, nil),
+					mr.On("ReportHostPreflightsSucceeded", mock.Anything).Return(),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
-					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -488,12 +532,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
+					})).Return(successfulPreflightOutput, nil),
+					mr.On("ReportHostPreflightsSucceeded", mock.Anything).Return(),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
-					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -506,12 +554,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
+					})).Return(successfulPreflightOutput, nil),
+					mr.On("ReportHostPreflightsSucceeded", mock.Anything).Return(),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
-					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -524,12 +576,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
+					})).Return(successfulPreflightOutput, nil),
+					mr.On("ReportHostPreflightsSucceeded", mock.Anything).Return(),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateSucceeded,
-					}, nil),
 				)
 			},
 			expectedErr: false,
@@ -542,35 +598,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					})).Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name:          "successful run preflights with preflight errors and failure to get output for reporting",
-			currentState:  states.StateHostPreflightsFailedBypassed,
-			expectedState: states.StateHostPreflightsFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(nil, assert.AnError),
 				)
 			},
 			expectedErr: false,
@@ -583,15 +620,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					})).Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -604,15 +642,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
+					})).Return(failedPreflightOutput, nil),
 					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -625,52 +664,16 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
+					})).Return(failedPreflightOutput, nil),
+					mr.On("ReportHostPreflightsFailed", mock.Anything, failedPreflightOutput).Return(nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
 					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name:          "failed run preflights with get preflight output error",
-			currentState:  states.StateHostConfigured,
-			expectedState: states.StateHostPreflightsExecutionFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, assert.AnError),
-				)
-			},
-			expectedErr: false,
-		},
-		{
-			name:          "failed run preflights with nil preflight output",
-			currentState:  states.StateHostConfigured,
-			expectedState: states.StateHostPreflightsExecutionFailed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, mr *metrics.MockReporter, st *store.MockStore) {
-				mock.InOrder(
-					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
-					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
-					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
-						return expectedHPF == opts.HostPreflightSpec
-					})).Return(nil),
-					pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
-						State: types.StateFailed,
-					}, nil),
-					pm.On("GetHostPreflightOutput", mock.Anything).Return(nil, nil),
 				)
 			},
 			expectedErr: false,
@@ -695,9 +698,15 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
-					})).Return(errors.New("run preflights error")),
+					})).Return(nil, errors.New("run preflights error")),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "run host preflights: run preflights error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -710,9 +719,15 @@ func TestRunHostPreflights(t *testing.T) {
 				mock.InOrder(
 					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
 					pm.On("PrepareHostPreflights", t.Context(), rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
 						return expectedHPF == opts.HostPreflightSpec
 					})).Panic("this is a panic"),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.HasPrefix(status.Description, "panic: this is a panic")
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -778,235 +793,13 @@ func TestRunHostPreflights(t *testing.T) {
 			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 
 			mockPreflightManager.AssertExpectations(t)
-			mockStore.LinuxInfraMockStore.AssertExpectations(t)
-			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
-			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
-			mockStore.AppConfigMockStore.AssertExpectations(t)
+
+			mockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
 			// TODO: find a better way to do this
 			time.Sleep(1 * time.Second)
 			mockMetricsReporter.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetHostPreflightStatus(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*preflight.MockHostPreflightManager)
-		expectedErr   bool
-		expectedValue types.Status
-	}{
-		{
-			name: "successful get status",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				status := types.Status{
-					State: types.StateFailed,
-				}
-				m.On("GetHostPreflightStatus", t.Context()).Return(status, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Status{
-				State: types.StateFailed,
-			},
-		},
-		{
-			name: "get status error",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightStatus", t.Context()).Return(nil, errors.New("get status error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Status{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &preflight.MockHostPreflightManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithHostPreflightManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetHostPreflightStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Status{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetHostPreflightOutput(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*preflight.MockHostPreflightManager)
-		expectedErr   bool
-		expectedValue *types.PreflightsOutput
-	}{
-		{
-			name: "successful get output",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				output := successfulPreflightOutput
-				m.On("GetHostPreflightOutput", t.Context()).Return(output, nil)
-			},
-			expectedErr:   false,
-			expectedValue: successfulPreflightOutput,
-		},
-		{
-			name: "get output error",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightOutput", t.Context()).Return(nil, errors.New("get output error"))
-			},
-			expectedErr:   true,
-			expectedValue: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &preflight.MockHostPreflightManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithHostPreflightManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetHostPreflightOutput(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Nil(t, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetHostPreflightTitles(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*preflight.MockHostPreflightManager)
-		expectedErr   bool
-		expectedValue []string
-	}{
-		{
-			name: "successful get titles",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				titles := []string{"Check 1", "Check 2"}
-				m.On("GetHostPreflightTitles", t.Context()).Return(titles, nil)
-			},
-			expectedErr:   false,
-			expectedValue: []string{"Check 1", "Check 2"},
-		},
-		{
-			name: "get titles error",
-			setupMock: func(m *preflight.MockHostPreflightManager) {
-				m.On("GetHostPreflightTitles", t.Context()).Return(nil, errors.New("get titles error"))
-			},
-			expectedErr:   true,
-			expectedValue: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &preflight.MockHostPreflightManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithHostPreflightManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetHostPreflightTitles(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Nil(t, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetInstallationStatus(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*installation.MockInstallationManager)
-		expectedErr   bool
-		expectedValue types.Status
-	}{
-		{
-			name: "successful get status",
-			setupMock: func(m *installation.MockInstallationManager) {
-				status := types.Status{
-					State: types.StateRunning,
-				}
-				m.On("GetStatus").Return(status, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Status{
-				State: types.StateRunning,
-			},
-		},
-		{
-			name: "get status error",
-			setupMock: func(m *installation.MockInstallationManager) {
-				m.On("GetStatus").Return(nil, errors.New("get status error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Status{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &installation.MockInstallationManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithInstallationManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetInstallationStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Status{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
 		})
 	}
 }
@@ -1050,7 +843,13 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, rc).Return(nil),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -1063,9 +862,15 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   states.StateInfrastructureInstalled,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
-					st.LinuxPreflightMockStore.On("GetOutput").Return(failedPreflightOutput, nil),
-					mr.On("ReportHostPreflightsBypassed", mock.Anything, failedPreflightOutput),
+					pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil),
+					mr.On("ReportHostPreflightsBypassed", mock.Anything, failedPreflightOutput).Return(),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, rc).Return(nil),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -1088,9 +893,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   states.StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
-					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "install error")
+					})).Return(),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "install infrastructure: install error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -1103,8 +915,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   states.StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, rc).Return(errors.New("install error")),
-					st.LinuxInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "install error")
+					})).Return(),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "install infrastructure: install error"
+					})).Return(assert.AnError),
 				)
 			},
 			expectedErr: nil,
@@ -1117,9 +937,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState:                   states.StateInfrastructureInstallFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, pm *preflight.MockHostPreflightManager, im *installation.MockInstallationManager, fm *infra.MockInfraManager, am *appconfig.MockAppConfigManager, mr *metrics.MockReporter, st *store.MockStore) {
 				mock.InOrder(
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, rc).Panic("this is a panic"),
-					st.LinuxInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "this is a panic")
+					})).Return(),
+					st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.HasPrefix(status.Description, "panic: this is a panic")
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -1234,92 +1061,12 @@ func TestSetupInfra(t *testing.T) {
 			mockPreflightManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
-			mockStore.LinuxInfraMockStore.AssertExpectations(t)
-			mockStore.LinuxInstallationMockStore.AssertExpectations(t)
-			mockStore.LinuxPreflightMockStore.AssertExpectations(t)
-			mockStore.AppConfigMockStore.AssertExpectations(t)
+			mockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
 			// TODO: find a better way to do this
 			time.Sleep(1 * time.Second)
 			mockMetricsReporter.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetInfra(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*infra.MockInfraManager)
-		expectedErr   bool
-		expectedValue types.Infra
-	}{
-		{
-			name: "successful get infra",
-			setupMock: func(m *infra.MockInfraManager) {
-				infra := types.Infra{
-					Components: []types.InfraComponent{
-						{
-							Name: infra.K0sComponentName,
-							Status: types.Status{
-								State: types.StateRunning,
-							},
-						},
-					},
-					Status: types.Status{
-						State: types.StateRunning,
-					},
-				}
-				m.On("Get").Return(infra, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Infra{
-				Components: []types.InfraComponent{
-					{
-						Name: infra.K0sComponentName,
-						Status: types.Status{
-							State: types.StateRunning,
-						},
-					},
-				},
-				Status: types.Status{
-					State: types.StateRunning,
-				},
-			},
-		},
-		{
-			name: "get infra error",
-			setupMock: func(m *infra.MockInfraManager) {
-				m.On("Get").Return(nil, errors.New("get infra error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Infra{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &infra.MockInfraManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithInfraManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetInfra(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Infra{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
 		})
 	}
 }
@@ -1349,16 +1096,24 @@ func TestProcessAirgap(t *testing.T) {
 		name          string
 		currentState  statemachine.State
 		expectedState statemachine.State
-		setupMocks    func(*airgapmanager.MockAirgapManager, *installation.MockInstallationManager, *types.RegistrySettings, runtimeconfig.RuntimeConfig)
+		setupMocks    func(*airgapmanager.MockAirgapManager, *installation.MockInstallationManager, *types.RegistrySettings, runtimeconfig.RuntimeConfig, *store.MockStore)
 		expectedErr   bool
 	}{
 		{
 			name:          "successful airgap processing",
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAirgapProcessed,
-			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
-				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
-				am.On("Process", mock.Anything, rs).Return(nil)
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil),
+					am.On("Process", mock.Anything, rs).Return(nil),
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
+				)
 			},
 			expectedErr: false,
 		},
@@ -1366,9 +1121,17 @@ func TestProcessAirgap(t *testing.T) {
 			name:          "airgap processing error",
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAirgapProcessingFailed,
-			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
-				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
-				am.On("Process", mock.Anything, rs).Return(errors.New("processing error"))
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil),
+					am.On("Process", mock.Anything, rs).Return(errors.New("processing error")),
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "process airgap: processing error"
+					})).Return(nil),
+				)
 			},
 			expectedErr: false,
 		},
@@ -1376,9 +1139,17 @@ func TestProcessAirgap(t *testing.T) {
 			name:          "airgap processing panic",
 			currentState:  states.StateInfrastructureInstalled,
 			expectedState: states.StateAirgapProcessingFailed,
-			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
-				im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil)
-				am.On("Process", mock.Anything, rs).Panic("this is a panic")
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					im.On("CalculateRegistrySettings", mock.Anything, rc).Return(rs, nil),
+					am.On("Process", mock.Anything, rs).Panic("this is a panic"),
+					st.AirgapMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.HasPrefix(status.Description, "panic: this is a panic")
+					})).Return(nil),
+				)
 			},
 			expectedErr: false,
 		},
@@ -1386,7 +1157,7 @@ func TestProcessAirgap(t *testing.T) {
 			name:          "invalid state transition",
 			currentState:  states.StateHostConfigured,
 			expectedState: states.StateHostConfigured,
-			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig) {
+			setupMocks: func(am *airgapmanager.MockAirgapManager, im *installation.MockInstallationManager, rs *types.RegistrySettings, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
 				// No mock setup needed for invalid state transition
 			},
 			expectedErr: true,
@@ -1414,7 +1185,7 @@ func TestProcessAirgap(t *testing.T) {
 				HasLocalRegistry: true,
 			}
 
-			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc)
+			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc, mockStore)
 
 			// Mock GetConfigValues call that happens during controller initialization
 			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
@@ -1449,69 +1220,6 @@ func TestProcessAirgap(t *testing.T) {
 
 			mockAirgapManager.AssertExpectations(t)
 			mockInstallationManager.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetAirgapStatus(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*airgapmanager.MockAirgapManager)
-		expectedErr   bool
-		expectedValue types.Airgap
-	}{
-		{
-			name: "successful get status",
-			setupMock: func(m *airgapmanager.MockAirgapManager) {
-				airgapStatus := types.Airgap{
-					Status: types.Status{
-						State:       types.StateSucceeded,
-						Description: "Airgap processing completed",
-					},
-				}
-				m.On("GetStatus").Return(airgapStatus, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Airgap{
-				Status: types.Status{
-					State:       types.StateSucceeded,
-					Description: "Airgap processing completed",
-				},
-			},
-		},
-		{
-			name: "get status error",
-			setupMock: func(m *airgapmanager.MockAirgapManager) {
-				m.On("GetStatus").Return(nil, errors.New("get status error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Airgap{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &airgapmanager.MockAirgapManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithAirgapManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetAirgapStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Airgap{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
 		})
 	}
 }

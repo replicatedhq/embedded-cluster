@@ -133,7 +133,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					currentHost.leaveEtcdcluster()
+					currentHost.leaveEtcdCluster()
 				}
 			}
 
@@ -337,8 +337,8 @@ type etcdMembers struct {
 	Members map[string]string `json:"members"`
 }
 
-// leaveEtcdcluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdcluster() {
+// leaveEtcdCluster uses k0s to attempt to leave the etcd cluster
+func (h *hostInfo) leaveEtcdCluster() {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)

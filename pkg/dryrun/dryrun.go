@@ -207,6 +207,10 @@ func KubeClient() (client.Client, error) {
 	return dr.KubeClient()
 }
 
+func KURLKubeClient() (client.Client, error) {
+	return dr.KURLKubeClient()
+}
+
 func MetadataClient() (metadata.Interface, error) {
 	return dr.MetadataClient()
 }

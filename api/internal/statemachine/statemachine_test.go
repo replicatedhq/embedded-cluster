@@ -55,7 +55,7 @@ func TestLockAcquisitionAndRelease(t *testing.T) {
 	assert.True(t, sm.IsLockAcquired())
 
 	// Test transition with lock
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, StateInstallationConfigured, sm.CurrentState())
 
@@ -69,7 +69,7 @@ func TestLockAcquisitionAndRelease(t *testing.T) {
 	assert.NotNil(t, lock)
 	assert.True(t, sm.IsLockAcquired())
 
-	err = sm.Transition(lock, StatePreflightsRunning)
+	err = sm.Transition(lock, StatePreflightsRunning, nil)
 	assert.NoError(t, err)
 
 	// Release lock
@@ -116,7 +116,7 @@ func TestLockReleaseAfterTransition(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, sm.IsLockAcquired())
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 	assert.True(t, sm.IsLockAcquired())
 
@@ -186,7 +186,7 @@ func TestRaceConditionMultipleGoroutines(t *testing.T) {
 
 			lock, err := sm.AcquireLock()
 			if err == nil && lock != nil {
-				err = sm.Transition(lock, StateInstallationConfigured)
+				err = sm.Transition(lock, StateInstallationConfigured, nil)
 				if err == nil {
 					mu.Lock()
 					successCount++
@@ -238,7 +238,7 @@ func TestRaceConditionReadWrite(t *testing.T) {
 
 		lock, err := sm.AcquireLock()
 		if err == nil && lock != nil {
-			err = sm.Transition(lock, StateInstallationConfigured)
+			err = sm.Transition(lock, StateInstallationConfigured, nil)
 			if err == nil {
 				lock.Release()
 			} else {
@@ -248,7 +248,7 @@ func TestRaceConditionReadWrite(t *testing.T) {
 
 		lock, err = sm.AcquireLock()
 		if err == nil && lock != nil {
-			err = sm.Transition(lock, StatePreflightsRunning)
+			err = sm.Transition(lock, StatePreflightsRunning, nil)
 			if err == nil {
 				lock.Release()
 			} else {
@@ -302,7 +302,7 @@ func TestFinalStateTransitionBlocking(t *testing.T) {
 				t.Fatalf("failed to acquire lock: %v", err)
 			}
 
-			err = sm.Transition(lock, StateNew)
+			err = sm.Transition(lock, StateNew, nil)
 			assert.Error(t, err, "should not be able to transition from final state %s", finalState)
 			assert.Contains(t, err.Error(), "invalid transition")
 
@@ -326,22 +326,22 @@ func TestMultiStateTransitionWithLock(t *testing.T) {
 	assert.True(t, sm.IsLockAcquired())
 
 	// Transition 1: New -> StateInstallationConfigured
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, StateInstallationConfigured, sm.CurrentState())
 
 	// Transition 2: StateInstallationConfigured -> StatePreflightsRunning
-	err = sm.Transition(lock, StatePreflightsRunning)
+	err = sm.Transition(lock, StatePreflightsRunning, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, StatePreflightsRunning, sm.CurrentState())
 
 	// Transition 3: StatePreflightsRunning -> StatePreflightsSucceeded
-	err = sm.Transition(lock, StatePreflightsSucceeded)
+	err = sm.Transition(lock, StatePreflightsSucceeded, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, StatePreflightsSucceeded, sm.CurrentState())
 
 	// Transition 4: StatePreflightsSucceeded -> StateInfrastructureInstalling
-	err = sm.Transition(lock, StateInfrastructureInstalling)
+	err = sm.Transition(lock, StateInfrastructureInstalling, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, StateInfrastructureInstalling, sm.CurrentState())
 
@@ -363,7 +363,7 @@ func TestInvalidTransition(t *testing.T) {
 	assert.True(t, sm.IsLockAcquired())
 
 	// Try invalid transition
-	err = sm.Transition(lock, StateSucceeded)
+	err = sm.Transition(lock, StateSucceeded, nil)
 	assert.Error(t, err, "should not be able to transition directly from New to Succeeded")
 	assert.Contains(t, err.Error(), "invalid transition")
 
@@ -379,7 +379,7 @@ func TestTransitionWithoutLock(t *testing.T) {
 	sm := New(StateNew, validStateTransitions)
 
 	assert.False(t, sm.IsLockAcquired())
-	err := sm.Transition(nil, StateInstallationConfigured)
+	err := sm.Transition(nil, StateInstallationConfigured, nil)
 	assert.Error(t, err, "transition should be invalid")
 	assert.Contains(t, err.Error(), "lock not acquired")
 }
@@ -399,7 +399,7 @@ func TestTransitionWithNilLock(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(nil, StateInstallationConfigured)
+	err = sm.Transition(nil, StateInstallationConfigured, nil)
 	assert.Error(t, err, "transition should be invalid")
 	assert.Contains(t, err.Error(), "lock mismatch")
 
@@ -429,7 +429,7 @@ func TestTransitionWithWrongLock(t *testing.T) {
 	lock2, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.Error(t, err, "transition should be invalid")
 	assert.Contains(t, err.Error(), "lock mismatch")
 
@@ -482,7 +482,7 @@ func TestValidateTransitionStateConsistency(t *testing.T) {
 	assert.Equal(t, StateNew, sm.CurrentState(), "state should not change after validation")
 
 	// Actually perform the transition
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err, "transition should succeed")
 	assert.Equal(t, StateInstallationConfigured, sm.CurrentState(), "state should change after transition")
 
@@ -525,11 +525,11 @@ func TestEventHandlerRegistrationAndTriggering(t *testing.T) {
 
 	// Create a mock handler
 	mockHandler := &MockEventHandler{}
-	mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
 	// Register event handler
-	handler := func(ctx context.Context, from, to State) {
-		mockHandler.Handle(ctx, from, to)
+	handler := func(ctx context.Context, from, to State, eventData any) {
+		mockHandler.Handle(ctx, from, to, eventData)
 	}
 
 	sm.RegisterEventHandler(StateInstallationConfigured, handler)
@@ -538,14 +538,14 @@ func TestEventHandlerRegistrationAndTriggering(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
 
 	// Use assert.Eventually to verify handler was called with correct parameters
 	assert.Eventually(t, func() bool {
-		return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50)
 
 	mockHandler.AssertExpectations(t)
@@ -556,18 +556,18 @@ func TestEventHandlerMultipleHandlers(t *testing.T) {
 
 	// Create mock handlers
 	mockHandler1 := &MockEventHandler{}
-	mockHandler1.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockHandler1.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
 	mockHandler2 := &MockEventHandler{}
-	mockHandler2.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockHandler2.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
 	// Register multiple handlers for the same state
-	handler1 := func(ctx context.Context, from, to State) {
-		mockHandler1.Handle(ctx, from, to)
+	handler1 := func(ctx context.Context, from, to State, eventData any) {
+		mockHandler1.Handle(ctx, from, to, eventData)
 	}
 
-	handler2 := func(ctx context.Context, from, to State) {
-		mockHandler2.Handle(ctx, from, to)
+	handler2 := func(ctx context.Context, from, to State, eventData any) {
+		mockHandler2.Handle(ctx, from, to, eventData)
 	}
 
 	sm.RegisterEventHandler(StateInstallationConfigured, handler1)
@@ -577,18 +577,18 @@ func TestEventHandlerMultipleHandlers(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
 
 	// Use assert.Eventually to verify handler was called with correct parameters
 	assert.Eventually(t, func() bool {
-		return mockHandler1.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockHandler1.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50, "mockHandler1 was not called")
 
 	assert.Eventually(t, func() bool {
-		return mockHandler2.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockHandler2.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50, "mockHandler2 was not called")
 
 	mockHandler1.AssertExpectations(t)
@@ -600,8 +600,8 @@ func TestEventHandlerUnregistration(t *testing.T) {
 
 	mockHandler := &MockEventHandler{}
 
-	handler := func(ctx context.Context, from, to State) {
-		mockHandler.Handle(ctx, from, to)
+	handler := func(ctx context.Context, from, to State, eventData any) {
+		mockHandler.Handle(ctx, from, to, eventData)
 	}
 
 	sm.RegisterEventHandler(StateInstallationConfigured, handler)
@@ -613,7 +613,7 @@ func TestEventHandlerUnregistration(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
@@ -623,7 +623,7 @@ func TestEventHandlerUnregistration(t *testing.T) {
 		return sm.currentState == StateInstallationConfigured
 	}, time.Second, time.Millisecond*50, "failed to transition to StateInstallationConfigured")
 	// Verify that the handler was not called
-	mockHandler.AssertNotCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+	mockHandler.AssertNotCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	mockHandler.AssertExpectations(t)
 }
 
@@ -631,20 +631,20 @@ func TestEventHandlerPanicRecovery(t *testing.T) {
 	sm := New(StateNew, validStateTransitions)
 
 	mockPanicHandler := &MockEventHandler{}
-	mockPanicHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockPanicHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
 	// Register panicking handler
-	panicHandler := func(ctx context.Context, from, to State) {
-		mockPanicHandler.Handle(ctx, from, to)
+	panicHandler := func(ctx context.Context, from, to State, eventData any) {
+		mockPanicHandler.Handle(ctx, from, to, eventData)
 		panic("test panic")
 	}
 
 	mockNormalHandler := &MockEventHandler{}
-	mockNormalHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockNormalHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
 	// Register normal handler
-	normalHandler := func(ctx context.Context, from, to State) {
-		mockNormalHandler.Handle(ctx, from, to)
+	normalHandler := func(ctx context.Context, from, to State, eventData any) {
+		mockNormalHandler.Handle(ctx, from, to, eventData)
 	}
 
 	sm.RegisterEventHandler(StateInstallationConfigured, panicHandler)
@@ -654,18 +654,18 @@ func TestEventHandlerPanicRecovery(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
 
 	// Use assert.Eventually to verify handler was called with correct parameters
 	assert.Eventually(t, func() bool {
-		return mockPanicHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockPanicHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50, "mockPanicHandler was not called")
 
 	assert.Eventually(t, func() bool {
-		return mockNormalHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockNormalHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50, "mockNormalHandler was not called")
 
 	mockPanicHandler.AssertExpectations(t)
@@ -678,10 +678,10 @@ func TestEventHandlerContextTimeout(t *testing.T) {
 	sm := New(StateNew, validStateTransitions)
 
 	mockHandler := &MockEventHandler{}
-	mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+	mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 
-	handler := func(ctx context.Context, from, to State) {
-		mockHandler.Handle(ctx, from, to)
+	handler := func(ctx context.Context, from, to State, eventData any) {
+		mockHandler.Handle(ctx, from, to, eventData)
 	}
 
 	sm.RegisterEventHandler(StateInstallationConfigured, handler, WithHandlerTimeout(time.Millisecond))
@@ -690,14 +690,14 @@ func TestEventHandlerContextTimeout(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
 
 	// Verify handler was called and context was cancelled
 	assert.Eventually(t, func() bool {
-		return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+		return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 	}, time.Second, time.Millisecond*50, "mockHandler was not called")
 
 	mockHandler.AssertExpectations(t)
@@ -732,11 +732,11 @@ func TestEventHandlerDifferentStates(t *testing.T) {
 
 			mockHandler := &MockEventHandler{}
 			if tt.shouldTrigger {
-				mockHandler.On("Handle", mock.Anything, StateNew, tt.transitionToState).Return()
+				mockHandler.On("Handle", mock.Anything, StateNew, tt.transitionToState, mock.Anything).Return()
 			}
 
-			handler := func(ctx context.Context, from, to State) {
-				mockHandler.Handle(ctx, from, to)
+			handler := func(ctx context.Context, from, to State, eventData any) {
+				mockHandler.Handle(ctx, from, to, eventData)
 			}
 
 			sm.RegisterEventHandler(tt.registerState, handler)
@@ -745,14 +745,14 @@ func TestEventHandlerDifferentStates(t *testing.T) {
 			lock, err := sm.AcquireLock()
 			assert.NoError(t, err)
 
-			err = sm.Transition(lock, tt.transitionToState)
+			err = sm.Transition(lock, tt.transitionToState, nil)
 			assert.NoError(t, err)
 
 			lock.Release()
 
 			if tt.shouldTrigger {
 				assert.Eventually(t, func() bool {
-					return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, tt.transitionToState)
+					return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, tt.transitionToState, mock.Anything)
 				}, time.Second, time.Millisecond*50, "mockHandler was not called")
 				mockHandler.AssertExpectations(t)
 			} else {
@@ -760,7 +760,7 @@ func TestEventHandlerDifferentStates(t *testing.T) {
 				assert.Eventually(t, func() bool {
 					return sm.CurrentState() == tt.transitionToState
 				}, time.Second, time.Millisecond*50, "failed to transition to target state")
-				mockHandler.AssertNotCalled(t, "Handle", mock.Anything, StateNew, tt.transitionToState)
+				mockHandler.AssertNotCalled(t, "Handle", mock.Anything, StateNew, tt.transitionToState, mock.Anything)
 				mockHandler.AssertExpectations(t)
 			}
 		})
@@ -778,7 +778,7 @@ func TestEventHandlerConcurrentRegistration(t *testing.T) {
 	// Initialize mock handlers
 	for i := 0; i < numHandlers; i++ {
 		mockHandlers[i] = &MockEventHandler{}
-		mockHandlers[i].On("Handle", mock.Anything, StateNew, StateInstallationConfigured).Return()
+		mockHandlers[i].On("Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything).Return()
 	}
 
 	// Register handlers concurrently
@@ -786,8 +786,8 @@ func TestEventHandlerConcurrentRegistration(t *testing.T) {
 		i := i // capture loop variable
 		go func() {
 			defer wg.Done()
-			handler := func(ctx context.Context, from, to State) {
-				mockHandlers[i].Handle(ctx, from, to)
+			handler := func(ctx context.Context, from, to State, eventData any) {
+				mockHandlers[i].Handle(ctx, from, to, eventData)
 			}
 			sm.RegisterEventHandler(StateInstallationConfigured, handler)
 		}()
@@ -799,7 +799,7 @@ func TestEventHandlerConcurrentRegistration(t *testing.T) {
 	lock, err := sm.AcquireLock()
 	assert.NoError(t, err)
 
-	err = sm.Transition(lock, StateInstallationConfigured)
+	err = sm.Transition(lock, StateInstallationConfigured, nil)
 	assert.NoError(t, err)
 
 	lock.Release()
@@ -808,9 +808,72 @@ func TestEventHandlerConcurrentRegistration(t *testing.T) {
 	for i := 0; i < numHandlers; i++ {
 		i := i // capture loop variable
 		assert.Eventually(t, func() bool {
-			return mockHandlers[i].AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured)
+			return mockHandlers[i].AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, mock.Anything)
 		}, time.Second, time.Millisecond*50, "mockHandler %d was not called", i)
 		mockHandlers[i].AssertExpectations(t)
+	}
+}
+
+func TestEventHandlerWithEventData(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventData any
+	}{
+		{
+			name:      "nil event data",
+			eventData: nil,
+		},
+		{
+			name:      "string event data",
+			eventData: "test error message",
+		},
+		{
+			name: "struct event data",
+			eventData: struct {
+				Message string
+				Code    int
+			}{
+				Message: "test message",
+				Code:    42,
+			},
+		},
+		{
+			name:      "int event data",
+			eventData: 123,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := New(StateNew, validStateTransitions)
+
+			// Create a mock handler
+			mockHandler := &MockEventHandler{}
+			mockHandler.On("Handle", mock.Anything, StateNew, StateInstallationConfigured, tt.eventData).Return()
+
+			// Register event handler
+			handler := func(ctx context.Context, from, to State, eventData any) {
+				mockHandler.Handle(ctx, from, to, eventData)
+			}
+
+			sm.RegisterEventHandler(StateInstallationConfigured, handler)
+
+			// Perform transition with event data
+			lock, err := sm.AcquireLock()
+			assert.NoError(t, err)
+
+			err = sm.Transition(lock, StateInstallationConfigured, tt.eventData)
+			assert.NoError(t, err)
+
+			lock.Release()
+
+			// Verify handler was called with correct event data
+			assert.Eventually(t, func() bool {
+				return mockHandler.AssertCalled(t, "Handle", mock.Anything, StateNew, StateInstallationConfigured, tt.eventData)
+			}, time.Second, time.Millisecond*50, "mockHandler was not called with expected event data")
+
+			mockHandler.AssertExpectations(t)
+		})
 	}
 }
 
@@ -909,6 +972,6 @@ type MockEventHandler struct {
 	mock.Mock
 }
 
-func (m *MockEventHandler) Handle(ctx context.Context, from, to State) {
-	m.Called(ctx, from, to)
+func (m *MockEventHandler) Handle(ctx context.Context, from, to State, eventData any) {
+	m.Called(ctx, from, to, eventData)
 }

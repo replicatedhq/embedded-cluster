@@ -245,3 +245,56 @@ func TestMemoryStore_ConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestMemoryStore_Clear(t *testing.T) {
+	// Setup store with some initial data
+	initialStatus := types.Status{
+		State:       types.StateRunning,
+		Description: "Running app preflights",
+		LastUpdated: time.Now(),
+	}
+	initialOutput := &types.PreflightsOutput{
+		Pass: []types.PreflightsRecord{{
+			Title:   "CPU Check",
+			Message: "CPU check passed",
+		}},
+	}
+	initialTitles := []string{"CPU Check", "Memory Check", "Disk Check"}
+
+	appPreflight := types.AppPreflights{
+		Titles: initialTitles,
+		Output: initialOutput,
+		Status: initialStatus,
+	}
+	store := NewMemoryStore(WithAppPreflight(appPreflight))
+
+	// Verify initial data is present
+	titles, err := store.GetTitles()
+	require.NoError(t, err)
+	assert.Equal(t, initialTitles, titles)
+
+	output, err := store.GetOutput()
+	require.NoError(t, err)
+	assert.Equal(t, initialOutput, output)
+
+	status, err := store.GetStatus()
+	require.NoError(t, err)
+	assert.Equal(t, initialStatus, status)
+
+	// Execute clear
+	err = store.Clear()
+	require.NoError(t, err)
+
+	// Verify all data has been cleared
+	titles, err = store.GetTitles()
+	require.NoError(t, err)
+	assert.Empty(t, titles)
+
+	output, err = store.GetOutput()
+	require.NoError(t, err)
+	assert.Nil(t, output)
+
+	status, err = store.GetStatus()
+	require.NoError(t, err)
+	assert.Equal(t, types.Status{}, status)
+}

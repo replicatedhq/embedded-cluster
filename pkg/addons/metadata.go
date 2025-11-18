@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -78,7 +79,11 @@ func GenerateChartConfigs(ctx context.Context, kcli client.Client) ([]ecv1beta1.
 	repositories = append(repositories, repos...)
 
 	// velero
-	chart, repos, err = velero.GenerateChartConfig()
+	var ecConfig *ecv1beta1.ConfigSpec
+	if ecCfg := release.GetEmbeddedClusterConfig(); ecCfg != nil {
+		ecConfig = &ecCfg.Spec
+	}
+	chart, repos, err = velero.GenerateChartConfig(ecConfig)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "generate chart config for velero")
 	}

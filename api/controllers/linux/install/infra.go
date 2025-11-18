@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -15,6 +16,8 @@ var (
 )
 
 func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "setup-infra")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -34,42 +37,59 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 		if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
 			return types.NewBadRequestError(ErrPreflightChecksFailed)
 		}
-		err = c.stateMachine.Transition(lock, states.StateHostPreflightsFailedBypassed)
+
+		preflightOutput, err := c.hostPreflightManager.GetHostPreflightOutput(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get host preflight output: %w", err)
+		}
+		err = c.stateMachine.Transition(lock, states.StateHostPreflightsFailedBypassed, preflightOutput)
 		if err != nil {
 			return fmt.Errorf("failed to transition states: %w", err)
 		}
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling)
+	err = c.stateMachine.Transition(lock, states.StateInfrastructureInstalling, nil)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstallFailed, finalErr); err != nil {
+					logger.WithError(err).Error("failed to transition states")
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstalled); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+
+				if err := c.setInfraStatus(types.StateFailed, finalErr.Error()); err != nil {
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
 
+		if err := c.setInfraStatus(types.StateRunning, "Installing infrastructure"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
+
 		if err := c.infraManager.Install(ctx, c.rc); err != nil {
-			return fmt.Errorf("failed to install infrastructure: %w", err)
+			return fmt.Errorf("install infrastructure: %w", err)
+		}
+
+		if err := c.stateMachine.Transition(lock, states.StateInfrastructureInstalled, nil); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setInfraStatus(types.StateSucceeded, "Installation complete"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
@@ -79,5 +99,13 @@ func (c *InstallController) SetupInfra(ctx context.Context, ignoreHostPreflights
 }
 
 func (c *InstallController) GetInfra(ctx context.Context) (types.Infra, error) {
-	return c.infraManager.Get()
+	return c.store.LinuxInfraStore().Get()
+}
+
+func (c *InstallController) setInfraStatus(state types.State, description string) error {
+	return c.store.LinuxInfraStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

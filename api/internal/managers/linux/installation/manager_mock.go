@@ -48,21 +48,6 @@ func (m *MockInstallationManager) GetDefaults(rc runtimeconfig.RuntimeConfig) (t
 	return args.Get(0).(types.LinuxInstallationConfig), args.Error(1)
 }
 
-// GetStatus mocks the GetStatus method
-func (m *MockInstallationManager) GetStatus() (types.Status, error) {
-	args := m.Called()
-	if args.Get(0) == nil {
-		return types.Status{}, args.Error(1)
-	}
-	return args.Get(0).(types.Status), args.Error(1)
-}
-
-// SetStatus mocks the SetStatus method
-func (m *MockInstallationManager) SetStatus(status types.Status) error {
-	args := m.Called(status)
-	return args.Error(0)
-}
-
 // ValidateConfig mocks the ValidateConfig method
 func (m *MockInstallationManager) ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error {
 	args := m.Called(config, managerPort)

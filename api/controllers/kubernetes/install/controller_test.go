@@ -2,6 +2,7 @@ package install
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -153,7 +154,13 @@ func TestConfigureInstallation(t *testing.T) {
 
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(nil),
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: false,
@@ -165,9 +172,16 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("configure installation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "configure installation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("configure installation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure installation: configure installation error"
+					})).Return(),
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure installation: configure installation error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: true,
@@ -179,9 +193,16 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure installation: validation error"
+					})).Return(),
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure installation: validation error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: true,
@@ -193,9 +214,16 @@ func TestConfigureInstallation(t *testing.T) {
 			expectedState: states.StateInstallationConfigurationFailed,
 			setupMock: func(m *installation.MockInstallationManager, ki *kubernetesinstallation.MockInstallation, config types.KubernetesInstallationConfig, st *store.MockStore, mr *metrics.MockReporter) {
 				mock.InOrder(
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					m.On("ConfigureInstallation", mock.Anything, ki, config).Return(errors.New("validation error")),
-					st.KubernetesInstallationMockStore.On("GetStatus").Return(types.Status{Description: "validation error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("validation error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && err.Error() == "configure installation: validation error"
+					})).Return(),
+					st.KubernetesInstallationMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "configure installation: validation error"
+					})).Return(nil),
 				)
 			},
 			expectedErr: true,
@@ -266,63 +294,6 @@ func TestConfigureInstallation(t *testing.T) {
 	}
 }
 
-func TestGetInstallationStatus(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*installation.MockInstallationManager)
-		expectedErr   bool
-		expectedValue types.Status
-	}{
-		{
-			name: "successful get status",
-			setupMock: func(m *installation.MockInstallationManager) {
-				status := types.Status{
-					State: types.StateRunning,
-				}
-				m.On("GetStatus").Return(status, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Status{
-				State: types.StateRunning,
-			},
-		},
-		{
-			name: "get status error",
-			setupMock: func(m *installation.MockInstallationManager) {
-				m.On("GetStatus").Return(types.Status{}, errors.New("get status error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Status{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &installation.MockInstallationManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithInstallationManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetInstallationStatus(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Status{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
-		})
-	}
-}
-
 func TestSetupInfra(t *testing.T) {
 	// Create an app config
 	appConfig := kotsv1beta1.Config{
@@ -358,8 +329,13 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstalled,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, ki).Return(nil),
-					// TODO: we are not yet reporting
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -370,9 +346,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
-					st.KubernetesInfraMockStore.On("GetStatus").Return(types.Status{Description: "install error"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("install error")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "install error")
+					})).Return(),
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -383,8 +366,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, ki).Return(errors.New("install error")),
-					st.KubernetesInfraMockStore.On("GetStatus").Return(nil, assert.AnError),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "install error")
+					})).Return(),
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(assert.AnError),
 				)
 			},
 			expectedErr: nil,
@@ -395,9 +386,16 @@ func TestSetupInfra(t *testing.T) {
 			expectedState: states.StateInfrastructureInstallFailed,
 			setupMocks: func(ki kubernetesinstallation.Installation, im *installation.MockInstallationManager, fm *infra.MockInfraManager, mr *metrics.MockReporter, st *store.MockStore, am *appconfig.MockAppConfigManager) {
 				mock.InOrder(
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
 					fm.On("Install", mock.Anything, ki).Panic("this is a panic"),
-					st.KubernetesInfraMockStore.On("GetStatus").Return(types.Status{Description: "this is a panic"}, nil),
-					mr.On("ReportInstallationFailed", mock.Anything, errors.New("this is a panic")),
+					mr.On("ReportInstallationFailed", mock.Anything, mock.MatchedBy(func(err error) bool {
+						return err != nil && strings.Contains(err.Error(), "this is a panic")
+					})).Return(),
+					st.KubernetesInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -480,90 +478,12 @@ func TestSetupInfra(t *testing.T) {
 
 			mockInstallationManager.AssertExpectations(t)
 			mockInfraManager.AssertExpectations(t)
-			mockStore.KubernetesInfraMockStore.AssertExpectations(t)
-			mockStore.KubernetesInstallationMockStore.AssertExpectations(t)
+			mockStore.AssertExpectations(t)
 
 			// Wait for the event handler goroutine to complete
 			// TODO: find a better way to do this
 			time.Sleep(1 * time.Second)
 			mockMetricsReporter.AssertExpectations(t)
-		})
-	}
-}
-
-func TestGetInfra(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMock     func(*infra.MockInfraManager)
-		expectedErr   bool
-		expectedValue types.Infra
-	}{
-		{
-			name: "successful get infra",
-			setupMock: func(m *infra.MockInfraManager) {
-				infra := types.Infra{
-					Components: []types.InfraComponent{
-						{
-							Name: "Admin Console",
-							Status: types.Status{
-								State: types.StateRunning,
-							},
-						},
-					},
-					Status: types.Status{
-						State: types.StateRunning,
-					},
-				}
-				m.On("Get").Return(infra, nil)
-			},
-			expectedErr: false,
-			expectedValue: types.Infra{
-				Components: []types.InfraComponent{
-					{
-						Name: "Admin Console",
-						Status: types.Status{
-							State: types.StateRunning,
-						},
-					},
-				},
-				Status: types.Status{
-					State: types.StateRunning,
-				},
-			},
-		},
-		{
-			name: "get infra error",
-			setupMock: func(m *infra.MockInfraManager) {
-				m.On("Get").Return(nil, errors.New("get infra error"))
-			},
-			expectedErr:   true,
-			expectedValue: types.Infra{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockManager := &infra.MockInfraManager{}
-			tt.setupMock(mockManager)
-
-			controller, err := NewInstallController(
-				WithInfraManager(mockManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithHelmClient(&helm.MockClient{}),
-			)
-			require.NoError(t, err)
-
-			result, err := controller.GetInfra(t.Context())
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Equal(t, types.Infra{}, result)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedValue, result)
-			}
-
-			mockManager.AssertExpectations(t)
 		})
 	}
 }

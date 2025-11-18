@@ -23,36 +23,9 @@ import (
 )
 
 // Upgrade performs the infrastructure upgrade by orchestrating the upgrade steps
-func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) (finalErr error) {
+func (m *infraManager) Upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) error {
 	// TODO: reporting
 
-	if err := m.setStatus(types.StateRunning, ""); err != nil {
-		return fmt.Errorf("set status: %w", err)
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setStatus(types.StateSucceeded, "Upgrade complete"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
-
-	if err := m.upgrade(ctx, rc, registrySettings); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *infraManager) upgrade(ctx context.Context, rc runtimeconfig.RuntimeConfig, registrySettings *types.RegistrySettings) error {
 	if m.upgrader == nil {
 		// ensure the manager's clients are initialized
 		if err := m.setupClients(rc); err != nil {

@@ -2,7 +2,6 @@ package install
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
@@ -26,91 +25,77 @@ func (c *InstallController) registerReportingHandlers() {
 	c.stateMachine.RegisterEventHandler(states.StateAppPreflightsSucceeded, c.reportAppPreflightsSucceeded)
 }
 
-func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState statemachine.State) {
-	var status types.Status
-	var err error
-
-	switch toState {
-	case states.StateInstallationConfigurationFailed, states.StateHostConfigurationFailed:
-		status, err = c.store.LinuxInstallationStore().GetStatus()
-		if err != nil {
-			err = fmt.Errorf("get status from installation store: %w", err)
-		}
-	case states.StateInfrastructureInstallFailed:
-		status, err = c.store.LinuxInfraStore().GetStatus()
-		if err != nil {
-			err = fmt.Errorf("get status from infra store: %w", err)
-		}
-	case states.StateAppInstallFailed:
-		status, err = c.store.AppInstallStore().GetStatus()
-		if err != nil {
-			err = fmt.Errorf("get status from app install store: %w", err)
-		}
-	}
-	if err != nil {
-		c.logger.WithError(err).Error("failed to report failed install")
+func (c *InstallController) reportInstallFailed(ctx context.Context, _, toState statemachine.State, eventData interface{}) {
+	err, ok := eventData.(error)
+	if !ok {
+		c.logger.
+			WithField("dataType", fmt.Sprintf("%T", eventData)).
+			Error("failed to report install failed: invalid event data")
 		return
 	}
-
 	c.logger.Info("Reporting metrics event install failed")
-	c.metricsReporter.ReportInstallationFailed(ctx, errors.New(status.Description))
+	c.metricsReporter.ReportInstallationFailed(ctx, err)
 }
 
-func (c *InstallController) reportInstallSucceeded(ctx context.Context, _, _ statemachine.State) {
+func (c *InstallController) reportInstallSucceeded(ctx context.Context, _, _ statemachine.State, _ interface{}) {
 	c.logger.Info("Reporting metrics event install succeeded")
 	c.metricsReporter.ReportInstallationSucceeded(ctx)
 }
 
-func (c *InstallController) reportHostPreflightsFailed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.LinuxPreflightStore().GetOutput()
-	if err != nil {
-		err = fmt.Errorf("get output from linux preflight store: %w", err)
-		c.logger.WithError(err).Error("failed to report host preflights failed")
+func (c *InstallController) reportHostPreflightsFailed(ctx context.Context, _, _ statemachine.State, eventData interface{}) {
+	output, ok := eventData.(*types.PreflightsOutput)
+	if !ok {
+		c.logger.
+			WithField("dataType", fmt.Sprintf("%T", eventData)).
+			Error("failed to report host preflights failed: invalid event data")
 		return
 	}
 	c.logger.Info("Reporting metrics event host preflights failed")
 	c.metricsReporter.ReportHostPreflightsFailed(ctx, output)
 }
 
-func (c *InstallController) reportHostPreflightsBypassed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.LinuxPreflightStore().GetOutput()
-	if err != nil {
-		err = fmt.Errorf("get output from linux preflight store: %w", err)
-		c.logger.WithError(err).Error("failed to report host preflights bypassed")
+func (c *InstallController) reportHostPreflightsBypassed(ctx context.Context, _, _ statemachine.State, eventData interface{}) {
+	output, ok := eventData.(*types.PreflightsOutput)
+	if !ok {
+		c.logger.
+			WithField("dataType", fmt.Sprintf("%T", eventData)).
+			Error("failed to report host preflights bypassed: invalid event data")
 		return
 	}
 	c.logger.Info("Reporting metrics event host preflights bypassed")
 	c.metricsReporter.ReportHostPreflightsBypassed(ctx, output)
 }
 
-func (c *InstallController) reportHostPreflightsSucceeded(ctx context.Context, _, _ statemachine.State) {
+func (c *InstallController) reportHostPreflightsSucceeded(ctx context.Context, _, _ statemachine.State, _ interface{}) {
 	c.logger.Info("Reporting metrics event host preflights succeeded")
 	c.metricsReporter.ReportHostPreflightsSucceeded(ctx)
 }
 
-func (c *InstallController) reportAppPreflightsFailed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.AppPreflightStore().GetOutput()
-	if err != nil {
-		err = fmt.Errorf("get output from app preflight store: %w", err)
-		c.logger.WithError(err).Error("failed to report app preflights failed")
+func (c *InstallController) reportAppPreflightsFailed(ctx context.Context, _, _ statemachine.State, eventData interface{}) {
+	output, ok := eventData.(*types.PreflightsOutput)
+	if !ok {
+		c.logger.
+			WithField("dataType", fmt.Sprintf("%T", eventData)).
+			Error("failed to report app preflights failed: invalid event data")
 		return
 	}
 	c.logger.Info("Reporting metrics event app preflights failed")
 	c.metricsReporter.ReportAppPreflightsFailed(ctx, output)
 }
 
-func (c *InstallController) reportAppPreflightsBypassed(ctx context.Context, _, _ statemachine.State) {
-	output, err := c.store.AppPreflightStore().GetOutput()
-	if err != nil {
-		err = fmt.Errorf("get output from app preflight store: %w", err)
-		c.logger.WithError(err).Error("failed to report app preflights bypassed")
+func (c *InstallController) reportAppPreflightsBypassed(ctx context.Context, _, _ statemachine.State, eventData interface{}) {
+	output, ok := eventData.(*types.PreflightsOutput)
+	if !ok {
+		c.logger.
+			WithField("dataType", fmt.Sprintf("%T", eventData)).
+			Error("failed to report app preflights bypassed: invalid event data")
 		return
 	}
 	c.logger.Info("Reporting metrics event app preflights bypassed")
 	c.metricsReporter.ReportAppPreflightsBypassed(ctx, output)
 }
 
-func (c *InstallController) reportAppPreflightsSucceeded(ctx context.Context, _, _ statemachine.State) {
+func (c *InstallController) reportAppPreflightsSucceeded(ctx context.Context, _, _ statemachine.State, _ interface{}) {
 	c.logger.Info("Reporting metrics event app preflights succeeded")
 	c.metricsReporter.ReportAppPreflightsSucceeded(ctx)
 }

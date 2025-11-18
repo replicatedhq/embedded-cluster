@@ -206,18 +206,42 @@ func Test_buildPrepareHostPreflightOptions(t *testing.T) {
 
 func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 	tests := []struct {
-		name               string
-		opts               RunHostPreflightOptions
-		initialState       types.HostPreflights
-		setupMocks         func(*preflights.MockPreflightRunner, runtimeconfig.RuntimeConfig)
-		expectedFinalState types.State
-		// This is the expected error message returned by the RunHostPreflights method, synchronously
-		expectedError string
+		name           string
+		opts           RunHostPreflightOptions
+		initialState   types.HostPreflights
+		setupMocks     func(*preflights.MockPreflightRunner, runtimeconfig.RuntimeConfig)
+		expectedError  string
+		expectedTitles []string
+		expectedOutput *types.PreflightsOutput
 	}{
 		{
-			name: "successful execution with no failures or warnings",
+			name: "successful execution",
 			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
+				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{
+					Analyzers: []*troubleshootv1beta2.HostAnalyze{
+						{
+							CPU: &troubleshootv1beta2.CPUAnalyze{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "CPU Check",
+								},
+							},
+						},
+						{
+							Memory: &troubleshootv1beta2.MemoryAnalyze{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Memory Check",
+								},
+							},
+						},
+						{
+							DiskUsage: &troubleshootv1beta2.DiskUsageAnalyze{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "Disk Usage Check",
+								},
+							},
+						},
+					},
+				},
 			},
 			initialState: types.HostPreflights{
 				Status: types.Status{
@@ -225,100 +249,69 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 				},
 			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock successful preflight execution
-				output := &types.PreflightsOutput{}
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateSucceeded,
-		},
-		{
-			name: "execution with preflight failures",
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock failed preflight execution
 				output := &types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{{
-						Title:   "Sample Failure",
-						Message: "This is a sample failure message.",
-					}},
-				}
-
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateFailed,
-		},
-		{
-			name: "execution with preflight warnings",
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock preflight execution with warnings
-				output := &types.PreflightsOutput{
-					Warn: []types.PreflightsRecord{{
-						Title:   "Sample Warning",
-						Message: "This is a sample warning message.",
-					}},
-				}
-
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
-			},
-			expectedFinalState: types.StateSucceeded,
-		},
-		{
-			name: "execution with both failures and warnings",
-			initialState: types.HostPreflights{
-				Status: types.Status{
-					State: types.StatePending,
-				},
-			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
-			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock preflight execution with both failures and warnings
-				output := &types.PreflightsOutput{
-					Fail: []types.PreflightsRecord{{
-						Title:   "Sample Failure",
-						Message: "This is a sample failure message.",
+					Pass: []types.PreflightsRecord{{
+						Title:   "CPU Check",
+						Message: "CPU is supported",
 					}},
 					Warn: []types.PreflightsRecord{{
-						Title:   "Sample Warning",
-						Message: "This is a sample warning message.",
+						Title:   "Memory Check",
+						Message: "Memory is supported",
+					}},
+					Fail: []types.PreflightsRecord{{
+						Title:   "Disk Usage Check",
+						Message: "Disk usage is supported",
 					}},
 				}
-
 				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(output, "", nil)
 			},
-			expectedFinalState: types.StateFailed,
+			expectedTitles: []string{
+				"CPU Check",
+				"Memory Check",
+				"Disk Usage Check",
+			},
+			expectedOutput: &types.PreflightsOutput{
+				Pass: []types.PreflightsRecord{{
+					Title:   "CPU Check",
+					Message: "CPU is supported",
+				}},
+				Warn: []types.PreflightsRecord{{
+					Title:   "Memory Check",
+					Message: "Memory is supported",
+				}},
+				Fail: []types.PreflightsRecord{{
+					Title:   "Disk Usage Check",
+					Message: "Disk usage is supported",
+				}},
+			},
 		},
 		{
 			name: "runner execution fails",
+			opts: RunHostPreflightOptions{
+				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{
+					Analyzers: []*troubleshootv1beta2.HostAnalyze{
+						{
+							CPU: &troubleshootv1beta2.CPUAnalyze{
+								AnalyzeMeta: troubleshootv1beta2.AnalyzeMeta{
+									CheckName: "CPU Check",
+								},
+							},
+						},
+					},
+				},
+			},
 			initialState: types.HostPreflights{
 				Status: types.Status{
 					State: types.StatePending,
 				},
 			},
-			opts: RunHostPreflightOptions{
-				HostPreflightSpec: &troubleshootv1beta2.HostPreflightSpec{},
-			},
 			setupMocks: func(runner *preflights.MockPreflightRunner, rc runtimeconfig.RuntimeConfig) {
-				// Mock runner failure
-				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(nil, "stderr output", assert.AnError)
+				runner.On("RunHostPreflights", mock.Anything, mock.Anything, preflightRunOptionsFromRC(rc)).Return(nil, "", fmt.Errorf("failed to execute preflights"))
 			},
-			expectedFinalState: types.StateFailed,
+			expectedError: "failed to execute preflights",
+			expectedTitles: []string{
+				"CPU Check",
+			},
 		},
 	}
 
@@ -330,7 +323,6 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			// Create runtime config
 			rc := runtimeconfig.New(nil)
 			rc.SetDataDir(t.TempDir())
-
 			tt.setupMocks(mockRunner, rc)
 
 			// Create manager using builder pattern
@@ -341,20 +333,25 @@ func TestHostPreflightManager_RunHostPreflights(t *testing.T) {
 			)
 
 			// Execute
-			err := manager.RunHostPreflights(context.Background(), rc, tt.opts)
-			// If there's an error we don't need to wait for async execution
+			output, err := manager.RunHostPreflights(t.Context(), rc, tt.opts)
 			if tt.expectedError != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError)
+				require.Error(t, err, "expected error running app preflights")
+				assert.Contains(t, err.Error(), tt.expectedError, "error mismatch")
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, err, "unexpected error running app preflights")
 			}
 
-			status, err := manager.GetHostPreflightStatus(t.Context())
-			require.NoError(t, err)
-			assert.Equal(t, tt.expectedFinalState, status.State)
+			assert.Equal(t, tt.expectedOutput, output, "output mismatch")
 
-			// Additional verification that calls were made in the correct order
+			titles, err := manager.GetHostPreflightTitles(t.Context())
+			require.NoError(t, err, "failed to get titles")
+			assert.Equal(t, tt.expectedTitles, titles, "titles mismatch")
+
+			output, err = manager.GetHostPreflightOutput(t.Context())
+			require.NoError(t, err, "failed to get output")
+			assert.Equal(t, tt.expectedOutput, output, "output mismatch")
+
+			// Verify mocks
 			mockRunner.AssertExpectations(t)
 		})
 	}

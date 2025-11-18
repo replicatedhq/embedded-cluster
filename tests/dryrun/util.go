@@ -52,6 +52,9 @@ var (
 	//go:embed assets/cluster-config-nodomains.yaml
 	clusterConfigNoDomainsData string
 
+	//go:embed assets/cluster-config-with-velero-plugins.yaml
+	clusterConfigWithVeleroPluginsData string
+
 	//go:embed assets/kotskinds-application.yaml
 	applicationData string
 
@@ -251,6 +254,7 @@ func assertMetrics(t *testing.T, actual []dryruntypes.Metric, expected []struct 
 	t.Helper()
 
 	if len(actual) != len(expected) {
+		t.Logf("actual metrics: %v", actual)
 		t.Errorf("expected %d metrics, got %d", len(expected), len(actual))
 		return
 	}

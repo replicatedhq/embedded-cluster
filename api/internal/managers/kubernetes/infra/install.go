@@ -3,7 +3,6 @@ package infra
 import (
 	"context"
 	"fmt"
-	"runtime/debug"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -21,27 +20,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) (finalErr error) {
+func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) error {
 	// TODO: check if kots is already installed
 
-	if err := m.setStatus(types.StateRunning, ""); err != nil {
-		return fmt.Errorf("set status: %w", err)
+	if err := m.initInstallComponentsList(); err != nil {
+		return fmt.Errorf("init components: %w", err)
 	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
-		}
-		if finalErr != nil {
-			if err := m.setStatus(types.StateFailed, finalErr.Error()); err != nil {
-				m.logger.WithError(err).Error("set failed status")
-			}
-		} else {
-			if err := m.setStatus(types.StateSucceeded, "Installation complete"); err != nil {
-				m.logger.WithError(err).Error("set succeeded status")
-			}
-		}
-	}()
 
 	if err := m.install(ctx, ki); err != nil {
 		return err
@@ -72,11 +56,7 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	if err := m.initInstallComponentsList(); err != nil {
-		return fmt.Errorf("init components: %w", err)
-	}
-
-	_, err = m.recordInstallation(ctx, m.kcli, license, ki)
+	_, err := m.recordInstallation(ctx, m.kcli, license, ki)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}

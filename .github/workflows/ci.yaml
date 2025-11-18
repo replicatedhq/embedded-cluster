@@ -180,7 +180,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
-        run: |
+        run: &free-disk-space |
           df -h
           sudo rm -rf \
             /usr/share/swift \
@@ -415,6 +415,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
+
       - name: Cache embedded bins
         uses: actions/cache@v4
         with:
@@ -567,6 +570,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -905,7 +911,7 @@ jobs:
           SHORT_SHA: dev-${{ needs.output-vars.outputs.git_sha }}
           DR_S3_ENDPOINT: https://s3.amazonaws.com
           DR_S3_REGION: us-east-1
-          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_BUCKET: embedded-cluster-e2e-snapshots
           DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
           DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
           DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
