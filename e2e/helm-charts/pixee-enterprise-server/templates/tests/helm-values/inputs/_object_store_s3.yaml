@@ -1,0 +1,16 @@
+global:
+  pixee:
+    objectStore:
+      enabled: true
+      provider: s3
+      endpoint: https://s3.amazonaws.com
+      username: test-access-key
+      password: test-secret-key
+      region: us-east-1
+      s3:
+        bucket: test-s3-bucket
+
+# Pass custom attributes to analysis subchart
+analysis:
+  objectStore:
+    bucket: test-s3-bucket

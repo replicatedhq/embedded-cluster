@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -16,6 +17,8 @@ var (
 
 // InstallApp triggers app installation with proper state transitions and panic handling
 func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+	logger := c.logger.WithField("operation", "install-app")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -46,7 +49,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
 		}
 
-		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed)
+		err = c.stateMachine.Transition(lock, states.StateAppPreflightsFailedBypassed, preflightOutput)
 		if err != nil {
 			return fmt.Errorf("failed to transition states: %w", err)
 		}
@@ -62,38 +65,50 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 		return fmt.Errorf("get kotsadm config values for app install: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateAppInstalling)
+	err = c.stateMachine.Transition(lock, states.StateAppInstalling, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+				if err := c.stateMachine.Transition(lock, states.StateAppInstallFailed, finalErr); err != nil {
+					logger.WithError(err).Error("failed to transition states")
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, states.StateSucceeded); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+
+				if err := c.setAppInstallStatus(types.StateFailed, finalErr.Error()); err != nil {
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
+
+		if err := c.setAppInstallStatus(types.StateRunning, "Installing application"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
 
 		// Install the app
 		err := c.appInstallManager.Install(ctx, configValues)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
+		}
+
+		if err := c.stateMachine.Transition(lock, states.StateSucceeded, nil); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setAppInstallStatus(types.StateSucceeded, "Installation complete"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
@@ -103,5 +118,13 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 }
 
 func (c *AppController) GetAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
-	return c.appInstallManager.GetStatus()
+	return c.store.AppInstallStore().Get()
+}
+
+func (c *AppController) setAppInstallStatus(state types.State, description string) error {
+	return c.store.AppInstallStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

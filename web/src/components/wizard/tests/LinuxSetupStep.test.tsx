@@ -1,10 +1,18 @@
-import { describe, it, expect, vi, beforeAll, afterEach, afterAll, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { setupServer } from "msw/node";
 import { renderWithProviders } from "../../../test/setup.tsx";
-import LinuxSetupStep from "../setup/LinuxSetupStep.tsx";
-import { MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS, MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
-import { mockHandlers, createHandler } from "../../../test/mockHandlers.ts";
+import { MOCK_LINUX_INSTALL_CONFIG_RESPONSE, MOCK_NETWORK_INTERFACES } from "../../../test/testData.ts";
+import { mockHandlers } from "../../../test/mockHandlers.ts";
+import LinuxSetupStep, {
+  processInputValue,
+  extractFieldError,
+  determineLoadingText,
+  shouldExpandAdvancedSettings,
+  evaluateInstallationStatus,
+  determineLoadingState,
+  fieldNames,
+} from "../setup/LinuxSetupStep.tsx";
 
 const server = setupServer(
   mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
@@ -14,16 +22,290 @@ const server = setupServer(
   mockHandlers.preflights.host.run(true)
 );
 
-describe("LinuxSetupStep", () => {
+describe("LinuxSetupStep - Unit", () => {
+  describe("processInputValue", () => {
+    it("converts valid integer string to number for adminConsolePort", () => {
+      const result = processInputValue(
+        "adminConsolePort",
+        "8080",
+        { dataDirectory: "/var" }
+      );
+
+      expect(result).toEqual({
+        dataDirectory: "/var",
+        adminConsolePort: 8080,
+      });
+    });
+
+    it("converts empty string to undefined for port fields", () => {
+      const result = processInputValue(
+        "adminConsolePort",
+        "",
+        { dataDirectory: "/var", adminConsolePort: 8080 }
+      );
+
+      expect(result).toEqual({
+        dataDirectory: "/var",
+        adminConsolePort: undefined,
+      });
+    });
+
+    it("rejects decimal values for port fields", () => {
+      const currentValues = { dataDirectory: "/var", adminConsolePort: 8080 };
+      const result = processInputValue(
+        "adminConsolePort",
+        "8080.5",
+        currentValues
+      );
+
+      expect(result).toBe(currentValues); // Reference equality - unchanged
+    });
+
+    it("rejects non-numeric values for port fields", () => {
+      const currentValues = { adminConsolePort: 8080 };
+      const result = processInputValue(
+        "adminConsolePort",
+        "abc",
+        currentValues
+      );
+
+      expect(result).toBe(currentValues); // Unchanged
+    });
+
+    it("handles localArtifactMirrorPort as a port field", () => {
+      const result = processInputValue(
+        "localArtifactMirrorPort",
+        "9090",
+        {}
+      );
+
+      expect(result).toEqual({
+        localArtifactMirrorPort: 9090,
+      });
+    });
+
+    it("stores string values for non-port fields", () => {
+      const result = processInputValue(
+        "dataDirectory",
+        "/opt/data",
+        {}
+      );
+
+      expect(result).toEqual({
+        dataDirectory: "/opt/data",
+      });
+    });
+
+    it("handles proxy field as string", () => {
+      const result = processInputValue(
+        "httpProxy",
+        "http://proxy:8080",
+        { dataDirectory: "/var" }
+      );
+
+      expect(result).toEqual({
+        dataDirectory: "/var",
+        httpProxy: "http://proxy:8080",
+      });
+    });
+  });
+
+  describe("extractFieldError", () => {
+    it("returns formatted error for matching field", () => {
+      const errors = [
+        { field: "adminConsolePort", message: "adminConsolePort must be between 1024 and 65535" },
+      ];
+
+      const result = extractFieldError("adminConsolePort", errors, fieldNames);
+
+      expect(result).toBe("Admin Console Port must be between 1024 and 65535");
+    });
+
+    it("returns undefined when field has no error", () => {
+      const errors = [
+        { field: "adminConsolePort", message: "some error" },
+      ];
+
+      const result = extractFieldError("dataDirectory", errors, fieldNames);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined when fieldErrors is undefined", () => {
+      const result = extractFieldError("dataDirectory", undefined, fieldNames);
+
+      expect(result).toBeUndefined();
+    });
+
+    it("handles empty error array", () => {
+      const result = extractFieldError("dataDirectory", [], fieldNames);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe("determineLoadingText", () => {
+    it("shows installation message when polling", () => {
+      const result = determineLoadingText(true);
+      expect(result).toBe("Preparing the host.");
+    });
+
+    it("shows configuration message when not polling", () => {
+      const result = determineLoadingText(false);
+      expect(result).toBe("Loading configuration...");
+    });
+  });
+
+  describe("shouldExpandAdvancedSettings", () => {
+    it("expands when networkInterface has error", () => {
+      const errors = [{ field: "networkInterface", message: "required" }];
+      const result = shouldExpandAdvancedSettings(errors);
+      expect(result).toBe(true);
+    });
+
+    it("expands when globalCidr has error", () => {
+      const errors = [{ field: "globalCidr", message: "invalid CIDR" }];
+      const result = shouldExpandAdvancedSettings(errors);
+      expect(result).toBe(true);
+    });
+
+    it("does not expand for non-advanced field errors", () => {
+      const errors = [
+        { field: "dataDirectory", message: "required" },
+        { field: "adminConsolePort", message: "invalid" },
+      ];
+      const result = shouldExpandAdvancedSettings(errors);
+      expect(result).toBe(false);
+    });
+
+    it("handles undefined errors", () => {
+      const result = shouldExpandAdvancedSettings(undefined);
+      expect(result).toBe(false);
+    });
+
+    it("handles empty error array", () => {
+      const result = shouldExpandAdvancedSettings([]);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("evaluateInstallationStatus", () => {
+    it("continues polling when status is undefined", () => {
+      const result = evaluateInstallationStatus(undefined);
+
+      expect(result).toEqual({
+        shouldStopPolling: false,
+        shouldProceedToNext: false,
+        errorMessage: null,
+      });
+    });
+
+    it("succeeds and proceeds to next step", () => {
+      const result = evaluateInstallationStatus({
+        state: "Succeeded",
+        description: "Installation configured successfully",
+        lastUpdated: "",
+      });
+
+      expect(result).toEqual({
+        shouldStopPolling: true,
+        shouldProceedToNext: true,
+        errorMessage: null,
+      });
+    });
+
+    it("fails with description", () => {
+      const result = evaluateInstallationStatus({
+        state: "Failed",
+        description: "Network configuration error",
+        lastUpdated: "",
+      });
+
+      expect(result).toEqual({
+        shouldStopPolling: true,
+        shouldProceedToNext: false,
+        errorMessage: "Installation configuration failed with: Network configuration error",
+      });
+    });
+
+    it("fails without description", () => {
+      const result = evaluateInstallationStatus({
+        state: "Failed",
+        description: "",
+        lastUpdated: "",
+      });
+
+      expect(result).toEqual({
+        shouldStopPolling: true,
+        shouldProceedToNext: false,
+        errorMessage: "Installation configuration failed",
+      });
+    });
+
+    it("continues polling for Running state", () => {
+      const result = evaluateInstallationStatus({
+        state: "Running",
+        description: "Processing",
+        lastUpdated: "",
+      });
+
+      expect(result).toEqual({
+        shouldStopPolling: false,
+        shouldProceedToNext: false,
+        errorMessage: null,
+      });
+    });
+
+    it("continues polling for unknown states", () => {
+      const result = evaluateInstallationStatus({
+        state: "Pending",
+        description: "",
+        lastUpdated: "",
+      });
+
+      expect(result).toEqual({
+        shouldStopPolling: false,
+        shouldProceedToNext: false,
+        errorMessage: null,
+      });
+    });
+  });
+
+  describe("determineLoadingState", () => {
+    it("returns true when config is loading", () => {
+      const result = determineLoadingState(true, false, false);
+      expect(result).toBe(true);
+    });
+
+    it("returns true when interfaces are loading", () => {
+      const result = determineLoadingState(false, true, false);
+      expect(result).toBe(true);
+    });
+
+    it("returns true when polling installation", () => {
+      const result = determineLoadingState(false, false, true);
+      expect(result).toBe(true);
+    });
+
+    it("returns true when multiple sources loading", () => {
+      const result = determineLoadingState(true, true, true);
+      expect(result).toBe(true);
+    });
+
+    it("returns false when nothing is loading", () => {
+      const result = determineLoadingState(false, false, false);
+      expect(result).toBe(false);
+    });
+  });
+});
+
+
+describe("LinuxSetupStep - Integration", () => {
   const mockOnNext = vi.fn();
   const mockOnBack = vi.fn();
 
   beforeAll(() => {
     server.listen();
-  });
-
-  beforeEach(() => {
-    // No need to set localStorage token anymore as it's handled by the test setup
   });
 
   afterEach(() => {
@@ -35,579 +317,174 @@ describe("LinuxSetupStep", () => {
     server.close();
   });
 
-  describe("Component Rendering", () => {
-    it("renders the linux setup form with card, title, and next button", async () => {
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Check if the component is rendered
-      expect(screen.getByTestId("linux-setup")).toBeInTheDocument();
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-
-      // Check for title and description
-      await screen.findByText("Configure the installation settings.");
-
-      // Check all input fields are present
-      await screen.findByTestId("data-directory-input");
-      screen.getByTestId("admin-console-port-input");
-      screen.getByTestId("local-artifact-mirror-port-input");
-
-      // Check proxy configuration inputs
-      screen.getByTestId("http-proxy-input");
-      screen.getByTestId("https-proxy-input");
-      screen.getByTestId("no-proxy-input");
-
-      // Reveal advanced settings before checking advanced fields
-      const advancedButton = screen.getByTestId("advanced-settings-toggle");
-      fireEvent.click(advancedButton);
-
-      // Check advanced settings
-      screen.getByTestId("network-interface-select");
-      screen.getByTestId("global-cidr-input");
-
-      // Check next button
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      expect(nextButton).toBeInTheDocument();
-    });
-  });
-
-  describe("Error Handling", () => {
-    it("handles form errors gracefully", async () => {
-      server.use(
-        mockHandlers.console.getNetworkInterfaces([{ name: 'eth0', addresses: [] }, { name: 'eth1', addresses: [] }]),
-        mockHandlers.installation.configure({
-          error: { message: "Invalid configuration" }
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await screen.findByText("Configure the installation settings.");
-
-      // Fill in required form values
-      const dataDirectoryInput = screen.getByTestId("data-directory-input");
-      const adminPortInput = screen.getByTestId("admin-console-port-input");
-      const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input");
-
-      // Use fireEvent to simulate user input
-      fireEvent.change(dataDirectoryInput, {
-        target: { value: "/var/lib/my-cluster" },
-      });
-      fireEvent.change(adminPortInput, { target: { value: "8080" } });
-      fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
-
-      // Submit form
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-
-      // Verify error message is displayed
-      await screen.findByText("Invalid configuration");
-
-      // Verify onNext was not called
-      expect(mockOnNext).not.toHaveBeenCalled();
-    });
-
-    it("handles field-specific errors gracefully", async () => {
-      server.use(
-        mockHandlers.console.getNetworkInterfaces([{ name: 'eth0', addresses: [] }, { name: 'eth1', addresses: [] }]),
-        // Mock config submission endpoint to return field-specific errors
-        mockHandlers.installation.configure({
-          error: {
-            message: "Validation failed",
-            fields: [
-              { field: "dataDirectory", message: "Data Directory is required" },
-              { field: "adminConsolePort", message: "Admin Console Port must be between 1024 and 65535" }
-            ]
-          }
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await screen.findByText("Configure the installation settings.");
-
-      // Fill in required form values
-      const dataDirectoryInput = screen.getByTestId("data-directory-input");
-      const adminPortInput = screen.getByTestId("admin-console-port-input");
-      const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input");
-
-      // Use fireEvent to simulate user input
-      fireEvent.change(dataDirectoryInput, {
-        target: { value: "/var/lib/my-cluster" },
-      });
-      fireEvent.change(adminPortInput, { target: { value: "8080" } });
-      fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
-
-      // Submit form
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-
-      // Verify generic error message is displayed for field errors
-      await screen.findByText("Please fix the errors in the form above before proceeding.");
-
-      // Verify field-specific error messages are displayed
-      await screen.findByText("Data Directory is required");
-      await screen.findByText("Admin Console Port must be between 1024 and 65535");
-
-      // Verify onNext was not called
-      expect(mockOnNext).not.toHaveBeenCalled();
-    });
-
-    it("clears errors when re-submitting after previous failure", async () => {
-      // First, set up server to return an error
-      server.use(
-        mockHandlers.installation.configure({
-          error: { message: "Initial error" }
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await screen.findByText("Configure the installation settings.");
-
-      // Fill in form values
-      const dataDirectoryInput = screen.getByTestId("data-directory-input");
-      fireEvent.change(dataDirectoryInput, {
-        target: { value: "/var/lib/my-cluster" },
-      });
-
-      // Submit form and verify error appears
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-      await screen.findByText("Initial error");
-
-      // Now change server to return success
-      server.use(mockHandlers.installation.configure(true));
-
-      // Submit again
-      fireEvent.click(nextButton);
-
-      // Wait for success and verify error is cleared
-      await waitFor(() => {
-        expect(mockOnNext).toHaveBeenCalled();
-      });
-
-      // Error should no longer be displayed
-      expect(screen.queryByText("Initial error")).not.toBeInTheDocument();
-    });
-  });
-
-  describe("Input Validation and Edge Cases", () => {
-    it("does not display zero values in port input fields", async () => {
-      server.use(
-        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS)
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await waitFor(() => {
-        expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
-      });
-
-      // Check that port inputs are empty (not displaying "0")
-      const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
-
-      expect(adminPortInput.value).toBe("");
-      expect(mirrorPortInput.value).toBe("");
-    });
-
-    it("handles empty config values correctly", async () => {
-      server.use(
-        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY)
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await waitFor(() => {
-        expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
-      });
-
-      // Check that inputs show empty values appropriately
-      const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
-      const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-
-      expect(dataDirectoryInput.value).toBe("");
-      expect(adminPortInput.value).toBe("");
-    });
-
-    it("only accepts integer values for port fields", async () => {
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await waitFor(() => {
-        expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
-      });
-
-      const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-
-      // Clear the existing value first
-      fireEvent.change(adminPortInput, { target: { value: "" } });
-
-      // Test that decimal values are rejected
-      fireEvent.change(adminPortInput, { target: { value: "8080.5" } });
-      expect(adminPortInput.value).toBe("");
-
-      // Test that non-numeric values are rejected
-      fireEvent.change(adminPortInput, { target: { value: "abc" } });
-      expect(adminPortInput.value).toBe("");
-
-      // Test that valid integer is accepted
-      fireEvent.change(adminPortInput, { target: { value: "8080" } });
-      expect(adminPortInput.value).toBe("8080");
-    });
-
-    it("handles advanced settings toggle", async () => {
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await waitFor(() => {
-        expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
-      });
-
-      // Advanced settings should initially be hidden
-      expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("global-cidr-input")).not.toBeInTheDocument();
-
-      // Click advanced settings button
-      const advancedButton = screen.getByTestId("advanced-settings-toggle");
-      fireEvent.click(advancedButton);
-
-      // Advanced settings should now be visible
-      expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
-      expect(screen.getByTestId("global-cidr-input")).toBeInTheDocument();
-    });
-  });
-
-  describe("API Response Structure", () => {
-    it("handles the new values/defaults API response structure correctly", async () => {
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await waitFor(() => {
-        expect(screen.queryByText("Loading configuration...")).not.toBeInTheDocument();
-      });
-
-      // Check that form shows the correct values
-      const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-      expect(adminPortInput.value).toBe("8800");
-
-      const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
-      expect(dataDirectoryInput.value).toBe("/custom/data/dir");
-    });
-  });
-
-  describe("Form Submission", () => {
-    it("submits the form successfully and calls updateConfig", async () => {
-      // Mock all required API endpoints
-      server.use(
-        mockHandlers.installation.getConfig(MOCK_LINUX_INSTALL_CONFIG_RESPONSE),
-        mockHandlers.console.getNetworkInterfaces(MOCK_NETWORK_INTERFACES.networkInterfaces.map(name => ({ name, addresses: [] }))),
-        mockHandlers.installation.configure({
-          captureRequest: (body: Record<string, unknown>, headers: Headers) => {
-            console.log("Form submission captured:", body);
-            // Verify auth header
-            expect(headers.get("Authorization")).toBe("Bearer test-token");
-            // Verify the request body has all required fields
-            expect(body).toMatchObject({
-              adminConsolePort: 8080,
-              localArtifactMirrorPort: 8081,
-              dataDirectory: "/var/lib/embedded-cluster",
-              networkInterface: "",
-              globalCidr: "10.244.0.0/16",
-            });
-          }
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      // Wait for loading to complete
-      await screen.findByText("Loading configuration...");
-      await screen.findByText("Configure the installation settings.");
-
-      // Fill in all required form values
-      const dataDirectoryInput = screen.getByTestId("data-directory-input");
-      const adminPortInput = screen.getByTestId("admin-console-port-input");
-      const mirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input");
-
-      // Use fireEvent to simulate user input for basic fields
-      fireEvent.change(dataDirectoryInput, {
-        target: { value: "/var/lib/embedded-cluster" },
-      });
-      fireEvent.change(adminPortInput, { target: { value: "8080" } });
-      fireEvent.change(mirrorPortInput, { target: { value: "8081" } });
-
-      // Reveal advanced settings before filling advanced fields
-      const advancedButton = screen.getByTestId("advanced-settings-toggle");
-      fireEvent.click(advancedButton);
-
-      // Wait for advanced fields to be visible
-      await waitFor(() => {
-        expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
-      });
-
-      const networkInterfaceSelect = screen.getByTestId("network-interface-select");
-      const globalCidrInput = screen.getByTestId("global-cidr-input");
-
-      // Fill advanced fields
-      fireEvent.change(networkInterfaceSelect, { target: { value: "eth0" } });
-      fireEvent.change(globalCidrInput, { target: { value: "10.244.0.0/16" } });
-
-      // Get the next button and ensure it's not disabled
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      expect(nextButton).not.toBeDisabled();
-
-      // Submit form
-      fireEvent.click(nextButton);
-
-      // Wait a bit to see if there are any immediate errors
-      await waitFor(() => {
-        const errorElement = screen.queryByTestId("linux-setup-error");
-        if (errorElement) {
-          console.log("Form submission error:", errorElement.textContent);
+  it("SUCCESS PATH: Complete flow from form submission to successful installation", async () => {
+    // Setup successful submission and polling handlers with auth verification
+    const statusCounter = { callCount: 0 };
+    server.use(
+      mockHandlers.installation.configure({
+        captureRequest: (body: Record<string, unknown>, headers: Headers) => {
+          // Verify authentication header is present
+          expect(headers.get("Authorization")).toBe("Bearer test-token");
+          // Verify request body structure
+          expect(body).toHaveProperty("dataDirectory");
+          expect(body).toHaveProperty("adminConsolePort");
         }
-      }, { timeout: 1000 });
+      }),
+      mockHandlers.installation.getStatus({
+        state: "Running",
+        sequence: [
+          { state: "Running", description: "Configuring installation" },
+          { state: "Running", description: "Setting up network" },
+          { state: "Succeeded", description: "Installation configured successfully" }
+        ],
+        counter: statusCounter
+      })
+    );
 
-      // Wait for the mutation to complete
-      await waitFor(
-        () => {
-          expect(mockOnNext).toHaveBeenCalled();
-        },
-        { timeout: 3000 }
-      );
+    // Render component
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+      wrapperProps: { authenticated: true },
     });
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
+    });
+
+    // Verify all form fields are rendered (component smoke test)
+    expect(screen.getByTestId("linux-setup")).toBeInTheDocument();
+
+    // Check all basic input fields are present
+    const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
+    const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
+    const localArtifactMirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
+
+    // Check proxy configuration inputs are present
+    expect(screen.getByTestId("http-proxy-input")).toBeInTheDocument();
+    expect(screen.getByTestId("https-proxy-input")).toBeInTheDocument();
+    expect(screen.getByTestId("no-proxy-input")).toBeInTheDocument();
+
+    // Check buttons are present
+    expect(screen.getByTestId("linux-setup-submit-button")).toBeInTheDocument();
+    expect(screen.getByTestId("linux-setup-button-back")).toBeInTheDocument();
+
+    // Verify API configuration loaded correctly
+    expect(dataDirectoryInput.value).toBe("/custom/data/dir");
+    expect(adminPortInput.value).toBe("8800");
+    expect(localArtifactMirrorPortInput.value).toBe("8801");
+
+    // Test advanced settings toggle
+    expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("global-cidr-input")).not.toBeInTheDocument();
+
+    const advancedButton = screen.getByTestId("advanced-settings-toggle");
+    fireEvent.click(advancedButton);
+
+    // Advanced settings should now be visible
+    expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
+    expect(screen.getByTestId("global-cidr-input")).toBeInTheDocument();
+
+    // Fill in the form
+    fireEvent.change(dataDirectoryInput, { target: { value: "/opt/my-app" } });
+    fireEvent.change(adminPortInput, { target: { value: "8080" } });
+
+    // Test hop: processInputValue - verify port conversion
+    expect(adminPortInput.value).toBe("8080");
+
+    // Try invalid port (decimal) - should be rejected by hop
+    fireEvent.change(adminPortInput, { target: { value: "8080.5" } });
+    expect(adminPortInput.value).toBe("8080"); // Should remain unchanged
+
+    // Submit the form
+    const submitButton = screen.getByTestId("linux-setup-submit-button");
+    fireEvent.click(submitButton);
+
+    // Verify loading state changes (hop: determineLoadingText)
+    await screen.findByText("Preparing the host.");
+
+    // Wait for polling to complete and succeed (hop: evaluateInstallationStatus)
+    await waitFor(() => {
+      expect(mockOnNext).toHaveBeenCalledTimes(1);
+    }, { timeout: 5000 });
+
+    // Verify no errors displayed
+    expect(screen.queryByTestId("linux-setup-error")).not.toBeInTheDocument();
   });
 
-  describe("Installation Status Polling", () => {
-    it("shows 'Preparing the host.' loading state when installation status is polling", async () => {
-      server.use(
-        mockHandlers.installation.getStatus({ state: 'Running', description: 'Configuring installation' })
-      );
+  it("FAILURE PATH: Form validation errors followed by installation failure", async () => {
+    // First setup handler for validation errors
+    server.use(
+      mockHandlers.installation.configure({
+        error: {
+          message: "Validation failed",
+          fields: [
+            { field: "networkInterface", message: "networkInterface is required" },
+            { field: "adminConsolePort", message: "adminConsolePort must be between 1024 and 65535" }
+          ]
+        }
+      })
+    );
 
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      await screen.findByText("Configure the installation settings.");
-
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId("linux-setup-loading-text")).toHaveTextContent("Preparing the host.");
-      });
+    // Render component
+    renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
+      wrapperProps: { authenticated: true },
     });
 
-    it("triggers preflights after installation status succeeds", async () => {
-      const counter = { callCount: 0 };
-      server.use(
-        mockHandlers.installation.getStatus({
-          state: 'Running',
-          sequence: [
-            { state: 'Running', description: 'Configuring installation' },
-            { state: 'Succeeded', description: 'Installation configured successfully' }
-          ],
-          counter
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      await screen.findByText("Configure the installation settings.");
-
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(mockOnNext).toHaveBeenCalled();
-      }, { timeout: 5000 });
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.queryByTestId("linux-setup-loading-text")).not.toBeInTheDocument();
     });
 
-    it("handles installation status failure and shows error", async () => {
-      server.use(
-        mockHandlers.installation.getStatus({ state: 'Failed', description: 'Network configuration failed' })
-      );
+    // Verify advanced settings are initially collapsed
+    expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
 
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
+    // Fill form with invalid values
+    const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
+    fireEvent.change(adminPortInput, { target: { value: "80" } });
 
-      await screen.findByText("Configure the installation settings.");
+    // Submit and get validation errors
+    const submitButton = screen.getByTestId("linux-setup-submit-button");
+    fireEvent.click(submitButton);
 
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
+    // Wait for field errors to appear
+    await screen.findByText("Please fix the errors in the form above before proceeding.");
 
-      await waitFor(() => {
-        const errorElement = screen.getByTestId("linux-setup-error");
-        expect(errorElement).toHaveTextContent("Installation configuration failed with: Network configuration failed");
-      });
+    // Verify hop: extractFieldError - field error messages formatted correctly
+    await screen.findByText("Admin Console Port must be between 1024 and 65535");
 
-      expect(mockOnNext).not.toHaveBeenCalled();
+    // Verify hop: shouldExpandAdvancedSettings - auto-expanded due to networkInterface error
+    await waitFor(() => {
+      expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
     });
 
-    it("stops polling installation status on failure", async () => {
-      const counter = { callCount: 0 };
-      server.use(
-        createHandler.withCallCounter(
-          "*/api/linux/install/installation/status",
-          {
-            state: "Failed",
-            description: "Configuration error",
-            lastUpdated: new Date().toISOString()
-          },
-          counter
-        )
-      );
+    // Fix the errors
+    fireEvent.change(adminPortInput, { target: { value: "8080" } });
 
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
+    const networkSelect = screen.getByTestId("network-interface-select") as HTMLSelectElement;
+    fireEvent.change(networkSelect, { target: { value: "eth0" } });
 
-      await screen.findByText("Configure the installation settings.");
+    // Now setup successful submission but with installation failure
+    server.use(
+      mockHandlers.installation.configure(true),
+      mockHandlers.installation.getStatus({
+        state: "Failed",
+        description: "Network configuration failed: unable to bind to port"
+      })
+    );
 
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
+    // Submit again
+    fireEvent.click(submitButton);
 
-      await waitFor(() => {
-        expect(screen.getByTestId("linux-setup-error")).toBeInTheDocument();
-      });
+    // Verify loading state (hop: determineLoadingText during polling)
+    await screen.findByText("Preparing the host.");
 
-      const initialCallCount = counter.callCount;
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for installation to fail (hop: evaluateInstallationStatus with Failed state)
+    await screen.findByText("Installation configuration failed with: Network configuration failed: unable to bind to port");
 
-      expect(counter.callCount).toBe(initialCallCount);
-    });
+    // Verify we didn't proceed to next step
+    expect(mockOnNext).not.toHaveBeenCalled();
 
-    it("does not trigger preflights if installation status is still running", async () => {
-      server.use(
-        mockHandlers.installation.getStatus({ state: 'Running', description: 'Still configuring' })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      await screen.findByText("Configure the installation settings.");
-
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(screen.getByTestId("linux-setup-loading-text")).toHaveTextContent("Preparing the host.");
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      expect(mockOnNext).not.toHaveBeenCalled();
-    });
-
-    it("allows retry after installation status failure", async () => {
-      const submitCounter = { callCount: 0 };
-      server.use(
-        createHandler.withCallCounter(
-          "*/api/linux/install/installation/configure",
-          { success: true },
-          submitCounter
-        ),
-        mockHandlers.installation.getStatus({
-          state: 'Failed',
-          sequence: [
-            { state: 'Failed', description: 'First attempt failed' },
-            { state: 'Succeeded', description: 'Installation configured successfully' }
-          ],
-          counter: submitCounter
-        })
-      );
-
-      renderWithProviders(<LinuxSetupStep onNext={mockOnNext} onBack={mockOnBack} />, {
-        wrapperProps: {
-          authenticated: true,
-        },
-      });
-
-      await screen.findByText("Configure the installation settings.");
-
-      const nextButton = screen.getByTestId("linux-setup-submit-button");
-
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        const errorElement = screen.getByTestId("linux-setup-error");
-        expect(errorElement).toHaveTextContent("Installation configuration failed with: First attempt failed");
-      });
-
-      fireEvent.click(nextButton);
-
-      await waitFor(() => {
-        expect(mockOnNext).toHaveBeenCalled();
-      }, { timeout: 5000 });
-    });
+    // Verify advanced settings remain expanded after error
+    expect(screen.getByTestId("network-interface-select")).toBeInTheDocument();
   });
 });

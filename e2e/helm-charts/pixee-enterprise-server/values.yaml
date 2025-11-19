@@ -1,0 +1,267 @@
+# Default values for pixee-enterprise-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+minio:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/index.docker.io/bitnami/minio
+    # -- set `minio.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+      - name: image-pull-secret
+  auth:
+    rootUser: pixeebot
+    rootPassword: pixeebot
+  defaultBuckets: pixee-analysis-input,pixee-analysis-service
+  provisioning:
+    enabled: true
+    buckets:
+      - name: pixee-analysis-input
+        region: us-east-1
+        versioning: Suspended
+        lifecycle:
+          - id: DeleteAfter7Days
+            prefix: ""
+            expiry:
+              days: 7
+      - name: pixee-analysis-service
+        region: us-east-1
+        versioning: Suspended
+        lifecycle:
+          - id: DeleteAfter7Days
+            prefix: ""
+            expiry:
+              days: 7
+
+
+replicated:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/index.docker.io/replicated/replicated-sdk
+    # -- set `replicated.image.pullSecrets: {}` if registry authentication is not required.
+  imagePullSecrets:
+    - name: image-pull-secret
+
+grafana:
+  pdc:
+    enabled: false
+    image:
+      registry: images.pixee.ai
+      repository: proxy/pixee/index.docker.io/grafana/pdc-agent
+      tag: "latest@sha256:994bf26128867565d03852d92284c6859c306ade8688f5b5d0d676b67d0bc8b1"
+      pullPolicy: Always
+      # -- set `grafana.pdc.image.pullSecrets: {}` if registry authentication is not required.
+      pullSecrets:
+        - name: image-pull-secret
+    # -- Providing the following values will create a grafana-pdc-agent secret used to configure the agent.
+    signingToken: ""
+    hostedGrafanaId: ""
+    cluster: ""
+    # -- Use an existing secret instead of creating one
+    existingSecret: ""
+    secretKeys:
+      # -- The secret key containing the signingToken
+      signingTokenKey: "token"
+      # -- The secret key containing the hostedGrafanaId
+      hostedGrafanaIdKey: "hosted-grafana-id"
+      # -- The secret key containing the cluster 
+      clusterKey: "cluster"
+  k8sMonitoring:
+    enabled: false
+
+
+# Configuration for k8s-monitoring chart placeholder
+k8s-monitoring: {}
+
+# Default image configurations for subcharts (can be overridden)
+platform:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixeebot
+    tag: "2025-08-11-d93e898-7459@sha256:5ce6991e81fe53420a5d8255d624f4f03e6988e6be0b1385c5149cc2ab2bc5a4"
+    pullPolicy: IfNotPresent
+    # -- set `platform.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+    - name: image-pull-secret
+  postgresql:
+    image:
+      # -- set `platform.postgresql.image.pullSecrets: {}` if registry authentication is not required.
+      pullSecrets:
+        - name: image-pull-secret
+
+user-platform:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixee-user-platform
+    tag: "0.0.286@sha256:3db48a4e19787ebf9e85051390ef85dd8ce62f8e7d8a66c14abb17de85768722"
+    pullPolicy: IfNotPresent
+    # -- set `user-platform.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+    - name: image-pull-secret
+
+analysis:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixee-analysis-service
+    tag: "1.59.0@sha256:bf1c3dc14f49823b9f8409a3f432368da9345d2e681185515d950877b7662fb8"
+    pullPolicy: IfNotPresent
+    # -- set `analysis.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+    - name: image-pull-secret
+  #Enable to use deterministic codemods for Java rules when available instead of AI. Rules without deterministic implementations will still use AI as fallback.
+  setUseMagicForDeterministicRules: false
+
+oidc:
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/zitadel-oidc-service
+    tag: "3.38.1-52fc585@sha256:2d0fd908e81f4e8fff4141ca2cb84271dfd5edf2f8a0fe5968edf7e56cba5343"
+    pullPolicy: IfNotPresent
+    # -- set `oidc.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+    - name: image-pull-secret
+
+mkdocs:
+  enabled: true
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/mkdocs
+    # Tag will be updated to match chart version during build process, ignored by renovate
+    tag: "4.2.0-c588f14"
+    pullPolicy: IfNotPresent
+    pullSecrets:
+      - name: image-pull-secret
+
+global:
+  security:
+    # necessary to allow proxied bitnami image to pass verification checks
+    allowInsecureImages: true
+  pixee:
+    utility:
+      image:
+        registry: images.pixee.ai
+        repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixee-utility-alpine
+        tag: "1.0.16826259813@sha256:016cf9c0cc9d2200ef103245332c58aac25effe74a3934b6dbe2dbb0a2cfb23c"
+        pullPolicy: IfNotPresent
+        # -- set `global.pixee.utility.image.pullSecrets: {}` if registry authentication is not required.
+        pullSecrets:
+          - name: image-pull-secret
+    runPodTimeout: "60s"
+    serviceAccount:
+      # Specifies whether a service account should be created
+      create: true
+      # Annotations to add to the service account
+      annotations:
+        helm.sh/hook: pre-install
+        helm.sh/hook-weight: "-2"
+      # The name of the service account to use. Must be set if create is true
+      name: "pixee"
+    # Provide domain (or ip address) where Pixee Enterprise Server will be exposed
+    domain: ""
+    # Select "http" or "https"
+    protocol: "http"
+    httpProxy: ""
+    httpsProxy: ""
+    noProxy: ""
+    authentication:
+      enabled: false
+      restApi:
+        apiKey: "EpY87q12SpPf"
+        # -- Use an existing secret instead of creating one
+        existingSecret: ""
+        secretKeys:
+          apiKey: "value"
+      oidc:
+        embedded:
+          enabled: false
+          scopes: "openid profile email"
+          issuer: ""
+          redirectURIs: ""
+          authenticationRedirectPath: "/api/auth/login"
+          basePath: "oidc"
+          applicationType: "web-app"
+          usersJson: |
+            {
+              "alice": {
+                "ID": "alice",
+                "Username": "username",
+                "Password": "password"
+              },
+              "bob": {
+                "ID": "bob", 
+                "Username": "bob",
+                "Password": "password2"
+              }
+            }
+          # -- Use an existing secret instead of creating one.  Must contain the key `users.json`
+          existingSecret: ""
+        client:
+          id: "web"
+          secret: "1rFX97y025V2"
+          # -- Use an existing secret instead of creating one
+          existingSecret: ""
+          secretKeys:
+            # -- The secret key containing secret
+            secretKey: "secret"
+          provider: ""
+        # authServerUrl: ""
+    repositoryAccessControl: "none"
+    objectStore:
+      embedded: true
+      endpoint: ""
+      region: us-east-1
+      username: pixeebot
+      password: pixeebot
+      # Credential type for external object stores
+      # Options: "static" (use username/password), "default" (use service account/pod identity)
+      credentialType: "static"
+
+    # The following values are related to AI services
+    # Uncomment and fill in the values to configure.
+    ai:
+      # Enables or disables ai features
+      enabled: true
+      # OpenAI configuration ( default AI provider )
+      openai:
+        enabled: true
+        baseUrl: "" # OpenAI base URL for API calls (optional)
+        key: "" # OpenAI api key used to access OpenAI service
+        # -- Use an existing secret instead of creating one
+        existingSecret: ""
+        secretKeys:
+          # -- Secret key containing the api key
+          apiKey: "key"
+      # Azure OpenAI configuration
+      azure:
+        enabled: false
+        key: "" # Azure OpenAI api key used to access service
+        # -- Use an existing secret instead of creating one
+        existingSecret: ""
+        secretKeys:
+          apiKey: "key"
+      # endpoint: "" # Azure endpoint
+      # version: 2024-02-01 #  api version
+
+      # Define deployments for Azure models
+      # deployments:
+      #   gpt-4o-2024-05-13: "gpt-4o-2024-05-13"
+      #   o3-mini: "o3-mini"
+    metrics:
+      enabled: true
+    sentry:
+      enabled: true
+    replicatedSdk:
+      enabled: true
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations:
+    helm.sh/hook: pre-install
+    helm.sh/hook-weight: "-2"
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "pixee"

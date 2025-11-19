@@ -1,0 +1,10 @@
+global:
+  pixee:
+    objectStore:
+      enabled: true
+      provider: minio
+      endpoint: http://custom-minio:9000
+      username: test-access-key
+      password: test-secret-key
+      region: us-east-1
+      bucket: test-bucket

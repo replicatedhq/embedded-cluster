@@ -3,14 +3,18 @@ package k0s
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/artifacts"
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -18,7 +22,12 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -31,8 +40,21 @@ var _ K0sInterface = (*K0s)(nil)
 type K0s struct {
 }
 
-func New() *K0s {
+func New() K0sInterface {
+	if _clientFactory != nil {
+		return _clientFactory()
+	}
 	return &K0s{}
+}
+
+var (
+	_clientFactory ClientFactory
+)
+
+type ClientFactory func() K0sInterface
+
+func SetClientFactory(fn ClientFactory) {
+	_clientFactory = fn
 }
 
 // GetStatus calls the k0s status command and returns information about system init, PID, k0s role,
@@ -271,4 +293,133 @@ func (k *K0s) WaitForK0s() error {
 		}
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func (k *K0s) WaitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
+	return k.waitForAutopilotPlanWithBackoff(ctx, cli, logger, wait.Backoff{
+		Duration: 20 * time.Second, // 20-second polling interval
+		Steps:    90,               // 90 attempts × 20s = 1800s = 30 minutes
+	})
+}
+
+func (k *K0s) waitForAutopilotPlanWithBackoff(ctx context.Context, cli client.Client, logger logrus.FieldLogger, backoff wait.Backoff) (apv1b2.Plan, error) {
+	var plan apv1b2.Plan
+	var lastErr error
+
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
+		if err != nil {
+			lastErr = fmt.Errorf("get autopilot plan: %w", err)
+			return false, nil
+		}
+
+		if autopilot.HasThePlanEnded(plan) {
+			return true, nil
+		}
+
+		logger.WithField("plan_id", plan.Spec.ID).Info("An autopilot upgrade is in progress")
+		return false, nil
+	})
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lastErr != nil {
+				err = errors.Join(err, lastErr)
+			}
+			return apv1b2.Plan{}, err
+		} else if lastErr != nil {
+			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan: %w", lastErr)
+		} else {
+			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan")
+		}
+	}
+
+	return plan, nil
+}
+
+func (k *K0s) WaitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
+	return k.waitForClusterNodesMatchVersionWithBackoff(ctx, cli, desiredVersion, logger, wait.Backoff{
+		Duration: 5 * time.Second,
+		Steps:    60, // 60 attempts × 5s = 300s = 5 minutes
+		Factor:   1.0,
+		Jitter:   0.1,
+	})
+}
+
+func (k *K0s) waitForClusterNodesMatchVersionWithBackoff(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger, backoff wait.Backoff) error {
+	var lastErr error
+
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		match, err := k.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
+		if err != nil {
+			lastErr = fmt.Errorf("check cluster nodes match version: %w", err)
+			return false, nil
+		}
+
+		if !match {
+			logger.WithField("version", desiredVersion).Debug("Waiting for cluster nodes to report updated version")
+			return false, nil
+		}
+
+		return true, nil
+	})
+
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			if lastErr != nil {
+				err = errors.Join(err, lastErr)
+			}
+			return err
+		} else if lastErr != nil {
+			return fmt.Errorf("timed out waiting for cluster nodes to match version %s: %w", desiredVersion, lastErr)
+		} else {
+			return fmt.Errorf("cluster nodes did not match version %s after upgrade", desiredVersion)
+		}
+	}
+
+	return nil
+}
+
+// ClusterNodesMatchVersion returns true if all nodes in the cluster have kubeletVersion matching the provided version.
+func (k *K0s) ClusterNodesMatchVersion(ctx context.Context, cli client.Client, version string) (bool, error) {
+	var nodes corev1.NodeList
+	if err := cli.List(ctx, &nodes); err != nil {
+		return false, fmt.Errorf("list nodes: %w", err)
+	}
+	for _, node := range nodes.Items {
+		if node.Status.NodeInfo.KubeletVersion != version {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (k *K0s) WaitForAirgapArtifactsAutopilotPlan(ctx context.Context, cli client.Client, in *ecv1beta1.Installation) error {
+	nsn := types.NamespacedName{Name: "autopilot"}
+	plan := apv1b2.Plan{}
+
+	err := wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
+		err := cli.Get(ctx, nsn, &plan)
+		if err != nil {
+			return false, fmt.Errorf("get autopilot plan: %w", err)
+		}
+		if plan.Annotations[artifacts.InstallationNameAnnotation] != in.Name {
+			return false, fmt.Errorf("autopilot plan for different installation")
+		}
+
+		switch {
+		case autopilot.HasPlanSucceeded(plan):
+			return true, nil
+		case autopilot.HasPlanFailed(plan):
+			reason := autopilot.ReasonForState(plan)
+			return false, fmt.Errorf("autopilot plan failed: %s", reason)
+		}
+		// plan is still running
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("wait for autopilot plan: %w", err)
+	}
+
+	return nil
 }

@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) {
+	logger := c.logger.WithField("operation", "process-airgap")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -24,42 +27,54 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 		}
 	}()
 
-	err = c.stateMachine.Transition(lock, states.StateAirgapProcessing)
+	err = c.stateMachine.Transition(lock, states.StateAirgapProcessing, nil)
 	if err != nil {
 		return types.NewConflictError(err)
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			if r := recover(); r != nil {
 				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessingFailed, finalErr); err != nil {
+					logger.WithError(err).Error("failed to transition states")
 				}
-			} else {
-				if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+
+				if err := c.setAirgapStatus(types.StateFailed, finalErr.Error()); err != nil {
+					logger.WithError(err).Error("failed to set status to failed")
 				}
 			}
 		}()
 
+		if err := c.setAirgapStatus(types.StateRunning, "Processing airgap bundle"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
+
 		// Calculate registry settings for the airgap processing
 		registrySettings, err := c.CalculateRegistrySettings(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to calculate registry settings: %w", err)
+			return fmt.Errorf("calculate registry settings: %w", err)
 		}
 
 		if err := c.airgapManager.Process(ctx, registrySettings); err != nil {
-			return fmt.Errorf("failed to process airgap: %w", err)
+			return fmt.Errorf("process airgap: %w", err)
+		}
+
+		if err := c.stateMachine.Transition(lock, states.StateAirgapProcessed, nil); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		if err := c.setAirgapStatus(types.StateSucceeded, "Airgap bundle processed"); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
@@ -69,5 +84,13 @@ func (c *InstallController) ProcessAirgap(ctx context.Context) (finalErr error) 
 }
 
 func (c *InstallController) GetAirgapStatus(ctx context.Context) (types.Airgap, error) {
-	return c.airgapManager.GetStatus()
+	return c.store.AirgapStore().Get()
+}
+
+func (c *InstallController) setAirgapStatus(state types.State, description string) error {
+	return c.store.AirgapStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

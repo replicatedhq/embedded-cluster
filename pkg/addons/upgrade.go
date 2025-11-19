@@ -136,9 +136,10 @@ func (a *AddOns) getAddOnsForUpgrade(meta *ectypes.ReleaseMetadata, opts Upgrade
 
 	if opts.DisasterRecoveryEnabled {
 		addOns = append(addOns, &velero.Velero{
-			Proxy:            opts.ProxySpec,
-			HostCABundlePath: opts.HostCABundlePath,
-			K0sDataDir:       opts.K0sDataDir,
+			Proxy:              opts.ProxySpec,
+			HostCABundlePath:   opts.HostCABundlePath,
+			K0sDataDir:         opts.K0sDataDir,
+			EmbeddedConfigSpec: opts.EmbeddedConfigSpec,
 		})
 	}
 

@@ -2,10 +2,8 @@ package upgrade
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
-	"time"
 
 	apv1b2 "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
@@ -14,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/autopilot"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/config"
@@ -25,7 +24,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/sirupsen/logrus"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -106,7 +104,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 	// if it is, we can skip the upgrade
 	desiredVersion := k0sVersionFromMetadata(meta)
 
-	match, err := clusterNodesMatchVersion(ctx, cli, desiredVersion)
+	match, err := k0s.ClusterNodesMatchVersion(ctx, cli, desiredVersion)
 	if err != nil {
 		return fmt.Errorf("check cluster nodes match version: %w", err)
 	}
@@ -125,7 +123,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 		return fmt.Errorf("create autpilot upgrade plan: %w", err)
 	}
 
-	plan, err := waitForAutopilotPlan(ctx, cli, logger)
+	plan, err := k0s.WaitForAutopilotPlan(ctx, cli, logger)
 	if err != nil {
 		return fmt.Errorf("wait for autpilot plan: %w", err)
 	}
@@ -154,7 +152,7 @@ func upgradeK0s(ctx context.Context, cli client.Client, rc runtimeconfig.Runtime
 		return upgradeK0s(ctx, cli, rc, in, logger)
 	}
 
-	if err := waitForClusterNodesMatchVersion(ctx, cli, desiredVersion, logger); err != nil {
+	if err := k0s.WaitForClusterNodesMatchVersion(ctx, cli, desiredVersion, logger); err != nil {
 		return fmt.Errorf("wait for cluster nodes to match version: %w", err)
 	}
 
@@ -364,88 +362,5 @@ func createAutopilotPlan(ctx context.Context, cli client.Client, rc runtimeconfi
 			return fmt.Errorf("start upgrade: %w", err)
 		}
 	}
-	return nil
-}
-
-func waitForAutopilotPlan(ctx context.Context, cli client.Client, logger logrus.FieldLogger) (apv1b2.Plan, error) {
-	backoff := wait.Backoff{
-		Duration: 20 * time.Second, // 20-second polling interval
-		Steps:    90,               // 90 attempts × 20s = 1800s = 30 minutes
-	}
-
-	var plan apv1b2.Plan
-	var lastErr error
-
-	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-		err := cli.Get(ctx, client.ObjectKey{Name: "autopilot"}, &plan)
-		if err != nil {
-			lastErr = fmt.Errorf("get autopilot plan: %w", err)
-			return false, nil
-		}
-
-		if autopilot.HasThePlanEnded(plan) {
-			return true, nil
-		}
-
-		logger.WithField("plan_id", plan.Spec.ID).Info("An autopilot upgrade is in progress")
-		return false, nil
-	})
-
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			if lastErr != nil {
-				err = errors.Join(err, lastErr)
-			}
-			return apv1b2.Plan{}, err
-		} else if lastErr != nil {
-			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan: %w", lastErr)
-		} else {
-			return apv1b2.Plan{}, fmt.Errorf("timed out waiting for autopilot plan")
-		}
-	}
-
-	return plan, nil
-}
-
-func waitForClusterNodesMatchVersion(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger) error {
-	return waitForClusterNodesMatchVersionWithBackoff(ctx, cli, desiredVersion, logger, wait.Backoff{
-		Duration: 5 * time.Second,
-		Steps:    60, // 60 attempts × 5s = 300s = 5 minutes
-		Factor:   1.0,
-		Jitter:   0.1,
-	})
-}
-
-func waitForClusterNodesMatchVersionWithBackoff(ctx context.Context, cli client.Client, desiredVersion string, logger logrus.FieldLogger, backoff wait.Backoff) error {
-	var lastErr error
-
-	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
-		match, err := clusterNodesMatchVersion(ctx, cli, desiredVersion)
-		if err != nil {
-			lastErr = fmt.Errorf("check cluster nodes match version: %w", err)
-			return false, nil
-		}
-
-		if !match {
-			logger.WithField("version", desiredVersion).Debug("Waiting for cluster nodes to report updated version")
-			return false, nil
-		}
-
-		return true, nil
-	})
-
-	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			if lastErr != nil {
-				err = errors.Join(err, lastErr)
-			}
-			return err
-		} else if lastErr != nil {
-			return fmt.Errorf("timed out waiting for cluster nodes to match version %s: %w", desiredVersion, lastErr)
-		} else {
-			return fmt.Errorf("cluster nodes did not match version %s after upgrade", desiredVersion)
-		}
-	}
-
 	return nil
 }

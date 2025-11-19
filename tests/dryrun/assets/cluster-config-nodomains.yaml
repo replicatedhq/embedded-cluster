@@ -1,6 +1,44 @@
 apiVersion: embeddedcluster.replicated.com/v1beta1
 kind: Config
 metadata:
- name: "testconfig"
+  name: "testconfig"
 spec:
- version: "testversion"
+  version: "testversion"
+  roles:
+    controller:
+      name: test-controller-role
+      labels:
+        test-label-key: test-label-value
+        another-label: another-value
+  unsupportedOverrides:
+    k0s: |
+      config:
+        metadata:
+          name: testing-overrides-k0s-name
+        spec:
+          telemetry:
+            enabled: false
+          api:
+            extraArgs:
+              test-key: test-value
+          workerProfiles:
+            - name: ip-forward
+              values:
+                allowedUnsafeSysctls:
+                  - net.ipv4.ip_forward
+    builtInExtensions:
+      - name: admin-console
+        values: |
+          labels:
+            release-custom-label: release-clustom-value
+  extensions:
+    helm:
+      charts:
+        - name: goldpinger
+          chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/goldpinger
+          namespace: goldpinger
+          version: 6.1.2
+          order: 11
+          values: |
+            image:
+              repository: ec-e2e-proxy.testcluster.net/anonymous/bloomberg/goldpinger

@@ -107,7 +107,7 @@ func (sm *stateMachine) ValidateTransition(lock Lock, nextStates ...State) error
 	return nil
 }
 
-func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error) {
+func (sm *stateMachine) Transition(lock Lock, nextState State, eventData interface{}) (finalError error) {
 	sm.mu.Lock()
 	defer func() {
 		if finalError != nil {
@@ -141,7 +141,7 @@ func (sm *stateMachine) Transition(lock Lock, nextState State) (finalError error
 	}
 
 	for _, handler := range safeHandlers {
-		err := handler.TriggerHandler(context.Background(), fromState, nextState)
+		err := handler.TriggerHandler(context.Background(), fromState, nextState, eventData)
 		if err != nil {
 			sm.logger.WithFields(logrus.Fields{"fromState": fromState, "toState": nextState}).Errorf("event handler error: %v", err)
 		}

@@ -16,7 +16,7 @@ import (
 // HostPreflightManager provides methods for running host preflights
 type HostPreflightManager interface {
 	PrepareHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts PrepareHostPreflightOptions) (*troubleshootv1beta2.HostPreflightSpec, error)
-	RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) error
+	RunHostPreflights(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts RunHostPreflightOptions) (*types.PreflightsOutput, error)
 	GetHostPreflightStatus(ctx context.Context) (types.Status, error)
 	GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetHostPreflightTitles(ctx context.Context) ([]string, error)
@@ -25,7 +25,7 @@ type HostPreflightManager interface {
 
 type hostPreflightManager struct {
 	hostPreflightStore preflight.Store
-	runner             preflights.PreflightsRunnerInterface
+	runner             preflights.PreflightRunnerInterface
 	netUtils           utils.NetUtils
 	logger             logrus.FieldLogger
 }
@@ -44,7 +44,7 @@ func WithHostPreflightStore(hostPreflightStore preflight.Store) HostPreflightMan
 	}
 }
 
-func WithPreflightRunner(runner preflights.PreflightsRunnerInterface) HostPreflightManagerOption {
+func WithPreflightRunner(runner preflights.PreflightRunnerInterface) HostPreflightManagerOption {
 	return func(m *hostPreflightManager) {
 		m.runner = runner
 	}

@@ -38,9 +38,9 @@ type infraManager struct {
 	releaseData           *release.ReleaseData
 	endUserConfig         *ecv1beta1.Config
 	logger                logrus.FieldLogger
+	hcli                  helm.Client
 	kcli                  client.Client
 	mcli                  metadata.Interface
-	hcli                  helm.Client
 	kubernetesEnvSettings *helmcli.EnvSettings
 	mu                    sync.RWMutex
 }

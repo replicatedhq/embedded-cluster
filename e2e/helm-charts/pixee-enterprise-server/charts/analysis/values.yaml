@@ -1,0 +1,94 @@
+# Default values for analysis.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  # Pull image through pixee image proxy
+  # These values can be overridden from parent chart
+  registry: images.pixee.ai
+  repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixee-analysis-service
+  tag: "1.59.0@sha256:bf1c3dc14f49823b9f8409a3f432368da9345d2e681185515d950877b7662fb8"
+  # -- set `image.pullSecrets: {}` if registry authentication is not required.
+  pullSecrets:
+    - name: image-pull-secret
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+objectStore: {}
+  # bucket: pixee-analysis-service
+
+sentry: {}
+  # environment: production
+  # release: <current image tag>
+  # server: <configured url/host>
+
+# Environment variables
+env: {}
+
+serviceAccount:
+  # override the default service account with an existing service account
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+
+securityContext:
+  readOnlyRootFilesystem: true
+  seLinuxOptions: {}
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Temporary storage configuration
+tempStorage:
+  # Mount path for temporary files (TMPDIR)
+  mountPath: "/tmp/pixee-scratch"
+  # Size limit for ephemeral volume
+  sizeLimit: "20Gi"

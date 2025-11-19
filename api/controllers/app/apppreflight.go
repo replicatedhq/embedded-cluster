@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"time"
 
 	apppreflightmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/app/preflight"
-	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -23,6 +23,8 @@ type RunAppPreflightOptions struct {
 }
 
 func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflightOptions) (finalErr error) {
+	logger := c.logger.WithField("operation", "run-app-preflights")
+
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -41,6 +43,11 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		return types.NewConflictError(err)
 	}
 
+	// Clear any previous preflight results immediately to prevent serving stale data
+	if err := c.appPreflightManager.ClearAppPreflightResults(ctx); err != nil {
+		return fmt.Errorf("clear previous preflight results: %w", err)
+	}
+
 	// Get the app config values
 	configValues, err := c.GetAppConfigValues(ctx)
 	if err != nil {
@@ -53,19 +60,20 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 		return fmt.Errorf("extract app preflight spec: %w", err)
 	}
 	if appPreflightSpec == nil {
+		// TODO: support for installing without an app preflight spec
 		return fmt.Errorf("no app preflight spec found")
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateAppPreflightsRunning)
+	err = c.stateMachine.Transition(lock, states.StateAppPreflightsRunning, nil)
 	if err != nil {
 		return fmt.Errorf("transition states: %w", err)
 	}
 
 	go func() (finalErr error) {
+		defer lock.Release()
+
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
-
-		defer lock.Release()
 
 		defer func() {
 			// Clean up binary if requested
@@ -74,25 +82,24 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			}
 
 			if r := recover(); r != nil {
-				finalErr = fmt.Errorf("panic running app preflights: %v: %s", r, string(debug.Stack()))
+				finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 			}
-			// Handle errors from preflight execution
 			if finalErr != nil {
-				c.logger.Error(finalErr)
+				logger.Error(finalErr)
 
-				if err := c.stateMachine.Transition(lock, states.StateAppPreflightsExecutionFailed); err != nil {
-					c.logger.Errorf("failed to transition states: %w", err)
+				if err := c.stateMachine.Transition(lock, states.StateAppPreflightsExecutionFailed, finalErr); err != nil {
+					logger.WithError(err).Error("failed to transition states")
 				}
-				return
-			}
 
-			// Get the state from the preflights output
-			state := c.getStateFromAppPreflightsOutput(ctx)
-			// Transition to the appropriate state based on preflight results
-			if err := c.stateMachine.Transition(lock, state); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+				if err := c.setAppPreflightStatus(types.StateFailed, finalErr.Error()); err != nil {
+					logger.WithError(err).Error("failed to set status to failed")
+				}
 			}
 		}()
+
+		if err := c.setAppPreflightStatus(types.StateRunning, "Running app preflights"); err != nil {
+			return fmt.Errorf("set status to running: %w", err)
+		}
 
 		// Create RunOptions from the provided options
 		runOpts := preflights.RunOptions{
@@ -101,7 +108,7 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			ExtraPaths:          opts.ExtraPaths,
 		}
 
-		err := c.appPreflightManager.RunAppPreflights(ctx, apppreflightmanager.RunAppPreflightOptions{
+		output, err := c.appPreflightManager.RunAppPreflights(ctx, apppreflightmanager.RunAppPreflightOptions{
 			AppPreflightSpec: appPreflightSpec,
 			RunOptions:       runOpts,
 		})
@@ -109,24 +116,28 @@ func (c *AppController) RunAppPreflights(ctx context.Context, opts RunAppPreflig
 			return fmt.Errorf("run app preflights: %w", err)
 		}
 
+		if output.HasFail() {
+			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsFailed, output); err != nil {
+				return fmt.Errorf("transition states: %w", err)
+			}
+
+			if err := c.setAppPreflightStatus(types.StateFailed, "App preflights failed"); err != nil {
+				return fmt.Errorf("set status to failed: %w", err)
+			}
+		} else {
+			if err := c.stateMachine.Transition(lock, states.StateAppPreflightsSucceeded, output); err != nil {
+				return fmt.Errorf("transition states: %w", err)
+			}
+
+			if err := c.setAppPreflightStatus(types.StateSucceeded, "App preflights succeeded"); err != nil {
+				return fmt.Errorf("set status to succeeded: %w", err)
+			}
+		}
+
 		return nil
 	}()
 
 	return nil
-}
-
-func (c *AppController) getStateFromAppPreflightsOutput(ctx context.Context) statemachine.State {
-	output, err := c.GetAppPreflightOutput(ctx)
-	// If there was an error getting the state we assume preflight execution failed
-	if err != nil {
-		c.logger.WithError(err).Error("error getting app preflight output")
-		return states.StateAppPreflightsExecutionFailed
-	}
-	// If there is no output, we assume preflights succeeded
-	if output == nil || !output.HasFail() {
-		return states.StateAppPreflightsSucceeded
-	}
-	return states.StateAppPreflightsFailed
 }
 
 func (c *AppController) GetAppPreflightStatus(ctx context.Context) (types.Status, error) {
@@ -139,4 +150,12 @@ func (c *AppController) GetAppPreflightOutput(ctx context.Context) (*types.Prefl
 
 func (c *AppController) GetAppPreflightTitles(ctx context.Context) ([]string, error) {
 	return c.appPreflightManager.GetAppPreflightTitles(ctx)
+}
+
+func (c *AppController) setAppPreflightStatus(state types.State, description string) error {
+	return c.store.AppPreflightStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

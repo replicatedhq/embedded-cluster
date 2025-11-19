@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
@@ -27,6 +28,7 @@ var _ Controller = (*UpgradeController)(nil)
 type UpgradeController struct {
 	hcli                  helm.Client
 	kcli                  client.Client
+	preflightRunner       preflights.PreflightRunnerInterface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	license               []byte
@@ -56,6 +58,12 @@ func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
 func WithKubeClient(kcli client.Client) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.kcli = kcli
+	}
+}
+
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.preflightRunner = preflightRunner
 	}
 }
 
@@ -144,6 +152,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

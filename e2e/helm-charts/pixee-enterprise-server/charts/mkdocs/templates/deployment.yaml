@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mkdocs.fullname" . }}
+  labels:
+    {{- include "mkdocs.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mkdocs.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "mkdocs.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mkdocs.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml (.Values.podSecurityContext | default dict) | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Container serves pre-built static site with embedded assets
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

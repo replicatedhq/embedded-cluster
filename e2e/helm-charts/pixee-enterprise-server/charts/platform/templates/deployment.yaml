@@ -1,0 +1,556 @@
+{{- $url := include "platform.url" . -}}
+{{- $hasPrivateCACert := eq (include "pixee-enterprise-server.privateCACert" .) "true" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "platform.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "platform.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/pixee-enterprise-server-secrets: {{ include "pixee-enterprise-server.secretsChecksum" . }}
+        checksum/platform-secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "platform.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "platform.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if $hasPrivateCACert }}
+      initContainers:
+        - name: create-enterprise-truststore
+          image: {{ printf "%s/%s:%s" .Values.global.pixee.utility.image.registry .Values.global.pixee.utility.image.repository .Values.global.pixee.utility.image.tag | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              # Initialize the PKCS12 trust store using keytool
+              keytool -genkeypair -alias dummy -keystore /var/ssl/enterprise-truststore.p12 -storetype PKCS12 -storepass changeit -keypass changeit -dname "CN=dummy" -keyalg RSA -keysize 2048 -validity 1
+              keytool -delete -alias dummy -keystore /var/ssl/enterprise-truststore.p12 -storetype PKCS12 -storepass changeit
+              
+              # Process each PEM certificate file individually
+              cd /var/ssl/ca-certs
+              cert_count=0
+              for cert_file in *; do
+                if [ -f "$cert_file" ]; then
+                  echo "Processing certificate file: $cert_file"
+                  
+                  # Split the PEM file into individual certificates
+                  awk '/-----BEGIN CERTIFICATE-----/{cert_num++} {print > "/tmp/cert_" cert_num ".pem"}' "$cert_file"
+                  
+                  # Import each individual certificate
+                  for individual_cert in /tmp/cert_*.pem; do
+                    if [ -f "$individual_cert" ] && [ -s "$individual_cert" ]; then
+                      cert_count=$((cert_count + 1))
+                      alias_name="ca-cert-$cert_count"
+                      echo "Importing certificate as alias: $alias_name"
+                      keytool -importcert -alias "$alias_name" -file "$individual_cert" -keystore /var/ssl/enterprise-truststore.p12 -storetype PKCS12 -storepass changeit -noprompt -trustcacerts
+                    fi
+                  done
+                  
+                  # Clean up temporary certificate files
+                  rm -f /tmp/cert_*.pem
+                fi
+              done
+              
+              if [ $cert_count -eq 0 ]; then
+                echo "No certificates found to add to trust store"
+              else
+                echo "Created PKCS12 trust store with $cert_count certificates"
+              fi
+              
+              # Ensure file is readable by the group
+              chmod 640 /var/ssl/enterprise-truststore.p12
+          volumeMounts:
+            - name: ca-certificates
+              mountPath: /var/ssl/ca-certs
+              readOnly: true
+            - name: enterprise-truststore
+              mountPath: /var/ssl
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+      {{- end }}
+      containers:
+        - name: pixeebot
+          {{- if include "pixee-enterprise-server.hasSecurityContext" .Values.securityContext }}
+          securityContext: {{- include "pixee-enterprise-server.renderSecurityContext" .Values.securityContext | nindent 12 }}
+          {{- end }}
+          image: {{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository .Values.image.tag | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          # Create 5 minute startup probe to account for migration task during Quarkus startup
+          startupProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+            initialDelaySeconds: 10
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /q/health/live
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            # If user platform is enabled, serve user-platform from pixee-platform
+            - name: PIXEE_USER_PLATFORM_ENABLED
+              value: {{ .Values.serveUserPlatform | quote }}
+            {{- if and .Values.global.pixee.authentication.enabled (or .Values.global.pixee.authentication.restApi.existingSecret .Values.global.pixee.authentication.restApi.apiKey) }}
+            - name: PIXEE_AUTH_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.pixee.authentication.restApi.existingSecret | default "rest-api-auth-key" }}
+                  key: {{ .Values.global.pixee.authentication.restApi.secretKeys.apiKey }}
+             {{- end }}
+            # this flag exists to signal polyglot repository support to the platform service
+            - name: USE_ANALYSIS_SERVICE
+              value: "true"
+            - name: QUARKUS_ANALYSIS_SERVICE_URI
+              value: http://{{ .Release.Name }}-analysis:8000
+            - name: PIXEE_PIXEEBOT_CODEMOD_ORCHESTRATOR_WORKFLOW_POLLING_TIMEOUT
+              value: {{ .Values.workflowTimeout | default "30m" | quote }}
+
+            # PostgreSQL database connection configuration
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              value: {{ include "platform.database.connection.jdbc" (dict "database" .Values.database "Release" .Release) }}
+            - name: QUARKUS_DATASOURCE_USERNAME
+              value: {{ .Values.database.username }}
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret | default (printf "%s-postgresql" .Release.Name) }}
+                  key: password
+
+              # Object Store Configuration
+            - name: QUARKUS_S3_ENDPOINT_OVERRIDE
+              value: {{ if .Values.global.pixee.objectStore.endpoint }}{{ .Values.global.pixee.objectStore.endpoint }}{{ else }}http://{{ .Release.Name }}-minio:9000/{{ end }}
+            - name: QUARKUS_S3_AWS_CREDENTIALS_TYPE
+              value: {{ .Values.global.pixee.objectStore.credentialType | default "static" }}
+            {{- if eq (.Values.global.pixee.objectStore.credentialType | default "static") "static" }}
+            - name: QUARKUS_S3_AWS_CREDENTIALS_STATIC_PROVIDER_ACCESS_KEY_ID
+              value: {{ .Values.global.pixee.objectStore.username }}
+            - name: QUARKUS_S3_AWS_CREDENTIALS_STATIC_PROVIDER_SECRET_ACCESS_KEY
+              value: {{ .Values.global.pixee.objectStore.password }}
+            {{- end }}
+            - name: QUARKUS_S3_AWS_REGION
+              value: {{ .Values.global.pixee.objectStore.region }}
+            - name: QUARKUS_S3_PATH_STYLE_ACCESS
+              value: "true"
+          {{- if or .Values.github.appWebhookSecret .Values.github.existingSecret }}
+            - name: PIXEE_PIXEEBOT_GITHUB_EVENT_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.existingSecret | default "github-app-secrets" }}
+                  key: {{ .Values.github.secretKeys.appWebhookSecretKey }}
+          {{- end }}
+          {{- if or .Values.github.appPrivateKey .Values.github.existingSecret }}
+            - name: PIXEE_PIXEEBOT_GITHUB_APP_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.github.existingSecret | default "github-app-secrets" }}
+                  key: {{ .Values.github.secretKeys.appPrivateKeySecretKey }}
+          {{- end }}
+
+            # Authentication configuration
+            - name: PIXEE_AUTHENTICATION_ENABLED
+              value: {{ .Values.global.pixee.authentication.enabled | quote }}
+            - name: PIXEE_AUTH_REPOSITORY_ACCESS_CONTROL
+              value: {{ .Values.global.pixee.repositoryAccessControl | quote}}
+
+          {{- if not .Values.global.pixee.authentication.enabled }}
+            # Set OIDC provider to GitHub when authentication is disabled to avoid startup error from Quarkus
+            - name: QUARKUS_OIDC_PROVIDER
+              value: "github"
+          {{- end }}
+
+          {{- if .Values.global.pixee.authentication.enabled }}
+          # OIDC configuration
+          {{- if hasKey .Values.global.pixee.authentication "oidc" }}
+            # Common OIDC variables
+            - name: QUARKUS_OIDC_CLIENT_ID
+              value: {{ .Values.global.pixee.authentication.oidc.client.id | quote }}
+
+            {{- if regexMatch "^https://.*" $url }}
+            - name: QUARKUS_OIDC_AUTHENTICATION_FORCE_REDIRECT_HTTPS_SCHEME
+              value: "true"
+            {{- end }}
+
+            # Provider configuration, don't set for okta because quarkus doesn't support this provider
+            {{- if ne .Values.global.pixee.authentication.oidc.client.provider "okta" }}
+            - name: QUARKUS_OIDC_PROVIDER
+              value: {{ .Values.global.pixee.authentication.oidc.client.provider | quote }}
+            {{- end }}
+
+            {{- if eq .Values.global.pixee.authentication.oidc.client.provider "okta" }}
+            - name: QUARKUS_OIDC_TOKEN_PRINCIPAL_CLAIM
+              value: 'email'
+            - name: QUARKUS_OIDC_AUTHENTICATION_SCOPES
+              value: 'email'
+            {{- end }}
+
+            # Embedded provider-specific configuration
+            {{- if hasKey .Values.global.pixee.authentication.oidc "embedded" }}
+            {{- if .Values.global.pixee.authentication.oidc.embedded.enabled }}
+            # Token principal claim (only blank for embedded OIDC)
+            - name: QUARKUS_OIDC_TOKEN_PRINCIPAL_CLAIM
+              value: ''
+            - name: QUARKUS_OIDC_AUTHENTICATION_REDIRECT_PATH
+              value: {{ .Values.global.pixee.authentication.oidc.embedded.authenticationRedirectPath }}
+            - name: QUARKUS_OIDC_TOKEN_ISSUER
+              value: {{ .Values.global.pixee.authentication.oidc.embedded.issuer }}
+            - name: QUARKUS_OIDC_AUTHENTICATION_SCOPES
+              value: {{ .Values.global.pixee.authentication.oidc.embedded.scopes }}
+            - name: QUARKUS_OIDC_APPLICATION_TYPE
+              value: {{ .Values.global.pixee.authentication.oidc.embedded.applicationType }}
+            {{- if .Values.tls }}
+            {{- if eq (dig "type" "" .Values.tls) "generate" }}
+            - name: QUARKUS_TLS_OIDC_TRUST_STORE_PEM_CERTS
+              value: /etc/ssl/certs/ca.crt
+            - name: QUARKUS_OIDC_TLS_TLS_CONFIGURATION_NAME
+              value: oidc
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+
+            # Auth server URL
+            {{- if hasKey .Values.global.pixee.authentication.oidc.client "authServerUrl" }}
+            - name: QUARKUS_OIDC_AUTH_SERVER_URL
+              value: {{ .Values.global.pixee.authentication.oidc.client.authServerUrl }}
+            {{- end }}
+
+            # Client secret
+            - name: QUARKUS_OIDC_CREDENTIALS_CLIENT_SECRET_VALUE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.pixee.authentication.oidc.client.existingSecret | default "oidc-client-secrets" }}
+                  key: {{ .Values.global.pixee.authentication.oidc.client.secretKeys.secretKey }}
+          {{- end }}
+          {{- end }}
+
+          {{- if .Values.github.appId }}
+            - name: PIXEE_PIXEEBOT_GITHUB_APP_ID
+              value: {{ .Values.github.appId | quote }}
+          {{- end }}
+          {{- if .Values.github.appName }}
+            - name: PIXEE_PIXEEBOT_GITHUB_APP_NAME
+              value: {{ .Values.github.appName | lower | quote }}
+          {{- end }}
+            - name: PIXEE_PLATFORM_ANALYSIS_INPUTS_STORAGE_BUCKET_NAME
+              value: {{ .Values.inputBucket | quote }}
+          {{- if .Values.inputSignatureDuration }}
+            - name: PIXEE_PLATFORM_ANALYSIS_INPUTS_STORAGE_SIGNATURE_DURATION
+              value: {{ .Values.inputSignatureDuration | quote }}
+          {{- end }}
+            - name: PIXEE_CODE_WORKSPACE_ROOT
+              value: /var/code-workspaces
+            # PIXEE_PIXEEBOT_USER_PLATFORM_BASE_URL is deprecated in favor of PIXEE_PLATFORM_WEB_BASE_URI. The platform will use the latter, falling back to the old one if not set.
+            - name: PIXEE_PIXEEBOT_USER_PLATFORM_BASE_URL
+              value: {{ printf "%s://%s" (.Values.global.pixee.protocol | default "http") .Values.global.pixee.domain | quote }}
+            - name: PIXEE_PLATFORM_WEB_BASE_URI
+              value: {{ printf "%s://%s" (.Values.global.pixee.protocol | default "http") .Values.global.pixee.domain | quote }}
+          {{- if and .Values.global.pixee.metrics.enabled .Values.global.pixee.replicatedSdk.enabled }}
+            - name: PIXEE_PIXEEBOT_METRICS_URL
+              value: "http://replicated:3000"
+          {{- end }}
+             # Legacy continuous improvement db lock timeout gating analysis trigger
+            - name: PIXEE_PIXEEBOT_ANALYSIS_IN_PROGRESS_TIMEOUT
+              value: {{ .Values.pixeebot.analysisInProgressTimeout | default "10m" }}
+            - name: PIXEE_ANALYSIS_TIMEOUT
+              value: {{ .Values.analysisTimeout | default "15m" }}
+            - name: PIXEE_AI_ENABLED
+              value: "{{ .Values.global.pixee.ai.enabled }}"
+          {{- if or .Values.global.pixee.ai.openai.existingSecret .Values.global.pixee.ai.openai.key }}
+            - name: PIXEE_AI_OPENAI_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.pixee.ai.openai.existingSecret | default "openai-secrets" }}
+                  key: {{ .Values.global.pixee.ai.openai.secretKeys.apiKey }}
+          {{- end }}
+          {{- /* Azure AI Configuration */}}
+          {{- if .Values.global.pixee.ai.azure.enabled }}
+            {{- if or .Values.global.pixee.ai.azure.existingSecret .Values.global.pixee.ai.azure.key }}
+            - name: PIXEE_AI_AZURE_OPENAI_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.global.pixee.ai.azure.existingSecret | default "azure-openai-secrets" }}
+                  key: {{ .Values.global.pixee.ai.azure.secretKeys.apiKey }}
+            {{- end }}
+            - name: PIXEE_AI_AZURE_OPENAI_ENDPOINT
+              value: {{ .Values.global.pixee.ai.azure.endpoint | quote }}
+            {{/* Azure AI Deployments */}}
+            - name: PIXEE_AI_AZURE_OPENAI_DEPLOYMENTS__GPT_4O_2024_05_13__
+              value: {{ dig "pixee" "ai" "azure" "deployments" "gpt-4o-2024-05-13" "gpt-4o-2024-05-13" .Values.global | quote }}
+          {{- end }}
+            - name: PIXEE_PIXEEBOT_ANALYSIS_INPUT_ALLOWED_AUDIENCE
+              value: {{ $url | quote }}
+          {{- if .Values.pixeebot.continuousImprovementCampaignSchedule }}
+            - name: PIXEE_PIXEEBOT_CONTINUOUS_IMPROVEMENT_CAMPAIGN_SCHEDULE
+              value: {{ .Values.pixeebot.continuousImprovementCampaignSchedule }}
+          {{- end }}
+          {{- if .Values.pixeebot.appscan.apiKeyId }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_APPSCAN_API_KEY_ID
+              value: {{ .Values.pixeebot.appscan.apiKeyId }}
+          {{- end }}
+          {{- if or .Values.pixeebot.appscan.existingSecret .Values.pixeebot.appscan.apiKeySecret }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_APPSCAN_API_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.pixeebot.appscan.existingSecret | default "appscan-secrets" }}
+                  key: {{ .Values.pixeebot.appscan.secretKeys.apiKeySecretKey }}
+          {{- end }}
+          {{- if or .Values.pixeebot.appscan.existingSecret .Values.pixeebot.appscan.webhookSecret }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_APPSCAN_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.pixeebot.appscan.existingSecret | default "appscan-secrets" }}
+                  key: {{ .Values.pixeebot.appscan.secretKeys.webhookSecretKey }}
+          {{- end }}
+          {{- if or .Values.blackduck.existingSecret .Values.blackduck.accessToken }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_BLACKDUCK_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.blackduck.existingSecret | default "blackduck-secrets" }}
+                  key: {{ .Values.blackduck.secretKeys.accessTokenKey }}
+          {{- end }}
+          {{- if .Values.veracode.apiKeyId }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_VERACODE_API_KEY_ID
+              value: {{ .Values.veracode.apiKeyId }}
+          {{- end }}
+          {{- if or .Values.veracode.existingSecret .Values.veracode.apiKeySecret }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_VERACODE_API_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.veracode.existingSecret | default "veracode-secrets" }}
+                  key: {{ .Values.veracode.secretKeys.apiKeySecretKey }}
+          {{- end }}
+          {{- if not (empty (dig "appscan" "organizations" "" .Values.pixeebot)) }}
+            - name: PIXEE_PIXEEBOT_APPSCAN_SETTINGS_ORGANIZATIONS
+              value: {{ .Values.pixeebot.appscan.organizations }}
+          {{- end }}
+          {{- if .Values.github.url }}
+            - name: QUARKUS_GITHUB_APP_INSTANCE_ENDPOINT
+              value: '{{ .Values.github.url }}/api/v3'
+            - name: QUARKUS_REST_CLIENT_GITHUB_USER_ACCESS_API_URL
+              value: '{{ .Values.github.url }}/api/v3'
+            - name: MP_JWT_VERIFY_PUBLICKEY_LOCATION
+              value: '{{ .Values.github.url }}/_services/token/.well-known/jwks'
+            - name: MP_JWT_VERIFY_ISSUER
+              value: '{{ .Values.github.url }}/_services/token'
+          {{- end }}
+          {{- if (.Values.proxy.enabled | default false) }}
+            - name: QUARKUS_HTTP_PROXY_PROXY_ADDRESS_FORWARDING
+              value: "true"
+            {{- if (not (empty (.Values.proxy.address | default ""))) }}
+            - name: QUARKUS_HTTP_PROXY_TRUSTED_PROXIES
+              value: {{ .Values.proxy.address }}
+            {{- end }}
+            {{- if (.Values.proxy.headers.forwarded | default false) }}
+            - name: QUARKUS_HTTP_PROXY_ALLOW_FORWARDED
+              value: "true"
+            {{- end }}
+            {{- if .Values.proxy.headers.xForwarded | default false }}
+            - name: QUARKUS_HTTP_PROXY_ALLOW_X_FORWARDED
+              value: "true"
+            - name: QUARKUS_HTTP_PROXY_ENABLE_FORWARDED_HOST
+              value: "true"
+            {{- end }}
+          {{- end }}
+          {{- if (dig "pixee" "sentry" "enabled" true .Values.global) }}
+            # Sentry integration
+            - name: QUARKUS_LOG_SENTRY_ENABLED
+              value: "true"
+            - name: QUARKUS_LOG_SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: platform-sentry-dsn
+                  key: value
+            - name: QUARKUS_LOG_SENTRY_ENVIRONMENT
+              value: {{ include "pixee-enterprise-server.environment" . }}
+            - name: QUARKUS_LOG_SENTRY_RELEASE
+              value: {{ .Values.image.tag | quote }}
+          {{- if not (empty (dig "pixee" "url" "" .Values.global)) }}
+            - name: QUARKUS_LOG_SENTRY_SERVER_NAME
+              value: {{ .Values.global.pixee.domain | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.scm.azure.enabled }}
+          {{- if .Values.scm.azure.organization }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_AZURE_ORGANIZATION
+              value: {{ .Values.scm.azure.organization }}
+          {{- end }}
+          {{- if or .Values.scm.azure.existingSecret .Values.scm.azure.token }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_AZURE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.scm.azure.existingSecret | default "azure-devops-secrets" }}
+                  key: {{ .Values.scm.azure.secretKeys.tokenKey }}
+          {{- end }}
+          {{- if and .Values.scm.azure.webhook .Values.scm.azure.webhook.user }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_AZURE_WEBHOOK_USER
+              value: {{ .Values.scm.azure.webhook.user | quote }}
+          {{- end }}
+          {{- if or .Values.scm.azure.existingSecret .Values.scm.azure.webhook.password }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_AZURE_WEBHOOK_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.scm.azure.existingSecret | default "azure-devops-secrets" }}
+                  key: {{ .Values.scm.azure.secretKeys.webhookPasswordKey }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.scm.gitlab.enabled }}
+          {{- if or .Values.scm.gitlab.existingSecret .Values.scm.gitlab.token }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.scm.gitlab.existingSecret | default "gitlab-secrets" }}
+                  key: {{ .Values.scm.gitlab.secretKeys.tokenKey }}
+          {{- end }}
+          {{- if .Values.scm.gitlab.baseUri }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_GITLAB_BASE_URI
+              value: {{ .Values.scm.gitlab.baseUri | quote }}
+          {{- end }}
+          {{ if or .Values.scm.gitlab.existingSecret .Values.scm.gitlab.webhookSecret }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_GITLAB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.scm.gitlab.existingSecret | default "gitlab-secrets" }}
+                  key: {{ .Values.scm.gitlab.secretKeys.webhookSecretKey }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.scm.bitbucket.enabled }}
+          {{- if .Values.scm.bitbucket.username }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_BITBUCKET_USERNAME
+              value: {{ .Values.scm.bitbucket.username | quote }}
+          {{- end }}
+          {{- if or .Values.scm.bitbucket.existingSecret .Values.scm.bitbucket.password }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_BITBUCKET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.scm.bitbucket.existingSecret | default "bitbucket-secrets" }}
+                  key: {{ .Values.scm.bitbucket.secretKeys.passwordKey }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.sonar.gitHubAppName }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_SONAR_GITHUB_APP_NAME
+              value: {{ .Values.sonar.gitHubAppName | quote }}
+          {{- end }}
+          {{- if .Values.sonar.baseUri }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_SONAR_BASE_URI
+              value: {{ .Values.sonar.baseUri | quote }}
+          {{- end }}
+          {{- if or .Values.sonar.existingSecret .Values.sonar.token }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_SONAR_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sonar.existingSecret | default "sonar-secrets" }}
+                  key: {{ .Values.sonar.secretKeys.tokenKey }}
+          {{- end }}
+          {{- if or .Values.sonar.existingSecret .Values.sonar.webhookSecret }}
+            - name: PIXEE_PLATFORM_INTEGRATIONS_SONAR_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sonar.existingSecret | default "sonar-secrets" }}
+                  key: {{ .Values.sonar.secretKeys.webhookSecretKey }}
+          {{- end }}
+          # Replicated configuration
+            - name: PIXEE_PLATFORM_REPLICATED_ENABLED
+              value: {{ .Values.global.pixee.replicatedSdk.enabled | quote }}
+
+          # Java Tool Opts, currently used to configure JVM http(s) Proxy and SSL trust store
+          {{- $javaToolOptions := include "platform.javaToolOptions" . }}
+          {{- if $javaToolOptions }}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ $javaToolOptions | quote }}
+          {{- end }}
+
+          {{- if .Values.gitCloneStrategy }}
+            - name: PIXEE_PLATFORM_GIT_CLONE_STRATEGY
+              value: {{ .Values.gitCloneStrategy | upper | quote }}
+          {{- end }}
+
+          {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+
+          {{- if .Values.debug }}
+            - name: QUARKUS_LOG_LEVEL
+              value: "DEBUG"
+          {{- end }}
+          volumeMounts:
+            - mountPath: /var/code-workspaces
+              name: code-workspaces
+          {{- if $hasPrivateCACert }}
+            - name: enterprise-truststore
+              mountPath: /var/ssl
+              readOnly: true
+          {{- end }}
+          {{- if .Values.tls }}
+          {{- if eq (dig "type" "" .Values.tls) "generate" }}
+            - mountPath: /etc/ssl/certs
+              name: ca-cert
+              readOnly: true
+          {{- end }}
+          {{- end }}
+      volumes:
+        - name: code-workspaces
+          emptyDir:
+            sizeLimit: "20Gi"
+      {{- if .Values.tls }}
+      {{- if eq (dig "type" "" .Values.tls) "generate" }}
+        {{- range .Values.ingress.tls }}
+        - name: ca-cert
+          secret:
+            secretName: {{ .secretName }}
+            items:
+            - key: ca.crt
+              path: ca.crt
+        {{- end }}
+      {{- end }}
+      {{- end }}
+      {{- if $hasPrivateCACert }}
+        - name: ca-certificates
+          configMap:
+            name: {{ .Values.global.pixee.privateCACert | quote }}
+        - name: enterprise-truststore
+          emptyDir: {}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

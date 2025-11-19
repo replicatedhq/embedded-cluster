@@ -1,0 +1,9 @@
+env:
+  CUSTOM_ENV_VAR1: test-value1
+  CUSTOM_ENV_VAR2: test-value2
+
+# Pass custom env vars to analysis subchart
+analysis:
+  env:
+    CUSTOM_ENV_VAR1: test-value1
+    CUSTOM_ENV_VAR2: test-value2

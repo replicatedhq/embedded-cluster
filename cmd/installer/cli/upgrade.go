@@ -16,6 +16,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -25,7 +27,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
-	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
@@ -60,6 +61,8 @@ type upgradeConfig struct {
 	managerPort          int
 	requiresInfraUpgrade bool
 	kotsadmNamespace     string
+	currentAppVersion    *kotscli.AppVersionInfo
+	replicatedAPIClient  replicatedapi.Client
 }
 
 // UpgradeCmd returns a cobra command for upgrading the embedded cluster application.
@@ -132,11 +135,17 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			if err := preRunUpgrade(ctx, flags, &upgradeConfig, existingRC, kcli, appSlug); err != nil {
 				return err
 			}
-			if err := verifyAndPromptUpgrade(ctx, flags, upgradeConfig, prompts.New()); err != nil {
+			if err := verifyAndPromptUpgrade(ctx, flags, &upgradeConfig, prompts.New(), kcli); err != nil {
 				return err
 			}
 
-			targetVersion := versions.Version
+			// Get target embedded cluster version from release data
+			releaseData := release.GetReleaseData()
+			if releaseData == nil || releaseData.EmbeddedClusterConfig == nil {
+				return fmt.Errorf("release data or embedded cluster config not found")
+			}
+
+			targetVersion := releaseData.EmbeddedClusterConfig.Spec.Version
 			initialVersion := ""
 			currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
 			if err != nil {
@@ -276,8 +285,8 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.license = l
 
-	// sync the license if a license is provided and we are not in airgap mode
-	if upgradeConfig.license != nil && flags.airgapBundle == "" {
+	// sync the license and initialize the replicated api client if we are not in airgap mode
+	if flags.airgapBundle == "" {
 		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
 		if err != nil {
 			return fmt.Errorf("failed to create replicated API client: %w", err)
@@ -289,6 +298,7 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 		}
 		upgradeConfig.license = updatedLicense
 		upgradeConfig.licenseBytes = licenseBytes
+		upgradeConfig.replicatedAPIClient = replicatedAPI
 	}
 
 	// Continue using "kotsadm" namespace if it exists for backwards compatibility, otherwise use the appSlug
@@ -359,10 +369,17 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.requiresInfraUpgrade = requiresInfraUpgrade
 
+	// Get current app version for deployability validation
+	currentAppVersion, err := kotscli.GetCurrentAppVersion(appSlug, upgradeConfig.kotsadmNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get current app version: %w", err)
+	}
+	upgradeConfig.currentAppVersion = currentAppVersion
+
 	return nil
 }
 
-func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, prompt prompts.Prompt) error {
+func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *upgradeConfig, prompt prompts.Prompt, kcli client.Client) error {
 	isAirgap := flags.airgapBundle != ""
 
 	err := verifyChannelRelease("upgrade", isAirgap, flags.assumeYes)
@@ -370,11 +387,28 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 		return err
 	}
 
+	logrus.Debugf("checking license matches")
+	verifiedLicense, err := verifyLicense(upgradeConfig.license)
+	if err != nil {
+		return err
+	}
+	upgradeConfig.license = verifiedLicense
+
 	if upgradeConfig.airgapMetadata != nil && upgradeConfig.airgapMetadata.AirgapInfo != nil {
 		logrus.Debugf("checking airgap bundle matches binary")
 		if err := checkAirgapMatches(upgradeConfig.airgapMetadata.AirgapInfo); err != nil {
 			return err // we want the user to see the error message without a prefix
 		}
+	}
+
+	// Validate release upgradable
+	if err := validateIsReleaseUpgradable(ctx, upgradeConfig, kcli, isAirgap); err != nil {
+		var ve *validation.ValidationError
+		if errors.As(err, &ve) {
+			// This is a validation error that prevents the upgrade from proceeding, expose the error directly
+			return ve
+		}
+		return fmt.Errorf("upgrade validation execution failed: %w", err)
 	}
 
 	if !isAirgap {
@@ -575,4 +609,73 @@ func checkRequiresInfraUpgrade(ctx context.Context) (bool, error) {
 	}
 
 	return !bytes.Equal(currentJSON, targetJSON), nil
+}
+
+// validateIsReleaseUpgradable validates that the target release can be safely deployed
+func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConfig, kcli client.Client, isAirgap bool) error {
+	// Get current installation for version information
+	currentInstallation, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get current installation: %w", err)
+	}
+
+	// Get target release data
+	releaseData := release.GetReleaseData()
+	if releaseData == nil {
+		return fmt.Errorf("release data not found")
+	}
+
+	// Get channel release info
+	channelRelease := releaseData.ChannelRelease
+	if channelRelease == nil {
+		return fmt.Errorf("channel release not found in release data")
+	}
+
+	// Get target embedded cluster version from the release data
+	targetECConfig := releaseData.EmbeddedClusterConfig
+	if targetECConfig == nil {
+		return fmt.Errorf("target embedded cluster config not found in release data")
+	}
+	targetECVersion := targetECConfig.Spec.Version
+
+	// Get current and target EC/K8s versions
+	var currentECVersion string
+	if currentInstallation.Spec.Config != nil {
+		currentECVersion = currentInstallation.Spec.Config.Version
+	}
+
+	// Build validation options
+	opts := validation.UpgradableOptions{
+		CurrentECVersion: currentECVersion,
+		TargetECVersion:  targetECVersion,
+		License:          upgradeConfig.license,
+	}
+
+	// Add current app version info if available
+	if upgradeConfig.currentAppVersion != nil {
+		opts.CurrentAppVersion = upgradeConfig.currentAppVersion.VersionLabel
+		opts.CurrentAppSequence = upgradeConfig.currentAppVersion.ChannelSequence
+	}
+
+	// Add target app version info
+	opts.TargetAppVersion = channelRelease.VersionLabel
+	opts.TargetAppSequence = channelRelease.ChannelSequence
+
+	// Extract the required releases depending on if it's airgap or online
+	if isAirgap {
+		if err := opts.WithAirgapRequiredReleases(upgradeConfig.airgapMetadata); err != nil {
+			return fmt.Errorf("failed to extract required releases from airgap metadata: %w", err)
+		}
+	} else {
+		if err := opts.WithOnlineRequiredReleases(ctx, upgradeConfig.replicatedAPIClient); err != nil {
+			return fmt.Errorf("failed to extract required releases from replicated API's pending release call: %w", err)
+		}
+	}
+
+	// Perform validation
+	if err := validation.ValidateIsReleaseUpgradable(ctx, opts); err != nil {
+		return err
+	}
+
+	return nil
 }

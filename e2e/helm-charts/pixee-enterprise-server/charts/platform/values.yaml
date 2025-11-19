@@ -1,0 +1,234 @@
+# Default values for pixee-enterprise-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+postgresql:
+  primary:
+    # set default resource preset to large, see
+    # https://github.com/bitnami/charts/blob/main/bitnami/common/templates/_resources.tpl#L15
+    resourcesPreset: xlarge
+  image:
+    registry: images.pixee.ai
+    repository: proxy/pixee/index.docker.io/bitnami/postgresql
+    # -- set `postgresql.image.pullSecrets: {}` if registry authentication is not required.
+    pullSecrets:
+      - name: image-pull-secret
+    tag: "17.4.0@sha256:ee4a4905642645dbf947a9990eb121eb8fbd06703549f358b5b2ad73eb2973c4"
+  auth:
+    database: pixee_platform
+    username: pixee
+    password: pixee
+    postgresPassword: pixee
+
+database:
+  embedded: true
+  host: postgresql
+  port: 5432
+  name: pixee_platform
+  username: pixee
+  password: pixee
+  # -- Use an existing secret instead of creating one.  Must contain a `password` key.
+  existingSecret: ""
+
+# inputSignatureDuration: "4h"
+inputBucket: "pixee-analysis-input"
+
+image:
+  # Pull image through pixee image proxy
+  # These values can be overridden from parent chart
+  registry: images.pixee.ai
+  repository: proxy/pixee/218200003247.dkr.ecr.us-east-1.amazonaws.com/pixee/pixeebot
+  tag: "2025-08-11-d93e898-7459@sha256:5ce6991e81fe53420a5d8255d624f4f03e6988e6be0b1385c5149cc2ab2bc5a4"
+  # -- set `image.pullSecrets: {}` if registry authentication is not required.
+  pullSecrets:
+    - name: image-pull-secret
+  pullPolicy: IfNotPresent
+
+# Values here should be provided when installing/upgrading
+github:
+  # set url if connecting to a self-hosted GitHub enterprise instance
+  # url: ""
+  # The following values must be provided
+  # appId: ""
+  appName: ""
+  appWebhookSecret: ""
+  appPrivateKey: ""
+  # -- Use an existing secret instead of creating one
+  existingSecret: ""
+  secretKeys:
+    # -- The secret key containing the appWebhookSecret
+    appWebhookSecretKey: appWebhookSecret
+    # -- The secret key containing the appPrivateKey
+    appPrivateKeySecretKey: appPrivateKey
+
+sonar:
+  sonarQubeServer: false
+  gitHubAppName: "" # "SonarQubeCloud"
+  baseUri: "https://sonarcloud.io"
+  token: ""
+  webhookSecret: ""
+  # -- Use an existing secret instead of creating one
+  existingSecret: ""
+  secretKeys:
+    # -- The secret key containing the token
+    tokenKey: "token"
+    # -- The secret key containing the webhookSecret
+    webhookSecretKey: "webhookSecret"
+veracode: 
+  apiKeyId: ""
+  apiKeySecret: ""
+  # Use existing secret instead of creating one
+  existingSecret: ""
+  secretKeys:
+    # -- The secret key containing the apiKeySecret
+    apiKeySecretKey: "apiKeySecret"
+blackduck: 
+  accessToken: ""
+  # Use existing secret instead of creating one
+  existingSecret: ""
+  secretKeys:
+    # -- The secret key containing the accessToken
+    accessTokenKey: "accessToken"
+
+pixeebot:
+  appscan: 
+    apiKeyId: ""
+    apiKeySecret: ""
+    webhookSecret: ""
+    # Use existing secret instead of creating one
+    existingSecret: ""
+    secretKeys:
+      # -- The secret key containing the apiKeySecret
+      apiKeySecretKey: "apiKeySecret"
+      # -- The secret key containing the webhookSecret
+      webhookSecretKey: "webhookSecret"
+  # If hosted behind a reverse proxy, we may need to pass the real host to the application
+  # Uncomment below and set the header where the originally requested host is set
+  # proxyHostHeader: x-forwarded-host
+
+sentry: {}
+  # environment: production
+  # release: <current image tag>
+  # server: <configured url/host>
+env:
+  # Define log format for pixeebot since support bundle is not able to collect
+  # with timestamps. See https://github.com/replicated-collab/pixee-replicated/issues/25
+  QUARKUS_LOG_CONSOLE_FORMAT: "%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %X [%c{3.}] (%t) %s%e%n"
+
+proxy:
+  enabled: false
+  address: ""
+  headers:
+    forwarded: false
+    xForwarded: false
+
+# Serve static user platform route from pixee platform service
+serveUserPlatform: false
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # override the default service account with an existing service account
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+
+securityContext:
+  seLinuxOptions: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: pixee-enterprise-server.local
+      paths:
+        - path: /api
+          pathType: Prefix
+        - path: /webjars
+          pathType: Prefix
+        - path: /q
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+scm:
+  azure: 
+    enabled: false
+    organization: ""
+    token: ""
+    webhook:
+      user: ""
+      password: ""
+    # Use existing secret instead of creating one
+    existingSecret: ""
+    secretKeys:
+      # -- The secret key containing the token
+      tokenKey: "token"
+      # -- The secret key containing the webhook password
+      webhookPasswordKey: "webhookPassword"
+  gitlab: 
+    enabled: false
+    token: ""
+    baseUri: https://gitlab.com
+    webhookSecret: ""
+    # Use existing secret instead of creating one
+    existingSecret: ""
+    secretKeys:
+      # -- The secret key containing the token
+      tokenKey: "token"
+      # -- The secret key containing the webhookSecret
+      webhookSecretKey: "webhookSecret"
+  bitbucket: 
+    enabled: false
+    username: ""
+    password: ""
+    # Use existing secret instead of creating one
+    existingSecret: ""
+    secretKeys:
+      # -- The secret key containing the password
+      passwordKey: "password"
+
+# -- Git clone strategy for VCS operations (partial or full)
+# partial: Optimal performance with minimal data transfer (default)
+# full: Maximum compatibility with complete repository history
+gitCloneStrategy: "partial"
+

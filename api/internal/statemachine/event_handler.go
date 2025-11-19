@@ -14,11 +14,11 @@ var (
 // EventHandler is an interface for handling state transition events in the state machine.
 type EventHandler interface {
 	// TriggerHandler triggers the event handler for a state transition.
-	TriggerHandler(ctx context.Context, fromState, toState State) error
+	TriggerHandler(ctx context.Context, fromState, toState State, eventData interface{}) error
 }
 
 // EventHandlerFunc is a function that handles state transition events. Used to report state changes.
-type EventHandlerFunc func(ctx context.Context, fromState, toState State)
+type EventHandlerFunc func(ctx context.Context, fromState, toState State, eventData interface{})
 
 // EventHandlerOption is a configurable state machine option.
 type EventHandlerOption func(*eventHandler)
@@ -51,7 +51,7 @@ type eventHandler struct {
 }
 
 // TriggerHandler triggers the event handler for a state transition. The trigger is blocking and will wait for the handler to complete or timeout.
-func (eh *eventHandler) TriggerHandler(ctx context.Context, fromState, toState State) error {
+func (eh *eventHandler) TriggerHandler(ctx context.Context, fromState, toState State, eventData interface{}) error {
 	ctx, cancel := context.WithTimeout(ctx, eh.timeout)
 	defer cancel()
 	done := make(chan error, 1)
@@ -66,7 +66,7 @@ func (eh *eventHandler) TriggerHandler(ctx context.Context, fromState, toState S
 			}
 			close(done)
 		}()
-		eh.handler(ctx, fromState, toState)
+		eh.handler(ctx, fromState, toState, eventData)
 	}()
 
 	select {

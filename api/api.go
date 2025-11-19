@@ -12,10 +12,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/migration"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // API represents the main HTTP API server for the Embedded Cluster application.
@@ -42,6 +45,9 @@ type API struct {
 	cfg types.APIConfig
 
 	hcli            helm.Client
+	kcli            client.Client
+	mcli            metadata.Interface
+	preflightRunner preflights.PreflightRunnerInterface
 	logger          logrus.FieldLogger
 	metricsReporter metrics.ReporterInterface
 
@@ -126,6 +132,27 @@ func WithMetricsReporter(metricsReporter metrics.ReporterInterface) Option {
 func WithHelmClient(hcli helm.Client) Option {
 	return func(a *API) {
 		a.hcli = hcli
+	}
+}
+
+// WithKubeClient configures the kube client for the API.
+func WithKubeClient(kcli client.Client) Option {
+	return func(a *API) {
+		a.kcli = kcli
+	}
+}
+
+// WithMetadataClient configures the metadata client for the API.
+func WithMetadataClient(mcli metadata.Interface) Option {
+	return func(a *API) {
+		a.mcli = mcli
+	}
+}
+
+// WithPreflightRunner configures the preflight runner for the API.
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) Option {
+	return func(a *API) {
+		a.preflightRunner = preflightRunner
 	}
 }
 

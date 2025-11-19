@@ -1,0 +1,13 @@
+global:
+  pixee:
+    ai:
+      enabled: true
+      azure:
+        enabled: true
+        key: test-azure-key
+        endpoint: https://test-azure-endpoint.openai.azure.com
+        deployments:
+          gpt-4o-2024-05-13: test-gpt4o-deployment
+          o3-mini: test-o3-mini-deployment
+        llama:
+          endpoint: https://test-llama-endpoint.com

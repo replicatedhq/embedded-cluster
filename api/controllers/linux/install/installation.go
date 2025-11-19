@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
+	"github.com/sirupsen/logrus"
 )
 
 func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
@@ -39,7 +40,9 @@ func (c *InstallController) GetInstallationConfig(ctx context.Context) (types.Li
 }
 
 func (c *InstallController) ConfigureInstallation(ctx context.Context, config types.LinuxInstallationConfig) error {
-	err := c.configureInstallation(ctx, config)
+	logger := c.logger.WithField("operation", "configure-installation")
+
+	err := c.configureInstallation(ctx, logger, config)
 	if err != nil {
 		return err
 	}
@@ -48,39 +51,16 @@ func (c *InstallController) ConfigureInstallation(ctx context.Context, config ty
 		// Background context is used to avoid canceling the operation if the context is canceled
 		ctx := context.Background()
 
-		lock, err := c.stateMachine.AcquireLock()
+		err := c.configureHost(ctx, logger)
 		if err != nil {
-			c.logger.WithError(err).Error("failed to acquire lock")
-			return
-		}
-		defer lock.Release()
-
-		err = c.stateMachine.Transition(lock, states.StateHostConfiguring)
-		if err != nil {
-			c.logger.WithError(err).Error("failed to transition states")
-			return
-		}
-
-		err = c.installationManager.ConfigureHost(ctx, c.rc)
-
-		if err != nil {
-			c.logger.WithError(err).Error("failed to configure host")
-			err = c.stateMachine.Transition(lock, states.StateHostConfigurationFailed)
-			if err != nil {
-				c.logger.WithError(err).Error("failed to transition states")
-			}
-		} else {
-			err = c.stateMachine.Transition(lock, states.StateHostConfigured)
-			if err != nil {
-				c.logger.WithError(err).Error("failed to transition states")
-			}
+			logger.WithError(err).Error("failed to configure host")
 		}
 	}()
 
 	return nil
 }
 
-func (c *InstallController) configureInstallation(_ context.Context, config types.LinuxInstallationConfig) (finalErr error) {
+func (c *InstallController) configureInstallation(_ context.Context, logger logrus.FieldLogger, config types.LinuxInstallationConfig) (finalErr error) {
 	lock, err := c.stateMachine.AcquireLock()
 	if err != nil {
 		return types.NewConflictError(err)
@@ -91,7 +71,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 		return types.NewConflictError(err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfiguring, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -101,21 +81,21 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
 		}
 		if finalErr != nil {
-			failureStatus := types.Status{
-				State:       types.StateFailed,
-				Description: finalErr.Error(),
-				LastUpdated: time.Now(),
+			logger.Error(finalErr)
+
+			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed, finalErr); err != nil {
+				logger.WithError(err).Error("failed to transition states")
 			}
 
-			if err = c.store.LinuxInstallationStore().SetStatus(failureStatus); err != nil {
-				c.logger.Errorf("failed to update status: %w", err)
-			}
-
-			if err := c.stateMachine.Transition(lock, states.StateInstallationConfigurationFailed); err != nil {
-				c.logger.Errorf("failed to transition states: %w", err)
+			if err = c.setInstallationStatus(types.StateFailed, finalErr.Error()); err != nil {
+				logger.WithError(err).Error("failed to set status to failed")
 			}
 		}
 	}()
+
+	if err := c.setInstallationStatus(types.StateRunning, "Configuring installation"); err != nil {
+		return fmt.Errorf("set status to running: %w", err)
+	}
 
 	// Store the user provided values
 	if err := c.installationManager.SetConfigValues(config); err != nil {
@@ -158,7 +138,7 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 		return fmt.Errorf("set env vars: %w", err)
 	}
 
-	err = c.stateMachine.Transition(lock, states.StateInstallationConfigured)
+	err = c.stateMachine.Transition(lock, states.StateInstallationConfigured, nil)
 	if err != nil {
 		return fmt.Errorf("failed to transition states: %w", err)
 	}
@@ -166,10 +146,64 @@ func (c *InstallController) configureInstallation(_ context.Context, config type
 	return nil
 }
 
+func (c *InstallController) configureHost(ctx context.Context, logger logrus.FieldLogger) (finalErr error) {
+	lock, err := c.stateMachine.AcquireLock()
+	if err != nil {
+		return types.NewConflictError(err)
+	}
+	defer lock.Release()
+
+	err = c.stateMachine.Transition(lock, states.StateHostConfiguring, nil)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic: %v: %s", r, string(debug.Stack()))
+		}
+		if finalErr != nil {
+			logger.Error(finalErr)
+
+			if err := c.stateMachine.Transition(lock, states.StateHostConfigurationFailed, finalErr); err != nil {
+				logger.WithError(err).Error("failed to transition states")
+			}
+
+			if err = c.setInstallationStatus(types.StateFailed, finalErr.Error()); err != nil {
+				logger.WithError(err).Error("failed to set status to failed")
+			}
+		}
+	}()
+
+	err = c.installationManager.ConfigureHost(ctx, c.rc)
+	if err != nil {
+		return fmt.Errorf("configure host: %w", err)
+	}
+
+	err = c.stateMachine.Transition(lock, states.StateHostConfigured, nil)
+	if err != nil {
+		return fmt.Errorf("failed to transition states: %w", err)
+	}
+
+	if err := c.setInstallationStatus(types.StateSucceeded, "Installation configured"); err != nil {
+		return fmt.Errorf("set status to succeeded: %w", err)
+	}
+
+	return nil
+}
+
 func (c *InstallController) GetInstallationStatus(ctx context.Context) (types.Status, error) {
-	return c.installationManager.GetStatus()
+	return c.store.LinuxInstallationStore().GetStatus()
 }
 
 func (c *InstallController) CalculateRegistrySettings(ctx context.Context) (*types.RegistrySettings, error) {
 	return c.installationManager.CalculateRegistrySettings(ctx, c.rc)
+}
+
+func (c *InstallController) setInstallationStatus(state types.State, description string) error {
+	return c.store.LinuxInstallationStore().SetStatus(types.Status{
+		State:       state,
+		Description: description,
+		LastUpdated: time.Now(),
+	})
 }

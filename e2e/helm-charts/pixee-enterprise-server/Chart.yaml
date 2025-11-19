@@ -1,0 +1,56 @@
+apiVersion: v2
+name: pixee-enterprise-server
+description: A Helm chart for Pixee Enterprise Server
+icon: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAViSURBVHgB7VZtaFVlHP//n+fcc/fm9WoYCKKb2YSZKIlO8W2zxLQJvaDZEk2k7MuwMAoRUSn8IGQWEkTixJLMPhiIcxNyk8JNbZiZEik61NZWut11t9173p6n/znnnpd7uYsl9vLBHzv3ec7z9vv9354dgAf4j4HJhkljhCh+fGTNxSb4l7DiyBF+e74yL5ruu4i9xx6rQmTNCHBVCLkz/qt6CDe0G/APoLLtwxiOH1cLQr6GXE6TIKt9Ad4iCdDBBLyvpc0jD6+80gX3AVU36uN6QWyjlFAHKB8KuPIIcCAoNia/JXU8LFPqR6PWtXXAPaDqwtF4OsY2omK9DoqIA8uezy+AXAA6A9Rotf0YfABT7LAY5Dvjm7+9PhziuedPTbZA2yBVsQ5UGceIBfZDIiAswhHQ89XUqUzBHzzLwQiR69ztU5t536+k5LaiXS2381rcfCE+KHv3oiJXoioiYJNGBEh6UDVJhHBFYGYDU+aibJgU7RNFnSRndJblueT0oDPPO1gCFxTVn7wVJp99tLVUKtYpIiyzSR2LVSJzRFgkQpII8oSSGQPsPDP2uXEMl13T0JIHfHJ9CHKn5UB5USo4PygDO1yk+Re0vszZQ2dIw21tj1IYAamV9riJ7hjACUSUTo8PyF1EkHA2aEOQO+9oe8BeUzWwqmaRxz2zvn25MNgsm8glZCERHLxxVwQZYbK7UmPvOlGwf0pqf+ymRXVDkjsHErkz7lmmrPcEMF1Za5NJnWXIeI6IbE9gWnmrrezZDl+AjZFrz39GEy8T6d1wzF2vMM9yX5RM8Ql+NutsjGNdPhFG4Alp8oTU+JrWKTX7vb2Kc8DHMyIDKXWTpbFqIkiigXEi5661GJDrgShmz3sweNRuENwq9vqherP/TJTyZ4jw9ZXnmgrPNrTug+3bhSOgX4++R3GpI2I6DAPLw+SOR7xydHIl4NDtrqsH0anvHBFOT5GgzEKkSmCwcHZN5YK27bCapffOK5ca1mW5Xctxu54ht4n8KgmOF2HX23P2eybrg1DkVofyUuWFk48qejrVA1pJG2V4JZGjZ2EWecYDbmIRQRrd9yAEIMl0DPkc/d+QJ1B6EaEx2YJgGkrszfY79D4nubV6ISXI25RgSzFTjj5p+H6wyb3S8gUw52xBDwvYMiJywwFEbO1oe+LJFj8JbYx4p/k0NaeTryyZQkI2k5Ba1yM823K/FDHLAw4hDQl0DcUsT9g3iDxOYdlz7vk530AICuRgxCdNl6lZnVi+fGvn76JxrBopV2WI3BaiZ+LrCwglIQSVALoBevdvV5TpBUvPr5l/E/JAgSFwsFGPEW95SdSAyaOiUF5UBCWSh67rsAASFLqbpWlA6tY10G50UN+qwFYxkYb/noAIU7ZpYEJSE9DelYLLigZlaiFMV2MwQvCsJJQmHSMFCC0Feu91SHdepTHTnbOVMXULdVuGLaC5YFUp4+ozOtB/dWk5iZQSJnSnTDg2eAce4SVQzor99dYfPWAkb4LR30VeYBBRxwAW0N1EdxVjUar7yNyKJY2jrzQ91TMsAYgFM+10UimuKrqxjUHU8TGJ6aOm/ic5uM8XkLxdy0R0S0Hx+BdpUWGeIwt5JLqU2kO5EyyvAAZP5xlOUIbv4IpVtnDg0zcW9X9+2Zu4dHzx9UsnqtbTt2QFOXw3if8ld7OUdM3nQX4PgDVBBpVrE38ACttTnTiQgL/A943VHdRsmlbz9W767HiBvjPoIxRLwbFUTszPlQctxWvOMgnFFlr7TFWvX9z7ZR/cA+asOFPYP5BahZJvkQg9lxqqZg1rY3Ns9aTvZrwagfuIimXN0+EB/o/4EwvptLWrieN9AAAAAElFTkSuQmCC
+
+# A chart can be either an 'application' or a 'library' chart.
+#
+# Application charts are a collection of templates that can be packaged into versioned archives
+# to be deployed.
+#
+# Library charts provide useful utilities or functions for the chart developer. They're included as
+# a dependency of application charts to inject those utilities and functions into the rendering
+# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+type: application
+
+# This is the chart version. This version number should be incremented each time you make changes
+# to the chart and its templates, including the app version.
+# Versions are expected to follow Semantic Versioning (https://semver.org/)
+version: 4.2.0
+
+# Chart version
+# Note: "dev-local" is a placeholder for local development; replaced with git commit info in CI/CD
+appVersion: "dev-local"
+
+dependencies:
+  - name: minio
+    repository: oci://registry-1.docker.io/bitnamicharts
+    version: 14.x.x
+    condition: global.pixee.objectStore.embedded
+  - name: replicated
+    repository: oci://registry.replicated.com/library
+    version: "1.7.2"
+    condition: global.pixee.replicatedSdk.enabled
+  - name: platform
+    repository: "file://charts/platform"
+    version: "*"
+  - name: user-platform
+    repository: "file://charts/user-platform"
+    version: "*"
+  - name: analysis
+    repository: "file://charts/analysis"
+    version: "*"
+  - name: oidc
+    repository: "file://charts/oidc"
+    version: "*"
+    condition: global.pixee.authentication.oidc.embedded.enabled
+  - name: mkdocs
+    repository: "file://charts/mkdocs"
+    version: "*"
+    condition: mkdocs.enabled
+  - name: k8s-monitoring
+    repository: "https://grafana.github.io/helm-charts"
+    #auto upgrade disabled by renovate currently. See https://github.com/pixee/pixee-enterprise-server-helm/pull/578
+    version: "~2.0.0"
+    condition: grafana.k8sMonitoring.enabled
+

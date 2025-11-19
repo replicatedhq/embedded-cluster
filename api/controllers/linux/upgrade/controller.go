@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -23,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -58,6 +60,8 @@ type UpgradeController struct {
 	rc                   runtimeconfig.RuntimeConfig
 	hcli                 helm.Client
 	kcli                 client.Client
+	mcli                 metadata.Interface
+	preflightRunner      preflights.PreflightRunnerInterface
 	stateMachine         statemachine.Interface
 	requiresInfraUpgrade bool
 	logger               logrus.FieldLogger
@@ -189,6 +193,18 @@ func WithKubeClient(kcli client.Client) UpgradeControllerOption {
 	}
 }
 
+func WithMetadataClient(mcli metadata.Interface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.mcli = mcli
+	}
+}
+
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func WithEndUserConfig(endUserConfig *ecv1beta1.Config) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.endUserConfig = endUserConfig
@@ -247,6 +263,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			installation.WithReleaseData(controller.releaseData),
 			installation.WithHostUtils(controller.hostUtils),
 			installation.WithNetUtils(controller.netUtils),
+			installation.WithKubeClient(controller.kcli),
+			installation.WithMetadataClient(controller.mcli),
 		)
 	}
 
@@ -262,6 +280,8 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithClusterID(controller.clusterID),
 			infra.WithHelmClient(controller.hcli),
+			infra.WithKubeClient(controller.kcli),
+			infra.WithMetadataClient(controller.mcli),
 		)
 	}
 
@@ -302,6 +322,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app controller: %w", err)

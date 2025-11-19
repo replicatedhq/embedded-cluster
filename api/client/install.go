@@ -2,14 +2,15 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfigResponse, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/config", nil)
+func (c *client) GetLinuxInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/installation/config", nil)
 	if err != nil {
 		return types.LinuxInstallationConfigResponse{}, err
 	}
@@ -35,13 +36,13 @@ func (c *client) GetLinuxInstallationConfig() (types.LinuxInstallationConfigResp
 	return configResponse, nil
 }
 
-func (c *client) ConfigureLinuxInstallation(config types.LinuxInstallationConfig) (types.Status, error) {
+func (c *client) ConfigureLinuxInstallation(ctx context.Context, config types.LinuxInstallationConfig) (types.Status, error) {
 	b, err := json.Marshal(config)
 	if err != nil {
 		return types.Status{}, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/installation/configure", bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/installation/configure", bytes.NewBuffer(b))
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -67,8 +68,8 @@ func (c *client) ConfigureLinuxInstallation(config types.LinuxInstallationConfig
 	return status, nil
 }
 
-func (c *client) GetLinuxInstallationStatus() (types.Status, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/installation/status", nil)
+func (c *client) GetLinuxInstallationStatus(ctx context.Context) (types.Status, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/installation/status", nil)
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -94,7 +95,68 @@ func (c *client) GetLinuxInstallationStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (c *client) SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error) {
+func (c *client) RunLinuxInstallHostPreflights(ctx context.Context) (types.InstallHostPreflightsStatusResponse, error) {
+	b, err := json.Marshal(types.PostInstallRunHostPreflightsRequest{
+		IsUI: false,
+	})
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/host-preflights/run", bytes.NewBuffer(b))
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallHostPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallHostPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) GetLinuxInstallHostPreflightsStatus(ctx context.Context) (types.InstallHostPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/host-preflights/status", nil)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.InstallHostPreflightsStatusResponse{}, errorFromResponse(resp)
+	}
+
+	var status types.InstallHostPreflightsStatusResponse
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.InstallHostPreflightsStatusResponse{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) SetupLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (types.Infra, error) {
 	b, err := json.Marshal(types.LinuxInfraSetupRequest{
 		IgnoreHostPreflights: ignoreHostPreflights,
 	})
@@ -102,7 +164,7 @@ func (c *client) SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 		return types.Infra{}, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/infra/setup", bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/infra/setup", bytes.NewBuffer(b))
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -128,8 +190,8 @@ func (c *client) SetupLinuxInfra(ignoreHostPreflights bool) (types.Infra, error)
 	return infra, nil
 }
 
-func (c *client) GetLinuxInfraStatus() (types.Infra, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/infra/status", nil)
+func (c *client) GetLinuxInfraStatus(ctx context.Context) (types.Infra, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/infra/status", nil)
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -155,8 +217,62 @@ func (c *client) GetLinuxInfraStatus() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetKubernetesInstallationConfig() (types.KubernetesInstallationConfigResponse, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/installation/config", nil)
+func (c *client) ProcessLinuxAirgap(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/airgap/process", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var airgap types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&airgap)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+
+	return airgap, nil
+}
+
+func (c *client) GetLinuxAirgapStatus(ctx context.Context) (types.Airgap, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/airgap/status", nil)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.Airgap{}, errorFromResponse(resp)
+	}
+
+	var airgap types.Airgap
+	err = json.NewDecoder(resp.Body).Decode(&airgap)
+	if err != nil {
+		return types.Airgap{}, err
+	}
+
+	return airgap, nil
+}
+
+func (c *client) GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/installation/config", nil)
 	if err != nil {
 		return types.KubernetesInstallationConfigResponse{}, err
 	}
@@ -182,13 +298,13 @@ func (c *client) GetKubernetesInstallationConfig() (types.KubernetesInstallation
 	return configResponse, nil
 }
 
-func (c *client) ConfigureKubernetesInstallation(config types.KubernetesInstallationConfig) (types.Status, error) {
+func (c *client) ConfigureKubernetesInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (types.Status, error) {
 	b, err := json.Marshal(config)
 	if err != nil {
 		return types.Status{}, err
 	}
 
-	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/installation/configure", bytes.NewBuffer(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/kubernetes/install/installation/configure", bytes.NewBuffer(b))
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -214,8 +330,8 @@ func (c *client) ConfigureKubernetesInstallation(config types.KubernetesInstalla
 	return status, nil
 }
 
-func (c *client) GetKubernetesInstallationStatus() (types.Status, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/installation/status", nil)
+func (c *client) GetKubernetesInstallationStatus(ctx context.Context) (types.Status, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/installation/status", nil)
 	if err != nil {
 		return types.Status{}, err
 	}
@@ -241,8 +357,8 @@ func (c *client) GetKubernetesInstallationStatus() (types.Status, error) {
 	return status, nil
 }
 
-func (c *client) SetupKubernetesInfra() (types.Infra, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/infra/setup", nil)
+func (c *client) SetupKubernetesInfra(ctx context.Context) (types.Infra, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/kubernetes/install/infra/setup", nil)
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -268,8 +384,8 @@ func (c *client) SetupKubernetesInfra() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/infra/status", nil)
+func (c *client) GetKubernetesInfraStatus(ctx context.Context) (types.Infra, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/infra/status", nil)
 	if err != nil {
 		return types.Infra{}, err
 	}
@@ -295,8 +411,8 @@ func (c *client) GetKubernetesInfraStatus() (types.Infra, error) {
 	return infra, nil
 }
 
-func (c *client) GetLinuxInstallAppConfigValues() (types.AppConfigValues, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/config/values", nil)
+func (c *client) GetLinuxInstallAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +438,7 @@ func (c *client) GetLinuxInstallAppConfigValues() (types.AppConfigValues, error)
 	return response.Values, nil
 }
 
-func (c *client) PatchLinuxInstallAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
+func (c *client) PatchLinuxInstallAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error) {
 	req := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
@@ -331,7 +447,7 @@ func (c *client) PatchLinuxInstallAppConfigValues(values types.AppConfigValues) 
 		return types.AppConfigValues{}, err
 	}
 
-	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/linux/install/app/config/values", bytes.NewBuffer(b))
+	httpReq, err := http.NewRequestWithContext(ctx, "PATCH", c.apiURL+"/api/linux/install/app/config/values", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppConfigValues{}, err
 	}
@@ -357,8 +473,8 @@ func (c *client) PatchLinuxInstallAppConfigValues(values types.AppConfigValues) 
 	return config.Values, nil
 }
 
-func (c *client) GetKubernetesInstallAppConfigValues() (types.AppConfigValues, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
+func (c *client) GetKubernetesInstallAppConfigValues(ctx context.Context) (types.AppConfigValues, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/app/config/values", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -384,7 +500,7 @@ func (c *client) GetKubernetesInstallAppConfigValues() (types.AppConfigValues, e
 	return response.Values, nil
 }
 
-func (c *client) PatchKubernetesInstallAppConfigValues(values types.AppConfigValues) (types.AppConfigValues, error) {
+func (c *client) PatchKubernetesInstallAppConfigValues(ctx context.Context, values types.AppConfigValues) (types.AppConfigValues, error) {
 	request := types.PatchAppConfigValuesRequest{
 		Values: values,
 	}
@@ -394,7 +510,7 @@ func (c *client) PatchKubernetesInstallAppConfigValues(values types.AppConfigVal
 		return types.AppConfigValues{}, err
 	}
 
-	httpReq, err := http.NewRequest("PATCH", c.apiURL+"/api/kubernetes/install/app/config/values", bytes.NewBuffer(b))
+	httpReq, err := http.NewRequestWithContext(ctx, "PATCH", c.apiURL+"/api/kubernetes/install/app/config/values", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppConfigValues{}, err
 	}
@@ -420,7 +536,7 @@ func (c *client) PatchKubernetesInstallAppConfigValues(values types.AppConfigVal
 	return config.Values, nil
 }
 
-func (c *client) TemplateLinuxInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) TemplateLinuxInstallAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
 	request := types.TemplateAppConfigRequest{
 		Values: values,
 	}
@@ -430,7 +546,7 @@ func (c *client) TemplateLinuxInstallAppConfig(values types.AppConfigValues) (ty
 		return types.AppConfig{}, err
 	}
 
-	httpReq, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app/config/template", bytes.NewBuffer(b))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/app/config/template", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppConfig{}, err
 	}
@@ -456,7 +572,7 @@ func (c *client) TemplateLinuxInstallAppConfig(values types.AppConfigValues) (ty
 	return config, nil
 }
 
-func (c *client) TemplateKubernetesInstallAppConfig(values types.AppConfigValues) (types.AppConfig, error) {
+func (c *client) TemplateKubernetesInstallAppConfig(ctx context.Context, values types.AppConfigValues) (types.AppConfig, error) {
 	request := types.TemplateAppConfigRequest{
 		Values: values,
 	}
@@ -466,7 +582,7 @@ func (c *client) TemplateKubernetesInstallAppConfig(values types.AppConfigValues
 		return types.AppConfig{}, err
 	}
 
-	httpReq, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app/config/template", bytes.NewBuffer(b))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/kubernetes/install/app/config/template", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppConfig{}, err
 	}
@@ -492,8 +608,8 @@ func (c *client) TemplateKubernetesInstallAppConfig(values types.AppConfigValues
 	return config, nil
 }
 
-func (c *client) RunLinuxInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app-preflights/run", nil)
+func (c *client) RunLinuxInstallAppPreflights(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/app-preflights/run", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
 	}
@@ -519,8 +635,8 @@ func (c *client) RunLinuxInstallAppPreflights() (types.InstallAppPreflightsStatu
 	return status, nil
 }
 
-func (c *client) GetLinuxInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app-preflights/status", nil)
+func (c *client) GetLinuxInstallAppPreflightsStatus(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/app-preflights/status", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
 	}
@@ -546,8 +662,8 @@ func (c *client) GetLinuxInstallAppPreflightsStatus() (types.InstallAppPreflight
 	return status, nil
 }
 
-func (c *client) RunKubernetesInstallAppPreflights() (types.InstallAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app-preflights/run", nil)
+func (c *client) RunKubernetesInstallAppPreflights(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/kubernetes/install/app-preflights/run", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
 	}
@@ -573,8 +689,8 @@ func (c *client) RunKubernetesInstallAppPreflights() (types.InstallAppPreflights
 	return status, nil
 }
 
-func (c *client) GetKubernetesInstallAppPreflightsStatus() (types.InstallAppPreflightsStatusResponse, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app-preflights/status", nil)
+func (c *client) GetKubernetesInstallAppPreflightsStatus(ctx context.Context) (types.InstallAppPreflightsStatusResponse, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/app-preflights/status", nil)
 	if err != nil {
 		return types.InstallAppPreflightsStatusResponse{}, err
 	}
@@ -600,8 +716,16 @@ func (c *client) GetKubernetesInstallAppPreflightsStatus() (types.InstallAppPref
 	return status, nil
 }
 
-func (c *client) InstallLinuxApp() (types.AppInstall, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/linux/install/app/install", nil)
+func (c *client) InstallLinuxApp(ctx context.Context, ignoreAppPreflights bool) (types.AppInstall, error) {
+	request := types.InstallAppRequest{
+		IgnoreAppPreflights: ignoreAppPreflights,
+	}
+	b, err := json.Marshal(request)
+	if err != nil {
+		return types.AppInstall{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/install/app/install", bytes.NewBuffer(b))
 	if err != nil {
 		return types.AppInstall{}, err
 	}
@@ -627,8 +751,8 @@ func (c *client) InstallLinuxApp() (types.AppInstall, error) {
 	return appInstall, nil
 }
 
-func (c *client) GetLinuxAppInstallStatus() (types.AppInstall, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/linux/install/app/status", nil)
+func (c *client) GetLinuxAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/install/app/status", nil)
 	if err != nil {
 		return types.AppInstall{}, err
 	}
@@ -654,8 +778,8 @@ func (c *client) GetLinuxAppInstallStatus() (types.AppInstall, error) {
 	return appInstall, nil
 }
 
-func (c *client) InstallKubernetesApp() (types.AppInstall, error) {
-	req, err := http.NewRequest("POST", c.apiURL+"/api/kubernetes/install/app/install", nil)
+func (c *client) InstallKubernetesApp(ctx context.Context) (types.AppInstall, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/kubernetes/install/app/install", nil)
 	if err != nil {
 		return types.AppInstall{}, err
 	}
@@ -681,8 +805,8 @@ func (c *client) InstallKubernetesApp() (types.AppInstall, error) {
 	return appInstall, nil
 }
 
-func (c *client) GetKubernetesAppInstallStatus() (types.AppInstall, error) {
-	req, err := http.NewRequest("GET", c.apiURL+"/api/kubernetes/install/app/status", nil)
+func (c *client) GetKubernetesAppInstallStatus(ctx context.Context) (types.AppInstall, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/kubernetes/install/app/status", nil)
 	if err != nil {
 		return types.AppInstall{}, err
 	}

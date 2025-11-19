@@ -17,8 +17,8 @@ type Interface interface {
 	// are valid.
 	ValidateTransition(lock Lock, nextStates ...State) error
 	// Transition attempts to transition to a new state and returns an error if the transition is
-	// invalid.
-	Transition(lock Lock, nextState State) error
+	// invalid. The eventData is passed to the event handler for processing.
+	Transition(lock Lock, nextState State, eventData interface{}) error
 	// AcquireLock acquires a lock on the state machine.
 	AcquireLock() (Lock, error)
 	// IsLockAcquired checks if a lock already exists on the state machine.

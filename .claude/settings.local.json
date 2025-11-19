@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git log:*)",
+      "Bash(sed:*)",
+      "Bash(TZ=UTC date:*)",
+      "Bash(find:*)",
+      "Bash(TZ=America/New_York date:*)",
+      "Bash(go run:*)",
+      "mcp__shortcut__stories-get-by-id",
+      "Bash(go test:*)",
+      "Bash(goimports:*)",
+      "Bash(go build:*)",
+      "Bash(cat:*)",
+      "WebSearch",
+      "WebFetch(domain:kurl.sh)",
+      "Bash(gh pr view:*)",
+      "Bash(gh api:*)",
+      "Bash(make embedded-cluster:*)",
+      "Bash(gofmt:*)",
+      "mcp__shortcut__epics-get-by-id",
+      "mcp__shortcut__stories-search"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "platform.name" . }}-preflight
+  labels: {{- include "platform.labels" . | nindent 4 }}
+    troubleshoot.sh/kind: preflight
+stringData:
+  preflight.yaml: |- {{- include "troubleshoot.preflight.platform" . | nindent 4 }}
+---
+{{- define "troubleshoot.preflight.platform" -}}
+apiVersion: troubleshoot.sh/v1beta2
+kind: Preflight
+metadata:
+  name: {{ include "platform.name" . }}-preflight
+spec:
+  collectors:
+    {{ if not .Values.database.embedded }}
+    {{- include "troubleshoot.collectors.platform.runPods.database.status" . | nindent 4 }}
+    {{- end }}
+    {{/*}}
+    {{ if not (empty .Values.sonar.token) }}
+    {{- include "troubleshoot.collectors.platform.sonar" . | indent 4 }}
+    {{ if .Values.sonar.sonarQubeServer }}
+    {{- include "troubleshoot.collectors.platform.sonarqube-server" . | indent 4 }}
+    {{- end }}
+    {{- end }}
+    {{*/}}
+  analyzers:
+    {{ if not .Values.database.embedded }}
+    {{- include "troubleshoot.analyzers.platform.database.status" .  | nindent 4 }}
+    {{- end }}
+    {{/*}}
+    {{ if not (empty .Values.sonar.token) }}
+    {{- include "troubleshoot.analyzers.platform.sonar" . | nindent 4 }}
+    {{ if .Values.sonar.sonarQubeServer }}
+    {{- include "troubleshoot.analyzers.platform.sonarqube-server" . | nindent 4 }}
+    {{- end }}
+    {{- end }}
+    {{*/}}
+{{- end -}}

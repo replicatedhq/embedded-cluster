@@ -189,14 +189,14 @@ initial-release: export APP_VERSION = appver-dev-$(call random-string)
 initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=0 \
+	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=0 \
+	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
 	SKIP_RELEASE=1 \
 		./scripts/build-and-release.sh
 
@@ -207,7 +207,7 @@ upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$
 upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
 upgrade-release: export V2_ENABLED = 0
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=1 \
+	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),1) \
 		./scripts/build-and-release.sh
 
 .PHONY: go.mod
@@ -288,10 +288,6 @@ unit-tests: envtest
 	$(MAKE) -C api unit-tests
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
-
-.PHONY: test-integration
-test-integration: static-dryrun
-	$(MAKE) -C api test-integration
 
 .PHONY: vet
 vet:

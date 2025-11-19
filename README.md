@@ -63,49 +63,145 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
     - To use a different AWS bucket or account, override using the `S3_BUCKET` environment variable.
     - To use the Replicated staging bucket used in CI, set `USES_DEV_BUCKET=0`.
 
-1. Create a release for initial installation:
-    ```bash
-    make initial-release
-    ```
-
-    This step creates a release that is intended to be used for initial installation, not for upgrades.
-    It creates a release of the application using the manifests located in the `e2e/kots-release-install` directory.
-    It may take a few minutes to complete the first time as nothing is cached yet.
-
-1. Create the first node:
-    ```bash
-    make create-node0
-    ```
-
-    This command sets up the initial node for your cluster and SSHs into it.
-
-    By default, a Debian-based node will be created. If you want to use a different distribution, you can set the `DISTRO` environment variable:
-
-    ```bash
-    make create-node0 DISTRO=almalinux-8
-    ```
-
-    To view the list of available distributions:
-
-    ```bash
-    make list-distros
-    ```
-
-    **Note:** The development environment automatically mounts both data directories to support v2 and v3:
-    - **v2 mode:** Uses `/var/lib/embedded-cluster/k0s`
-    - **v3 mode:** Uses `/var/lib/{app-slug}/k0s` (determined from `REPLICATED_APP`)
-    
-    Both directories are mounted automatically, so the embedded cluster binary can use whichever one it needs without any manual configuration.
-
 1. In the Vendor Portal, create and download a license that is assigned to the channel.
 We recommend storing this license in the `local-dev/` directory, as it is gitignored and not otherwise used by the CI.
 
-1. Install Embedded Cluster:
+### V2 installs
+
+**For Online:**
+1. Create the release:
+    ```bash
+    make initial-release
+    ```
+1. Create the node:
+    ```bash
+    make create-node0
+    ```
+1. Install the release:
     ```bash
     output/bin/embedded-cluster install --license <license-file>
     ```
-
 1. Once that completes, you can access the admin console at http://localhost:30000
+
+**For Airgap:**
+1. Create the release:
+    ```bash
+    make initial-release UPLOAD_BINARIES=1
+    ```
+1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
+1. Create the node:
+    ```bash
+    make create-node0
+    ```
+1. Follow the Embedded Cluster install instructions on the customer page.
+1. Once that completes, you can access the admin console at http://localhost:30000
+
+**Notes:**
+- It may take a few minutes to complete the first time as nothing is cached yet.
+- The release will be created using the manifests located in the `e2e/kots-release-install` directory.
+- The created release is intended to be used for initial installation, not for upgrades.
+
+### V2 upgrades
+
+**For Online:**
+1. Create the release:
+    ```bash
+    make upgrade-release
+    ```
+1. The release will show up in the KOTS admin console as an available update.
+1. Deploy the update from the admin console version history page.
+
+**For Airgap:**
+1. Create the release:
+    ```bash
+    make upgrade-release
+    ```
+1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
+1. SSH into the node:
+    ```bash
+    make ssh-node0
+    ```
+1. Run the download and extract commands from the install instructions on the customer page.
+1. Run `sudo ./<app-slug> airgap update --airgap bundle` to upload the bundle to the KOTS admin console.
+1. Deploy the update from the admin console version history page.
+
+### V3 installs
+
+Embedded Cluster supports v3 releases which provide an enhanced manager UI experience for installations and upgrades. V3 releases are enabled by setting the `ENABLE_V3` environment variable.
+
+**For Online:**
+1. Create the release:
+    ```bash
+    make initial-release ENABLE_V3=1
+    ```
+1. Create the node:
+    ```bash
+    make create-node0
+    ```
+1. Install the release:
+    ```bash
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license <license-file> --target linux
+    ```
+
+**For Airgap:**
+1. Create the release:
+    ```bash
+    make initial-release ENABLE_V3=1 UPLOAD_BINARIES=1
+    ```
+1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
+1. Create the node:
+    ```bash
+    make create-node0
+    ```
+1. Run the download and extract commands from the install instructions on the customer page.
+1. Run the following command to install the EC release in airgap mode:
+    ```bash
+    ENABLE_V3=1 sudo -E ./<app-slug> install --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ```
+
+**Note:** The release will be created using the manifests located in the `e2e/kots-release-install-v3` directory.
+
+### V3 upgrades
+
+**For Online:**
+1. Create the release:
+    ```bash
+    make upgrade-release ENABLE_V3=1
+    ```
+1. SSH into the node:
+    ```bash
+    make ssh-node0
+    ```
+1. Run the following command to upgrade the EC release:
+    ```bash
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license <license-file> --target linux
+    ```
+
+**For Airgap:**
+1. Create the release:
+    ```bash
+    make upgrade-release ENABLE_V3=1
+    ```
+1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
+1. SSH into the node:
+    ```bash
+    make ssh-node0
+    ```
+1. Run the download and extract commands from the install instructions on the customer page.
+1. Run the following command to upgrade to the new EC release in airgap mode:
+    ```bash
+    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ```
+
+**Note:** The release will be created using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
+
+**Required environment variables:**
+- `ENABLE_V3=1` - **Required** to enable v3 functionality and manager UI experience
+- `EC_DEV_ENV=true` - **Optional** for development mode, enables dynamic asset loading from `./web/dist` instead of embedded assets. This allows you to test web UI changes by simply running `npm run build` in the `web/` directory and refreshing the browser, without needing to rebuild the entire embedded-cluster binary or building a new release.
+
+**Required flags:**
+- `--target` - **Required** to specify the target platform. Valid options are `linux` or `kubernetes`
+- `--license` - **Required** path to the license file
 
 ### Interacting with the cluster
 
@@ -133,61 +229,6 @@ $ source /etc/bash_completion
 $ 
 ```
 
-### Creating an upgrade release
-
-To create an upgrade release, run the following command:
-```bash
-make upgrade-release
-```
-
-This step creates a release that is intended to be used for upgrades.
-It creates a release of the application using the manifests located in the `e2e/kots-release-upgrade` directory.
-The release will show up in the KOTS admin console as an available update.
-
-### Creating v3 releases
-
-Embedded Cluster supports v3 releases which provide an enhanced manager UI experience for installations and upgrades. V3 releases are enabled by setting the `ENABLE_V3` environment variable.
-
-#### Creating a v3 initial release
-
-To create a v3 initial release, run the following command:
-```bash
-make initial-release ENABLE_V3=1
-```
-
-This creates a release using the manifests located in the `e2e/kots-release-install-v3` directory.
-
-#### Creating a v3 upgrade release
-
-To create a v3 upgrade release, run the following command:
-```bash
-make upgrade-release ENABLE_V3=1
-```
-
-This creates a release using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
-
-#### Installing a v3 release
-
-When using v3 releases, the install and upgrade commands are different from the standard commands:
-
-**Install command:**
-```bash
-ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license <license-file> --target linux
-```
-
-**Upgrade command:**
-```bash
-ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license <license-file> --target linux
-```
-
-**Required environment variables:**
-- `ENABLE_V3=1` - **Required** to enable v3 functionality and manager UI experience
-- `EC_DEV_ENV=true` - **Optional** for development mode, enables dynamic asset loading from `./web/dist` instead of embedded assets. This allows you to test web UI changes by simply running `npm run build` in the `web/` directory and refreshing the browser, without needing to rebuild the entire embedded-cluster binary or building a new release.
-
-**Required flags:**
-- `--target` - **Required** to specify the target platform. Valid options are `linux` or `kubernetes`
-- `--license` - **Required** path to the license file
-
 ### Creating additional nodes
 
 To create additional nodes, run the following command:
@@ -201,6 +242,24 @@ make create-node1
 ```
 
 These additional nodes can either be joined to your existing Embedded Cluster installation, or used to set up separate, independent Embedded Cluster instances.
+
+By default, a Debian-based node will be created. If you want to use a different distribution, you can set the `DISTRO` environment variable:
+
+```bash
+make create-node0 DISTRO=almalinux-8
+```
+
+To view the list of available distributions:
+
+```bash
+make list-distros
+```
+
+**Note:** The development environment automatically mounts both data directories to support v2 and v3:
+- **v2 mode:** Uses `/var/lib/embedded-cluster/k0s`
+- **v3 mode:** Uses `/var/lib/{app-slug}/k0s` (determined from `REPLICATED_APP`)
+
+Both directories are mounted automatically, so the embedded cluster binary can use whichever one it needs without any manual configuration.
 
 ### Deleting nodes
 

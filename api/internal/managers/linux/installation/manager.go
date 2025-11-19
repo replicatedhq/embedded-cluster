@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -22,8 +23,6 @@ type InstallationManager interface {
 	GetConfigValues() (types.LinuxInstallationConfig, error)
 	SetConfigValues(config types.LinuxInstallationConfig) error
 	GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
-	GetStatus() (types.Status, error)
-	SetStatus(status types.Status) error
 	ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
 	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
@@ -37,6 +36,7 @@ type installationManager struct {
 	airgapBundle      string
 	releaseData       *release.ReleaseData
 	kcli              client.Client
+	mcli              metadata.Interface
 	netUtils          utils.NetUtils
 	hostUtils         hostutils.HostUtilsInterface
 	logger            logrus.FieldLogger
@@ -71,6 +71,12 @@ func WithAirgapBundle(airgapBundle string) InstallationManagerOption {
 func WithKubeClient(kcli client.Client) InstallationManagerOption {
 	return func(c *installationManager) {
 		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) InstallationManagerOption {
+	return func(c *installationManager) {
+		c.mcli = mcli
 	}
 }
 

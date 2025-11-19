@@ -1,0 +1,43 @@
+# Default values for MkDocs chart
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  seLinuxOptions: {}
+
+serviceAccount:
+  # override the default service account with an existing service account
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  annotations: {}
+  paths:
+    - path: /docs
+      pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}

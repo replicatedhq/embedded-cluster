@@ -552,3 +552,227 @@ func TestValidateDomains(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVeleroPlugins(t *testing.T) {
+	tests := []struct {
+		name        string
+		veleroExt   ecv1beta1.VeleroExtensions
+		expectError bool
+		errorCount  int
+		errorFields []string
+		errorMsgs   []string
+	}{
+		{
+			name: "valid single plugin",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid multiple plugins",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-mongodb", Image: "myvendor/velero-mongodb:v2.1.0"},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "empty name - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].name"},
+			errorMsgs:   []string{"plugin name is required"},
+		},
+		{
+			name: "empty image - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: ""},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].image"},
+			errorMsgs:   []string{"plugin image is required"},
+		},
+		{
+			name: "duplicate plugin names - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v2.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[1].name"},
+			errorMsgs:   []string{"duplicate plugin name"},
+		},
+		{
+			name: "duplicate plugin images - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+					{Name: "velero-postgresql-alt", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[1].image"},
+			errorMsgs:   []string{"duplicate plugin image"},
+		},
+		{
+			name: "image with invalid characters - should error",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					{Name: "velero-postgresql", Image: "myvendor/velero postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].image"},
+			errorMsgs:   []string{"invalid image reference"},
+		},
+		{
+			name: "empty name with valid image - should only error on name, not image",
+			veleroExt: ecv1beta1.VeleroExtensions{
+				Plugins: []ecv1beta1.VeleroPlugin{
+					// First plugin has empty name but valid image - should only error on name
+					{Name: "", Image: "myvendor/velero-postgresql:v1.0.0"},
+					// Second plugin has valid name and same image - should NOT be flagged as duplicate
+					// because the first plugin is invalid (empty name) and skipped from image validation
+					{Name: "velero-postgresql", Image: "myvendor/velero-postgresql:v1.0.0"},
+				},
+			},
+			expectError: true,
+			// Should only return 1 error (empty name), not a false duplicate image error
+			errorCount:  1,
+			errorFields: []string{"extensions.velero.plugins[0].name"},
+			errorMsgs:   []string{"plugin name is required"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+			errors := validator.validateVeleroPlugins(tt.veleroExt)
+
+			if tt.expectError {
+				require.Greater(t, len(errors), 0, "Expected errors but got none")
+				if tt.errorCount > 0 {
+					assert.Len(t, errors, tt.errorCount, "Expected %d errors but got %d", tt.errorCount, len(errors))
+				}
+				if len(tt.errorFields) > 0 {
+					for i, expectedField := range tt.errorFields {
+						if i < len(errors) {
+							if ve, ok := errors[i].(ValidationError); ok {
+								assert.Equal(t, expectedField, ve.Field, "Error field mismatch at index %d", i)
+							}
+						}
+					}
+				}
+				if len(tt.errorMsgs) > 0 {
+					for i, expectedMsg := range tt.errorMsgs {
+						if i < len(errors) {
+							assert.Contains(t, errors[i].Error(), expectedMsg, "Error message should contain: %s", expectedMsg)
+						}
+					}
+				}
+			} else {
+				assert.Empty(t, errors, "Expected no errors but got: %v", errors)
+			}
+		})
+	}
+}
+
+func TestValidateImageFormat(t *testing.T) {
+	tests := []struct {
+		name        string
+		image       string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:  "valid full image reference",
+			image: "myvendor/velero-postgresql:v1.0.0",
+		},
+		{
+			name:  "valid full image reference with registry, tag and digest",
+			image: "registry.io:5000/repo/image:v1.0.0@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
+		},
+		{
+			name:  "valid image with digest",
+			image: "myvendor/velero-postgresql@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
+		},
+		{
+			name:  "valid short image name with tag",
+			image: "velero-plugin-postgres:v1.0.0",
+		},
+		{
+			name:  "valid short image name",
+			image: "velero-plugin-postgres",
+		},
+		{
+			name:        "empty image",
+			image:       "",
+			expectError: true,
+			errorMsg:    "cannot be empty",
+		},
+		{
+			name:        "image with space",
+			image:       "myvendor/velero postgresql:v1.0.0",
+			expectError: true,
+			errorMsg:    "invalid image reference",
+		},
+		{
+			name:        "image starting with slash",
+			image:       "/myvendor/velero-postgresql:v1.0.0",
+			expectError: true,
+			errorMsg:    "invalid image reference",
+		},
+		{
+			name:  "image with registry but no tag",
+			image: "myvendor/velero-postgresql",
+		},
+		{
+			name:        "invalid digest",
+			image:       "registry.io:5000/repo/image@sha256:3b9d51d",
+			expectError: true,
+			errorMsg:    "invalid image reference",
+		},
+		{
+			name:  "registry with port and tag - should pass",
+			image: "registry.io:5000/repo/image:v1.0.0",
+		},
+		{
+			name:  "registry with port and digest - should pass",
+			image: "registry.io:5000/repo/image@sha256:3b9d51de8dab574f77f29c55119b7bb6943c9439c99e9945d76ea322ff5a192a",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := NewValidator("", "", "")
+			err := validator.validateImageFormat(tt.image)
+
+			if tt.expectError {
+				require.Error(t, err, "Expected error but got none")
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain: %s", tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+			}
+		})
+	}
+}

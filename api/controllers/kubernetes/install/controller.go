@@ -14,11 +14,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,6 +42,8 @@ type InstallController struct {
 	metricsReporter       metrics.ReporterInterface
 	hcli                  helm.Client
 	kcli                  client.Client
+	mcli                  metadata.Interface
+	preflightRunner       preflights.PreflightRunnerInterface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
 	password              string
@@ -85,6 +89,12 @@ func WithHelmClient(hcli helm.Client) InstallControllerOption {
 func WithKubeClient(kcli client.Client) InstallControllerOption {
 	return func(c *InstallController) {
 		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.mcli = mcli
 	}
 }
 
@@ -166,6 +176,12 @@ func WithStore(store store.Store) InstallControllerOption {
 	}
 }
 
+func WithPreflightRunner(preflightRunner preflights.PreflightRunnerInterface) InstallControllerOption {
+	return func(c *InstallController) {
+		c.preflightRunner = preflightRunner
+	}
+}
+
 func NewInstallController(opts ...InstallControllerOption) (*InstallController, error) {
 	controller := &InstallController{
 		store:  store.NewMemoryStore(),
@@ -210,6 +226,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install controller: %w", err)
@@ -229,6 +246,8 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			infra.WithReleaseData(controller.releaseData),
 			infra.WithEndUserConfig(controller.endUserConfig),
 			infra.WithHelmClient(controller.hcli),
+			infra.WithKubeClient(controller.kcli),
+			infra.WithMetadataClient(controller.mcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create infra manager: %w", err)

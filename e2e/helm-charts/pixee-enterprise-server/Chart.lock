@@ -1,0 +1,27 @@
+dependencies:
+- name: minio
+  repository: oci://registry-1.docker.io/bitnamicharts
+  version: 14.10.5
+- name: replicated
+  repository: oci://registry.replicated.com/library
+  version: 1.7.2
+- name: platform
+  repository: file://charts/platform
+  version: 1.0.0
+- name: user-platform
+  repository: file://charts/user-platform
+  version: 1.0.0
+- name: analysis
+  repository: file://charts/analysis
+  version: 1.0.0
+- name: oidc
+  repository: file://charts/oidc
+  version: 0.1.0
+- name: mkdocs
+  repository: file://charts/mkdocs
+  version: 0.1.0
+- name: k8s-monitoring
+  repository: https://grafana.github.io/helm-charts
+  version: 2.0.42
+digest: sha256:66689c861e8346cc98b8f1e93f6b1d0394e428194405060ef8f80dce505ef849
+generated: "2025-08-15T09:30:25.473112-04:00"

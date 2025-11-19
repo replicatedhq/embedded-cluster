@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/distribution/reference"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"gopkg.in/yaml.v2"
 	k8syaml "sigs.k8s.io/yaml"
@@ -139,6 +140,10 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 	// Validate ports in unsupportedOverrides (returns warnings)
 	portWarnings := v.validatePorts(config.Spec.UnsupportedOverrides)
 	result.Warnings = append(result.Warnings, portWarnings...)
+
+	// Validate Velero plugins (returns errors)
+	pluginErrors := v.validateVeleroPlugins(config.Spec.Extensions.Velero)
+	result.Errors = append(result.Errors, pluginErrors...)
 
 	// Validate custom domains if environment variables are set (returns errors)
 	if v.apiClient.isConfigured() {
@@ -375,4 +380,78 @@ func (v *Validator) validateDomains(domains ecv1beta1.Domains, allowedDomains []
 	}
 
 	return errors
+}
+
+// validateVeleroPlugins validates Velero plugin configurations
+func (v *Validator) validateVeleroPlugins(veleroExt ecv1beta1.VeleroExtensions) []error {
+	var errors []error
+
+	// Check for duplicate plugin names and images
+	seenNames := make(map[string]int)
+	seenImages := make(map[string]int)
+	for i, plugin := range veleroExt.Plugins {
+		// Validate name is not empty (CRD validation should catch this, but double-check)
+		if plugin.Name == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
+				Message: "plugin name is required",
+			})
+			continue
+		}
+
+		// Check for duplicate names
+		if idx, exists := seenNames[plugin.Name]; exists {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].name", i),
+				Message: fmt.Sprintf("duplicate plugin name %q (also specified at index %d)", plugin.Name, idx),
+			})
+		} else {
+			seenNames[plugin.Name] = i
+		}
+
+		// Validate image is not empty (CRD validation should catch this, but double-check)
+		if plugin.Image == "" {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: "plugin image is required",
+			})
+			continue
+		}
+
+		// Check for duplicate images
+		if idx, exists := seenImages[plugin.Image]; exists {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: fmt.Sprintf("duplicate plugin image %q (also specified at index %d)", plugin.Image, idx),
+			})
+		} else {
+			seenImages[plugin.Image] = i
+		}
+
+		// Validate image format (basic check - should be a valid OCI image reference)
+		if err := v.validateImageFormat(plugin.Image); err != nil {
+			errors = append(errors, ValidationError{
+				Field:   fmt.Sprintf("extensions.velero.plugins[%d].image", i),
+				Message: err.Error(),
+			})
+		}
+	}
+
+	return errors
+}
+
+// validateImageFormat validates that an image string follows a valid OCI image reference format
+func (v *Validator) validateImageFormat(image string) error {
+	if image == "" {
+		return fmt.Errorf("image cannot be empty")
+	}
+
+	// Use oras library to parse the image reference
+	// ParseReference finds short image names like "velero-plugin-postgres:v1.0.0" as valid which we want
+	ok := reference.ReferenceRegexp.MatchString(image)
+	if !ok {
+		return fmt.Errorf("invalid image reference %q", image)
+	}
+
+	return nil
 }

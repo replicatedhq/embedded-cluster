@@ -55,7 +55,7 @@ jobs:
         run: |
           make vet
       - name: Lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
@@ -122,16 +122,12 @@ jobs:
     name: Integration tests
     runs-on: ubuntu-latest
     needs:
-      - int-tests-api
       - int-tests-kind
       - int-tests-kind-ha-registry
       - int-tests-kind-ha-registry-disable-hashi-raft
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
-      - name: fail if int-tests-api job was not successful
-        if: needs.int-tests-api.result != 'success' && needs.int-tests-api.result != 'skipped'
-        run: exit 1
       - name: fail if int-tests-kind job was not successful
         if: needs.int-tests-kind.result != 'success' && needs.int-tests-kind.result != 'skipped'
         run: exit 1
@@ -143,21 +139,6 @@ jobs:
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Integration tests succeeded"
-
-  int-tests-api:
-    name: Integration tests (api)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Run tests
-        run: |
-          make test-integration
 
   int-tests-kind:
     name: Integration tests (kind)
@@ -175,7 +156,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
         with:
           install_only: true
       - name: Run tests
@@ -199,7 +180,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
-        run: |
+        run: &free-disk-space |
           df -h
           sudo rm -rf \
             /usr/share/swift \
@@ -224,7 +205,7 @@ jobs:
             /usr/local/bin/oc
           df -h
       - name: Install kind
-        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
         with:
           install_only: true
       - name: Run tests
@@ -273,7 +254,7 @@ jobs:
             /usr/local/bin/oc
           df -h
       - name: Install kind
-        uses: helm/kind-action@7cd7463a0995e35ab5d0f2c119f892514f3a3778
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
         with:
           install_only: true
       - name: Run tests
@@ -390,6 +371,7 @@ jobs:
             api/pkg/**
             !api/pkg/template/**
             cmd/**
+            !cmd/installer/cli/headless/**
             kinds/**
             operator/**
             pkg/**
@@ -432,6 +414,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -585,6 +570,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: *free-disk-space
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -923,7 +911,7 @@ jobs:
           SHORT_SHA: dev-${{ needs.output-vars.outputs.git_sha }}
           DR_S3_ENDPOINT: https://s3.amazonaws.com
           DR_S3_REGION: us-east-1
-          DR_S3_BUCKET: kots-testim-snapshots
+          DR_S3_BUCKET: embedded-cluster-e2e-snapshots
           DR_S3_PREFIX: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}
           DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
           DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
