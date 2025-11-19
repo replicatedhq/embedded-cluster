@@ -31,6 +31,11 @@ type CMXInstance struct {
 	CMXToken *dagger.Secret
 }
 
+// String returns a string representation of the CMX instance.
+func (i *CMXInstance) String() string {
+	return fmt.Sprintf("CMXInstance{VmID: %s, SSHEndpoint: %s, SSHPort: %d}", i.VmID, i.SSHEndpoint, i.SSHPort)
+}
+
 // sshClient returns a container with openssh-client installed and the SSH key configured.
 // The key is mounted at /root/.ssh/id_rsa with proper permissions and formatting.
 func (i *CMXInstance) sshClient() *dagger.Container {
@@ -52,28 +57,12 @@ func (i *CMXInstance) waitForSSH(ctx context.Context) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	// Prepare SSH client container once to avoid repeating apt operations on every retry
-	sshClient := i.sshClient()
-
-	for attempt := 1; ; attempt++ {
+	for {
 		select {
 		case <-timeout:
 			return fmt.Errorf("timed out waiting for ssh")
 		case <-ticker.C:
-			_, err := sshClient.
-				WithEnvVariable("ATTEMPT", fmt.Sprintf("%d", attempt)). // cache bust
-				WithExec([]string{
-					"ssh",
-					"-i", "/root/.ssh/id_rsa",
-					"-o", "StrictHostKeyChecking=no",
-					"-o", "BatchMode=yes",
-					"-o", "ConnectTimeout=5",
-					"-p", fmt.Sprintf("%d", i.SSHPort),
-					fmt.Sprintf("%s@%s", i.SSHUser, i.SSHEndpoint),
-					"uptime",
-				}).
-				Stdout(ctx)
-
+			_, err := i.RunCommand(ctx, []string{"uptime"})
 			if err == nil {
 				return nil
 			}
@@ -84,17 +73,7 @@ func (i *CMXInstance) waitForSSH(ctx context.Context) error {
 
 // discoverPrivateIP discovers the private IP address of the VM.
 func (i *CMXInstance) discoverPrivateIP(ctx context.Context) (string, error) {
-	stdout, err := i.sshClient().
-		WithExec([]string{
-			"ssh",
-			"-i", "/root/.ssh/id_rsa",
-			"-o", "StrictHostKeyChecking=no",
-			"-o", "BatchMode=yes",
-			"-p", fmt.Sprintf("%d", i.SSHPort),
-			fmt.Sprintf("%s@%s", i.SSHUser, i.SSHEndpoint),
-			"hostname -I",
-		}).
-		Stdout(ctx)
+	stdout, err := i.RunCommand(ctx, []string{"hostname", "-I"})
 	if err != nil {
 		return "", fmt.Errorf("run hostname command: %w", err)
 	}
@@ -112,6 +91,7 @@ func (i *CMXInstance) discoverPrivateIP(ctx context.Context) (string, error) {
 // RunCommand runs a command on the CMX VM.
 //
 // Commands are executed with sudo and the PATH is set to include /usr/local/bin.
+// Arguments are properly shell-escaped to handle spaces and special characters.
 //
 // Example:
 //
@@ -122,9 +102,19 @@ func (i *CMXInstance) RunCommand(
 	// Command to run (as array of strings)
 	command []string,
 ) (string, error) {
-	// Build the full SSH command
+	if len(command) == 0 {
+		return "", fmt.Errorf("command cannot be empty")
+	}
+
+	// Build the full command with sudo prefix
 	fullCmd := append([]string{"sudo", "PATH=$PATH:/usr/local/bin"}, command...)
-	cmdStr := strings.Join(fullCmd, " ")
+
+	// Shell-escape each argument to handle spaces and special characters
+	escapedArgs := make([]string, len(fullCmd))
+	for i, arg := range fullCmd {
+		escapedArgs[i] = shellEscape(arg)
+	}
+	cmdStr := strings.Join(escapedArgs, " ")
 
 	stdout, err := i.sshClient().
 		WithExec([]string{
@@ -143,6 +133,19 @@ func (i *CMXInstance) RunCommand(
 	}
 
 	return stdout, nil
+}
+
+// shellEscape escapes a string for safe use in a shell command.
+// It wraps the string in single quotes and escapes any single quotes within.
+func shellEscape(s string) string {
+	// If the string doesn't contain any special characters, return as-is
+	if !strings.ContainsAny(s, " \t\n'\"\\$`!*?[](){};<>|&~") {
+		return s
+	}
+
+	// Use single quotes and escape any single quotes in the string
+	// by replacing ' with '\''
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // ExposePort exposes a port on the VM and returns the public hostname.

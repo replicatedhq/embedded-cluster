@@ -116,7 +116,7 @@ Create a fresh CMX VM for testing:
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  test-provision-vm --name="my-test-vm"
+  test-provision-vm --name="my-test-vm" string
 ```
 
 This will:
