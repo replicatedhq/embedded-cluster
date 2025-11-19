@@ -40,7 +40,7 @@ Build and publish the embedded-cluster operator.
 
 Portable E2E test framework for V3 installer with 1Password secret management and CMX VM provisioning.
 
-**Files:** `e2e.go`, `onepassword.go`, `internal/e2e/`
+**Files:** `e2e.go`, `cmx.go`, `onepassword.go`
 
 #### Overview
 
@@ -97,13 +97,16 @@ The following secrets must be available in 1Password in the **"Developer Automat
 
 | Secret Field Name | Purpose |
 |-------------------|---------|
-| `STAGING_REPLICATED_API_TOKEN` | Replicated API access for creating releases |
 | `CMX_REPLICATED_API_TOKEN` | CMX API access for VM provisioning |
-| `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID` | AWS S3 access key for artifact uploads |
-| `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET` | AWS S3 secret key |
-| `GITHUB_TOKEN` | GitHub API access |
+| `CMX_SSH_PRIVATE_KEY` | SSH private key for accessing provisioned VMs |
 
 **Note:** The vault name defaults to "Developer Automation" and can be overridden via `--vault-name` parameter in the `with-one-password` call.
+
+Additional secrets (for future PRs):
+- `STAGING_REPLICATED_API_TOKEN` - Replicated API access for creating releases
+- `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID` - AWS S3 access key for artifact uploads
+- `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET` - AWS S3 secret key
+- `GITHUB_TOKEN` - GitHub API access
 
 #### Quick Start
 
@@ -166,6 +169,39 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 - `disk-size`: Disk size in GB (default: 50)
 - `wait`: Wait timeout for VM to be ready (default: "10m")
 - `ttl`: VM lifetime (default: "2h")
+
+##### Run Commands
+
+Execute commands on a provisioned VM:
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  test-provision-vm run-command --command="ls,-la,/tmp"
+```
+
+Commands are automatically executed with `sudo` and `PATH=$PATH:/usr/local/bin`.
+
+##### Expose Port
+
+Expose a port on the VM and get a public hostname:
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  test-provision-vm expose-port --port=30000 --protocol="https"
+```
+
+**Parameters:**
+- `port`: Port number to expose
+- `protocol`: Protocol (default: "https")
+
+##### Cleanup VM
+
+Remove a provisioned VM:
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  test-provision-vm cleanup
+```
 
 #### Test Scenarios (PR 1 Foundation Only)
 
