@@ -176,9 +176,12 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 
 	c.logger.WithField("migrationID", migrationID).Info("StartMigration: Migration initialized, launching background goroutine")
 
-	// Launch background goroutine
+	// Launch background goroutine with detached context
+	// We use WithoutCancel to inherit context values (trace IDs, logger fields)
+	// but detach from the request's cancellation so migration continues after HTTP response
+	backgroundCtx := context.WithoutCancel(ctx)
 	go func() {
-		if err := c.Run(context.Background()); err != nil {
+		if err := c.Run(backgroundCtx); err != nil {
 			c.logger.WithError(err).Error("StartMigration: Background migration failed")
 		}
 	}()
