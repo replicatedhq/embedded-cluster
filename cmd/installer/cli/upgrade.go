@@ -697,7 +697,7 @@ func runMigrationAPI(
 	}
 
 	// Read the actual password hash from kURL cluster's kotsadm-password secret
-	// Empty string will default to "kotsadm" namespace
+	// Pass empty string to auto-discover the kotsadm namespace
 	pwdHashStr, err := kurl.GetPasswordHash(ctx, kurlCfg, "")
 	if err != nil {
 		return fmt.Errorf("failed to read password from kURL cluster: %w", err)

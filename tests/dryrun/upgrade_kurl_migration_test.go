@@ -63,21 +63,38 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	err = kurlKubeClient.Create(context.Background(), kurlConfigMap, &ctrlclient.CreateOptions{})
 	require.NoError(t, err, "failed to create kURL ConfigMap")
 
-	// Create the kotsadm namespace for the password secret
-	kotsadmNS := &corev1.Namespace{
+	// Create the kotsadm Service in default namespace for namespace discovery
+	// This simulates how kURL deploys kotsadm
+	kotsadmService := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Namespace",
+			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kotsadm",
+			Name:      "kotsadm",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "kotsadm",
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: map[string]string{
+				"app": "kotsadm",
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "http",
+					Port:     3000,
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
 		},
 	}
-	err = kurlKubeClient.Create(context.Background(), kotsadmNS, &ctrlclient.CreateOptions{})
-	require.NoError(t, err, "failed to create kotsadm namespace")
+	err = kurlKubeClient.Create(context.Background(), kotsadmService, &ctrlclient.CreateOptions{})
+	require.NoError(t, err, "failed to create kotsadm Service")
 
-	// Create the kotsadm-password secret with the password "password"
-	// This is what the migration API will read to authenticate users
+	// Create the kotsadm-password secret with the password "password" in default namespace
+	// The auto-discovery will find the kotsadm service in default and look for the secret there
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
 	require.NoError(t, err, "failed to generate password hash")
 	kotsadmPasswordSecret := &corev1.Secret{
@@ -87,7 +104,7 @@ func TestUpgradeKURLMigration(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "kotsadm-password",
-			Namespace: "kotsadm",
+			Namespace: "default",
 		},
 		Data: map[string][]byte{
 			"passwordBcrypt": passwordHash,
