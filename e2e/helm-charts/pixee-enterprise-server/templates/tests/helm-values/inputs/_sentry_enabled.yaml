@@ -1,5 +1,0 @@
-global:
-  pixee:
-    sentry:
-      enabled: true
-    url: https://test.pixee.ai

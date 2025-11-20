@@ -1,6 +1,0 @@
-global:
-  pixee:
-    sentry:
-      enabled: false
-tests:
-  enabled: true

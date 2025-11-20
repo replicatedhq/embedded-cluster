@@ -1,6 +1,0 @@
-global:
-  pixee:
-    ai:
-      enabled: true
-      openai:
-        key: test-openai-key
