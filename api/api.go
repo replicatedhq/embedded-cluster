@@ -186,6 +186,10 @@ func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 		return nil, fmt.Errorf("init clients: %w", err)
 	}
 
+	if err := api.initControllers(); err != nil {
+		return nil, fmt.Errorf("init controllers: %w", err)
+	}
+
 	if err := api.initHandlers(); err != nil {
 		return nil, fmt.Errorf("init handlers: %w", err)
 	}

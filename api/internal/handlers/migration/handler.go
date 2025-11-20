@@ -104,7 +104,7 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 
 	response := types.StartMigrationResponse{
 		MigrationID: migrationID,
-		Message:     "Migration started successfully",
+		Message:     "migration started successfully",
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)

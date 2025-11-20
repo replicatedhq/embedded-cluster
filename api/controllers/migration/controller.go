@@ -270,9 +270,17 @@ func (c *MigrationController) Run(ctx context.Context) error {
 			return fmt.Errorf("set phase: %w", err)
 		}
 
-		// TODO: Execute phase using manager.ExecutePhase(ctx, phase)
-		// For now, this is a skeleton that just sets the phase
-		c.logger.WithField("phase", phase).Debug("Run: Phase execution (skeleton only)")
+		// Execute phase
+		if err := c.manager.ExecutePhase(ctx, phase); err != nil {
+			c.logger.WithError(err).WithField("phase", phase).Error("Run: Phase execution failed")
+			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
+				c.logger.WithError(setErr).Error("Run: Failed to set state to Failed")
+			}
+			if setErr := c.store.SetError(err.Error()); setErr != nil {
+				c.logger.WithError(setErr).Error("Run: Failed to set error message")
+			}
+			return fmt.Errorf("execute phase %s: %w", phase, err)
+		}
 	}
 
 	// Set state to Completed

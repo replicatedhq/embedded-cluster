@@ -2,7 +2,6 @@ package migration
 
 import (
 	"context"
-	"fmt"
 
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -97,14 +96,11 @@ func (m *migrationManager) GetKurlConfig(ctx context.Context) (types.LinuxInstal
 
 // GetECDefaults returns EC default configuration
 func (m *migrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error) {
-	if m.installationManager == nil {
-		return types.LinuxInstallationConfig{}, fmt.Errorf("installation manager not configured")
-	}
-
-	// TODO: Pass proper RuntimeConfig when available
-	// For now, we'll need to determine how to get the runtime config in the migration context
-	m.logger.Debug("GetECDefaults: Delegating to installation manager")
-	return types.LinuxInstallationConfig{}, fmt.Errorf("GetECDefaults: requires RuntimeConfig - implement in future PR")
+	// TODO: Implement EC defaults extraction in future PR
+	// This will use the installation manager to get EC defaults
+	// For now, return empty config as skeleton implementation
+	m.logger.Debug("GetECDefaults: Skeleton implementation, returning empty config")
+	return types.LinuxInstallationConfig{}, nil
 }
 
 // MergeConfigs merges user, kURL, and default configs with proper precedence
@@ -196,7 +192,7 @@ func (m *migrationManager) ValidateTransferMode(mode types.TransferMode) error {
 	case types.TransferModeCopy, types.TransferModeMove:
 		return nil
 	default:
-		return fmt.Errorf("%w: must be 'copy' or 'move', got '%s'", types.ErrInvalidTransferMode, mode)
+		return types.ErrInvalidTransferMode
 	}
 }
 
@@ -210,5 +206,5 @@ func (m *migrationManager) ExecutePhase(ctx context.Context, phase types.Migrati
 	// - DataTransfer phase: Copy/move data from kURL to EC
 	// - Completed phase: Final validation, cleanup
 	m.logger.WithField("phase", phase).Debug("ExecutePhase: Skeleton implementation")
-	return fmt.Errorf("ExecutePhase: not yet implemented (coming in PR 8)")
+	return types.ErrMigrationPhaseNotImplemented
 }

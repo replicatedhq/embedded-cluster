@@ -7,9 +7,10 @@ import (
 
 // Migration error constants
 var (
-	ErrNoActiveMigration       = errors.New("no active migration")
-	ErrMigrationAlreadyStarted = errors.New("migration already started")
-	ErrInvalidTransferMode     = errors.New("invalid transfer mode")
+	ErrNoActiveMigration            = errors.New("no active migration")
+	ErrMigrationAlreadyStarted      = errors.New("migration already started")
+	ErrInvalidTransferMode          = errors.New("invalid transfer mode: must be 'copy' or 'move'")
+	ErrMigrationPhaseNotImplemented = errors.New("migration phase execution not yet implemented")
 )
 
 // NewNotFoundError creates a 404 API error

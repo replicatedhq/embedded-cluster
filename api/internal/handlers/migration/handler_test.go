@@ -146,7 +146,7 @@ func TestPostStartMigration(t *testing.T) {
 				err := json.Unmarshal(rec.Body.Bytes(), &response)
 				require.NoError(t, err)
 				assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", response.MigrationID)
-				assert.Equal(t, "Migration started successfully", response.Message)
+				assert.Equal(t, "migration started successfully", response.Message)
 			},
 		},
 		{

@@ -214,18 +214,16 @@ func TestStartMigration(t *testing.T) {
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "copy", resolvedConfig).Return(nil),
 					s.On("SetState", types.MigrationStateNotStarted).Return(nil),
-					// For the background goroutine
+					// For the background goroutine - skeleton implementation fails at first phase
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateNotStarted,
 						Phase: types.MigrationPhaseDiscovery,
 					}, nil),
 					s.On("SetState", types.MigrationStateInProgress).Return(nil),
 					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil),
-					s.On("SetPhase", types.MigrationPhasePreparation).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseECInstall).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseDataTransfer).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseCompleted).Return(nil),
-					s.On("SetState", types.MigrationStateCompleted).Return(nil),
+					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented),
+					s.On("SetState", types.MigrationStateFailed).Return(nil),
+					s.On("SetError", "migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -257,18 +255,16 @@ func TestStartMigration(t *testing.T) {
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "move", resolvedConfig).Return(nil),
 					s.On("SetState", types.MigrationStateNotStarted).Return(nil),
-					// For the background goroutine
+					// For the background goroutine - skeleton implementation fails at first phase
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateNotStarted,
 						Phase: types.MigrationPhaseDiscovery,
 					}, nil),
 					s.On("SetState", types.MigrationStateInProgress).Return(nil),
 					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil),
-					s.On("SetPhase", types.MigrationPhasePreparation).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseECInstall).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseDataTransfer).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseCompleted).Return(nil),
-					s.On("SetState", types.MigrationStateCompleted).Return(nil),
+					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented),
+					s.On("SetState", types.MigrationStateFailed).Return(nil),
+					s.On("SetError", "migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -486,73 +482,40 @@ func TestRun(t *testing.T) {
 	// Full implementation will be added in PR 8
 	tests := []struct {
 		name        string
-		setupMock   func(*migrationstore.MockStore)
+		setupMock   func(*migrationmanager.MockManager, *migrationstore.MockStore)
 		expectedErr bool
 	}{
 		{
-			name: "skeleton test - state changes through phases",
-			setupMock: func(s *migrationstore.MockStore) {
+			name: "skeleton test - phase execution fails as expected",
+			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
 					// Initial status check
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateNotStarted,
 						Phase: types.MigrationPhaseDiscovery,
 					}, nil).Once(),
-					// Discovery phase
+					// Discovery phase - skeleton implementation fails here
 					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
 					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil).Once(),
-					// Preparation phase
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhasePreparation).Return(nil).Once(),
-					// ECInstall phase
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseECInstall).Return(nil).Once(),
-					// DataTransfer phase
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDataTransfer).Return(nil).Once(),
-					// Completed phase
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseCompleted).Return(nil).Once(),
-					// Final state
-					s.On("SetState", types.MigrationStateCompleted).Return(nil).Once(),
+					// ExecutePhase is called and returns skeleton error
+					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented).Once(),
+					// Error handling
+					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
-			expectedErr: false,
-		},
-		{
-			name: "skeleton test - phase progression",
-			setupMock: func(s *migrationstore.MockStore) {
-				mock.InOrder(
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
-					}, nil).Once(),
-					// Verify all phases are set in order
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhasePreparation).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseECInstall).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDataTransfer).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseCompleted).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateCompleted).Return(nil).Once(),
-				)
-			},
-			expectedErr: false,
+			expectedErr: true,
 		},
 		{
 			name: "skeleton test - error on GetStatus",
-			setupMock: func(s *migrationstore.MockStore) {
+			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				s.On("GetStatus").Return(types.MigrationStatusResponse{}, errors.New("get status error")).Once()
 			},
 			expectedErr: true,
 		},
 		{
 			name: "skeleton test - error on SetState",
-			setupMock: func(s *migrationstore.MockStore) {
+			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateNotStarted,
@@ -567,7 +530,7 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name: "skeleton test - error on SetPhase",
-			setupMock: func(s *migrationstore.MockStore) {
+			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateNotStarted,
@@ -583,7 +546,7 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name: "skeleton test - resume from InProgress state",
-			setupMock: func(s *migrationstore.MockStore) {
+			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
 					s.On("GetStatus").Return(types.MigrationStatusResponse{
 						State: types.MigrationStateInProgress,
@@ -592,27 +555,22 @@ func TestRun(t *testing.T) {
 					// Should still go through all phases (skeleton doesn't implement resume logic yet)
 					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
 					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhasePreparation).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseECInstall).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDataTransfer).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseCompleted).Return(nil).Once(),
-					s.On("SetState", types.MigrationStateCompleted).Return(nil).Once(),
+					// ExecutePhase fails in skeleton
+					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented).Once(),
+					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
-			expectedErr: false,
+			expectedErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &migrationstore.MockStore{}
-			tt.setupMock(mockStore)
-
 			mockManager := &migrationmanager.MockManager{}
+			mockStore := &migrationstore.MockStore{}
+			tt.setupMock(mockManager, mockStore)
+
 			controller, err := NewMigrationController(
 				WithManager(mockManager),
 				WithStore(mockStore),
