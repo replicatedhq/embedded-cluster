@@ -37,7 +37,7 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
-	build := m.apkoBuild(
+	build := m.chainguard.apkoBuild(
 		dir,
 		apkoFile,
 		image,
@@ -82,7 +82,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 		dir = dir.WithDirectory(".docker", m.RegistryAuth)
 	}
 
-	publish := m.apkoPublish(
+	publish := m.chainguard.apkoPublish(
 		dir,
 		apkoFile,
 		image,
@@ -113,7 +113,7 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	dir := dag.Directory().
 		WithDirectory("operator", src.Directory("operator"))
 
-	build := m.melangeBuildGo(
+	build := m.chainguard.melangeBuildGo(
 		directoryWithCommonGoFiles(dir, src),
 		melangeFile,
 		arch,
@@ -134,7 +134,7 @@ func (m *EmbeddedCluster) apkoTemplateOprator(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("operator/deploy"),
 		vars,
 		"apko.tmpl.yaml",
@@ -153,7 +153,7 @@ func (m *EmbeddedCluster) melangeTemplateOperator(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("operator/deploy"),
 		vars,
 		"melange.tmpl.yaml",

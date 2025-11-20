@@ -471,6 +471,33 @@ To upgrade the K0s minor version, the [.github/workflows/dependencies.yaml](.git
 
 > **Note:** For patch version updates within the same minor version (e.g., 1.33.4 to 1.33.5), the [automated dependency workflow](#automated-version-updates) handles this automatically.
 
+## Testing
+
+### E2E Tests (V3 Installer)
+
+The V3 installer includes a Dagger-based E2E test framework that provides portable, reproducible testing across local and CI environments.
+
+**Key Features:**
+- Portable execution (same tests run identically locally and in CI)
+- 1Password integration for centralized secret management
+- CMX VM provisioning for isolated test environments
+- Automated installation validation
+
+**Quick Start:**
+```bash
+# Provision a test VM
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  test-provision-vm string
+```
+
+**Documentation:** See [dagger/e2e/README.md](dagger/e2e/README.md) for comprehensive E2E testing guide, including:
+- Setup and prerequisites
+- Available test scenarios
+- Troubleshooting
+- CI integration
+
+**Note:** V2 tests remain unchanged and continue to use the existing Docker/LXD/CMX-based framework.
+
 ## Releasing
 
 Embedded Cluster maintains support for the current and two previous K0s minor versions, ensuring backward compatibility while supporting the latest features.

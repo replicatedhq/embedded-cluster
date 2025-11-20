@@ -12,10 +12,15 @@ const (
 )
 
 type EmbeddedCluster struct {
+	// +private
+	Source       *dagger.Directory
 	RegistryAuth *dagger.Directory
 
-	common
-	chainguard
+	// 1Password operations
+	OnePassword *OnePassword
+
+	common     common
+	chainguard chainguard
 }
 
 func (m *EmbeddedCluster) WithRegistryLogin(
@@ -28,7 +33,7 @@ func (m *EmbeddedCluster) WithRegistryLogin(
 	if err != nil {
 		return nil, fmt.Errorf("get registry password from secret: %w", err)
 	}
-	c := m.apkoLogin(dag.Directory(), server, username, plain, APKOImageVersion)
+	c := m.chainguard.apkoLogin(dag.Directory(), server, username, plain, APKOImageVersion)
 	m.RegistryAuth = c.Directory("/workspace/.docker")
 	return m, nil
 }

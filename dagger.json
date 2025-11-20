@@ -1,8 +1,21 @@
 {
   "name": "embedded-cluster",
-  "engineVersion": "v0.19.2",
+  "engineVersion": "v0.19.6",
   "sdk": {
     "source": "go"
   },
-  "source": "dagger"
+  "dependencies": [
+    {
+      "name": "onepassword",
+      "source": "github.com/replicatedhq/daggerverse/onepassword@bf96fd742cf08239442ac155de7143bb7ef8f7fd",
+      "pin": "bf96fd742cf08239442ac155de7143bb7ef8f7fd"
+    },
+    {
+      "name": "replicated",
+      "source": "github.com/replicatedhq/daggerverse/replicated@bf96fd742cf08239442ac155de7143bb7ef8f7fd",
+      "pin": "bf96fd742cf08239442ac155de7143bb7ef8f7fd"
+    }
+  ],
+  "source": "dagger",
+  "disableDefaultFunctionCaching": true
 }
