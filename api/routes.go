@@ -137,7 +137,7 @@ func (a *API) registerConsoleRoutes(router *mux.Router) {
 }
 
 func (a *API) registerMigrationRoutes(router *mux.Router) {
-	migrationRouter := router.PathPrefix("/migration").Subrouter()
+	migrationRouter := router.PathPrefix("/kurl-migration").Subrouter()
 	migrationRouter.HandleFunc("/config", a.handlers.migration.GetInstallationConfig).Methods("GET")
 	migrationRouter.HandleFunc("/start", a.handlers.migration.PostStartMigration).Methods("POST")
 	migrationRouter.HandleFunc("/status", a.handlers.migration.GetMigrationStatus).Methods("GET")

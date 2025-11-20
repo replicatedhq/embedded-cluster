@@ -25,6 +25,9 @@ import (
 func TestUpgradeKURLMigration(t *testing.T) {
 	t.Setenv("ENABLE_V3", "1")
 
+	// Ensure UI assets are available when starting API in non-headless tests
+	prepareWebAssetsForTests(t)
+
 	// Create the kURL kubeconfig file at the production path
 	// This file doesn't need to be a valid kubeconfig since dryrun mode
 	// will use the mock client. It just needs to exist for the file check.
@@ -185,7 +188,7 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	password := "password"
 	require.NoError(t, c.Authenticate(ctx, password), "failed to authenticate")
 
-	// POST /api/linux/migration/start with transferMode="copy"
+	// POST /api/linux/kurl-migration/start with transferMode="copy"
 	startResp, err := c.StartKURLMigration(ctx, "copy", nil)
 	require.NoError(t, err, "failed to start migration")
 	require.NotEmpty(t, startResp.MigrationID, "migrationID should be returned")

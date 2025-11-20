@@ -1945,6 +1945,81 @@ paths:
       summary: Upgrade the app
       tags:
       - kubernetes-upgrade
+  /kurl-migration/config:
+    get:
+      description: Get the installation config extracted from kURL merged with EC
+        defaults
+      operationId: getMigrationInstallationConfig
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.LinuxInstallationConfigResponse'
+          description: OK
+      security:
+      - bearerauth: []
+      summary: Get the installation config for migration
+      tags:
+      - migration
+  /kurl-migration/start:
+    post:
+      description: Start a migration from kURL to Embedded Cluster with the provided
+        configuration
+      operationId: postStartMigration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/types.StartMigrationRequest'
+        description: Start Migration Request
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.StartMigrationResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Conflict
+      security:
+      - bearerauth: []
+      summary: Start a migration from kURL to Embedded Cluster
+      tags:
+      - migration
+  /kurl-migration/status:
+    get:
+      description: Get the current status and progress of the migration
+      operationId: getMigrationStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.MigrationStatusResponse'
+          description: OK
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Not Found
+      security:
+      - bearerauth: []
+      summary: Get the status of the migration
+      tags:
+      - migration
   /linux/install/airgap/process:
     post:
       description: Process the airgap bundle for install
@@ -2598,80 +2673,5 @@ paths:
       summary: Upgrade the infrastructure
       tags:
       - linux-upgrade
-  /migration/config:
-    get:
-      description: Get the installation config extracted from kURL merged with EC
-        defaults
-      operationId: getMigrationInstallationConfig
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.LinuxInstallationConfigResponse'
-          description: OK
-      security:
-      - bearerauth: []
-      summary: Get the installation config for migration
-      tags:
-      - migration
-  /migration/start:
-    post:
-      description: Start a migration from kURL to Embedded Cluster with the provided
-        configuration
-      operationId: postStartMigration
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/types.StartMigrationRequest'
-        description: Start Migration Request
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.StartMigrationResponse'
-          description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Bad Request
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Conflict
-      security:
-      - bearerauth: []
-      summary: Start a migration from kURL to Embedded Cluster
-      tags:
-      - migration
-  /migration/status:
-    get:
-      description: Get the current status and progress of the migration
-      operationId: getMigrationStatus
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.MigrationStatusResponse'
-          description: OK
-        "404":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Not Found
-      security:
-      - bearerauth: []
-      summary: Get the status of the migration
-      tags:
-      - migration
 servers:
 - url: /api

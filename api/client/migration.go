@@ -12,7 +12,7 @@ import (
 
 // GetKURLMigrationConfig returns the installation configuration with kURL values, EC defaults, and resolved values.
 func (c *client) GetKURLMigrationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/linux/migration/config", c.apiURL), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/linux/kurl-migration/config", c.apiURL), nil)
 	if err != nil {
 		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("create request: %w", err)
 	}
@@ -48,7 +48,7 @@ func (c *client) StartKURLMigration(ctx context.Context, transferMode string, co
 		return types.StartMigrationResponse{}, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/api/linux/migration/start", c.apiURL), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", fmt.Sprintf("%s/api/linux/kurl-migration/start", c.apiURL), bytes.NewReader(body))
 	if err != nil {
 		return types.StartMigrationResponse{}, fmt.Errorf("create request: %w", err)
 	}
@@ -75,7 +75,7 @@ func (c *client) StartKURLMigration(ctx context.Context, transferMode string, co
 
 // GetKURLMigrationStatus returns the current status of the migration.
 func (c *client) GetKURLMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/linux/migration/status", c.apiURL), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/linux/kurl-migration/status", c.apiURL), nil)
 	if err != nil {
 		return types.MigrationStatusResponse{}, fmt.Errorf("create request: %w", err)
 	}
