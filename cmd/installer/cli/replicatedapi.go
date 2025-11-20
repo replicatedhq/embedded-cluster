@@ -7,7 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,8 @@ func proxyRegistryURL() string {
 	return netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain)
 }
 
-func newReplicatedAPIClient(license *kotsv1beta1.License, clusterID string) (replicatedapi.Client, error) {
+func newReplicatedAPIClient(license *licensewrapper.LicenseWrapper, clusterID string) (replicatedapi.Client, error) {
+	// Pass the wrapper directly - the API client now handles both v1beta1 and v1beta2
 	return replicatedapi.NewClient(
 		replicatedAppURL(),
 		license,
@@ -30,7 +31,7 @@ func newReplicatedAPIClient(license *kotsv1beta1.License, clusterID string) (rep
 	)
 }
 
-func syncLicense(ctx context.Context, client replicatedapi.Client, license *kotsv1beta1.License) (*kotsv1beta1.License, []byte, error) {
+func syncLicense(ctx context.Context, client replicatedapi.Client, license *licensewrapper.LicenseWrapper) (*licensewrapper.LicenseWrapper, []byte, error) {
 	logrus.Debug("Syncing license")
 
 	updatedLicense, licenseBytes, err := client.SyncLicense(ctx)
@@ -38,13 +39,16 @@ func syncLicense(ctx context.Context, client replicatedapi.Client, license *kots
 		return nil, nil, fmt.Errorf("get latest license: %w", err)
 	}
 
-	if updatedLicense.Spec.LicenseSequence != license.Spec.LicenseSequence {
-		logrus.Debugf("License synced successfully (sequence %d -> %d)",
-			license.Spec.LicenseSequence,
-			updatedLicense.Spec.LicenseSequence)
-	} else {
-		logrus.Debug("License is already up to date")
+	if license != nil {
+		oldSeq := license.GetLicenseSequence()
+		newSeq := updatedLicense.GetLicenseSequence()
+		if newSeq != oldSeq {
+			logrus.Debugf("License synced successfully (sequence %d -> %d)", oldSeq, newSeq)
+		} else {
+			logrus.Debug("License is already up to date")
+		}
 	}
 
+	// Return wrapper directly - already wrapped by SyncLicense
 	return updatedLicense, licenseBytes, nil
 }

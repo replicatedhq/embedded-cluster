@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotscrypto "github.com/replicatedhq/kotskinds/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,16 @@ func dryrunInstallWithCustomReleaseData(t *testing.T, c *dryrun.Client, clusterC
 
 // dryrunInstallWithCustomReleaseDataExpectError is a helper function that expects an error during installation
 func dryrunInstallWithCustomReleaseDataExpectError(t *testing.T, c *dryrun.Client, clusterConfig string, releaseData string, additionalFlags ...string) error {
+	// Inject the dryrun test public key for license signature verification.
+	// The kotskinds library uses a global custom key if set, otherwise looks up by key ID.
+	// Our test license uses a test-only key that's not in kotskinds' default key map.
+	if err := kotscrypto.SetCustomPublicKeyRSA(dryrunPublicKey); err != nil {
+		t.Fatalf("failed to set custom public key: %v", err)
+	}
+	t.Cleanup(func() {
+		kotscrypto.ResetCustomPublicKeyRSA()
+	})
+
 	// Set custom release data
 	if err := release.SetReleaseDataForTests(map[string][]byte{
 		"release.yaml":        []byte(releaseData),
