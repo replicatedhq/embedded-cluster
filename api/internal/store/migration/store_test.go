@@ -194,13 +194,17 @@ func TestDeepCopyPreventsConfigMutation(t *testing.T) {
 	err := store.InitializeMigration("test-id", "copy", config)
 	assert.NoError(t, err)
 
-	// Get config and modify it
+	// Get config and modify it (to verify deep copy prevents mutation)
 	retrievedConfig, err := store.GetConfig()
 	assert.NoError(t, err)
-	retrievedConfig.AdminConsolePort = 99999        //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
-	retrievedConfig.DataDirectory = "/tmp/modified" //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
+	retrievedConfig.AdminConsolePort = 99999
+	retrievedConfig.DataDirectory = "/tmp/modified"
 
-	// Verify original config in store is unchanged
+	// Verify the local modifications were made
+	assert.Equal(t, 99999, retrievedConfig.AdminConsolePort)
+	assert.Equal(t, "/tmp/modified", retrievedConfig.DataDirectory)
+
+	// Verify original config in store is unchanged (proving deep copy works)
 	retrievedConfig2, err := store.GetConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, 30000, retrievedConfig2.AdminConsolePort)
@@ -216,13 +220,17 @@ func TestDeepCopyPreventsStatusMutation(t *testing.T) {
 	err = store.SetMessage("Original message")
 	assert.NoError(t, err)
 
-	// Get status and modify it
+	// Get status and modify it (to verify deep copy prevents mutation)
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	status.Message = "Modified message" //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
-	status.Progress = 99                //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
+	status.Message = "Modified message"
+	status.Progress = 99
 
-	// Verify original status in store is unchanged
+	// Verify the local modifications were made
+	assert.Equal(t, "Modified message", status.Message)
+	assert.Equal(t, 99, status.Progress)
+
+	// Verify original status in store is unchanged (proving deep copy works)
 	status2, err := store.GetStatus()
 	assert.NoError(t, err)
 	assert.Equal(t, "Original message", status2.Message)
