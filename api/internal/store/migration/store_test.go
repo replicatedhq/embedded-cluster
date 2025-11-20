@@ -197,8 +197,8 @@ func TestDeepCopyPreventsConfigMutation(t *testing.T) {
 	// Get config and modify it
 	retrievedConfig, err := store.GetConfig()
 	assert.NoError(t, err)
-	retrievedConfig.AdminConsolePort = 99999
-	retrievedConfig.DataDirectory = "/tmp/modified"
+	retrievedConfig.AdminConsolePort = 99999        //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
+	retrievedConfig.DataDirectory = "/tmp/modified" //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
 
 	// Verify original config in store is unchanged
 	retrievedConfig2, err := store.GetConfig()
@@ -219,8 +219,8 @@ func TestDeepCopyPreventsStatusMutation(t *testing.T) {
 	// Get status and modify it
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	status.Message = "Modified message"
-	status.Progress = 99
+	status.Message = "Modified message" //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
+	status.Progress = 99                //nolint:ineffassign,staticcheck // intentionally modifying to verify deep copy
 
 	// Verify original status in store is unchanged
 	status2, err := store.GetStatus()

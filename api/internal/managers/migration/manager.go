@@ -106,10 +106,8 @@ func (m *migrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstal
 // MergeConfigs merges user, kURL, and default configs with proper precedence
 // Precedence order: userConfig > kurlConfig > defaults
 func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig {
-	merged := types.LinuxInstallationConfig{}
-
 	// Start with defaults as the base
-	merged = defaults
+	merged := defaults
 
 	// Apply kURL config, overwriting defaults only for non-zero values
 	if kurlConfig.AdminConsolePort != 0 {
