@@ -920,6 +920,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/migration/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the installation config for migration
+         * @description Get the installation config extracted from kURL merged with EC defaults
+         */
+        get: operations["getMigrationInstallationConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/migration/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a migration from kURL to Embedded Cluster
+         * @description Start a migration from kURL to Embedded Cluster with the provided configuration
+         */
+        post: operations["postStartMigration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/migration/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the status of the migration
+         * @description Get the current status and progress of the migration
+         */
+        get: operations["getMigrationStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1796,6 +1856,7 @@ export interface components {
         "types.LinuxInfraSetupRequest": {
             ignoreHostPreflights: boolean;
         };
+        /** @description Config contains optional installation configuration that will be merged with defaults */
         "types.LinuxInstallationConfig": {
             adminConsolePort?: number;
             dataDirectory?: string;
@@ -1813,6 +1874,38 @@ export interface components {
             resolved: components["schemas"]["types.LinuxInstallationConfig"];
             values: components["schemas"]["types.LinuxInstallationConfig"];
         };
+        /**
+         * @description Phase is the current phase of the migration process
+         * @example Discovery
+         * @enum {string}
+         */
+        "types.MigrationPhase": "Discovery" | "Preparation" | "ECInstall" | "DataTransfer" | "Completed";
+        /**
+         * @description State is the current state of the migration
+         * @example InProgress
+         * @enum {string}
+         */
+        "types.MigrationState": "NotStarted" | "InProgress" | "Completed" | "Failed";
+        /** @description Current status and progress of a migration */
+        "types.MigrationStatusResponse": {
+            /**
+             * @description Error contains the error message if the migration failed
+             * @example
+             */
+            error?: string;
+            /**
+             * @description Message is a user-facing message describing the current status
+             * @example Discovering kURL cluster configuration
+             */
+            message: string;
+            phase: components["schemas"]["types.MigrationPhase"];
+            /**
+             * @description Progress is the completion percentage (0-100)
+             * @example 25
+             */
+            progress: number;
+            state: components["schemas"]["types.MigrationState"];
+        };
         "types.PatchAppConfigValuesRequest": {
             values: components["schemas"]["types.AppConfigValues"];
         };
@@ -1829,6 +1922,24 @@ export interface components {
             strict: boolean;
             title: string;
         };
+        /** @description Request body for starting a migration from kURL to Embedded Cluster */
+        "types.StartMigrationRequest": {
+            config?: components["schemas"]["types.LinuxInstallationConfig"];
+            transferMode: components["schemas"]["types.TransferMode"];
+        };
+        /** @description Response returned when a migration is successfully started */
+        "types.StartMigrationResponse": {
+            /**
+             * @description Message is a user-facing message about the migration status
+             * @example Migration started successfully
+             */
+            message: string;
+            /**
+             * @description MigrationID is the unique identifier for this migration
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            migrationId: string;
+        };
         /**
          * @example Succeeded
          * @enum {string}
@@ -1842,6 +1953,12 @@ export interface components {
         "types.TemplateAppConfigRequest": {
             values: components["schemas"]["types.AppConfigValues"];
         };
+        /**
+         * @description TransferMode specifies whether to copy or move data during migration
+         * @example copy
+         * @enum {string}
+         */
+        "types.TransferMode": "copy" | "move";
         "types.UpgradeAppPreflightsStatusResponse": {
             allowIgnoreAppPreflights: boolean;
             hasStrictAppPreflightFailures: boolean;
@@ -3362,6 +3479,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["types.Error"];
+                };
+            };
+        };
+    };
+    getMigrationInstallationConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.LinuxInstallationConfigResponse"];
+                };
+            };
+        };
+    };
+    postStartMigration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Start Migration Request */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["types.StartMigrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.StartMigrationResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    getMigrationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.MigrationStatusResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
                 };
             };
         };
