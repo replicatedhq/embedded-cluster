@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/diamonwiggins/go/src/github.com/replicatedhq/embedded-cluster/**)",
+      "Read(//Users/diamonwiggins/go/src/github.com/replicatedhq/kurl/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
