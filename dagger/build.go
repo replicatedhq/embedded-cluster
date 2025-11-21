@@ -75,9 +75,23 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// TTL.sh user prefix for image publishing
 	// +default="ec-build"
 	ttlShUser string,
+	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	// +optional
+	awsAccessKeyID *dagger.Secret,
+	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	// +optional
+	awsSecretAccessKey *dagger.Secret,
+	// Replicated API token (or from 1Password "EC CI" item, field "STAGING_REPLICATED_API_TOKEN")
+	// +optional
+	replicatedAPIToken *dagger.Secret,
 ) (*BuildArtifacts, error) {
-	// Validate secrets
-	m.buildValidateSecrets()
+	// Validate secrets only if not provided
+	if awsAccessKeyID == nil || awsSecretAccessKey == nil || (!skipRelease && replicatedAPIToken == nil) {
+		if m.OnePassword == nil {
+			return nil, fmt.Errorf("secrets required: either provide AWS/Replicated secrets directly or call WithOnePassword first")
+		}
+		m.buildValidateSecrets()
+	}
 
 	// Step 1: Build metadata using composable function
 	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0sMinorVersion, arch)
@@ -121,6 +135,8 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			ctx,
 			src,
 			s3Bucket,
+			awsAccessKeyID,
+			awsSecretAccessKey,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload binaries: %w", err)
@@ -136,6 +152,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			replicatedApp,
 			appChannel,
 			s3Bucket,
+			replicatedAPIToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create release: %w", err)

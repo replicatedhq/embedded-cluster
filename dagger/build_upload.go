@@ -28,6 +28,12 @@ func (m *EmbeddedCluster) UploadBins(
 	// S3 bucket for uploads
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
+	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	// +optional
+	awsAccessKeyID *dagger.Secret,
+	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	// +optional
+	awsSecretAccessKey *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -38,14 +44,13 @@ func (m *EmbeddedCluster) UploadBins(
 	}
 
 	// Resolve AWS credentials
-	awsAccessKeyID := m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
-	awsSecretAccessKey := m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	awsAccessKeyID = m.mustResolveSecret(awsAccessKeyID, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	awsSecretAccessKey = m.mustResolveSecret(awsSecretAccessKey, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 
 	// Upload binaries
 	if err := m.uploadBinaries(
 		ctx,
 		src,
-		m.BuildMetadata.BuildDir,
 		m.BuildMetadata.Version,
 		m.BuildMetadata.K0SVersion,
 		m.BuildMetadata.Arch,
@@ -63,7 +68,6 @@ func (m *EmbeddedCluster) UploadBins(
 func (m *EmbeddedCluster) uploadBinaries(
 	ctx context.Context,
 	src *dagger.Directory,
-	embeddedDir *dagger.Directory,
 	ecVersion string,
 	k0sVersion string,
 	arch string,

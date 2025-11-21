@@ -184,7 +184,7 @@ output/bin/embedded-cluster-release-builder:
 initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: APP_VERSION = appver-dev-$(call random-string)
 initial-release: RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-initial-release: UPLOAD_BINARIES ?= false
+initial-release: UPLOAD_BINARIES ?= 1
 initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -199,7 +199,7 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-rebuild-release: UPLOAD_BINARIES ?= false
+rebuild-release: UPLOAD_BINARIES ?= 1
 rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -208,7 +208,7 @@ rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--app-version="$(APP_VERSION)" \
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
-			--skip-release=true \
+			--skip-release=1 \
 			--ttl-sh-user=$(CURRENT_USER) \
 		app-version
 
@@ -217,7 +217,7 @@ upgrade-release: RANDOM_STRING = $(call random-string)
 upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
 upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
-upgrade-release: UPLOAD_BINARIES ?= true
+upgrade-release: UPLOAD_BINARIES ?= 1
 upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \

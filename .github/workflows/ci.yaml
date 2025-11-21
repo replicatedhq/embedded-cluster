@@ -468,29 +468,36 @@ jobs:
           echo "APP_VERSION=\"$APP_VERSION\""
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
-      - name: Build
+      - name: Build (Dagger)
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
-          UPLOAD_BINARIES: "1"
-          SKIP_RELEASE: "1"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./scripts/build-and-release.sh
+          dagger call \
+            build-and-release \
+              --ec-version="${EC_VERSION}" \
+              --app-version="${APP_VERSION}" \
+              --k0s-minor-version="${K0S_MINOR_VERSION}" \
+              --release-yaml-dir="${RELEASE_YAML_DIR}" \
+              --app-channel-id="${APP_CHANNEL_ID}" \
+              --app-channel-slug="${APP_CHANNEL_SLUG}" \
+              --s3-bucket="${S3_BUCKET}" \
+              --upload-binaries=true \
+              --skip-release=true \
+              --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
+              --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
+            build-dir export --path=./output
 
           version_suffix=
           if [ ${{ matrix.n }} -gt 0 ]; then
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
+            cp output/bin/embedded-cluster-linux-amd64 output/bin/embedded-cluster-${version_suffix}
           fi
 
       - name: Upload release
@@ -619,11 +626,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
+          export K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
           export EC_VERSION=${{ needs.output-vars.outputs.ec_version }}-upgrade
           export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}-upgrade
 
-          ./scripts/build-and-release.sh
-          cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
+          dagger call \
+            build-and-release \
+              --ec-version="${EC_VERSION}" \
+              --app-version="${APP_VERSION}" \
+              --k0s-minor-version="${K0S_MINOR_VERSION}" \
+              --release-yaml-dir="${RELEASE_YAML_DIR}" \
+              --app-channel-id="${APP_CHANNEL_ID}" \
+              --app-channel-slug="${APP_CHANNEL_SLUG}" \
+              --s3-bucket="${S3_BUCKET}" \
+              --upload-binaries=true \
+              --skip-release=true \
+              --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
+              --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
+            build-dir export --path=./output
+
+          cp output/build/embedded-cluster-linux-amd64 output/bin/embedded-cluster-upgrade
 
       - name: Upload release
         uses: actions/upload-artifact@v5

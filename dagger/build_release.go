@@ -36,13 +36,16 @@ func (m *EmbeddedCluster) ReleaseApp(
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
+	// Replicated API token (or from 1Password "EC CI" item, field "STAGING_REPLICATED_API_TOKEN")
+	// +optional
+	replicatedAPIToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
 	}
 
 	// Resolve Replicated API token
-	replicatedAPIToken := m.mustResolveSecret(nil, "STAGING_REPLICATED_API_TOKEN")
+	replicatedAPIToken = m.mustResolveSecret(replicatedAPIToken, "STAGING_REPLICATED_API_TOKEN")
 
 	// Create release
 	err := m.createRelease(
