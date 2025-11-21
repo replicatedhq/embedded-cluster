@@ -54,8 +54,6 @@ func (m *EmbeddedCluster) ReleaseApp(
 	err := m.createRelease(
 		ctx,
 		src,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.AppVersion,
 		releaseYamlDir,
 		replicatedApp,
 		appChannel,
@@ -76,8 +74,6 @@ func (m *EmbeddedCluster) ReleaseApp(
 func (m *EmbeddedCluster) createRelease(
 	ctx context.Context,
 	src *dagger.Directory,
-	ecVersion string,
-	appVersion string,
 	releaseYamlDir string,
 	replicatedApp string,
 	appChannel string,
@@ -91,8 +87,8 @@ func (m *EmbeddedCluster) createRelease(
 
 	container := ubuntuUtilsContainer().
 		WithDirectory("/workspace", dir).
-		WithEnvVariable("EC_VERSION", ecVersion).
-		WithEnvVariable("APP_VERSION", appVersion).
+		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
+		WithEnvVariable("APP_VERSION", m.BuildMetadata.AppVersion).
 		WithEnvVariable("APP_CHANNEL", appChannel).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
 		WithEnvVariable("REPLICATED_APP", replicatedApp).

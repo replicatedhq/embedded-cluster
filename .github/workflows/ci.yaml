@@ -478,6 +478,7 @@ jobs:
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           dagger call \
             build-and-release \
@@ -492,7 +493,7 @@ jobs:
               --skip-release=true \
               --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
               --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
-              --github-token=env:GITHUB_TOKEN \
+              --github-token=env:GH_TOKEN \
             build-dir export --path=./output
 
           version_suffix=
@@ -646,7 +647,7 @@ jobs:
               --skip-release=true \
               --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
               --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
-              --github-token=env:GITHUB_TOKEN \
+              --github-token=env:GH_TOKEN \
             build-dir export --path=./output
 
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade

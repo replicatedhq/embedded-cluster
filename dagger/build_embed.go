@@ -54,9 +54,6 @@ func (m *EmbeddedCluster) EmbedRelease(
 	embedded, err := m.embedRelease(
 		src,
 		m.BuildMetadata.BuildDir,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.AppVersion,
-		m.BuildMetadata.Arch,
 		releaseYamlDir,
 		replicatedApp,
 		appChannelID,
@@ -79,9 +76,6 @@ func (m *EmbeddedCluster) EmbedRelease(
 func (m *EmbeddedCluster) embedRelease(
 	src *dagger.Directory,
 	buildDir *dagger.Directory,
-	ecVersion string,
-	appVersion string,
-	arch string,
 	releaseYamlDir string,
 	replicatedApp string,
 	appChannelID string,
@@ -106,7 +100,7 @@ func (m *EmbeddedCluster) embedRelease(
 
 	// Extract the binary from the tarball to output/bin/embedded-cluster
 	// The script expects the binary at output/bin/embedded-cluster
-	tarballPath := fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", arch)
+	tarballPath := fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", m.BuildMetadata.Arch)
 	container = container.
 		WithExec([]string{"mkdir", "-p", "output/bin"}).
 		WithExec([]string{"tar", "-xzf", tarballPath, "-C", "output/bin"}).
@@ -114,8 +108,8 @@ func (m *EmbeddedCluster) embedRelease(
 
 	// Set environment variables
 	container = container.
-		WithEnvVariable("EC_VERSION", ecVersion).
-		WithEnvVariable("APP_VERSION", appVersion).
+		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
+		WithEnvVariable("APP_VERSION", m.BuildMetadata.AppVersion).
 		WithEnvVariable("APP_CHANNEL_ID", appChannelID).
 		WithEnvVariable("APP_CHANNEL_SLUG", appChannelSlug).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).

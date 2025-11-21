@@ -54,9 +54,6 @@ func (m *EmbeddedCluster) UploadBins(
 	if err := m.uploadBinaries(
 		ctx,
 		src,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.K0SVersion,
-		m.BuildMetadata.Arch,
 		s3Bucket,
 		awsAccessKeyID,
 		awsSecretAccessKey,
@@ -72,9 +69,6 @@ func (m *EmbeddedCluster) UploadBins(
 func (m *EmbeddedCluster) uploadBinaries(
 	ctx context.Context,
 	src *dagger.Directory,
-	ecVersion string,
-	k0sVersion string,
-	arch string,
 	s3Bucket string,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
@@ -84,9 +78,9 @@ func (m *EmbeddedCluster) uploadBinaries(
 
 	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"}).
 		WithDirectory("/workspace", dir).
-		WithEnvVariable("EC_VERSION", ecVersion).
-		WithEnvVariable("K0S_VERSION", k0sVersion).
-		WithEnvVariable("ARCH", arch).
+		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
+		WithEnvVariable("K0S_VERSION", m.BuildMetadata.K0SVersion).
+		WithEnvVariable("ARCH", m.BuildMetadata.Arch).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
 		// Skip binary uploads (k0s, kots, operator) - only upload metadata.json
 		// Binary uploads require Docker/crane/oras which are complex to set up in Dagger

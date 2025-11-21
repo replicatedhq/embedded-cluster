@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// BuildResult holds intermediate build outputs
-type BuildResult struct {
-	BinaryDir  *dagger.Directory
-	K0SVersion string
-}
-
 // BuildBin builds the web UI and binary (without embedding the release).
 //
 // This is equivalent to ci-build-bin.sh and builds:
@@ -57,11 +51,6 @@ func (m *EmbeddedCluster) BuildBin(
 		ctx,
 		src,
 		webBuild,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.Arch,
-		m.BuildMetadata.OperatorImageTag,
-		m.BuildMetadata.OperatorImageRepo,
-		m.BuildMetadata.OperatorChartURL,
 		s3Bucket,
 		s3Bucket != StagingS3Bucket,
 	)
@@ -80,11 +69,6 @@ func (m *EmbeddedCluster) buildBinary(
 	ctx context.Context,
 	src *dagger.Directory,
 	webBuild *dagger.Directory,
-	ecVersion string,
-	arch string,
-	operatorImageTag string,
-	operatorImageRepo string,
-	operatorChartURL string,
 	s3Bucket string,
 	usesDevBucket bool,
 ) (*dagger.Directory, error) {
@@ -106,14 +90,14 @@ func (m *EmbeddedCluster) buildBinary(
 
 	// Update operator metadata with the built operator image
 	// buildtools expects INPUT_OPERATOR_IMAGE without the tag (it will extract it from the chart)
-	operatorImageWithoutTag := operatorImageRepo
+	operatorImageWithoutTag := m.BuildMetadata.OperatorImageRepo
 
 	// The chart version matches the operator image tag (without 'v' prefix)
 	// This should match what was published in PublishOperatorChart
-	chartVersionForOCI := strings.TrimPrefix(operatorImageTag, "v")
+	chartVersionForOCI := strings.TrimPrefix(m.BuildMetadata.OperatorImageTag, "v")
 
 	builder = builder.
-		WithEnvVariable("INPUT_OPERATOR_CHART_URL", operatorChartURL).
+		WithEnvVariable("INPUT_OPERATOR_CHART_URL", m.BuildMetadata.OperatorChartURL).
 		WithEnvVariable("INPUT_OPERATOR_CHART_VERSION", chartVersionForOCI).
 		WithEnvVariable("INPUT_OPERATOR_IMAGE", operatorImageWithoutTag).
 		WithExec([]string{"./output/bin/buildtools", "update", "addon", "embeddedclusteroperator"})
@@ -121,7 +105,7 @@ func (m *EmbeddedCluster) buildBinary(
 	// Construct metadata URLs
 	var k0sBinaryURL, kotsBinaryURL, operatorBinaryURL string
 	if usesDevBucket {
-		k0sBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/k0s-binaries/%s-%s", s3Bucket, m.BuildMetadata.K0SVersion, arch)
+		k0sBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/k0s-binaries/%s-%s", s3Bucket, m.BuildMetadata.K0SVersion, m.BuildMetadata.Arch)
 
 		// Get KOTS version
 		kotsVersion, err := builder.
@@ -131,17 +115,17 @@ func (m *EmbeddedCluster) buildBinary(
 			return nil, fmt.Errorf("failed to get KOTS_VERSION: %w", err)
 		}
 		kotsVersion = strings.TrimSpace(kotsVersion)
-		kotsBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/kots-binaries/%s-%s.tar.gz", s3Bucket, kotsVersion, arch)
+		kotsBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/kots-binaries/%s-%s.tar.gz", s3Bucket, kotsVersion, m.BuildMetadata.Arch)
 
-		operatorVersion := strings.TrimPrefix(ecVersion, "v")
-		operatorBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/operator-binaries/%s-%s.tar.gz", s3Bucket, operatorVersion, arch)
+		operatorVersion := strings.TrimPrefix(m.BuildMetadata.Version, "v")
+		operatorBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/operator-binaries/%s-%s.tar.gz", s3Bucket, operatorVersion, m.BuildMetadata.Arch)
 	}
 
 	// Build fio binary using Dagger (avoids Docker-in-Docker)
 	fioVersion := "3.41"
-	fioBinary := m.BuildFio(fioVersion, arch)
+	fioBinary := m.BuildFio(fioVersion, m.BuildMetadata.Arch)
 	builder = builder.
-		WithFile(fmt.Sprintf("/workspace/output/bins/fio-%s-%s", fioVersion, arch), fioBinary)
+		WithFile(fmt.Sprintf("/workspace/output/bins/fio-%s-%s", fioVersion, m.BuildMetadata.Arch), fioBinary)
 
 	// Build the embedded-cluster binary
 	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", m.BuildMetadata.LAMImageRepo)
@@ -154,7 +138,7 @@ func (m *EmbeddedCluster) buildBinary(
 		WithEnvVariable("METADATA_K0S_BINARY_URL_OVERRIDE", k0sBinaryURL).
 		WithEnvVariable("METADATA_KOTS_BINARY_URL_OVERRIDE", kotsBinaryURL).
 		WithEnvVariable("METADATA_OPERATOR_BINARY_URL_OVERRIDE", operatorBinaryURL).
-		WithExec([]string{"make", fmt.Sprintf("embedded-cluster-linux-%s", arch)})
+		WithExec([]string{"make", fmt.Sprintf("embedded-cluster-linux-%s", m.BuildMetadata.Arch)})
 
 	// Copy binary to preserve original
 	builder = builder.
@@ -163,7 +147,7 @@ func (m *EmbeddedCluster) buildBinary(
 	// Create tarball
 	builder = builder.
 		WithExec([]string{"mkdir", "-p", "output/build"}).
-		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", arch), "embedded-cluster"})
+		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", m.BuildMetadata.Arch), "embedded-cluster"})
 
 	// Generate metadata
 	builder = builder.
