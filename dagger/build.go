@@ -51,9 +51,15 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
-	// Replicated API origin
-	// +default="https://api.staging.replicated.com/vendor"
-	replicatedAPIOrigin string,
+	// Replicated app channel name
+	// +default="Dev"
+	appChannel string,
+	// Replicated app channel ID
+	// +default="2lhrq5LDyoX98BdxmkHtdoqMT4P"
+	appChannelID string,
+	// Replicated app channel slug
+	// +default="dev"
+	appChannelSlug string,
 	// S3 bucket for artifacts
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
@@ -63,24 +69,12 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// Whether to skip creating the Replicated app release
 	// +default=false
 	skipRelease bool,
-	// Whether to use dev bucket URLs in metadata
-	// +default=true
-	usesDevBucket bool,
 	// Architecture to build for
 	// +default="amd64"
 	arch string,
-	// Whether to use Chainguard images
-	// +default=false
-	useChainguard bool,
-	// AWS credentials (overrides 1Password if provided)
-	// +optional
-	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (overrides 1Password if provided)
-	// +optional
-	awsSecretAccessKey *dagger.Secret,
-	// Replicated API token (overrides 1Password if provided)
-	// +optional
-	replicatedAPIToken *dagger.Secret,
+	// TTL.sh user prefix for image publishing
+	// +default="ec-build"
+	ttlShUser string,
 ) (*BuildArtifacts, error) {
 	// Validate secrets
 	m.buildValidateSecrets()
@@ -92,7 +86,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	}
 
 	// Step 2: Build dependencies using composable function
-	_, err = m.BuildDeps(ctx, src, "ec-build")
+	_, err = m.BuildDeps(ctx, src, ttlShUser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -113,8 +107,9 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		src,
 		releaseYamlDir,
 		replicatedApp,
+		appChannelID,
+		appChannelSlug,
 		s3Bucket,
-		usesDevBucket,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed release: %w", err)
@@ -126,8 +121,6 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			ctx,
 			src,
 			s3Bucket,
-			awsAccessKeyID,
-			awsSecretAccessKey,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload binaries: %w", err)
@@ -141,10 +134,8 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			src,
 			releaseYamlDir,
 			replicatedApp,
-			replicatedAPIOrigin,
+			appChannel,
 			s3Bucket,
-			usesDevBucket,
-			replicatedAPIToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create release: %w", err)

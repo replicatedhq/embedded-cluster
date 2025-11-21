@@ -144,9 +144,11 @@ func (m *BuildMetadata) WithVersion(
 		return m, nil
 	}
 
-	container := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src")
+	// Only sync .git directory for speed - we just need git metadata, not the entire source tree
+	container := dag.Container().
+		From("alpine/git:latest").
+		WithDirectory("/workspace/.git", src.Directory(".git")).
+		WithWorkdir("/workspace")
 
 	// Get EC_VERSION from git describe
 	ecVersion, err := container.
@@ -180,9 +182,11 @@ func (m *BuildMetadata) WithAppVersion(
 		return m, nil
 	}
 
-	container := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src")
+	// Only sync .git directory for speed - we just need git metadata, not the entire source tree
+	container := dag.Container().
+		From("alpine/git:latest").
+		WithDirectory("/workspace/.git", src.Directory(".git")).
+		WithWorkdir("/workspace")
 
 	// Get APP_VERSION from git rev-parse
 	shortSha, err := container.
@@ -217,11 +221,12 @@ func (m *BuildMetadata) WithK0sVersion(
 		return m, nil
 	}
 
-	minorVersion, err := ubuntuUtilsContainer().
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
-		WithWorkdir("/src").
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
+	container := ubuntuUtilsContainer().
+		WithDirectory("/workspace", dir)
+
+	minorVersion, err := container.
 		WithExec([]string{"make", "print-K0S_MINOR_VERSION"}).
 		Stdout(ctx)
 	if err != nil {
@@ -229,12 +234,8 @@ func (m *BuildMetadata) WithK0sVersion(
 	}
 	minorVersion = strings.TrimSpace(minorVersion)
 
-	version, err := ubuntuUtilsContainer().
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
+	version, err := container.
 		WithEnvVariable("K0S_MINOR_VERSION", minorVersion).
-		WithWorkdir("/src").
 		WithExec([]string{"make", "print-K0S_VERSION"}).
 		Stdout(ctx)
 	if err != nil {

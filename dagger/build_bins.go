@@ -63,7 +63,7 @@ func (m *EmbeddedCluster) BuildBin(
 		m.BuildMetadata.OperatorImageRepo,
 		m.BuildMetadata.OperatorChartURL,
 		s3Bucket,
-		s3Bucket != "tf-staging-embedded-cluster-bin",
+		s3Bucket != StagingS3Bucket,
 	)
 	if err != nil {
 		return nil, err
@@ -90,10 +90,6 @@ func (m *EmbeddedCluster) buildBinary(
 ) (*dagger.Directory, error) {
 	// Use cached build environment
 	builder := m.buildEnv(src)
-
-	// Mount the pre-built web directory
-	builder = builder.
-		WithDirectory("/src/web", webBuild)
 
 	// Set build environment variables
 	builder = m.BuildMetadata.withEnvVariables(builder).
@@ -146,7 +142,7 @@ func (m *EmbeddedCluster) buildBinary(
 	fioVersion := "3.41"
 	fioBinary := m.BuildFio(fioVersion, arch)
 	builder = builder.
-		WithFile(fmt.Sprintf("/src/output/bins/fio-%s-%s", fioVersion, arch), fioBinary)
+		WithFile(fmt.Sprintf("/workspace/output/bins/fio-%s-%s", fioVersion, arch), fioBinary)
 
 	// Build the embedded-cluster binary
 	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", m.BuildMetadata.LAMImageRepo)
@@ -171,7 +167,7 @@ func (m *EmbeddedCluster) buildBinary(
 	builder = builder.
 		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > build/metadata.json"})
 
-	return builder.Directory("/src/build"), nil
+	return builder.Directory("/workspace/build"), nil
 }
 
 // BuildWeb builds the web UI using official Node.js image
@@ -182,18 +178,23 @@ func (m *EmbeddedCluster) BuildWeb(
 	// +optional
 	src *dagger.Directory,
 ) *dagger.Directory {
+	// Create cache volume for npm to avoid re-downloading packages
+	npmCache := dag.CacheVolume("ec-npm-cache")
+
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	// The web build needs api/docs as a sibling directory (../api/docs)
 	// Create a directory structure with both web and api/docs
 	return nodeBuildContainer().
-		WithDirectory("/src/web", src.Directory("web")).
-		WithDirectory("/src/api/docs", src.Directory("api/docs")).
-		WithWorkdir("/src/web").
-		// Install dependencies
+		WithMountedCache("/root/.npm", npmCache).
+		WithDirectory("/workspace", dir).
+		WithWorkdir("/workspace/web").
+		// Install dependencies (cached via npm cache)
 		WithExec([]string{"npm", "ci"}).
 		// Build production bundle
 		WithExec([]string{"npm", "run", "build"}).
 		// Return the built web directory
-		Directory("/src/web")
+		Directory("/workspace/web")
 }
 
 // BuildFio builds the fio binary (replicates fio/Dockerfile logic)
@@ -242,6 +243,8 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 	imageName string,
 	chartRemote string,
 ) error {
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	// The chart version should not have the 'v' prefix and should use dashes instead of plus
 	// This matches the format used for image tags
 	imageTag := strings.ReplaceAll(ecVersion, "+", "-")
@@ -250,8 +253,8 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 	// Template the Chart.yaml and values.yaml files using envsubst
 	// We need to create a container to do the templating, then export the directory
 	templatedChart := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src/operator/charts/embedded-cluster-operator").
+		WithDirectory("/workspace", dir).
+		WithWorkdir("/workspace/operator/charts/embedded-cluster-operator").
 		// Template Chart.yaml.tmpl -> Chart.yaml
 		WithEnvVariable("CHART_VERSION", chartVersion).
 		WithExec([]string{"sh", "-c", "envsubst < Chart.yaml.tmpl > Chart.yaml"}).
@@ -260,7 +263,7 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 		WithEnvVariable("IMAGE_TAG", imageTag).
 		WithExec([]string{"sh", "-c", "envsubst < values.yaml.tmpl > values.yaml"}).
 		// Export the templated chart directory
-		Directory("/src/operator/charts/embedded-cluster-operator")
+		Directory("/workspace/operator/charts/embedded-cluster-operator")
 
 	// Package the chart using the Helm Dagger module
 	chartPackage := dag.Helm().Package(templatedChart)
@@ -280,19 +283,7 @@ func (m *EmbeddedCluster) buildEnv(
 	// +defaultPath="/"
 	src *dagger.Directory,
 ) *dagger.Container {
-	// Exclude directories that aren't needed for Go builds to speed up syncing
-	// Note: Don't exclude .git as it's needed for VCS info and make build-deps
-	src = src.WithoutDirectory("./build")
-	src = src.WithoutDirectory("./output")
-	src = src.WithoutDirectory("./dev/build")
-	src = src.WithoutDirectory("./local-dev")
-	src = src.WithoutDirectory("./operator/bin")
-	src = src.WithoutDirectory("./operator/build")
-	src = src.WithoutDirectory("./local-artifact-mirror/bin")
-	src = src.WithoutDirectory("./local-artifact-mirror/build")
-	src = src.WithoutDirectory("./node_modules")
-	src = src.WithoutDirectory("./web/node_modules")
-	src = src.WithoutDirectory("./dagger")
+	dir := directoryWithCommonFiles(dag.Directory(), src)
 
 	// Create cache volumes for Go modules and build cache
 	goModCache := dag.CacheVolume("ec-gomodcache")
@@ -303,9 +294,7 @@ func (m *EmbeddedCluster) buildEnv(
 		WithExec([]string{"apt-get", "update"}).
 		WithExec([]string{"apt-get", "install", "-y", "make", "git", "jq", "tar", "gzip"}).
 		// Mount source code
-		WithDirectory("/src", src).
-		WithWorkdir("/src").
-		WithExec([]string{"git", "config", "--global", "--add", "safe.directory", "/src"}).
+		WithDirectory("/workspace", dir).
 		// Configure Go caching
 		WithMountedCache("/go/pkg/mod", goModCache).
 		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").

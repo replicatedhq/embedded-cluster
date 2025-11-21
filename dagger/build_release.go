@@ -30,25 +30,19 @@ func (m *EmbeddedCluster) ReleaseApp(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
-	// Replicated API origin
-	// +default="https://api.staging.replicated.com/vendor"
-	replicatedAPIOrigin string,
+	// Replicated app channel name
+	// +default="Dev"
+	appChannel string,
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// Whether using dev bucket
-	// +default=true
-	usesDevBucket bool,
-	// Replicated API token (or from 1Password "EC CI" item, field "STAGING_REPLICATED_API_TOKEN")
-	// +optional
-	replicatedAPIToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
 	}
 
 	// Resolve Replicated API token
-	replicatedAPIToken = m.mustResolveSecret(replicatedAPIToken, "STAGING_REPLICATED_API_TOKEN")
+	replicatedAPIToken := m.mustResolveSecret(nil, "STAGING_REPLICATED_API_TOKEN")
 
 	// Create release
 	err := m.createRelease(
@@ -58,9 +52,10 @@ func (m *EmbeddedCluster) ReleaseApp(
 		m.BuildMetadata.AppVersion,
 		releaseYamlDir,
 		replicatedApp,
-		replicatedAPIOrigin,
+		appChannel,
+		StagingReplicatedAPIOrigin,
 		s3Bucket,
-		usesDevBucket,
+		s3Bucket != StagingS3Bucket,
 		replicatedAPIToken,
 	)
 	if err != nil {
@@ -78,16 +73,19 @@ func (m *EmbeddedCluster) createRelease(
 	appVersion string,
 	releaseYamlDir string,
 	replicatedApp string,
+	appChannel string,
 	replicatedAPIOrigin string,
 	s3Bucket string,
 	usesDevBucket bool,
 	replicatedToken *dagger.Secret,
 ) error {
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	container := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src").
+		WithDirectory("/workspace", dir).
 		WithEnvVariable("EC_VERSION", ecVersion).
 		WithEnvVariable("APP_VERSION", appVersion).
+		WithEnvVariable("APP_CHANNEL", appChannel).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
 		WithEnvVariable("REPLICATED_APP", replicatedApp).
 		WithEnvVariable("REPLICATED_API_ORIGIN", replicatedAPIOrigin).
@@ -99,14 +97,6 @@ func (m *EmbeddedCluster) createRelease(
 	} else {
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "0")
 	}
-
-	// Install Replicated CLI
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/replicatedhq/replicated/main/install.sh | bash"})
-
-	// Install Helm
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"})
 
 	// Run release script
 	_, err := container.

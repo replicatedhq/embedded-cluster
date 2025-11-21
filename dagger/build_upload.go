@@ -28,12 +28,6 @@ func (m *EmbeddedCluster) UploadBins(
 	// S3 bucket for uploads
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
-	// +optional
-	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
-	// +optional
-	awsSecretAccessKey *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -44,8 +38,8 @@ func (m *EmbeddedCluster) UploadBins(
 	}
 
 	// Resolve AWS credentials
-	awsAccessKeyID = m.mustResolveSecret(awsAccessKeyID, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
-	awsSecretAccessKey = m.mustResolveSecret(awsSecretAccessKey, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	awsAccessKeyID := m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	awsSecretAccessKey := m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 
 	// Upload binaries
 	if err := m.uploadBinaries(
@@ -77,13 +71,10 @@ func (m *EmbeddedCluster) uploadBinaries(
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
 ) error {
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"}).
-		WithDirectory("/src/scripts", src.Directory("scripts")).
-		WithDirectory("/src/build", embeddedDir).
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
-		WithWorkdir("/src").
+		WithDirectory("/workspace", dir).
 		WithEnvVariable("EC_VERSION", ecVersion).
 		WithEnvVariable("K0S_VERSION", k0sVersion).
 		WithEnvVariable("ARCH", arch).
@@ -93,11 +84,6 @@ func (m *EmbeddedCluster) uploadBinaries(
 		WithEnvVariable("UPLOAD_BINARIES", "0").
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
-
-	// Install AWS CLI (only tool needed for metadata upload)
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip"}).
-		WithExec([]string{"sh", "-c", "cd /tmp && unzip -q awscliv2.zip && ./aws/install"})
 
 	// Run upload script (will only upload metadata.json with UPLOAD_BINARIES=0)
 	_, err := container.

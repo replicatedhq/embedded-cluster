@@ -110,11 +110,8 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 
 	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
 
-	dir := dag.Directory().
-		WithDirectory("operator", src.Directory("operator"))
-
 	build := m.chainguard.melangeBuildGo(
-		directoryWithCommonGoFiles(dir, src),
+		directoryWithCommonFiles(dag.Directory(), src),
 		melangeFile,
 		arch,
 		MelangeImageVersion,
