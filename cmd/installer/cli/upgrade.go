@@ -786,11 +786,9 @@ func runMigrationAPI(
 		return fmt.Errorf("failed to start migration API: %w", err)
 	}
 
-	logrus.Infof("\nVisit the %s manager to complete the upgrade: %s\n",
+	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
 		appTitle,
 		getManagerURL(tlsConfig.Hostname, managerPort))
-	logrus.Info("\nThe upgrade process will guide you through upgrading from kURL to Embedded Cluster.")
-	logrus.Info("Press Ctrl+C to cancel.\n")
 
 	// Wait for either user cancellation or API unexpected exit
 	select {

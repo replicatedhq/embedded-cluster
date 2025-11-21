@@ -90,19 +90,19 @@ func NewMigrationController(opts ...ControllerOption) (*MigrationController, err
 
 // GetInstallationConfig extracts kURL config, gets EC defaults, and returns merged config
 func (c *MigrationController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
-	c.logger.Debug("GetInstallationConfig: Fetching kURL config, EC defaults, and merging")
+	c.logger.Debug("fetching kurl config, ec defaults, and merging")
 
 	// Get kURL config from the running cluster
 	kurlConfig, err := c.manager.GetKurlConfig(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("GetInstallationConfig: Failed to get kURL config")
+		c.logger.WithError(err).Error("get kurl config")
 		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get kurl config: %w", err)
 	}
 
 	// Get EC defaults
 	defaults, err := c.manager.GetECDefaults(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("GetInstallationConfig: Failed to get EC defaults")
+		c.logger.WithError(err).Error("get ec defaults")
 		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get ec defaults: %w", err)
 	}
 
@@ -114,7 +114,7 @@ func (c *MigrationController) GetInstallationConfig(ctx context.Context) (types.
 		"kurlConfig": kurlConfig,
 		"defaults":   defaults,
 		"resolved":   resolved,
-	}).Debug("GetInstallationConfig: Config merged successfully")
+	}).Debug("config merged successfully")
 
 	return types.LinuxInstallationConfigResponse{
 		Values:   kurlConfig,
@@ -128,53 +128,53 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 	c.logger.WithFields(logrus.Fields{
 		"transferMode": transferMode,
 		"config":       config,
-	}).Info("StartMigration: Starting migration")
+	}).Info("starting migration")
 
 	// Validate transfer mode
 	if err := c.manager.ValidateTransferMode(transferMode); err != nil {
-		c.logger.WithError(err).Error("StartMigration: Invalid transfer mode")
+		c.logger.WithError(err).Error("invalid transfer mode")
 		return "", types.NewBadRequestError(err)
 	}
 
 	// Check if migration already exists
 	if _, err := c.store.GetMigrationID(); err == nil {
-		c.logger.Warn("StartMigration: Migration already in progress")
+		c.logger.Warn("migration already in progress")
 		return "", types.NewConflictError(types.ErrMigrationAlreadyStarted)
 	}
 
 	// Generate UUID for migration
 	migrationID := uuid.New().String()
-	c.logger.WithField("migrationID", migrationID).Debug("StartMigration: Generated migration ID")
+	c.logger.WithField("migrationID", migrationID).Debug("generated migration id")
 
 	// Get defaults and merge with user config
 	kurlConfig, err := c.manager.GetKurlConfig(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("StartMigration: Failed to get kURL config")
+		c.logger.WithError(err).Error("get kurl config")
 		return "", fmt.Errorf("get kurl config: %w", err)
 	}
 
 	defaults, err := c.manager.GetECDefaults(ctx)
 	if err != nil {
-		c.logger.WithError(err).Error("StartMigration: Failed to get EC defaults")
+		c.logger.WithError(err).Error("get ec defaults")
 		return "", fmt.Errorf("get ec defaults: %w", err)
 	}
 
 	resolvedConfig := c.manager.MergeConfigs(config, kurlConfig, defaults)
-	c.logger.WithField("resolvedConfig", resolvedConfig).Debug("StartMigration: Config merged")
+	c.logger.WithField("resolvedConfig", resolvedConfig).Debug("config merged")
 
 	// Initialize migration in store
 	if err := c.store.InitializeMigration(migrationID, string(transferMode), resolvedConfig); err != nil {
-		c.logger.WithError(err).Error("StartMigration: Failed to initialize migration")
+		c.logger.WithError(err).Error("initialize migration")
 		return "", fmt.Errorf("initialize migration: %w", err)
 	}
 
 	// Set initial state to NotStarted
 	if err := c.store.SetState(types.MigrationStateNotStarted); err != nil {
-		c.logger.WithError(err).Error("StartMigration: Failed to set initial state")
+		c.logger.WithError(err).Error("set initial state")
 		return "", fmt.Errorf("set initial state: %w", err)
 	}
 
-	c.logger.WithField("migrationID", migrationID).Info("StartMigration: Migration initialized, launching background goroutine")
+	c.logger.WithField("migrationID", migrationID).Info("migration initialized, launching background goroutine")
 
 	// Launch background goroutine with detached context
 	// We use WithoutCancel to inherit context values (trace IDs, logger fields)
@@ -182,7 +182,7 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 	backgroundCtx := context.WithoutCancel(ctx)
 	go func() {
 		if err := c.Run(backgroundCtx); err != nil {
-			c.logger.WithError(err).Error("StartMigration: Background migration failed")
+			c.logger.WithError(err).Error("background migration failed")
 		}
 	}()
 
@@ -191,15 +191,15 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 
 // GetMigrationStatus returns current migration status
 func (c *MigrationController) GetMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error) {
-	c.logger.Debug("GetMigrationStatus: Fetching migration status")
+	c.logger.Debug("fetching migration status")
 
 	status, err := c.store.GetStatus()
 	if err != nil {
 		if err == types.ErrNoActiveMigration {
-			c.logger.Warn("GetMigrationStatus: No active migration found")
+			c.logger.Warn("no active migration found")
 			return types.MigrationStatusResponse{}, types.NewNotFoundError(err)
 		}
-		c.logger.WithError(err).Error("GetMigrationStatus: Failed to get status")
+		c.logger.WithError(err).Error("get status")
 		return types.MigrationStatusResponse{}, fmt.Errorf("get status: %w", err)
 	}
 
@@ -207,14 +207,14 @@ func (c *MigrationController) GetMigrationStatus(ctx context.Context) (types.Mig
 		"state":    status.State,
 		"phase":    status.Phase,
 		"progress": status.Progress,
-	}).Debug("GetMigrationStatus: Status retrieved")
+	}).Debug("status retrieved")
 
 	return status, nil
 }
 
 // Run is the internal orchestration loop (skeleton for this PR, implemented in PR 8)
 func (c *MigrationController) Run(ctx context.Context) error {
-	c.logger.Info("Run: Starting migration orchestration")
+	c.logger.Info("starting migration orchestration")
 
 	// TODO: Phase implementations added in PR 8
 	// This is a skeleton implementation that will be expanded in the next PR
@@ -222,18 +222,18 @@ func (c *MigrationController) Run(ctx context.Context) error {
 	// Get current state from store
 	status, err := c.store.GetStatus()
 	if err != nil {
-		c.logger.WithError(err).Error("Run: Failed to get status")
+		c.logger.WithError(err).Error("get status")
 		return fmt.Errorf("get status: %w", err)
 	}
 
 	c.logger.WithFields(logrus.Fields{
 		"state": status.State,
 		"phase": status.Phase,
-	}).Debug("Run: Current migration state")
+	}).Debug("current migration state")
 
 	// If InProgress, resume from current phase
 	if status.State == types.MigrationStateInProgress {
-		c.logger.WithField("phase", status.Phase).Info("Run: Resuming from current phase")
+		c.logger.WithField("phase", status.Phase).Info("resuming from current phase")
 		// TODO: Resume logic in PR 8
 	}
 
@@ -247,40 +247,40 @@ func (c *MigrationController) Run(ctx context.Context) error {
 	}
 
 	for _, phase := range phases {
-		c.logger.WithField("phase", phase).Info("Run: Executing phase (skeleton)")
+		c.logger.WithField("phase", phase).Info("executing phase (skeleton)")
 
 		// Set state to InProgress
 		if err := c.store.SetState(types.MigrationStateInProgress); err != nil {
-			c.logger.WithError(err).Error("Run: Failed to set state to InProgress")
+			c.logger.WithError(err).Error("set state to in progress")
 			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set state to Failed")
+				c.logger.WithError(setErr).Error("set state to failed")
 			}
 			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set error message")
+				c.logger.WithError(setErr).Error("set error message")
 			}
 			return fmt.Errorf("set state: %w", err)
 		}
 
 		// Set current phase
 		if err := c.store.SetPhase(phase); err != nil {
-			c.logger.WithError(err).Error("Run: Failed to set phase")
+			c.logger.WithError(err).Error("set phase")
 			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set state to Failed")
+				c.logger.WithError(setErr).Error("set state to failed")
 			}
 			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set error message")
+				c.logger.WithError(setErr).Error("set error message")
 			}
 			return fmt.Errorf("set phase: %w", err)
 		}
 
 		// Execute phase
 		if err := c.manager.ExecutePhase(ctx, phase); err != nil {
-			c.logger.WithError(err).WithField("phase", phase).Error("Run: Phase execution failed")
+			c.logger.WithError(err).WithField("phase", phase).Error("phase execution failed")
 			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set state to Failed")
+				c.logger.WithError(setErr).Error("set state to failed")
 			}
 			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("Run: Failed to set error message")
+				c.logger.WithError(setErr).Error("set error message")
 			}
 			return fmt.Errorf("execute phase %s: %w", phase, err)
 		}
@@ -288,10 +288,10 @@ func (c *MigrationController) Run(ctx context.Context) error {
 
 	// Set state to Completed
 	if err := c.store.SetState(types.MigrationStateCompleted); err != nil {
-		c.logger.WithError(err).Error("Run: Failed to set state to Completed")
+		c.logger.WithError(err).Error("set state to completed")
 		return fmt.Errorf("set completed state: %w", err)
 	}
 
-	c.logger.Info("Run: Migration orchestration completed (skeleton)")
+	c.logger.Info("migration orchestration completed (skeleton)")
 	return nil
 }
