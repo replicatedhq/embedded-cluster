@@ -16,8 +16,6 @@ type BuildArtifacts struct {
 	AppVersion string
 	// Build directory containing all artifacts
 	BuildDir *dagger.Directory
-	// Binary file
-	Binary *dagger.File
 }
 
 // BuildAndRelease builds embedded-cluster artifacts and creates a release.
@@ -85,13 +83,8 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// +optional
 	replicatedAPIToken *dagger.Secret,
 ) (*BuildArtifacts, error) {
-	// Validate secrets only if not provided
-	if awsAccessKeyID == nil || awsSecretAccessKey == nil || (!skipRelease && replicatedAPIToken == nil) {
-		if m.OnePassword == nil {
-			return nil, fmt.Errorf("secrets required: either provide AWS/Replicated secrets directly or call WithOnePassword first")
-		}
-		m.buildValidateSecrets()
-	}
+	// Validate secrets needed for the build
+	m.buildValidateSecrets(awsAccessKeyID, awsSecretAccessKey, replicatedAPIToken, skipRelease)
 
 	// Step 1: Build metadata using composable function
 	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0SMinorVersion, arch)
@@ -163,17 +156,14 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		Version:    m.BuildMetadata.Version,
 		AppVersion: m.BuildMetadata.AppVersion,
 		BuildDir:   m.BuildMetadata.BuildDir,
-		Binary:     m.BuildMetadata.Binary,
 	}, nil
 }
 
 // buildValidateSecrets validates the secrets for the build.
-func (m *EmbeddedCluster) buildValidateSecrets() {
-	if m.OnePassword == nil {
-		panic(fmt.Errorf("one password not initialized - call WithOnePassword first"))
+func (m *EmbeddedCluster) buildValidateSecrets(awsAccessKeyID *dagger.Secret, awsSecretAccessKey *dagger.Secret, replicatedAPIToken *dagger.Secret, skipRelease bool) {
+	_ = m.mustResolveSecret(awsAccessKeyID, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	_ = m.mustResolveSecret(awsSecretAccessKey, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	if !skipRelease {
+		_ = m.mustResolveSecret(replicatedAPIToken, "STAGING_REPLICATED_API_TOKEN")
 	}
-
-	_ = m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
-	_ = m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
-	_ = m.mustResolveSecret(nil, "STAGING_REPLICATED_API_TOKEN")
 }

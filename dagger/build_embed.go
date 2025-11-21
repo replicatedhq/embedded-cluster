@@ -66,7 +66,7 @@ func (m *EmbeddedCluster) EmbedRelease(
 	}
 
 	// Update metadata with binary file
-	m.BuildMetadata.Binary = embedded
+	m.BuildMetadata.BuildDir = m.BuildMetadata.BuildDir.WithFile("output/bin/embedded-cluster", embedded)
 
 	return m, nil
 }
@@ -74,7 +74,7 @@ func (m *EmbeddedCluster) EmbedRelease(
 // embedRelease embeds the release into the binary (wraps ci-embed-release.sh)
 func (m *EmbeddedCluster) embedRelease(
 	src *dagger.Directory,
-	binaryDir *dagger.Directory,
+	buildDir *dagger.Directory,
 	ecVersion string,
 	appVersion string,
 	arch string,
@@ -97,11 +97,11 @@ func (m *EmbeddedCluster) embedRelease(
 	// Use a container with the necessary tools
 	container := ubuntuUtilsContainer().
 		WithDirectory("/workspace", dir).
-		WithDirectory("/workspace/build", binaryDir)
+		WithDirectory("/workspace/output", buildDir)
 
 	// Extract the binary from the tarball to output/bin/embedded-cluster
 	// The script expects the binary at output/bin/embedded-cluster
-	tarballPath := fmt.Sprintf("build/embedded-cluster-linux-%s.tgz", arch)
+	tarballPath := fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", arch)
 	container = container.
 		WithExec([]string{"mkdir", "-p", "output/bin"}).
 		WithExec([]string{"tar", "-xzf", tarballPath, "-C", "output/bin"}).
@@ -127,13 +127,5 @@ func (m *EmbeddedCluster) embedRelease(
 	container = container.
 		WithExec([]string{"./scripts/ci-embed-release.sh"})
 
-	filePath := fmt.Sprintf("bin/embedded-cluster-%s.tgz", ecVersion)
-
-	// Create final tarball from the embedded binary
-	// This matches the format from ci-upload-binaries.sh
-	container = container.
-		WithExec([]string{"mkdir", "-p", "bin"}).
-		WithExec([]string{"sh", "-c", fmt.Sprintf("tar -C output/bin -czvf %s embedded-cluster", filePath)})
-
-	return container.File(filePath), nil
+	return container.File("output/bin/embedded-cluster"), nil
 }

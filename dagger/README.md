@@ -98,7 +98,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 # Step 2: Build binary using the metadata
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
-  build-dir export --path=./output/binary
+  build-dir export --path=./output
 
 # Step 3: Embed release using the binary directory
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \

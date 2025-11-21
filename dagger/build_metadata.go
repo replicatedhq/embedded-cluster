@@ -34,13 +34,9 @@ type BuildMetadata struct {
 	OperatorChartURL string
 	// Build directory path (e.g., "build")
 	BuildDirPath string
-	// Binary file path (e.g., "embedded-cluster-v1.0.0.tgz")
-	BinaryPath string
 
 	// Build directory containing all artifacts
 	BuildDir *dagger.Directory `yaml:"-"`
-	// Binary file
-	Binary *dagger.File `yaml:"-"`
 }
 
 // WithBuildMetadata initializes the build metadata.
@@ -94,11 +90,6 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 		// Restore BuildDir if present
 		if metadata.BuildDirPath != "" {
 			metadata.BuildDir = dir.Directory(metadata.BuildDirPath)
-		}
-
-		// Restore Binary if present
-		if metadata.BinaryPath != "" {
-			metadata.Binary = dir.File(metadata.BinaryPath)
 		}
 	}
 
@@ -292,12 +283,6 @@ func (m *BuildMetadata) ToDir() (*dagger.Directory, error) {
 	if m.BuildDir != nil {
 		m.BuildDirPath = "build"
 		dir = dir.WithDirectory(m.BuildDirPath, m.BuildDir)
-	}
-
-	// Set the binary file path before marshaling if binary file is present
-	if m.Binary != nil {
-		m.BinaryPath = fmt.Sprintf("embedded-cluster-%s.tgz", m.Version)
-		dir = dir.WithFile(m.BinaryPath, m.Binary)
 	}
 
 	data, err := yaml.Marshal(m)
