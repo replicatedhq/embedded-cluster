@@ -12,6 +12,11 @@ const (
 
 	GolangVersion = "1.25"
 	NodeVersion   = "22"
+
+	StagingReplicatedAPIOrigin = "https://api.staging.replicated.com/vendor"
+	StagingS3Bucket            = "tf-staging-embedded-cluster-bin"
+
+	GoBuildTags = "containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay"
 )
 
 type EmbeddedCluster struct {

@@ -32,15 +32,9 @@ type BuildMetadata struct {
 	LAMImageTag string
 	// Operator chart URL (e.g., "oci://ttl.sh/user/embedded-cluster-operator")
 	OperatorChartURL string
-	// Build directory path (e.g., "build")
-	BuildDirPath string
-	// Binary file path (e.g., "embedded-cluster-v1.0.0.tgz")
-	BinaryPath string
 
 	// Build directory containing all artifacts
 	BuildDir *dagger.Directory `yaml:"-"`
-	// Binary file
-	Binary *dagger.File `yaml:"-"`
 }
 
 // WithBuildMetadata initializes the build metadata.
@@ -73,7 +67,7 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 	appVersion string,
 	// K0s minor version (e.g., "33" or auto-detected from versions.mk if not provided)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 	// Architecture to build for (defaults to amd64)
 	// +default="amd64"
 	arch string,
@@ -91,15 +85,8 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 			return nil, fmt.Errorf("failed to parse metadata yaml: %w", err)
 		}
 
-		// Restore BuildDir if present
-		if metadata.BuildDirPath != "" {
-			metadata.BuildDir = dir.Directory(metadata.BuildDirPath)
-		}
-
-		// Restore Binary if present
-		if metadata.BinaryPath != "" {
-			metadata.Binary = dir.File(metadata.BinaryPath)
-		}
+		// Restore BuildDir
+		metadata.BuildDir = dir
 	}
 
 	var err error
@@ -111,7 +98,7 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 	if err != nil {
 		return nil, fmt.Errorf("failed to set app version: %w", err)
 	}
-	metadata, err = metadata.WithK0sVersion(ctx, src, k0sMinorVersion)
+	metadata, err = metadata.WithK0sVersion(ctx, src, k0SMinorVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set k0s version: %w", err)
 	}
@@ -144,9 +131,11 @@ func (m *BuildMetadata) WithVersion(
 		return m, nil
 	}
 
-	container := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src")
+	// Only sync .git directory for speed - we just need git metadata, not the entire source tree
+	container := dag.Container().
+		From("alpine/git:latest").
+		WithDirectory("/workspace/.git", src.Directory(".git")).
+		WithWorkdir("/workspace")
 
 	// Get EC_VERSION from git describe
 	ecVersion, err := container.
@@ -180,9 +169,11 @@ func (m *BuildMetadata) WithAppVersion(
 		return m, nil
 	}
 
-	container := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src")
+	// Only sync .git directory for speed - we just need git metadata, not the entire source tree
+	container := dag.Container().
+		From("alpine/git:latest").
+		WithDirectory("/workspace/.git", src.Directory(".git")).
+		WithWorkdir("/workspace")
 
 	// Get APP_VERSION from git rev-parse
 	shortSha, err := container.
@@ -207,21 +198,22 @@ func (m *BuildMetadata) WithK0sVersion(
 	src *dagger.Directory,
 	// K0s minor version (e.g., "33" or auto-detected from versions.mk if not provided)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 ) (*BuildMetadata, error) {
-	if k0sMinorVersion != "" {
-		m.K0SMinorVersion = k0sMinorVersion
+	if k0SMinorVersion != "" {
+		m.K0SMinorVersion = k0SMinorVersion
 	}
 
 	if m.K0SMinorVersion != "" {
 		return m, nil
 	}
 
-	minorVersion, err := ubuntuUtilsContainer().
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
-		WithWorkdir("/src").
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
+	container := ubuntuUtilsContainer().
+		WithDirectory("/workspace", dir)
+
+	minorVersion, err := container.
 		WithExec([]string{"make", "print-K0S_MINOR_VERSION"}).
 		Stdout(ctx)
 	if err != nil {
@@ -229,12 +221,8 @@ func (m *BuildMetadata) WithK0sVersion(
 	}
 	minorVersion = strings.TrimSpace(minorVersion)
 
-	version, err := ubuntuUtilsContainer().
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
+	version, err := container.
 		WithEnvVariable("K0S_MINOR_VERSION", minorVersion).
-		WithWorkdir("/src").
 		WithExec([]string{"make", "print-K0S_VERSION"}).
 		Stdout(ctx)
 	if err != nil {
@@ -289,14 +277,7 @@ func (m *BuildMetadata) ToDir() (*dagger.Directory, error) {
 
 	// Set the build directory path before marshaling if build directory is present
 	if m.BuildDir != nil {
-		m.BuildDirPath = "build"
-		dir = dir.WithDirectory(m.BuildDirPath, m.BuildDir)
-	}
-
-	// Set the binary file path before marshaling if binary file is present
-	if m.Binary != nil {
-		m.BinaryPath = fmt.Sprintf("embedded-cluster-%s.tgz", m.Version)
-		dir = dir.WithFile(m.BinaryPath, m.Binary)
+		dir = dir.WithDirectory(".", m.BuildDir)
 	}
 
 	data, err := yaml.Marshal(m)
@@ -313,8 +294,10 @@ func (m *BuildMetadata) ToDir() (*dagger.Directory, error) {
 // withEnvVariables sets the environment variables from the build metadata in the container.
 func (m *BuildMetadata) withEnvVariables(c *dagger.Container) *dagger.Container {
 	return c.WithEnvVariable("EC_VERSION", m.Version).
+		WithEnvVariable("VERSION", m.Version).
 		WithEnvVariable("APP_VERSION", m.AppVersion).
 		WithEnvVariable("K0S_MINOR_VERSION", m.K0SMinorVersion).
 		WithEnvVariable("K0S_VERSION", m.K0SVersion).
+		WithEnvVariable("K0S_GO_VERSION", m.K0SVersion).
 		WithEnvVariable("ARCH", m.Arch)
 }

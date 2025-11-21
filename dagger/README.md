@@ -76,8 +76,11 @@ The build-and-release function handles the complete build and release process:
 1. **Build dependencies** (operator and local-artifact-mirror images)
 2. **Build web UI** (React/TypeScript frontend)
 3. **Build binary** (embedded-cluster CLI with embedded release)
-4. **Upload to S3** (k0s, kots, operator, embedded-cluster binaries)
+4. **Upload to S3** (metadata.json with version information and artifact URLs)
 5. **Create app release** (Replicated app channel release)
+
+**Note:** Binary uploads (k0s, kots, operator) are currently skipped in Dagger due to Docker/crane/oras complexity.
+For full binary uploads, run `scripts/ci-upload-binaries.sh` with `UPLOAD_BINARIES=1`.
 
 #### Composable Build Steps
 
@@ -95,11 +98,11 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 # Step 2: Build binary using the metadata
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
-  build-dir export --path=./output/binary
+  build-metadata to-dir export --path=./output
 
 # Step 3: Embed release using the binary directory
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  embed-release --build-dir=./output/binary \
+  embed-release --build-dir=./output \
   binary export --path=./output/embedded-cluster.tgz
 ```
 
@@ -139,7 +142,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 # Then build binary using the metadata file
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
-  build-dir export --path=./output/binary
+  build-metadata to-dir export --path=./output
 ```
 
 **Option B: Using individual parameters:**
@@ -152,7 +155,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
     --operator-image-repo="ttl.sh/ec-build/embedded-cluster-operator-image" \
     --lam-image-tag="2.12.0-k8s-1.33-69-g4bba5" \
     --operator-chart-url="oci://ttl.sh/ec-build/embedded-cluster-operator" \
-  build-dir export --path=./output/binary
+  build-metadata to-dir export --path=./output
 ```
 
 Outputs:
@@ -169,7 +172,7 @@ Embeds KOTS release into binary (equivalent to `ci-embed-release.sh`):
 ```bash
 # Assuming you already have ./output/binary from a previous build-bin run
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  embed-release --build-dir=./output/binary \
+  embed-release --build-dir=./output \
   binary export --path=./output/embedded-cluster.tgz
 ```
 
@@ -180,7 +183,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
   embed-release \
-  binary export --path=./output/embedded-cluster.tgz
+  binary export --path=./output/bin/embedded-cluster
 
 # Export metadata JSON
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -192,7 +195,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
   embed-release \
-  build-dir export --path=./output/embedded
+  build-metadata to-dir export --path=./output
 ```
 
 Outputs:
@@ -202,14 +205,18 @@ Outputs:
 
 ##### 4. Upload Binaries (`upload-bins`)
 
-Uploads binaries to S3 (equivalent to `ci-upload-binaries.sh`).
+Uploads metadata to S3.
+
+**Note:** This currently only uploads `metadata.json` due to Docker/crane/oras complexity in Dagger containers.
+Binary uploads (k0s, kots, operator) are skipped. For full binary uploads, run `scripts/ci-upload-binaries.sh`
+directly with `UPLOAD_BINARIES=1`.
 
 **Option A: Using exported directory (standalone):**
 
 ```bash
 # Assuming you already have ./output/binary from a previous build-bin run
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  upload-bins --build-dir=./output/binary
+  upload-bins --build-dir=./output
 ```
 
 **Option B: Chaining from embed-release:**
@@ -222,10 +229,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 ```
 
 Uploads:
-- k0s binary
-- kots binary
-- Operator image metadata
-- embedded-cluster binary
+- metadata.json (containing version information and artifact URLs)
 
 ##### 5. Create Release (`release-app`)
 
@@ -236,7 +240,7 @@ Creates Replicated app release (equivalent to `ci-release-app.sh`).
 ```bash
 # Assuming you already have ./output/binary from a previous build-bin run
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  release-app --build-dir=./output/binary
+  release-app --build-dir=./output
 ```
 
 **Option B: Chaining from upload-bins:**
@@ -268,7 +272,7 @@ cat ./output/deps.json | jq .
 # Rebuild binary with new web assets (reuses published deps from previous build)
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-bin --deps-metadata=./output/deps.json \
-  build-dir export --path=./output/binary
+  build-dir export --path=./output
 
 # Test the new binary
 ./output/binary/bin/embedded-cluster version
@@ -278,7 +282,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 ```bash
 # Skip binary rebuild and just re-embed with new release YAML
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  embed-release --build-dir=./output/binary \
+  embed-release --build-dir=./output \
   binary export --path=./output/embedded-cluster.tgz
 ```
 
@@ -293,7 +297,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 
 #### Required Secrets
 
-The following secrets are automatically fetched from 1Password (vault: "Developer Automation", item: "EC CI"):
+The following secrets are automatically fetched from 1Password (vault: "Developer Automation", item: "EC Dev"):
 
 | Secret Field Name | Purpose |
 |-------------------|---------|
@@ -322,9 +326,9 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-and-release --skip-release=true
 ```
 
-##### Skip Binary Upload
+##### Skip Metadata Upload
 
-Build locally without uploading to S3:
+Build locally without uploading metadata to S3:
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -368,7 +372,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 
 # Export entire build directory
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  build-and-release build-dir export --path=./build
+  build-and-release build-dir export --path=./output
 ```
 
 #### Comparison with Direct Script Execution
@@ -467,7 +471,7 @@ The V3 E2E test framework provides:
 
 ##### Required Secrets
 
-The following secrets must be available in 1Password in the **"Developer Automation"** vault under the **"EC CI"** item:
+The following secrets must be available in 1Password in the **"Developer Automation"** vault under the **"EC Dev"** item:
 
 | Secret Field Name | Purpose |
 |-------------------|---------|

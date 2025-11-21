@@ -336,14 +336,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
       - name: Compile buildtools
         run: |
           make buildtools
+
       - name: Upload buildtools artifact
         uses: actions/upload-artifact@v5
         with:
@@ -418,30 +420,6 @@ jobs:
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
         run: *free-disk-space
 
-      - name: Cache embedded bins
-        uses: actions/cache@v4
-        with:
-          path: |
-            output/bins
-          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
-          restore-keys: |
-            bins-cache-
-
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-
-      - uses: oras-project/setup-oras@v1
-
-      - uses: imjasonh/setup-crane@v0.4
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -468,29 +446,38 @@ jobs:
           echo "APP_VERSION=\"$APP_VERSION\""
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
-      - name: Build
+      - name: Build (Dagger)
         env:
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
           S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-          AWS_REGION: "us-east-1"
-          USE_CHAINGUARD: "1"
-          UPLOAD_BINARIES: "1"
-          SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ./scripts/build-and-release.sh
+          dagger call \
+            build-and-release \
+              --ec-version="${EC_VERSION}" \
+              --app-version="${APP_VERSION}" \
+              --k-0-sminor-version="${K0S_MINOR_VERSION}" \
+              --release-yaml-dir="${RELEASE_YAML_DIR}" \
+              --app-channel-id="${APP_CHANNEL_ID}" \
+              --app-channel-slug="${APP_CHANNEL_SLUG}" \
+              --s-3-bucket="${S3_BUCKET}" \
+              --upload-binaries=true \
+              --skip-release=true \
+              --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
+              --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
+              --github-token=env:GH_TOKEN \
+            build-dir export --path=./output
 
           version_suffix=
           if [ ${{ matrix.n }} -gt 0 ]; then
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
+            cp output/bin/embedded-cluster output/bin/embedded-cluster${version_suffix}
           fi
 
       - name: Upload release
@@ -574,30 +561,6 @@ jobs:
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
         run: *free-disk-space
 
-      - name: Cache embedded bins
-        uses: actions/cache@v4
-        with:
-          path: |
-            output/bins
-          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
-          restore-keys: |
-            bins-cache-
-
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-
-      - uses: oras-project/setup-oras@v1
-
-      - uses: imjasonh/setup-crane@v0.4
-
       - name: Install dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
@@ -619,10 +582,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export K0S_VERSION=$(make print-K0S_VERSION)
+          export K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
           export EC_VERSION=${{ needs.output-vars.outputs.ec_version }}-upgrade
           export APP_VERSION=appver-dev-${{ needs.output-vars.outputs.git_sha }}-upgrade
 
-          ./scripts/build-and-release.sh
+          dagger call \
+            build-and-release \
+              --ec-version="${EC_VERSION}" \
+              --app-version="${APP_VERSION}" \
+              --k-0-sminor-version="${K0S_MINOR_VERSION}" \
+              --release-yaml-dir="${RELEASE_YAML_DIR}" \
+              --app-channel-id="${APP_CHANNEL_ID}" \
+              --app-channel-slug="${APP_CHANNEL_SLUG}" \
+              --s-3-bucket="${S3_BUCKET}" \
+              --upload-binaries=true \
+              --skip-release=true \
+              --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
+              --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
+              --github-token=env:GH_TOKEN \
+            build-dir export --path=./output
+
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release

@@ -176,37 +176,77 @@ output/bins/kubectl-kots-override:
 	mv output/tmp/kots $@
 	touch $@
 
-.PHONY: output/bin/embedded-cluster-release-builder
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+
 .PHONY: initial-release
-initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-initial-release: export APP_VERSION = appver-dev-$(call random-string)
-initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-initial-release: export V2_ENABLED = 0
-initial-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
-		./scripts/build-and-release.sh
+initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
+initial-release: APP_VERSION = appver-dev-$(call random-string)
+initial-release: RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
+initial-release: UPLOAD_BINARIES ?= 1
+initial-release: export APP_CHANNEL ?= Dev
+initial-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+initial-release: export APP_CHANNEL_SLUG ?= dev
+initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
+	dagger call \
+		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+		build-and-release \
+			--ec-version="$(EC_VERSION)" \
+			--app-version="$(APP_VERSION)" \
+			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
+			--upload-binaries=$(UPLOAD_BINARIES) \
+			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+		build-dir export --path=./output
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
-	SKIP_RELEASE=1 \
-		./scripts/build-and-release.sh
+rebuild-release: UPLOAD_BINARIES ?= 1
+rebuild-release: export APP_CHANNEL ?= Dev
+rebuild-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+rebuild-release: export APP_CHANNEL_SLUG ?= dev
+rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
+	dagger call \
+		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+		build-and-release \
+			--ec-version="$(EC_VERSION)" \
+			--app-version="$(APP_VERSION)" \
+			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
+			--upload-binaries=$(UPLOAD_BINARIES) \
+			--skip-release=1 \
+			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+		build-dir export --path=./output
 
 .PHONY: upgrade-release
 upgrade-release: RANDOM_STRING = $(call random-string)
 upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
 upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
-upgrade-release: export V2_ENABLED = 0
-upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
-	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),1) \
-		./scripts/build-and-release.sh
+upgrade-release: UPLOAD_BINARIES ?= 1
+upgrade-release: export APP_CHANNEL ?= Dev
+upgrade-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+upgrade-release: export APP_CHANNEL_SLUG ?= dev
+upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
+	dagger call \
+		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+		build-and-release \
+			--ec-version="$(EC_VERSION)" \
+			--app-version="$(APP_VERSION)" \
+			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
+			--upload-binaries=$(UPLOAD_BINARIES) \
+			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+		build-dir export --path=./output
 
 .PHONY: go.mod
 go.mod: Makefile
@@ -224,7 +264,7 @@ build-deps: go.mod crds
 
 .PHONY: buildtools
 buildtools:
-	CGO_ENABLED=0 go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
+	dagger call build-buildtools export --path=./output/bin/buildtools
 
 .PHONY: static
 static: cmd/installer/goods/bins/k0s \
@@ -401,50 +441,3 @@ delete-node%:
 .PHONY: test-lam-e2e
 test-lam-e2e: cmd/installer/goods/bins/local-artifact-mirror
 	sudo go test ./cmd/local-artifact-mirror/e2e/... -v
-
-# make test-embed channel=<channelid> app=<appslug>
-.PHONY: test-embed
-test-emded: export OS=linux
-test-embed: export ARCH=amd64
-test-embed: VERSION=1.19.0+k8s-1.30
-test-embed: static embedded-cluster
-	@echo "Cleaning up previous release directory..."
-	rm -rf ./hack/release
-	@echo "Creating release directory..."
-	mkdir -p ./hack/release
-
-	@echo "Fetching channel JSON for channel: $(channel)"
-	$(eval CHANNEL_JSON := $(shell replicated channel inspect $(channel) --output json))
-	@echo "CHANNEL_JSON: $(CHANNEL_JSON)"
-
-	@echo "Extracting release label, sequence, and channel slug..."
-	$(eval RELEASE_LABEL := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseLabel'))
-	$(eval RELEASE_SEQUENCE := $(shell echo '$(CHANNEL_JSON)' | jq -r '.releaseSequence'))
-	$(eval CHANNEL_SLUG := $(shell echo '$(CHANNEL_JSON)' | jq -r '.channelSlug'))
-	$(eval CHANNEL_ID := $(shell echo '$(CHANNEL_JSON)' | jq -r '.id'))
-
-	@echo "Extracted values:"
-	@echo "  RELEASE_LABEL: $(RELEASE_LABEL)"
-	@echo "  RELEASE_SEQUENCE: $(RELEASE_SEQUENCE)"
-	@echo "  CHANNEL_SLUG: $(CHANNEL_SLUG)"
-
-	@echo "Downloading release sequence $(RELEASE_SEQUENCE) for app $(app)..."
-	replicated release download $(RELEASE_SEQUENCE) --app=$(app) -d ./hack/release || { echo "Error: Failed to download release. Check RELEASE_SEQUENCE or app name."; exit 1; }
-
-	@echo "Writing release.yaml..."
-	@mkdir -p ./hack/release  # Ensure directory exists
-	@echo '# channel release object' > ./hack/release/release.yaml
-	@echo 'channelID: "${CHANNEL_ID}"' >> ./hack/release/release.yaml
-	@echo 'channelSlug: "${CHANNEL_SLUG}"' >> ./hack/release/release.yaml
-	@echo 'appSlug: "$(app)"' >> ./hack/release/release.yaml
-	@echo 'versionLabel: "${RELEASE_LABEL}"' >> ./hack/release/release.yaml
-
-	@echo "Creating tarball of the release directory..."
-	tar czvf ./hack/release.tgz -C ./hack/release .
-
-	@echo "Embedding release into binary..."
-	go run ./hack/dev-embed.go --binary ./build/embedded-cluster-linux-amd64  --release ./hack/release.tgz --output ./build/$(app) \
-		--label $(RELEASE_LABEL) --sequence $(RELEASE_SEQUENCE) --channel $(CHANNEL_SLUG)
-
-	chmod +x ./build/$(app)
-	@echo "Test embed completed successfully."

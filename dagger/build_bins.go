@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// BuildResult holds intermediate build outputs
-type BuildResult struct {
-	BinaryDir  *dagger.Directory
-	K0SVersion string
-}
-
 // BuildBin builds the web UI and binary (without embedding the release).
 //
 // This is equivalent to ci-build-bin.sh and builds:
@@ -57,13 +51,8 @@ func (m *EmbeddedCluster) BuildBin(
 		ctx,
 		src,
 		webBuild,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.Arch,
-		m.BuildMetadata.OperatorImageTag,
-		m.BuildMetadata.OperatorImageRepo,
-		m.BuildMetadata.OperatorChartURL,
 		s3Bucket,
-		s3Bucket != "tf-staging-embedded-cluster-bin",
+		s3Bucket != StagingS3Bucket,
 	)
 	if err != nil {
 		return nil, err
@@ -80,20 +69,11 @@ func (m *EmbeddedCluster) buildBinary(
 	ctx context.Context,
 	src *dagger.Directory,
 	webBuild *dagger.Directory,
-	ecVersion string,
-	arch string,
-	operatorImageTag string,
-	operatorImageRepo string,
-	operatorChartURL string,
 	s3Bucket string,
 	usesDevBucket bool,
 ) (*dagger.Directory, error) {
 	// Use cached build environment
 	builder := m.buildEnv(src)
-
-	// Mount the pre-built web directory
-	builder = builder.
-		WithDirectory("/src/web", webBuild)
 
 	// Set build environment variables
 	builder = m.BuildMetadata.withEnvVariables(builder).
@@ -104,29 +84,28 @@ func (m *EmbeddedCluster) buildBinary(
 		WithExec([]string{"make", "build-deps"})
 
 	// Build buildtools binary (needed for updating addon metadata)
+	buildtools := m.buildBuildtools(ctx, builder)
 	builder = builder.
-		WithExec([]string{"make", "buildtools"})
+		WithFile("/workspace/output/bin/buildtools", buildtools)
 
 	// Update operator metadata with the built operator image
 	// buildtools expects INPUT_OPERATOR_IMAGE without the tag (it will extract it from the chart)
-	operatorImageWithoutTag := operatorImageRepo
+	operatorImageWithoutTag := m.BuildMetadata.OperatorImageRepo
 
 	// The chart version matches the operator image tag (without 'v' prefix)
 	// This should match what was published in PublishOperatorChart
-	chartVersionForOCI := strings.TrimPrefix(operatorImageTag, "v")
+	chartVersionForOCI := strings.TrimPrefix(m.BuildMetadata.OperatorImageTag, "v")
 
 	builder = builder.
-		WithEnvVariable("INPUT_OPERATOR_CHART_URL", operatorChartURL).
+		WithEnvVariable("INPUT_OPERATOR_CHART_URL", m.BuildMetadata.OperatorChartURL).
 		WithEnvVariable("INPUT_OPERATOR_CHART_VERSION", chartVersionForOCI).
 		WithEnvVariable("INPUT_OPERATOR_IMAGE", operatorImageWithoutTag).
 		WithExec([]string{"./output/bin/buildtools", "update", "addon", "embeddedclusteroperator"})
 
-	// Note: Web UI is already built and mounted from webBuild parameter
-
 	// Construct metadata URLs
 	var k0sBinaryURL, kotsBinaryURL, operatorBinaryURL string
 	if usesDevBucket {
-		k0sBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/k0s-binaries/%s-%s", s3Bucket, m.BuildMetadata.K0SVersion, arch)
+		k0sBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/k0s-binaries/%s-%s", s3Bucket, m.BuildMetadata.K0SVersion, m.BuildMetadata.Arch)
 
 		// Get KOTS version
 		kotsVersion, err := builder.
@@ -136,27 +115,30 @@ func (m *EmbeddedCluster) buildBinary(
 			return nil, fmt.Errorf("failed to get KOTS_VERSION: %w", err)
 		}
 		kotsVersion = strings.TrimSpace(kotsVersion)
-		kotsBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/kots-binaries/%s-%s.tar.gz", s3Bucket, kotsVersion, arch)
+		kotsBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/kots-binaries/%s-%s.tar.gz", s3Bucket, kotsVersion, m.BuildMetadata.Arch)
 
-		operatorVersion := strings.TrimPrefix(ecVersion, "v")
-		operatorBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/operator-binaries/%s-%s.tar.gz", s3Bucket, operatorVersion, arch)
+		operatorVersion := strings.TrimPrefix(m.BuildMetadata.Version, "v")
+		operatorBinaryURL = fmt.Sprintf("https://%s.s3.amazonaws.com/operator-binaries/%s-%s.tar.gz", s3Bucket, operatorVersion, m.BuildMetadata.Arch)
 	}
 
 	// Build fio binary using Dagger (avoids Docker-in-Docker)
 	fioVersion := "3.41"
-	fioBinary := m.BuildFio(fioVersion, arch)
+	fioBinary := m.BuildFio(fioVersion, m.BuildMetadata.Arch)
 	builder = builder.
-		WithFile(fmt.Sprintf("/src/output/bins/fio-%s-%s", fioVersion, arch), fioBinary)
+		WithFile(fmt.Sprintf("/workspace/output/bins/fio-%s-%s", fioVersion, m.BuildMetadata.Arch), fioBinary)
 
 	// Build the embedded-cluster binary
 	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", m.BuildMetadata.LAMImageRepo)
 
+	// Mount web build directory
+	builder = builder.WithDirectory("/workspace/web", webBuild)
+
 	builder = builder.
-		WithEnvVariable("LOCAL_ARTIFACT_MIRROR_IMAGE", localArtifactMirrorImage).
 		WithEnvVariable("METADATA_K0S_BINARY_URL_OVERRIDE", k0sBinaryURL).
 		WithEnvVariable("METADATA_KOTS_BINARY_URL_OVERRIDE", kotsBinaryURL).
 		WithEnvVariable("METADATA_OPERATOR_BINARY_URL_OVERRIDE", operatorBinaryURL).
-		WithExec([]string{"make", fmt.Sprintf("embedded-cluster-linux-%s", arch)})
+		WithEnvVariable("LOCAL_ARTIFACT_MIRROR_IMAGE", localArtifactMirrorImage).
+		WithExec([]string{"make", fmt.Sprintf("embedded-cluster-linux-%s", m.BuildMetadata.Arch)})
 
 	// Copy binary to preserve original
 	builder = builder.
@@ -164,14 +146,14 @@ func (m *EmbeddedCluster) buildBinary(
 
 	// Create tarball
 	builder = builder.
-		WithExec([]string{"mkdir", "-p", "build"}).
-		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("build/embedded-cluster-linux-%s.tgz", arch), "embedded-cluster"})
+		WithExec([]string{"mkdir", "-p", "output/build"}).
+		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", m.BuildMetadata.Arch), "embedded-cluster"})
 
 	// Generate metadata
 	builder = builder.
-		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > build/metadata.json"})
+		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > output/build/metadata.json"})
 
-	return builder.Directory("/src/build"), nil
+	return builder.Directory("/workspace/output"), nil
 }
 
 // BuildWeb builds the web UI using official Node.js image
@@ -179,21 +161,44 @@ func (m *EmbeddedCluster) BuildWeb(
 	ctx context.Context,
 	// Source directory to use for the build.
 	// +defaultPath="/"
-	// +optional
 	src *dagger.Directory,
 ) *dagger.Directory {
+	// Create cache volume for npm to avoid re-downloading packages
+	npmCache := dag.CacheVolume("ec-npm-cache")
+
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	// The web build needs api/docs as a sibling directory (../api/docs)
 	// Create a directory structure with both web and api/docs
 	return nodeBuildContainer().
-		WithDirectory("/src/web", src.Directory("web")).
-		WithDirectory("/src/api/docs", src.Directory("api/docs")).
-		WithWorkdir("/src/web").
-		// Install dependencies
+		WithMountedCache("/root/.npm", npmCache).
+		WithDirectory("/workspace", dir).
+		WithWorkdir("/workspace/web").
+		// Install dependencies (cached via npm cache)
 		WithExec([]string{"npm", "ci"}).
 		// Build production bundle
 		WithExec([]string{"npm", "run", "build"}).
 		// Return the built web directory
-		Directory("/src/web")
+		Directory("/workspace/web")
+}
+
+// BuildBuildtools builds the buildtools binary (needed for updating addon metadata)
+func (m *EmbeddedCluster) BuildBuildtools(
+	ctx context.Context,
+	// Source directory to use for the build.
+	// +defaultPath="/"
+	src *dagger.Directory,
+) *dagger.File {
+	builder := m.buildEnv(src)
+	return m.buildBuildtools(ctx, builder)
+}
+
+func (m *EmbeddedCluster) buildBuildtools(ctx context.Context, builder *dagger.Container) *dagger.File {
+	return builder.
+		WithEnvVariable("CGO_ENABLED", "0").
+		WithExec([]string{"mkdir", "-p", "output/bin"}).
+		WithExec([]string{"go", "build", "-tags", GoBuildTags, "-o", "output/bin/buildtools", "./cmd/buildtools"}).
+		File("output/bin/buildtools")
 }
 
 // BuildFio builds the fio binary (replicates fio/Dockerfile logic)
@@ -242,6 +247,8 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 	imageName string,
 	chartRemote string,
 ) error {
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	// The chart version should not have the 'v' prefix and should use dashes instead of plus
 	// This matches the format used for image tags
 	imageTag := strings.ReplaceAll(ecVersion, "+", "-")
@@ -250,8 +257,8 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 	// Template the Chart.yaml and values.yaml files using envsubst
 	// We need to create a container to do the templating, then export the directory
 	templatedChart := ubuntuUtilsContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src/operator/charts/embedded-cluster-operator").
+		WithDirectory("/workspace", dir).
+		WithWorkdir("/workspace/operator/charts/embedded-cluster-operator").
 		// Template Chart.yaml.tmpl -> Chart.yaml
 		WithEnvVariable("CHART_VERSION", chartVersion).
 		WithExec([]string{"sh", "-c", "envsubst < Chart.yaml.tmpl > Chart.yaml"}).
@@ -260,7 +267,7 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 		WithEnvVariable("IMAGE_TAG", imageTag).
 		WithExec([]string{"sh", "-c", "envsubst < values.yaml.tmpl > values.yaml"}).
 		// Export the templated chart directory
-		Directory("/src/operator/charts/embedded-cluster-operator")
+		Directory("/workspace/operator/charts/embedded-cluster-operator")
 
 	// Package the chart using the Helm Dagger module
 	chartPackage := dag.Helm().Package(templatedChart)
@@ -280,19 +287,7 @@ func (m *EmbeddedCluster) buildEnv(
 	// +defaultPath="/"
 	src *dagger.Directory,
 ) *dagger.Container {
-	// Exclude directories that aren't needed for Go builds to speed up syncing
-	// Note: Don't exclude .git as it's needed for VCS info and make build-deps
-	src = src.WithoutDirectory("./build")
-	src = src.WithoutDirectory("./output")
-	src = src.WithoutDirectory("./dev/build")
-	src = src.WithoutDirectory("./local-dev")
-	src = src.WithoutDirectory("./operator/bin")
-	src = src.WithoutDirectory("./operator/build")
-	src = src.WithoutDirectory("./local-artifact-mirror/bin")
-	src = src.WithoutDirectory("./local-artifact-mirror/build")
-	src = src.WithoutDirectory("./node_modules")
-	src = src.WithoutDirectory("./web/node_modules")
-	src = src.WithoutDirectory("./dagger")
+	dir := directoryWithCommonFiles(dag.Directory(), src)
 
 	// Create cache volumes for Go modules and build cache
 	goModCache := dag.CacheVolume("ec-gomodcache")
@@ -301,11 +296,11 @@ func (m *EmbeddedCluster) buildEnv(
 	return goBuildContainer().
 		// Install additional tools needed for the build
 		WithExec([]string{"apt-get", "update"}).
-		WithExec([]string{"apt-get", "install", "-y", "make", "git", "jq", "tar", "gzip"}).
+		WithExec([]string{"apt-get", "install", "-y", "make", "git", "jq", "tar", "gzip", "curl"}).
+		// Install crane (needed to extract kots binary from kotsadm image)
+		WithExec([]string{"sh", "-c", "curl -fsSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz | tar -xzf - -C /usr/local/bin crane"}).
 		// Mount source code
-		WithDirectory("/src", src).
-		WithWorkdir("/src").
-		WithExec([]string{"git", "config", "--global", "--add", "safe.directory", "/src"}).
+		WithDirectory("/workspace", dir).
 		// Configure Go caching
 		WithMountedCache("/go/pkg/mod", goModCache).
 		WithEnvVariable("GOMODCACHE", "/go/pkg/mod").

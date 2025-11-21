@@ -30,12 +30,18 @@ func (m *EmbeddedCluster) EmbedRelease(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
+	// Replicated app channel ID
+	// +default="2lhrq5LDyoX98BdxmkHtdoqMT4P"
+	appChannelID string,
+	// Replicated app channel slug
+	// +default="dev"
+	appChannelSlug string,
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// Whether using dev bucket
-	// +default=true
-	usesDevBucket bool,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -46,75 +52,64 @@ func (m *EmbeddedCluster) EmbedRelease(
 	}
 
 	embedded, err := m.embedRelease(
-		ctx,
 		src,
 		m.BuildMetadata.BuildDir,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.AppVersion,
 		releaseYamlDir,
 		replicatedApp,
+		appChannelID,
+		appChannelSlug,
 		s3Bucket,
-		usesDevBucket,
+		s3Bucket != StagingS3Bucket,
+		githubToken,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update metadata with binary file
-	m.BuildMetadata.Binary = embedded
+	m.BuildMetadata.BuildDir = m.BuildMetadata.BuildDir.WithFile("bin/embedded-cluster", embedded)
 
 	return m, nil
 }
 
 // embedRelease embeds the release into the binary (wraps ci-embed-release.sh)
 func (m *EmbeddedCluster) embedRelease(
-	ctx context.Context,
 	src *dagger.Directory,
-	binaryDir *dagger.Directory,
-	ecVersion string,
-	appVersion string,
+	buildDir *dagger.Directory,
 	releaseYamlDir string,
 	replicatedApp string,
+	appChannelID string,
+	appChannelSlug string,
 	s3Bucket string,
 	usesDevBucket bool,
+	githubToken *dagger.Secret,
 ) (*dagger.File, error) {
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
 	// Build the embedded-cluster-release-builder binary
 	// This is needed by the ci-embed-release.sh script
 	releaseBuilder := goBuildContainer().
-		WithDirectory("/src", src).
-		WithWorkdir("/src").
+		WithDirectory("/workspace", dir).
 		WithExec([]string{"sh", "-c", "CGO_ENABLED=0 go build -o /tmp/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go"}).
 		File("/tmp/embedded-cluster-release-builder")
 
 	// Use a container with the necessary tools
 	container := ubuntuUtilsContainer().
-		WithDirectory("/src/.git", src.Directory(".git")).
-		WithDirectory("/src/scripts", src.Directory("scripts")).
-		WithDirectory("/src/e2e/helm-charts", src.Directory("e2e/helm-charts")).
-		WithDirectory(fmt.Sprintf("/src/%s", releaseYamlDir), src.Directory(releaseYamlDir)).
-		WithDirectory("/src/build", binaryDir).
-		WithWorkdir("/src").
-		WithExec([]string{"git", "config", "--global", "--add", "safe.directory", "/src"})
+		WithDirectory("/workspace", dir).
+		WithDirectory("/workspace/output", buildDir)
 
 	// Extract the binary from the tarball to output/bin/embedded-cluster
 	// The script expects the binary at output/bin/embedded-cluster
+	tarballPath := fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", m.BuildMetadata.Arch)
 	container = container.
 		WithExec([]string{"mkdir", "-p", "output/bin"}).
-		WithExec([]string{"sh", "-c", "tar -xzf build/embedded-cluster-linux-*.tgz -C output/bin"}).
-		WithFile("/src/output/bin/embedded-cluster-release-builder", releaseBuilder)
-
-	// Install Helm
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"})
-
-	// Install Replicated CLI
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/replicatedhq/replicated/main/install.sh | bash"})
+		WithExec([]string{"tar", "-xzf", tarballPath, "-C", "output/bin"}).
+		WithFile("/workspace/output/bin/embedded-cluster-release-builder", releaseBuilder)
 
 	// Set environment variables
-	container = container.
-		WithEnvVariable("EC_VERSION", ecVersion).
-		WithEnvVariable("APP_VERSION", appVersion).
+	container = m.BuildMetadata.withEnvVariables(container).
+		WithEnvVariable("APP_CHANNEL_ID", appChannelID).
+		WithEnvVariable("APP_CHANNEL_SLUG", appChannelSlug).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
 		WithEnvVariable("REPLICATED_APP", replicatedApp).
 		WithEnvVariable("S3_BUCKET", s3Bucket)
@@ -125,17 +120,13 @@ func (m *EmbeddedCluster) embedRelease(
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "0")
 	}
 
+	if githubToken != nil {
+		container = container.WithSecretVariable("GH_TOKEN", githubToken)
+	}
+
 	// Run the embed release script
 	container = container.
 		WithExec([]string{"./scripts/ci-embed-release.sh"})
 
-	filePath := fmt.Sprintf("bin/embedded-cluster-%s.tgz", ecVersion)
-
-	// Create final tarball from the embedded binary
-	// This matches the format from ci-upload-binaries.sh
-	container = container.
-		WithExec([]string{"mkdir", "-p", "bin"}).
-		WithExec([]string{"sh", "-c", fmt.Sprintf("tar -C output/bin -czvf %s embedded-cluster", filePath)})
-
-	return container.File(filePath), nil
+	return container.File("output/bin/embedded-cluster"), nil
 }

@@ -6,13 +6,11 @@ import (
 	"fmt"
 )
 
-// UploadBins uploads binaries to S3.
+// UploadBins uploads metadata to S3.
 //
-// This is equivalent to ci-upload-binaries.sh and uploads:
-// - k0s binary
-// - kots binary
-// - operator image metadata
-// - embedded-cluster binary
+// This uploads the metadata.json file containing version information and artifact URLs.
+// Binary uploads (k0s, kots, operator) are skipped due to Docker/crane/oras complexity in Dagger.
+// For full binary uploads, run ci-upload-binaries.sh directly with UPLOAD_BINARIES=1.
 //
 // Requires AWS credentials via 1Password or explicit parameters.
 //
@@ -30,12 +28,15 @@ func (m *EmbeddedCluster) UploadBins(
 	// S3 bucket for uploads
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	// AWS access key ID (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
 	// +optional
 	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	// AWS secret access key (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 	// +optional
 	awsSecretAccessKey *dagger.Secret,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -53,13 +54,10 @@ func (m *EmbeddedCluster) UploadBins(
 	if err := m.uploadBinaries(
 		ctx,
 		src,
-		m.BuildMetadata.BuildDir,
-		m.BuildMetadata.Version,
-		m.BuildMetadata.K0SVersion,
-		m.BuildMetadata.Arch,
 		s3Bucket,
 		awsAccessKeyID,
 		awsSecretAccessKey,
+		githubToken,
 	); err != nil {
 		return nil, err
 	}
@@ -71,24 +69,17 @@ func (m *EmbeddedCluster) UploadBins(
 func (m *EmbeddedCluster) uploadBinaries(
 	ctx context.Context,
 	src *dagger.Directory,
-	embeddedDir *dagger.Directory,
-	ecVersion string,
-	k0sVersion string,
-	arch string,
 	s3Bucket string,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
+	githubToken *dagger.Secret,
 ) error {
-	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"}).
-		WithDirectory("/src/scripts", src.Directory("scripts")).
-		WithDirectory("/src/build", embeddedDir).
-		WithFile("/src/versions.mk", src.File("versions.mk")).
-		WithFile("/src/common.mk", src.File("common.mk")).
-		WithFile("/src/Makefile", src.File("Makefile")).
-		WithWorkdir("/src").
-		WithEnvVariable("EC_VERSION", ecVersion).
-		WithEnvVariable("K0S_VERSION", k0sVersion).
-		WithEnvVariable("ARCH", arch).
+	dir := directoryWithCommonFiles(dag.Directory(), src)
+
+	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"})
+
+	container = m.BuildMetadata.withEnvVariables(container).
+		WithDirectory("/workspace", dir).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
 		// Skip binary uploads (k0s, kots, operator) - only upload metadata.json
 		// Binary uploads require Docker/crane/oras which are complex to set up in Dagger
@@ -96,10 +87,9 @@ func (m *EmbeddedCluster) uploadBinaries(
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
 
-	// Install AWS CLI (only tool needed for metadata upload)
-	container = container.
-		WithExec([]string{"sh", "-c", "curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip"}).
-		WithExec([]string{"sh", "-c", "cd /tmp && unzip -q awscliv2.zip && ./aws/install"})
+	if githubToken != nil {
+		container = container.WithSecretVariable("GH_TOKEN", githubToken)
+	}
 
 	// Run upload script (will only upload metadata.json with UPLOAD_BINARIES=0)
 	_, err := container.

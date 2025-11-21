@@ -23,11 +23,10 @@ func (m *EmbeddedCluster) BuildDeps(
 	ctx context.Context,
 	// Source directory to use for the build.
 	// +defaultPath="/"
-	// +optional
 	src *dagger.Directory,
 	// TTL.sh user prefix for image publishing
 	// +default="ec-build"
-	ttlUser string,
+	ttlShUser string,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata is required")
@@ -43,21 +42,21 @@ func (m *EmbeddedCluster) BuildDeps(
 	}
 
 	// Build and publish operator image using APKO/Melange
-	m.BuildMetadata.OperatorImageRepo = "ttl.sh/" + ttlUser + "/embedded-cluster-operator-image"
+	m.BuildMetadata.OperatorImageRepo = "ttl.sh/" + ttlShUser + "/embedded-cluster-operator-image"
 	_, err := m.PublishOperatorImage(ctx, src, m.BuildMetadata.OperatorImageRepo, m.BuildMetadata.Version, m.BuildMetadata.K0SMinorVersion, m.BuildMetadata.Arch)
 	if err != nil {
 		return nil, fmt.Errorf("publish operator image: %w", err)
 	}
 
 	// Publish operator Helm chart
-	chartRemote := "oci://ttl.sh/" + ttlUser
+	chartRemote := "oci://ttl.sh/" + ttlShUser
 	err = m.PublishOperatorChart(ctx, src, m.BuildMetadata.Version, m.BuildMetadata.OperatorImageRepo, chartRemote)
 	if err != nil {
 		return nil, fmt.Errorf("publish operator chart: %w", err)
 	}
 
 	// Build and publish local-artifact-mirror image
-	m.BuildMetadata.LAMImageRepo = "ttl.sh/" + ttlUser + "/embedded-cluster-local-artifact-mirror"
+	m.BuildMetadata.LAMImageRepo = "ttl.sh/" + ttlShUser + "/embedded-cluster-local-artifact-mirror"
 	_, err = m.PublishLocalArtifactMirrorImage(ctx, src, m.BuildMetadata.LAMImageRepo, m.BuildMetadata.Version, m.BuildMetadata.K0SMinorVersion, m.BuildMetadata.Arch)
 	if err != nil {
 		return nil, fmt.Errorf("publish local-artifact-mirror image: %w", err)

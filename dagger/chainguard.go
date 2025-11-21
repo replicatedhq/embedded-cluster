@@ -19,18 +19,26 @@ func (m *chainguard) melangeBuildGo(
 
 	keygen := m.melangeKeygen(imageTag)
 
+	// Create cache volumes for improved build performance
+	goModCache := dag.CacheVolume("ec-melange-gomodcache")
+	apkCache := dag.CacheVolume("ec-melange-apkcache")
+
 	c := dag.Container().
 		From(fmt.Sprintf("cgr.dev/chainguard/melange:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/melange.yaml", melangeFile).
 		WithFile("/workspace/melange.rsa", keygen.File("/workspace/melange.rsa")).
-		WithMountedCache("/go/pkg/mod", dag.CacheVolume("go-mod")).
+		WithEnvVariable("MELANGE_CACHE_DIR", "/cache/melange").
+		WithEnvVariable("MELANGE_APK_CACHE_DIR", "/cache/apk").
+		WithMountedCache("/cache/melange", goModCache).
+		WithMountedCache("/cache/apk", apkCache).
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
 				"melange", "build", "melange.yaml",
 				"--signing-key", "melange.rsa",
-				"--cache-dir", "/go/pkg/mod",
+				"--cache-dir", "/cache/melange",
+				"--apk-cache-dir", "/cache/apk",
 				"--arch", arch,
 				"--out-dir", "build/packages/",
 			},
@@ -68,15 +76,19 @@ func (m *chainguard) apkoBuild(
 	imageTag string,
 ) *dagger.Container {
 
+	// Create cache volumes for APK package indexes and downloads
+	apkoCache := dag.CacheVolume("ec-apko-cache")
+
 	c := dag.Container().
 		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/apko.yaml", apkoFile).
+		WithMountedCache("/cache/apko", apkoCache).
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
 				"apko", "build", "apko.yaml", image, "apko.tar",
-				"--cache-dir", "/go/pkg/mod",
+				"--cache-dir", "/cache/apko",
 				"--arch", arch,
 			},
 		)
@@ -94,16 +106,20 @@ func (m *chainguard) apkoPublish(
 	imageTag string,
 ) *dagger.Container {
 
+	// Create cache volumes for APK package indexes and downloads
+	apkoCache := dag.CacheVolume("ec-apko-cache")
+
 	c := dag.Container().
 		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/apko.yaml", apkoFile).
+		WithMountedCache("/cache/apko", apkoCache).
 		WithEnvVariable("DOCKER_CONFIG", "/workspace/.docker").
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
 				"apko", "publish", "apko.yaml", image,
-				"--cache-dir", "/go/pkg/mod",
+				"--cache-dir", "/cache/apko",
 				"--arch", arch,
 			},
 		)

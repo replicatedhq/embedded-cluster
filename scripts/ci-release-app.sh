@@ -13,7 +13,6 @@ REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
-V2_ENABLED=${V2_ENABLED:-0}
 
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
@@ -70,11 +69,6 @@ function create_release() {
     fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    if [ "$V2_ENABLED" == "1" ]; then
-        sed -i.bak "s|__v2_enabled__|true|g" output/tmp/release/cluster-config.yaml
-    else
-        sed -i.bak "s|__v2_enabled__|false|g" output/tmp/release/cluster-config.yaml
-    fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
     

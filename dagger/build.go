@@ -16,8 +16,6 @@ type BuildArtifacts struct {
 	AppVersion string
 	// Build directory containing all artifacts
 	BuildDir *dagger.Directory
-	// Binary file
-	Binary *dagger.File
 }
 
 // BuildAndRelease builds embedded-cluster artifacts and creates a release.
@@ -41,7 +39,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	ecVersion string,
 	// K0s minor version (e.g., "1.29" or auto-detected from make)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 	// App version label for the Replicated release (e.g., "appver-dev-abc123" or auto-detected from git)
 	// +optional
 	appVersion string,
@@ -51,9 +49,15 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
-	// Replicated API origin
-	// +default="https://api.staging.replicated.com/vendor"
-	replicatedAPIOrigin string,
+	// Replicated app channel name
+	// +default="Dev"
+	appChannel string,
+	// Replicated app channel ID
+	// +default="2lhrq5LDyoX98BdxmkHtdoqMT4P"
+	appChannelID string,
+	// Replicated app channel slug
+	// +default="dev"
+	appChannelSlug string,
 	// S3 bucket for artifacts
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
@@ -63,36 +67,36 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// Whether to skip creating the Replicated app release
 	// +default=false
 	skipRelease bool,
-	// Whether to use dev bucket URLs in metadata
-	// +default=true
-	usesDevBucket bool,
 	// Architecture to build for
 	// +default="amd64"
 	arch string,
-	// Whether to use Chainguard images
-	// +default=false
-	useChainguard bool,
-	// AWS credentials (overrides 1Password if provided)
+	// TTL.sh user prefix for image publishing
+	// +default="ec-build"
+	ttlShUser string,
+	// AWS access key ID (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
 	// +optional
 	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (overrides 1Password if provided)
+	// AWS secret access key (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 	// +optional
 	awsSecretAccessKey *dagger.Secret,
-	// Replicated API token (overrides 1Password if provided)
+	// Replicated API token (or from 1Password "EC Dev" item, field "STAGING_REPLICATED_API_TOKEN")
 	// +optional
 	replicatedAPIToken *dagger.Secret,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*BuildArtifacts, error) {
-	// Validate secrets
-	m.buildValidateSecrets()
+	// Validate secrets needed for the build
+	m.buildValidateSecrets(awsAccessKeyID, awsSecretAccessKey, replicatedAPIToken, skipRelease)
 
 	// Step 1: Build metadata using composable function
-	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0sMinorVersion, arch)
+	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0SMinorVersion, arch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize build metadata: %w", err)
 	}
 
 	// Step 2: Build dependencies using composable function
-	_, err = m.BuildDeps(ctx, src, "ec-build")
+	_, err = m.BuildDeps(ctx, src, ttlShUser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -113,8 +117,10 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		src,
 		releaseYamlDir,
 		replicatedApp,
+		appChannelID,
+		appChannelSlug,
 		s3Bucket,
-		usesDevBucket,
+		githubToken,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed release: %w", err)
@@ -128,6 +134,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			s3Bucket,
 			awsAccessKeyID,
 			awsSecretAccessKey,
+			githubToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload binaries: %w", err)
@@ -141,31 +148,33 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			src,
 			releaseYamlDir,
 			replicatedApp,
-			replicatedAPIOrigin,
+			appChannel,
 			s3Bucket,
-			usesDevBucket,
 			replicatedAPIToken,
+			githubToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create release: %w", err)
 		}
 	}
 
+	buildDir, err := m.BuildMetadata.ToDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create build directory: %w", err)
+	}
+
 	return &BuildArtifacts{
 		Version:    m.BuildMetadata.Version,
 		AppVersion: m.BuildMetadata.AppVersion,
-		BuildDir:   m.BuildMetadata.BuildDir,
-		Binary:     m.BuildMetadata.Binary,
+		BuildDir:   buildDir,
 	}, nil
 }
 
 // buildValidateSecrets validates the secrets for the build.
-func (m *EmbeddedCluster) buildValidateSecrets() {
-	if m.OnePassword == nil {
-		panic(fmt.Errorf("one password not initialized - call WithOnePassword first"))
+func (m *EmbeddedCluster) buildValidateSecrets(awsAccessKeyID *dagger.Secret, awsSecretAccessKey *dagger.Secret, replicatedAPIToken *dagger.Secret, skipRelease bool) {
+	_ = m.mustResolveSecret(awsAccessKeyID, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	_ = m.mustResolveSecret(awsSecretAccessKey, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	if !skipRelease {
+		_ = m.mustResolveSecret(replicatedAPIToken, "STAGING_REPLICATED_API_TOKEN")
 	}
-
-	_ = m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
-	_ = m.mustResolveSecret(nil, "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
-	_ = m.mustResolveSecret(nil, "STAGING_REPLICATED_API_TOKEN")
 }
