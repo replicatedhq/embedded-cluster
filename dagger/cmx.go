@@ -39,14 +39,12 @@ func (i *CMXInstance) String() string {
 // sshClient returns a container with openssh-client installed and the SSH key configured.
 // The key is mounted at /root/.ssh/id_rsa with proper permissions and formatting.
 func (i *CMXInstance) sshClient() *dagger.Container {
-	return dag.Container().
-		From("ubuntu:24.04").
-		WithEnvVariable("DEBIAN_FRONTEND", "noninteractive").
-		WithExec([]string{"apt-get", "update"}).
-		WithExec([]string{"apt-get", "install", "-y", "openssh-client"}).
+	return ubuntuUtilsContainer().
+		WithExec([]string{"apt-get", "install", "-y",
+			"openssh-client",
+		}).
 		WithMountedSecret("/tmp/key", i.SSHKey).
 		WithExec([]string{"mkdir", "-p", "/root/.ssh"}).
-		// Ensure the key ends with exactly one newline (required by OpenSSH)
 		WithExec([]string{"sh", "-c", "sed -e '$a\\' /tmp/key > /root/.ssh/id_rsa"}).
 		WithExec([]string{"chmod", "600", "/root/.ssh/id_rsa"})
 }
@@ -111,8 +109,8 @@ func (i *CMXInstance) RunCommand(
 
 	// Shell-escape each argument to handle spaces and special characters
 	escapedArgs := make([]string, len(fullCmd))
-	for i, arg := range fullCmd {
-		escapedArgs[i] = shellEscape(arg)
+	for idx, arg := range fullCmd {
+		escapedArgs[idx] = shellEscape(arg)
 	}
 	cmdStr := strings.Join(escapedArgs, " ")
 

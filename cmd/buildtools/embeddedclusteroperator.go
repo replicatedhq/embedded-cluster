@@ -64,10 +64,10 @@ var updateOperatorAddonCommand = &cli.Command{
 		if chartURL != "" {
 			logrus.Infof("using input override from INPUT_OPERATOR_CHART_URL: %s", chartURL)
 			chartURL = strings.TrimPrefix(chartURL, "oci://")
+			chartURL = addProxyAnonymousPrefix(chartURL)
 		} else {
 			chartURL = "proxy.replicated.com/library/embedded-cluster-operator"
 		}
-		chartURL = addProxyAnonymousPrefix(chartURL)
 		chartURL = fmt.Sprintf("oci://%s", chartURL)
 
 		imageOverride := os.Getenv("INPUT_OPERATOR_IMAGE")
@@ -130,7 +130,9 @@ func updateOperatorAddonImages(ctx context.Context, hcli helm.Client, chartURL s
 	}
 
 	logrus.Infof("extracting images from chart version %s", chartVersion)
-	images, err := helm.ExtractImagesFromChart(hcli, chartURL, chartVersion, values)
+	// remove the proxy anonymous prefix from the chart URL as the proxy registry does not support the tags/list endpoint.
+	chartURLWithoutProxyPrefix := strings.Replace(chartURL, "proxy.replicated.com/anonymous/", "", 1)
+	images, err := helm.ExtractImagesFromChart(hcli, chartURLWithoutProxyPrefix, chartVersion, values)
 	if err != nil {
 		return fmt.Errorf("failed to get images from embedded cluster operator chart: %w", err)
 	}

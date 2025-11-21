@@ -132,10 +132,8 @@ cmd/installer/goods/bins/local-artifact-mirror:
 
 output/bins/fio-%:
 	mkdir -p output/bins
-	docker build -t fio --build-arg FIO_VERSION=$(call split-hyphen,$*,1) --build-arg PLATFORM=$(OS)/$(call split-hyphen,$*,2) fio
-	docker rm -f fio && docker run --name fio fio
-	docker cp fio:/output/fio $@
-	docker rm -f fio
+	dagger call build-fio --version=$(call split-hyphen,$*,1) --arch=$(call split-hyphen,$*,2) export --path=$@
+	chmod +x $@
 	touch $@
 
 .PHONY: cmd/installer/goods/bins/fio
@@ -226,7 +224,7 @@ build-deps: go.mod crds
 
 .PHONY: buildtools
 buildtools:
-	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
+	CGO_ENABLED=0 go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: static
 static: cmd/installer/goods/bins/k0s \

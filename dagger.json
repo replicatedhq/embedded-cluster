@@ -4,7 +4,39 @@
   "sdk": {
     "source": "go"
   },
+  "include": [
+    "!build",
+    "!cmd/installer/goods/bins/**",
+    "!cmd/installer/goods/internal/bins/**",
+    "!dagger/embedded-cluster",
+    "!dev/build",
+    "!local-artifact-mirror/bin",
+    "!local-artifact-mirror/build",
+    "!local-artifact-mirror/cache",
+    "!local-dev",
+    "!operator/bin",
+    "!operator/build",
+    "!operator/cache",
+    "!output",
+    "!.vscode",
+    "!.idea",
+    "!**/.gocache",
+    "!**/.gomodcache",
+    "!**/*.test",
+    "!**/node_modules",
+    "!**/*.coverage.out",
+    "!**/*.coverage.html",
+    "!**/*.tgz",
+    "!**/*.tar.gz",
+    "!**/*.zip",
+    "!**/*.log"
+  ],
   "dependencies": [
+    {
+      "name": "helm",
+      "source": "github.com/sagikazarmark/daggerverse/helm@helm/v0.14.0",
+      "pin": "4981f49ead356d64a860ef85caec9b0622933ad7"
+    },
     {
       "name": "onepassword",
       "source": "github.com/replicatedhq/daggerverse/onepassword@bf96fd742cf08239442ac155de7143bb7ef8f7fd",
