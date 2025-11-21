@@ -194,6 +194,9 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="${APP_CHANNEL:-Dev}" \
+			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
+			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
 		build-dir export --path=./output
 
 .PHONY: rebuild-release
@@ -210,6 +213,9 @@ rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--skip-release=1 \
 			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="${APP_CHANNEL:-Dev}" \
+			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
+			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
 		build-dir export --path=./output
 
 .PHONY: upgrade-release
@@ -227,6 +233,9 @@ upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
+			--app-channel="${APP_CHANNEL:-Dev}" \
+			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
+			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
 		build-dir export --path=./output
 
 .PHONY: go.mod
