@@ -20,7 +20,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	ecVersion string,
 	// K0s minor version to build for.
 	// +default=""
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -29,9 +29,9 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, k0sMinorVersion)
 
-	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, k0sMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -61,7 +61,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	ecVersion string,
 	// K0s minor version to build for.
 	// +default=""
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -70,9 +70,9 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, k0sMinorVersion)
 
-	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, k0sMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -101,13 +101,13 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 	// Version to use for the package.
 	ecVersion string,
 	// K0s minor version to build for.
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
 ) *dagger.Directory {
 
-	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, k0sMinorVersion)
 
 	build := m.chainguard.melangeBuildGo(
 		directoryWithCommonFiles(dag.Directory(), src),

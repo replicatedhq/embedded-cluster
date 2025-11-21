@@ -20,7 +20,7 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	ecVersion string,
 	// K0s minor version to build for.
 	// +default=""
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -29,9 +29,9 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
+	apkoFile := m.apkoTemplateOprator(src, ecVersion, k0sMinorVersion)
 
-	pkgBuild := m.BuildOperatorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild := m.BuildOperatorPackage(src, ecVersion, k0sMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -61,7 +61,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	ecVersion string,
 	// K0s minor version to build for.
 	// +default=""
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
@@ -70,9 +70,9 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	tag := strings.Replace(ecVersion, "+", "-", -1)
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
+	apkoFile := m.apkoTemplateOprator(src, ecVersion, k0sMinorVersion)
 
-	pkgBuild := m.BuildOperatorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild := m.BuildOperatorPackage(src, ecVersion, k0sMinorVersion, arch)
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -102,13 +102,13 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	ecVersion string,
 	// K0s minor version to build for.
 	// +default=""
-	kzerosMinorVersion string,
+	k0sMinorVersion string,
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
 ) *dagger.Directory {
 
-	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
+	melangeFile := m.melangeTemplateOperator(src, ecVersion, k0sMinorVersion)
 
 	build := m.chainguard.melangeBuildGo(
 		directoryWithCommonFiles(dag.Directory(), src),

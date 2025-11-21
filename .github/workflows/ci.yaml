@@ -481,11 +481,11 @@ jobs:
             build-and-release \
               --ec-version="${EC_VERSION}" \
               --app-version="${APP_VERSION}" \
-              --k0s-minor-version="${K0S_MINOR_VERSION}" \
+              --k-0-s-minor-version="${K0S_MINOR_VERSION}" \
               --release-yaml-dir="${RELEASE_YAML_DIR}" \
               --app-channel-id="${APP_CHANNEL_ID}" \
               --app-channel-slug="${APP_CHANNEL_SLUG}" \
-              --s3-bucket="${S3_BUCKET}" \
+              --s-3-bucket="${S3_BUCKET}" \
               --upload-binaries=true \
               --skip-release=true \
               --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
@@ -634,11 +634,11 @@ jobs:
             build-and-release \
               --ec-version="${EC_VERSION}" \
               --app-version="${APP_VERSION}" \
-              --k0s-minor-version="${K0S_MINOR_VERSION}" \
+              --k-0-s-minor-version="${K0S_MINOR_VERSION}" \
               --release-yaml-dir="${RELEASE_YAML_DIR}" \
               --app-channel-id="${APP_CHANNEL_ID}" \
               --app-channel-slug="${APP_CHANNEL_SLUG}" \
-              --s3-bucket="${S3_BUCKET}" \
+              --s-3-bucket="${S3_BUCKET}" \
               --upload-binaries=true \
               --skip-release=true \
               --aws-access-key-id=env:AWS_ACCESS_KEY_ID \
