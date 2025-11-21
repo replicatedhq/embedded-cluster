@@ -6,13 +6,11 @@ import (
 	"fmt"
 )
 
-// UploadBins uploads binaries to S3.
+// UploadBins uploads metadata to S3.
 //
-// This is equivalent to ci-upload-binaries.sh and uploads:
-// - k0s binary
-// - kots binary
-// - operator image metadata
-// - embedded-cluster binary
+// This uploads the metadata.json file containing version information and artifact URLs.
+// Binary uploads (k0s, kots, operator) are skipped due to Docker/crane/oras complexity in Dagger.
+// For full binary uploads, run ci-upload-binaries.sh directly with UPLOAD_BINARIES=1.
 //
 // Requires AWS credentials via 1Password or explicit parameters.
 //

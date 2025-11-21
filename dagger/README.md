@@ -76,8 +76,11 @@ The build-and-release function handles the complete build and release process:
 1. **Build dependencies** (operator and local-artifact-mirror images)
 2. **Build web UI** (React/TypeScript frontend)
 3. **Build binary** (embedded-cluster CLI with embedded release)
-4. **Upload to S3** (k0s, kots, operator, embedded-cluster binaries)
+4. **Upload to S3** (metadata.json with version information and artifact URLs)
 5. **Create app release** (Replicated app channel release)
+
+**Note:** Binary uploads (k0s, kots, operator) are currently skipped in Dagger due to Docker/crane/oras complexity.
+For full binary uploads, run `scripts/ci-upload-binaries.sh` with `UPLOAD_BINARIES=1`.
 
 #### Composable Build Steps
 
@@ -202,7 +205,11 @@ Outputs:
 
 ##### 4. Upload Binaries (`upload-bins`)
 
-Uploads binaries to S3 (equivalent to `ci-upload-binaries.sh`).
+Uploads metadata to S3.
+
+**Note:** This currently only uploads `metadata.json` due to Docker/crane/oras complexity in Dagger containers.
+Binary uploads (k0s, kots, operator) are skipped. For full binary uploads, run `scripts/ci-upload-binaries.sh`
+directly with `UPLOAD_BINARIES=1`.
 
 **Option A: Using exported directory (standalone):**
 
@@ -222,10 +229,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 ```
 
 Uploads:
-- k0s binary
-- kots binary
-- Operator image metadata
-- embedded-cluster binary
+- metadata.json (containing version information and artifact URLs)
 
 ##### 5. Create Release (`release-app`)
 
@@ -322,9 +326,9 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   build-and-release --skip-release=true
 ```
 
-##### Skip Binary Upload
+##### Skip Metadata Upload
 
-Build locally without uploading to S3:
+Build locally without uploading metadata to S3:
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
