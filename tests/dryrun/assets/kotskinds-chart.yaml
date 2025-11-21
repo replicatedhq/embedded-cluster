@@ -18,10 +18,10 @@ spec:
         port: 80
       replicaCount: 1
       imagePullSecrets:
-        - name: '{{repl ImagePullSecretName }}'
+        - name: "{{repl ImagePullSecretName }}"
       env:
         - name: PRIVATE_CA_CONFIGMAP
-          value: 'repl{{ PrivateCACert }}'
+          value: "repl{{ PrivateCACert }}"
         - name: SSL_CERT_DIR
           value: "/etc/ssl/certs"
     client:
@@ -31,14 +31,14 @@ spec:
       replicaCount: 1
       intervalSeconds: 60
       imagePullSecrets:
-        - name: '{{repl ImagePullSecretName }}'
+        - name: "{{repl ImagePullSecretName }}"
     replicated:
       enabled: true
       image:
         registry: repl{{ HasLocalRegistry | ternary LocalRegistryHost "ec-e2e-proxy.testcluster.net" }}
         repository: repl{{ HasLocalRegistry | ternary LocalRegistryNamespace "anonymous/registry.replicated.com/library" }}/replicated-sdk-image
       imagePullSecrets:
-        - name: '{{repl ImagePullSecretName }}'
+        - name: "{{repl ImagePullSecretName }}"
     configItemsConfigMapData:
       text_required: repl{{ ConfigOption "text_required" }}
 
@@ -54,8 +54,23 @@ spec:
           volumes:
             - name: ca-certs
               configMap:
-                name: 'repl{{ PrivateCACert }}'
+                name: "repl{{ PrivateCACert }}"
 
   builder:
     replicated:
       enabled: true
+# Do not remove the HelmChart document below. This file is intentionally a multi-document YAML file
+# for regression testing of SC-131165 bug fix.
+---
+apiVersion: kots.io/v1beta2
+kind: HelmChart
+metadata:
+  name: nginx-app-secondary
+spec:
+  chart:
+    name: nginx-app
+    chartVersion: 0.1.0
+  namespace: nginx-app-secondary
+  values:
+    server:
+      replicaCount: 1
