@@ -73,7 +73,7 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 	appVersion string,
 	// K0s minor version (e.g., "33" or auto-detected from versions.mk if not provided)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 	// Architecture to build for (defaults to amd64)
 	// +default="amd64"
 	arch string,
@@ -111,7 +111,7 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 	if err != nil {
 		return nil, fmt.Errorf("failed to set app version: %w", err)
 	}
-	metadata, err = metadata.WithK0sVersion(ctx, src, k0sMinorVersion)
+	metadata, err = metadata.WithK0sVersion(ctx, src, k0SMinorVersion)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set k0s version: %w", err)
 	}
@@ -211,10 +211,10 @@ func (m *BuildMetadata) WithK0sVersion(
 	src *dagger.Directory,
 	// K0s minor version (e.g., "33" or auto-detected from versions.mk if not provided)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 ) (*BuildMetadata, error) {
-	if k0sMinorVersion != "" {
-		m.K0SMinorVersion = k0sMinorVersion
+	if k0SMinorVersion != "" {
+		m.K0SMinorVersion = k0SMinorVersion
 	}
 
 	if m.K0SMinorVersion != "" {

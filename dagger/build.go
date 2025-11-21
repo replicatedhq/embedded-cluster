@@ -41,7 +41,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	ecVersion string,
 	// K0s minor version (e.g., "1.29" or auto-detected from make)
 	// +optional
-	k0sMinorVersion string,
+	k0SMinorVersion string,
 	// App version label for the Replicated release (e.g., "appver-dev-abc123" or auto-detected from git)
 	// +optional
 	appVersion string,
@@ -94,7 +94,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	}
 
 	// Step 1: Build metadata using composable function
-	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0sMinorVersion, arch)
+	_, err := m.WithBuildMetadata(ctx, src, nil, ecVersion, appVersion, k0SMinorVersion, arch)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize build metadata: %w", err)
 	}
