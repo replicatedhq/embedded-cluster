@@ -161,7 +161,7 @@ func (m *EmbeddedCluster) buildBinary(
 
 	// Create tarball
 	builder = builder.
-		WithExec([]string{"mkdir", "-p", "build"}).
+		WithExec([]string{"mkdir", "-p", "output/build"}).
 		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", arch), "embedded-cluster"})
 
 	// Generate metadata
