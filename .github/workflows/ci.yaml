@@ -481,7 +481,7 @@ jobs:
             build-and-release \
               --ec-version="${EC_VERSION}" \
               --app-version="${APP_VERSION}" \
-              --k-0-s-minor-version="${K0S_MINOR_VERSION}" \
+              --k-0-sminor-version="${K0S_MINOR_VERSION}" \
               --release-yaml-dir="${RELEASE_YAML_DIR}" \
               --app-channel-id="${APP_CHANNEL_ID}" \
               --app-channel-slug="${APP_CHANNEL_SLUG}" \
@@ -634,7 +634,7 @@ jobs:
             build-and-release \
               --ec-version="${EC_VERSION}" \
               --app-version="${APP_VERSION}" \
-              --k-0-s-minor-version="${K0S_MINOR_VERSION}" \
+              --k-0-sminor-version="${K0S_MINOR_VERSION}" \
               --release-yaml-dir="${RELEASE_YAML_DIR}" \
               --app-channel-id="${APP_CHANNEL_ID}" \
               --app-channel-slug="${APP_CHANNEL_SLUG}" \
