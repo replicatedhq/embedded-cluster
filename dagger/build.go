@@ -73,15 +73,18 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// TTL.sh user prefix for image publishing
 	// +default="ec-build"
 	ttlShUser string,
-	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	// AWS access key ID (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
 	// +optional
 	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	// AWS secret access key (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 	// +optional
 	awsSecretAccessKey *dagger.Secret,
-	// Replicated API token (or from 1Password "EC CI" item, field "STAGING_REPLICATED_API_TOKEN")
+	// Replicated API token (or from 1Password "EC Dev" item, field "STAGING_REPLICATED_API_TOKEN")
 	// +optional
 	replicatedAPIToken *dagger.Secret,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*BuildArtifacts, error) {
 	// Validate secrets needed for the build
 	m.buildValidateSecrets(awsAccessKeyID, awsSecretAccessKey, replicatedAPIToken, skipRelease)
@@ -117,6 +120,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		appChannelID,
 		appChannelSlug,
 		s3Bucket,
+		githubToken,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to embed release: %w", err)
@@ -130,6 +134,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			s3Bucket,
 			awsAccessKeyID,
 			awsSecretAccessKey,
+			githubToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upload binaries: %w", err)
@@ -146,16 +151,22 @@ func (m *EmbeddedCluster) BuildAndRelease(
 			appChannel,
 			s3Bucket,
 			replicatedAPIToken,
+			githubToken,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create release: %w", err)
 		}
 	}
 
+	buildDir, err := m.BuildMetadata.ToDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create build directory: %w", err)
+	}
+
 	return &BuildArtifacts{
 		Version:    m.BuildMetadata.Version,
 		AppVersion: m.BuildMetadata.AppVersion,
-		BuildDir:   m.BuildMetadata.BuildDir,
+		BuildDir:   buildDir,
 	}, nil
 }
 

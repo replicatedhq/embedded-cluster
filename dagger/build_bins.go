@@ -88,9 +88,6 @@ func (m *EmbeddedCluster) buildBinary(
 	s3Bucket string,
 	usesDevBucket bool,
 ) (*dagger.Directory, error) {
-	// Mount web build directory
-	src = src.WithDirectory("web", webBuild)
-
 	// Use cached build environment
 	builder := m.buildEnv(src)
 
@@ -103,8 +100,9 @@ func (m *EmbeddedCluster) buildBinary(
 		WithExec([]string{"make", "build-deps"})
 
 	// Build buildtools binary (needed for updating addon metadata)
+	buildtools := m.buildBuildtools(ctx, builder)
 	builder = builder.
-		WithExec([]string{"make", "buildtools"})
+		WithFile("/workspace/output/bin/buildtools", buildtools)
 
 	// Update operator metadata with the built operator image
 	// buildtools expects INPUT_OPERATOR_IMAGE without the tag (it will extract it from the chart)
@@ -148,6 +146,9 @@ func (m *EmbeddedCluster) buildBinary(
 	// Build the embedded-cluster binary
 	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", m.BuildMetadata.LAMImageRepo)
 
+	// Mount web build directory
+	builder = builder.WithDirectory("/workspace/web", webBuild)
+
 	builder = builder.
 		WithEnvVariable("LOCAL_ARTIFACT_MIRROR_IMAGE", localArtifactMirrorImage).
 		WithEnvVariable("METADATA_K0S_BINARY_URL_OVERRIDE", k0sBinaryURL).
@@ -176,7 +177,6 @@ func (m *EmbeddedCluster) BuildWeb(
 	ctx context.Context,
 	// Source directory to use for the build.
 	// +defaultPath="/"
-	// +optional
 	src *dagger.Directory,
 ) *dagger.Directory {
 	// Create cache volume for npm to avoid re-downloading packages
@@ -196,6 +196,25 @@ func (m *EmbeddedCluster) BuildWeb(
 		WithExec([]string{"npm", "run", "build"}).
 		// Return the built web directory
 		Directory("/workspace/web")
+}
+
+// BuildBuildtools builds the buildtools binary (needed for updating addon metadata)
+func (m *EmbeddedCluster) BuildBuildtools(
+	ctx context.Context,
+	// Source directory to use for the build.
+	// +defaultPath="/"
+	src *dagger.Directory,
+) *dagger.File {
+	builder := m.buildEnv(src)
+	return m.buildBuildtools(ctx, builder)
+}
+
+func (m *EmbeddedCluster) buildBuildtools(ctx context.Context, builder *dagger.Container) *dagger.File {
+	return builder.
+		WithEnvVariable("CGO_ENABLED", "0").
+		WithExec([]string{"mkdir", "-p", "output/bin"}).
+		WithExec([]string{"go", "build", "-tags", GoBuildTags, "-o", "output/bin/buildtools", "./cmd/buildtools"}).
+		File("output/bin/buildtools")
 }
 
 // BuildFio builds the fio binary (replicates fio/Dockerfile logic)

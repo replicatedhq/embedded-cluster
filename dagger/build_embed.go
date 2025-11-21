@@ -39,6 +39,9 @@ func (m *EmbeddedCluster) EmbedRelease(
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -60,6 +63,7 @@ func (m *EmbeddedCluster) EmbedRelease(
 		appChannelSlug,
 		s3Bucket,
 		s3Bucket != StagingS3Bucket,
+		githubToken,
 	)
 	if err != nil {
 		return nil, err
@@ -84,6 +88,7 @@ func (m *EmbeddedCluster) embedRelease(
 	appChannelSlug string,
 	s3Bucket string,
 	usesDevBucket bool,
+	githubToken *dagger.Secret,
 ) (*dagger.File, error) {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
@@ -121,6 +126,10 @@ func (m *EmbeddedCluster) embedRelease(
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "1")
 	} else {
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "0")
+	}
+
+	if githubToken != nil {
+		container = container.WithSecretVariable("GH_TOKEN", githubToken)
 	}
 
 	// Run the embed release script

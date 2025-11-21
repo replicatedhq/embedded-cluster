@@ -32,8 +32,6 @@ type BuildMetadata struct {
 	LAMImageTag string
 	// Operator chart URL (e.g., "oci://ttl.sh/user/embedded-cluster-operator")
 	OperatorChartURL string
-	// Build directory path (e.g., "build")
-	BuildDirPath string
 
 	// Build directory containing all artifacts
 	BuildDir *dagger.Directory `yaml:"-"`
@@ -87,10 +85,8 @@ func (m *EmbeddedCluster) WithBuildMetadata(
 			return nil, fmt.Errorf("failed to parse metadata yaml: %w", err)
 		}
 
-		// Restore BuildDir if present
-		if metadata.BuildDirPath != "" {
-			metadata.BuildDir = dir.Directory(metadata.BuildDirPath)
-		}
+		// Restore BuildDir
+		metadata.BuildDir = dir
 	}
 
 	var err error
@@ -281,8 +277,7 @@ func (m *BuildMetadata) ToDir() (*dagger.Directory, error) {
 
 	// Set the build directory path before marshaling if build directory is present
 	if m.BuildDir != nil {
-		m.BuildDirPath = "build"
-		dir = dir.WithDirectory(m.BuildDirPath, m.BuildDir)
+		dir = dir.WithDirectory(".", m.BuildDir)
 	}
 
 	data, err := yaml.Marshal(m)

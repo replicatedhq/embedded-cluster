@@ -36,9 +36,12 @@ func (m *EmbeddedCluster) ReleaseApp(
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// Replicated API token (or from 1Password "EC CI" item, field "STAGING_REPLICATED_API_TOKEN")
+	// Replicated API token (or from 1Password "EC Dev" item, field "STAGING_REPLICATED_API_TOKEN")
 	// +optional
 	replicatedAPIToken *dagger.Secret,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -60,6 +63,7 @@ func (m *EmbeddedCluster) ReleaseApp(
 		s3Bucket,
 		s3Bucket != StagingS3Bucket,
 		replicatedAPIToken,
+		githubToken,
 	)
 	if err != nil {
 		return nil, err
@@ -81,6 +85,7 @@ func (m *EmbeddedCluster) createRelease(
 	s3Bucket string,
 	usesDevBucket bool,
 	replicatedToken *dagger.Secret,
+	githubToken *dagger.Secret,
 ) error {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
@@ -99,6 +104,10 @@ func (m *EmbeddedCluster) createRelease(
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "1")
 	} else {
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "0")
+	}
+
+	if githubToken != nil {
+		container = container.WithSecretVariable("GH_TOKEN", githubToken)
 	}
 
 	// Run release script

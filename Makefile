@@ -245,7 +245,7 @@ build-deps: go.mod crds
 
 .PHONY: buildtools
 buildtools:
-	CGO_ENABLED=0 go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
+	dagger call build-buildtools export --path=./output/bin/buildtools
 
 .PHONY: static
 static: cmd/installer/goods/bins/k0s \

@@ -28,12 +28,15 @@ func (m *EmbeddedCluster) UploadBins(
 	// S3 bucket for uploads
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
-	// AWS access key ID (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
+	// AWS access key ID (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID")
 	// +optional
 	awsAccessKeyID *dagger.Secret,
-	// AWS secret access key (or from 1Password "EC CI" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
+	// AWS secret access key (or from 1Password "EC Dev" item, field "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY")
 	// +optional
 	awsSecretAccessKey *dagger.Secret,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata not initialized - call WithBuildMetadata first")
@@ -57,6 +60,7 @@ func (m *EmbeddedCluster) UploadBins(
 		s3Bucket,
 		awsAccessKeyID,
 		awsSecretAccessKey,
+		githubToken,
 	); err != nil {
 		return nil, err
 	}
@@ -74,6 +78,7 @@ func (m *EmbeddedCluster) uploadBinaries(
 	s3Bucket string,
 	awsAccessKey *dagger.Secret,
 	awsSecretKey *dagger.Secret,
+	githubToken *dagger.Secret,
 ) error {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
@@ -88,6 +93,10 @@ func (m *EmbeddedCluster) uploadBinaries(
 		WithEnvVariable("UPLOAD_BINARIES", "0").
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
+
+	if githubToken != nil {
+		container = container.WithSecretVariable("GH_TOKEN", githubToken)
+	}
 
 	// Run upload script (will only upload metadata.json with UPLOAD_BINARIES=0)
 	_, err := container.
