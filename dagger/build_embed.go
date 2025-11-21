@@ -66,7 +66,7 @@ func (m *EmbeddedCluster) EmbedRelease(
 	}
 
 	// Update metadata with binary file
-	m.BuildMetadata.BuildDir = m.BuildMetadata.BuildDir.WithFile("output/bin/embedded-cluster", embedded)
+	m.BuildMetadata.BuildDir = m.BuildMetadata.BuildDir.WithFile("bin/embedded-cluster", embedded)
 
 	return m, nil
 }
