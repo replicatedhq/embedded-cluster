@@ -88,6 +88,9 @@ func (m *EmbeddedCluster) buildBinary(
 	s3Bucket string,
 	usesDevBucket bool,
 ) (*dagger.Directory, error) {
+	// Mount web build directory
+	src = src.WithDirectory("web", webBuild)
+
 	// Use cached build environment
 	builder := m.buildEnv(src)
 
@@ -116,8 +119,6 @@ func (m *EmbeddedCluster) buildBinary(
 		WithEnvVariable("INPUT_OPERATOR_CHART_VERSION", chartVersionForOCI).
 		WithEnvVariable("INPUT_OPERATOR_IMAGE", operatorImageWithoutTag).
 		WithExec([]string{"./output/bin/buildtools", "update", "addon", "embeddedclusteroperator"})
-
-	// Note: Web UI is already built and mounted from webBuild parameter
 
 	// Construct metadata URLs
 	var k0sBinaryURL, kotsBinaryURL, operatorBinaryURL string
@@ -161,13 +162,13 @@ func (m *EmbeddedCluster) buildBinary(
 	// Create tarball
 	builder = builder.
 		WithExec([]string{"mkdir", "-p", "build"}).
-		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("build/embedded-cluster-linux-%s.tgz", arch), "embedded-cluster"})
+		WithExec([]string{"tar", "-C", "output/bin", "-czvf", fmt.Sprintf("output/build/embedded-cluster-linux-%s.tgz", arch), "embedded-cluster"})
 
 	// Generate metadata
 	builder = builder.
-		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > build/metadata.json"})
+		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > output/build/metadata.json"})
 
-	return builder.Directory("/workspace/build"), nil
+	return builder.Directory("/workspace/output"), nil
 }
 
 // BuildWeb builds the web UI using official Node.js image

@@ -492,14 +492,12 @@ jobs:
               --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
             build-dir export --path=./output
 
-          mkdir -p output/bin
-
           version_suffix=
           if [ ${{ matrix.n }} -gt 0 ]; then
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/build/embedded-cluster-linux-amd64 output/bin/embedded-cluster${version_suffix}
+            cp output/bin/embedded-cluster output/bin/embedded-cluster${version_suffix}
           fi
 
       - name: Upload release
@@ -509,6 +507,8 @@ jobs:
           name: current-release
           path: |
             output/bin/embedded-cluster
+            output/bin/embedded-cluster-original
+            output/bin/embedded-cluster-release-builder
 
       - name: Upload release previous k0s
         uses: actions/upload-artifact@v5
@@ -645,9 +645,7 @@ jobs:
               --aws-secret-access-key=env:AWS_SECRET_ACCESS_KEY \
             build-dir export --path=./output
 
-          mkdir -p output/bin
-
-          cp output/build/embedded-cluster-linux-amd64 output/bin/embedded-cluster-upgrade
+          cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release
         uses: actions/upload-artifact@v5
@@ -685,9 +683,9 @@ jobs:
       - name: Check for missing images
         run: |
           chmod +x ./output/bin/buildtools
-          chmod +x ./output/bin/embedded-cluster
-          ./output/bin/embedded-cluster version metadata > version-metadata.json
-          ./output/bin/embedded-cluster version list-images > expected.txt
+          chmod +x ./output/bin/embedded-cluster-original
+          ./output/bin/embedded-cluster-original version metadata > version-metadata.json
+          ./output/bin/embedded-cluster-original version list-images > expected.txt
           printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
           printf "Found images:\n$(cat images.txt)\n"
