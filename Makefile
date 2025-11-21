@@ -194,7 +194,7 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
-		app-version
+		build-dir export --path=./output
 
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
@@ -210,7 +210,7 @@ rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--skip-release=1 \
 			--ttl-sh-user=$(CURRENT_USER) \
-		app-version
+		build-dir export --path=./output
 
 .PHONY: upgrade-release
 upgrade-release: RANDOM_STRING = $(call random-string)
@@ -227,7 +227,7 @@ upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
-		app-version
+		build-dir export --path=./output
 
 .PHONY: go.mod
 go.mod: Makefile
