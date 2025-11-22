@@ -134,10 +134,10 @@ func (m *EmbeddedCluster) buildBinary(
 	builder = builder.WithDirectory("/workspace/web", webBuild)
 
 	builder = builder.
-		WithEnvVariable("LOCAL_ARTIFACT_MIRROR_IMAGE", localArtifactMirrorImage).
 		WithEnvVariable("METADATA_K0S_BINARY_URL_OVERRIDE", k0sBinaryURL).
 		WithEnvVariable("METADATA_KOTS_BINARY_URL_OVERRIDE", kotsBinaryURL).
 		WithEnvVariable("METADATA_OPERATOR_BINARY_URL_OVERRIDE", operatorBinaryURL).
+		WithEnvVariable("LOCAL_ARTIFACT_MIRROR_IMAGE", localArtifactMirrorImage).
 		WithExec([]string{"make", fmt.Sprintf("embedded-cluster-linux-%s", m.BuildMetadata.Arch)})
 
 	// Copy binary to preserve original
