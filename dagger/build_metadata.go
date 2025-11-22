@@ -293,8 +293,8 @@ func (m *BuildMetadata) ToDir() (*dagger.Directory, error) {
 
 // withEnvVariables sets the environment variables from the build metadata in the container.
 func (m *BuildMetadata) withEnvVariables(c *dagger.Container) *dagger.Container {
-	return c.WithEnvVariable("VERSION", m.Version).
-		WithEnvVariable("EC_VERSION", m.Version).
+	return c.WithEnvVariable("EC_VERSION", m.Version).
+		WithEnvVariable("VERSION", m.Version).
 		WithEnvVariable("APP_VERSION", m.AppVersion).
 		WithEnvVariable("K0S_MINOR_VERSION", m.K0SMinorVersion).
 		WithEnvVariable("K0S_VERSION", m.K0SVersion).

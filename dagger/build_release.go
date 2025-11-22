@@ -85,10 +85,10 @@ func (m *EmbeddedCluster) createRelease(
 ) error {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
-	container := ubuntuUtilsContainer().
+	container := ubuntuUtilsContainer()
+
+	container = m.BuildMetadata.withEnvVariables(container).
 		WithDirectory("/workspace", dir).
-		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
-		WithEnvVariable("APP_VERSION", m.BuildMetadata.AppVersion).
 		WithEnvVariable("APP_CHANNEL", appChannel).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
 		WithEnvVariable("REPLICATED_APP", replicatedApp).

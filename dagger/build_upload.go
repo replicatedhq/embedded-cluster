@@ -76,11 +76,10 @@ func (m *EmbeddedCluster) uploadBinaries(
 ) error {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
-	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"}).
+	container := ubuntuUtilsContainer(dagger.ContainerOpts{Platform: "linux/amd64"})
+
+	container = m.BuildMetadata.withEnvVariables(container).
 		WithDirectory("/workspace", dir).
-		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
-		WithEnvVariable("K0S_VERSION", m.BuildMetadata.K0SVersion).
-		WithEnvVariable("ARCH", m.BuildMetadata.Arch).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
 		// Skip binary uploads (k0s, kots, operator) - only upload metadata.json
 		// Binary uploads require Docker/crane/oras which are complex to set up in Dagger

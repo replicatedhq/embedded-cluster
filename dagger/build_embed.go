@@ -107,9 +107,7 @@ func (m *EmbeddedCluster) embedRelease(
 		WithFile("/workspace/output/bin/embedded-cluster-release-builder", releaseBuilder)
 
 	// Set environment variables
-	container = container.
-		WithEnvVariable("EC_VERSION", m.BuildMetadata.Version).
-		WithEnvVariable("APP_VERSION", m.BuildMetadata.AppVersion).
+	container = m.BuildMetadata.withEnvVariables(container).
 		WithEnvVariable("APP_CHANNEL_ID", appChannelID).
 		WithEnvVariable("APP_CHANNEL_SLUG", appChannelSlug).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
