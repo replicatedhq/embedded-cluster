@@ -296,7 +296,9 @@ func (m *EmbeddedCluster) buildEnv(
 	return goBuildContainer().
 		// Install additional tools needed for the build
 		WithExec([]string{"apt-get", "update"}).
-		WithExec([]string{"apt-get", "install", "-y", "make", "git", "jq", "tar", "gzip"}).
+		WithExec([]string{"apt-get", "install", "-y", "make", "git", "jq", "tar", "gzip", "curl"}).
+		// Install crane (needed to extract kots binary from kotsadm image)
+		WithExec([]string{"sh", "-c", "curl -fsSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz | tar -xzf - -C /usr/local/bin crane"}).
 		// Mount source code
 		WithDirectory("/workspace", dir).
 		// Configure Go caching

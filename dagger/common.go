@@ -49,6 +49,8 @@ func ubuntuUtilsContainer(opts ...dagger.ContainerOpts) *dagger.Container {
 		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/replicatedhq/replicated/main/install.sh | bash"}).
 		// Install Helm
 		WithExec([]string{"sh", "-c", "curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"}).
+		// Install crane (needed to extract kots binary from kotsadm image)
+		WithExec([]string{"sh", "-c", "curl -fsSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz | tar -xzf - -C /usr/local/bin crane"}).
 		// Install AWS CLI (only tool needed for metadata upload)
 		WithExec([]string{"sh", "-c", "curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip"}).
 		WithExec([]string{"sh", "-c", "cd /tmp && unzip -q awscliv2.zip && ./aws/install"}).
