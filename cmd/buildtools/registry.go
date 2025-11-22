@@ -17,7 +17,7 @@ import (
 
 var registryRepo = &repo.Entry{
 	Name: "twuni",
-	URL:  "https://helm.twun.io",
+	URL:  "https://twuni.github.io/docker-registry.helm",
 }
 
 var registryImageComponents = map[string]addonComponent{

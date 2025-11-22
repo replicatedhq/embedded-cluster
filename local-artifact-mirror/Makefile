@@ -31,7 +31,7 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 melange-build-local-artifact-mirror:
 	dagger call build-local-artifact-mirror-package \
 		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
+		--k-0-sminor-version $(K0S_MINOR_VERSION) \
 		--arch $(ARCH) \
 		export --path build
 
@@ -47,7 +47,7 @@ build-local-artifact-mirror-image:
 build-local-artifact-mirror-image-chainguard:
 	dagger call build-local-artifact-mirror-image \
 		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
+		--k-0-sminor-version $(K0S_MINOR_VERSION) \
 		--repo $(IMAGE_NAME) \
 		--arch $(ARCH) \
 		export --path build
@@ -77,7 +77,7 @@ ifdef REGISTRY_SERVER
 			--password env:REGISTRY_PASSWORD \
 		publish-local-artifact-mirror-image \
 			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
+			--k-0-sminor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest
@@ -85,7 +85,7 @@ else
 	dagger call \
 		publish-local-artifact-mirror-image \
 			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
+			--k-0-sminor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest

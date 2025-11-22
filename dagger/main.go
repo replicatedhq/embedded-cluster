@@ -9,15 +9,24 @@ import (
 const (
 	APKOImageVersion    = "latest"
 	MelangeImageVersion = "latest"
+
+	GolangVersion = "1.25"
+	NodeVersion   = "22"
+
+	StagingReplicatedAPIOrigin = "https://api.staging.replicated.com/vendor"
+	StagingS3Bucket            = "tf-staging-embedded-cluster-bin"
+
+	GoBuildTags = "containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay"
 )
 
 type EmbeddedCluster struct {
-	// +private
-	Source       *dagger.Directory
 	RegistryAuth *dagger.Directory
 
 	// 1Password operations
 	OnePassword *OnePassword
+
+	// Build metadata
+	BuildMetadata *BuildMetadata
 
 	common     common
 	chainguard chainguard
@@ -36,20 +45,4 @@ func (m *EmbeddedCluster) WithRegistryLogin(
 	c := m.chainguard.apkoLogin(dag.Directory(), server, username, plain, APKOImageVersion)
 	m.RegistryAuth = c.Directory("/workspace/.docker")
 	return m, nil
-}
-
-// directoryWithCommonGoFiles sets up the filesystem with only what we need to build for improved
-// caching.
-func directoryWithCommonGoFiles(dir *dagger.Directory, src *dagger.Directory) *dagger.Directory {
-	return dir.
-		WithFile("common.mk", src.File("common.mk")).
-		WithFile("versions.mk", src.File("versions.mk")).
-		WithFile("go.mod", src.File("go.mod")).
-		WithFile("go.sum", src.File("go.sum")).
-		WithDirectory("pkg", src.Directory("pkg")).
-		WithDirectory("pkg-new", src.Directory("pkg-new")).
-		WithDirectory("cmd/installer/goods", src.Directory("cmd/installer/goods")).
-		WithDirectory("api", src.Directory("api")).
-		WithDirectory("kinds", src.Directory("kinds")).
-		WithDirectory("utils", src.Directory("utils"))
 }
