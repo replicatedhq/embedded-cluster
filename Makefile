@@ -180,6 +180,10 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+APP_CHANNEL ?= Dev
+APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+APP_CHANNEL_SLUG ?= dev
+
 .PHONY: initial-release
 initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: APP_VERSION = appver-dev-$(call random-string)
@@ -194,9 +198,9 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
-			--app-channel="${APP_CHANNEL:-Dev}" \
-			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
-			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
 		build-dir export --path=./output
 
 .PHONY: rebuild-release
@@ -213,9 +217,9 @@ rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--skip-release=1 \
 			--ttl-sh-user=$(CURRENT_USER) \
-			--app-channel="${APP_CHANNEL:-Dev}" \
-			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
-			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
 		build-dir export --path=./output
 
 .PHONY: upgrade-release
@@ -233,9 +237,9 @@ upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--release-yaml-dir="$(RELEASE_YAML_DIR)" \
 			--upload-binaries=$(UPLOAD_BINARIES) \
 			--ttl-sh-user=$(CURRENT_USER) \
-			--app-channel="${APP_CHANNEL:-Dev}" \
-			--app-channel-id="${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}" \
-			--app-channel-slug="${APP_CHANNEL_SLUG:-dev}" \
+			--app-channel="$(APP_CHANNEL)" \
+			--app-channel-id="$(APP_CHANNEL_ID)" \
+			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
 		build-dir export --path=./output
 
 .PHONY: go.mod
