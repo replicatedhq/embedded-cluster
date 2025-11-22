@@ -6,6 +6,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // APIConfig holds the configuration for the API server
@@ -29,6 +30,7 @@ type APIConfig struct {
 
 	LinuxConfig
 	KubernetesConfig
+	MigrationConfig
 }
 
 type InstallTarget string
@@ -52,4 +54,9 @@ type LinuxConfig struct {
 
 type KubernetesConfig struct {
 	Installation kubernetesinstallation.Installation
+}
+
+type MigrationConfig struct {
+	KubeClient       client.Client // For interacting with kURL cluster
+	KurlPasswordHash string        // Bcrypt hash exported from kURL
 }

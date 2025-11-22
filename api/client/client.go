@@ -40,6 +40,11 @@ type Client interface {
 	ProcessLinuxUpgradeAirgap(ctx context.Context) (types.Airgap, error)
 	GetLinuxUpgradeAirgapStatus(ctx context.Context) (types.Airgap, error)
 
+	// kURL Migration methods
+	GetKURLMigrationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
+	StartKURLMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (types.StartMigrationResponse, error)
+	GetKURLMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error)
+
 	GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error)
 	ConfigureKubernetesInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (types.Status, error)
 	GetKubernetesInstallationStatus(ctx context.Context) (types.Status, error)
