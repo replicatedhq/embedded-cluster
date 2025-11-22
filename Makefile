@@ -180,15 +180,15 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
-APP_CHANNEL ?= Dev
-APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
-APP_CHANNEL_SLUG ?= dev
 
 .PHONY: initial-release
 initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: APP_VERSION = appver-dev-$(call random-string)
 initial-release: RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 initial-release: UPLOAD_BINARIES ?= 1
+initial-release: export APP_CHANNEL ?= Dev
+initial-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+initial-release: export APP_CHANNEL_SLUG ?= dev
 initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -207,6 +207,9 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 rebuild-release: UPLOAD_BINARIES ?= 1
+rebuild-release: export APP_CHANNEL ?= Dev
+rebuild-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+rebuild-release: export APP_CHANNEL_SLUG ?= dev
 rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
@@ -228,6 +231,9 @@ upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM
 upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
 upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
 upgrade-release: UPLOAD_BINARIES ?= 1
+upgrade-release: export APP_CHANNEL ?= Dev
+upgrade-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
+upgrade-release: export APP_CHANNEL_SLUG ?= dev
 upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-env-APP_VERSION
 	dagger call \
 		with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
