@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatErrorMessage } from "./errorMessage";
 
 const kubernetesFieldNames = {
-  localArtifactMirrorPort: "Admin Console Port",
+  localArtifactMirrorPort: "Local Artifact Mirror Port",
   httpProxy: "HTTP Proxy",
   httpsProxy: "HTTPS Proxy",
   noProxy: "Proxy Bypass List",
