@@ -259,10 +259,9 @@ func (m *EmbeddedCluster) PublishOperatorChart(
 ) error {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
-	// The chart version should not have the 'v' prefix and should use dashes instead of plus
-	// This matches the format used for image tags
+	// The chart version should not have the 'v' prefix
 	imageTag := strings.ReplaceAll(ecVersion, "+", "-")
-	chartVersion := strings.TrimPrefix(imageTag, "v")
+	chartVersion := strings.TrimPrefix(ecVersion, "v")
 
 	// Template the Chart.yaml and values.yaml files using envsubst
 	// We need to create a container to do the templating, then export the directory
