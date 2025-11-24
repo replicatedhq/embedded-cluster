@@ -30,17 +30,17 @@ func TestGetInstallationConfig(t *testing.T) {
 				}
 
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort:        30000,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					GlobalCIDR:              "10.244.0.0/16",
+					AdminConsolePort: 30000,
+					DataDirectory:    "/var/lib/embedded-cluster",
+					GlobalCIDR:       "10.244.0.0/16",
 				}
 
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort:        8800,
-					DataDirectory:           "/var/lib/embedded-cluster",
-					PodCIDR:                 "10.32.0.0/20",
-					ServiceCIDR:             "10.96.0.0/12",
-					GlobalCIDR:              "10.244.0.0/16",
+					AdminConsolePort: 8800,
+					DataDirectory:    "/var/lib/embedded-cluster",
+					PodCIDR:          "10.32.0.0/20",
+					ServiceCIDR:      "10.96.0.0/12",
+					GlobalCIDR:       "10.244.0.0/16",
 				}
 
 				mock.InOrder(
@@ -58,16 +58,16 @@ func TestGetInstallationConfig(t *testing.T) {
 						ServiceCIDR:      "10.96.0.0/12",
 					},
 					Defaults: types.LinuxInstallationConfig{
-						AdminConsolePort:        30000,
-						DataDirectory:           "/var/lib/embedded-cluster",
-							GlobalCIDR:              "10.244.0.0/16",
+						AdminConsolePort: 30000,
+						DataDirectory:    "/var/lib/embedded-cluster",
+						GlobalCIDR:       "10.244.0.0/16",
 					},
 					Resolved: types.LinuxInstallationConfig{
-						AdminConsolePort:        8800,
-						DataDirectory:           "/var/lib/embedded-cluster",
-							PodCIDR:                 "10.32.0.0/20",
-						ServiceCIDR:             "10.96.0.0/12",
-						GlobalCIDR:              "10.244.0.0/16",
+						AdminConsolePort: 8800,
+						DataDirectory:    "/var/lib/embedded-cluster",
+						PodCIDR:          "10.32.0.0/20",
+						ServiceCIDR:      "10.96.0.0/12",
+						GlobalCIDR:       "10.244.0.0/16",
 					},
 				}
 			},
@@ -105,14 +105,14 @@ func TestGetInstallationConfig(t *testing.T) {
 				}
 
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort:        30000,
-					DataDirectory:           "/var/lib/embedded-cluster",
+					AdminConsolePort: 30000,
+					DataDirectory:    "/var/lib/embedded-cluster",
 				}
 
 				// Resolved should have kURL values override defaults (since no user config yet)
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort:        8800,
-					DataDirectory:           "/opt/kurl",
+					AdminConsolePort: 8800,
+					DataDirectory:    "/opt/kurl",
 				}
 
 				mock.InOrder(
@@ -129,13 +129,13 @@ func TestGetInstallationConfig(t *testing.T) {
 						DataDirectory:    "/opt/kurl",
 					},
 					Defaults: types.LinuxInstallationConfig{
-						AdminConsolePort:        30000,
-						DataDirectory:           "/var/lib/embedded-cluster",
-						},
+						AdminConsolePort: 30000,
+						DataDirectory:    "/var/lib/embedded-cluster",
+					},
 					Resolved: types.LinuxInstallationConfig{
-						AdminConsolePort:        8800,
-						DataDirectory:           "/opt/kurl",
-						},
+						AdminConsolePort: 8800,
+						DataDirectory:    "/opt/kurl",
+					},
 				}
 			},
 		},

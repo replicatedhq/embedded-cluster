@@ -1842,6 +1842,38 @@ export interface components {
             status?: components["schemas"]["types.Status"];
             titles: string[];
         };
+        /**
+         * @description Phase is the current phase of the migration process
+         * @example Discovery
+         * @enum {string}
+         */
+        "types.KURLMigrationPhase": "Discovery" | "Preparation" | "ECInstall" | "DataTransfer" | "Completed";
+        /**
+         * @description State is the current state of the migration
+         * @example InProgress
+         * @enum {string}
+         */
+        "types.KURLMigrationState": "NotStarted" | "InProgress" | "Completed" | "Failed";
+        /** @description Current status and progress of a migration */
+        "types.KURLMigrationStatusResponse": {
+            /**
+             * @description Error contains the error message if the migration failed
+             * @example
+             */
+            error?: string;
+            /**
+             * @description Message is a user-facing message describing the current status
+             * @example Discovering kURL cluster configuration
+             */
+            message: string;
+            phase: components["schemas"]["types.KURLMigrationPhase"];
+            /**
+             * @description Progress is the completion percentage (0-100)
+             * @example 25
+             */
+            progress: number;
+            state: components["schemas"]["types.KURLMigrationState"];
+        };
         "types.KubernetesInstallationConfig": {
             adminConsolePort?: number;
             httpProxy?: string;
@@ -1874,38 +1906,6 @@ export interface components {
             resolved: components["schemas"]["types.LinuxInstallationConfig"];
             values: components["schemas"]["types.LinuxInstallationConfig"];
         };
-        /**
-         * @description Phase is the current phase of the migration process
-         * @example Discovery
-         * @enum {string}
-         */
-        "types.MigrationPhase": "Discovery" | "Preparation" | "ECInstall" | "DataTransfer" | "Completed";
-        /**
-         * @description State is the current state of the migration
-         * @example InProgress
-         * @enum {string}
-         */
-        "types.MigrationState": "NotStarted" | "InProgress" | "Completed" | "Failed";
-        /** @description Current status and progress of a migration */
-        "types.MigrationStatusResponse": {
-            /**
-             * @description Error contains the error message if the migration failed
-             * @example
-             */
-            error?: string;
-            /**
-             * @description Message is a user-facing message describing the current status
-             * @example Discovering kURL cluster configuration
-             */
-            message: string;
-            phase: components["schemas"]["types.MigrationPhase"];
-            /**
-             * @description Progress is the completion percentage (0-100)
-             * @example 25
-             */
-            progress: number;
-            state: components["schemas"]["types.MigrationState"];
-        };
         "types.PatchAppConfigValuesRequest": {
             values: components["schemas"]["types.AppConfigValues"];
         };
@@ -1923,12 +1923,12 @@ export interface components {
             title: string;
         };
         /** @description Request body for starting a migration from kURL to Embedded Cluster */
-        "types.StartMigrationRequest": {
+        "types.StartKURLMigrationRequest": {
             config?: components["schemas"]["types.LinuxInstallationConfig"];
             transferMode: components["schemas"]["types.TransferMode"];
         };
         /** @description Response returned when a migration is successfully started */
-        "types.StartMigrationResponse": {
+        "types.StartKURLMigrationResponse": {
             /**
              * @description Message is a user-facing message about the migration status
              * @example Migration started successfully
@@ -2699,7 +2699,7 @@ export interface operations {
         /** @description Start Migration Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.StartMigrationRequest"];
+                "application/json": components["schemas"]["types.StartKURLMigrationRequest"];
             };
         };
         responses: {
@@ -2709,7 +2709,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["types.StartMigrationResponse"];
+                    "application/json": components["schemas"]["types.StartKURLMigrationResponse"];
                 };
             };
             /** @description Bad Request */
@@ -2747,7 +2747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["types.MigrationStatusResponse"];
+                    "application/json": components["schemas"]["types.KURLMigrationStatusResponse"];
                 };
             };
             /** @description Not Found */
