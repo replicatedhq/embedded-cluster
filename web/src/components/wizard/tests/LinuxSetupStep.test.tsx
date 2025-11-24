@@ -24,36 +24,36 @@ const server = setupServer(
 
 describe("LinuxSetupStep - Unit", () => {
   describe("processInputValue", () => {
-    it("converts valid integer string to number for adminConsolePort", () => {
+    it("converts valid integer string to number for localArtifactMirrorPort", () => {
       const result = processInputValue(
-        "adminConsolePort",
+        "localArtifactMirrorPort",
         "8080",
         { dataDirectory: "/var" }
       );
 
       expect(result).toEqual({
         dataDirectory: "/var",
-        adminConsolePort: 8080,
+        localArtifactMirrorPort: 8080,
       });
     });
 
     it("converts empty string to undefined for port fields", () => {
       const result = processInputValue(
-        "adminConsolePort",
+        "localArtifactMirrorPort",
         "",
-        { dataDirectory: "/var", adminConsolePort: 8080 }
+        { dataDirectory: "/var", localArtifactMirrorPort: 8080 }
       );
 
       expect(result).toEqual({
         dataDirectory: "/var",
-        adminConsolePort: undefined,
+        localArtifactMirrorPort: undefined,
       });
     });
 
     it("rejects decimal values for port fields", () => {
-      const currentValues = { dataDirectory: "/var", adminConsolePort: 8080 };
+      const currentValues = { dataDirectory: "/var", localArtifactMirrorPort: 8080 };
       const result = processInputValue(
-        "adminConsolePort",
+        "localArtifactMirrorPort",
         "8080.5",
         currentValues
       );
@@ -62,9 +62,9 @@ describe("LinuxSetupStep - Unit", () => {
     });
 
     it("rejects non-numeric values for port fields", () => {
-      const currentValues = { adminConsolePort: 8080 };
+      const currentValues = { localArtifactMirrorPort: 8080 };
       const result = processInputValue(
-        "adminConsolePort",
+        "localArtifactMirrorPort",
         "abc",
         currentValues
       );
@@ -113,17 +113,17 @@ describe("LinuxSetupStep - Unit", () => {
   describe("extractFieldError", () => {
     it("returns formatted error for matching field", () => {
       const errors = [
-        { field: "adminConsolePort", message: "adminConsolePort must be between 1024 and 65535" },
+        { field: "localArtifactMirrorPort", message: "localArtifactMirrorPort must be between 1024 and 65535" },
       ];
 
-      const result = extractFieldError("adminConsolePort", errors, fieldNames);
+      const result = extractFieldError("localArtifactMirrorPort", errors, fieldNames);
 
       expect(result).toBe("Admin Console Port must be between 1024 and 65535");
     });
 
     it("returns undefined when field has no error", () => {
       const errors = [
-        { field: "adminConsolePort", message: "some error" },
+        { field: "localArtifactMirrorPort", message: "some error" },
       ];
 
       const result = extractFieldError("dataDirectory", errors, fieldNames);
@@ -172,7 +172,7 @@ describe("LinuxSetupStep - Unit", () => {
     it("does not expand for non-advanced field errors", () => {
       const errors = [
         { field: "dataDirectory", message: "required" },
-        { field: "adminConsolePort", message: "invalid" },
+        { field: "localArtifactMirrorPort", message: "invalid" },
       ];
       const result = shouldExpandAdvancedSettings(errors);
       expect(result).toBe(false);
@@ -327,7 +327,7 @@ describe("LinuxSetupStep - Integration", () => {
           expect(headers.get("Authorization")).toBe("Bearer test-token");
           // Verify request body structure
           expect(body).toHaveProperty("dataDirectory");
-          expect(body).toHaveProperty("adminConsolePort");
+          expect(body).toHaveProperty("localArtifactMirrorPort");
         }
       }),
       mockHandlers.installation.getStatus({
@@ -419,7 +419,7 @@ describe("LinuxSetupStep - Integration", () => {
           message: "Validation failed",
           fields: [
             { field: "networkInterface", message: "networkInterface is required" },
-            { field: "adminConsolePort", message: "adminConsolePort must be between 1024 and 65535" }
+            { field: "localArtifactMirrorPort", message: "localArtifactMirrorPort must be between 1024 and 65535" }
           ]
         }
       })

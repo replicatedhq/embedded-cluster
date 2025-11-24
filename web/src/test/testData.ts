@@ -1,18 +1,15 @@
 export const MOCK_LINUX_INSTALL_CONFIG = {
-  adminConsolePort: 8800,
   localArtifactMirrorPort: 8801,
   networkInterface: "eth0",
 };
 
 export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE = {
   values: {
-    adminConsolePort: 8800,
     localArtifactMirrorPort: 8801,
     networkInterface: "eth0",
     dataDirectory: "/custom/data/dir",
   },
   defaults: {
-    adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     dataDirectory: "/var/lib/embedded-cluster",
     globalCidr: "10.244.0.0/16",
@@ -22,7 +19,6 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE = {
     networkInterface: "eth0",
   },
   resolved: {
-    adminConsolePort: 8800,
     localArtifactMirrorPort: 8801,
     networkInterface: "eth0",
     dataDirectory: "/custom/data/dir",
@@ -35,13 +31,11 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE = {
 
 export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
   values: {
-    adminConsolePort: 0,
     localArtifactMirrorPort: 0,
     networkInterface: "eth0",
     dataDirectory: "/custom/data/dir",
   },
   defaults: {
-    adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     dataDirectory: "/var/lib/embedded-cluster",
     globalCidr: "10.244.0.0/16",
@@ -51,7 +45,6 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_WITH_ZEROS = {
     networkInterface: "eth0",
   },
   resolved: {
-    adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     networkInterface: "eth0",
     dataDirectory: "/custom/data/dir",
@@ -67,7 +60,6 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY = {
     dataDirectory: "",
   },
   defaults: {
-    adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     dataDirectory: "/var/lib/embedded-cluster",
     globalCidr: "10.244.0.0/16",
@@ -77,7 +69,6 @@ export const MOCK_LINUX_INSTALL_CONFIG_RESPONSE_EMPTY = {
     networkInterface: "eth0",
   },
   resolved: {
-    adminConsolePort: 30000,
     localArtifactMirrorPort: 50000,
     dataDirectory: "/var/lib/embedded-cluster",
     globalCidr: "10.244.0.0/16",

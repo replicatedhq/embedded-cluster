@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatErrorMessage } from "./errorMessage";
 
 const kubernetesFieldNames = {
-  adminConsolePort: "Admin Console Port",
+  localArtifactMirrorPort: "Admin Console Port",
   httpProxy: "HTTP Proxy",
   httpsProxy: "HTTPS Proxy",
   noProxy: "Proxy Bypass List",
@@ -14,7 +14,7 @@ describe("formatErrorMessage Kubernetes", () => {
   });
 
   it("replaces field names with their proper format", () => {
-    expect(formatErrorMessage("adminConsolePort", kubernetesFieldNames)).toBe("Admin Console Port");
+    expect(formatErrorMessage("localArtifactMirrorPort", kubernetesFieldNames)).toBe("Local Artifact Mirror Port");
     expect(formatErrorMessage("httpProxy", kubernetesFieldNames)).toBe("HTTP Proxy");
     expect(formatErrorMessage("httpsProxy", kubernetesFieldNames)).toBe("HTTPS Proxy");
     expect(formatErrorMessage("noProxy", kubernetesFieldNames)).toBe("Proxy Bypass List");
@@ -22,16 +22,16 @@ describe("formatErrorMessage Kubernetes", () => {
 
   it("handles multiple field names in one message", () => {
     expect(formatErrorMessage("httpProxy and httpsProxy are required", kubernetesFieldNames)).toBe("HTTP Proxy and HTTPS Proxy are required");
-    expect(formatErrorMessage("adminConsolePort and noProxy must be set", kubernetesFieldNames)).toBe("Admin Console Port and Proxy Bypass List must be set");
+    expect(formatErrorMessage("localArtifactMirrorPort and noProxy must be set", kubernetesFieldNames)).toBe("Local Artifact Mirror Port and Proxy Bypass List must be set");
   });
 
   it("preserves non-field words", () => {
-    expect(formatErrorMessage("The adminConsolePort is invalid", kubernetesFieldNames)).toBe("The Admin Console Port is invalid");
+    expect(formatErrorMessage("The localArtifactMirrorPort is invalid", kubernetesFieldNames)).toBe("The Local Artifact Mirror Port is invalid");
     expect(formatErrorMessage("Please set the httpProxy", kubernetesFieldNames)).toBe("Please set the HTTP Proxy");
   });
 
   it("handles case insensitivity correctly", () => {
-    expect(formatErrorMessage("AdminConsolePort", kubernetesFieldNames)).toBe("Admin Console Port");
+    expect(formatErrorMessage("LocalArtifactMirrorPort", kubernetesFieldNames)).toBe("Local Artifact Mirror Port");
     expect(formatErrorMessage("HTTPPROXY", kubernetesFieldNames)).toBe("HTTP Proxy");
     expect(formatErrorMessage("NoProxy", kubernetesFieldNames)).toBe("Proxy Bypass List");
   });
@@ -40,19 +40,18 @@ describe("formatErrorMessage Kubernetes", () => {
     expect(formatErrorMessage("httpProxy and httpsProxy cannot be empty when noProxy is set", kubernetesFieldNames)).toBe(
       "HTTP Proxy and HTTPS Proxy cannot be empty when Proxy Bypass List is set"
     );
-    expect(formatErrorMessage("adminConsolePort must be between 1024 and 65535", kubernetesFieldNames)).toBe(
-      "Admin Console Port must be between 1024 and 65535"
+    expect(formatErrorMessage("localArtifactMirrorPort must be between 1024 and 65535", kubernetesFieldNames)).toBe(
+      "Local Artifact Mirror Port must be between 1024 and 65535"
     );
   });
 
   it("handles special characters and formatting", () => {
     expect(formatErrorMessage("httpProxy: invalid URL format", kubernetesFieldNames)).toBe("HTTP Proxy: invalid URL format");
-    expect(formatErrorMessage("adminConsolePort: 30000 (invalid)", kubernetesFieldNames)).toBe("Admin Console Port: 30000 (invalid)");
+    expect(formatErrorMessage("localArtifactMirrorPort: 30000 (invalid)", kubernetesFieldNames)).toBe("Local Artifact Mirror Port: 30000 (invalid)");
   });
 });
 
 const linuxFieldNames = {
-  adminConsolePort: "Admin Console Port",
   dataDirectory: "Data Directory",
   localArtifactMirrorPort: "Local Artifact Mirror Port",
   httpProxy: "HTTP Proxy",
@@ -71,7 +70,6 @@ describe("formatErrorMessage Linux", () => {
   });
 
   it("replaces field names with their proper format", () => {
-     expect(formatErrorMessage("adminConsolePort", linuxFieldNames)).toBe("Admin Console Port");
      expect(formatErrorMessage("dataDirectory", linuxFieldNames)).toBe("Data Directory");
      expect(formatErrorMessage("localArtifactMirrorPort", linuxFieldNames)).toBe("Local Artifact Mirror Port");
      expect(formatErrorMessage("httpProxy", linuxFieldNames)).toBe("HTTP Proxy");
@@ -109,8 +107,8 @@ describe("formatErrorMessage Linux", () => {
      expect(formatErrorMessage("httpProxy and httpsProxy cannot be empty when noProxy is set", linuxFieldNames)).toBe(
         "HTTP Proxy and HTTPS Proxy cannot be empty when Proxy Bypass List is set"
      );
-     expect(formatErrorMessage("adminConsolePort must be between 1024 and 65535", linuxFieldNames)).toBe(
-        "Admin Console Port must be between 1024 and 65535"
+     expect(formatErrorMessage("localArtifactMirrorPort must be between 1024 and 65535", linuxFieldNames)).toBe(
+        "Local Artifact Mirror Port must be between 1024 and 65535"
      );
      expect(formatErrorMessage("dataDirectory /var/lib/k0s is not writable", linuxFieldNames)).toBe(
         "Data Directory /var/lib/k0s is not writable"
@@ -121,9 +119,6 @@ describe("formatErrorMessage Linux", () => {
   });
 
   it("handles special characters and formatting", () => {
-     expect(formatErrorMessage("admin_console_port and localArtifactMirrorPort cannot be equal.", linuxFieldNames)).toBe(
-        "admin_console_port and Local Artifact Mirror Port cannot be equal."
-     );
      expect(formatErrorMessage("httpProxy: invalid URL format", linuxFieldNames)).toBe("HTTP Proxy: invalid URL format");
      expect(formatErrorMessage("podCidr: 192.168.0.0/24 (invalid)", linuxFieldNames)).toBe("Pod CIDR: 192.168.0.0/24 (invalid)");
   });

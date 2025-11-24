@@ -175,9 +175,11 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
 	require.True(t, found, "admin-console helm release should be installed")
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
-		"isAirgap":           false,
-		"isMultiNodeEnabled": true,
-		"embeddedClusterID":  in.Spec.ClusterID,
+		"isAirgap":            false,
+		"isMultiNodeEnabled":  true,
+		"embeddedClusterID":   in.Spec.ClusterID,
+		"isEmbeddedClusterV3": true,
+		"kurlProxy.enabled":   false,
 	})
 
 	// Validate that registry addon is NOT installed for online installations
@@ -203,7 +205,7 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 				return hc.TCPPortStatus != nil && hc.TCPPortStatus.CollectorName == "Kotsadm Node Port"
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, 30000, hc.TCPPortStatus.Port, "Kotsadm Node Port collector should use default admin console port")
+				assert.Equal(t, "true", hc.TCPPortStatus.Exclude.String(), "Kotsadm Node Port collector should be excluded in v3 installations")
 			},
 		},
 		"Local Artifact Mirror Port": {
@@ -1032,113 +1034,6 @@ func validateCustomDataDir(t *testing.T, hcli *helm.MockClient, customDataDir st
 			},
 			validate: func(hc *troubleshootv1beta2.HostCollect) {
 				assert.Equal(t, customDataDir+"/k0s/etcd", hc.FilesystemPerformance.Directory, "FilesystemPerformance collector should use custom data directory")
-			},
-		},
-	})
-}
-
-func TestV3InstallHeadless_CustomAdminConsolePort(t *testing.T) {
-	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
-		helmClient: hcli,
-	})
-
-	customPort := 30001
-
-	// Run installer command with custom admin console port
-	err := runInstallerCmd(
-		"install",
-		"--headless",
-		"--target", "linux",
-		"--license", licenseFile,
-		"--config-values", configFile,
-		"--admin-console-password", "password123",
-		"--admin-console-port", fmt.Sprintf("%d", customPort),
-		"--yes",
-	)
-
-	require.NoError(t, err, "headless installation should succeed")
-
-	validateCustomAdminConsolePort(t, hcli, customPort)
-
-	if !t.Failed() {
-		t.Logf("Test passed: custom admin console port correctly propagates to Installation object, admin-console helm chart, and host preflights")
-	}
-}
-
-func TestV3Install_CustomAdminConsolePort(t *testing.T) {
-	hcli := setupV3TestHelmClient()
-	licenseFile, configFile := setupV3Test(t, setupV3TestOpts{
-		helmClient: hcli,
-	})
-
-	customPort := 30001
-
-	// Start installer in non-headless mode so API stays up; bypass prompts with --yes
-	go func() {
-		err := runInstallerCmd(
-			"install",
-			"--target", "linux",
-			"--license", licenseFile,
-			"--admin-console-password", "password123",
-			"--yes",
-		)
-		if err != nil {
-			t.Logf("installer exited with error: %v", err)
-		}
-	}()
-
-	runV3Install(t, v3InstallArgs{
-		managerPort:      30080,
-		password:         "password123",
-		isAirgap:         false,
-		configValuesFile: configFile,
-		installationConfig: apitypes.LinuxInstallationConfig{
-			AdminConsolePort: customPort,
-		},
-		ignoreHostPreflights: false,
-		ignoreAppPreflights:  false,
-	})
-
-	validateCustomAdminConsolePort(t, hcli, customPort)
-
-	if !t.Failed() {
-		t.Logf("Test passed: custom admin console port correctly propagates to Installation object, admin-console helm chart, and host preflights")
-	}
-}
-
-func validateCustomAdminConsolePort(t *testing.T, hcli *helm.MockClient, customPort int) {
-	t.Helper()
-
-	dr, err := dryrun.Load()
-	require.NoError(t, err, "failed to load dryrun output")
-
-	kcli, err := dr.KubeClient()
-	require.NoError(t, err, "failed to get kube client")
-
-	// Validate Installation object uses custom admin console port
-	in, err := kubeutils.GetLatestInstallation(t.Context(), kcli)
-	require.NoError(t, err, "failed to get latest installation")
-	assert.Equal(t, customPort, in.Spec.RuntimeConfig.AdminConsole.Port, "Installation.Spec.RuntimeConfig.AdminConsole.Port should match custom port")
-
-	// Validate admin-console addon uses custom port
-	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
-	require.True(t, found, "admin-console helm release should be installed")
-	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
-		"kurlProxy.nodePort": float64(customPort),
-	})
-
-	// Validate host preflight spec uses custom admin console port
-	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
-		match    func(*troubleshootv1beta2.HostCollect) bool
-		validate func(*troubleshootv1beta2.HostCollect)
-	}{
-		"Kotsadm Node Port": {
-			match: func(hc *troubleshootv1beta2.HostCollect) bool {
-				return hc.TCPPortStatus != nil && hc.TCPPortStatus.CollectorName == "Kotsadm Node Port"
-			},
-			validate: func(hc *troubleshootv1beta2.HostCollect) {
-				assert.Equal(t, customPort, hc.TCPPortStatus.Port, "Kotsadm Node Port collector should use custom admin console port")
 			},
 		},
 	})

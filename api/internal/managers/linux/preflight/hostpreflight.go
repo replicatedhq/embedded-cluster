@@ -78,6 +78,7 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
 		IsJoin:                       opts.IsJoin,
 		IsUI:                         opts.IsUI,
+		IsV3:                         true,
 		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {

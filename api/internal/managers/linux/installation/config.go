@@ -50,7 +50,6 @@ func (m *installationManager) SetConfigValues(config types.LinuxInstallationConf
 // GetDefaults returns the default values for installation configuration
 func (m *installationManager) GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error) {
 	defaults := types.LinuxInstallationConfig{
-		AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 		DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
 		LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 		GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -76,9 +75,6 @@ func (m *installationManager) setConfigDefaults(config *types.LinuxInstallationC
 	defaults, err := m.GetDefaults(rc)
 	if err != nil {
 		return fmt.Errorf("get defaults: %w", err)
-	}
-	if config.AdminConsolePort == 0 {
-		config.AdminConsolePort = defaults.AdminConsolePort
 	}
 
 	if config.DataDirectory == "" {
@@ -148,10 +144,6 @@ func (m *installationManager) ValidateConfig(config types.LinuxInstallationConfi
 		ve = types.AppendFieldError(ve, "networkInterface", err)
 	}
 
-	if err := m.validateAdminConsolePort(config, managerPort); err != nil {
-		ve = types.AppendFieldError(ve, "adminConsolePort", err)
-	}
-
 	if err := m.validateLocalArtifactMirrorPort(config, managerPort); err != nil {
 		ve = types.AppendFieldError(ve, "localArtifactMirrorPort", err)
 	}
@@ -205,39 +197,9 @@ func (m *installationManager) validateNetworkInterface(config types.LinuxInstall
 	return nil
 }
 
-func (m *installationManager) validateAdminConsolePort(config types.LinuxInstallationConfig, managerPort int) error {
-	if config.AdminConsolePort == 0 {
-		return errors.New("adminConsolePort is required")
-	}
-
-	lamPort := config.LocalArtifactMirrorPort
-	if lamPort == 0 {
-		lamPort = ecv1beta1.DefaultLocalArtifactMirrorPort
-	}
-
-	if config.AdminConsolePort == lamPort {
-		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
-	}
-
-	if config.AdminConsolePort == managerPort {
-		return errors.New("adminConsolePort cannot be the same as the manager port")
-	}
-
-	return nil
-}
-
 func (m *installationManager) validateLocalArtifactMirrorPort(config types.LinuxInstallationConfig, managerPort int) error {
 	if config.LocalArtifactMirrorPort == 0 {
 		return errors.New("localArtifactMirrorPort is required")
-	}
-
-	acPort := config.AdminConsolePort
-	if acPort == 0 {
-		acPort = ecv1beta1.DefaultAdminConsolePort
-	}
-
-	if config.LocalArtifactMirrorPort == acPort {
-		return errors.New("adminConsolePort and localArtifactMirrorPort cannot be equal")
 	}
 
 	if config.LocalArtifactMirrorPort == managerPort {

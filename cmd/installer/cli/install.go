@@ -332,10 +332,13 @@ func addKubernetesCLIFlags(flagSet *pflag.FlagSet, flags *installFlags) {
 
 func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 	cmd.Flags().StringVar(&flags.adminConsolePassword, "admin-console-password", "", "Password for the Admin Console")
-	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
 	mustMarkFlagRequired(cmd.Flags(), "license")
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
+
+	if !isV3Enabled() {
+		cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
+	}
 
 	return nil
 }

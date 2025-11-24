@@ -60,21 +60,19 @@ func TestGetInstallationConfig(t *testing.T) {
 			name: "successful read with values and defaults",
 			setupMock: func(m *installation.MockInstallationManager, rc runtimeconfig.RuntimeConfig) {
 				values := types.LinuxInstallationConfig{
-					AdminConsolePort: 9000,
-					GlobalCIDR:       "10.0.0.1/16",
+					LocalArtifactMirrorPort: 9000,
+					GlobalCIDR:              "10.0.0.1/16",
 				}
 
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort:        30000,
 					DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
 					LocalArtifactMirrorPort: 50000,
 					GlobalCIDR:              "10.244.0.0/16",
 				}
 
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort:        9000,
 					DataDirectory:           rc.EmbeddedClusterHomeDirectory(),
-					LocalArtifactMirrorPort: 50000,
+					LocalArtifactMirrorPort: 9000,
 					GlobalCIDR:              "10.0.0.1/16",
 				}
 
@@ -88,19 +86,17 @@ func TestGetInstallationConfig(t *testing.T) {
 			expectedValue: func(tempDir string) types.LinuxInstallationConfigResponse {
 				return types.LinuxInstallationConfigResponse{
 					Values: types.LinuxInstallationConfig{
-						AdminConsolePort: 9000,
-						GlobalCIDR:       "10.0.0.1/16",
+						LocalArtifactMirrorPort: 9000,
+						GlobalCIDR:              "10.0.0.1/16",
 					},
 					Defaults: types.LinuxInstallationConfig{
-						AdminConsolePort:        30000,
 						DataDirectory:           tempDir,
 						LocalArtifactMirrorPort: 50000,
 						GlobalCIDR:              "10.244.0.0/16",
 					},
 					Resolved: types.LinuxInstallationConfig{
-						AdminConsolePort:        9000,
 						DataDirectory:           tempDir,
-						LocalArtifactMirrorPort: 50000,
+						LocalArtifactMirrorPort: 9000,
 						GlobalCIDR:              "10.0.0.1/16",
 					},
 				}

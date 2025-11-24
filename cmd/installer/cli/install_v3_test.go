@@ -30,7 +30,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 		{
 			name: "minimal configuration",
 			flags: installFlags{
-				adminConsolePort:        30000,
 				dataDir:                 "/var/lib/embedded-cluster",
 				localArtifactMirrorPort: 50000,
 				networkInterface:        "eth0",
@@ -45,7 +44,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 			},
 			expectedConfigVals: apitypes.AppConfigValues{},
 			expectedLinuxCfg: apitypes.LinuxInstallationConfig{
-				AdminConsolePort:        30000,
 				DataDirectory:           "/var/lib/embedded-cluster",
 				LocalArtifactMirrorPort: 50000,
 				HTTPProxy:               "",
@@ -63,7 +61,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 		{
 			name: "with proxy configuration",
 			flags: installFlags{
-				adminConsolePort:        30000,
 				dataDir:                 "/opt/ec",
 				localArtifactMirrorPort: 50000,
 				networkInterface:        "ens5",
@@ -87,7 +84,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 				"hostname": apitypes.AppConfigValue{Value: "test.example.com"},
 			},
 			expectedLinuxCfg: apitypes.LinuxInstallationConfig{
-				AdminConsolePort:        30000,
 				DataDirectory:           "/opt/ec",
 				LocalArtifactMirrorPort: 50000,
 				HTTPProxy:               "http://proxy.example.com:8080",
@@ -105,7 +101,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 		{
 			name: "with CIDR configuration",
 			flags: installFlags{
-				adminConsolePort:        30000,
 				dataDir:                 "/data",
 				localArtifactMirrorPort: 50000,
 				networkInterface:        "eth0",
@@ -125,7 +120,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 			},
 			expectedConfigVals: apitypes.AppConfigValues{},
 			expectedLinuxCfg: apitypes.LinuxInstallationConfig{
-				AdminConsolePort:        30000,
 				DataDirectory:           "/data",
 				LocalArtifactMirrorPort: 50000,
 				HTTPProxy:               "",
@@ -143,7 +137,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 		{
 			name: "with all configurations",
 			flags: installFlags{
-				adminConsolePort:        8800,
 				dataDir:                 "/custom/data",
 				localArtifactMirrorPort: 60000,
 				networkInterface:        "bond0",
@@ -174,7 +167,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 				"replicas": apitypes.AppConfigValue{Value: "3"},
 			},
 			expectedLinuxCfg: apitypes.LinuxInstallationConfig{
-				AdminConsolePort:        8800,
 				DataDirectory:           "/custom/data",
 				LocalArtifactMirrorPort: 60000,
 				HTTPProxy:               "http://10.0.0.1:3128",
@@ -192,7 +184,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 		{
 			name: "empty CIDR strings ignored",
 			flags: installFlags{
-				adminConsolePort:        30000,
 				dataDir:                 "/data",
 				localArtifactMirrorPort: 50000,
 				networkInterface:        "eth0",
@@ -209,7 +200,6 @@ func Test_buildHeadlessInstallOptions(t *testing.T) {
 			},
 			expectedConfigVals: apitypes.AppConfigValues{},
 			expectedLinuxCfg: apitypes.LinuxInstallationConfig{
-				AdminConsolePort:        30000,
 				DataDirectory:           "/data",
 				LocalArtifactMirrorPort: 50000,
 				HTTPProxy:               "",

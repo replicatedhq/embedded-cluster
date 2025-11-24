@@ -28,7 +28,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -40,7 +39,6 @@ func TestValidateConfig(t *testing.T) {
 				PodCIDR:                 "10.0.0.0/17",
 				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -50,7 +48,6 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing network interface",
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -60,7 +57,6 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing global CIDR and pod/service CIDRs",
 			config: types.LinuxInstallationConfig{
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -71,7 +67,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				ServiceCIDR:             "10.0.128.0/17",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -82,7 +77,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				PodCIDR:                 "10.0.0.0/17",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -93,7 +87,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/24", // Not a /16
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -114,7 +107,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:       "10.0.0.0/16",
 				NetworkInterface: "eth0",
-				AdminConsolePort: 8800,
 				DataDirectory:    "/var/lib/embedded-cluster",
 			},
 			expectedErr: true,
@@ -124,7 +116,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 			},
 			expectedErr: true,
@@ -134,7 +125,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8800, // Same as admin console
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -150,7 +140,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -166,7 +155,6 @@ func TestValidateConfig(t *testing.T) {
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
-				AdminConsolePort:        8800,
 				LocalArtifactMirrorPort: 8888,
 				DataDirectory:           "/var/lib/embedded-cluster",
 			},
@@ -216,7 +204,6 @@ func TestSetConfigDefaults(t *testing.T) {
 			name:        "empty config",
 			inputConfig: types.LinuxInstallationConfig{},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -226,11 +213,9 @@ func TestSetConfigDefaults(t *testing.T) {
 		{
 			name: "partial config",
 			inputConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
-				DataDirectory:    "/custom/dir",
+				DataDirectory: "/custom/dir",
 			},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        9000,
 				DataDirectory:           "/custom/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -244,7 +229,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				ServiceCIDR: "10.1.128.0/17",
 			},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -258,7 +242,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				GlobalCIDR: "192.168.0.0/16",
 			},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -272,7 +255,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				HTTPSProxy: "https://proxy.example.com:3128",
 			},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           testDataDir,
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -287,7 +269,6 @@ func TestSetConfigDefaults(t *testing.T) {
 				DataDirectory: "/existing/custom/path",
 			},
 			expectedConfig: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           "/existing/custom/path",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				NetworkInterface:        "eth0",
@@ -347,7 +328,6 @@ func TestGetDefaults(t *testing.T) {
 				t.Setenv("no_proxy", "")
 			},
 			expectedDefaults: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           "/test/data/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -370,7 +350,6 @@ func TestGetDefaults(t *testing.T) {
 				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
 			},
 			expectedDefaults: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           "/test/data/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -397,7 +376,6 @@ func TestGetDefaults(t *testing.T) {
 				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
 			},
 			expectedDefaults: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           "/test/data/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -419,7 +397,6 @@ func TestGetDefaults(t *testing.T) {
 				t.Setenv("NO_PROXY", "localhost,127.0.0.1")
 			},
 			expectedDefaults: types.LinuxInstallationConfig{
-				AdminConsolePort:        ecv1beta1.DefaultAdminConsolePort,
 				DataDirectory:           "/test/data/dir",
 				LocalArtifactMirrorPort: ecv1beta1.DefaultLocalArtifactMirrorPort,
 				GlobalCIDR:              ecv1beta1.DefaultNetworkCIDR,
@@ -474,7 +451,6 @@ func TestConfigSetAndGet(t *testing.T) {
 
 	// Test writing config values
 	configToWrite := types.LinuxInstallationConfig{
-		AdminConsolePort:        8800,
 		DataDirectory:           "/var/lib/embedded-cluster",
 		LocalArtifactMirrorPort: 8888,
 		NetworkInterface:        "eth0",
@@ -489,7 +465,6 @@ func TestConfigSetAndGet(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the user values match
-	assert.Equal(t, configToWrite.AdminConsolePort, readValues.AdminConsolePort)
 	assert.Equal(t, configToWrite.DataDirectory, readValues.DataDirectory)
 	assert.Equal(t, configToWrite.LocalArtifactMirrorPort, readValues.LocalArtifactMirrorPort)
 	assert.Equal(t, configToWrite.NetworkInterface, readValues.NetworkInterface)
@@ -504,7 +479,6 @@ func TestConfigSetAndGet(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Verify the resolved config has user values
-	assert.Equal(t, configToWrite.AdminConsolePort, resolvedConfig.AdminConsolePort)
 	assert.Equal(t, configToWrite.DataDirectory, resolvedConfig.DataDirectory)
 	assert.Equal(t, configToWrite.LocalArtifactMirrorPort, resolvedConfig.LocalArtifactMirrorPort)
 	assert.Equal(t, configToWrite.NetworkInterface, resolvedConfig.NetworkInterface)
