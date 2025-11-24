@@ -391,7 +391,7 @@ jobs:
 
   build-install:
     name: Build current
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster-2
     needs:
       - output-vars
       - should-run-e2e
@@ -547,7 +547,7 @@ jobs:
 
   build-upgrade:
     name: Build upgrade
-    runs-on: ubuntu-latest
+    runs-on: embedded-cluster-2
     needs:
       - output-vars
       - should-run-e2e
