@@ -45,7 +45,7 @@ func New(opts ...Option) *Handler {
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.LinuxInstallationConfigResponse
-//	@Router			/kurl-migration/config [get]
+//	@Router			/linux/kurl-migration/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
 	config, err := h.controller.GetInstallationConfig(r.Context())
 	if err != nil {
@@ -70,7 +70,7 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@Success		200		{object}	types.StartKURLMigrationResponse
 //	@Failure		400		{object}	types.APIError
 //	@Failure		409		{object}	types.APIError
-//	@Router			/kurl-migration/start [post]
+//	@Router			/linux/kurl-migration/start [post]
 func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 	var request types.StartKURLMigrationRequest
 	if err := utils.BindJSON(w, r, &request, h.logger); err != nil {
@@ -113,7 +113,7 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 //	@Produce		json
 //	@Success		200	{object}	types.KURLMigrationStatusResponse
 //	@Failure		404	{object}	types.APIError
-//	@Router			/kurl-migration/status [get]
+//	@Router			/linux/kurl-migration/status [get]
 func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := h.controller.GetKURLMigrationStatus(r.Context())
 	if err != nil {
