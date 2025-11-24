@@ -87,6 +87,8 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 
 func TestGenerateHelmValues_Target(t *testing.T) {
 	t.Run("Linux (with cluster ID)", func(t *testing.T) {
+		t.Setenv("ENABLE_V3", "1")
+
 		dataDir := t.TempDir()
 
 		adminConsole := &AdminConsole{
@@ -110,6 +112,7 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.Equal(t, "123", values["embeddedClusterID"])
 		assert.Equal(t, dataDir, values["embeddedClusterDataDir"])
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
+		assert.Equal(t, true, values["isEmbeddedClusterV3"])
 
 		assert.Contains(t, values["extraEnv"], map[string]interface{}{
 			"name":  "SSL_CERT_CONFIGMAP",

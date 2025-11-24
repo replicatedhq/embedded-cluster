@@ -3,6 +3,7 @@ package adminconsole
 import (
 	"context"
 	_ "embed"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -50,6 +51,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 	copiedValues["isAirgap"] = a.IsAirgap
+	copiedValues["isEmbeddedClusterV3"] = os.Getenv("ENABLE_V3") == "1"
 
 	if domains.ReplicatedAppDomain != "" {
 		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)
