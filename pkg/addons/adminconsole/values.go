@@ -46,12 +46,12 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["embeddedClusterID"] = a.ClusterID
 		copiedValues["embeddedClusterDataDir"] = a.DataDir
 		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+		copiedValues["isEmbeddedClusterV3"] = os.Getenv("ENABLE_V3") == "1"
 	}
 
 	copiedValues["isHA"] = a.IsHA
 	copiedValues["isMultiNodeEnabled"] = a.IsMultiNodeEnabled
 	copiedValues["isAirgap"] = a.IsAirgap
-	copiedValues["isEmbeddedClusterV3"] = os.Getenv("ENABLE_V3") == "1"
 
 	if domains.ReplicatedAppDomain != "" {
 		copiedValues["replicatedAppEndpoint"] = netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain)

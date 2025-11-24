@@ -125,6 +125,8 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 	})
 
 	t.Run("Kubernetes (without cluster ID)", func(t *testing.T) {
+		t.Setenv("ENABLE_V3", "1")
+
 		adminConsole := &AdminConsole{
 			IsAirgap:           false,
 			IsHA:               false,
@@ -139,6 +141,7 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.NotContains(t, values, "embeddedClusterID")
 		assert.NotContains(t, values, "embeddedClusterDataDir")
 		assert.NotContains(t, values, "embeddedClusterK0sDir")
+		assert.NotContains(t, values, "isEmbeddedClusterV3")
 
 		for _, env := range values["extraEnv"].([]map[string]interface{}) {
 			assert.NotEqual(t, "SSL_CERT_CONFIGMAP", env["name"], "SSL_CERT_CONFIGMAP environment variable should not be set")
