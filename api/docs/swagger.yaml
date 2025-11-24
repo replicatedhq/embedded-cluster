@@ -1008,8 +1008,6 @@ components:
       type: object
     types.LinuxInstallationConfig:
       properties:
-        adminConsolePort:
-          type: integer
         dataDirectory:
           type: string
         globalCidr:

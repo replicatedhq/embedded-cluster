@@ -1797,7 +1797,6 @@ export interface components {
             ignoreHostPreflights: boolean;
         };
         "types.LinuxInstallationConfig": {
-            adminConsolePort?: number;
             dataDirectory?: string;
             globalCidr?: string;
             httpProxy?: string;

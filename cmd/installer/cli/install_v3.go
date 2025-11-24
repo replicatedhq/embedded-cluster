@@ -134,7 +134,6 @@ func buildHeadlessInstallOptions(
 ) install.HeadlessInstallOptions {
 	// Build Linux installation config from flags
 	linuxInstallationConfig := apitypes.LinuxInstallationConfig{
-		AdminConsolePort:        flags.adminConsolePort,
 		DataDirectory:           flags.dataDir,
 		LocalArtifactMirrorPort: flags.localArtifactMirrorPort,
 		HTTPProxy:               "",

@@ -34,6 +34,7 @@ type PrepareHostPreflightOptions struct {
 	TCPConnectionsRequired       []string
 	IsJoin                       bool
 	IsUI                         bool
+	IsV3                         bool
 	ControllerAirgapStorageSpace string
 	WorkerAirgapStorageSpace     string
 }
@@ -61,6 +62,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		NodeIP:                       opts.NodeIP,
 		IsJoin:                       opts.IsJoin,
 		IsUI:                         opts.IsUI,
+		IsV3:                         opts.IsV3,
 		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
 		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)

@@ -20,8 +20,8 @@ func TestNewMemoryStore(t *testing.T) {
 func TestMemoryStore_GetConfig(t *testing.T) {
 	inst := types.LinuxInstallation{
 		Config: types.LinuxInstallationConfig{
-			AdminConsolePort: 8080,
-			DataDirectory:    "/some/dir",
+			LocalArtifactMirrorPort: 8080,
+			DataDirectory:           "/some/dir",
 		},
 	}
 	store := NewMemoryStore(WithInstallation(inst))
@@ -30,22 +30,22 @@ func TestMemoryStore_GetConfig(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, types.LinuxInstallationConfig{
-		AdminConsolePort: 8080,
-		DataDirectory:    "/some/dir",
+		LocalArtifactMirrorPort: 8080,
+		DataDirectory:           "/some/dir",
 	}, config)
 }
 
 func TestMemoryStore_SetConfig(t *testing.T) {
 	inst := types.LinuxInstallation{
 		Config: types.LinuxInstallationConfig{
-			AdminConsolePort: 1000,
-			DataDirectory:    "/a/different/dir",
+			LocalArtifactMirrorPort: 1000,
+			DataDirectory:           "/a/different/dir",
 		},
 	}
 	store := NewMemoryStore(WithInstallation(inst))
 	expectedConfig := types.LinuxInstallationConfig{
-		AdminConsolePort: 8080,
-		DataDirectory:    "/some/dir",
+		LocalArtifactMirrorPort: 8080,
+		DataDirectory:           "/some/dir",
 	}
 
 	err := store.SetConfig(expectedConfig)
