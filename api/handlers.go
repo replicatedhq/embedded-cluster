@@ -73,7 +73,6 @@ func (a *API) initHandlers() error {
 
 		// Initialize kURL migration controller if not already set
 		if a.kurlMigrationController == nil {
-			// Controller creates manager and installation manager internally
 			kurlMigrationController, err := kurlmigration.NewKURLMigrationController(
 				kurlmigration.WithLogger(a.logger),
 			)
