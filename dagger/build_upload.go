@@ -10,10 +10,10 @@ import (
 //
 // This uploads:
 // - metadata.json containing version information and artifact URLs
-// - k0s binary
-// - kots binary
+// - k0s binary (downloaded from GitHub or override URL)
+// - kots binary (extracted from kotsadm image using crane)
+// - operator binary (pre-extracted from operator image during build)
 // - embedded-cluster tarball
-// - operator binary
 //
 // Requires AWS credentials via 1Password or explicit parameters.
 //
@@ -83,12 +83,12 @@ func (m *EmbeddedCluster) uploadBinaries(
 
 	container = m.BuildMetadata.withEnvVariables(container).
 		WithDirectory("/workspace", dir).
-		// Mount the build directory which contains output/build/ with metadata and tarballs
+		// Mount the build directory which contains output/build/ with metadata and tarballs (including pre-extracted operator binary)
 		WithDirectory("/workspace/output", m.BuildMetadata.BuildDir).
 		// Create symlink so script can find build/metadata.json at the expected path
 		WithExec([]string{"sh", "-c", "ln -sf output/build build"}).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
-		// Enable binary uploads (k0s, kots, embedded-cluster tarball, operator binary)
+		// Enable all binary uploads (k0s, kots, operator, embedded-cluster tarball)
 		WithEnvVariable("UPLOAD_BINARIES", "1").
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)

@@ -153,6 +153,16 @@ func (m *EmbeddedCluster) buildBinary(
 	builder = builder.
 		WithExec([]string{"sh", "-c", "./output/bin/embedded-cluster version metadata > output/build/metadata.json"})
 
+	// Extract operator binary from the operator image (for upload to S3)
+	// This avoids needing Docker in the upload step
+	operatorImageFullName := fmt.Sprintf("%s:%s", m.BuildMetadata.OperatorImageRepo, m.BuildMetadata.OperatorImageTag)
+	operatorVersion := strings.TrimPrefix(m.BuildMetadata.Version, "v")
+	builder = builder.
+		WithExec([]string{"mkdir", "-p", "output/operator-bin"}).
+		WithExec([]string{"sh", "-c", fmt.Sprintf("crane export %s --platform linux/%s - | tar -xf - -C output/operator-bin manager", operatorImageFullName, m.BuildMetadata.Arch)}).
+		WithExec([]string{"mv", "output/operator-bin/manager", "output/operator-bin/operator"}).
+		WithExec([]string{"tar", "-C", "output/operator-bin", "-czvf", fmt.Sprintf("output/build/%s.tar.gz", operatorVersion), "operator"})
+
 	return builder.Directory("/workspace/output"), nil
 }
 
