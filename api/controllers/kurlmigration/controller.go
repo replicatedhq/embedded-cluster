@@ -3,6 +3,7 @@ package kurlmigration
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	kurlmigrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kurlmigration"
@@ -235,6 +236,11 @@ func (c *KURLMigrationController) GetKURLMigrationStatus(ctx context.Context) (t
 // Run is the internal orchestration loop (skeleton for this PR, implemented in PR 8)
 func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 	c.logger.Info("starting migration orchestration")
+
+	// Small delay to ensure HTTP response completes before any state changes
+	// This prevents race condition where migration could fail and update state
+	// before the client receives the success response with migrationID
+	time.Sleep(100 * time.Millisecond)
 
 	// Defer handles all error cases by updating migration state
 	defer func() {

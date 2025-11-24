@@ -384,7 +384,8 @@ func TestStartMigration(t *testing.T) {
 				}
 
 				// Wait for the background goroutine to complete
-				time.Sleep(100 * time.Millisecond)
+				// Includes 100ms delay in Run() to prevent race condition + time for execution
+				time.Sleep(250 * time.Millisecond)
 			}
 
 			mockManager.AssertExpectations(t)
