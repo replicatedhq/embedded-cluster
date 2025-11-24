@@ -1,16 +1,17 @@
-package migration
+package kurlmigration
 
 import (
 	"context"
 
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	kurlmigrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ Manager = &migrationManager{}
+var _ Manager = &kurlMigrationManager{}
 
 // Manager provides methods for managing kURL to EC migrations
 type Manager interface {
@@ -28,46 +29,53 @@ type Manager interface {
 	ValidateTransferMode(mode types.TransferMode) error
 
 	// ExecutePhase executes a migration phase
-	ExecutePhase(ctx context.Context, phase types.MigrationPhase) error
+	ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error
 }
 
-// migrationManager is an implementation of the Manager interface
-type migrationManager struct {
+// kurlMigrationManager is an implementation of the Manager interface
+type kurlMigrationManager struct {
+	store               kurlmigrationstore.Store
 	kubeClient          client.Client
 	kurlPasswordHash    string
 	installationManager linuxinstallation.InstallationManager
 	logger              logrus.FieldLogger
 }
 
-type ManagerOption func(*migrationManager)
+type ManagerOption func(*kurlMigrationManager)
+
+func WithStore(store kurlmigrationstore.Store) ManagerOption {
+	return func(m *kurlMigrationManager) {
+		m.store = store
+	}
+}
 
 func WithLogger(logger logrus.FieldLogger) ManagerOption {
-	return func(m *migrationManager) {
+	return func(m *kurlMigrationManager) {
 		m.logger = logger
 	}
 }
 
 func WithKubeClient(kcli client.Client) ManagerOption {
-	return func(m *migrationManager) {
+	return func(m *kurlMigrationManager) {
 		m.kubeClient = kcli
 	}
 }
 
 func WithKurlPasswordHash(hash string) ManagerOption {
-	return func(m *migrationManager) {
+	return func(m *kurlMigrationManager) {
 		m.kurlPasswordHash = hash
 	}
 }
 
 func WithInstallationManager(im linuxinstallation.InstallationManager) ManagerOption {
-	return func(m *migrationManager) {
+	return func(m *kurlMigrationManager) {
 		m.installationManager = im
 	}
 }
 
 // NewManager creates a new migration Manager with the provided options
-func NewManager(opts ...ManagerOption) *migrationManager {
-	manager := &migrationManager{}
+func NewManager(opts ...ManagerOption) *kurlMigrationManager {
+	manager := &kurlMigrationManager{}
 
 	for _, opt := range opts {
 		opt(manager)
@@ -81,22 +89,24 @@ func NewManager(opts ...ManagerOption) *migrationManager {
 }
 
 // GetKurlConfig extracts configuration from the running kURL cluster
-func (m *migrationManager) GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
-	// TODO: Implement kURL cluster configuration extraction in future PR
+func (m *kurlMigrationManager) GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
+	// TODO(sc-130962): Implement kURL cluster configuration extraction
 	// This will query the kURL cluster for:
 	// - Pod and Service CIDRs from kube-controller-manager
 	// - Network configuration
 	// - Admin console port
 	// - Data directory
-	// - Local artifact mirror port
 	// - Proxy settings
+	// - Namespace discovery: Query cluster to find kotsadm namespace by looking for
+	//   pods/services with app.kubernetes.io/name=kotsadm label. This is necessary
+	//   because kURL can install KOTS in any namespace, not just "default".
 	m.logger.Debug("GetKurlConfig: Skeleton implementation, returning empty config")
 	return types.LinuxInstallationConfig{}, nil
 }
 
 // GetECDefaults returns EC default configuration
-func (m *migrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error) {
-	// TODO: Implement EC defaults extraction in future PR
+func (m *kurlMigrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error) {
+	// TODO(sc-130962): Implement EC defaults extraction
 	// This will use the installation manager to get EC defaults
 	// For now, return empty config as skeleton implementation
 	m.logger.Debug("GetECDefaults: Skeleton implementation, returning empty config")
@@ -105,7 +115,7 @@ func (m *migrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstal
 
 // MergeConfigs merges user, kURL, and default configs with proper precedence
 // Precedence order: userConfig > kurlConfig > defaults
-func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig {
+func (m *kurlMigrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig {
 	// Start with defaults as the base
 	merged := defaults
 
@@ -115,9 +125,6 @@ func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.L
 	}
 	if kurlConfig.DataDirectory != "" {
 		merged.DataDirectory = kurlConfig.DataDirectory
-	}
-	if kurlConfig.LocalArtifactMirrorPort != 0 {
-		merged.LocalArtifactMirrorPort = kurlConfig.LocalArtifactMirrorPort
 	}
 	if kurlConfig.HTTPProxy != "" {
 		merged.HTTPProxy = kurlConfig.HTTPProxy
@@ -148,9 +155,6 @@ func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.L
 	}
 	if userConfig.DataDirectory != "" {
 		merged.DataDirectory = userConfig.DataDirectory
-	}
-	if userConfig.LocalArtifactMirrorPort != 0 {
-		merged.LocalArtifactMirrorPort = userConfig.LocalArtifactMirrorPort
 	}
 	if userConfig.HTTPProxy != "" {
 		merged.HTTPProxy = userConfig.HTTPProxy
@@ -185,7 +189,7 @@ func (m *migrationManager) MergeConfigs(userConfig, kurlConfig, defaults types.L
 }
 
 // ValidateTransferMode validates the transfer mode is "copy" or "move"
-func (m *migrationManager) ValidateTransferMode(mode types.TransferMode) error {
+func (m *kurlMigrationManager) ValidateTransferMode(mode types.TransferMode) error {
 	switch mode {
 	case types.TransferModeCopy, types.TransferModeMove:
 		return nil
@@ -195,8 +199,8 @@ func (m *migrationManager) ValidateTransferMode(mode types.TransferMode) error {
 }
 
 // ExecutePhase executes a migration phase
-func (m *migrationManager) ExecutePhase(ctx context.Context, phase types.MigrationPhase) error {
-	// TODO: Implement phase execution in PR 8
+func (m *kurlMigrationManager) ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error {
+	// TODO(sc-130983): Implement phase execution
 	// This will handle:
 	// - Discovery phase: GetKurlConfig, validate cluster
 	// - Preparation phase: Backup, pre-migration checks
@@ -204,5 +208,5 @@ func (m *migrationManager) ExecutePhase(ctx context.Context, phase types.Migrati
 	// - DataTransfer phase: Copy/move data from kURL to EC
 	// - Completed phase: Final validation, cleanup
 	m.logger.WithField("phase", phase).Debug("ExecutePhase: Skeleton implementation")
-	return types.ErrMigrationPhaseNotImplemented
+	return types.ErrKURLMigrationPhaseNotImplemented
 }

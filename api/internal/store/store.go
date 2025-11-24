@@ -8,9 +8,9 @@ import (
 	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/migration"
 )
 
 var _ Store = &memoryStore{}
@@ -47,8 +47,8 @@ type Store interface {
 	// AirgapStore provides access to airgap operations
 	AirgapStore() airgap.Store
 
-	// MigrationStore provides access to migration operations
-	MigrationStore() migration.Store
+	// MigrationStore provides access to kURL migration operations
+	MigrationStore() kurlmigration.Store
 }
 
 // StoreOption is a function that configures a store
@@ -117,8 +117,8 @@ func WithAirgapStore(store airgap.Store) StoreOption {
 	}
 }
 
-// WithMigrationStore sets the migration store
-func WithMigrationStore(store migration.Store) StoreOption {
+// WithMigrationStore sets the kURL migration store
+func WithMigrationStore(store kurlmigration.Store) StoreOption {
 	return func(s *memoryStore) {
 		s.migrationStore = store
 	}
@@ -138,7 +138,7 @@ type memoryStore struct {
 	appInstallStore   appinstall.Store
 	appUpgradeStore   appupgrade.Store
 	airgapStore       airgap.Store
-	migrationStore    migration.Store
+	migrationStore    kurlmigration.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -190,7 +190,7 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	}
 
 	if s.migrationStore == nil {
-		s.migrationStore = migration.NewMemoryStore()
+		s.migrationStore = kurlmigration.NewMemoryStore()
 	}
 
 	return s
@@ -236,6 +236,6 @@ func (s *memoryStore) AirgapStore() airgap.Store {
 	return s.airgapStore
 }
 
-func (s *memoryStore) MigrationStore() migration.Store {
+func (s *memoryStore) MigrationStore() kurlmigration.Store {
 	return s.migrationStore
 }

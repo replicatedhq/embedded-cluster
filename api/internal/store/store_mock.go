@@ -10,9 +10,9 @@ import (
 	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
-	"github.com/replicatedhq/embedded-cluster/api/internal/store/migration"
 )
 
 var _ Store = (*MockStore)(nil)
@@ -29,7 +29,7 @@ type MockStore struct {
 	AppInstallMockStore             appinstall.MockStore
 	AppUpgradeMockStore             appupgrade.MockStore
 	AirgapMockStore                 airgap.MockStore
-	MigrationMockStore              migration.MockStore
+	MigrationMockStore              kurlmigration.MockStore
 }
 
 // LinuxPreflightStore returns the mock linux preflight store
@@ -82,8 +82,8 @@ func (m *MockStore) AirgapStore() airgap.Store {
 	return &m.AirgapMockStore
 }
 
-// MigrationStore returns the mock migration store
-func (m *MockStore) MigrationStore() migration.Store {
+// MigrationStore returns the mock kURL migration store
+func (m *MockStore) MigrationStore() kurlmigration.Store {
 	return &m.MigrationMockStore
 }
 

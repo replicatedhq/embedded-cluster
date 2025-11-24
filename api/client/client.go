@@ -42,8 +42,8 @@ type Client interface {
 
 	// kURL Migration methods
 	GetKURLMigrationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
-	StartKURLMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (types.StartMigrationResponse, error)
-	GetKURLMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error)
+	StartKURLMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (types.StartKURLMigrationResponse, error)
+	GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error)
 
 	GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error)
 	ConfigureKubernetesInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (types.Status, error)

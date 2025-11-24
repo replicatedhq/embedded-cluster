@@ -1,4 +1,4 @@
-package migration
+package kurlmigration
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestNewMemoryStore(t *testing.T) {
 
 	// Should return error when no migration is initialized
 	_, err := store.GetMigrationID()
-	assert.ErrorIs(t, err, types.ErrNoActiveMigration)
+	assert.ErrorIs(t, err, types.ErrNoActiveKURLMigration)
 }
 
 func TestInitializeMigration(t *testing.T) {
@@ -46,8 +46,8 @@ func TestInitializeMigration(t *testing.T) {
 	// Verify initial status
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	assert.Equal(t, types.MigrationStateNotStarted, status.State)
-	assert.Equal(t, types.MigrationPhaseDiscovery, status.Phase)
+	assert.Equal(t, types.KURLMigrationStateNotStarted, status.State)
+	assert.Equal(t, types.KURLMigrationPhaseDiscovery, status.Phase)
 	assert.Equal(t, "", status.Message)
 	assert.Equal(t, 0, status.Progress)
 	assert.Equal(t, "", status.Error)
@@ -63,15 +63,15 @@ func TestInitializeMigrationTwice(t *testing.T) {
 
 	// Second initialization should fail
 	err = store.InitializeMigration("second-id", "move", config)
-	assert.ErrorIs(t, err, types.ErrMigrationAlreadyStarted)
+	assert.ErrorIs(t, err, types.ErrKURLMigrationAlreadyStarted)
 }
 
 func TestSetState(t *testing.T) {
 	store := NewMemoryStore()
 
 	// Should return error when no migration is initialized
-	err := store.SetState(types.MigrationStateInProgress)
-	assert.ErrorIs(t, err, types.ErrNoActiveMigration)
+	err := store.SetState(types.KURLMigrationStateInProgress)
+	assert.ErrorIs(t, err, types.ErrNoActiveKURLMigration)
 
 	// Initialize migration
 	config := types.LinuxInstallationConfig{}
@@ -79,12 +79,12 @@ func TestSetState(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Update state
-	err = store.SetState(types.MigrationStateInProgress)
+	err = store.SetState(types.KURLMigrationStateInProgress)
 	assert.NoError(t, err)
 
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	assert.Equal(t, types.MigrationStateInProgress, status.State)
+	assert.Equal(t, types.KURLMigrationStateInProgress, status.State)
 }
 
 func TestSetPhase(t *testing.T) {
@@ -93,12 +93,12 @@ func TestSetPhase(t *testing.T) {
 	err := store.InitializeMigration("test-id", "copy", config)
 	assert.NoError(t, err)
 
-	err = store.SetPhase(types.MigrationPhasePreparation)
+	err = store.SetPhase(types.KURLMigrationPhasePreparation)
 	assert.NoError(t, err)
 
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	assert.Equal(t, types.MigrationPhasePreparation, status.Phase)
+	assert.Equal(t, types.KURLMigrationPhasePreparation, status.Phase)
 }
 
 func TestSetMessage(t *testing.T) {
@@ -148,9 +148,9 @@ func TestStoreOptions(t *testing.T) {
 		AdminConsolePort: 30000,
 	}
 
-	status := types.MigrationStatusResponse{
-		State:    types.MigrationStateInProgress,
-		Phase:    types.MigrationPhaseECInstall,
+	status := types.KURLMigrationStatusResponse{
+		State:    types.KURLMigrationStateInProgress,
+		Phase:    types.KURLMigrationPhaseECInstall,
 		Message:  "Installing EC",
 		Progress: 75,
 	}

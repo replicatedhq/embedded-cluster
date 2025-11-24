@@ -7,9 +7,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	kubernetesupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
-	"github.com/replicatedhq/embedded-cluster/api/controllers/migration"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -57,7 +57,7 @@ type API struct {
 	linuxUpgradeController      linuxupgrade.Controller
 	kubernetesInstallController kubernetesinstall.Controller
 	kubernetesUpgradeController kubernetesupgrade.Controller
-	migrationController         migration.Controller
+	kurlMigrationController     kurlmigration.Controller
 
 	handlers handlers
 }
@@ -108,9 +108,9 @@ func WithKubernetesUpgradeController(kubernetesUpgradeController kubernetesupgra
 }
 
 // WithMigrationController configures the migration controller for the API.
-func WithMigrationController(migrationController migration.Controller) Option {
+func WithMigrationController(kurlMigrationController kurlmigration.Controller) Option {
 	return func(a *API) {
-		a.migrationController = migrationController
+		a.kurlMigrationController = kurlMigrationController
 	}
 }
 
@@ -184,10 +184,6 @@ func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 
 	if err := api.initClients(); err != nil {
 		return nil, fmt.Errorf("init clients: %w", err)
-	}
-
-	if err := api.initControllers(); err != nil {
-		return nil, fmt.Errorf("init controllers: %w", err)
 	}
 
 	if err := api.initHandlers(); err != nil {

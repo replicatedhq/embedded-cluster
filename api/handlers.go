@@ -3,22 +3,24 @@ package api
 import (
 	"fmt"
 
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	authhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/auth"
 	consolehandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/console"
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
 	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
+	kurlmigrationhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kurlmigration"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
-	migrationhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/migration"
+	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type handlers struct {
-	auth       *authhandler.Handler
-	console    *consolehandler.Handler
-	health     *healthhandler.Handler
-	linux      *linuxhandler.Handler
-	kubernetes *kuberneteshandler.Handler
-	migration  *migrationhandler.Handler
+	auth          *authhandler.Handler
+	console       *consolehandler.Handler
+	health        *healthhandler.Handler
+	linux         *linuxhandler.Handler
+	kubernetes    *kuberneteshandler.Handler
+	kurlmigration *kurlmigrationhandler.Handler
 }
 
 func (a *API) initHandlers() error {
@@ -70,12 +72,30 @@ func (a *API) initHandlers() error {
 		}
 		a.handlers.linux = linuxHandler
 
-		// Migration handler (Linux only)
-		migrationHandler := migrationhandler.New(
-			migrationhandler.WithLogger(a.logger),
-			migrationhandler.WithController(a.migrationController),
+		// Initialize kURL migration controller if not already set
+		if a.kurlMigrationController == nil {
+			// Create installation manager for kURL migration
+			installMgr := linuxinstallation.NewInstallationManager(
+				linuxinstallation.WithLogger(a.logger),
+			)
+
+			// Controller creates manager internally with store passed as dependency
+			kurlMigrationController, err := kurlmigration.NewKURLMigrationController(
+				kurlmigration.WithLogger(a.logger),
+				kurlmigration.WithInstallationManager(installMgr),
+			)
+			if err != nil {
+				return fmt.Errorf("create kurl migration controller: %w", err)
+			}
+			a.kurlMigrationController = kurlMigrationController
+		}
+
+		// kURL Migration handler (Linux only)
+		kurlMigrationHandler := kurlmigrationhandler.New(
+			kurlmigrationhandler.WithLogger(a.logger),
+			kurlmigrationhandler.WithController(a.kurlMigrationController),
 		)
-		a.handlers.migration = migrationHandler
+		a.handlers.kurlmigration = kurlMigrationHandler
 	} else {
 		// Kubernetes handler
 		kubernetesHandler, err := kuberneteshandler.New(

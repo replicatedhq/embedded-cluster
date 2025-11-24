@@ -1,4 +1,4 @@
-package migration
+package kurlmigration
 
 import (
 	"context"
@@ -23,19 +23,19 @@ func (m *MockController) GetInstallationConfig(ctx context.Context) (types.Linux
 	return args.Get(0).(types.LinuxInstallationConfigResponse), args.Error(1)
 }
 
-// StartMigration mocks the StartMigration method
-func (m *MockController) StartMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error) {
+// StartKURLMigration mocks the StartKURLMigration method
+func (m *MockController) StartKURLMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error) {
 	args := m.Called(ctx, transferMode, config)
 	return args.String(0), args.Error(1)
 }
 
-// GetMigrationStatus mocks the GetMigrationStatus method
-func (m *MockController) GetMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error) {
+// GetKURLMigrationStatus mocks the GetKURLMigrationStatus method
+func (m *MockController) GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error) {
 	args := m.Called(ctx)
 	if args.Get(0) == nil {
-		return types.MigrationStatusResponse{}, args.Error(1)
+		return types.KURLMigrationStatusResponse{}, args.Error(1)
 	}
-	return args.Get(0).(types.MigrationStatusResponse), args.Error(1)
+	return args.Get(0).(types.KURLMigrationStatusResponse), args.Error(1)
 }
 
 // Run mocks the Run method

@@ -89,6 +89,8 @@ func getInstallDirectory(ctx context.Context, kcli client.Client) (string, error
 
 // DiscoverKotsadmNamespace finds the namespace containing the kotsadm Service.
 // It checks "default" first, then searches all namespaces for a Service with label "app=kotsadm".
+// While uncommon, it is possible for kotsadm to be in a different namespace,
+// so we discover it dynamically instead of hardcoding "default".
 // Returns namespace name or error if not found.
 func DiscoverKotsadmNamespace(ctx context.Context, cfg *Config) (string, error) {
 	// First, check the default namespace

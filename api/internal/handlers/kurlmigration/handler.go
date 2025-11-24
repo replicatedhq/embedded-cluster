@@ -1,9 +1,9 @@
-package migration
+package kurlmigration
 
 import (
 	"net/http"
 
-	"github.com/replicatedhq/embedded-cluster/api/controllers/migration"
+	"github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
@@ -11,7 +11,7 @@ import (
 
 type Handler struct {
 	logger     logrus.FieldLogger
-	controller migration.Controller
+	controller kurlmigration.Controller
 }
 
 type Option func(*Handler)
@@ -22,7 +22,7 @@ func WithLogger(logger logrus.FieldLogger) Option {
 	}
 }
 
-func WithController(controller migration.Controller) Option {
+func WithController(controller kurlmigration.Controller) Option {
 	return func(h *Handler) {
 		h.controller = controller
 	}
@@ -66,13 +66,13 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		types.StartMigrationRequest	true	"Start Migration Request"
-//	@Success		200		{object}	types.StartMigrationResponse
+//	@Param			request	body		types.StartKURLMigrationRequest	true	"Start Migration Request"
+//	@Success		200		{object}	types.StartKURLMigrationResponse
 //	@Failure		400		{object}	types.APIError
 //	@Failure		409		{object}	types.APIError
 //	@Router			/kurl-migration/start [post]
 func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
-	var request types.StartMigrationRequest
+	var request types.StartKURLMigrationRequest
 	if err := utils.BindJSON(w, r, &request, h.logger); err != nil {
 		return
 	}
@@ -82,27 +82,20 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 		request.TransferMode = types.TransferModeCopy
 	}
 
-	// Validate transfer mode
-	if request.TransferMode != types.TransferModeCopy && request.TransferMode != types.TransferModeMove {
-		utils.LogError(r, types.ErrInvalidTransferMode, h.logger, "invalid transfer mode")
-		utils.JSONError(w, r, types.NewBadRequestError(types.ErrInvalidTransferMode), h.logger)
-		return
-	}
-
 	// Use empty config if not provided
 	config := types.LinuxInstallationConfig{}
 	if request.Config != nil {
 		config = *request.Config
 	}
 
-	migrationID, err := h.controller.StartMigration(r.Context(), request.TransferMode, config)
+	migrationID, err := h.controller.StartKURLMigration(r.Context(), request.TransferMode, config)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to start migration")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
-	response := types.StartMigrationResponse{
+	response := types.StartKURLMigrationResponse{
 		MigrationID: migrationID,
 		Message:     "migration started successfully",
 	}
@@ -118,11 +111,11 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 //	@Tags			migration
 //	@Security		bearerauth
 //	@Produce		json
-//	@Success		200	{object}	types.MigrationStatusResponse
+//	@Success		200	{object}	types.KURLMigrationStatusResponse
 //	@Failure		404	{object}	types.APIError
 //	@Router			/kurl-migration/status [get]
 func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.controller.GetMigrationStatus(r.Context())
+	status, err := h.controller.GetKURLMigrationStatus(r.Context())
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to get migration status")
 		utils.JSONError(w, r, err, h.logger)

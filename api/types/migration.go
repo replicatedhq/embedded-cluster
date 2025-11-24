@@ -5,12 +5,12 @@ import (
 	"net/http"
 )
 
-// Migration error constants
+// kURL Migration error constants
 var (
-	ErrNoActiveMigration            = errors.New("no active migration")
-	ErrMigrationAlreadyStarted      = errors.New("migration already started")
-	ErrInvalidTransferMode          = errors.New("invalid transfer mode: must be 'copy' or 'move'")
-	ErrMigrationPhaseNotImplemented = errors.New("migration phase execution not yet implemented")
+	ErrNoActiveKURLMigration            = errors.New("no active migration")
+	ErrKURLMigrationAlreadyStarted      = errors.New("migration already started")
+	ErrInvalidTransferMode              = errors.New("invalid transfer mode: must be 'copy' or 'move'")
+	ErrKURLMigrationPhaseNotImplemented = errors.New("migration phase execution not yet implemented")
 )
 
 // NewNotFoundError creates a 404 API error
@@ -22,25 +22,25 @@ func NewNotFoundError(err error) *APIError {
 	}
 }
 
-// MigrationState represents the state of a migration
-type MigrationState string
+// KURLMigrationState represents the state of a kURL migration
+type KURLMigrationState string
 
 const (
-	MigrationStateNotStarted MigrationState = "NotStarted"
-	MigrationStateInProgress MigrationState = "InProgress"
-	MigrationStateCompleted  MigrationState = "Completed"
-	MigrationStateFailed     MigrationState = "Failed"
+	KURLMigrationStateNotStarted KURLMigrationState = "NotStarted"
+	KURLMigrationStateInProgress KURLMigrationState = "InProgress"
+	KURLMigrationStateCompleted  KURLMigrationState = "Completed"
+	KURLMigrationStateFailed     KURLMigrationState = "Failed"
 )
 
-// MigrationPhase represents the phase of a migration
-type MigrationPhase string
+// KURLMigrationPhase represents the phase of a kURL migration
+type KURLMigrationPhase string
 
 const (
-	MigrationPhaseDiscovery    MigrationPhase = "Discovery"
-	MigrationPhasePreparation  MigrationPhase = "Preparation"
-	MigrationPhaseECInstall    MigrationPhase = "ECInstall"
-	MigrationPhaseDataTransfer MigrationPhase = "DataTransfer"
-	MigrationPhaseCompleted    MigrationPhase = "Completed"
+	KURLMigrationPhaseDiscovery    KURLMigrationPhase = "Discovery"
+	KURLMigrationPhasePreparation  KURLMigrationPhase = "Preparation"
+	KURLMigrationPhaseECInstall    KURLMigrationPhase = "ECInstall"
+	KURLMigrationPhaseDataTransfer KURLMigrationPhase = "DataTransfer"
+	KURLMigrationPhaseCompleted    KURLMigrationPhase = "Completed"
 )
 
 // TransferMode represents the mode for data transfer during migration
@@ -51,31 +51,31 @@ const (
 	TransferModeMove TransferMode = "move"
 )
 
-// StartMigrationRequest represents the request to start a migration
+// StartKURLMigrationRequest represents the request to start a kURL migration
 // @Description Request body for starting a migration from kURL to Embedded Cluster
-type StartMigrationRequest struct {
+type StartKURLMigrationRequest struct {
 	// TransferMode specifies whether to copy or move data during migration
 	TransferMode TransferMode `json:"transferMode" enums:"copy,move" example:"copy"`
 	// Config contains optional installation configuration that will be merged with defaults
 	Config *LinuxInstallationConfig `json:"config,omitempty" validate:"optional"`
 }
 
-// StartMigrationResponse represents the response when starting a migration
+// StartKURLMigrationResponse represents the response when starting a kURL migration
 // @Description Response returned when a migration is successfully started
-type StartMigrationResponse struct {
+type StartKURLMigrationResponse struct {
 	// MigrationID is the unique identifier for this migration
 	MigrationID string `json:"migrationId" example:"550e8400-e29b-41d4-a716-446655440000"`
 	// Message is a user-facing message about the migration status
 	Message string `json:"message" example:"Migration started successfully"`
 }
 
-// MigrationStatusResponse represents the status of a migration
+// KURLMigrationStatusResponse represents the status of a kURL migration
 // @Description Current status and progress of a migration
-type MigrationStatusResponse struct {
+type KURLMigrationStatusResponse struct {
 	// State is the current state of the migration
-	State MigrationState `json:"state" enums:"NotStarted,InProgress,Completed,Failed" example:"InProgress"`
+	State KURLMigrationState `json:"state" enums:"NotStarted,InProgress,Completed,Failed" example:"InProgress"`
 	// Phase is the current phase of the migration process
-	Phase MigrationPhase `json:"phase" enums:"Discovery,Preparation,ECInstall,DataTransfer,Completed" example:"Discovery"`
+	Phase KURLMigrationPhase `json:"phase" enums:"Discovery,Preparation,ECInstall,DataTransfer,Completed" example:"Discovery"`
 	// Message is a user-facing message describing the current status
 	Message string `json:"message" example:"Discovering kURL cluster configuration"`
 	// Progress is the completion percentage (0-100)

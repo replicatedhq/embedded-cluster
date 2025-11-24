@@ -1,13 +1,13 @@
-package migration
+package kurlmigration
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/google/uuid"
+	kurlmigrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kurlmigration"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
-	migrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/migration"
-	migrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/migration"
+	kurlmigrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
@@ -18,61 +18,62 @@ type Controller interface {
 	// GetInstallationConfig extracts kURL config, gets EC defaults, and returns merged config
 	GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
 
-	// StartMigration validates config, generates UUID, initializes state, launches background goroutine
-	StartMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error)
+	// StartKURLMigration validates config, generates UUID, initializes state, launches background goroutine
+	StartKURLMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error)
 
-	// GetMigrationStatus returns current migration status
-	GetMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error)
+	// GetKURLMigrationStatus returns current migration status
+	GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error)
 
 	// Run is the internal orchestration loop (skeleton for this PR, implemented in PR 8)
 	Run(ctx context.Context) error
 }
 
-var _ Controller = (*MigrationController)(nil)
+var _ Controller = (*KURLMigrationController)(nil)
 
-// MigrationController implements the Controller interface
-type MigrationController struct {
-	manager             migrationmanager.Manager
-	store               migrationstore.Store
+// KURLMigrationController implements the Controller interface
+type KURLMigrationController struct {
+	manager             kurlmigrationmanager.Manager
+	store               kurlmigrationstore.Store
 	installationManager linuxinstallation.InstallationManager
 	logger              logrus.FieldLogger
 }
 
-// ControllerOption is a functional option for configuring the MigrationController
-type ControllerOption func(*MigrationController)
+// ControllerOption is a functional option for configuring the KURLMigrationController
+type ControllerOption func(*KURLMigrationController)
 
 // WithManager sets the migration manager
-func WithManager(manager migrationmanager.Manager) ControllerOption {
-	return func(c *MigrationController) {
+func WithManager(manager kurlmigrationmanager.Manager) ControllerOption {
+	return func(c *KURLMigrationController) {
 		c.manager = manager
 	}
 }
 
 // WithStore sets the migration store
-func WithStore(store migrationstore.Store) ControllerOption {
-	return func(c *MigrationController) {
+func WithStore(store kurlmigrationstore.Store) ControllerOption {
+	return func(c *KURLMigrationController) {
 		c.store = store
 	}
 }
 
 // WithInstallationManager sets the installation manager
 func WithInstallationManager(manager linuxinstallation.InstallationManager) ControllerOption {
-	return func(c *MigrationController) {
+	return func(c *KURLMigrationController) {
 		c.installationManager = manager
 	}
 }
 
 // WithLogger sets the logger
 func WithLogger(log logrus.FieldLogger) ControllerOption {
-	return func(c *MigrationController) {
+	return func(c *KURLMigrationController) {
 		c.logger = log
 	}
 }
 
-// NewMigrationController creates a new migration controller with the provided options
-func NewMigrationController(opts ...ControllerOption) (*MigrationController, error) {
-	controller := &MigrationController{
-		store:  migrationstore.NewMemoryStore(),
+// NewKURLMigrationController creates a new migration controller with the provided options.
+// The controller creates its manager internally if not provided via WithManager option.
+func NewKURLMigrationController(opts ...ControllerOption) (*KURLMigrationController, error) {
+	controller := &KURLMigrationController{
+		store:  kurlmigrationstore.NewMemoryStore(),
 		logger: logger.NewDiscardLogger(),
 	}
 
@@ -80,16 +81,23 @@ func NewMigrationController(opts ...ControllerOption) (*MigrationController, err
 		opt(controller)
 	}
 
-	// Validate required dependencies
+	// Create manager internally if not provided via option
 	if controller.manager == nil {
-		return nil, fmt.Errorf("migration manager is required")
+		if controller.installationManager == nil {
+			return nil, fmt.Errorf("installation manager is required when manager is not provided")
+		}
+		controller.manager = kurlmigrationmanager.NewManager(
+			kurlmigrationmanager.WithStore(controller.store),
+			kurlmigrationmanager.WithLogger(controller.logger),
+			kurlmigrationmanager.WithInstallationManager(controller.installationManager),
+		)
 	}
 
 	return controller, nil
 }
 
 // GetInstallationConfig extracts kURL config, gets EC defaults, and returns merged config
-func (c *MigrationController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
+func (c *KURLMigrationController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
 	c.logger.Debug("fetching kurl config, ec defaults, and merging")
 
 	// Get kURL config from the running cluster
@@ -106,9 +114,15 @@ func (c *MigrationController) GetInstallationConfig(ctx context.Context) (types.
 		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get ec defaults: %w", err)
 	}
 
-	// Merge configs with empty user config (user hasn't submitted config yet)
-	emptyUserConfig := types.LinuxInstallationConfig{}
-	resolved := c.manager.MergeConfigs(emptyUserConfig, kurlConfig, defaults)
+	// Get user config from store (will be empty if user hasn't submitted config yet)
+	userConfig, err := c.store.GetUserConfig()
+	if err != nil {
+		c.logger.WithError(err).Error("get user config")
+		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get user config: %w", err)
+	}
+
+	// Merge configs: userConfig > kurlConfig > defaults
+	resolved := c.manager.MergeConfigs(userConfig, kurlConfig, defaults)
 
 	c.logger.WithFields(logrus.Fields{
 		"kurlConfig": kurlConfig,
@@ -123,8 +137,8 @@ func (c *MigrationController) GetInstallationConfig(ctx context.Context) (types.
 	}, nil
 }
 
-// StartMigration validates config, generates UUID, initializes state, launches background goroutine
-func (c *MigrationController) StartMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error) {
+// StartKURLMigration validates config, generates UUID, initializes state, launches background goroutine
+func (c *KURLMigrationController) StartKURLMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error) {
 	c.logger.WithFields(logrus.Fields{
 		"transferMode": transferMode,
 		"config":       config,
@@ -139,7 +153,7 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 	// Check if migration already exists
 	if _, err := c.store.GetMigrationID(); err == nil {
 		c.logger.Warn("migration already in progress")
-		return "", types.NewConflictError(types.ErrMigrationAlreadyStarted)
+		return "", types.NewConflictError(types.ErrKURLMigrationAlreadyStarted)
 	}
 
 	// Generate UUID for migration
@@ -162,14 +176,20 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 	resolvedConfig := c.manager.MergeConfigs(config, kurlConfig, defaults)
 	c.logger.WithField("resolvedConfig", resolvedConfig).Debug("config merged")
 
-	// Initialize migration in store
+	// Store user-provided config for future reference
+	if err := c.store.SetUserConfig(config); err != nil {
+		c.logger.WithError(err).Error("store user config")
+		return "", fmt.Errorf("store user config: %w", err)
+	}
+
+	// Initialize migration in store with resolved config
 	if err := c.store.InitializeMigration(migrationID, string(transferMode), resolvedConfig); err != nil {
 		c.logger.WithError(err).Error("initialize migration")
 		return "", fmt.Errorf("initialize migration: %w", err)
 	}
 
 	// Set initial state to NotStarted
-	if err := c.store.SetState(types.MigrationStateNotStarted); err != nil {
+	if err := c.store.SetState(types.KURLMigrationStateNotStarted); err != nil {
 		c.logger.WithError(err).Error("set initial state")
 		return "", fmt.Errorf("set initial state: %w", err)
 	}
@@ -189,18 +209,18 @@ func (c *MigrationController) StartMigration(ctx context.Context, transferMode t
 	return migrationID, nil
 }
 
-// GetMigrationStatus returns current migration status
-func (c *MigrationController) GetMigrationStatus(ctx context.Context) (types.MigrationStatusResponse, error) {
+// GetKURLMigrationStatus returns current migration status
+func (c *KURLMigrationController) GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error) {
 	c.logger.Debug("fetching migration status")
 
 	status, err := c.store.GetStatus()
 	if err != nil {
-		if err == types.ErrNoActiveMigration {
+		if err == types.ErrNoActiveKURLMigration {
 			c.logger.Warn("no active migration found")
-			return types.MigrationStatusResponse{}, types.NewNotFoundError(err)
+			return types.KURLMigrationStatusResponse{}, types.NewNotFoundError(err)
 		}
 		c.logger.WithError(err).Error("get status")
-		return types.MigrationStatusResponse{}, fmt.Errorf("get status: %w", err)
+		return types.KURLMigrationStatusResponse{}, fmt.Errorf("get status: %w", err)
 	}
 
 	c.logger.WithFields(logrus.Fields{
@@ -213,11 +233,30 @@ func (c *MigrationController) GetMigrationStatus(ctx context.Context) (types.Mig
 }
 
 // Run is the internal orchestration loop (skeleton for this PR, implemented in PR 8)
-func (c *MigrationController) Run(ctx context.Context) error {
+func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 	c.logger.Info("starting migration orchestration")
 
-	// TODO: Phase implementations added in PR 8
-	// This is a skeleton implementation that will be expanded in the next PR
+	// Defer handles all error cases by updating migration state
+	defer func() {
+		// Recover from panics
+		if r := recover(); r != nil {
+			finalErr = fmt.Errorf("panic in kurl migration orchestration: %v", r)
+			c.logger.WithField("panic", r).Error("migration panicked")
+		}
+
+		// Handle any error by updating state to Failed
+		if finalErr != nil {
+			if err := c.store.SetState(types.KURLMigrationStateFailed); err != nil {
+				c.logger.WithError(err).Error("failed to set migration state to failed")
+			}
+			if err := c.store.SetError(finalErr.Error()); err != nil {
+				c.logger.WithError(err).Error("failed to set migration error message")
+			}
+		}
+	}()
+
+	// TODO(sc-130983): Phase implementations will be added in the orchestration story
+	// This is a skeleton implementation that will be expanded in that PR
 
 	// Get current state from store
 	status, err := c.store.GetStatus()
@@ -232,62 +271,44 @@ func (c *MigrationController) Run(ctx context.Context) error {
 	}).Debug("current migration state")
 
 	// If InProgress, resume from current phase
-	if status.State == types.MigrationStateInProgress {
+	if status.State == types.KURLMigrationStateInProgress {
 		c.logger.WithField("phase", status.Phase).Info("resuming from current phase")
-		// TODO: Resume logic in PR 8
+		// TODO(sc-130983): Resume logic will be implemented in the orchestration story
 	}
 
 	// Execute phases: Discovery → Preparation → ECInstall → DataTransfer → Completed
-	phases := []types.MigrationPhase{
-		types.MigrationPhaseDiscovery,
-		types.MigrationPhasePreparation,
-		types.MigrationPhaseECInstall,
-		types.MigrationPhaseDataTransfer,
-		types.MigrationPhaseCompleted,
+	phases := []types.KURLMigrationPhase{
+		types.KURLMigrationPhaseDiscovery,
+		types.KURLMigrationPhasePreparation,
+		types.KURLMigrationPhaseECInstall,
+		types.KURLMigrationPhaseDataTransfer,
+		types.KURLMigrationPhaseCompleted,
 	}
 
 	for _, phase := range phases {
 		c.logger.WithField("phase", phase).Info("executing phase (skeleton)")
 
 		// Set state to InProgress
-		if err := c.store.SetState(types.MigrationStateInProgress); err != nil {
+		if err := c.store.SetState(types.KURLMigrationStateInProgress); err != nil {
 			c.logger.WithError(err).Error("set state to in progress")
-			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("set state to failed")
-			}
-			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("set error message")
-			}
 			return fmt.Errorf("set state: %w", err)
 		}
 
 		// Set current phase
 		if err := c.store.SetPhase(phase); err != nil {
 			c.logger.WithError(err).Error("set phase")
-			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("set state to failed")
-			}
-			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("set error message")
-			}
 			return fmt.Errorf("set phase: %w", err)
 		}
 
 		// Execute phase
 		if err := c.manager.ExecutePhase(ctx, phase); err != nil {
 			c.logger.WithError(err).WithField("phase", phase).Error("phase execution failed")
-			if setErr := c.store.SetState(types.MigrationStateFailed); setErr != nil {
-				c.logger.WithError(setErr).Error("set state to failed")
-			}
-			if setErr := c.store.SetError(err.Error()); setErr != nil {
-				c.logger.WithError(setErr).Error("set error message")
-			}
 			return fmt.Errorf("execute phase %s: %w", phase, err)
 		}
 	}
 
 	// Set state to Completed
-	if err := c.store.SetState(types.MigrationStateCompleted); err != nil {
+	if err := c.store.SetState(types.KURLMigrationStateCompleted); err != nil {
 		c.logger.WithError(err).Error("set state to completed")
 		return fmt.Errorf("set completed state: %w", err)
 	}

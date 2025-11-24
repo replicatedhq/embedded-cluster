@@ -1,12 +1,12 @@
-package migration
+package kurlmigration
 
 import (
 	"errors"
 	"testing"
 	"time"
 
-	migrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/migration"
-	migrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/migration"
+	migrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kurlmigration"
+	migrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -32,14 +32,12 @@ func TestGetInstallationConfig(t *testing.T) {
 				defaults := types.LinuxInstallationConfig{
 					AdminConsolePort:        30000,
 					DataDirectory:           "/var/lib/embedded-cluster",
-					LocalArtifactMirrorPort: 50000,
 					GlobalCIDR:              "10.244.0.0/16",
 				}
 
 				resolvedConfig := types.LinuxInstallationConfig{
 					AdminConsolePort:        8800,
 					DataDirectory:           "/var/lib/embedded-cluster",
-					LocalArtifactMirrorPort: 50000,
 					PodCIDR:                 "10.32.0.0/20",
 					ServiceCIDR:             "10.96.0.0/12",
 					GlobalCIDR:              "10.244.0.0/16",
@@ -62,14 +60,12 @@ func TestGetInstallationConfig(t *testing.T) {
 					Defaults: types.LinuxInstallationConfig{
 						AdminConsolePort:        30000,
 						DataDirectory:           "/var/lib/embedded-cluster",
-						LocalArtifactMirrorPort: 50000,
-						GlobalCIDR:              "10.244.0.0/16",
+							GlobalCIDR:              "10.244.0.0/16",
 					},
 					Resolved: types.LinuxInstallationConfig{
 						AdminConsolePort:        8800,
 						DataDirectory:           "/var/lib/embedded-cluster",
-						LocalArtifactMirrorPort: 50000,
-						PodCIDR:                 "10.32.0.0/20",
+							PodCIDR:                 "10.32.0.0/20",
 						ServiceCIDR:             "10.96.0.0/12",
 						GlobalCIDR:              "10.244.0.0/16",
 					},
@@ -111,14 +107,12 @@ func TestGetInstallationConfig(t *testing.T) {
 				defaults := types.LinuxInstallationConfig{
 					AdminConsolePort:        30000,
 					DataDirectory:           "/var/lib/embedded-cluster",
-					LocalArtifactMirrorPort: 50000,
 				}
 
 				// Resolved should have kURL values override defaults (since no user config yet)
 				resolvedConfig := types.LinuxInstallationConfig{
 					AdminConsolePort:        8800,
 					DataDirectory:           "/opt/kurl",
-					LocalArtifactMirrorPort: 50000,
 				}
 
 				mock.InOrder(
@@ -137,13 +131,11 @@ func TestGetInstallationConfig(t *testing.T) {
 					Defaults: types.LinuxInstallationConfig{
 						AdminConsolePort:        30000,
 						DataDirectory:           "/var/lib/embedded-cluster",
-						LocalArtifactMirrorPort: 50000,
-					},
+						},
 					Resolved: types.LinuxInstallationConfig{
 						AdminConsolePort:        8800,
 						DataDirectory:           "/opt/kurl",
-						LocalArtifactMirrorPort: 50000,
-					},
+						},
 				}
 			},
 		},
@@ -154,7 +146,7 @@ func TestGetInstallationConfig(t *testing.T) {
 			mockManager := &migrationmanager.MockManager{}
 			tt.setupMock(mockManager)
 
-			controller, err := NewMigrationController(
+			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
 			)
 			require.NoError(t, err)
@@ -208,22 +200,23 @@ func TestStartMigration(t *testing.T) {
 
 				mock.InOrder(
 					m.On("ValidateTransferMode", types.TransferModeCopy).Return(nil),
-					s.On("GetMigrationID").Return("", types.ErrNoActiveMigration),
+					s.On("GetMigrationID").Return("", types.ErrNoActiveKURLMigration),
 					m.On("GetKurlConfig", mock.Anything).Return(kurlConfig, nil),
 					m.On("GetECDefaults", mock.Anything).Return(defaults, nil),
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
+					s.On("SetUserConfig", mock.Anything).Return(nil),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "copy", resolvedConfig).Return(nil),
-					s.On("SetState", types.MigrationStateNotStarted).Return(nil),
+					s.On("SetState", types.KURLMigrationStateNotStarted).Return(nil),
 					// For the background goroutine - skeleton implementation fails at first phase
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateNotStarted,
+						Phase: types.KURLMigrationPhaseDiscovery,
 					}, nil),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil),
-					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented),
-					s.On("SetState", types.MigrationStateFailed).Return(nil),
-					s.On("SetError", "migration phase execution not yet implemented").Return(nil),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(nil),
+					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil),
+					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil),
+					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -249,22 +242,23 @@ func TestStartMigration(t *testing.T) {
 
 				mock.InOrder(
 					m.On("ValidateTransferMode", types.TransferModeMove).Return(nil),
-					s.On("GetMigrationID").Return("", types.ErrNoActiveMigration),
+					s.On("GetMigrationID").Return("", types.ErrNoActiveKURLMigration),
 					m.On("GetKurlConfig", mock.Anything).Return(kurlConfig, nil),
 					m.On("GetECDefaults", mock.Anything).Return(defaults, nil),
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
+					s.On("SetUserConfig", mock.Anything).Return(nil),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "move", resolvedConfig).Return(nil),
-					s.On("SetState", types.MigrationStateNotStarted).Return(nil),
+					s.On("SetState", types.KURLMigrationStateNotStarted).Return(nil),
 					// For the background goroutine - skeleton implementation fails at first phase
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateNotStarted,
+						Phase: types.KURLMigrationPhaseDiscovery,
 					}, nil),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil),
-					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented),
-					s.On("SetState", types.MigrationStateFailed).Return(nil),
-					s.On("SetError", "migration phase execution not yet implemented").Return(nil),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(nil),
+					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil),
+					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil),
+					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -283,7 +277,7 @@ func TestStartMigration(t *testing.T) {
 					s.On("GetMigrationID").Return("existing-migration-id", nil),
 				)
 			},
-			expectedErr: types.ErrMigrationAlreadyStarted,
+			expectedErr: types.ErrKURLMigrationAlreadyStarted,
 			validateResult: func(t *testing.T, migrationID string, err error) {
 				assert.Error(t, err)
 				assert.Empty(t, migrationID)
@@ -320,10 +314,11 @@ func TestStartMigration(t *testing.T) {
 
 				mock.InOrder(
 					m.On("ValidateTransferMode", types.TransferModeCopy).Return(nil),
-					s.On("GetMigrationID").Return("", types.ErrNoActiveMigration),
+					s.On("GetMigrationID").Return("", types.ErrNoActiveKURLMigration),
 					m.On("GetKurlConfig", mock.Anything).Return(kurlConfig, nil),
 					m.On("GetECDefaults", mock.Anything).Return(defaults, nil),
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
+					s.On("SetUserConfig", mock.Anything).Return(nil),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "copy", resolvedConfig).Return(errors.New("store error")),
 				)
 			},
@@ -345,12 +340,13 @@ func TestStartMigration(t *testing.T) {
 
 				mock.InOrder(
 					m.On("ValidateTransferMode", types.TransferModeCopy).Return(nil),
-					s.On("GetMigrationID").Return("", types.ErrNoActiveMigration),
+					s.On("GetMigrationID").Return("", types.ErrNoActiveKURLMigration),
 					m.On("GetKurlConfig", mock.Anything).Return(kurlConfig, nil),
 					m.On("GetECDefaults", mock.Anything).Return(defaults, nil),
 					m.On("MergeConfigs", mock.Anything, kurlConfig, defaults).Return(resolvedConfig),
+					s.On("SetUserConfig", mock.Anything).Return(nil),
 					s.On("InitializeMigration", mock.AnythingOfType("string"), "copy", resolvedConfig).Return(nil),
-					s.On("SetState", types.MigrationStateNotStarted).Return(errors.New("set state error")),
+					s.On("SetState", types.KURLMigrationStateNotStarted).Return(errors.New("set state error")),
 				)
 			},
 			expectedErr: errors.New("set state error"),
@@ -368,13 +364,13 @@ func TestStartMigration(t *testing.T) {
 			mockStore := &migrationstore.MockStore{}
 			tt.setupMock(mockManager, mockStore)
 
-			controller, err := NewMigrationController(
+			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
 				WithStore(mockStore),
 			)
 			require.NoError(t, err)
 
-			migrationID, err := controller.StartMigration(t.Context(), tt.transferMode, tt.config)
+			migrationID, err := controller.StartKURLMigration(t.Context(), tt.transferMode, tt.config)
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)
@@ -402,14 +398,14 @@ func TestGetMigrationStatus(t *testing.T) {
 		name          string
 		setupMock     func(*migrationstore.MockStore)
 		expectedErr   error
-		expectedValue types.MigrationStatusResponse
+		expectedValue types.KURLMigrationStatusResponse
 	}{
 		{
 			name: "successful response with active migration",
 			setupMock: func(s *migrationstore.MockStore) {
-				status := types.MigrationStatusResponse{
-					State:    types.MigrationStateInProgress,
-					Phase:    types.MigrationPhaseDataTransfer,
+				status := types.KURLMigrationStatusResponse{
+					State:    types.KURLMigrationStateInProgress,
+					Phase:    types.KURLMigrationPhaseDataTransfer,
 					Message:  "Transferring data",
 					Progress: 50,
 					Error:    "",
@@ -417,9 +413,9 @@ func TestGetMigrationStatus(t *testing.T) {
 				s.On("GetStatus").Return(status, nil)
 			},
 			expectedErr: nil,
-			expectedValue: types.MigrationStatusResponse{
-				State:    types.MigrationStateInProgress,
-				Phase:    types.MigrationPhaseDataTransfer,
+			expectedValue: types.KURLMigrationStatusResponse{
+				State:    types.KURLMigrationStateInProgress,
+				Phase:    types.KURLMigrationPhaseDataTransfer,
 				Message:  "Transferring data",
 				Progress: 50,
 				Error:    "",
@@ -428,18 +424,18 @@ func TestGetMigrationStatus(t *testing.T) {
 		{
 			name: "no active migration (404 error)",
 			setupMock: func(s *migrationstore.MockStore) {
-				s.On("GetStatus").Return(types.MigrationStatusResponse{}, types.ErrNoActiveMigration)
+				s.On("GetStatus").Return(types.KURLMigrationStatusResponse{}, types.ErrNoActiveKURLMigration)
 			},
-			expectedErr:   types.ErrNoActiveMigration,
-			expectedValue: types.MigrationStatusResponse{},
+			expectedErr:   types.ErrNoActiveKURLMigration,
+			expectedValue: types.KURLMigrationStatusResponse{},
 		},
 		{
 			name: "store error",
 			setupMock: func(s *migrationstore.MockStore) {
-				s.On("GetStatus").Return(types.MigrationStatusResponse{}, errors.New("store error"))
+				s.On("GetStatus").Return(types.KURLMigrationStatusResponse{}, errors.New("store error"))
 			},
 			expectedErr:   errors.New("store error"),
-			expectedValue: types.MigrationStatusResponse{},
+			expectedValue: types.KURLMigrationStatusResponse{},
 		},
 	}
 
@@ -449,20 +445,20 @@ func TestGetMigrationStatus(t *testing.T) {
 			tt.setupMock(mockStore)
 
 			mockManager := &migrationmanager.MockManager{}
-			controller, err := NewMigrationController(
+			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
 				WithStore(mockStore),
 			)
 			require.NoError(t, err)
 
-			result, err := controller.GetMigrationStatus(t.Context())
+			result, err := controller.GetKURLMigrationStatus(t.Context())
 
 			if tt.expectedErr != nil {
 				assert.Error(t, err)
-				assert.Equal(t, types.MigrationStatusResponse{}, result)
+				assert.Equal(t, types.KURLMigrationStatusResponse{}, result)
 
 				// Verify it's a 404 error when appropriate
-				if tt.expectedErr == types.ErrNoActiveMigration {
+				if tt.expectedErr == types.ErrNoActiveKURLMigration {
 					var apiErr *types.APIError
 					require.True(t, errors.As(err, &apiErr))
 					assert.Equal(t, 404, apiErr.StatusCode)
@@ -490,18 +486,18 @@ func TestRun(t *testing.T) {
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
 					// Initial status check
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateNotStarted,
+						Phase: types.KURLMigrationPhaseDiscovery,
 					}, nil).Once(),
 					// Discovery phase - skeleton implementation fails here
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil).Once(),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(nil).Once(),
+					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil).Once(),
 					// ExecutePhase is called and returns skeleton error
-					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented).Once(),
+					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented).Once(),
 					// Error handling
-					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "migration phase execution not yet implemented").Return(nil).Once(),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
@@ -509,7 +505,10 @@ func TestRun(t *testing.T) {
 		{
 			name: "skeleton test - error on GetStatus",
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
-				s.On("GetStatus").Return(types.MigrationStatusResponse{}, errors.New("get status error")).Once()
+				s.On("GetStatus").Return(types.KURLMigrationStatusResponse{}, errors.New("get status error")).Once()
+				// Defer will try to set state to Failed and set error message
+				s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once()
+				s.On("SetError", "get status: get status error").Return(nil).Once()
 			},
 			expectedErr: true,
 		},
@@ -517,13 +516,13 @@ func TestRun(t *testing.T) {
 			name: "skeleton test - error on SetState",
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateNotStarted,
+						Phase: types.KURLMigrationPhaseDiscovery,
 					}, nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(errors.New("set state error")).Once(),
-					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "set state error").Return(nil).Once(),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(errors.New("set state error")).Once(),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "set state: set state error").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
@@ -532,14 +531,14 @@ func TestRun(t *testing.T) {
 			name: "skeleton test - error on SetPhase",
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateNotStarted,
-						Phase: types.MigrationPhaseDiscovery,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateNotStarted,
+						Phase: types.KURLMigrationPhaseDiscovery,
 					}, nil).Once(),
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(errors.New("set phase error")).Once(),
-					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "set phase error").Return(nil).Once(),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(nil).Once(),
+					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(errors.New("set phase error")).Once(),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "set phase: set phase error").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
@@ -548,17 +547,17 @@ func TestRun(t *testing.T) {
 			name: "skeleton test - resume from InProgress state",
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				mock.InOrder(
-					s.On("GetStatus").Return(types.MigrationStatusResponse{
-						State: types.MigrationStateInProgress,
-						Phase: types.MigrationPhasePreparation,
+					s.On("GetStatus").Return(types.KURLMigrationStatusResponse{
+						State: types.KURLMigrationStateInProgress,
+						Phase: types.KURLMigrationPhasePreparation,
 					}, nil).Once(),
 					// Should still go through all phases (skeleton doesn't implement resume logic yet)
-					s.On("SetState", types.MigrationStateInProgress).Return(nil).Once(),
-					s.On("SetPhase", types.MigrationPhaseDiscovery).Return(nil).Once(),
+					s.On("SetState", types.KURLMigrationStateInProgress).Return(nil).Once(),
+					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil).Once(),
 					// ExecutePhase fails in skeleton
-					m.On("ExecutePhase", mock.Anything, types.MigrationPhaseDiscovery).Return(types.ErrMigrationPhaseNotImplemented).Once(),
-					s.On("SetState", types.MigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "migration phase execution not yet implemented").Return(nil).Once(),
+					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented).Once(),
+					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
+					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
@@ -571,7 +570,7 @@ func TestRun(t *testing.T) {
 			mockStore := &migrationstore.MockStore{}
 			tt.setupMock(mockManager, mockStore)
 
-			controller, err := NewMigrationController(
+			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
 				WithStore(mockStore),
 			)

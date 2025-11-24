@@ -132,10 +132,10 @@ func TestUpgradeKURLMigration(t *testing.T) {
 }
 
 // assertEventuallyMigrationState waits for the migration status to reach the expected state
-func assertEventuallyMigrationState(t *testing.T, contextMsg string, expectedState apitypes.MigrationState, getStatus func() (apitypes.MigrationState, string, error)) {
+func assertEventuallyMigrationState(t *testing.T, contextMsg string, expectedState apitypes.KURLMigrationState, getStatus func() (apitypes.KURLMigrationState, string, error)) {
 	t.Helper()
 
-	var lastState apitypes.MigrationState
+	var lastState apitypes.KURLMigrationState
 	var lastMsg string
 	var lastErr error
 
@@ -173,7 +173,7 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	}()
 
 	ctx := t.Context()
-	managerPort := 30081 // Default port for upgrade mode
+	managerPort := 30080 // Default port for upgrade mode
 
 	// Wait for API to be ready
 	httpClient := insecureHTTPClient()
@@ -196,7 +196,7 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 
 	// GET /api/linux/kurl-migration/status
 	// The migration should eventually reach Failed state with the skeleton error
-	assertEventuallyMigrationState(t, "migration phase execution not yet implemented", apitypes.MigrationStateFailed, func() (apitypes.MigrationState, string, error) {
+	assertEventuallyMigrationState(t, "migration phase execution not yet implemented", apitypes.KURLMigrationStateFailed, func() (apitypes.KURLMigrationState, string, error) {
 		statusResp, err := c.GetKURLMigrationStatus(ctx)
 		if err != nil {
 			return "", "", err
@@ -207,7 +207,7 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	// Get final status to verify error message
 	finalStatus, err := c.GetKURLMigrationStatus(ctx)
 	require.NoError(t, err, "failed to get migration status")
-	require.Equal(t, apitypes.MigrationStateFailed, finalStatus.State, "migration should be in Failed state")
+	require.Equal(t, apitypes.KURLMigrationStateFailed, finalStatus.State, "migration should be in Failed state")
 	require.Contains(t, finalStatus.Error, "migration phase execution not yet implemented",
 		"expected skeleton error message in status")
 }

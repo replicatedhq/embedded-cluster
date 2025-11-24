@@ -1,4 +1,4 @@
-package migration
+package kurlmigration
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func (m *MockManager) ValidateTransferMode(mode types.TransferMode) error {
 }
 
 // ExecutePhase mocks the ExecutePhase method
-func (m *MockManager) ExecutePhase(ctx context.Context, phase types.MigrationPhase) error {
+func (m *MockManager) ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error {
 	args := m.Called(ctx, phase)
 	return args.Error(0)
 }

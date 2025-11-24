@@ -1,4 +1,4 @@
-package migration
+package kurlmigration
 
 import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -22,20 +22,20 @@ func (m *MockStore) GetMigrationID() (string, error) {
 	return args.Get(0).(string), args.Error(1)
 }
 
-func (m *MockStore) GetStatus() (types.MigrationStatusResponse, error) {
+func (m *MockStore) GetStatus() (types.KURLMigrationStatusResponse, error) {
 	args := m.Called()
 	if args.Get(0) == nil {
-		return types.MigrationStatusResponse{}, args.Error(1)
+		return types.KURLMigrationStatusResponse{}, args.Error(1)
 	}
-	return args.Get(0).(types.MigrationStatusResponse), args.Error(1)
+	return args.Get(0).(types.KURLMigrationStatusResponse), args.Error(1)
 }
 
-func (m *MockStore) SetState(state types.MigrationState) error {
+func (m *MockStore) SetState(state types.KURLMigrationState) error {
 	args := m.Called(state)
 	return args.Error(0)
 }
 
-func (m *MockStore) SetPhase(phase types.MigrationPhase) error {
+func (m *MockStore) SetPhase(phase types.KURLMigrationPhase) error {
 	args := m.Called(phase)
 	return args.Error(0)
 }
@@ -66,4 +66,17 @@ func (m *MockStore) GetConfig() (types.LinuxInstallationConfig, error) {
 		return types.LinuxInstallationConfig{}, args.Error(1)
 	}
 	return args.Get(0).(types.LinuxInstallationConfig), args.Error(1)
+}
+
+func (m *MockStore) GetUserConfig() (types.LinuxInstallationConfig, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return types.LinuxInstallationConfig{}, args.Error(1)
+	}
+	return args.Get(0).(types.LinuxInstallationConfig), args.Error(1)
+}
+
+func (m *MockStore) SetUserConfig(config types.LinuxInstallationConfig) error {
+	args := m.Called(config)
+	return args.Error(0)
 }

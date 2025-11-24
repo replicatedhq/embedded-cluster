@@ -517,6 +517,42 @@ func readPasswordHash(ctx context.Context, kcli client.Client, namespace string)
 	return passwordBcryptData, nil
 }
 
+// runAPIServer starts the API server with the provided config and waits for it to exit or context cancellation.
+// This is a common helper function used by both runManagerExperienceUpgrade and runMigrationAPI.
+func runAPIServer(
+	ctx context.Context,
+	cert *tls.Certificate,
+	apiConfig apiOptions,
+	hostname string,
+	port int,
+	appTitle string,
+) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	apiExitCh, err := startAPI(ctx, *cert, apiConfig)
+	if err != nil {
+		return fmt.Errorf("failed to start api: %w", err)
+	}
+
+	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
+		appTitle,
+		getManagerURL(hostname, port))
+
+	// Wait for either user cancellation or API unexpected exit
+	select {
+	case <-ctx.Done():
+		// Normal exit (user interrupted)
+		return nil
+	case err := <-apiExitCh:
+		// API exited unexpectedly
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("api server exited unexpectedly")
+	}
+}
+
 func runManagerExperienceUpgrade(
 	ctx context.Context, flags UpgradeCmdFlags, upgradeConfig upgradeConfig, rc runtimeconfig.RuntimeConfig,
 	metricsReporter metrics.ReporterInterface, appTitle string, targetVersion string, initialVersion string,
@@ -549,30 +585,7 @@ func runManagerExperienceUpgrade(
 		MetricsReporter: metricsReporter,
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	apiExitCh, err := startAPI(ctx, upgradeConfig.tlsCert, apiConfig)
-	if err != nil {
-		return fmt.Errorf("failed to start api: %w", err)
-	}
-
-	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
-		appTitle,
-		getManagerURL(upgradeConfig.tlsConfig.Hostname, upgradeConfig.managerPort))
-
-	// Wait for either user cancellation or API unexpected exit
-	select {
-	case <-ctx.Done():
-		// Normal exit (user interrupted)
-		return nil
-	case err := <-apiExitCh:
-		// API exited unexpectedly
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("api server exited unexpectedly")
-	}
+	return runAPIServer(ctx, &upgradeConfig.tlsCert, apiConfig, upgradeConfig.tlsConfig.Hostname, upgradeConfig.managerPort, appTitle)
 }
 
 // checkRequiresInfraUpgrade determines if an infrastructure upgrade is required by comparing
@@ -731,7 +744,7 @@ func runMigrationAPI(
 	}
 
 	// Use the user-provided manager port if specified, otherwise use default
-	managerPort := 30081 // Default port for upgrade/migration mode
+	managerPort := 30080 // Default port for upgrade/migration mode
 	if flags.managerPort != 0 {
 		managerPort = flags.managerPort
 	}
@@ -777,29 +790,5 @@ func runMigrationAPI(
 		WebMode:     web.ModeUpgrade,
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Start the API server
-	apiExitCh, err := startAPI(ctx, cert, apiConfig)
-	if err != nil {
-		return fmt.Errorf("failed to start migration API: %w", err)
-	}
-
-	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
-		appTitle,
-		getManagerURL(tlsConfig.Hostname, managerPort))
-
-	// Wait for either user cancellation or API unexpected exit
-	select {
-	case <-ctx.Done():
-		// Normal exit (user interrupted)
-		return nil
-	case err := <-apiExitCh:
-		// API exited unexpectedly
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("migration API server exited unexpectedly")
-	}
+	return runAPIServer(ctx, &cert, apiConfig, tlsConfig.Hostname, managerPort, appTitle)
 }
