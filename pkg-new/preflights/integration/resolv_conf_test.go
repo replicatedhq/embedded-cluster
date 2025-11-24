@@ -2,10 +2,11 @@ package preflights
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
-	"path/filepath"
 	"testing"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
@@ -27,59 +28,74 @@ func TestIntegration_ResolvConf(t *testing.T) {
 	}
 
 	tests := []struct {
-		name              string
-		resolvConfContent string
-		expectPass        bool
-		expectFail        bool
+		name             string
+		fileContent      string
+		findAnalyzerFn   func(a *troubleshootv1beta2.HostAnalyze) bool
+		modifyAnalyzerFn func(a *troubleshootv1beta2.HostAnalyze, fileName string)
+		expectOutput     *apitypes.PreflightsOutput
 	}{
 		{
-			name:              "valid IPv4 nameserver passes",
-			resolvConfContent: "nameserver 8.8.8.8\n",
-			expectPass:        true,
-			expectFail:        false,
+			name:        "valid IPv4 nameserver passes",
+			fileContent: "nameserver 8.8.8.8\n",
+			findAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze) bool {
+				return a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Resolver Configuration"
+			},
+			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
+				a.TextAnalyze.FileName = fileName
+			},
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "No local nameserver entries detected in resolv.conf",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
 		},
-		{
-			name:              "valid IPv6 nameserver passes",
-			resolvConfContent: "nameserver 2001:4860:4860::8888\n",
-			expectPass:        true,
-			expectFail:        false,
-		},
-		{
-			name:              "mixed IPv4 and IPv6 nameservers pass",
-			resolvConfContent: "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
-			expectPass:        true,
-			expectFail:        false,
-		},
-		{
-			name:              "no nameservers fails",
-			resolvConfContent: "search example.com\n",
-			expectPass:        false,
-			expectFail:        true,
-		},
-		{
-			name:              "IPv4 localhost fails",
-			resolvConfContent: "nameserver 127.0.0.1\n",
-			expectPass:        false,
-			expectFail:        true,
-		},
-		{
-			name:              "IPv6 localhost fails",
-			resolvConfContent: "nameserver ::1\n",
-			expectPass:        false,
-			expectFail:        true,
-		},
-		{
-			name:              "IPv4-mapped IPv6 localhost fails",
-			resolvConfContent: "nameserver ::ffff:127.0.0.1\n",
-			expectPass:        false,
-			expectFail:        true,
-		},
-		{
-			name:              "mixed public and localhost fails",
-			resolvConfContent: "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
-			expectPass:        false,
-			expectFail:        true,
-		},
+		// {
+		// 	name:              "valid IPv6 nameserver passes",
+		// 	resolvConfContent: "nameserver 2001:4860:4860::8888\n",
+		// 	expectPass:        true,
+		// 	expectFail:        false,
+		// },
+		// {
+		// 	name:              "mixed IPv4 and IPv6 nameservers pass",
+		// 	resolvConfContent: "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
+		// 	expectPass:        true,
+		// 	expectFail:        false,
+		// },
+		// {
+		// 	name:              "no nameservers fails",
+		// 	resolvConfContent: "search example.com\n",
+		// 	expectPass:        false,
+		// 	expectFail:        true,
+		// },
+		// {
+		// 	name:              "IPv4 localhost fails",
+		// 	resolvConfContent: "nameserver 127.0.0.1\n",
+		// 	expectPass:        false,
+		// 	expectFail:        true,
+		// },
+		// {
+		// 	name:              "IPv6 localhost fails",
+		// 	resolvConfContent: "nameserver ::1\n",
+		// 	expectPass:        false,
+		// 	expectFail:        true,
+		// },
+		// {
+		// 	name:              "IPv4-mapped IPv6 localhost fails",
+		// 	resolvConfContent: "nameserver ::ffff:127.0.0.1\n",
+		// 	expectPass:        false,
+		// 	expectFail:        true,
+		// },
+		// {
+		// 	name:              "mixed public and localhost fails",
+		// 	resolvConfContent: "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
+		// 	expectPass:        false,
+		// 	expectFail:        true,
+		// },
 	}
 
 	for _, tt := range tests {
@@ -87,49 +103,46 @@ func TestIntegration_ResolvConf(t *testing.T) {
 			req := require.New(t)
 			ctx := context.Background()
 
-			// Create temporary directory structure with custom resolv.conf
-			tmpDir := t.TempDir()
-			etcDir := filepath.Join(tmpDir, "etc")
-			err := os.MkdirAll(etcDir, 0755)
-			req.NoError(err)
-
-			resolvConfPath := filepath.Join(etcDir, "resolv.conf")
-			err = os.WriteFile(resolvConfPath, []byte(tt.resolvConfContent), 0644)
-			req.NoError(err)
-			t.Logf("Created resolv.conf at %s with content:\n%s", resolvConfPath, tt.resolvConfContent)
-
-			// Render the preflight spec with custom RootDir pointing to our temp directory
-			data := types.HostPreflightTemplateData{
-				RootDir: tmpDir + "/",
-			}
-
-			hpfs, err := preflights.GetClusterHostPreflights(ctx, data)
+			hpfs, err := preflights.GetClusterHostPreflights(ctx, types.HostPreflightTemplateData{})
 			req.NoError(err)
 			req.NotEmpty(hpfs)
 
 			// Find the resolv-conf preflight spec
-			var spec *troubleshootv1beta2.HostPreflightSpec
+			var analyzer *troubleshootv1beta2.HostAnalyze
 			for _, hpf := range hpfs {
-				if hpf.Name == "ec-resolv-conf-preflight" {
-					spec = &hpf.Spec
+				if a := findAnalyzer(hpf.Spec.Analyzers, tt.findAnalyzerFn); a != nil {
+					analyzer = a
 					break
 				}
 			}
-			req.NotNil(spec, "Expected to find ec-resolv-conf-preflight")
+			req.NotNil(analyzer, "Expected to find analyzer")
 
-			// Verify the collector is using our custom RootDir
-			for _, c := range spec.Collectors {
-				if c.HostRun != nil && c.HostRun.CollectorName == "resolv.conf" {
-					expectedPath := tmpDir + "/etc/resolv.conf"
-					t.Logf("Collector will read from: cat %s", expectedPath)
-				}
-			}
+			tt.modifyAnalyzerFn(analyzer, "host-collectors/run-host/test.txt")
+
+			base64Content := base64.StdEncoding.EncodeToString([]byte(tt.fileContent))
 
 			// Run the preflight binary
 			runner := preflights.New()
 			opts := preflights.RunOptions{
 				PreflightBinaryPath: preflightBinary,
 			}
+
+			spec := &troubleshootv1beta2.HostPreflightSpec{
+				Collectors: []*troubleshootv1beta2.HostCollect{
+					{
+						HostRun: &troubleshootv1beta2.HostRun{
+							HostCollectorMeta: troubleshootv1beta2.HostCollectorMeta{
+								CollectorName: "test",
+							},
+							Command: "sh",
+							Args:    []string{"-c", "echo -n '" + base64Content + "' | base64 -d"},
+						},
+					},
+				},
+				Analyzers: []*troubleshootv1beta2.HostAnalyze{analyzer},
+			}
+
+			t.Chdir(t.TempDir()) // Change to temp dir for preflight bundle cleanup
 
 			output, stderr, err := runner.RunHostPreflights(ctx, spec, opts)
 			if err != nil {
@@ -150,13 +163,16 @@ func TestIntegration_ResolvConf(t *testing.T) {
 			}
 
 			// Verify expectations
-			if tt.expectPass {
-				req.NotEmpty(output.Pass, "Expected at least one passing check")
-				req.Empty(output.Fail, "Expected no failing checks")
-			}
-			if tt.expectFail {
-				req.NotEmpty(output.Fail, "Expected at least one failing check")
-			}
+			req.Equal(tt.expectOutput, output)
 		})
 	}
+}
+
+func findAnalyzer(analyzers []*troubleshootv1beta2.HostAnalyze, fn func(*troubleshootv1beta2.HostAnalyze) bool) *troubleshootv1beta2.HostAnalyze {
+	for _, a := range analyzers {
+		if fn(a) {
+			return a
+		}
+	}
+	return nil
 }

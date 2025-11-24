@@ -37,7 +37,6 @@ type HostPreflightTemplateData struct {
 	IsUI                         bool
 	ControllerAirgapStorageSpace string
 	WorkerAirgapStorageSpace     string
-	RootDir                      string
 }
 
 // WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings

@@ -16,24 +16,14 @@ import (
 //go:embed host-preflight.yaml
 var clusterHostPreflightYAML string
 
-//go:embed host-preflight/resolv-conf.yaml
-var resolvConfHostPreflightYAML string
-
 func GetClusterHostPreflights(ctx context.Context, data types.HostPreflightTemplateData) ([]v1beta2.HostPreflight, error) {
 	spec, err := renderHostPreflightTemplate(clusterHostPreflightYAML, data)
 	if err != nil {
 		return nil, fmt.Errorf("render host preflight template: %w", err)
 	}
-
-	resolvConfSpec, err := renderHostPreflightTemplate(resolvConfHostPreflightYAML, data)
-	if err != nil {
-		return nil, fmt.Errorf("render resolv conf host preflight template: %w", err)
-	}
-
 	kinds, err := loader.LoadSpecs(ctx, loader.LoadOptions{
 		RawSpecs: []string{
 			spec,
-			resolvConfSpec,
 		},
 		Strict: true,
 	})

@@ -63,7 +63,6 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		IsUI:                         opts.IsUI,
 		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
 		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
-		RootDir:                      "/",
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
