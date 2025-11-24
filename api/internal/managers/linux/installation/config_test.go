@@ -93,16 +93,6 @@ func TestValidateConfig(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name: "missing admin console port",
-			config: types.LinuxInstallationConfig{
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				LocalArtifactMirrorPort: 8888,
-				DataDirectory:           "/var/lib/embedded-cluster",
-			},
-			expectedErr: true,
-		},
-		{
 			name: "missing local artifact mirror port",
 			config: types.LinuxInstallationConfig{
 				GlobalCIDR:       "10.0.0.0/16",
@@ -117,31 +107,6 @@ func TestValidateConfig(t *testing.T) {
 				GlobalCIDR:              "10.0.0.0/16",
 				NetworkInterface:        "eth0",
 				LocalArtifactMirrorPort: 8888,
-			},
-			expectedErr: true,
-		},
-		{
-			name: "same ports for admin console and artifact mirror",
-			config: types.LinuxInstallationConfig{
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				LocalArtifactMirrorPort: 8800, // Same as admin console
-				DataDirectory:           "/var/lib/embedded-cluster",
-			},
-			expectedErr: true,
-		},
-		{
-			name: "same ports for admin console and manager",
-			rc: func() runtimeconfig.RuntimeConfig {
-				rc := runtimeconfig.New(nil)
-				rc.SetManagerPort(8800)
-				return rc
-			}(),
-			config: types.LinuxInstallationConfig{
-				GlobalCIDR:              "10.0.0.0/16",
-				NetworkInterface:        "eth0",
-				LocalArtifactMirrorPort: 8888,
-				DataDirectory:           "/var/lib/embedded-cluster",
 			},
 			expectedErr: true,
 		},

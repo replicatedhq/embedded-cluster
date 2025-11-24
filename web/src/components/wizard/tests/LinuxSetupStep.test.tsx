@@ -118,7 +118,7 @@ describe("LinuxSetupStep - Unit", () => {
 
       const result = extractFieldError("localArtifactMirrorPort", errors, fieldNames);
 
-      expect(result).toBe("Admin Console Port must be between 1024 and 65535");
+      expect(result).toBe("Local Artifact Mirror Port must be between 1024 and 65535");
     });
 
     it("returns undefined when field has no error", () => {
@@ -356,7 +356,6 @@ describe("LinuxSetupStep - Integration", () => {
 
     // Check all basic input fields are present
     const dataDirectoryInput = screen.getByTestId("data-directory-input") as HTMLInputElement;
-    const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
     const localArtifactMirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
 
     // Check proxy configuration inputs are present
@@ -370,7 +369,6 @@ describe("LinuxSetupStep - Integration", () => {
 
     // Verify API configuration loaded correctly
     expect(dataDirectoryInput.value).toBe("/custom/data/dir");
-    expect(adminPortInput.value).toBe("8800");
     expect(localArtifactMirrorPortInput.value).toBe("8801");
 
     // Test advanced settings toggle
@@ -386,14 +384,14 @@ describe("LinuxSetupStep - Integration", () => {
 
     // Fill in the form
     fireEvent.change(dataDirectoryInput, { target: { value: "/opt/my-app" } });
-    fireEvent.change(adminPortInput, { target: { value: "8080" } });
+    fireEvent.change(localArtifactMirrorPortInput, { target: { value: "8080" } });
 
     // Test hop: processInputValue - verify port conversion
-    expect(adminPortInput.value).toBe("8080");
+    expect(localArtifactMirrorPortInput.value).toBe("8080");
 
     // Try invalid port (decimal) - should be rejected by hop
-    fireEvent.change(adminPortInput, { target: { value: "8080.5" } });
-    expect(adminPortInput.value).toBe("8080"); // Should remain unchanged
+    fireEvent.change(localArtifactMirrorPortInput, { target: { value: "8080.5" } });
+    expect(localArtifactMirrorPortInput.value).toBe("8080"); // Should remain unchanged
 
     // Submit the form
     const submitButton = screen.getByTestId("linux-setup-submit-button");
@@ -439,8 +437,8 @@ describe("LinuxSetupStep - Integration", () => {
     expect(screen.queryByTestId("network-interface-select")).not.toBeInTheDocument();
 
     // Fill form with invalid values
-    const adminPortInput = screen.getByTestId("admin-console-port-input") as HTMLInputElement;
-    fireEvent.change(adminPortInput, { target: { value: "80" } });
+    const localArtifactMirrorPortInput = screen.getByTestId("local-artifact-mirror-port-input") as HTMLInputElement;
+    fireEvent.change(localArtifactMirrorPortInput, { target: { value: "80" } });
 
     // Submit and get validation errors
     const submitButton = screen.getByTestId("linux-setup-submit-button");
@@ -450,7 +448,7 @@ describe("LinuxSetupStep - Integration", () => {
     await screen.findByText("Please fix the errors in the form above before proceeding.");
 
     // Verify hop: extractFieldError - field error messages formatted correctly
-    await screen.findByText("Admin Console Port must be between 1024 and 65535");
+    await screen.findByText("Local Artifact Mirror Port must be between 1024 and 65535");
 
     // Verify hop: shouldExpandAdvancedSettings - auto-expanded due to networkInterface error
     await waitFor(() => {
@@ -458,7 +456,7 @@ describe("LinuxSetupStep - Integration", () => {
     });
 
     // Fix the errors
-    fireEvent.change(adminPortInput, { target: { value: "8080" } });
+    fireEvent.change(localArtifactMirrorPortInput, { target: { value: "8080" } });
 
     const networkSelect = screen.getByTestId("network-interface-select") as HTMLSelectElement;
     fireEvent.change(networkSelect, { target: { value: "eth0" } });
