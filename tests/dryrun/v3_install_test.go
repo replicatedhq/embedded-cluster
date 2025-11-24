@@ -1847,7 +1847,8 @@ func setupV3Test(t *testing.T, opts setupV3TestOpts) (string, string) {
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
-		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
+		"nginx-app-0.1.0.tgz": []byte(nginxChartArchiveData),
+		"redis-app-0.1.0.tgz": []byte(redisChartArchiveData),
 	}); err != nil {
 		t.Fatalf("fail to set release data: %v", err)
 	}
