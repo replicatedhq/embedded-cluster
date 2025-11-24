@@ -27,6 +27,18 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		t.Skipf("Preflight binary not found at %s, skipping integration test", preflightBinary)
 	}
 
+	findResolverConfigurationAnalyzerFn := func(a *troubleshootv1beta2.HostAnalyze) bool {
+		return a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Resolver Configuration"
+	}
+
+	findNameserverConfigurationAnalyzerFn := func(a *troubleshootv1beta2.HostAnalyze) bool {
+		return a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Nameserver Configuration"
+	}
+
+	modifyTextAnalyzeFileNameFn := func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
+		a.TextAnalyze.FileName = fileName
+	}
+
 	tests := []struct {
 		name             string
 		fileContent      string
@@ -35,14 +47,10 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		expectOutput     *apitypes.PreflightsOutput
 	}{
 		{
-			name:        "valid IPv4 nameserver passes",
-			fileContent: "nameserver 8.8.8.8\n",
-			findAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze) bool {
-				return a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Resolver Configuration"
-			},
-			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
-				a.TextAnalyze.FileName = fileName
-			},
+			name:             "valid IPv4 nameserver passes",
+			fileContent:      "nameserver 8.8.8.8\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
 				Pass: []apitypes.PreflightsRecord{
 					{
@@ -54,48 +62,171 @@ func TestIntegration_ResolvConf(t *testing.T) {
 				Warn: nil,
 			},
 		},
-		// {
-		// 	name:              "valid IPv6 nameserver passes",
-		// 	resolvConfContent: "nameserver 2001:4860:4860::8888\n",
-		// 	expectPass:        true,
-		// 	expectFail:        false,
-		// },
-		// {
-		// 	name:              "mixed IPv4 and IPv6 nameservers pass",
-		// 	resolvConfContent: "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
-		// 	expectPass:        true,
-		// 	expectFail:        false,
-		// },
-		// {
-		// 	name:              "no nameservers fails",
-		// 	resolvConfContent: "search example.com\n",
-		// 	expectPass:        false,
-		// 	expectFail:        true,
-		// },
-		// {
-		// 	name:              "IPv4 localhost fails",
-		// 	resolvConfContent: "nameserver 127.0.0.1\n",
-		// 	expectPass:        false,
-		// 	expectFail:        true,
-		// },
-		// {
-		// 	name:              "IPv6 localhost fails",
-		// 	resolvConfContent: "nameserver ::1\n",
-		// 	expectPass:        false,
-		// 	expectFail:        true,
-		// },
-		// {
-		// 	name:              "IPv4-mapped IPv6 localhost fails",
-		// 	resolvConfContent: "nameserver ::ffff:127.0.0.1\n",
-		// 	expectPass:        false,
-		// 	expectFail:        true,
-		// },
-		// {
-		// 	name:              "mixed public and localhost fails",
-		// 	resolvConfContent: "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
-		// 	expectPass:        false,
-		// 	expectFail:        true,
-		// },
+		{
+			name:             "valid IPv6 nameserver passes",
+			fileContent:      "nameserver 2001:4860:4860::8888\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:             "mixed IPv4 and IPv6 nameservers pass",
+			fileContent:      "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:             "IPv4 localhost fails",
+			fileContent:      "nameserver 127.0.0.1\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf.",
+					},
+				},
+				Warn: nil,
+			},
+		},
+		{
+			name:             "IPv6 localhost fails",
+			fileContent:      "nameserver ::1\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:           "IPv4-mapped IPv6 localhost fails",
+			fileContent:    "nameserver ::ffff:127.0.0.1\n",
+			findAnalyzerFn: findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
+				a.TextAnalyze.FileName = fileName
+			},
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:             "mixed public and localhost fails",
+			fileContent:      "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf.",
+					},
+				},
+				Warn: nil,
+			},
+		},
+		// Tests for "Nameserver Configuration" analyzer
+		{
+			name:             "IPv4 nameserver configured passes",
+			fileContent:      "nameserver 8.8.8.8\n",
+			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Nameserver Configuration",
+						Message: "Nameservers are configured in resolv.conf.",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:           "IPv6 nameserver configured fails (IPv4-only regex)",
+			fileContent:    "nameserver 2001:4860:4860::8888\n",
+			findAnalyzerFn: findNameserverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
+				a.TextAnalyze.FileName = fileName
+			},
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Nameserver Configuration",
+						Message: "No nameservers are configured in resolv.conf. Update resolv.conf to include at least one nameserver.",
+					},
+				},
+				Warn: nil,
+			},
+		},
+		{
+			name:             "mixed IPv4 and IPv6 nameservers pass",
+			fileContent:      "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
+			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: []apitypes.PreflightsRecord{
+					{
+						Title:   "Nameserver Configuration",
+						Message: "Nameservers are configured in resolv.conf.",
+					},
+				},
+				Fail: nil,
+				Warn: nil,
+			},
+		},
+		{
+			name:             "no nameservers fails",
+			fileContent:      "search example.com\n",
+			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Nameserver Configuration",
+						Message: "No nameservers are configured in resolv.conf. Update resolv.conf to include at least one nameserver.",
+					},
+				},
+				Warn: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
