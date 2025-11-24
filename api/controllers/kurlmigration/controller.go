@@ -314,11 +314,15 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 	}
 
 	// Set state to Completed
+	// Note: If this fails, we log it but don't return an error because the migration itself succeeded.
+	// Returning an error here would cause the defer to mark the migration as Failed, which is incorrect
+	// since all phases completed successfully. The state update failure is a separate concern.
 	if err := c.store.SetState(types.KURLMigrationStateCompleted); err != nil {
-		c.logger.WithError(err).Error("set state to completed")
-		return fmt.Errorf("set completed state: %w", err)
+		c.logger.WithError(err).Error("migration completed successfully but failed to update state to Completed")
+		// Don't return error - migration succeeded even if state update failed
+	} else {
+		c.logger.Info("migration orchestration completed successfully")
 	}
 
-	c.logger.Info("migration orchestration completed (skeleton)")
 	return nil
 }
