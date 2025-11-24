@@ -185,7 +185,7 @@ output/bin/embedded-cluster-release-builder:
 initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: APP_VERSION = appver-dev-$(call random-string)
 initial-release: RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-initial-release: UPLOAD_BINARIES ?= 1
+initial-release: UPLOAD_BINARIES ?= 0
 initial-release: export APP_CHANNEL ?= Dev
 initial-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
 initial-release: export APP_CHANNEL_SLUG ?= dev

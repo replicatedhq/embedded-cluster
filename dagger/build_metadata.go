@@ -18,6 +18,8 @@ type BuildMetadata struct {
 	AppVersion string
 	// K0s version (full version like "v1.31.1+k0s.0")
 	K0SVersion string
+	// K0s go version (e.g., "v1.31.1+k0s.0")
+	K0SGoVersion string
 	// K0s minor version (e.g., "31")
 	K0SMinorVersion string
 	// Architecture (e.g., "amd64")
@@ -206,34 +208,39 @@ func (m *BuildMetadata) WithK0sVersion(
 		m.K0SMinorVersion = k0SMinorVersion
 	}
 
-	if m.K0SMinorVersion != "" {
-		return m, nil
-	}
-
 	dir := directoryWithCommonFiles(dag.Directory(), src)
 
 	container := ubuntuUtilsContainer().
 		WithDirectory("/workspace", dir)
 
-	minorVersion, err := container.
-		WithExec([]string{"make", "print-K0S_MINOR_VERSION"}).
-		Stdout(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to detect K0S_MINOR_VERSION: %w", err)
+	if m.K0SMinorVersion == "" {
+		minorVersion, err := container.
+			WithExec([]string{"make", "print-K0S_MINOR_VERSION"}).
+			Stdout(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect K0S_MINOR_VERSION: %w", err)
+		}
+		m.K0SMinorVersion = strings.TrimSpace(minorVersion)
 	}
-	minorVersion = strings.TrimSpace(minorVersion)
 
-	version, err := container.
-		WithEnvVariable("K0S_MINOR_VERSION", minorVersion).
+	k0sVersion, err := container.
+		WithEnvVariable("K0S_MINOR_VERSION", m.K0SMinorVersion).
 		WithExec([]string{"make", "print-K0S_VERSION"}).
 		Stdout(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect K0S_VERSION: %w", err)
 	}
-	version = strings.TrimSpace(version)
+	m.K0SVersion = strings.TrimSpace(k0sVersion)
 
-	m.K0SVersion = version
-	m.K0SMinorVersion = minorVersion
+	k0sGoVersion, err := container.
+		WithEnvVariable("K0S_MINOR_VERSION", m.K0SMinorVersion).
+		WithExec([]string{"make", "print-K0S_GO_VERSION"}).
+		Stdout(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect K0S_GO_VERSION: %w", err)
+	}
+	m.K0SGoVersion = strings.TrimSpace(k0sGoVersion)
+
 	return m, nil
 }
 
@@ -300,6 +307,6 @@ func (m *BuildMetadata) withEnvVariables(c *dagger.Container) *dagger.Container 
 		WithEnvVariable("APP_VERSION", m.AppVersion).
 		WithEnvVariable("K0S_MINOR_VERSION", m.K0SMinorVersion).
 		WithEnvVariable("K0S_VERSION", m.K0SVersion).
-		WithEnvVariable("K0S_GO_VERSION", m.K0SVersion).
+		WithEnvVariable("K0S_GO_VERSION", m.K0SGoVersion).
 		WithEnvVariable("ARCH", m.Arch)
 }
