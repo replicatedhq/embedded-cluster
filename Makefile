@@ -201,6 +201,7 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--app-channel="$(APP_CHANNEL)" \
 			--app-channel-id="$(APP_CHANNEL_ID)" \
 			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+			--arch="$(ARCH)" \
 		build-dir export --path=./output
 
 .PHONY: rebuild-release
@@ -223,6 +224,7 @@ rebuild-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--app-channel="$(APP_CHANNEL)" \
 			--app-channel-id="$(APP_CHANNEL_ID)" \
 			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+			--arch="$(ARCH)" \
 		build-dir export --path=./output
 
 .PHONY: upgrade-release
@@ -246,6 +248,7 @@ upgrade-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 			--app-channel="$(APP_CHANNEL)" \
 			--app-channel-id="$(APP_CHANNEL_ID)" \
 			--app-channel-slug="$(APP_CHANNEL_SLUG)" \
+			--arch="$(ARCH)" \
 		build-dir export --path=./output
 
 .PHONY: go.mod
