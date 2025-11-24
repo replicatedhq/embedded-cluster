@@ -13,7 +13,7 @@ import (
 // - k0s binary
 // - kots binary
 // - embedded-cluster tarball
-// Note: operator binary upload is skipped because it requires Docker (not available in Dagger)
+// - operator binary
 //
 // Requires AWS credentials via 1Password or explicit parameters.
 //
@@ -88,8 +88,7 @@ func (m *EmbeddedCluster) uploadBinaries(
 		// Create symlink so script can find build/metadata.json at the expected path
 		WithExec([]string{"sh", "-c", "ln -sf output/build build"}).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
-		// Enable binary uploads (k0s, kots, embedded-cluster tarball)
-		// Note: operator binary upload is skipped because it requires Docker
+		// Enable binary uploads (k0s, kots, embedded-cluster tarball, operator binary)
 		WithEnvVariable("UPLOAD_BINARIES", "1").
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
