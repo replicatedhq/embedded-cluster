@@ -1896,6 +1896,12 @@ func setupV3TestHelmClient() *helm.MockClient {
 		})).
 		Return([][]byte{[]byte(renderedChartPreflightData)}, nil).
 		Maybe()
+	hcli.
+		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "redis-app"
+		})).
+		Return([][]byte{[]byte("")}, nil).
+		Maybe()
 	hcli.On("Close").Return(nil).Maybe()
 
 	return hcli
