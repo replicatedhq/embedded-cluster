@@ -412,66 +412,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/kurl-migration/config": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the installation config for migration
-         * @description Get the installation config extracted from kURL merged with EC defaults
-         */
-        get: operations["getMigrationInstallationConfig"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kurl-migration/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start a migration from kURL to Embedded Cluster
-         * @description Start a migration from kURL to Embedded Cluster with the provided configuration
-         */
-        post: operations["postStartMigration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kurl-migration/status": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the status of the migration
-         * @description Get the current status and progress of the migration
-         */
-        get: operations["getMigrationStatus"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/linux/install/airgap/process": {
         parameters: {
             query?: never;
@@ -768,6 +708,66 @@ export interface paths {
          * @description Get the current status of the installation configuration for install
          */
         get: operations["getLinuxInstallInstallationStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/kurl-migration/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the installation config for migration
+         * @description Get the installation config extracted from kURL merged with EC defaults
+         */
+        get: operations["getMigrationInstallationConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/kurl-migration/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a migration from kURL to Embedded Cluster
+         * @description Start a migration from kURL to Embedded Cluster with the provided configuration
+         */
+        post: operations["postStartMigration"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/kurl-migration/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the status of the migration
+         * @description Get the current status and progress of the migration
+         */
+        get: operations["getMigrationStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2669,98 +2669,6 @@ export interface operations {
             };
         };
     };
-    getMigrationInstallationConfig: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.LinuxInstallationConfigResponse"];
-                };
-            };
-        };
-    };
-    postStartMigration: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Start Migration Request */
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["types.StartKURLMigrationRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.StartKURLMigrationResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.APIError"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.APIError"];
-                };
-            };
-        };
-    };
-    getMigrationStatus: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.KURLMigrationStatusResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["types.APIError"];
-                };
-            };
-        };
-    };
     postLinuxInstallProcessAirgap: {
         parameters: {
             query?: never;
@@ -3197,6 +3105,98 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["types.Status"];
+                };
+            };
+        };
+    };
+    getMigrationInstallationConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.LinuxInstallationConfigResponse"];
+                };
+            };
+        };
+    };
+    postStartMigration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Start Migration Request */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["types.StartKURLMigrationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.StartKURLMigrationResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    getMigrationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.KURLMigrationStatusResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
                 };
             };
         };
