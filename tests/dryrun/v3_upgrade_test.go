@@ -401,13 +401,13 @@ func setupV3UpgradeTestHelmClient() *helm.MockClient {
 		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "nginx-app"
 		})).
-		Return([][]byte{[]byte(renderedChartPreflightData)}, nil).
+		Return([][]byte{[]byte(renderedNginxChartPreflightData)}, nil).
 		Maybe()
 	hcli.
 		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "redis-app"
 		})).
-		Return([][]byte{[]byte("")}, nil).
+		Return([][]byte{[]byte(renderedRedisChartPreflightData)}, nil).
 		Maybe()
 	hcli.On("Close").Return(nil).Maybe()
 	return hcli

@@ -72,5 +72,7 @@ spec:
     chartVersion: 0.1.0
   namespace: redis-app
   values:
+    preflight:
+      enabled: true
     server:
       replicaCount: 1
