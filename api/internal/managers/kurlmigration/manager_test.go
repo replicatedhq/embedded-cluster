@@ -60,36 +60,36 @@ func TestMergeConfigs(t *testing.T) {
 		{
 			name: "user config takes precedence",
 			userConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
-				DataDirectory:    "/user/data",
+				DataDirectory: "/user/data",
+				PodCIDR:       "10.10.0.0/16",
 			},
 			kurlConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
-				DataDirectory:    "/kurl/data",
+				DataDirectory: "/kurl/data",
+				PodCIDR:       "10.32.0.0/20",
 			},
 			defaults: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
-				DataDirectory:    "/default/data",
+				DataDirectory: "/default/data",
+				PodCIDR:       "10.0.0.0/16",
 			},
 			want: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
-				DataDirectory:    "/user/data",
+				DataDirectory: "/user/data",
+				PodCIDR:       "10.10.0.0/16",
 			},
 		},
 		{
 			name:       "kurl config takes precedence over defaults",
 			userConfig: types.LinuxInstallationConfig{},
 			kurlConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
-				DataDirectory:    "/kurl/data",
+				DataDirectory: "/kurl/data",
+				ServiceCIDR:   "10.96.0.0/12",
 			},
 			defaults: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
-				DataDirectory:    "/default/data",
+				DataDirectory: "/default/data",
+				ServiceCIDR:   "10.1.0.0/16",
 			},
 			want: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
-				DataDirectory:    "/kurl/data",
+				DataDirectory: "/kurl/data",
+				ServiceCIDR:   "10.96.0.0/12",
 			},
 		},
 		{
@@ -97,44 +97,43 @@ func TestMergeConfigs(t *testing.T) {
 			userConfig: types.LinuxInstallationConfig{},
 			kurlConfig: types.LinuxInstallationConfig{},
 			defaults: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
-				DataDirectory:    "/default/data",
+				DataDirectory: "/default/data",
+				GlobalCIDR:    "10.2.0.0/16",
 			},
 			want: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
-				DataDirectory:    "/default/data",
+				DataDirectory: "/default/data",
+				GlobalCIDR:    "10.2.0.0/16",
 			},
 		},
 		{
 			name: "partial user override",
 			userConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
+				PodCIDR: "10.10.0.0/16",
 			},
 			kurlConfig: types.LinuxInstallationConfig{
 				DataDirectory: "/kurl/data",
 			},
 			defaults: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
-				DataDirectory:    "/default/data",
-				HTTPProxy:        "http://proxy.example.com",
+				DataDirectory: "/default/data",
+				HTTPProxy:     "http://proxy.example.com",
+				PodCIDR:       "10.0.0.0/16",
 			},
 			want: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
-				DataDirectory:    "/kurl/data",
-				HTTPProxy:        "http://proxy.example.com",
+				PodCIDR:       "10.10.0.0/16",
+				DataDirectory: "/kurl/data",
+				HTTPProxy:     "http://proxy.example.com",
 			},
 		},
 		{
 			name: "all fields merged correctly",
 			userConfig: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
+				PodCIDR: "10.10.0.0/16",
 			},
 			kurlConfig: types.LinuxInstallationConfig{
 				DataDirectory:    "/kurl/data",
 				NetworkInterface: "eth0",
 			},
 			defaults: types.LinuxInstallationConfig{
-				AdminConsolePort: 30000,
 				DataDirectory:    "/default/data",
 				HTTPProxy:        "http://proxy.example.com",
 				HTTPSProxy:       "https://proxy.example.com",
@@ -145,13 +144,12 @@ func TestMergeConfigs(t *testing.T) {
 				GlobalCIDR:       "10.2.0.0/16",
 			},
 			want: types.LinuxInstallationConfig{
-				AdminConsolePort: 8080,
+				PodCIDR:          "10.10.0.0/16",
 				DataDirectory:    "/kurl/data",
 				HTTPProxy:        "http://proxy.example.com",
 				HTTPSProxy:       "https://proxy.example.com",
 				NoProxy:          "localhost",
 				NetworkInterface: "eth0",
-				PodCIDR:          "10.0.0.0/16",
 				ServiceCIDR:      "10.1.0.0/16",
 				GlobalCIDR:       "10.2.0.0/16",
 			},

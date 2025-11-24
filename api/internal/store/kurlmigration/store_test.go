@@ -20,8 +20,7 @@ func TestInitializeMigration(t *testing.T) {
 	store := NewMemoryStore()
 
 	config := types.LinuxInstallationConfig{
-		AdminConsolePort: 30000,
-		DataDirectory:    "/var/lib/embedded-cluster",
+		DataDirectory: "/var/lib/embedded-cluster",
 	}
 
 	err := store.InitializeMigration("test-migration-id", "copy", config)
@@ -40,7 +39,6 @@ func TestInitializeMigration(t *testing.T) {
 	// Verify config
 	retrievedConfig, err := store.GetConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, config.AdminConsolePort, retrievedConfig.AdminConsolePort)
 	assert.Equal(t, config.DataDirectory, retrievedConfig.DataDirectory)
 
 	// Verify initial status
@@ -145,7 +143,7 @@ func TestSetError(t *testing.T) {
 
 func TestStoreOptions(t *testing.T) {
 	config := types.LinuxInstallationConfig{
-		AdminConsolePort: 30000,
+		DataDirectory: "/var/lib/embedded-cluster",
 	}
 
 	status := types.KURLMigrationStatusResponse{
@@ -173,7 +171,7 @@ func TestStoreOptions(t *testing.T) {
 
 	retrievedConfig, err := store.GetConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, config.AdminConsolePort, retrievedConfig.AdminConsolePort)
+	assert.Equal(t, config.DataDirectory, retrievedConfig.DataDirectory)
 
 	retrievedStatus, err := store.GetStatus()
 	assert.NoError(t, err)
@@ -187,8 +185,8 @@ func TestDeepCopyPreventsConfigMutation(t *testing.T) {
 	store := NewMemoryStore()
 
 	config := types.LinuxInstallationConfig{
-		AdminConsolePort: 30000,
-		DataDirectory:    "/var/lib/ec",
+		DataDirectory: "/var/lib/ec",
+		PodCIDR:       "10.32.0.0/20",
 	}
 
 	err := store.InitializeMigration("test-id", "copy", config)
@@ -197,18 +195,18 @@ func TestDeepCopyPreventsConfigMutation(t *testing.T) {
 	// Get config and modify it (to verify deep copy prevents mutation)
 	retrievedConfig, err := store.GetConfig()
 	assert.NoError(t, err)
-	retrievedConfig.AdminConsolePort = 99999
 	retrievedConfig.DataDirectory = "/tmp/modified"
+	retrievedConfig.PodCIDR = "192.168.0.0/16"
 
 	// Verify the local modifications were made
-	assert.Equal(t, 99999, retrievedConfig.AdminConsolePort)
 	assert.Equal(t, "/tmp/modified", retrievedConfig.DataDirectory)
+	assert.Equal(t, "192.168.0.0/16", retrievedConfig.PodCIDR)
 
 	// Verify original config in store is unchanged (proving deep copy works)
 	retrievedConfig2, err := store.GetConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, 30000, retrievedConfig2.AdminConsolePort)
 	assert.Equal(t, "/var/lib/ec", retrievedConfig2.DataDirectory)
+	assert.Equal(t, "10.32.0.0/20", retrievedConfig2.PodCIDR)
 }
 
 func TestDeepCopyPreventsStatusMutation(t *testing.T) {
