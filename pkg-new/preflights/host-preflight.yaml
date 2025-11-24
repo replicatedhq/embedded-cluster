@@ -89,6 +89,7 @@ spec:
     - tcpPortStatus:
         collectorName: Kotsadm Node Port
         port: {{ .AdminConsolePort }}
+        exclude: '{{ .IsV3 }}'
     - tcpPortStatus:
         collectorName: Kubelet Port
         port: 10250
@@ -727,6 +728,7 @@ spec:
     - tcpPortStatus:
         checkName: Kotsadm Node Port Availability
         collectorName: Kotsadm Node Port
+        exclude: '{{ .IsV3 }}'
         outcomes:
           - fail:
               when: "connection-refused"

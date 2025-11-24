@@ -35,6 +35,7 @@ type HostPreflightTemplateData struct {
 	NodeIP                       string
 	IsJoin                       bool
 	IsUI                         bool
+	IsV3                         bool
 	ControllerAirgapStorageSpace string
 	WorkerAirgapStorageSpace     string
 }

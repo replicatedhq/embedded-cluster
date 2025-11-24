@@ -1,7 +1,7 @@
 
 /**
  * Formats error messages by replacing technical field names with more user-friendly display names.
- * Example: "adminConsolePort" becomes "Admin Console Port".
+ * Example: "localArtifactMirrorPort" becomes "Local Artifact Mirror Port".
  *
  * @param message - The error message to format
  * @returns The formatted error message with replaced field names

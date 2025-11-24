@@ -105,9 +105,6 @@ func (m *kurlMigrationManager) MergeConfigs(userConfig, kurlConfig, defaults typ
 	merged := defaults
 
 	// Apply kURL config, overwriting defaults only for non-zero values
-	if kurlConfig.AdminConsolePort != 0 {
-		merged.AdminConsolePort = kurlConfig.AdminConsolePort
-	}
 	if kurlConfig.DataDirectory != "" {
 		merged.DataDirectory = kurlConfig.DataDirectory
 	}
@@ -135,9 +132,6 @@ func (m *kurlMigrationManager) MergeConfigs(userConfig, kurlConfig, defaults typ
 
 	// Apply user config, overwriting merged values only for non-zero values
 	// This gives user config the highest precedence
-	if userConfig.AdminConsolePort != 0 {
-		merged.AdminConsolePort = userConfig.AdminConsolePort
-	}
 	if userConfig.DataDirectory != "" {
 		merged.DataDirectory = userConfig.DataDirectory
 	}

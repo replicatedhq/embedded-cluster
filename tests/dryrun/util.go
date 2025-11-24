@@ -63,8 +63,11 @@ var (
 	//go:embed assets/kotskinds-chart.yaml
 	helmChartData string
 
-	//go:embed assets/chart.tgz
-	helmChartArchiveData string
+	//go:embed assets/nginx-app-0.1.0.tgz
+	nginxChartArchiveData string
+
+	//go:embed assets/redis-app-0.1.0.tgz
+	redisChartArchiveData string
 
 	//go:embed assets/install-license.yaml
 	licenseData string
@@ -156,7 +159,8 @@ func embedReleaseData(clusterConfig string) error {
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
-		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
+		"nginx-app-0.1.0.tgz": []byte(nginxChartArchiveData),
+		"redis-app-0.1.0.tgz": []byte(redisChartArchiveData),
 	}); err != nil {
 		return fmt.Errorf("set release data: %v", err)
 	}

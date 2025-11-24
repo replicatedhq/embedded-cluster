@@ -115,8 +115,8 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(types.LinuxInstallationConfigResponse{
 			Values: types.LinuxInstallationConfig{
-				GlobalCIDR:       "10.0.0.0/24",
-				AdminConsolePort: 8080,
+				GlobalCIDR:              "10.0.0.0/24",
+				LocalArtifactMirrorPort: 8080,
 			},
 		})
 	}))
@@ -127,7 +127,7 @@ func TestLinuxGetInstallationConfig(t *testing.T) {
 	config, err := c.GetLinuxInstallationConfig(context.Background())
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.0/24", config.Values.GlobalCIDR)
-	assert.Equal(t, 8080, config.Values.AdminConsolePort)
+	assert.Equal(t, 8080, config.Values.LocalArtifactMirrorPort)
 
 	// Test error response
 	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

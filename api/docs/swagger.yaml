@@ -1065,8 +1065,6 @@ components:
       description: Config contains optional installation configuration that will be
         merged with defaults
       properties:
-        adminConsolePort:
-          type: integer
         dataDirectory:
           type: string
         globalCidr:

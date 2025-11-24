@@ -1890,7 +1890,6 @@ export interface components {
         };
         /** @description Config contains optional installation configuration that will be merged with defaults */
         "types.LinuxInstallationConfig": {
-            adminConsolePort?: number;
             dataDirectory?: string;
             globalCidr?: string;
             httpProxy?: string;

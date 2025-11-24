@@ -24,23 +24,20 @@ func TestGetInstallationConfig(t *testing.T) {
 			name: "successful read with values, defaults, and resolved configs",
 			setupMock: func(m *migrationmanager.MockManager) {
 				kurlConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 8800,
-					PodCIDR:          "10.32.0.0/20",
-					ServiceCIDR:      "10.96.0.0/12",
+					PodCIDR:     "10.32.0.0/20",
+					ServiceCIDR: "10.96.0.0/12",
 				}
 
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort: 30000,
-					DataDirectory:    "/var/lib/embedded-cluster",
-					GlobalCIDR:       "10.244.0.0/16",
+					DataDirectory: "/var/lib/embedded-cluster",
+					GlobalCIDR:    "10.244.0.0/16",
 				}
 
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 8800,
-					DataDirectory:    "/var/lib/embedded-cluster",
-					PodCIDR:          "10.32.0.0/20",
-					ServiceCIDR:      "10.96.0.0/12",
-					GlobalCIDR:       "10.244.0.0/16",
+					DataDirectory: "/var/lib/embedded-cluster",
+					PodCIDR:       "10.32.0.0/20",
+					ServiceCIDR:   "10.96.0.0/12",
+					GlobalCIDR:    "10.244.0.0/16",
 				}
 
 				mock.InOrder(
@@ -53,21 +50,18 @@ func TestGetInstallationConfig(t *testing.T) {
 			expectedValue: func() types.LinuxInstallationConfigResponse {
 				return types.LinuxInstallationConfigResponse{
 					Values: types.LinuxInstallationConfig{
-						AdminConsolePort: 8800,
-						PodCIDR:          "10.32.0.0/20",
-						ServiceCIDR:      "10.96.0.0/12",
+						PodCIDR:     "10.32.0.0/20",
+						ServiceCIDR: "10.96.0.0/12",
 					},
 					Defaults: types.LinuxInstallationConfig{
-						AdminConsolePort: 30000,
-						DataDirectory:    "/var/lib/embedded-cluster",
-						GlobalCIDR:       "10.244.0.0/16",
+						DataDirectory: "/var/lib/embedded-cluster",
+						GlobalCIDR:    "10.244.0.0/16",
 					},
 					Resolved: types.LinuxInstallationConfig{
-						AdminConsolePort: 8800,
-						DataDirectory:    "/var/lib/embedded-cluster",
-						PodCIDR:          "10.32.0.0/20",
-						ServiceCIDR:      "10.96.0.0/12",
-						GlobalCIDR:       "10.244.0.0/16",
+						DataDirectory: "/var/lib/embedded-cluster",
+						PodCIDR:       "10.32.0.0/20",
+						ServiceCIDR:   "10.96.0.0/12",
+						GlobalCIDR:    "10.244.0.0/16",
 					},
 				}
 			},
@@ -100,19 +94,16 @@ func TestGetInstallationConfig(t *testing.T) {
 			name: "verify proper config merging precedence (user > kURL > defaults)",
 			setupMock: func(m *migrationmanager.MockManager) {
 				kurlConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 8800,
-					DataDirectory:    "/opt/kurl",
+					DataDirectory: "/opt/kurl",
 				}
 
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort: 30000,
-					DataDirectory:    "/var/lib/embedded-cluster",
+					DataDirectory: "/var/lib/embedded-cluster",
 				}
 
 				// Resolved should have kURL values override defaults (since no user config yet)
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 8800,
-					DataDirectory:    "/opt/kurl",
+					DataDirectory: "/opt/kurl",
 				}
 
 				mock.InOrder(
@@ -125,16 +116,13 @@ func TestGetInstallationConfig(t *testing.T) {
 			expectedValue: func() types.LinuxInstallationConfigResponse {
 				return types.LinuxInstallationConfigResponse{
 					Values: types.LinuxInstallationConfig{
-						AdminConsolePort: 8800,
-						DataDirectory:    "/opt/kurl",
+						DataDirectory: "/opt/kurl",
 					},
 					Defaults: types.LinuxInstallationConfig{
-						AdminConsolePort: 30000,
-						DataDirectory:    "/var/lib/embedded-cluster",
+						DataDirectory: "/var/lib/embedded-cluster",
 					},
 					Resolved: types.LinuxInstallationConfig{
-						AdminConsolePort: 8800,
-						DataDirectory:    "/opt/kurl",
+						DataDirectory: "/opt/kurl",
 					},
 				}
 			},
@@ -179,8 +167,7 @@ func TestStartMigration(t *testing.T) {
 			name:         "successful start with copy mode",
 			transferMode: types.TransferModeCopy,
 			config: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
-				DataDirectory:    "/opt/ec",
+				DataDirectory: "/opt/ec",
 			},
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				kurlConfig := types.LinuxInstallationConfig{
@@ -188,14 +175,12 @@ func TestStartMigration(t *testing.T) {
 					ServiceCIDR: "10.96.0.0/12",
 				}
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort: 30000,
-					DataDirectory:    "/var/lib/embedded-cluster",
+					DataDirectory: "/var/lib/embedded-cluster",
 				}
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 9000,
-					DataDirectory:    "/opt/ec",
-					PodCIDR:          "10.32.0.0/20",
-					ServiceCIDR:      "10.96.0.0/12",
+					DataDirectory: "/opt/ec",
+					PodCIDR:       "10.32.0.0/20",
+					ServiceCIDR:   "10.96.0.0/12",
 				}
 
 				mock.InOrder(
@@ -229,15 +214,15 @@ func TestStartMigration(t *testing.T) {
 			name:         "successful start with move mode",
 			transferMode: types.TransferModeMove,
 			config: types.LinuxInstallationConfig{
-				AdminConsolePort: 9000,
+				DataDirectory: "/opt/ec",
 			},
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
 				kurlConfig := types.LinuxInstallationConfig{}
 				defaults := types.LinuxInstallationConfig{
-					AdminConsolePort: 30000,
+					DataDirectory: "/var/lib/embedded-cluster",
 				}
 				resolvedConfig := types.LinuxInstallationConfig{
-					AdminConsolePort: 9000,
+					DataDirectory: "/opt/ec",
 				}
 
 				mock.InOrder(
