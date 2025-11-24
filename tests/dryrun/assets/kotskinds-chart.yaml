@@ -65,12 +65,12 @@ spec:
 apiVersion: kots.io/v1beta2
 kind: HelmChart
 metadata:
-  name: nginx-app-secondary
+  name: redis-app
 spec:
   chart:
-    name: nginx-app
+    name: redis-app
     chartVersion: 0.1.0
-  namespace: nginx-app-secondary
+  namespace: redis-app
   values:
     server:
       replicaCount: 1
