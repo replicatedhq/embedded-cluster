@@ -71,7 +71,7 @@ func WithLogger(log logrus.FieldLogger) ControllerOption {
 }
 
 // NewKURLMigrationController creates a new migration controller with the provided options.
-// The controller creates its manager internally if not provided via WithManager option.
+// The controller creates its manager and installation manager internally if not provided via options.
 func NewKURLMigrationController(opts ...ControllerOption) (*KURLMigrationController, error) {
 	controller := &KURLMigrationController{
 		store:  kurlmigrationstore.NewMemoryStore(),
@@ -82,11 +82,15 @@ func NewKURLMigrationController(opts ...ControllerOption) (*KURLMigrationControl
 		opt(controller)
 	}
 
+	// Create installation manager internally if not provided via option
+	if controller.installationManager == nil {
+		controller.installationManager = linuxinstallation.NewInstallationManager(
+			linuxinstallation.WithLogger(controller.logger),
+		)
+	}
+
 	// Create manager internally if not provided via option
 	if controller.manager == nil {
-		if controller.installationManager == nil {
-			return nil, fmt.Errorf("installation manager is required when manager is not provided")
-		}
 		controller.manager = kurlmigrationmanager.NewManager(
 			kurlmigrationmanager.WithStore(controller.store),
 			kurlmigrationmanager.WithLogger(controller.logger),

@@ -10,7 +10,6 @@ import (
 	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
 	kurlmigrationhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kurlmigration"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
-	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
@@ -74,15 +73,9 @@ func (a *API) initHandlers() error {
 
 		// Initialize kURL migration controller if not already set
 		if a.kurlMigrationController == nil {
-			// Create installation manager for kURL migration
-			installMgr := linuxinstallation.NewInstallationManager(
-				linuxinstallation.WithLogger(a.logger),
-			)
-
-			// Controller creates manager internally with store passed as dependency
+			// Controller creates manager and installation manager internally
 			kurlMigrationController, err := kurlmigration.NewKURLMigrationController(
 				kurlmigration.WithLogger(a.logger),
-				kurlmigration.WithInstallationManager(installMgr),
 			)
 			if err != nil {
 				return fmt.Errorf("create kurl migration controller: %w", err)
