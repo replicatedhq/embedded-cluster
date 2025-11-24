@@ -8,7 +8,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ Manager = &kurlMigrationManager{}
@@ -35,8 +34,6 @@ type Manager interface {
 // kurlMigrationManager is an implementation of the Manager interface
 type kurlMigrationManager struct {
 	store               kurlmigrationstore.Store
-	kubeClient          client.Client
-	kurlPasswordHash    string
 	installationManager linuxinstallation.InstallationManager
 	logger              logrus.FieldLogger
 }
@@ -52,18 +49,6 @@ func WithStore(store kurlmigrationstore.Store) ManagerOption {
 func WithLogger(logger logrus.FieldLogger) ManagerOption {
 	return func(m *kurlMigrationManager) {
 		m.logger = logger
-	}
-}
-
-func WithKubeClient(kcli client.Client) ManagerOption {
-	return func(m *kurlMigrationManager) {
-		m.kubeClient = kcli
-	}
-}
-
-func WithKurlPasswordHash(hash string) ManagerOption {
-	return func(m *kurlMigrationManager) {
-		m.kurlPasswordHash = hash
 	}
 }
 
