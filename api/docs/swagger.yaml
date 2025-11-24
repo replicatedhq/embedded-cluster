@@ -975,6 +975,61 @@ components:
       - allowIgnoreHostPreflights
       - titles
       type: object
+    types.KURLMigrationPhase:
+      description: Phase is the current phase of the migration process
+      enum:
+      - Discovery
+      - Preparation
+      - ECInstall
+      - DataTransfer
+      - Completed
+      example: Discovery
+      type: string
+      x-enum-varnames:
+      - KURLMigrationPhaseDiscovery
+      - KURLMigrationPhasePreparation
+      - KURLMigrationPhaseECInstall
+      - KURLMigrationPhaseDataTransfer
+      - KURLMigrationPhaseCompleted
+    types.KURLMigrationState:
+      description: State is the current state of the migration
+      enum:
+      - NotStarted
+      - InProgress
+      - Completed
+      - Failed
+      example: InProgress
+      type: string
+      x-enum-varnames:
+      - KURLMigrationStateNotStarted
+      - KURLMigrationStateInProgress
+      - KURLMigrationStateCompleted
+      - KURLMigrationStateFailed
+    types.KURLMigrationStatusResponse:
+      description: Current status and progress of a migration
+      properties:
+        error:
+          description: Error contains the error message if the migration failed
+          example: ""
+          type: string
+        message:
+          description: Message is a user-facing message describing the current status
+          example: Discovering kURL cluster configuration
+          type: string
+        phase:
+          $ref: '#/components/schemas/types.KURLMigrationPhase'
+        progress:
+          description: Progress is the completion percentage (0-100)
+          example: 25
+          type: integer
+        state:
+          $ref: '#/components/schemas/types.KURLMigrationState'
+      required:
+      - message
+      - phase
+      - progress
+      - state
+      type: object
     types.KubernetesInstallationConfig:
       properties:
         adminConsolePort:
@@ -1044,61 +1099,6 @@ components:
       - resolved
       - values
       type: object
-    types.MigrationPhase:
-      description: Phase is the current phase of the migration process
-      enum:
-      - Discovery
-      - Preparation
-      - ECInstall
-      - DataTransfer
-      - Completed
-      example: Discovery
-      type: string
-      x-enum-varnames:
-      - MigrationPhaseDiscovery
-      - MigrationPhasePreparation
-      - MigrationPhaseECInstall
-      - MigrationPhaseDataTransfer
-      - MigrationPhaseCompleted
-    types.MigrationState:
-      description: State is the current state of the migration
-      enum:
-      - NotStarted
-      - InProgress
-      - Completed
-      - Failed
-      example: InProgress
-      type: string
-      x-enum-varnames:
-      - MigrationStateNotStarted
-      - MigrationStateInProgress
-      - MigrationStateCompleted
-      - MigrationStateFailed
-    types.MigrationStatusResponse:
-      description: Current status and progress of a migration
-      properties:
-        error:
-          description: Error contains the error message if the migration failed
-          example: ""
-          type: string
-        message:
-          description: Message is a user-facing message describing the current status
-          example: Discovering kURL cluster configuration
-          type: string
-        phase:
-          $ref: '#/components/schemas/types.MigrationPhase'
-        progress:
-          description: Progress is the completion percentage (0-100)
-          example: 25
-          type: integer
-        state:
-          $ref: '#/components/schemas/types.MigrationState'
-      required:
-      - message
-      - phase
-      - progress
-      - state
-      type: object
     types.PatchAppConfigValuesRequest:
       properties:
         values:
@@ -1148,7 +1148,7 @@ components:
       - strict
       - title
       type: object
-    types.StartMigrationRequest:
+    types.StartKURLMigrationRequest:
       description: Request body for starting a migration from kURL to Embedded Cluster
       properties:
         config:
@@ -1158,7 +1158,7 @@ components:
       required:
       - transferMode
       type: object
-    types.StartMigrationResponse:
+    types.StartKURLMigrationResponse:
       description: Response returned when a migration is successfully started
       properties:
         message:
@@ -1971,7 +1971,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.StartMigrationRequest'
+              $ref: '#/components/schemas/types.StartKURLMigrationRequest'
         description: Start Migration Request
         required: true
       responses:
@@ -1979,7 +1979,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.StartMigrationResponse'
+                $ref: '#/components/schemas/types.StartKURLMigrationResponse'
           description: OK
         "400":
           content:
@@ -2007,7 +2007,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/types.MigrationStatusResponse'
+                $ref: '#/components/schemas/types.KURLMigrationStatusResponse'
           description: OK
         "404":
           content:

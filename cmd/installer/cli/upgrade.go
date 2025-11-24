@@ -786,7 +786,6 @@ func runMigrationAPI(
 			},
 		},
 		ManagerPort: managerPort,
-		Headless:    true, // TODO: Enable web UI after implementing web assets
 		WebMode:     web.ModeUpgrade,
 	}
 
