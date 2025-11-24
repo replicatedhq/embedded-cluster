@@ -6,11 +6,14 @@ import (
 	"fmt"
 )
 
-// UploadBins uploads metadata to S3.
+// UploadBins uploads binaries and metadata to S3.
 //
-// This uploads the metadata.json file containing version information and artifact URLs.
-// Binary uploads (k0s, kots, operator) are skipped due to Docker/crane/oras complexity in Dagger.
-// For full binary uploads, run ci-upload-binaries.sh directly with UPLOAD_BINARIES=1.
+// This uploads:
+// - metadata.json containing version information and artifact URLs
+// - k0s binary
+// - kots binary
+// - embedded-cluster tarball
+// Note: operator binary upload is skipped because it requires Docker (not available in Dagger)
 //
 // Requires AWS credentials via 1Password or explicit parameters.
 //
@@ -80,10 +83,14 @@ func (m *EmbeddedCluster) uploadBinaries(
 
 	container = m.BuildMetadata.withEnvVariables(container).
 		WithDirectory("/workspace", dir).
+		// Mount the build directory which contains output/build/ with metadata and tarballs
+		WithDirectory("/workspace/output", m.BuildMetadata.BuildDir).
+		// Create symlink so script can find build/metadata.json at the expected path
+		WithExec([]string{"sh", "-c", "ln -sf output/build build"}).
 		WithEnvVariable("S3_BUCKET", s3Bucket).
-		// Skip binary uploads (k0s, kots, operator) - only upload metadata.json
-		// Binary uploads require Docker/crane/oras which are complex to set up in Dagger
-		WithEnvVariable("UPLOAD_BINARIES", "0").
+		// Enable binary uploads (k0s, kots, embedded-cluster tarball)
+		// Note: operator binary upload is skipped because it requires Docker
+		WithEnvVariable("UPLOAD_BINARIES", "1").
 		WithSecretVariable("AWS_ACCESS_KEY_ID", awsAccessKey).
 		WithSecretVariable("AWS_SECRET_ACCESS_KEY", awsSecretKey)
 
@@ -91,7 +98,7 @@ func (m *EmbeddedCluster) uploadBinaries(
 		container = container.WithSecretVariable("GH_TOKEN", githubToken)
 	}
 
-	// Run upload script (will only upload metadata.json with UPLOAD_BINARIES=0)
+	// Run upload script (will upload all binaries with UPLOAD_BINARIES=1)
 	_, err := container.
 		WithExec([]string{"./scripts/ci-upload-binaries.sh"}).
 		Sync(ctx)

@@ -30,6 +30,9 @@ func (m *EmbeddedCluster) EmbedRelease(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
+	// Replicated app ID
+	// +default="2bViecGO8EZpChcGPeW5jbWKw2B"
+	appID string,
 	// Replicated app channel ID
 	// +default="2lhrq5LDyoX98BdxmkHtdoqMT4P"
 	appChannelID string,
@@ -39,6 +42,9 @@ func (m *EmbeddedCluster) EmbedRelease(
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
+	// Replicated API token (needed to fetch channel sequence)
+	// +optional
+	replicatedAPIToken *dagger.Secret,
 	// GitHub token
 	// +optional
 	githubToken *dagger.Secret,
@@ -56,10 +62,12 @@ func (m *EmbeddedCluster) EmbedRelease(
 		m.BuildMetadata.BuildDir,
 		releaseYamlDir,
 		replicatedApp,
+		appID,
 		appChannelID,
 		appChannelSlug,
 		s3Bucket,
 		s3Bucket != StagingS3Bucket,
+		replicatedAPIToken,
 		githubToken,
 	)
 	if err != nil {
@@ -78,10 +86,12 @@ func (m *EmbeddedCluster) embedRelease(
 	buildDir *dagger.Directory,
 	releaseYamlDir string,
 	replicatedApp string,
+	appID string,
 	appChannelID string,
 	appChannelSlug string,
 	s3Bucket string,
 	usesDevBucket bool,
+	replicatedAPIToken *dagger.Secret,
 	githubToken *dagger.Secret,
 ) (*dagger.File, error) {
 	dir := directoryWithCommonFiles(dag.Directory(), src)
@@ -108,6 +118,7 @@ func (m *EmbeddedCluster) embedRelease(
 
 	// Set environment variables
 	container = m.BuildMetadata.withEnvVariables(container).
+		WithEnvVariable("APP_ID", appID).
 		WithEnvVariable("APP_CHANNEL_ID", appChannelID).
 		WithEnvVariable("APP_CHANNEL_SLUG", appChannelSlug).
 		WithEnvVariable("RELEASE_YAML_DIR", releaseYamlDir).
@@ -118,6 +129,10 @@ func (m *EmbeddedCluster) embedRelease(
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "1")
 	} else {
 		container = container.WithEnvVariable("USES_DEV_BUCKET", "0")
+	}
+
+	if replicatedAPIToken != nil {
+		container = container.WithSecretVariable("REPLICATED_API_TOKEN", replicatedAPIToken)
 	}
 
 	if githubToken != nil {

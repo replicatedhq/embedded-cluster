@@ -49,6 +49,9 @@ func (m *EmbeddedCluster) BuildAndRelease(
 	// Replicated app name
 	// +default="embedded-cluster-smoke-test-staging-app"
 	replicatedApp string,
+	// Replicated app ID
+	// +default="2bViecGO8EZpChcGPeW5jbWKw2B"
+	appID string,
 	// Replicated app channel name
 	// +default="Dev"
 	appChannel string,
@@ -117,9 +120,11 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		src,
 		releaseYamlDir,
 		replicatedApp,
+		appID,
 		appChannelID,
 		appChannelSlug,
 		s3Bucket,
+		replicatedAPIToken,
 		githubToken,
 	)
 	if err != nil {
