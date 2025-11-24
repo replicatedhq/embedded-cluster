@@ -3,6 +3,7 @@ package adminconsole
 import (
 	"context"
 	_ "embed"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -45,6 +46,7 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["embeddedClusterID"] = a.ClusterID
 		copiedValues["embeddedClusterDataDir"] = a.DataDir
 		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+		copiedValues["isEmbeddedClusterV3"] = os.Getenv("ENABLE_V3") == "1"
 	}
 
 	copiedValues["isHA"] = a.IsHA
