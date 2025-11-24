@@ -1810,8 +1810,11 @@ func validateVeleroPlugin(t *testing.T, hcli *helm.MockClient) {
 }
 
 var (
-	//go:embed assets/rendered-chart-preflight.yaml
-	renderedChartPreflightData string
+	//go:embed assets/rendered-nginx-chart-preflight.yaml
+	renderedNginxChartPreflightData string
+
+	//go:embed assets/rendered-redis-chart-preflight.yaml
+	renderedRedisChartPreflightData string
 
 	//go:embed assets/kotskinds-config-values.yaml
 	configValuesData string
@@ -1847,7 +1850,8 @@ func setupV3Test(t *testing.T, opts setupV3TestOpts) (string, string) {
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
-		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
+		"nginx-app-0.1.0.tgz": []byte(nginxChartArchiveData),
+		"redis-app-0.1.0.tgz": []byte(redisChartArchiveData),
 	}); err != nil {
 		t.Fatalf("fail to set release data: %v", err)
 	}
@@ -1893,7 +1897,13 @@ func setupV3TestHelmClient() *helm.MockClient {
 		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "nginx-app"
 		})).
-		Return([][]byte{[]byte(renderedChartPreflightData)}, nil).
+		Return([][]byte{[]byte(renderedNginxChartPreflightData)}, nil).
+		Maybe()
+	hcli.
+		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "redis-app"
+		})).
+		Return([][]byte{[]byte(renderedRedisChartPreflightData)}, nil).
 		Maybe()
 	hcli.On("Close").Return(nil).Maybe()
 
