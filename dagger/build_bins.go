@@ -92,13 +92,9 @@ func (m *EmbeddedCluster) buildBinary(
 	// buildtools expects INPUT_OPERATOR_IMAGE without the tag (it will extract it from the chart)
 	operatorImageWithoutTag := m.BuildMetadata.OperatorImageRepo
 
-	// The chart version matches the operator image tag (without 'v' prefix)
-	// This should match what was published in PublishOperatorChart
-	chartVersionForOCI := strings.TrimPrefix(m.BuildMetadata.OperatorImageTag, "v")
-
 	builder = builder.
 		WithEnvVariable("INPUT_OPERATOR_CHART_URL", m.BuildMetadata.OperatorChartURL).
-		WithEnvVariable("INPUT_OPERATOR_CHART_VERSION", chartVersionForOCI).
+		WithEnvVariable("INPUT_OPERATOR_CHART_VERSION", m.BuildMetadata.OperatorChartVersion).
 		WithEnvVariable("INPUT_OPERATOR_IMAGE", operatorImageWithoutTag).
 		WithExec([]string{"./output/bin/buildtools", "update", "addon", "embeddedclusteroperator"})
 

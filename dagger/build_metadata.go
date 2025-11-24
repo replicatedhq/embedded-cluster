@@ -26,6 +26,8 @@ type BuildMetadata struct {
 	OperatorImageRepo string
 	// Operator image tag (e.g., "v2.12.0-k8s-1.33")
 	OperatorImageTag string
+	// Operator chart version (e.g., "2.12.0-+k8s-1.33")
+	OperatorChartVersion string
 	// Local artifact mirror image repository (e.g., "ttl.sh/user/embedded-cluster-local-artifact-mirror")
 	LAMImageRepo string
 	// Local artifact mirror image tag

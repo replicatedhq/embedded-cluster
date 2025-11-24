@@ -65,6 +65,7 @@ func (m *EmbeddedCluster) BuildDeps(
 	// Get the image tags
 	tag := strings.ReplaceAll(m.BuildMetadata.Version, "+", "-")
 	m.BuildMetadata.OperatorImageTag = tag
+	m.BuildMetadata.OperatorChartVersion = strings.TrimPrefix(m.BuildMetadata.Version, "v")
 	m.BuildMetadata.LAMImageTag = tag
 
 	// Construct the chart URL (chart name is "embedded-cluster-operator" from Chart.yaml)
