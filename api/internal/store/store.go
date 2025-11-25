@@ -47,8 +47,8 @@ type Store interface {
 	// AirgapStore provides access to airgap operations
 	AirgapStore() airgap.Store
 
-	// MigrationStore provides access to kURL migration operations
-	MigrationStore() kurlmigration.Store
+	// KURLMigrationStore provides access to kURL migration operations
+	KURLMigrationStore() kurlmigration.Store
 }
 
 // StoreOption is a function that configures a store
@@ -117,10 +117,10 @@ func WithAirgapStore(store airgap.Store) StoreOption {
 	}
 }
 
-// WithMigrationStore sets the kURL migration store
-func WithMigrationStore(store kurlmigration.Store) StoreOption {
+// WithKURLMigrationStore sets the kURL migration store
+func WithKURLMigrationStore(store kurlmigration.Store) StoreOption {
 	return func(s *memoryStore) {
-		s.migrationStore = store
+		s.kurlMigrationStore = store
 	}
 }
 
@@ -138,7 +138,7 @@ type memoryStore struct {
 	appInstallStore   appinstall.Store
 	appUpgradeStore   appupgrade.Store
 	airgapStore       airgap.Store
-	migrationStore    kurlmigration.Store
+	kurlMigrationStore kurlmigration.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -189,8 +189,8 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.airgapStore = airgap.NewMemoryStore()
 	}
 
-	if s.migrationStore == nil {
-		s.migrationStore = kurlmigration.NewMemoryStore()
+	if s.kurlMigrationStore == nil {
+		s.kurlMigrationStore = kurlmigration.NewMemoryStore()
 	}
 
 	return s
@@ -236,6 +236,6 @@ func (s *memoryStore) AirgapStore() airgap.Store {
 	return s.airgapStore
 }
 
-func (s *memoryStore) MigrationStore() kurlmigration.Store {
-	return s.migrationStore
+func (s *memoryStore) KURLMigrationStore() kurlmigration.Store {
+	return s.kurlMigrationStore
 }

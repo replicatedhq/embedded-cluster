@@ -350,7 +350,7 @@ func TestStartMigration(t *testing.T) {
 			// Create unified store with empty migration store
 			mockStore := &store.MockStore{}
 			// Set up expectations on the unified store's migration store field
-			tt.setupMock(mockManager, &mockStore.MigrationMockStore)
+			tt.setupMock(mockManager, &mockStore.KURLMigrationMockStore)
 
 			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
@@ -377,7 +377,7 @@ func TestStartMigration(t *testing.T) {
 			}
 
 			mockManager.AssertExpectations(t)
-			mockStore.MigrationMockStore.AssertExpectations(t)
+			mockStore.KURLMigrationMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -433,7 +433,7 @@ func TestGetMigrationStatus(t *testing.T) {
 			// Create unified store with empty migration store
 			mockStore := &store.MockStore{}
 			// Set up expectations on the unified store's migration store field
-			tt.setupMock(&mockStore.MigrationMockStore)
+			tt.setupMock(&mockStore.KURLMigrationMockStore)
 
 			mockManager := &migrationmanager.MockManager{}
 			controller, err := NewKURLMigrationController(
@@ -459,7 +459,7 @@ func TestGetMigrationStatus(t *testing.T) {
 				assert.Equal(t, tt.expectedValue, result)
 			}
 
-			mockStore.MigrationMockStore.AssertExpectations(t)
+			mockStore.KURLMigrationMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -561,7 +561,7 @@ func TestRun(t *testing.T) {
 			// Create unified store with empty migration store
 			mockStore := &store.MockStore{}
 			// Set up expectations on the unified store's migration store field
-			tt.setupMock(mockManager, &mockStore.MigrationMockStore)
+			tt.setupMock(mockManager, &mockStore.KURLMigrationMockStore)
 
 			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
@@ -577,7 +577,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			mockStore.MigrationMockStore.AssertExpectations(t)
+			mockStore.KURLMigrationMockStore.AssertExpectations(t)
 		})
 	}
 }
