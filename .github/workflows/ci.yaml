@@ -200,8 +200,8 @@ jobs:
           make cmd/installer/goods/bins/kubectl-preflight
       - name: Run tests
         run: |
-          PREFLIGHT_BINARY=`pwd`/cmd/installer/goods/bins/kubectl-preflight \
-            go test -v ./pkg-new/preflights/integration/...
+          CGO_ENABLED=0 PREFLIGHT_BINARY=`pwd`/cmd/installer/goods/bins/kubectl-preflight \
+            go test -tags osusergo,netgo -v ./pkg-new/preflights/integration/...
 
   int-tests-kind-ha-registry:
     name: Integration tests (kind) HA registry
