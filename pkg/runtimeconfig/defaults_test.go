@@ -35,7 +35,7 @@ func TestEmbeddedClusterLogsPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("ENABLE_V3", tt.enableV3)
 
-			got := embeddedClusterLogsPath()
+			got := EmbeddedClusterLogsPath()
 
 			assert.Equal(t, tt.want, got)
 		})

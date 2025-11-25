@@ -2,7 +2,6 @@
 
 export EMBEDDED_CLUSTER_BIN="${EMBEDDED_CLUSTER_BIN:-embedded-cluster-smoke-test-staging-app}"
 export EMBEDDED_CLUSTER_BASE_DIR="${EMBEDDED_CLUSTER_BASE_DIR:-/var/lib/embedded-cluster}"
-export APP_SLUG="${APP_SLUG:-$(basename "${EMBEDDED_CLUSTER_BIN}")}"
 export PATH="$PATH:${EMBEDDED_CLUSTER_BASE_DIR}/bin"
 export K0SCONFIG=/etc/k0s/k0s.yaml
 export APP_NAMESPACE="${APP_NAMESPACE:-kotsadm}"

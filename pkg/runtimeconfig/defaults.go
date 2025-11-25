@@ -78,11 +78,11 @@ func KotsadmNamespace(ctx context.Context, kcli client.Client) (string, error) {
 	return namespace, nil
 }
 
-// embeddedClusterLogsPath returns the path to the directory where embedded-cluster logs
+// EmbeddedClusterLogsPath returns the path to the directory where embedded-cluster logs
 // are stored.
 // For V2 compatibility, returns "/var/log/embedded-cluster".
 // For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
-func embeddedClusterLogsPath() string {
+func EmbeddedClusterLogsPath() string {
 	// Use the app slug for V3 installations
 	if os.Getenv("ENABLE_V3") == "1" {
 		return filepath.Join("/var/log", AppSlug())
@@ -96,7 +96,7 @@ func embeddedClusterLogsPath() string {
 // For V2 compatibility, returns "/var/log/embedded-cluster".
 // For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
 func EmbeddedClusterLogsSubDir() string {
-	path := embeddedClusterLogsPath()
+	path := EmbeddedClusterLogsPath()
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
 	}
