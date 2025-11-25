@@ -724,10 +724,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get the installation config for migration
+         * Get the installation config for kURL migration
          * @description Get the installation config extracted from kURL merged with EC defaults
          */
-        get: operations["getMigrationInstallationConfig"];
+        get: operations["getKURLMigrationInstallationConfig"];
         put?: never;
         post?: never;
         delete?: never;
@@ -764,10 +764,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get the status of the migration
-         * @description Get the current status and progress of the migration
+         * Get the status of the kURL migration
+         * @description Get the current status and progress of the kURL migration
          */
-        get: operations["getMigrationStatus"];
+        get: operations["getKURLMigrationStatus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1843,21 +1843,21 @@ export interface components {
             titles: string[];
         };
         /**
-         * @description Phase is the current phase of the migration process
+         * @description Phase is the current phase of the kURL migration process
          * @example Discovery
          * @enum {string}
          */
         "types.KURLMigrationPhase": "Discovery" | "Preparation" | "ECInstall" | "DataTransfer" | "Completed";
         /**
-         * @description State is the current state of the migration
+         * @description State is the current state of the kURL migration
          * @example InProgress
          * @enum {string}
          */
         "types.KURLMigrationState": "NotStarted" | "InProgress" | "Completed" | "Failed";
-        /** @description Current status and progress of a migration */
+        /** @description Current status and progress of a kURL migration */
         "types.KURLMigrationStatusResponse": {
             /**
-             * @description Error contains the error message if the migration failed
+             * @description Error contains the error message if the kURL migration failed
              * @example
              */
             error?: string;
@@ -1926,11 +1926,11 @@ export interface components {
             config?: components["schemas"]["types.LinuxInstallationConfig"];
             transferMode: components["schemas"]["types.TransferMode"];
         };
-        /** @description Response returned when a migration is successfully started */
+        /** @description Response returned when a kURL migration is successfully started */
         "types.StartKURLMigrationResponse": {
             /**
-             * @description Message is a user-facing message about the migration status
-             * @example Migration started successfully
+             * @description Message is a user-facing message about the kURL migration status
+             * @example kURL migration started successfully
              */
             message: string;
             /**
@@ -1953,7 +1953,7 @@ export interface components {
             values: components["schemas"]["types.AppConfigValues"];
         };
         /**
-         * @description TransferMode specifies whether to copy or move data during migration
+         * @description TransferMode specifies whether to copy or move data during kURL migration
          * @example copy
          * @enum {string}
          */
@@ -3108,7 +3108,7 @@ export interface operations {
             };
         };
     };
-    getMigrationInstallationConfig: {
+    getKURLMigrationInstallationConfig: {
         parameters: {
             query?: never;
             header?: never;
@@ -3135,7 +3135,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Start Migration Request */
+        /** @description Start kURL Migration Request */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["types.StartKURLMigrationRequest"];
@@ -3171,7 +3171,7 @@ export interface operations {
             };
         };
     };
-    getMigrationStatus: {
+    getKURLMigrationStatus: {
         parameters: {
             query?: never;
             header?: never;

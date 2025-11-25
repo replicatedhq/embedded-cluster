@@ -976,7 +976,7 @@ components:
       - titles
       type: object
     types.KURLMigrationPhase:
-      description: Phase is the current phase of the migration process
+      description: Phase is the current phase of the kURL migration process
       enum:
       - Discovery
       - Preparation
@@ -992,7 +992,7 @@ components:
       - KURLMigrationPhaseDataTransfer
       - KURLMigrationPhaseCompleted
     types.KURLMigrationState:
-      description: State is the current state of the migration
+      description: State is the current state of the kURL migration
       enum:
       - NotStarted
       - InProgress
@@ -1006,10 +1006,10 @@ components:
       - KURLMigrationStateCompleted
       - KURLMigrationStateFailed
     types.KURLMigrationStatusResponse:
-      description: Current status and progress of a migration
+      description: Current status and progress of a kURL migration
       properties:
         error:
-          description: Error contains the error message if the migration failed
+          description: Error contains the error message if the kURL migration failed
           example: ""
           type: string
         message:
@@ -1157,11 +1157,11 @@ components:
       - transferMode
       type: object
     types.StartKURLMigrationResponse:
-      description: Response returned when a migration is successfully started
+      description: Response returned when a kURL migration is successfully started
       properties:
         message:
-          description: Message is a user-facing message about the migration status
-          example: Migration started successfully
+          description: Message is a user-facing message about the kURL migration status
+          example: kURL migration started successfully
           type: string
         migrationId:
           description: MigrationID is the unique identifier for this migration
@@ -1205,7 +1205,8 @@ components:
       - values
       type: object
     types.TransferMode:
-      description: TransferMode specifies whether to copy or move data during migration
+      description: TransferMode specifies whether to copy or move data during kURL
+        migration
       enum:
       - copy
       - move
@@ -2308,7 +2309,7 @@ paths:
     get:
       description: Get the installation config extracted from kURL merged with EC
         defaults
-      operationId: getMigrationInstallationConfig
+      operationId: getKURLMigrationInstallationConfig
       responses:
         "200":
           content:
@@ -2318,9 +2319,9 @@ paths:
           description: OK
       security:
       - bearerauth: []
-      summary: Get the installation config for migration
+      summary: Get the installation config for kURL migration
       tags:
-      - migration
+      - kurl-migration
   /linux/kurl-migration/start:
     post:
       description: Start a migration from kURL to Embedded Cluster with the provided
@@ -2331,7 +2332,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/types.StartKURLMigrationRequest'
-        description: Start Migration Request
+        description: Start kURL Migration Request
         required: true
       responses:
         "200":
@@ -2356,11 +2357,11 @@ paths:
       - bearerauth: []
       summary: Start a migration from kURL to Embedded Cluster
       tags:
-      - migration
+      - kurl-migration
   /linux/kurl-migration/status:
     get:
-      description: Get the current status and progress of the migration
-      operationId: getMigrationStatus
+      description: Get the current status and progress of the kURL migration
+      operationId: getKURLMigrationStatus
       responses:
         "200":
           content:
@@ -2376,9 +2377,9 @@ paths:
           description: Not Found
       security:
       - bearerauth: []
-      summary: Get the status of the migration
+      summary: Get the status of the kURL migration
       tags:
-      - migration
+      - kurl-migration
   /linux/upgrade/airgap/process:
     post:
       description: Process the airgap bundle for upgrade

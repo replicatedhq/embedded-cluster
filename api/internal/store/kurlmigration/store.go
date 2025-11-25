@@ -10,21 +10,21 @@ import (
 
 var _ Store = &memoryStore{}
 
-// Store provides methods for storing and retrieving migration state
+// Store provides methods for storing and retrieving kURL migration state
 type Store interface {
-	// InitializeMigration sets up a new migration with ID, transfer mode, and config
+	// InitializeMigration sets up a new kURL migration with ID, transfer mode, and config
 	InitializeMigration(migrationID string, transferMode string, config types.LinuxInstallationConfig) error
 
-	// GetMigrationID returns the current migration ID, or error if none exists
+	// GetMigrationID returns the current kURL migration ID, or error if none exists
 	GetMigrationID() (string, error)
 
-	// GetStatus returns the current migration status
+	// GetStatus returns the current kURL migration status
 	GetStatus() (types.KURLMigrationStatusResponse, error)
 
-	// SetState updates the migration state
+	// SetState updates the kURL migration state
 	SetState(state types.KURLMigrationState) error
 
-	// SetPhase updates the migration phase
+	// SetPhase updates the kURL migration phase
 	SetPhase(phase types.KURLMigrationPhase) error
 
 	// SetMessage updates the status message
@@ -62,7 +62,7 @@ type memoryStore struct {
 
 type StoreOption func(*memoryStore)
 
-// WithMigrationID sets the migration ID
+// WithMigrationID sets the kURL migration ID
 func WithMigrationID(id string) StoreOption {
 	return func(s *memoryStore) {
 		s.migrationID = id
@@ -84,7 +84,7 @@ func WithConfig(config types.LinuxInstallationConfig) StoreOption {
 	}
 }
 
-// WithStatus sets the migration status
+// WithStatus sets the kURL migration status
 func WithStatus(status types.KURLMigrationStatusResponse) StoreOption {
 	return func(s *memoryStore) {
 		s.status = status
@@ -252,7 +252,7 @@ func (s *memoryStore) GetUserConfig() (types.LinuxInstallationConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Return user config even if migration not initialized (for GET /config endpoint)
+	// Return user config even if kURL migration not initialized (for GET /config endpoint)
 	// If not initialized, userConfig will be zero-value (empty)
 	var config types.LinuxInstallationConfig
 	if err := deepcopy.Copy(&config, &s.userConfig); err != nil {

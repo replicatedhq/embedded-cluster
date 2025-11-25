@@ -107,8 +107,8 @@ func WithKubernetesUpgradeController(kubernetesUpgradeController kubernetesupgra
 	}
 }
 
-// WithMigrationController configures the migration controller for the API.
-func WithMigrationController(kurlMigrationController kurlmigration.Controller) Option {
+// WithKURLMigrationController configures the kURL migration controller for the API.
+func WithKURLMigrationController(kurlMigrationController kurlmigration.Controller) Option {
 	return func(a *API) {
 		a.kurlMigrationController = kurlMigrationController
 	}

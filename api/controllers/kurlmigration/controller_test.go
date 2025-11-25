@@ -202,7 +202,7 @@ func TestStartMigration(t *testing.T) {
 					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil),
 					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented),
 					s.On("SetState", types.KURLMigrationStateFailed).Return(nil),
-					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil),
+					s.On("SetError", "execute phase Discovery: kURL migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -244,7 +244,7 @@ func TestStartMigration(t *testing.T) {
 					s.On("SetPhase", types.KURLMigrationPhaseDiscovery).Return(nil),
 					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented),
 					s.On("SetState", types.KURLMigrationStateFailed).Return(nil),
-					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil),
+					s.On("SetError", "execute phase Discovery: kURL migration phase execution not yet implemented").Return(nil),
 				)
 			},
 			expectedErr: nil,
@@ -254,7 +254,7 @@ func TestStartMigration(t *testing.T) {
 			},
 		},
 		{
-			name:         "migration already started (409 error)",
+			name:         "kURL migration already started (409 error)",
 			transferMode: types.TransferModeCopy,
 			config:       types.LinuxInstallationConfig{},
 			setupMock: func(m *migrationmanager.MockManager, s *migrationstore.MockStore) {
@@ -270,7 +270,7 @@ func TestStartMigration(t *testing.T) {
 				var apiErr *types.APIError
 				require.True(t, errors.As(err, &apiErr))
 				assert.Equal(t, 409, apiErr.StatusCode)
-				assert.Contains(t, err.Error(), "migration already started")
+				assert.Contains(t, err.Error(), "kURL migration already started")
 			},
 		},
 		{
@@ -312,7 +312,7 @@ func TestStartMigration(t *testing.T) {
 			validateResult: func(t *testing.T, migrationID string, err error) {
 				assert.Error(t, err)
 				assert.Empty(t, migrationID)
-				assert.Contains(t, err.Error(), "initialize migration")
+				assert.Contains(t, err.Error(), "initialize kURL migration")
 			},
 		},
 		{
@@ -488,7 +488,7 @@ func TestRun(t *testing.T) {
 					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented).Once(),
 					// Error handling
 					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil).Once(),
+					s.On("SetError", "execute phase Discovery: kURL migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
@@ -548,7 +548,7 @@ func TestRun(t *testing.T) {
 					// ExecutePhase fails in skeleton
 					m.On("ExecutePhase", mock.Anything, types.KURLMigrationPhaseDiscovery).Return(types.ErrKURLMigrationPhaseNotImplemented).Once(),
 					s.On("SetState", types.KURLMigrationStateFailed).Return(nil).Once(),
-					s.On("SetError", "execute phase Discovery: migration phase execution not yet implemented").Return(nil).Once(),
+					s.On("SetError", "execute phase Discovery: kURL migration phase execution not yet implemented").Return(nil).Once(),
 				)
 			},
 			expectedErr: true,
