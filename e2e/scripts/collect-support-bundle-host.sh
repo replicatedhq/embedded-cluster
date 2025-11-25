@@ -9,7 +9,21 @@ function collect_support_bundle() {
 }
 
 function collect_installer_logs() {
-    tar -czvf host.tar.gz /var/log/embedded-cluster
+    # Collect logs from V2 (/var/log/embedded-cluster) or V3 (/var/log/{appslug}) path
+    # based on ENABLE_V3 environment variable
+    local log_dir
+
+    if [ "${ENABLE_V3}" = "1" ]; then
+        # V3: Use app slug directory
+        log_dir="/var/log/${APP_SLUG}"
+    else
+        # V2: Use static embedded-cluster directory
+        log_dir="/var/log/embedded-cluster"
+    fi
+
+    if [ -d "${log_dir}" ]; then
+        tar -czvf host.tar.gz "${log_dir}" 2>/dev/null || true
+    fi
 }
 
 main() {
