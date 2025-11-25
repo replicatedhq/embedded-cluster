@@ -117,6 +117,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"KUBECONFIG": "/var/lib/embedded-cluster/k0s/pki/admin.conf",
 	})
 
+	// --- validate log directory (V2 static path) --- //
+	logDir := runtimeconfig.EmbeddedClusterLogsSubDir()
+	assert.Equal(t, "/var/log/embedded-cluster", logDir, "V2 should use static log directory")
+
 	// --- validate commands --- //
 	// Get expected hostname to validate it's included in the kubelet args
 	expectedHostname, err := nodeutil.GetHostname("")

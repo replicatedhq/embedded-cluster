@@ -78,18 +78,33 @@ func KotsadmNamespace(ctx context.Context, kcli client.Client) (string, error) {
 	return namespace, nil
 }
 
-// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
+// EmbeddedClusterLogsPath returns the path to the directory where embedded-cluster logs
 // are stored.
+// For V2 compatibility, returns "/var/log/embedded-cluster".
+// For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
+func EmbeddedClusterLogsPath() string {
+	// Use the app slug for V3 installations
+	if os.Getenv("ENABLE_V3") == "1" {
+		return filepath.Join("/var/log", AppSlug())
+	}
+	// V2 backwards compatibility
+	return "/var/log/embedded-cluster"
+}
+
+// EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
+// are stored and ensures the directory exists.
+// For V2 compatibility, returns "/var/log/embedded-cluster".
+// For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
 func EmbeddedClusterLogsSubDir() string {
-	path := "/var/log/embedded-cluster"
+	path := EmbeddedClusterLogsPath()
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logrus.Fatalf("unable to create embedded-cluster logs dir: %s", err)
 	}
 	return path
 }
 
-// PathToLog returns the full path to a log file. This function does not check
-// if the file exists.
+// PathToLog returns the full path to a log file and ensures the parent directory exists.
+// This function does not check if the file itself exists.
 func PathToLog(name string) string {
 	return filepath.Join(EmbeddedClusterLogsSubDir(), name)
 }

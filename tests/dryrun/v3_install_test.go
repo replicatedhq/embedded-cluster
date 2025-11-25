@@ -111,6 +111,10 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 	assert.Equal(t, int64(0), in.Spec.AirgapUncompressedSize, "Installation.Spec.AirgapUncompressedSize should be 0 for online installations")
 	assert.Equal(t, "80-32767", in.Spec.RuntimeConfig.Network.NodePortRange, "Installation.Spec.RuntimeConfig.Network.NodePortRange should be set to default range")
 
+	// Validate log directory (V3 dynamic path based on app slug)
+	logDir := runtimeconfig.EmbeddedClusterLogsSubDir()
+	assert.Equal(t, "/var/log/fake-app-slug", logDir, "V3 should use dynamic log directory based on app slug")
+
 	// Validate that HTTP collectors are present in host preflight spec for online installations
 	assertCollectors(t, dr.HostPreflightSpec.Collectors, map[string]struct {
 		match    func(*troubleshootv1beta2.HostCollect) bool
