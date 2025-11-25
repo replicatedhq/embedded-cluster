@@ -100,12 +100,12 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			_ = syscall.Umask(0o022)
 
 			// Check if this is a kURL cluster that needs migration to Embedded Cluster.
-			migrationNeeded, err := detectKurlMigration(ctx)
+			kurlMigrationNeeded, err := detectKurlMigration(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to detect migration scenario: %w", err)
 			}
 
-			if migrationNeeded {
+			if kurlMigrationNeeded {
 				logrus.Info("Preparing to upgrade from kURL to Embedded Cluster...")
 				logrus.Info("")
 

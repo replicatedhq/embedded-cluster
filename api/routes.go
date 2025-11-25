@@ -45,8 +45,8 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 func (a *API) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
-	// Migration routes (not mode-specific)
-	a.registerMigrationRoutes(linuxRouter)
+	// kURL Migration routes (not mode-specific)
+	a.registerKURLMigrationRoutes(linuxRouter)
 
 	if a.cfg.Mode == types.ModeInstall {
 		installRouter := linuxRouter.PathPrefix("/install").Subrouter()
@@ -136,9 +136,9 @@ func (a *API) registerConsoleRoutes(router *mux.Router) {
 	consoleRouter.HandleFunc("/available-network-interfaces", a.handlers.console.GetListAvailableNetworkInterfaces).Methods("GET")
 }
 
-func (a *API) registerMigrationRoutes(router *mux.Router) {
-	migrationRouter := router.PathPrefix("/kurl-migration").Subrouter()
-	migrationRouter.HandleFunc("/config", a.handlers.kurlmigration.GetInstallationConfig).Methods("GET")
-	migrationRouter.HandleFunc("/start", a.handlers.kurlmigration.PostStartMigration).Methods("POST")
-	migrationRouter.HandleFunc("/status", a.handlers.kurlmigration.GetMigrationStatus).Methods("GET")
+func (a *API) registerKURLMigrationRoutes(router *mux.Router) {
+	kurlMigrationRouter := router.PathPrefix("/kurl-migration").Subrouter()
+	kurlMigrationRouter.HandleFunc("/config", a.handlers.kurlmigration.GetInstallationConfig).Methods("GET")
+	kurlMigrationRouter.HandleFunc("/start", a.handlers.kurlmigration.PostStartMigration).Methods("POST")
+	kurlMigrationRouter.HandleFunc("/status", a.handlers.kurlmigration.GetMigrationStatus).Methods("GET")
 }
