@@ -17,7 +17,7 @@ environment:
       - git
       - go
   environment:
-    GOMODCACHE: /var/cache/melange
+    GOMODCACHE: /cache/melange
     VERSION: ${PACKAGE_VERSION}
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 
@@ -25,6 +25,7 @@ pipeline:
   - runs: |
       set -exuo pipefail
 
+      make go.mod
       make -C operator build
       cp operator/bin/manager "${{targets.contextdir}}/manager"
   - uses: strip

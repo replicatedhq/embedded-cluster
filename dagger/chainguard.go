@@ -30,8 +30,12 @@ func (m *chainguard) melangeBuildGo(
 		WithFile("/workspace/melange.rsa", keygen.File("/workspace/melange.rsa")).
 		WithEnvVariable("MELANGE_CACHE_DIR", "/cache/melange").
 		WithEnvVariable("MELANGE_APK_CACHE_DIR", "/cache/apk").
-		WithMountedCache("/cache/melange", goModCache).
-		WithMountedCache("/cache/apk", apkCache).
+		WithMountedCache("/cache/melange", goModCache, dagger.ContainerWithMountedCacheOpts{
+			Sharing: dagger.CacheSharingModeShared,
+		}).
+		WithMountedCache("/cache/apk", apkCache, dagger.ContainerWithMountedCacheOpts{
+			Sharing: dagger.CacheSharingModeShared,
+		}).
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
@@ -83,7 +87,9 @@ func (m *chainguard) apkoBuild(
 		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/apko.yaml", apkoFile).
-		WithMountedCache("/cache/apko", apkoCache).
+		WithMountedCache("/cache/apko", apkoCache, dagger.ContainerWithMountedCacheOpts{
+			Sharing: dagger.CacheSharingModeShared,
+		}).
 		WithWorkdir("/workspace").
 		WithExec(
 			[]string{
@@ -113,7 +119,9 @@ func (m *chainguard) apkoPublish(
 		From(fmt.Sprintf("cgr.dev/chainguard/apko:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/apko.yaml", apkoFile).
-		WithMountedCache("/cache/apko", apkoCache).
+		WithMountedCache("/cache/apko", apkoCache, dagger.ContainerWithMountedCacheOpts{
+			Sharing: dagger.CacheSharingModeShared,
+		}).
 		WithEnvVariable("DOCKER_CONFIG", "/workspace/.docker").
 		WithWorkdir("/workspace").
 		WithExec(

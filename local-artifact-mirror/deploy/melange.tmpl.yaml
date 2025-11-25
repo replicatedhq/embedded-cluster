@@ -17,7 +17,7 @@ environment:
       - git
       - go
   environment:
-    GOMODCACHE: /var/cache/melange
+    GOMODCACHE: /cache/melange
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 
 pipeline:
@@ -28,6 +28,7 @@ pipeline:
       mkdir -p ${{targets.contextdir}}/usr/bin
       mkdir -p ${{targets.contextdir}}/usr/local/bin
 
+      make go.mod
       make -C local-artifact-mirror build
       cp local-artifact-mirror/bin/local-artifact-mirror-$(go env GOOS)-$(go env GOARCH) ${{targets.contextdir}}/usr/bin/local-artifact-mirror
       # support for legacy path
