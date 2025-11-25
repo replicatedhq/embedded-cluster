@@ -192,11 +192,11 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	startResp, err := c.StartKURLMigration(ctx, "copy", nil)
 	require.NoError(t, err, "failed to start migration")
 	require.NotEmpty(t, startResp.MigrationID, "migrationID should be returned")
-	require.Equal(t, "migration started successfully", startResp.Message, "expected success message")
+	require.Equal(t, "kURL migration started successfully", startResp.Message, "expected success message")
 
 	// GET /api/linux/kurl-migration/status
 	// The migration should eventually reach Failed state with the skeleton error
-	assertEventuallyMigrationState(t, "migration phase execution not yet implemented", apitypes.KURLMigrationStateFailed, func() (apitypes.KURLMigrationState, string, error) {
+	assertEventuallyMigrationState(t, "kURL migration phase execution not yet implemented", apitypes.KURLMigrationStateFailed, func() (apitypes.KURLMigrationState, string, error) {
 		statusResp, err := c.GetKURLMigrationStatus(ctx)
 		if err != nil {
 			return "", "", err
@@ -208,6 +208,6 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	finalStatus, err := c.GetKURLMigrationStatus(ctx)
 	require.NoError(t, err, "failed to get migration status")
 	require.Equal(t, apitypes.KURLMigrationStateFailed, finalStatus.State, "migration should be in Failed state")
-	require.Contains(t, finalStatus.Error, "migration phase execution not yet implemented",
+	require.Contains(t, finalStatus.Error, "kURL migration phase execution not yet implemented",
 		"expected skeleton error message in status")
 }
