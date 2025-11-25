@@ -124,7 +124,7 @@ func (m *EmbeddedCluster) buildBinary(
 		WithFile(fmt.Sprintf("/workspace/output/bins/fio-%s-%s", fioVersion, m.BuildMetadata.Arch), fioBinary)
 
 	// Build the embedded-cluster binary
-	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s", m.BuildMetadata.LAMImageRepo)
+	localArtifactMirrorImage := fmt.Sprintf("proxy.replicated.com/anonymous/%s:%s", m.BuildMetadata.LAMImageRepo, m.BuildMetadata.LAMImageTag)
 
 	// Mount web build directory
 	builder = builder.WithDirectory("/workspace/web", webBuild)
