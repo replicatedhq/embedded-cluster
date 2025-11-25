@@ -425,6 +425,8 @@ jobs:
             fio/**
             local-artifact-mirror/**
             scripts/**
+            !**/*_test.go
+            !**/integration/**
 
   build-install:
     name: Build current
