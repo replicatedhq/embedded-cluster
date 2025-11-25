@@ -180,7 +180,6 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
-
 .PHONY: initial-release
 initial-release: EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: APP_VERSION = appver-dev-$(call random-string)
@@ -207,7 +206,7 @@ initial-release: check-env-OP_SERVICE_ACCOUNT_TOKEN check-env-EC_VERSION check-e
 .PHONY: rebuild-release
 rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-rebuild-release: UPLOAD_BINARIES ?= 1
+rebuild-release: UPLOAD_BINARIES ?= 0
 rebuild-release: export APP_CHANNEL ?= Dev
 rebuild-release: export APP_CHANNEL_ID ?= 2lhrq5LDyoX98BdxmkHtdoqMT4P
 rebuild-release: export APP_CHANNEL_SLUG ?= dev

@@ -29,6 +29,9 @@ func (m *EmbeddedCluster) BuildBin(
 	// S3 bucket for artifact URLs
 	// +default="dev-embedded-cluster-bin"
 	s3Bucket string,
+	// GitHub token
+	// +optional
+	githubToken *dagger.Secret,
 ) (*EmbeddedCluster, error) {
 	if m.BuildMetadata == nil {
 		return nil, fmt.Errorf("build metadata is required")
@@ -52,6 +55,7 @@ func (m *EmbeddedCluster) BuildBin(
 		src,
 		webBuild,
 		s3Bucket,
+		githubToken,
 		s3Bucket != StagingS3Bucket,
 	)
 	if err != nil {
@@ -70,6 +74,7 @@ func (m *EmbeddedCluster) buildBinary(
 	src *dagger.Directory,
 	webBuild *dagger.Directory,
 	s3Bucket string,
+	githubToken *dagger.Secret,
 	usesDevBucket bool,
 ) (*dagger.Directory, error) {
 	// Use cached build environment
@@ -78,6 +83,10 @@ func (m *EmbeddedCluster) buildBinary(
 	// Set build environment variables
 	builder = m.BuildMetadata.withEnvVariables(builder).
 		WithEnvVariable("IMAGES_REGISTRY_SERVER", "ttl.sh")
+
+	if githubToken != nil {
+		builder = builder.WithSecretVariable("GH_TOKEN", githubToken)
+	}
 
 	// Run make build-deps (generate CRDs and dependencies)
 	builder = builder.

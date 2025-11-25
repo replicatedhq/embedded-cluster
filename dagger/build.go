@@ -109,6 +109,7 @@ func (m *EmbeddedCluster) BuildAndRelease(
 		ctx,
 		src,
 		s3Bucket,
+		githubToken,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build binary: %w", err)
