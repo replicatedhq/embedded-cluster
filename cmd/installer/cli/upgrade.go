@@ -110,7 +110,7 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				logrus.Info("")
 
 				// Start the API in migration mode
-				if err := runMigrationAPI(ctx, flags, appTitle); err != nil {
+				if err := runKURLMigrationAPI(ctx, flags, appTitle); err != nil {
 					return err
 				}
 
@@ -680,11 +680,11 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConf
 	return nil
 }
 
-// runMigrationAPI starts the API server in migration mode for kURL to EC migration.
+// runKURLMigrationAPI starts the API server in migration mode for kURL to EC migration.
 // TODO(sc-130983): This is a minimal implementation. Future enhancements needed:
 // - Read TLS certificates from kURL cluster
 // - Add proper error handling and cleanup
-func runMigrationAPI(
+func runKURLMigrationAPI(
 	ctx context.Context, flags UpgradeCmdFlags, appTitle string,
 ) (finalErr error) {
 	// Get kURL cluster config to read password hash
