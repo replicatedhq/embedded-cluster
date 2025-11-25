@@ -41,14 +41,14 @@ func TestIntegration_ResolvConf(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		fileContent      string
+		collectorContent string
 		findAnalyzerFn   func(a *troubleshootv1beta2.HostAnalyze) bool
 		modifyAnalyzerFn func(a *troubleshootv1beta2.HostAnalyze, fileName string)
 		expectOutput     *apitypes.PreflightsOutput
 	}{
 		{
 			name:             "valid IPv4 nameserver passes",
-			fileContent:      "nameserver 8.8.8.8\n",
+			collectorContent: "nameserver 8.8.8.8\n",
 			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -64,14 +64,14 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		},
 		{
 			name:             "valid IPv6 nameserver passes",
-			fileContent:      "nameserver 2001:4860:4860::8888\n",
+			collectorContent: "nameserver 2001:4860:4860::8888\n",
 			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
 				Pass: []apitypes.PreflightsRecord{
 					{
 						Title:   "Resolver Configuration",
-						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+						Message: "No local nameserver entries detected in resolv.conf",
 					},
 				},
 				Fail: nil,
@@ -80,14 +80,14 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		},
 		{
 			name:             "mixed IPv4 and IPv6 nameservers pass",
-			fileContent:      "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
+			collectorContent: "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
 			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
 				Pass: []apitypes.PreflightsRecord{
 					{
 						Title:   "Resolver Configuration",
-						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
+						Message: "No local nameserver entries detected in resolv.conf",
 					},
 				},
 				Fail: nil,
@@ -96,7 +96,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		},
 		{
 			name:             "IPv4 localhost fails",
-			fileContent:      "nameserver 127.0.0.1\n",
+			collectorContent: "nameserver 127.0.0.1\n",
 			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -104,7 +104,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 				Fail: []apitypes.PreflightsRecord{
 					{
 						Title:   "Resolver Configuration",
-						Message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf.",
+						Message: "Local DNS resolver detected. Remove the localhost, 127.0.0.1, ::1, and/or ::ffff:127.0.0.1 nameserver entries from resolv.conf.",
 					},
 				},
 				Warn: nil,
@@ -112,41 +112,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		},
 		{
 			name:             "IPv6 localhost fails",
-			fileContent:      "nameserver ::1\n",
-			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
-			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
-			expectOutput: &apitypes.PreflightsOutput{
-				Pass: []apitypes.PreflightsRecord{
-					{
-						Title:   "Resolver Configuration",
-						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
-					},
-				},
-				Fail: nil,
-				Warn: nil,
-			},
-		},
-		{
-			name:           "IPv4-mapped IPv6 localhost fails",
-			fileContent:    "nameserver ::ffff:127.0.0.1\n",
-			findAnalyzerFn: findResolverConfigurationAnalyzerFn,
-			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
-				a.TextAnalyze.FileName = fileName
-			},
-			expectOutput: &apitypes.PreflightsOutput{
-				Pass: []apitypes.PreflightsRecord{
-					{
-						Title:   "Resolver Configuration",
-						Message: "Neither 'nameserver localhost' nor 'nameserver 127.0.01' is present in resolv.conf",
-					},
-				},
-				Fail: nil,
-				Warn: nil,
-			},
-		},
-		{
-			name:             "mixed public and localhost fails",
-			fileContent:      "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
+			collectorContent: "nameserver ::1\n",
 			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -154,7 +120,39 @@ func TestIntegration_ResolvConf(t *testing.T) {
 				Fail: []apitypes.PreflightsRecord{
 					{
 						Title:   "Resolver Configuration",
-						Message: "Local DNS resolver detected. Remove the localhost and/or 127.0.0.1 nameserver entries from resolv.conf.",
+						Message: "Local DNS resolver detected. Remove the localhost, 127.0.0.1, ::1, and/or ::ffff:127.0.0.1 nameserver entries from resolv.conf.",
+					},
+				},
+				Warn: nil,
+			},
+		},
+		{
+			name:             "IPv4-mapped IPv6 localhost fails",
+			collectorContent: "nameserver ::ffff:127.0.0.1\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Local DNS resolver detected. Remove the localhost, 127.0.0.1, ::1, and/or ::ffff:127.0.0.1 nameserver entries from resolv.conf.",
+					},
+				},
+				Warn: nil,
+			},
+		},
+		{
+			name:             "mixed public and localhost fails",
+			collectorContent: "nameserver 8.8.8.8\nnameserver 127.0.0.1\n",
+			findAnalyzerFn:   findResolverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
+			expectOutput: &apitypes.PreflightsOutput{
+				Pass: nil,
+				Fail: []apitypes.PreflightsRecord{
+					{
+						Title:   "Resolver Configuration",
+						Message: "Local DNS resolver detected. Remove the localhost, 127.0.0.1, ::1, and/or ::ffff:127.0.0.1 nameserver entries from resolv.conf.",
 					},
 				},
 				Warn: nil,
@@ -163,7 +161,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		// Tests for "Nameserver Configuration" analyzer
 		{
 			name:             "IPv4 nameserver configured passes",
-			fileContent:      "nameserver 8.8.8.8\n",
+			collectorContent: "nameserver 8.8.8.8\n",
 			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -178,26 +176,24 @@ func TestIntegration_ResolvConf(t *testing.T) {
 			},
 		},
 		{
-			name:           "IPv6 nameserver configured fails (IPv4-only regex)",
-			fileContent:    "nameserver 2001:4860:4860::8888\n",
-			findAnalyzerFn: findNameserverConfigurationAnalyzerFn,
-			modifyAnalyzerFn: func(a *troubleshootv1beta2.HostAnalyze, fileName string) {
-				a.TextAnalyze.FileName = fileName
-			},
+			name:             "IPv6 nameserver configured passes",
+			collectorContent: "nameserver 2001:4860:4860::8888\n",
+			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
+			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
-				Pass: nil,
-				Fail: []apitypes.PreflightsRecord{
+				Pass: []apitypes.PreflightsRecord{
 					{
 						Title:   "Nameserver Configuration",
-						Message: "No nameservers are configured in resolv.conf. Update resolv.conf to include at least one nameserver.",
+						Message: "Nameservers are configured in resolv.conf.",
 					},
 				},
+				Fail: nil,
 				Warn: nil,
 			},
 		},
 		{
 			name:             "mixed IPv4 and IPv6 nameservers pass",
-			fileContent:      "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
+			collectorContent: "nameserver 8.8.8.8\nnameserver 2001:4860:4860::8888\n",
 			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -213,7 +209,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 		},
 		{
 			name:             "no nameservers fails",
-			fileContent:      "search example.com\n",
+			collectorContent: "search example.com\n",
 			findAnalyzerFn:   findNameserverConfigurationAnalyzerFn,
 			modifyAnalyzerFn: modifyTextAnalyzeFileNameFn,
 			expectOutput: &apitypes.PreflightsOutput{
@@ -248,9 +244,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 			}
 			req.NotNil(analyzer, "Expected to find analyzer")
 
-			tt.modifyAnalyzerFn(analyzer, "host-collectors/run-host/test.txt")
-
-			base64Content := base64.StdEncoding.EncodeToString([]byte(tt.fileContent))
+			tt.modifyAnalyzerFn(analyzer, echoCollectorHostPath())
 
 			// Run the preflight binary
 			runner := preflights.New()
@@ -260,15 +254,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 
 			spec := &troubleshootv1beta2.HostPreflightSpec{
 				Collectors: []*troubleshootv1beta2.HostCollect{
-					{
-						HostRun: &troubleshootv1beta2.HostRun{
-							HostCollectorMeta: troubleshootv1beta2.HostCollectorMeta{
-								CollectorName: "test",
-							},
-							Command: "sh",
-							Args:    []string{"-c", "echo -n '" + base64Content + "' | base64 -d"},
-						},
-					},
+					echoCollector(tt.collectorContent),
 				},
 				Analyzers: []*troubleshootv1beta2.HostAnalyze{analyzer},
 			}
@@ -283,16 +269,6 @@ func TestIntegration_ResolvConf(t *testing.T) {
 
 			req.NotNil(output, "Expected output from preflight run")
 
-			// Log all results
-			t.Logf("Pass checks: %d", len(output.Pass))
-			for _, p := range output.Pass {
-				t.Logf("  ✓ %s: %s", p.Title, p.Message)
-			}
-			t.Logf("Fail checks: %d", len(output.Fail))
-			for _, f := range output.Fail {
-				t.Logf("  ✗ %s: %s", f.Title, f.Message)
-			}
-
 			// Verify expectations
 			req.Equal(tt.expectOutput, output)
 		})
@@ -306,4 +282,21 @@ func findAnalyzer(analyzers []*troubleshootv1beta2.HostAnalyze, fn func(*trouble
 		}
 	}
 	return nil
+}
+
+func echoCollector(content string) *troubleshootv1beta2.HostCollect {
+	base64Content := base64.StdEncoding.EncodeToString([]byte(content))
+	return &troubleshootv1beta2.HostCollect{
+		HostRun: &troubleshootv1beta2.HostRun{
+			HostCollectorMeta: troubleshootv1beta2.HostCollectorMeta{
+				CollectorName: "test",
+			},
+			Command: "sh",
+			Args:    []string{"-c", "printf '%s' '" + base64Content + "' | base64 -d"},
+		},
+	}
+}
+
+func echoCollectorHostPath() string {
+	return "host-collectors/run-host/test.txt"
 }
