@@ -1,6 +1,7 @@
 package kurlmigration
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
@@ -28,12 +29,24 @@ func WithController(controller kurlmigration.Controller) Option {
 	}
 }
 
-func New(opts ...Option) *Handler {
+func New(opts ...Option) (*Handler, error) {
 	h := &Handler{}
 	for _, opt := range opts {
 		opt(h)
 	}
-	return h
+
+	// Create controller internally if not provided via option
+	if h.controller == nil {
+		controller, err := kurlmigration.NewKURLMigrationController(
+			kurlmigration.WithLogger(h.logger),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create kurl migration controller: %w", err)
+		}
+		h.controller = controller
+	}
+
+	return h, nil
 }
 
 // GetInstallationConfig handler to get the installation config for migration

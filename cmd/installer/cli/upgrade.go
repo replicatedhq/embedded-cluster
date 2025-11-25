@@ -681,7 +681,7 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConf
 }
 
 // runMigrationAPI starts the API server in migration mode for kURL to EC migration.
-// TODO: This is a minimal implementation. Future enhancements needed:
+// TODO(sc-130983): This is a minimal implementation. Future enhancements needed:
 // - Read TLS certificates from kURL cluster
 // - Add proper error handling and cleanup
 func runMigrationAPI(
@@ -704,7 +704,7 @@ func runMigrationAPI(
 	}
 	pwdHash := []byte(pwdHashStr)
 
-	// TODO: Read TLS config from kURL cluster (for now, generate self-signed)
+	// TODO(sc-130983): Read TLS config from kURL cluster (for now, generate self-signed)
 	cert, certBytes, keyBytes, err := tlsutils.GenerateCertificate("localhost", nil, "default")
 	if err != nil {
 		return fmt.Errorf("failed to generate TLS certificate: %w", err)

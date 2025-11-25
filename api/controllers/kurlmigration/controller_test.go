@@ -6,6 +6,7 @@ import (
 	"time"
 
 	migrationmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/kurlmigration"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	migrationstore "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/stretchr/testify/assert"
@@ -346,8 +347,10 @@ func TestStartMigration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockManager := &migrationmanager.MockManager{}
-			mockStore := &migrationstore.MockStore{}
-			tt.setupMock(mockManager, mockStore)
+			// Create unified store with empty migration store
+			mockStore := &store.MockStore{}
+			// Set up expectations on the unified store's migration store field
+			tt.setupMock(mockManager, &mockStore.MigrationMockStore)
 
 			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
@@ -374,7 +377,7 @@ func TestStartMigration(t *testing.T) {
 			}
 
 			mockManager.AssertExpectations(t)
-			mockStore.AssertExpectations(t)
+			mockStore.MigrationMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -427,8 +430,10 @@ func TestGetMigrationStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockStore := &migrationstore.MockStore{}
-			tt.setupMock(mockStore)
+			// Create unified store with empty migration store
+			mockStore := &store.MockStore{}
+			// Set up expectations on the unified store's migration store field
+			tt.setupMock(&mockStore.MigrationMockStore)
 
 			mockManager := &migrationmanager.MockManager{}
 			controller, err := NewKURLMigrationController(
@@ -454,7 +459,7 @@ func TestGetMigrationStatus(t *testing.T) {
 				assert.Equal(t, tt.expectedValue, result)
 			}
 
-			mockStore.AssertExpectations(t)
+			mockStore.MigrationMockStore.AssertExpectations(t)
 		})
 	}
 }
@@ -553,8 +558,10 @@ func TestRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockManager := &migrationmanager.MockManager{}
-			mockStore := &migrationstore.MockStore{}
-			tt.setupMock(mockManager, mockStore)
+			// Create unified store with empty migration store
+			mockStore := &store.MockStore{}
+			// Set up expectations on the unified store's migration store field
+			tt.setupMock(mockManager, &mockStore.MigrationMockStore)
 
 			controller, err := NewKURLMigrationController(
 				WithManager(mockManager),
@@ -570,7 +577,7 @@ func TestRun(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			mockStore.AssertExpectations(t)
+			mockStore.MigrationMockStore.AssertExpectations(t)
 		})
 	}
 }

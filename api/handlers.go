@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 
-	kurlmigration "github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	authhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/auth"
 	consolehandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/console"
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
@@ -71,22 +70,14 @@ func (a *API) initHandlers() error {
 		}
 		a.handlers.linux = linuxHandler
 
-		// Initialize kURL migration controller if not already set
-		if a.kurlMigrationController == nil {
-			kurlMigrationController, err := kurlmigration.NewKURLMigrationController(
-				kurlmigration.WithLogger(a.logger),
-			)
-			if err != nil {
-				return fmt.Errorf("create kurl migration controller: %w", err)
-			}
-			a.kurlMigrationController = kurlMigrationController
-		}
-
 		// kURL Migration handler (Linux only)
-		kurlMigrationHandler := kurlmigrationhandler.New(
+		kurlMigrationHandler, err := kurlmigrationhandler.New(
 			kurlmigrationhandler.WithLogger(a.logger),
 			kurlmigrationhandler.WithController(a.kurlMigrationController),
 		)
+		if err != nil {
+			return fmt.Errorf("new kurl migration handler: %w", err)
+		}
 		a.handlers.kurlmigration = kurlMigrationHandler
 	} else {
 		// Kubernetes handler
