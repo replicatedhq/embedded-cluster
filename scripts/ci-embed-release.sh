@@ -15,7 +15,6 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
-V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
 require EC_BINARY "${EC_BINARY:-}"
@@ -80,11 +79,6 @@ function create_release_archive() {
     fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    if [ "$V2_ENABLED" == "1" ]; then
-        sed -i.bak "s|__v2_enabled__|true|g" output/tmp/release/cluster-config.yaml
-    else
-        sed -i.bak "s|__v2_enabled__|false|g" output/tmp/release/cluster-config.yaml
-    fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
     

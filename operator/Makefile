@@ -158,7 +158,7 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 melange-build-operator:
 	dagger call build-operator-package \
 		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
+		--k-0-sminor-version $(K0S_MINOR_VERSION) \
 		--arch $(ARCH) \
 		export --path build
 
@@ -174,7 +174,7 @@ build-operator-image:
 build-operator-image-chainguard:
 	dagger call build-operator-image \
 		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
+		--k-0-sminor-version $(K0S_MINOR_VERSION) \
 		--repo $(IMAGE_NAME) \
 		--arch $(ARCH) \
 		export --path build/operator-package
@@ -209,7 +209,7 @@ ifdef REGISTRY_SERVER
 			--password env:REGISTRY_PASSWORD \
 		publish-operator-image \
 			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
+			--k-0-sminor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest
@@ -217,7 +217,7 @@ else
 	dagger call \
 		publish-operator-image \
 			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
+			--k-0-sminor-version $(K0S_MINOR_VERSION) \
 			--repo $(IMAGE_NAME) \
 			--arch $(ARCH) \
 	> build/digest

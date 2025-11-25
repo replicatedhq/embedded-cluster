@@ -10,7 +10,7 @@ K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
-ARCH=${ARCH:-$(go env GOARCH)}
+ARCH=${ARCH:-}
 
 require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
 require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
@@ -24,9 +24,13 @@ function init_vars() {
     if [ -z "${K0S_VERSION:-}" ]; then
         K0S_VERSION=$(make print-K0S_VERSION)
     fi
+    if [ -z "${ARCH:-}" ]; then
+        ARCH=$(go env GOARCH)
+    fi
 
     require EC_VERSION "${EC_VERSION:-}"
     require K0S_VERSION "${K0S_VERSION:-}"
+    require ARCH "${ARCH:-}"
 }
 
 function k0sbin() {
@@ -68,23 +72,30 @@ function k0sbin() {
 }
 
 function operatorbin() {
-    local operator_image=""
     local operator_version=""
-
-    if [ ! -f "operator/build/image-$EC_VERSION" ]; then
-        fail "file operator/build/image-$EC_VERSION not found"
-    fi
-
-    operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
-    mkdir -p operator/bin
-    docker cp operator:/manager operator/bin/operator
-    docker rm -f operator
+    # Check if the operator binary tarball already exists in build/ (pre-extracted by Dagger build)
+    if [ -f "build/${operator_version}.tar.gz" ]; then
+        echo "Using pre-extracted operator binary from build/${operator_version}.tar.gz"
+    else
+        # Fallback: extract from operator image using crane (no Docker required)
+        local operator_image=""
 
-    # compress the operator binary
-    tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
+        if [ ! -f "operator/build/image-$EC_VERSION" ]; then
+            fail "file operator/build/image-$EC_VERSION not found and no pre-extracted binary available"
+        fi
+
+        operator_image=$(cat "operator/build/image-$EC_VERSION")
+
+        echo "Extracting operator binary from image using crane"
+        mkdir -p operator/bin
+        crane export "$operator_image" --platform "linux/$ARCH" - | tar -xf - -C operator/bin manager
+        mv operator/bin/manager operator/bin/operator
+
+        # compress the operator binary
+        tar -czvf "build/${operator_version}.tar.gz" -C operator/bin operator
+    fi
 
     # upload the binary to the bucket
     retry 3 aws s3 cp --no-progress "build/${operator_version}.tar.gz" "s3://${S3_BUCKET}/operator-binaries/${operator_version}-${ARCH}.tar.gz"

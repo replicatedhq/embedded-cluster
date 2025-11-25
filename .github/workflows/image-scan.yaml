@@ -54,14 +54,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
       - name: Compile buildtools
         run: |
           make buildtools
+
       - name: Upload buildtools artifact
         uses: actions/upload-artifact@v5
         with:
@@ -90,10 +92,6 @@ jobs:
         with:
           name: buildtools
           path: output/bin
-
-      - name: Compile buildtools
-        run: |
-          make buildtools
 
       - name: Update embedded-cluster-operator metadata.yaml
         env:

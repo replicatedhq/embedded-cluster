@@ -300,6 +300,7 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 		RepositoryConfig: h.repocfg,
 		RepositoryCache:  h.tmpdir,
 		Getters:          getters,
+		RegistryClient:   h.regcli,
 	}
 
 	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
