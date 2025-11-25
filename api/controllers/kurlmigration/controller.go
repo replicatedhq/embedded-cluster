@@ -93,7 +93,7 @@ func NewKURLMigrationController(opts ...ControllerOption) (*KURLMigrationControl
 	// Create manager internally if not provided via option
 	if controller.manager == nil {
 		controller.manager = kurlmigrationmanager.NewManager(
-			kurlmigrationmanager.WithStore(controller.store.MigrationStore()),
+			kurlmigrationmanager.WithStore(controller.store.KURLMigrationStore()),
 			kurlmigrationmanager.WithLogger(controller.logger),
 			kurlmigrationmanager.WithInstallationManager(controller.installationManager),
 		)
@@ -121,7 +121,7 @@ func (c *KURLMigrationController) GetInstallationConfig(ctx context.Context) (ty
 	}
 
 	// Get user config from store (will be empty if user hasn't submitted config yet)
-	userConfig, err := c.store.MigrationStore().GetUserConfig()
+	userConfig, err := c.store.KURLMigrationStore().GetUserConfig()
 	if err != nil {
 		c.logger.WithError(err).Error("get user config")
 		return types.LinuxInstallationConfigResponse{}, fmt.Errorf("get user config: %w", err)
@@ -157,7 +157,7 @@ func (c *KURLMigrationController) StartKURLMigration(ctx context.Context, transf
 	}
 
 	// Check if migration already exists
-	if _, err := c.store.MigrationStore().GetMigrationID(); err == nil {
+	if _, err := c.store.KURLMigrationStore().GetMigrationID(); err == nil {
 		c.logger.Warn("kURL migration already in progress")
 		return "", types.NewConflictError(types.ErrKURLMigrationAlreadyStarted)
 	}
@@ -183,19 +183,19 @@ func (c *KURLMigrationController) StartKURLMigration(ctx context.Context, transf
 	c.logger.WithField("resolvedConfig", resolvedConfig).Debug("config merged")
 
 	// Store user-provided config for future reference
-	if err := c.store.MigrationStore().SetUserConfig(config); err != nil {
+	if err := c.store.KURLMigrationStore().SetUserConfig(config); err != nil {
 		c.logger.WithError(err).Error("store user config")
 		return "", fmt.Errorf("store user config: %w", err)
 	}
 
 	// Initialize migration in store with resolved config
-	if err := c.store.MigrationStore().InitializeMigration(migrationID, string(transferMode), resolvedConfig); err != nil {
+	if err := c.store.KURLMigrationStore().InitializeMigration(migrationID, string(transferMode), resolvedConfig); err != nil {
 		c.logger.WithError(err).Error("initialize migration")
 		return "", fmt.Errorf("initialize migration: %w", err)
 	}
 
 	// Set initial state to NotStarted
-	if err := c.store.MigrationStore().SetState(types.KURLMigrationStateNotStarted); err != nil {
+	if err := c.store.KURLMigrationStore().SetState(types.KURLMigrationStateNotStarted); err != nil {
 		c.logger.WithError(err).Error("set initial state")
 		return "", fmt.Errorf("set initial state: %w", err)
 	}
@@ -219,7 +219,7 @@ func (c *KURLMigrationController) StartKURLMigration(ctx context.Context, transf
 func (c *KURLMigrationController) GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error) {
 	c.logger.Debug("fetching kURL migration status")
 
-	status, err := c.store.MigrationStore().GetStatus()
+	status, err := c.store.KURLMigrationStore().GetStatus()
 	if err != nil {
 		if err == types.ErrNoActiveKURLMigration {
 			c.logger.Warn("no active kURL migration found")
@@ -257,10 +257,10 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 
 		// Handle any error by updating state to Failed
 		if finalErr != nil {
-			if err := c.store.MigrationStore().SetState(types.KURLMigrationStateFailed); err != nil {
+			if err := c.store.KURLMigrationStore().SetState(types.KURLMigrationStateFailed); err != nil {
 				c.logger.WithError(err).Error("failed to set kURL migration state to failed")
 			}
-			if err := c.store.MigrationStore().SetError(finalErr.Error()); err != nil {
+			if err := c.store.KURLMigrationStore().SetError(finalErr.Error()); err != nil {
 				c.logger.WithError(err).Error("failed to set kURL migration error message")
 			}
 		}
@@ -270,7 +270,7 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 	// This is a skeleton implementation that will be expanded in that PR
 
 	// Get current state from store
-	status, err := c.store.MigrationStore().GetStatus()
+	status, err := c.store.KURLMigrationStore().GetStatus()
 	if err != nil {
 		c.logger.WithError(err).Error("get status")
 		return fmt.Errorf("get status: %w", err)
@@ -300,13 +300,13 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 		c.logger.WithField("phase", phase).Info("executing phase (skeleton)")
 
 		// Set state to InProgress
-		if err := c.store.MigrationStore().SetState(types.KURLMigrationStateInProgress); err != nil {
+		if err := c.store.KURLMigrationStore().SetState(types.KURLMigrationStateInProgress); err != nil {
 			c.logger.WithError(err).Error("set state to in progress")
 			return fmt.Errorf("set state: %w", err)
 		}
 
 		// Set current phase
-		if err := c.store.MigrationStore().SetPhase(phase); err != nil {
+		if err := c.store.KURLMigrationStore().SetPhase(phase); err != nil {
 			c.logger.WithError(err).Error("set phase")
 			return fmt.Errorf("set phase: %w", err)
 		}
@@ -322,7 +322,7 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 	// Note: If this fails, we log it but don't return an error because the migration itself succeeded.
 	// Returning an error here would cause the defer to mark the migration as Failed, which is incorrect
 	// since all phases completed successfully. The state update failure is a separate concern.
-	if err := c.store.MigrationStore().SetState(types.KURLMigrationStateCompleted); err != nil {
+	if err := c.store.KURLMigrationStore().SetState(types.KURLMigrationStateCompleted); err != nil {
 		c.logger.WithError(err).Error("kURL migration completed successfully but failed to update state to Completed")
 		// Don't return error - migration succeeded even if state update failed
 	} else {

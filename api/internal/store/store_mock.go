@@ -29,7 +29,7 @@ type MockStore struct {
 	AppInstallMockStore             appinstall.MockStore
 	AppUpgradeMockStore             appupgrade.MockStore
 	AirgapMockStore                 airgap.MockStore
-	MigrationMockStore              kurlmigration.MockStore
+	KURLMigrationMockStore          kurlmigration.MockStore
 }
 
 // LinuxPreflightStore returns the mock linux preflight store
@@ -82,9 +82,9 @@ func (m *MockStore) AirgapStore() airgap.Store {
 	return &m.AirgapMockStore
 }
 
-// MigrationStore returns the mock kURL migration store
-func (m *MockStore) MigrationStore() kurlmigration.Store {
-	return &m.MigrationMockStore
+// KURLMigrationStore returns the mock kURL migration store
+func (m *MockStore) KURLMigrationStore() kurlmigration.Store {
+	return &m.KURLMigrationMockStore
 }
 
 // AssertExpectations asserts expectations on all embedded mock stores
@@ -99,5 +99,5 @@ func (m *MockStore) AssertExpectations(t *testing.T) {
 	m.AppInstallMockStore.AssertExpectations(t)
 	m.AppUpgradeMockStore.AssertExpectations(t)
 	m.AirgapMockStore.AssertExpectations(t)
-	m.MigrationMockStore.AssertExpectations(t)
+	m.KURLMigrationMockStore.AssertExpectations(t)
 }
