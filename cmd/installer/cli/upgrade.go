@@ -102,14 +102,14 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			// Check if this is a kURL cluster that needs migration to Embedded Cluster.
 			kurlMigrationNeeded, err := detectKurlMigration(ctx)
 			if err != nil {
-				return fmt.Errorf("failed to detect migration scenario: %w", err)
+				return fmt.Errorf("failed to detect kURL migration scenario: %w", err)
 			}
 
 			if kurlMigrationNeeded {
 				logrus.Info("Preparing to upgrade from kURL to Embedded Cluster...")
 				logrus.Info("")
 
-				// Start the API in migration mode
+				// Start the API in kURL migration mode
 				if err := runKURLMigrationAPI(ctx, flags, appTitle); err != nil {
 					return err
 				}
@@ -752,10 +752,10 @@ func runKURLMigrationAPI(
 		return fmt.Errorf("failed to get size of embedded files: %w", err)
 	}
 
-	// Create a minimal runtime config for migration mode
+	// Create a minimal runtime config for kURL migration mode
 	rc := runtimeconfig.New(nil)
 
-	// Prepare API config for migration mode
+	// Prepare API config for kURL migration mode
 	apiConfig := apiOptions{
 		APIConfig: apitypes.APIConfig{
 			InstallTarget:      apitypes.InstallTarget(flags.target),
@@ -766,7 +766,7 @@ func runKURLMigrationAPI(
 			AirgapMetadata:     airgapMetadata,
 			EmbeddedAssetsSize: assetsSize,
 			ReleaseData:        releaseData,
-			Mode:               apitypes.ModeUpgrade, // Use upgrade mode for migration
+			Mode:               apitypes.ModeUpgrade, // Use upgrade mode for kURL migration
 
 			LinuxConfig: apitypes.LinuxConfig{
 				RuntimeConfig: rc,

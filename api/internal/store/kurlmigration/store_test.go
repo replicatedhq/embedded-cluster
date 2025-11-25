@@ -11,7 +11,7 @@ func TestNewMemoryStore(t *testing.T) {
 	store := NewMemoryStore()
 	assert.NotNil(t, store)
 
-	// Should return error when no migration is initialized
+	// Should return error when no kURL migration is initialized
 	_, err := store.GetMigrationID()
 	assert.ErrorIs(t, err, types.ErrNoActiveKURLMigration)
 }
@@ -67,7 +67,7 @@ func TestInitializeMigrationTwice(t *testing.T) {
 func TestSetState(t *testing.T) {
 	store := NewMemoryStore()
 
-	// Should return error when no migration is initialized
+	// Should return error when no kURL migration is initialized
 	err := store.SetState(types.KURLMigrationStateInProgress)
 	assert.ErrorIs(t, err, types.ErrNoActiveKURLMigration)
 
@@ -133,12 +133,12 @@ func TestSetError(t *testing.T) {
 	err := store.InitializeMigration("test-id", "copy", config)
 	assert.NoError(t, err)
 
-	err = store.SetError("migration failed")
+	err = store.SetError("kURL migration failed")
 	assert.NoError(t, err)
 
 	status, err := store.GetStatus()
 	assert.NoError(t, err)
-	assert.Equal(t, "migration failed", status.Error)
+	assert.Equal(t, "kURL migration failed", status.Error)
 }
 
 func TestStoreOptions(t *testing.T) {
@@ -160,7 +160,7 @@ func TestStoreOptions(t *testing.T) {
 		WithStatus(status),
 	)
 
-	// Verify migration is pre-initialized
+	// Verify kURL migration is pre-initialized
 	id, err := store.GetMigrationID()
 	assert.NoError(t, err)
 	assert.Equal(t, "pre-initialized", id)

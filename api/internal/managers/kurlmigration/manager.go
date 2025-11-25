@@ -27,7 +27,7 @@ type Manager interface {
 	// ValidateTransferMode validates the transfer mode is "copy" or "move"
 	ValidateTransferMode(mode types.TransferMode) error
 
-	// ExecutePhase executes a migration phase
+	// ExecutePhase executes a kURL migration phase
 	ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error
 }
 
@@ -177,7 +177,7 @@ func (m *kurlMigrationManager) ValidateTransferMode(mode types.TransferMode) err
 	}
 }
 
-// ExecutePhase executes a migration phase
+// ExecutePhase executes a kURL migration phase
 func (m *kurlMigrationManager) ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error {
 	// TODO(sc-130983): Implement phase execution
 	// This will handle:

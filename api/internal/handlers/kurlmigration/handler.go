@@ -49,12 +49,12 @@ func New(opts ...Option) (*Handler, error) {
 	return h, nil
 }
 
-// GetInstallationConfig handler to get the installation config for migration
+// GetInstallationConfig handler to get the installation config for kURL migration
 //
-//	@ID				getMigrationInstallationConfig
-//	@Summary		Get the installation config for migration
+//	@ID				getKURLMigrationInstallationConfig
+//	@Summary		Get the installation config for kURL migration
 //	@Description	Get the installation config extracted from kURL merged with EC defaults
-//	@Tags			migration
+//	@Tags			kurl-migration
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.LinuxInstallationConfigResponse
@@ -75,11 +75,11 @@ func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) 
 //	@ID				postStartMigration
 //	@Summary		Start a migration from kURL to Embedded Cluster
 //	@Description	Start a migration from kURL to Embedded Cluster with the provided configuration
-//	@Tags			migration
+//	@Tags			kurl-migration
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Param			request	body		types.StartKURLMigrationRequest	true	"Start Migration Request"
+//	@Param			request	body		types.StartKURLMigrationRequest	true	"Start kURL Migration Request"
 //	@Success		200		{object}	types.StartKURLMigrationResponse
 //	@Failure		400		{object}	types.APIError
 //	@Failure		409		{object}	types.APIError
@@ -103,25 +103,25 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 
 	migrationID, err := h.controller.StartKURLMigration(r.Context(), request.TransferMode, config)
 	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to start migration")
+		utils.LogError(r, err, h.logger, "failed to start kURL migration")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}
 
 	response := types.StartKURLMigrationResponse{
 		MigrationID: migrationID,
-		Message:     "migration started successfully",
+		Message:     "kURL migration started successfully",
 	}
 
 	utils.JSON(w, r, http.StatusOK, response, h.logger)
 }
 
-// GetMigrationStatus handler to get the status of the migration
+// GetMigrationStatus handler to get the status of the kURL migration
 //
-//	@ID				getMigrationStatus
-//	@Summary		Get the status of the migration
-//	@Description	Get the current status and progress of the migration
-//	@Tags			migration
+//	@ID				getKURLMigrationStatus
+//	@Summary		Get the status of the kURL migration
+//	@Description	Get the current status and progress of the kURL migration
+//	@Tags			kurl-migration
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.KURLMigrationStatusResponse
@@ -130,7 +130,7 @@ func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
 	status, err := h.controller.GetKURLMigrationStatus(r.Context())
 	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to get migration status")
+		utils.LogError(r, err, h.logger, "failed to get kURL migration status")
 		utils.JSONError(w, r, err, h.logger)
 		return
 	}

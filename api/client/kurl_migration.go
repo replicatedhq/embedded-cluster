@@ -73,7 +73,7 @@ func (c *client) StartKURLMigration(ctx context.Context, transferMode string, co
 	return result, nil
 }
 
-// GetKURLMigrationStatus returns the current status of the migration.
+// GetKURLMigrationStatus returns the current status of the kURL migration.
 func (c *client) GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/linux/kurl-migration/status", c.apiURL), nil)
 	if err != nil {
