@@ -287,13 +287,12 @@ func (c *KURLMigrationController) Run(ctx context.Context) (finalErr error) {
 		// TODO(sc-130983): Resume logic will be implemented in the orchestration story
 	}
 
-	// Execute phases: Discovery → Preparation → ECInstall → DataTransfer → Completed
+	// Execute phases: Discovery → Preparation → ECInstall → DataTransfer
 	phases := []types.KURLMigrationPhase{
 		types.KURLMigrationPhaseDiscovery,
 		types.KURLMigrationPhasePreparation,
 		types.KURLMigrationPhaseECInstall,
 		types.KURLMigrationPhaseDataTransfer,
-		types.KURLMigrationPhaseCompleted,
 	}
 
 	for _, phase := range phases {
