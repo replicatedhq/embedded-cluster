@@ -7,16 +7,18 @@ import (
 	consolehandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/console"
 	healthhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/health"
 	kuberneteshandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kubernetes"
+	kurlmigrationhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/kurlmigration"
 	linuxhandler "github.com/replicatedhq/embedded-cluster/api/internal/handlers/linux"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
 type handlers struct {
-	auth       *authhandler.Handler
-	console    *consolehandler.Handler
-	health     *healthhandler.Handler
-	linux      *linuxhandler.Handler
-	kubernetes *kuberneteshandler.Handler
+	auth          *authhandler.Handler
+	console       *consolehandler.Handler
+	health        *healthhandler.Handler
+	linux         *linuxhandler.Handler
+	kubernetes    *kuberneteshandler.Handler
+	kurlmigration *kurlmigrationhandler.Handler
 }
 
 func (a *API) initHandlers() error {
@@ -67,6 +69,16 @@ func (a *API) initHandlers() error {
 			return fmt.Errorf("new linux handler: %w", err)
 		}
 		a.handlers.linux = linuxHandler
+
+		// kURL Migration handler (Linux only)
+		kurlMigrationHandler, err := kurlmigrationhandler.New(
+			kurlmigrationhandler.WithLogger(a.logger),
+			kurlmigrationhandler.WithController(a.kurlMigrationController),
+		)
+		if err != nil {
+			return fmt.Errorf("new kurl migration handler: %w", err)
+		}
+		a.handlers.kurlmigration = kurlMigrationHandler
 	} else {
 		// Kubernetes handler
 		kubernetesHandler, err := kuberneteshandler.New(
