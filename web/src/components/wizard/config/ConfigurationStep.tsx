@@ -27,6 +27,29 @@ interface ConfigurationStepProps {
   onNext: () => void;
 }
 
+// Helper function to parse server validation errors from API response
+function parseServerErrors(error: ApiError): Record<string, string> {
+  const itemErrors: Record<string, string> = {};
+
+  // Check if error has structured item errors
+  if (error.fieldErrors) {
+    error.fieldErrors.forEach((itemError) => {
+      // Pass through server error message directly - no client-side enhancement
+      itemErrors[itemError.field] = itemError.message;
+    });
+  }
+
+  return itemErrors;
+};
+
+// Helper function to get the general error message we show at the bottom of the page after a form submission
+export function getGeneralErrorMsgForSubmission(error: ApiError) {
+  if (error.fieldErrors && error.fieldErrors.length > 0) {
+    return "Required items are missing"
+  }
+  return error?.details || error?.message || 'Failed to save configuration'
+}
+
 const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
   const { text, target, mode } = useWizard();
   const { token } = useAuth();
@@ -145,21 +168,6 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     setItemToFocus(item);
   };
 
-  // Helper function to parse server validation errors from API response
-  const parseServerErrors = (error: ApiError): Record<string, string> => {
-    const itemErrors: Record<string, string> = {};
-
-    // Check if error has structured item errors
-    if (error.fieldErrors) {
-      error.fieldErrors.forEach((itemError) => {
-        // Pass through server error message directly - no client-side enhancement
-        itemErrors[itemError.field] = itemError.message;
-      });
-    }
-
-    return itemErrors;
-  };
-
   // Mutation to save config values
   const { mutate: submitConfigValues } = useMutation<void, ApiError>({
     mutationFn: async () => {
@@ -183,7 +191,7 @@ const ConfigurationStep: React.FC<ConfigurationStepProps> = ({ onNext }) => {
     onError: (error: ApiError) => {
       const parsedItemErrors = parseServerErrors(error);
       setItemErrors(parsedItemErrors);
-      setGeneralError(error?.details || error?.message || 'Failed to save configuration');
+      setGeneralError(getGeneralErrorMsgForSubmission(error));
 
       // Focus on the first item with validation error
       const firstErrorItem = findFirstItemWithError(parsedItemErrors);
