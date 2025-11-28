@@ -11,13 +11,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kyaml "sigs.k8s.io/yaml"
 )
 
 func (m *infraManager) Install(ctx context.Context, ki kubernetesinstallation.Installation) error {
@@ -51,12 +51,12 @@ func (m *infraManager) initInstallComponentsList() error {
 }
 
 func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.Installation) error {
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
+	license, err := helpers.ParseLicenseFromBytes(m.license)
+	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
-	_, err := m.recordInstallation(ctx, m.kcli, license, ki)
+	_, err = m.recordInstallation(ctx, m.kcli, license, ki)
 	if err != nil {
 		return fmt.Errorf("record installation: %w", err)
 	}
@@ -77,13 +77,13 @@ func (m *infraManager) install(ctx context.Context, ki kubernetesinstallation.In
 	return nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (*ecv1beta1.Installation, error) {
 	// TODO: we may need this later
 
 	return nil, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -128,7 +128,7 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *licensewrapper.LicenseWrapper, ki kubernetesinstallation.Installation) (addons.KubernetesInstallOptions, error) {
 	// TODO: We should not use the runtimeconfig package for kubernetes target installs. Since runtimeconfig.KotsadmNamespace is
 	// target agnostic, we should move it to a package that can be used by both linux/kubernetes targets.
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
@@ -143,7 +143,7 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		TLSCertBytes:       m.tlsConfig.CertBytes,
 		TLSKeyBytes:        m.tlsConfig.KeyBytes,
 		Hostname:           m.tlsConfig.Hostname,
-		IsMultiNodeEnabled: license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		IsMultiNodeEnabled: license.IsEmbeddedClusterMultiNodeEnabled(),
 		EmbeddedConfigSpec: m.getECConfigSpec(),
 		EndUserConfigSpec:  m.getEndUserConfigSpec(),
 		KotsadmNamespace:   kotsadmNamespace,
