@@ -17,6 +17,7 @@ type TemplateData struct {
 	DataDir          string
 	K0sDataDir       string
 	OpenEBSDataDir   string
+	LogsDir          string
 	IsAirgap         bool
 	ReplicatedAppURL string
 	ProxyRegistryURL string
@@ -36,6 +37,7 @@ func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool)
 		DataDir:          rc.EmbeddedClusterHomeDirectory(),
 		K0sDataDir:       rc.EmbeddedClusterK0sSubDir(),
 		OpenEBSDataDir:   rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		LogsDir:          runtimeconfig.EmbeddedClusterLogsPath(),
 		IsAirgap:         isAirgap,
 		ReplicatedAppURL: netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
 		ProxyRegistryURL: netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
