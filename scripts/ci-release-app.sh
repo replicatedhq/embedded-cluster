@@ -58,7 +58,6 @@ function create_release() {
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
     if uses_dev_bucket "${S3_BUCKET:-}"; then
-        require S3_BUCKET "${S3_BUCKET:-}"
         release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
         metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
     fi
