@@ -99,8 +99,9 @@ function ensure_customer_license_file() {
         return
     fi
 
-    local license_file="${LOCAL_DEV_DIR}/${APP_CHANNEL_SLUG}-license.yaml"
-    if [ -f "${license_file}" ]; then
+    export CUSTOMER_LICENSE_FILE
+    CUSTOMER_LICENSE_FILE="${LOCAL_DEV_DIR}/${APP_CHANNEL_SLUG}-license.yaml"
+    if [ -f "${CUSTOMER_LICENSE_FILE}" ]; then
         return
     fi
 
@@ -125,10 +126,9 @@ function ensure_customer_license_file() {
     local customer_id
     customer_id=$(echo "$customer_json" | jq -r '.id')
 
-    replicated customer download-license --customer "$customer_id" --output "$license_file"
-
-    CUSTOMER_LICENSE_FILE="$license_file"
-    export CUSTOMER_LICENSE_FILE
+    if ! replicated customer download-license --customer "$customer_id" --output "$CUSTOMER_LICENSE_FILE"; then
+        fail "Failed to download license for customer $APP_CHANNEL"
+    fi
 }
 
 function ensure_local_dev_env() {
