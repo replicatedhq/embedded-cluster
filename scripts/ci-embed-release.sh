@@ -19,14 +19,7 @@ V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
 require EC_BINARY "${EC_BINARY:-}"
-
-USES_DEV_BUCKET=0
-if [ "$S3_BUCKET" != "tf-staging-embedded-cluster-bin" ]; then
-    USES_DEV_BUCKET=1
-fi
-if [ "$USES_DEV_BUCKET" == "1" ]; then
-    require S3_BUCKET "${S3_BUCKET:-}"
-fi
+require S3_BUCKET "${S3_BUCKET:-}"
 
 require APP_CHANNEL_ID "${APP_CHANNEL_ID:-}"
 require APP_CHANNEL_SLUG "${APP_CHANNEL_SLUG:-}"
@@ -86,7 +79,7 @@ function create_release_archive() {
         echo "  replicatedRegistryDomain: \"registry.staging.replicated.com\""
     } > output/tmp/release/release.yaml
 
-    if [ "$USES_DEV_BUCKET" == "1" ]; then
+    if uses_dev_bucket "${S3_BUCKET:-}"; then
         release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
         metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
     fi

@@ -11,13 +11,7 @@ S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 ARCH=${ARCH:-$(go env GOARCH)}
 
-USES_DEV_BUCKET=0
-if [ "$S3_BUCKET" != "tf-staging-embedded-cluster-bin" ]; then
-    USES_DEV_BUCKET=1
-fi
-if [ "$USES_DEV_BUCKET" == "1" ]; then
-    require S3_BUCKET "${S3_BUCKET:-}"
-fi
+require S3_BUCKET "${S3_BUCKET:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -58,7 +52,8 @@ function binary() {
         fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
     fi
 
-    if [ "$USES_DEV_BUCKET" == "1" ]; then
+    if uses_dev_bucket "${S3_BUCKET:-}"; then
+        require S3_BUCKET "${S3_BUCKET:-}"
         k0s_binary_url="https://$S3_BUCKET.s3.amazonaws.com/k0s-binaries/$(url_encode_semver "$K0S_VERSION")-$ARCH"
         kots_binary_url="https://$S3_BUCKET.s3.amazonaws.com/kots-binaries/$(url_encode_semver "$(make print-KOTS_VERSION)")-$ARCH.tar.gz"
         operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"

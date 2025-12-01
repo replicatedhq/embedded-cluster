@@ -190,3 +190,11 @@ function retry() {
 function url_encode_semver() {
     echo "${1//+/%2B}"
 }
+
+function uses_dev_bucket() {
+    local s3_bucket="$1"
+    if [ "${s3_bucket:-}" == "tf-staging-embedded-cluster-bin" ] || [ "${s3_bucket:-}" == "tf-embedded-cluster-binaries" ]; then
+        return 1
+    fi
+    return 0
+}
