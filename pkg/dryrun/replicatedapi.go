@@ -5,25 +5,24 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
-	"sigs.k8s.io/yaml"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 var _ replicatedapi.Client = (*ReplicatedAPIClient)(nil)
 
 // ReplicatedAPIClient is a mockable implementation of the replicatedapi.Client interface.
 type ReplicatedAPIClient struct {
-	License         *kotsv1beta1.License
+	License         *licensewrapper.LicenseWrapper
 	LicenseBytes    []byte
 	PendingReleases []replicatedapi.ChannelRelease
 }
 
 // SyncLicense returns the mocked license data.
-func (c *ReplicatedAPIClient) SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error) {
+func (c *ReplicatedAPIClient) SyncLicense(ctx context.Context) (*licensewrapper.LicenseWrapper, []byte, error) {
 	// If License is not set but LicenseBytes is, parse the license from bytes
 	if c.License == nil && len(c.LicenseBytes) > 0 {
-		var license kotsv1beta1.License
-		if err := yaml.Unmarshal(c.LicenseBytes, &license); err != nil {
+		license, err := licensewrapper.LoadLicenseFromBytes(c.LicenseBytes)
+		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse license from bytes: %w", err)
 		}
 		c.License = &license
