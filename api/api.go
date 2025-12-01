@@ -10,6 +10,7 @@ import (
 	kurlmigration "github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
@@ -180,6 +181,20 @@ func New(cfg types.APIConfig, opts ...Option) (*API, error) {
 			return nil, fmt.Errorf("create logger: %w", err)
 		}
 		api.logger = l
+	}
+
+	// Create kURL migration controller with file-based persistence if not provided
+	if api.kurlMigrationController == nil && cfg.InstallTarget == types.InstallTargetLinux {
+		dataDir := api.cfg.RuntimeConfig.EmbeddedClusterHomeDirectory()
+		store := store.NewStoreWithDataDir(dataDir)
+		controller, err := kurlmigration.NewKURLMigrationController(
+			kurlmigration.WithStore(store),
+			kurlmigration.WithLogger(api.logger),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create kurl migration controller: %w", err)
+		}
+		api.kurlMigrationController = controller
 	}
 
 	if err := api.initClients(); err != nil {

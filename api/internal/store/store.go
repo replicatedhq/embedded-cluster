@@ -196,6 +196,18 @@ func NewMemoryStore(opts ...StoreOption) Store {
 	return s
 }
 
+// NewStoreWithDataDir creates a new store with file-based kURL migration persistence.
+// dataDir is the base directory where kURL migration state will be persisted (e.g., /var/lib/embedded-cluster).
+func NewStoreWithDataDir(dataDir string, opts ...StoreOption) Store {
+	// Prepend the file-based kURL migration store to the options list
+	// This allows users to override it if needed while still providing the file-based default
+	fileStoreOpts := append([]StoreOption{
+		WithKURLMigrationStore(kurlmigration.NewFileStore(dataDir)),
+	}, opts...)
+
+	return NewMemoryStore(fileStoreOpts...)
+}
+
 func (s *memoryStore) LinuxPreflightStore() linuxpreflight.Store {
 	return s.linuxPreflightStore
 }
