@@ -14,11 +14,15 @@ APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
 require EC_BINARY "${EC_BINARY:-}"
+
+USES_DEV_BUCKET=0
+if [ "$S3_BUCKET" != "tf-staging-embedded-cluster-bin" ]; then
+    USES_DEV_BUCKET=1
+fi
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
 fi

@@ -312,7 +312,6 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
-          USES_DEV_BUCKET: "0"
         run: |
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${{ github.ref_name }}-pre-minio-removal"
@@ -360,7 +359,6 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
-          USES_DEV_BUCKET: "0"
         run: |
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
@@ -398,7 +396,6 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: Stable
-          USES_DEV_BUCKET: "0"
         run: |
           # create a release in the stable channel of our test app for use by CMX
           export EC_VERSION="${{ github.ref_name }}"

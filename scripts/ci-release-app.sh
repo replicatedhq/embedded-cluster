@@ -12,12 +12,16 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 V2_ENABLED=${V2_ENABLED:-0}
 
+USES_DEV_BUCKET=0
+if [ "$S3_BUCKET" != "tf-staging-embedded-cluster-bin" ]; then
+    USES_DEV_BUCKET=1
+fi
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
 fi
+
 require REPLICATED_APP "${REPLICATED_APP:-}"
 ensure_secret "REPLICATED_API_TOKEN" "STAGING_REPLICATED_API_TOKEN"
 require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
