@@ -8,12 +8,12 @@ source ./scripts/common.sh
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
 AWS_REGION="${AWS_REGION:-us-east-1}"
-S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
+S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
 ARCH=${ARCH:-$(go env GOARCH)}
 
-require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID}"
-require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY}"
+ensure_secret "AWS_ACCESS_KEY_ID" "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID"
+ensure_secret "AWS_SECRET_ACCESS_KEY" "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY"
 require AWS_REGION "${AWS_REGION}"
 require S3_BUCKET "${S3_BUCKET}"
 

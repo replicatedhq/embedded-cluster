@@ -7,9 +7,6 @@ import (
 	"dagger/embedded-cluster/internal/dagger"
 )
 
-// CIItem is the name of the 1Password item for the CI secrets.
-const CIItem = "EC CI"
-
 // Provisions a new CMX VM for E2E testing.
 //
 // This creates a fresh VM with the specified configuration and waits for it to be ready.
@@ -47,8 +44,8 @@ func (m *EmbeddedCluster) TestProvisionVM(
 	sshUser string,
 ) (*CMXInstance, error) {
 	// Get CMX API token and SSH key from 1Password
-	cmxToken := m.mustResolveSecret(nil, CIItem, "CMX_REPLICATED_API_TOKEN")
-	sshKey := m.mustResolveSecret(nil, CIItem, "CMX_SSH_PRIVATE_KEY")
+	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+	sshKey := m.mustResolveSecret(nil, "CMX_SSH_PRIVATE_KEY")
 
 	// Create VM using Replicated Dagger module
 	vms, err := dag.

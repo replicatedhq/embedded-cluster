@@ -7,8 +7,8 @@ set -euo pipefail
 
 EC_VERSION=${EC_VERSION:-}
 K0S_VERSION=${K0S_VERSION:-}
-S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
+S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 IMAGES_REGISTRY_SERVER=${IMAGES_REGISTRY_SERVER:-ttl.sh}
 ARCH=${ARCH:-$(go env GOARCH)}
 

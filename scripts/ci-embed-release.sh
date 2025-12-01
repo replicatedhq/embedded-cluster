@@ -9,12 +9,12 @@ EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
-APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
-APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
+APP_CHANNEL_ID=${APP_CHANNEL_ID:-}
+APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
-S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
+S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
@@ -22,6 +22,9 @@ require EC_BINARY "${EC_BINARY:-}"
 if [ "$USES_DEV_BUCKET" == "1" ]; then
     require S3_BUCKET "${S3_BUCKET:-}"
 fi
+
+require APP_CHANNEL_ID "${APP_CHANNEL_ID:-}"
+require APP_CHANNEL_SLUG "${APP_CHANNEL_SLUG:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then

@@ -5,29 +5,28 @@ set -euo pipefail
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
+CURRENT_USER=${CURRENT_USER:-}
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
-APP_CHANNEL=${APP_CHANNEL:-Dev}
-APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
-APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
+APP_CHANNEL=${APP_CHANNEL:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
 ARCH=${ARCH:-$(go env GOARCH)}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
-S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
+S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
+USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 
-require AWS_ACCESS_KEY_ID "${AWS_ACCESS_KEY_ID:-}"
-require AWS_SECRET_ACCESS_KEY "${AWS_SECRET_ACCESS_KEY:-}"
+ensure_secret "AWS_ACCESS_KEY_ID" "ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID"
+ensure_secret "AWS_SECRET_ACCESS_KEY" "ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY"
 
 SKIP_RELEASE=${SKIP_RELEASE:-0}
 
 if [ "$SKIP_RELEASE" != "1" ]; then
     require REPLICATED_APP "${REPLICATED_APP:-}"
-    require REPLICATED_API_TOKEN "${REPLICATED_API_TOKEN:-}"
+    ensure_secret "REPLICATED_API_TOKEN" "STAGING_REPLICATED_API_TOKEN"
     require REPLICATED_API_ORIGIN "${REPLICATED_API_ORIGIN:-}"
 fi
 
@@ -45,6 +44,11 @@ function init_vars() {
     if [ -n "${IMAGES_REGISTRY_SERVER:-}" ]; then
         echo "WARNING: IMAGES_REGISTRY_SERVER is set, this can cause build failures"
     fi
+
+    ensure_current_user
+    ensure_app_channel
+
+    log "Using app channel $APP_CHANNEL with id $APP_CHANNEL_ID and slug $APP_CHANNEL_SLUG"
 }
 
 function build() {
