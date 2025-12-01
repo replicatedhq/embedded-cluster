@@ -61,7 +61,11 @@ function create_release_archive() {
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
     # get next channel sequence
-    local curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence')
+    local curr_channel_sequence=
+    curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence')
+    if [ "$curr_channel_sequence" == "null" ]; then
+        curr_channel_sequence=-1 # this is a special value that means the channel has no releases yet
+    fi
     local next_channel_sequence=$((curr_channel_sequence + 1))
 
     {
