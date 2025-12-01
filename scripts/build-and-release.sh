@@ -15,7 +15,7 @@ REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
 ARCH=${ARCH:-$(go env GOARCH)}
-USE_CHAINGUARD=${USE_CHAINGUARD:-1}
+USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
 USES_DEV_BUCKET=${USES_DEV_BUCKET:-0}
 

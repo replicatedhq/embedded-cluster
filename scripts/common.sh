@@ -68,7 +68,14 @@ function ensure_current_user() {
 }
 
 function ensure_app_channel() {
+    if [ -n "${APP_CHANNEL_ID:-}" ] && [ -n "${APP_CHANNEL_SLUG:-}" ] && [ -n "${APP_CHANNEL:-}" ]; then
+        return
+    fi
+
     if [ -z "${APP_CHANNEL:-}" ]; then
+        if [ -z "${CURRENT_USER:-}" ]; then
+            fail "CURRENT_USER is not set"
+        fi
         APP_CHANNEL="${CURRENT_USER}-dev"
     fi
 
