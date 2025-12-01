@@ -511,6 +511,7 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
@@ -644,6 +645,7 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade

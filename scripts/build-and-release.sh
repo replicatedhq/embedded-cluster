@@ -5,7 +5,6 @@ set -euo pipefail
 # shellcheck source=./common.sh
 source ./scripts/common.sh
 
-CURRENT_USER=${CURRENT_USER:-}
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
@@ -45,10 +44,7 @@ function init_vars() {
         echo "WARNING: IMAGES_REGISTRY_SERVER is set, this can cause build failures"
     fi
 
-    ensure_current_user
-    ensure_app_channel
-
-    log "Using app channel $APP_CHANNEL with id $APP_CHANNEL_ID and slug $APP_CHANNEL_SLUG"
+    ensure_local_dev_env
 }
 
 function build() {

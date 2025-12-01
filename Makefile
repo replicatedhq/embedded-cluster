@@ -385,8 +385,12 @@ create-node%:
 	@$(MAKE) ssh-node$*
 
 .PHONY: ssh-node%
+ssh-node%: CUSTOMER_LICENSE_FILE = $(shell source ./local-dev/env.sh && echo "$$CUSTOMER_LICENSE_FILE")
 ssh-node%:
-	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
+	@docker exec -it -w /replicatedhq/embedded-cluster \
+		-e CUSTOMER_LICENSE_FILE="$(CUSTOMER_LICENSE_FILE)" \
+		node$* \
+		bash
 
 .PHONY: delete-node%
 delete-node%:

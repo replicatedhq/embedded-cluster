@@ -3,6 +3,9 @@
 OP_VAULT_NAME=${OP_VAULT_NAME:-"Developer Automation"}
 OP_ITEM_NAME=${OP_ITEM_NAME:-"EC Dev"}
 
+LOCAL_DEV_DIR=${LOCAL_DEV_ENV_DIR:-./local-dev}
+LOCAL_DEV_ENV_FILE=${LOCAL_DEV_ENV_FILE:-${LOCAL_DEV_DIR}/env.sh}
+
 function log() {
     echo "$*" >&2
 }
@@ -58,19 +61,13 @@ function ensure_current_user() {
         return
     fi
 
-    if [ -n "${GITHUB_USER:-}" ]; then
-        CURRENT_USER="${GITHUB_USER}"
-    else
-        CURRENT_USER=$(id -u -n)
-    fi
+    CURRENT_USER=$(id -u -n)
 
     export CURRENT_USER
 }
 
 function ensure_app_channel() {
-    if [ -n "${APP_CHANNEL_ID:-}" ] && [ -n "${APP_CHANNEL_SLUG:-}" ] && [ -n "${APP_CHANNEL:-}" ]; then
-        return
-    fi
+    ensure_current_user
 
     if [ -z "${APP_CHANNEL:-}" ]; then
         if [ -z "${CURRENT_USER:-}" ]; then
@@ -86,11 +83,88 @@ function ensure_app_channel() {
     fi
     channel_json=$(replicated channel ls -o json | jq -r ".[] | select(.name == \"${APP_CHANNEL}\")")
 
+    if [ -z "$channel_json" ]; then
+        fail "Failed to create channel $APP_CHANNEL"
+    fi
+
     APP_CHANNEL=$(echo "$channel_json" | jq -r '.name')
     APP_CHANNEL_ID=$(echo "$channel_json" | jq -r '.id')
     APP_CHANNEL_SLUG=$(echo "$channel_json" | jq -r '.channelSlug')
 
     export APP_CHANNEL APP_CHANNEL_ID APP_CHANNEL_SLUG
+}
+
+function ensure_customer_license_file() {
+    if [ -n "${CUSTOMER_LICENSE_FILE:-}" ] && [ -f "${CUSTOMER_LICENSE_FILE}" ]; then
+        return
+    fi
+
+    local license_file="${LOCAL_DEV_DIR}/${APP_CHANNEL_SLUG}-license.yaml"
+    if [ -f "${license_file}" ]; then
+        return
+    fi
+
+    local customer_json
+    customer_json=$(replicated customer ls -o json | jq -r ".[] | select(.name == \"${APP_CHANNEL}\")")
+    if [ -z "$customer_json" ]; then
+        replicated customer create \
+            --name "${APP_CHANNEL}" \
+            --channel "${APP_CHANNEL_ID}" \
+            --type dev \
+            --email "${APP_CHANNEL_SLUG}@replicated.com" \
+            --airgap --snapshot --kots-install --support-bundle-upload \
+            --embedded-cluster-download --embedded-cluster-multinode \
+            > /dev/null
+    fi
+
+    customer_json=$(replicated customer ls -o json | jq -r ".[] | select(.name == \"${APP_CHANNEL}\")")
+    if [ -z "$customer_json" ]; then
+        fail "Failed to create customer $APP_CHANNEL"
+    fi
+
+    local customer_id
+    customer_id=$(echo "$customer_json" | jq -r '.id')
+
+    replicated customer download-license --customer "$customer_id" --output "$license_file"
+
+    CUSTOMER_LICENSE_FILE="$license_file"
+    export CUSTOMER_LICENSE_FILE
+}
+
+function ensure_local_dev_env() {
+    load_local_dev_env
+
+    if [ -n "${APP_CHANNEL_ID:-}" ] && [ -n "${APP_CHANNEL_SLUG:-}" ] && [ -n "${APP_CHANNEL:-}" ]; then
+        return
+    fi
+
+    ensure_app_channel
+
+    ensure_customer_license_file
+
+    write_local_dev_env_file
+
+    load_local_dev_env
+
+    log "Using app channel $APP_CHANNEL with id $APP_CHANNEL_ID and slug $APP_CHANNEL_SLUG"
+}
+
+function write_local_dev_env_file() {
+    mkdir -p "$(dirname "${LOCAL_DEV_ENV_FILE}")"
+
+	{
+		echo "export APP_CHANNEL=${APP_CHANNEL}"
+		echo "export APP_CHANNEL_ID=${APP_CHANNEL_ID}"
+		echo "export APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG}"
+		echo "export CUSTOMER_LICENSE_FILE=${CUSTOMER_LICENSE_FILE}"
+	} > "${LOCAL_DEV_ENV_FILE}"
+}
+
+function load_local_dev_env() {
+    if [ -f "${LOCAL_DEV_ENV_FILE}" ]; then
+		# shellcheck source=/dev/null
+        source "${LOCAL_DEV_ENV_FILE}"
+    fi
 }
 
 function retry() {
