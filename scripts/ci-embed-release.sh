@@ -8,6 +8,7 @@ set -euo pipefail
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
+REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
 APP_CHANNEL_ID=${APP_CHANNEL_ID:-}
 APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-}
@@ -66,7 +67,7 @@ function create_release_archive() {
 
     # get next channel sequence
     local curr_channel_sequence=
-    curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence')
+    curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence' || true)
     if [ "$curr_channel_sequence" == "null" ]; then
         curr_channel_sequence=-1 # this is a special value that means the channel has no releases yet
     fi

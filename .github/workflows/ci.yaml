@@ -488,11 +488,6 @@ jobs:
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - name: Install Replicated CLI
-        run: |
-          curl -o install.sh -sSL https://raw.githubusercontent.com/replicatedhq/replicated/master/install.sh
-          sudo bash ./install.sh
-
       - name: Export versions
         run: |
           version_suffix=
@@ -647,11 +642,6 @@ jobs:
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
-
-      - name: Install Replicated CLI
-        run: |
-          curl -o install.sh -sSL https://raw.githubusercontent.com/replicatedhq/replicated/master/install.sh
-          sudo bash ./install.sh
 
       - name: Build
         env:
