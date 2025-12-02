@@ -5,21 +5,21 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 11.1.1
+version: 11.2.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     kubectl:
         repo: proxy.replicated.com/library/kubectl
         tag:
-            amd64: 1.34.1-amd64@sha256:05ab9a2bc5e1241312ebe79b03c142bf8ce1d2d0207e04cf69a387f201ab9732
-            arm64: 1.34.1-arm64@sha256:7979af3389e6033c47bbd28a6a1f992d72d9d87ff0bc2a86beb1cb0ece97a6ec
+            amd64: 1.34.2-amd64@sha256:07b955978945cd0f7bf38c0e677cea4cf80dab0a2a16e7f531f8953cb6994526
+            arm64: 1.34.2-arm64@sha256:1ab8642b92914b13499b9294e3c33f3fb55290d8c79972e8d6c3ef97347384e9
     velero:
         repo: proxy.replicated.com/library/velero
         tag:
-            amd64: v1.17.0-amd64@sha256:7fadd35328a83555ca2f82ba419e1a1b9f15cae4d6a91daf662d95b648ca7362
-            arm64: v1.17.0-arm64@sha256:f31be42573873a61547aa4129e70e35b3df38b43548899401db26b7952f76ce8
+            amd64: v1.17.1-amd64@sha256:3aa168e8bad8ee101bc86f57657b6504eae5bc5f4423c15c82cfb35ecbbaa951
+            arm64: v1.17.1-arm64@sha256:923c2900312758510f31329357ebef03e8729b2078a91c3d209a86f87e5588a0
     velero-plugin-for-aws:
         repo: proxy.replicated.com/library/velero-plugin-for-aws
         tag:
-            amd64: v1.13.0-amd64@sha256:3d2f5772a180340beff7662af3413d40c08e6509c106e0c48b955dc417315745
-            arm64: v1.13.0-arm64@sha256:85517445b195a32d548d913e3327c1a1052ebb56dcb4fbc165ebcb4879b2c751
+            amd64: v1.13.1-amd64@sha256:821dcc17892dd7fe8a1a8d436dda9ac808d961ff04e0036bf006a66710440b77
+            arm64: v1.13.1-arm64@sha256:2ba4b6e9f0222f9795a61b57cf36891dc68e7747d2c04f72709fd683043474fa
