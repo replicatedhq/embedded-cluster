@@ -24,13 +24,13 @@ func TestNewFileStore(t *testing.T) {
 
 func TestFileStore_InitializeMigration(t *testing.T) {
 	tests := []struct {
-		name        string
-		setup       func(Store) // Optional setup before test
-		migrationID string
+		name         string
+		setup        func(Store) // Optional setup before test
+		migrationID  string
 		transferMode string
-		config      types.LinuxInstallationConfig
-		wantErr     error
-		validate    func(*testing.T, Store) // Optional additional validation
+		config       types.LinuxInstallationConfig
+		wantErr      error
+		validate     func(*testing.T, Store) // Optional additional validation
 	}{
 		{
 			name:         "success - creates file and initializes state",
