@@ -511,11 +511,11 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
@@ -646,11 +646,11 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
@@ -761,8 +761,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
-          USES_DEV_BUCKET: "0"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
@@ -820,7 +819,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 

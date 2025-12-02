@@ -11,16 +11,25 @@ type OnePassword struct {
 	VaultName string
 	// +private
 	ServiceAccount *dagger.Secret
+	// +private
+	ItemName string
 }
 
 // Retrieves a secret from 1Password by item and field name.
-func (m *OnePassword) FindSecret(item, field string) *dagger.Secret {
-	return dag.Onepassword().FindSecret(
-		m.ServiceAccount,
-		m.VaultName,
-		item,
-		field,
-	)
+func (m *OnePassword) FindSecret(
+	// Field name
+	field string,
+	// +optional
+	// Section name
+	section *string,
+) *dagger.Secret {
+	var opts []dagger.OnepasswordFindSecretOpts
+	if section != nil {
+		opts = append(opts, dagger.OnepasswordFindSecretOpts{
+			Section: *section,
+		})
+	}
+	return dag.Onepassword().FindSecret(m.ServiceAccount, m.VaultName, m.ItemName, field, opts...)
 }
 
 // Configures 1Password integration for retrieving secrets.
@@ -34,13 +43,16 @@ func (m *OnePassword) FindSecret(item, field string) *dagger.Secret {
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 //	  test-provision-vm
 func (m *EmbeddedCluster) WithOnePassword(
+	serviceAccount *dagger.Secret,
 	// +default="Developer Automation"
 	vaultName string,
-	serviceAccount *dagger.Secret,
+	// +default="EC Dev"
+	itemName string,
 ) *EmbeddedCluster {
 	m.OnePassword = &OnePassword{
-		VaultName:      vaultName,
 		ServiceAccount: serviceAccount,
+		VaultName:      vaultName,
+		ItemName:       itemName,
 	}
 	return m
 }
@@ -50,10 +62,10 @@ func (m *EmbeddedCluster) WithOnePassword(
 // If credentialOverride is provided, it returns that secret immediately.
 // Otherwise, it attempts to retrieve the secret from 1Password using the item and field names.
 // Panics if no secret is found from either source.
-func (m *EmbeddedCluster) mustResolveSecret(credentialOverride *dagger.Secret, itemName, fieldName string, opts ...dagger.OnepasswordFindSecretOpts) *dagger.Secret {
-	secret := m.resolveSecret(credentialOverride, itemName, fieldName, opts...)
+func (m *EmbeddedCluster) mustResolveSecret(credentialOverride *dagger.Secret, fieldName string) *dagger.Secret {
+	secret := m.resolveSecret(credentialOverride, fieldName)
 	if secret == nil {
-		panic(fmt.Errorf("no secret passed as arg nor found in 1password for item %q, field %q", itemName, fieldName))
+		panic(fmt.Errorf("no secret passed as arg nor found in 1password for field %q", fieldName))
 	}
 	return secret
 }
@@ -63,7 +75,7 @@ func (m *EmbeddedCluster) mustResolveSecret(credentialOverride *dagger.Secret, i
 // If credentialOverride is provided, it returns that secret immediately.
 // Otherwise, it attempts to retrieve the secret from 1Password using the item and field names.
 // Returns nil if no secret is found from either source.
-func (m *EmbeddedCluster) resolveSecret(credentialOverride *dagger.Secret, itemName, fieldName string, opts ...dagger.OnepasswordFindSecretOpts) *dagger.Secret {
+func (m *EmbeddedCluster) resolveSecret(credentialOverride *dagger.Secret, fieldName string) *dagger.Secret {
 	if credentialOverride != nil {
 		return credentialOverride
 	}
@@ -73,7 +85,7 @@ func (m *EmbeddedCluster) resolveSecret(credentialOverride *dagger.Secret, itemN
 	}
 
 	return m.OnePassword.FindSecret(
-		itemName,
 		fieldName,
+		nil,
 	)
 }

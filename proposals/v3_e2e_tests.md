@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-We will implement a portable, Dagger-based E2E test framework exclusively for V3 installer for testing **both headless and browser-based installation modes**. The framework enables local development and removes CI-embedded setup. It will use 1Password for secret management, separate build from test execution, and run identically locally and in CI. Tests run concurrently using isolated CMX VMs to reduce total runtime. All tests will use CMX exclusively. Browser-based tests use Playwright. Both modes validate installation success using the Kube client. Existing build scripts will be wrapped in Dagger rather than rewritten. **V2 tests remain completely unchanged**. Comprehensive coverage is provided by unit and integration tests; E2E tests focus on validating external dependencies in the most common, happy path scenarios.
+We will implement a portable, Dagger-based E2E test framework exclusively for V3 installer for testing **both headless and browser-based installation modes**. The framework enables local development and removes CI-embedded setup. Build scripts remain as bash scripts enhanced with 1Password for secret management, enabling portability. E2E tests use Dagger for test orchestration and 1Password for secret management, running identically locally and in CI. Tests run concurrently using isolated CMX VMs to reduce total runtime. All tests will use CMX exclusively. Browser-based tests use Playwright. Both modes validate installation success using the Kube client. **V2 tests remain completely unchanged**. Comprehensive coverage is provided by unit and integration tests; E2E tests focus on validating external dependencies in the most common, happy path scenarios.
 
 ## The Problem
 
@@ -101,8 +101,8 @@ No database changes required.
 
 #### New Files/Directories
 - `dagger/e2e/` - Main E2E test Dagger modules
-  - `dagger/e2e/build.go` - Build module for artifacts
-  - `dagger/e2e/secrets.go` - 1Password integration module
+  - `dagger/e2e/artifacts.go` - Artifact location and version tracking
+  - `dagger/e2e/secrets.go` - 1Password integration module for tests
   - `dagger/e2e/ui_tests.go` - UI test execution module
   - `dagger/e2e/headless_tests.go` - Headless test execution module
   - `dagger/e2e/validation.go` - Kubernetes validation helpers
@@ -115,44 +115,82 @@ No database changes required.
   - `e2e/v3/fixtures/` - Test data and configuration
 
 #### Modified Files
+- `scripts/build-and-release.sh` - Add 1Password integration for secrets
+- `scripts/common.sh` - Add 1Password helper functions (ensure_secret, ensure_local_dev_env)
+- `scripts/ci-*.sh` - Update to use 1Password for secret retrieval
+- `Makefile` - Add `e2e-v3-initial-release` target for V3 release building
+- `README.md` - Update with 1Password workflow
 - `dagger/main.go` - Add E2E test commands
-- `.github/workflows/ci.yaml` - Simplify to use Dagger commands
+- `.github/workflows/ci.yaml` - Update to use 1Password service account
 
 ### Pseudo Code
 
 #### Build Module
+```bash
+# Build artifacts are created using existing bash scripts with 1Password integration
+# These scripts run locally or in CI without Dagger wrapping
+
+# Local development:
+# 1. Sign into 1Password CLI
+op signin
+
+# 2. Run build script (secrets fetched automatically from 1Password)
+./scripts/build-and-release.sh
+
+# OR use the make target for V3 E2E releases:
+make e2e-v3-initial-release
+
+# CI workflow:
+# Sets OP_SERVICE_ACCOUNT_TOKEN in GitHub Actions secrets
+# Build scripts automatically fetch other secrets from 1Password
+# Same scripts, same behavior as local development
+
+# The build scripts now:
+# - Fetch AWS credentials from 1Password (ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID, etc.)
+# - Fetch Replicated API tokens from 1Password (STAGING_REPLICATED_API_TOKEN)
+# - No manual environment variable configuration required
+
+# Output artifacts:
+# - output/bin/embedded-cluster (binary)
+# - S3: s3://tf-staging-embedded-cluster-bin/{version}/ (uploaded artifacts)
+# - Replicated: Release created in configured channel
+```
+
+#### Make Target Implementation
+```makefile
+# Makefile
+.PHONY: e2e-v3-initial-release
+e2e-v3-initial-release: export ARCH = amd64
+e2e-v3-initial-release: export UPLOAD_BINARIES = 1
+e2e-v3-initial-release: export ENABLE_V3 = 1
+e2e-v3-initial-release: initial-release
+```
+
+#### Artifact Location
 ```go
-// dagger/e2e/build.go
-// Note: This wraps existing build-and-release.sh script rather than reimplementing in Go
-func (m *BuildModule) BuildArtifacts(ctx context.Context) (*Artifacts, error) {
-    // Create container with build environment
-    builder := dag.Container().
-        From("ubuntu:22.04").
-        WithDirectory("/src", m.source).
-        WithWorkdir("/src").
-        WithExec([]string{"apt-get", "update"}).
-        WithExec([]string{"apt-get", "install", "-y", "make", "git", "curl"})
+// dagger/e2e/artifacts.go
+// E2E tests consume artifacts from their published locations
+// rather than from build output directories
 
-    // Set environment variables
-    builder = builder.
-        WithEnvVariable("EC_VERSION", m.version).
-        WithEnvVariable("APP_VERSION", m.appVersion).
-        WithEnvVariable("RELEASE_YAML_DIR", "e2e/kots-release-install-v3").
-        WithSecretVariable("AWS_ACCESS_KEY_ID", m.secrets.Get("aws_access_key")).
-        WithSecretVariable("AWS_SECRET_ACCESS_KEY", m.secrets.Get("aws_secret_key"))
+type Artifacts struct {
+    // Version of embedded-cluster being tested
+    Version string
+    // S3 bucket where artifacts are published
+    S3Bucket string
+    // Replicated app channel where release was created
+    AppChannel string
+    // License ID for downloading the release
+    LicenseID string
+}
 
-    // Run existing build script (battle-tested, don't rewrite)
-    builder = builder.WithExec([]string{"./scripts/build-and-release.sh"})
-
-    // Extract built artifacts
-    binary := builder.File("output/bin/embedded-cluster")
-
-    artifacts := &Artifacts{
-        Binary: binary,
-        Version: m.version,
-    }
-
-    return artifacts, nil
+// GetArtifacts returns artifact locations for testing
+func (m *TestModule) GetArtifacts(ctx context.Context) (*Artifacts, error) {
+    return &Artifacts{
+        Version:    m.version,
+        S3Bucket:   "tf-staging-embedded-cluster-bin",
+        AppChannel: "CI",
+        LicenseID:  m.getLicenseID(ctx),
+    }, nil
 }
 ```
 
@@ -329,18 +367,9 @@ func (m *TestModule) RunAllTests(ctx context.Context) error {
     return m.reportAllResults(ctx, results)
 }
 
-// BuildAndRelease builds artifacts and creates a release
-func (m *BuildModule) BuildAndRelease(ctx context.Context) (*Artifacts, error) {
-    // Build artifacts using wrapped scripts
-    artifacts, err := m.BuildArtifacts(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("build failed: %w", err)
-    }
-
-    // Artifacts are uploaded to S3 and app release is created
-    // as part of the build-and-release.sh script execution
-    return artifacts, nil
-}
+// Note: Build and release is handled by bash scripts (scripts/build-and-release.sh)
+// E2E tests run separately after build completes, consuming published artifacts
+// Tests fetch artifacts from S3 and Replicated using version/channel information
 ```
 
 #### Secret Management
@@ -599,19 +628,26 @@ The V3 E2E tests are invoked using the Dagger CLI. All tests run through Dagger 
 
 #### Running Tests Locally
 
-**Build and release artifacts:**
+**Step 1: Sign into 1Password:**
 ```bash
-dagger call build-and-release
+op signin
 ```
 
-**Run all V3 tests (all 4 test runs) with existing artifacts:**
+**Step 2: Build and release V3 artifacts:**
+```bash
+make e2e-initial-release
+```
+
+**Step 3: Run all V3 tests (all 4 test runs):**
 ```bash
 dagger call run-all-tests
 ```
 
-**Build, release, and run complete E2E test suite:**
+**Or combine build and test:**
 ```bash
-dagger call build-and-release run-all-tests
+# With make target:
+make e2e-initial-release && \
+  dagger call run-all-tests
 ```
 
 **Run both modes for online scenario:**
@@ -656,26 +692,17 @@ CMX credentials must be available in 1Password vault `embedded-cluster-e2e` with
 
 #### Running in CI
 
-GitHub Actions workflow will invoke Dagger commands:
+GitHub Actions workflow will run build script then invoke Dagger for tests:
 ```yaml
-- name: Build, Release, and Run V3 E2E Tests
+- name: Build and Release V3
   run: |
-    dagger call build-and-release run-all-tests
-  env:
-    OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-```
-
-Or run build and test steps separately:
-```yaml
-- name: Build and Release
-  run: |
-    dagger call build-and-release
+    make e2e-initial-release
   env:
     OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
 - name: Run V3 E2E Tests
   run: |
-    dagger call run-all-tests
+    dagger call run-all-tests --version ${{ env.EC_VERSION }} --app-version ${{ env.APP_VERSION }}
   env:
     OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 ```
@@ -775,11 +802,12 @@ No special deployment handling required. The test framework is development tooli
    - **Approach**: Use 1Password Dagger module to fetch secrets at runtime
    - **Secrets include**: Replicated API tokens, CMX credentials, AWS credentials
 
-3. **Wrap existing build scripts**: We will use Dagger to wrap `scripts/build-and-release.sh` and related scripts rather than rewriting them in Go
-   - **Rationale**: These scripts are battle-tested, handle complex orchestration, and work reliably
-   - **Benefit**: Reduces implementation risk, faster time to value, maintains existing CI compatibility
-   - **Approach**: Create Dagger containers that execute existing bash scripts with proper environment variables
+3. **Keep existing build scripts with 1Password integration**: Build scripts remain as bash scripts, enhanced with 1Password for secret management
+   - **Rationale**: These scripts are battle-tested, handle complex orchestration, and work reliably. Wrapping in Dagger proved difficult and unnecessary.
+   - **Benefit**: Reduces implementation risk, faster time to value, maintains existing CI compatibility, enables local development through 1Password
+   - **Approach**: Enhance existing bash scripts with 1Password CLI integration for secret retrieval, eliminating manual environment variable configuration
    - **Scripts involved**: build-and-release.sh, ci-build-deps.sh, ci-build-bin.sh, ci-embed-release.sh, ci-upload-binaries.sh, ci-release-app.sh
+   - **Key improvement**: Developers and CI both use same secret management (1Password), making local development portable and consistent with CI
 
 4. **Use CMX exclusively for V3 tests**: All V3 tests will use CMX, creating a clean break from the V2 hybrid approach
    - **Current problem**: V2 tests use hybrid Docker/LXD/CMX approach creating inconsistency
@@ -802,13 +830,13 @@ No special deployment handling required. The test framework is development tooli
 
 ## Alternative Solutions Considered
 
-### 1. Rewrite Build Scripts in Go
+### 1. Rewrite Build Scripts in Go or Wrap in Dagger
 - **Why rejected**:
   - Existing bash scripts are battle-tested and reliable
   - Rewriting would introduce risk and require extensive validation
-  - No performance or maintainability benefit
-  - Wrapping existing scripts in Dagger containers is faster and safer
-  - Maintains compatibility with current CI workflows during transition
+  - Wrapping in Dagger proved difficult and added unnecessary complexity
+  - 1Password integration in bash scripts provides the needed portability
+  - Maintains compatibility with current CI workflows
 
 ### 2. Continue Hybrid Docker/LXD/CMX Approach for V3
 - **Why rejected**:
@@ -849,18 +877,21 @@ No prototypes were built for this proposal, but the patterns are validated by:
 
 ## Checkpoints (PR Plan)
 
-### PR 1: Foundation and Secret Management
-- Create base E2E test structure in `dagger/e2e/`
-- Add 1Password Dagger module
-- Create CMX VM provisioning module in Dagger
-- Add secret fetching logic
-- Update documentation
+### PR 1: 1Password Integration for Build Scripts
+- Enhance build scripts with 1Password CLI integration
+- Update scripts to fetch secrets from 1Password: build-and-release.sh, common.sh
+- Add helper functions: ensure_secret, ensure_local_dev_env
+- Add make target `e2e-v3-initial-release` for building V3 releases (build for amd64 architecture with UPLOAD_BINARIES=1)
+- Update README with new workflow (op signin, then build)
+- Validate scripts work locally and in CI with 1Password
+- Remove manual environment variable requirements from documentation
 
-### PR 2: Build Module and Artifact Management
-- Create Dagger wrapper for `scripts/build-and-release.sh`
-- Wrap existing CI scripts (ci-build-deps.sh, ci-build-bin.sh, etc.) in Dagger containers
-- Create artifact versioning system
-- Validate that wrapped scripts produce identical outputs to current CI
+### PR 2: E2E Test Foundation and CMX Integration
+- Create base E2E test structure in `dagger/e2e/`
+- Add 1Password Dagger module for E2E tests
+- Create CMX VM provisioning module in Dagger
+- Add artifact location/version tracking for tests
+- Update documentation for E2E test setup
 
 ### PR 3: Headless Installation E2E Tests (Both Scenarios)
 - Implement online installation E2E test - **headless** (CLI, no Playwright)

@@ -25,6 +25,7 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
 - jq
 - oras
 - crane
+- op (1Password CLI)
 - Kubectl (for integration tests)
 - Kind (for integration tests)
 
@@ -36,35 +37,10 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
     cd embedded-cluster
     ```
 
-1. Set the following environment variables:
+1. Sign into the 1Password CLI (access to the "Developer Automation" vault is required)
     ```bash
-    export REPLICATED_APP=
-    export REPLICATED_API_TOKEN=
-    export REPLICATED_API_ORIGIN=
-    export APP_CHANNEL=
-    export APP_CHANNEL_ID=
-    export APP_CHANNEL_SLUG=
-    export AWS_ACCESS_KEY_ID=
-    export AWS_SECRET_ACCESS_KEY=
+    op signin
     ```
-
-    | Environment Variable | Description | Default Value |
-    |----------------------|-------------|---------------|
-    | `REPLICATED_APP` | The application slug | `embedded-cluster-smoke-test-staging-app` |
-    | `REPLICATED_API_TOKEN` | A vendor portal API token with write access to the application | (required) |
-    | `REPLICATED_API_ORIGIN` | The vendor-api URL | `https://api.staging.replicated.com/vendor` |
-    | `APP_CHANNEL` | The channel name (it's recommended to create a new channel just for your development environment.) | (required) |
-    | `APP_CHANNEL_ID` | The channel ID | (required) |
-    | `APP_CHANNEL_SLUG` | The channel slug | (required) |
-    | `AWS_ACCESS_KEY_ID` | AWS access key ID with write access to the `dev-embedded-cluster-bin` bucket in Replicated's dev AWS account | (required) |
-    | `AWS_SECRET_ACCESS_KEY` | AWS secret access key with write access to the `dev-embedded-cluster-bin` bucket in Replicated's dev AWS account | (required) |
-
-    Note: 
-    - To use a different AWS bucket or account, override using the `S3_BUCKET` environment variable.
-    - To use the Replicated staging bucket used in CI, set `USES_DEV_BUCKET=0`.
-
-1. In the Vendor Portal, create and download a license that is assigned to the channel.
-We recommend storing this license in the `local-dev/` directory, as it is gitignored and not otherwise used by the CI.
 
 ### V2 installs
 
@@ -79,7 +55,7 @@ We recommend storing this license in the `local-dev/` directory, as it is gitign
     ```
 1. Install the release:
     ```bash
-    output/bin/embedded-cluster install --license <license-file>
+    output/bin/embedded-cluster install --license "$CUSTOMER_LICENSE_FILE"
     ```
 1. Once that completes, you can access the admin console at http://localhost:30000
 
@@ -140,7 +116,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
     ```
 1. Install the release:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license <license-file> --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license "$CUSTOMER_LICENSE_FILE" --target linux
     ```
 
 **For Airgap:**
@@ -156,7 +132,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
 1. Run the download and extract commands from the install instructions on the customer page.
 1. Run the following command to install the EC release in airgap mode:
     ```bash
-    ENABLE_V3=1 sudo -E ./<app-slug> install --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ENABLE_V3=1 sudo -E ./<app-slug> install --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
     ```
 
 **Note:** The release will be created using the manifests located in the `e2e/kots-release-install-v3` directory.
@@ -174,7 +150,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
     ```
 1. Run the following command to upgrade the EC release:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license <license-file> --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license "$CUSTOMER_LICENSE_FILE" --target linux
     ```
 
 **For Airgap:**
@@ -190,7 +166,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
 1. Run the download and extract commands from the install instructions on the customer page.
 1. Run the following command to upgrade to the new EC release in airgap mode:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
     ```
 
 **Note:** The release will be created using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
