@@ -26,6 +26,15 @@ func NewRequiredReleasesError(requiredVersions []string, targetVersion string) *
 	}
 }
 
+// NewCurrentReleaseFailedError creates a ValidationError indicating that the current
+// installed release is required and it's in a failed state
+func NewCurrentReleaseFailedError(currentVersion string, targetVersion string) *ValidationError {
+	return &ValidationError{
+		Message: fmt.Sprintf("this upgrade requires the current installed version %s to be installed successfully and its current status is failed. Please this version is installed correctly before upgrading to %s",
+			currentVersion, targetVersion),
+	}
+}
+
 // NewAppVersionDowngradeError creates a ValidationError indicating that the target
 // app version is older than the current version
 func NewAppVersionDowngradeError(currentVersion, targetVersion string) *ValidationError {

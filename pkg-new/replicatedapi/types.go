@@ -15,8 +15,9 @@ const SortOrderDescending SortOrder = "desc"
 
 // PendingReleasesOptions represents options for fetching pending releases
 type PendingReleasesOptions struct {
-	IsSemverSupported bool
-	SortOrder         SortOrder
+	IsSemverSupported      bool
+	SortOrder              SortOrder
+	CurrentChannelSequence int64
 }
 
 // ChannelRelease represents a single release in a channel

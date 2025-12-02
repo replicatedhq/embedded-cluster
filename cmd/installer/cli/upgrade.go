@@ -655,6 +655,7 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConf
 	if upgradeConfig.currentAppVersion != nil {
 		opts.CurrentAppVersion = upgradeConfig.currentAppVersion.VersionLabel
 		opts.CurrentAppSequence = upgradeConfig.currentAppVersion.ChannelSequence
+		opts.CurrentAppStatus = upgradeConfig.currentAppVersion.Status
 	}
 
 	// Add target app version info
