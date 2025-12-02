@@ -94,6 +94,12 @@ function ensure_app_channel() {
     export APP_CHANNEL APP_CHANNEL_ID APP_CHANNEL_SLUG
 }
 
+function auto_build_airgap_releases() {
+    if ! replicated api patch "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}" --body "{\"autoAirgapBuildsValue\":true}" > /dev/null; then
+        fail "Failed to enable auto airgap builds for channel $APP_CHANNEL"
+    fi
+}
+
 function ensure_customer_license_file() {
     if [ -n "${CUSTOMER_LICENSE_FILE:-}" ] && [ -f "${CUSTOMER_LICENSE_FILE}" ]; then
         return
@@ -126,9 +132,13 @@ function ensure_customer_license_file() {
     local customer_id
     customer_id=$(echo "$customer_json" | jq -r '.id')
 
+    mkdir -p "$(dirname "${CUSTOMER_LICENSE_FILE}")"
+
     if ! replicated customer download-license --customer "$customer_id" --output "$CUSTOMER_LICENSE_FILE"; then
         fail "Failed to download license for customer $APP_CHANNEL"
     fi
+
+    log "Downloaded license for customer $APP_CHANNEL to $CUSTOMER_LICENSE_FILE"
 }
 
 function ensure_local_dev_env() {
@@ -139,6 +149,8 @@ function ensure_local_dev_env() {
     fi
 
     ensure_app_channel
+
+    auto_build_airgap_releases
 
     ensure_customer_license_file
 
