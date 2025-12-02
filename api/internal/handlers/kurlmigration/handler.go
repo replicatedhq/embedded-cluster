@@ -6,20 +6,23 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	"github.com/replicatedhq/embedded-cluster/api/internal/handlers/utils"
+	"github.com/replicatedhq/embedded-cluster/api/internal/store"
+	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
 )
 
 type Handler struct {
+	cfg        types.APIConfig
 	logger     logrus.FieldLogger
 	controller kurlmigration.Controller
 }
 
 type Option func(*Handler)
 
-func WithLogger(logger logrus.FieldLogger) Option {
+func WithLogger(log logrus.FieldLogger) Option {
 	return func(h *Handler) {
-		h.logger = logger
+		h.logger = log
 	}
 }
 
@@ -29,15 +32,27 @@ func WithController(controller kurlmigration.Controller) Option {
 	}
 }
 
-func New(opts ...Option) (*Handler, error) {
-	h := &Handler{}
+func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
+	h := &Handler{
+		cfg: cfg,
+	}
+
 	for _, opt := range opts {
 		opt(h)
 	}
 
+	if h.logger == nil {
+		h.logger = logger.NewDiscardLogger()
+	}
+
 	// Create controller internally if not provided via option
 	if h.controller == nil {
+		// Create file-based store for state persistence
+		dataDir := h.cfg.RuntimeConfig.EmbeddedClusterHomeDirectory()
+		s := store.NewStoreWithDataDir(dataDir)
+
 		controller, err := kurlmigration.NewKURLMigrationController(
+			kurlmigration.WithStore(s),
 			kurlmigration.WithLogger(h.logger),
 		)
 		if err != nil {
