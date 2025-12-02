@@ -761,7 +761,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
@@ -819,6 +819,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
