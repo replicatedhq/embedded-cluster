@@ -22,6 +22,11 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 		return fmt.Errorf("get kotsadm namespace: %w", err)
 	}
 
+	// Initialize components for tracking
+	if err := m.initializeComponents(installableCharts); err != nil {
+		return fmt.Errorf("initialize components: %w", err)
+	}
+
 	// Install Helm charts
 	if err := m.installHelmCharts(ctx, installableCharts, kotsadmNamespace); err != nil {
 		return fmt.Errorf("install helm charts: %w", err)

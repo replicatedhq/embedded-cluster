@@ -257,7 +257,6 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 		appInstallManager, err := appinstallmanager.NewAppInstallManager(
 			appinstallmanager.WithLogger(controller.logger),
 			appinstallmanager.WithReleaseData(controller.releaseData),
-			appinstallmanager.WithLicense(controller.license),
 			appinstallmanager.WithClusterID(controller.clusterID),
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),

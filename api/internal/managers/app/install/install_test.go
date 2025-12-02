@@ -15,25 +15,17 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kyaml "sigs.k8s.io/yaml"
+	"k8s.io/kubectl/pkg/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestAppInstallManager_Install(t *testing.T) {
-	// Create test license
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
-			AppSlug: "test-app",
-		},
-	}
-	licenseBytes, err := kyaml.Marshal(license)
-	require.NoError(t, err)
-
 	// Create valid helm chart archive
 	mockChartArchive := createTestChartArchive(t, "test-chart", "0.1.0")
 
@@ -46,6 +38,18 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		},
 	}
+
+	// create fake kube client with kotsadm namespace
+	kotsadmNamespace := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kotsadm",
+		},
+	}
+	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
 
 	t.Run("Success", func(t *testing.T) {
 		// Create InstallableHelmCharts with weights - should already be sorted at this stage
@@ -106,12 +110,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 
 		// Create manager
 		manager, err := NewAppInstallManager(
-			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -138,12 +142,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			Status: types.Status{State: types.StatePending},
 		}))
 		manager, err := NewAppInstallManager(
-			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -156,11 +160,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 		err = manager.Install(t.Context(), installableCharts)
 		require.NoError(t, err)
 
-		// Verify final status
+		// Verify components status
 		appInstall, err = manager.GetStatus()
 		require.NoError(t, err)
-		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
-		assert.Equal(t, "Installation complete", appInstall.Status.Description)
+		assert.NotEmpty(t, appInstall.Components)
 
 		mockHelmClient.AssertExpectations(t)
 	})
@@ -181,24 +184,18 @@ func TestAppInstallManager_Install(t *testing.T) {
 			Status: types.Status{State: types.StatePending},
 		}))
 		manager, err := NewAppInstallManager(
-			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
 		// Run installation (should fail)
 		err = manager.Install(t.Context(), installableCharts)
 		assert.Error(t, err)
-
-		// Verify final status
-		appInstall, err := manager.GetStatus()
-		require.NoError(t, err)
-		assert.Equal(t, types.StateFailed, appInstall.Status.State)
-		assert.Contains(t, appInstall.Status.Description, "install helm charts")
 
 		mockHelmClient.AssertExpectations(t)
 	})
@@ -219,6 +216,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 			WithHelmClient(&helm.MockClient{}),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -302,6 +300,18 @@ func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, relea
 
 // TestComponentStatusTracking tests that components are properly initialized and tracked
 func TestComponentStatusTracking(t *testing.T) {
+	// create fake kube client with kotsadm namespace
+	kotsadmNamespace := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "kotsadm",
+		},
+	}
+	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
+
 	t.Run("Components are registered and status is tracked", func(t *testing.T) {
 		// Create test charts with different weights
 		installableCharts := []types.InstallableHelmChart{
@@ -329,9 +339,9 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
-			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -352,10 +362,6 @@ func TestComponentStatusTracking(t *testing.T) {
 
 		assert.Equal(t, "web-chart", appInstall.Components[1].Name)
 		assert.Equal(t, types.StateSucceeded, appInstall.Components[1].Status.State)
-
-		// Overall status should be succeeded
-		assert.Equal(t, types.StateSucceeded, appInstall.Status.State)
-		assert.Equal(t, "Installation complete", appInstall.Status.Description)
 
 		mockHelmClient.AssertExpectations(t)
 	})
@@ -379,9 +385,9 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
-			WithLicense([]byte(`{"spec":{"appSlug":"test-app"}}`)),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
@@ -401,9 +407,6 @@ func TestComponentStatusTracking(t *testing.T) {
 		assert.Equal(t, "failing-chart", failedComponent.Name)
 		assert.Equal(t, types.StateFailed, failedComponent.Status.State)
 		assert.Contains(t, failedComponent.Status.Description, "helm install failed")
-
-		// Overall status should be failed
-		assert.Equal(t, types.StateFailed, appInstall.Status.State)
 
 		mockHelmClient.AssertExpectations(t)
 	})

@@ -25,7 +25,6 @@ type AppInstallManager interface {
 type appInstallManager struct {
 	appInstallStore       appinstallstore.Store
 	releaseData           *release.ReleaseData
-	license               []byte
 	clusterID             string
 	airgapBundle          string
 	hcli                  helm.Client
@@ -51,12 +50,6 @@ func WithAppInstallStore(store appinstallstore.Store) AppInstallManagerOption {
 func WithReleaseData(releaseData *release.ReleaseData) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.releaseData = releaseData
-	}
-}
-
-func WithLicense(license []byte) AppInstallManagerOption {
-	return func(m *appInstallManager) {
-		m.license = license
 	}
 }
 
