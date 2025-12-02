@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/controllers/console"
 	kubernetesinstall "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/install"
 	kubernetesupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/kubernetes/upgrade"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/controllers/kurlmigration"
 	linuxinstall "github.com/replicatedhq/embedded-cluster/api/controllers/linux/install"
 	linuxupgrade "github.com/replicatedhq/embedded-cluster/api/controllers/linux/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
@@ -56,6 +57,7 @@ type API struct {
 	linuxUpgradeController      linuxupgrade.Controller
 	kubernetesInstallController kubernetesinstall.Controller
 	kubernetesUpgradeController kubernetesupgrade.Controller
+	kurlMigrationController     kurlmigration.Controller
 
 	handlers handlers
 }
@@ -102,6 +104,13 @@ func WithKubernetesInstallController(kubernetesInstallController kubernetesinsta
 func WithKubernetesUpgradeController(kubernetesUpgradeController kubernetesupgrade.Controller) Option {
 	return func(a *API) {
 		a.kubernetesUpgradeController = kubernetesUpgradeController
+	}
+}
+
+// WithKURLMigrationController configures the kURL migration controller for the API.
+func WithKURLMigrationController(kurlMigrationController kurlmigration.Controller) Option {
+	return func(a *API) {
+		a.kurlMigrationController = kurlMigrationController
 	}
 }
 

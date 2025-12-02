@@ -110,24 +110,124 @@ func TestGetInstallDirectory(t *testing.T) {
 	}
 }
 
+func TestDiscoverKotsadmNamespace(t *testing.T) {
+	tests := []struct {
+		name        string
+		objects     []client.Object
+		wantNs      string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "finds kotsadm service in default namespace",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
+				},
+			},
+			wantNs:  "default",
+			wantErr: false,
+		},
+		{
+			name: "finds kotsadm service in custom namespace when not in default",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "kots-namespace",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
+				},
+			},
+			wantNs:  "kots-namespace",
+			wantErr: false,
+		},
+		{
+			name: "prioritizes default namespace over other namespaces",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
+				},
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "other-namespace",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
+				},
+			},
+			wantNs:  "default",
+			wantErr: false,
+		},
+		{
+			name:        "kotsadm service not found",
+			objects:     []client.Object{},
+			wantNs:      "",
+			wantErr:     true,
+			errContains: "kotsadm service not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			kcli := fake.NewClientBuilder().WithObjects(tt.objects...).Build()
+
+			cfg := &Config{
+				Client:     kcli,
+				InstallDir: "/var/lib/kurl",
+			}
+
+			gotNs, err := DiscoverKotsadmNamespace(ctx, cfg)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantNs, gotNs)
+			}
+		})
+	}
+}
+
 func TestGetPasswordHash(t *testing.T) {
 	tests := []struct {
 		name        string
-		secret      *corev1.Secret
+		objects     []client.Object
 		namespace   string
 		wantHash    string
 		wantErr     bool
 		errContains string
 	}{
 		{
-			name: "successfully reads password hash",
-			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kotsadm-password",
-					Namespace: "kotsadm",
+			name: "successfully reads password hash with auto-discovery",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
 				},
-				Data: map[string][]byte{
-					"passwordBcrypt": []byte("$2a$10$hashed_password"),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm-password",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"passwordBcrypt": []byte("$2a$10$hashed_password"),
+					},
 				},
 			},
 			namespace: "",
@@ -135,14 +235,16 @@ func TestGetPasswordHash(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name: "successfully reads password hash from custom namespace",
-			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kotsadm-password",
-					Namespace: "custom-ns",
-				},
-				Data: map[string][]byte{
-					"passwordBcrypt": []byte("$2a$10$hashed_password"),
+			name: "successfully reads password hash from explicit namespace",
+			objects: []client.Object{
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm-password",
+						Namespace: "custom-ns",
+					},
+					Data: map[string][]byte{
+						"passwordBcrypt": []byte("$2a$10$hashed_password"),
+					},
 				},
 			},
 			namespace: "custom-ns",
@@ -150,21 +252,30 @@ func TestGetPasswordHash(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:        "secret not found",
-			secret:      nil,
+			name:        "secret not found with auto-discovery",
+			objects:     []client.Object{},
 			namespace:   "",
 			wantHash:    "",
 			wantErr:     true,
-			errContains: "read kotsadm-password secret",
+			errContains: "kotsadm service not found",
 		},
 		{
 			name: "secret missing passwordBcrypt key",
-			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kotsadm-password",
-					Namespace: "kotsadm",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
 				},
-				Data: map[string][]byte{},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm-password",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{},
+				},
 			},
 			namespace:   "",
 			wantHash:    "",
@@ -173,13 +284,22 @@ func TestGetPasswordHash(t *testing.T) {
 		},
 		{
 			name: "secret has empty passwordBcrypt value",
-			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "kotsadm-password",
-					Namespace: "kotsadm",
+			objects: []client.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm",
+						Namespace: "default",
+						Labels:    map[string]string{"app": "kotsadm"},
+					},
 				},
-				Data: map[string][]byte{
-					"passwordBcrypt": []byte(""),
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "kotsadm-password",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"passwordBcrypt": []byte(""),
+					},
 				},
 			},
 			namespace:   "",
@@ -192,14 +312,7 @@ func TestGetPasswordHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-
-			// Create fake client with or without the secret
-			var kcli client.Client
-			if tt.secret != nil {
-				kcli = fake.NewClientBuilder().WithObjects(tt.secret).Build()
-			} else {
-				kcli = fake.NewClientBuilder().Build()
-			}
+			kcli := fake.NewClientBuilder().WithObjects(tt.objects...).Build()
 
 			cfg := &Config{
 				Client:     kcli,

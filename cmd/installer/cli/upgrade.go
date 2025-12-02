@@ -16,7 +16,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/kurl"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
@@ -98,22 +100,20 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			_ = syscall.Umask(0o022)
 
 			// Check if this is a kURL cluster that needs migration to Embedded Cluster.
-			migrationNeeded, err := detectKurlMigration(ctx)
+			kurlMigrationNeeded, err := detectKurlMigration(ctx)
 			if err != nil {
-				return fmt.Errorf("failed to detect migration scenario: %w", err)
+				return fmt.Errorf("failed to detect kURL migration scenario: %w", err)
 			}
 
-			if migrationNeeded {
-				logrus.Info("Preparing to upgrade to Embedded Cluster...")
+			if kurlMigrationNeeded {
+				logrus.Info("Preparing to upgrade from kURL to Embedded Cluster...")
 				logrus.Info("")
-				logrus.Info("This upgrade will be available in a future release.")
-				logrus.Info("")
-				// TBD: In a future story, this will:
-				// 1. Export the kURL password hash for authentication compatibility
-				// 2. Generate TLS certificates for the migration API
-				// 3. Start the Admin Console API in migration mode
-				// 4. Display the manager URL for the user to complete the upgrade via UI
-				// 5. Block until the user completes the upgrade or interrupts (Ctrl+C)
+
+				// Start the API in kURL migration mode
+				if err := runKURLMigrationAPI(ctx, flags, appTitle); err != nil {
+					return err
+				}
+
 				return nil
 			}
 
@@ -678,4 +678,126 @@ func validateIsReleaseUpgradable(ctx context.Context, upgradeConfig *upgradeConf
 	}
 
 	return nil
+}
+
+// runKURLMigrationAPI starts the API server in migration mode for kURL to EC migration.
+// TODO(sc-130983): This is a minimal implementation. Future enhancements needed:
+// - Read TLS certificates from kURL cluster
+// - Add proper error handling and cleanup
+func runKURLMigrationAPI(
+	ctx context.Context, flags UpgradeCmdFlags, appTitle string,
+) (finalErr error) {
+	// Get kURL cluster config to read password hash
+	kurlCfg, err := kurl.GetConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get kURL config: %w", err)
+	}
+	if kurlCfg == nil {
+		return fmt.Errorf("kURL cluster not detected")
+	}
+
+	// Read the actual password hash from kURL cluster's kotsadm-password secret
+	// Pass empty string to auto-discover the kotsadm namespace
+	pwdHashStr, err := kurl.GetPasswordHash(ctx, kurlCfg, "")
+	if err != nil {
+		return fmt.Errorf("failed to read password from kURL cluster: %w", err)
+	}
+	pwdHash := []byte(pwdHashStr)
+
+	// TODO(sc-130983): Read TLS config from kURL cluster (for now, generate self-signed)
+	cert, certBytes, keyBytes, err := tlsutils.GenerateCertificate("localhost", nil, "default")
+	if err != nil {
+		return fmt.Errorf("failed to generate TLS certificate: %w", err)
+	}
+	tlsConfig := apitypes.TLSConfig{
+		CertBytes: certBytes,
+		KeyBytes:  keyBytes,
+		Hostname:  "localhost",
+	}
+
+	// Read and validate license file
+	data, err := os.ReadFile(flags.licenseFile)
+	if err != nil {
+		return fmt.Errorf("failed to read license file: %w", err)
+	}
+	if _, err := helpers.ParseLicenseFromBytes(data); err != nil {
+		return fmt.Errorf("failed to parse license file: %w", err)
+	}
+
+	// Get release data
+	releaseData := release.GetReleaseData()
+	if releaseData == nil {
+		return fmt.Errorf("release data not found")
+	}
+
+	// Use the user-provided manager port if specified, otherwise use default
+	managerPort := 30080 // Default port for upgrade/migration mode
+	if flags.managerPort != 0 {
+		managerPort = flags.managerPort
+	}
+
+	// Get airgap metadata if airgap bundle is provided
+	var airgapMetadata *airgap.AirgapMetadata
+	if flags.airgapBundle != "" {
+		metadata, err := airgap.AirgapMetadataFromPath(flags.airgapBundle)
+		if err != nil {
+			return fmt.Errorf("failed to get airgap info: %w", err)
+		}
+		airgapMetadata = metadata
+	}
+
+	// Get size of embedded assets
+	assetsSize, err := goods.SizeOfEmbeddedAssets()
+	if err != nil {
+		return fmt.Errorf("failed to get size of embedded files: %w", err)
+	}
+
+	// Create a minimal runtime config for kURL migration mode
+	rc := runtimeconfig.New(nil)
+
+	// Prepare API config for kURL migration mode
+	apiConfig := apiOptions{
+		APIConfig: apitypes.APIConfig{
+			InstallTarget:      apitypes.InstallTarget(flags.target),
+			PasswordHash:       pwdHash,
+			TLSConfig:          tlsConfig,
+			License:            data,
+			AirgapBundle:       flags.airgapBundle,
+			AirgapMetadata:     airgapMetadata,
+			EmbeddedAssetsSize: assetsSize,
+			ReleaseData:        releaseData,
+			Mode:               apitypes.ModeUpgrade, // Use upgrade mode for kURL migration
+
+			LinuxConfig: apitypes.LinuxConfig{
+				RuntimeConfig: rc,
+			},
+		},
+		ManagerPort: managerPort,
+		WebMode:     web.ModeUpgrade,
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	apiExitCh, err := startAPI(ctx, cert, apiConfig)
+	if err != nil {
+		return fmt.Errorf("failed to start api: %w", err)
+	}
+
+	logrus.Infof("\nVisit the %s manager to continue the upgrade: %s\n",
+		appTitle,
+		getManagerURL(tlsConfig.Hostname, managerPort))
+
+	// Wait for either user cancellation or API unexpected exit
+	select {
+	case <-ctx.Done():
+		// Normal exit (user interrupted)
+		return nil
+	case err := <-apiExitCh:
+		// API exited unexpectedly
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("api server exited unexpectedly")
+	}
 }

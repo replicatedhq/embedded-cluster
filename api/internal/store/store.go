@@ -8,6 +8,7 @@ import (
 	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 )
@@ -45,6 +46,9 @@ type Store interface {
 
 	// AirgapStore provides access to airgap operations
 	AirgapStore() airgap.Store
+
+	// KURLMigrationStore provides access to kURL migration operations
+	KURLMigrationStore() kurlmigration.Store
 }
 
 // StoreOption is a function that configures a store
@@ -113,6 +117,13 @@ func WithAirgapStore(store airgap.Store) StoreOption {
 	}
 }
 
+// WithKURLMigrationStore sets the kURL migration store
+func WithKURLMigrationStore(store kurlmigration.Store) StoreOption {
+	return func(s *memoryStore) {
+		s.kurlMigrationStore = store
+	}
+}
+
 // memoryStore is an in-memory implementation of the global Store interface
 type memoryStore struct {
 	linuxPreflightStore    linuxpreflight.Store
@@ -122,11 +133,12 @@ type memoryStore struct {
 	kubernetesInstallationStore kubernetesinstallation.Store
 	kubernetesInfraStore        infra.Store
 
-	appConfigStore    appconfig.Store
-	appPreflightStore apppreflight.Store
-	appInstallStore   appinstall.Store
-	appUpgradeStore   appupgrade.Store
-	airgapStore       airgap.Store
+	appConfigStore     appconfig.Store
+	appPreflightStore  apppreflight.Store
+	appInstallStore    appinstall.Store
+	appUpgradeStore    appupgrade.Store
+	airgapStore        airgap.Store
+	kurlMigrationStore kurlmigration.Store
 }
 
 // NewMemoryStore creates a new memory store with the given options
@@ -177,6 +189,10 @@ func NewMemoryStore(opts ...StoreOption) Store {
 		s.airgapStore = airgap.NewMemoryStore()
 	}
 
+	if s.kurlMigrationStore == nil {
+		s.kurlMigrationStore = kurlmigration.NewMemoryStore()
+	}
+
 	return s
 }
 
@@ -218,4 +234,8 @@ func (s *memoryStore) AppUpgradeStore() appupgrade.Store {
 
 func (s *memoryStore) AirgapStore() airgap.Store {
 	return s.airgapStore
+}
+
+func (s *memoryStore) KURLMigrationStore() kurlmigration.Store {
+	return s.kurlMigrationStore
 }
