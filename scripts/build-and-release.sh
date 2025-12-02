@@ -17,7 +17,7 @@ REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.co
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
 ARCH=${ARCH:-$(go env GOARCH)}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
-S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 
 require S3_BUCKET "${S3_BUCKET:-}"
 

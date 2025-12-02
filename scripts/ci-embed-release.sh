@@ -14,7 +14,7 @@ APP_CHANNEL_ID=${APP_CHANNEL_ID:-}
 APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
-S3_BUCKET="${S3_BUCKET:-tf-staging-embedded-cluster-bin}"
+S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
 V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"

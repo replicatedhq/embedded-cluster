@@ -148,7 +148,6 @@ make e2e-v3-initial-release
 # The build scripts now:
 # - Fetch AWS credentials from 1Password (ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID, etc.)
 # - Fetch Replicated API tokens from 1Password (STAGING_REPLICATED_API_TOKEN)
-# - Use standard defaults for S3 bucket (tf-staging-embedded-cluster-bin)
 # - No manual environment variable configuration required
 
 # Output artifacts:
