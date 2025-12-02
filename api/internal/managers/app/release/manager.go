@@ -19,6 +19,7 @@ import (
 // AppReleaseManager provides methods for managing the release of an app
 type AppReleaseManager interface {
 	ExtractAppPreflightSpec(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) (*troubleshootv1beta2.PreflightSpec, error)
+	ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) ([]types.InstallableHelmChart, error)
 }
 
 type appReleaseManager struct {

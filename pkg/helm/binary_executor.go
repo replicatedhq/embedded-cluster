@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"maps"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -26,14 +25,8 @@ type binaryExecutor struct {
 }
 
 // newBinaryExecutor creates a new binaryExecutor with the specified binary path and optional default environment
-func newBinaryExecutor(bin string, homeDir string) BinaryExecutor {
-	// Configure helm environment variables for tmpdir isolation
-	helmEnv := map[string]string{
-		"HELM_CACHE_HOME":  filepath.Join(homeDir, ".cache"),
-		"HELM_CONFIG_HOME": filepath.Join(homeDir, ".config"),
-		"HELM_DATA_HOME":   filepath.Join(homeDir, ".local"),
-	}
-	return &binaryExecutor{bin: bin, defaultEnv: helmEnv}
+func newBinaryExecutor(bin string, defaultEnv map[string]string) BinaryExecutor {
+	return &binaryExecutor{bin: bin, defaultEnv: defaultEnv}
 }
 
 // ExecuteCommand runs a command using helpers.RunCommandWithOptions and returns stdout, stderr, and error

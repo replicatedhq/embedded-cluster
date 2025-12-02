@@ -24,9 +24,9 @@ func (m *airgapManager) Process(ctx context.Context, registrySettings *types.Reg
 
 	err := kotscli.PushImages(kotscli.PushImagesOptions{
 		AirgapBundle:     m.airgapBundle,
-		RegistryAddress:  registrySettings.Address,
-		RegistryUsername: registrySettings.Username,
-		RegistryPassword: registrySettings.Password,
+		RegistryAddress:  registrySettings.LocalRegistryAddress,
+		RegistryUsername: registrySettings.LocalRegistryUsername,
+		RegistryPassword: registrySettings.LocalRegistryPassword,
 		ClusterID:        m.clusterID,
 		Stdout:           m.newLogWriter(),
 	})

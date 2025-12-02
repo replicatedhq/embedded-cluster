@@ -1177,8 +1177,8 @@ func TestProcessAirgap(t *testing.T) {
 
 			// Setup expected registry settings
 			expectedRegistrySettings := &types.RegistrySettings{
-				Host:             "registry.local:5000",
-				HasLocalRegistry: true,
+				LocalRegistryHost: "registry.local:5000",
+				HasLocalRegistry:  true,
 			}
 
 			tt.setupMocks(mockAirgapManager, mockInstallationManager, expectedRegistrySettings, rc, mockStore)

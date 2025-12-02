@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
@@ -21,11 +20,6 @@ func (m *MockClient) Close() error {
 }
 
 func (m *MockClient) AddRepo(ctx context.Context, repo *repo.Entry) error {
-	args := m.Called(ctx, repo)
-	return args.Error(0)
-}
-
-func (m *MockClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
 	args := m.Called(ctx, repo)
 	return args.Error(0)
 }
@@ -55,8 +49,8 @@ func (m *MockClient) Push(ctx context.Context, path, dst string) error {
 	return args.Error(0)
 }
 
-func (m *MockClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
-	args := m.Called(ctx, ref, version)
+func (m *MockClient) GetChartMetadata(ctx context.Context, chartPath string, version string) (*chart.Metadata, error) {
+	args := m.Called(ctx, chartPath, version)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -68,20 +62,20 @@ func (m *MockClient) ReleaseExists(ctx context.Context, namespace string, releas
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (string, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return "", args.Error(1)
 	}
-	return args.Get(0).(*release.Release), args.Error(1)
+	return args.Get(0).(string), args.Error(1)
 }
 
-func (m *MockClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+func (m *MockClient) Upgrade(ctx context.Context, opts UpgradeOptions) (string, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return "", args.Error(1)
 	}
-	return args.Get(0).(*release.Release), args.Error(1)
+	return args.Get(0).(string), args.Error(1)
 }
 
 func (m *MockClient) Uninstall(ctx context.Context, opts UninstallOptions) error {

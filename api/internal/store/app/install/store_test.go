@@ -280,3 +280,105 @@ func TestMemoryStore_DeepCopy(t *testing.T) {
 	assert.Equal(t, "Original description", appInstall3.Status.Description)
 	assert.Equal(t, "Original log\n", appInstall3.Logs)
 }
+
+func TestMemoryStore_RegisterComponents(t *testing.T) {
+	store := newMemoryStore()
+
+	// Test registering components
+	componentNames := []string{"chart1", "chart2", "chart3"}
+	err := store.RegisterComponents(componentNames)
+	require.NoError(t, err)
+
+	// Verify components were registered
+	appInstall, err := store.Get()
+	require.NoError(t, err)
+	require.Len(t, appInstall.Components, 3)
+
+	for i, component := range appInstall.Components {
+		assert.Equal(t, componentNames[i], component.Name)
+		assert.Equal(t, types.StatePending, component.Status.State)
+	}
+}
+
+func TestMemoryStore_SetComponentStatus(t *testing.T) {
+	store := newMemoryStore()
+
+	// Register components first
+	componentNames := []string{"chart1", "chart2"}
+	err := store.RegisterComponents(componentNames)
+	require.NoError(t, err)
+
+	// Test setting component status
+	status := types.Status{
+		State:       types.StateRunning,
+		Description: "Installing chart1",
+		LastUpdated: time.Now(),
+	}
+	err = store.SetComponentStatus("chart1", status)
+	require.NoError(t, err)
+
+	// Verify component status was updated
+	appInstall, err := store.Get()
+	require.NoError(t, err)
+	assert.Equal(t, types.StateRunning, appInstall.Components[0].Status.State)
+	assert.Equal(t, "Installing chart1", appInstall.Components[0].Status.Description)
+	// Second component should remain unchanged
+	assert.Equal(t, types.StatePending, appInstall.Components[1].Status.State)
+}
+
+func TestMemoryStore_SetComponentStatus_NonExistentComponent(t *testing.T) {
+	store := newMemoryStore()
+
+	// Try to set status on non-existent component
+	status := types.Status{
+		State:       types.StateRunning,
+		Description: "Installing",
+		LastUpdated: time.Now(),
+	}
+	err := store.SetComponentStatus("nonexistent", status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "component nonexistent not found")
+}
+
+func TestMemoryStore_ComponentStatusConcurrency(t *testing.T) {
+	store := newMemoryStore()
+
+	// Register components
+	componentNames := []string{"chart1", "chart2", "chart3"}
+	err := store.RegisterComponents(componentNames)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	numGoroutines := 10
+	numOperations := 20
+
+	// Concurrent component status operations
+	wg.Add(numGoroutines * 2)
+	for i := 0; i < numGoroutines; i++ {
+		// Concurrent component status writes
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				componentName := componentNames[j%len(componentNames)]
+				status := types.Status{
+					State:       types.StateRunning,
+					Description: "Concurrent update",
+					LastUpdated: time.Now(),
+				}
+				err := store.SetComponentStatus(componentName, status)
+				assert.NoError(t, err)
+			}
+		}(i)
+
+		// Concurrent reads
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < numOperations; j++ {
+				_, err := store.Get()
+				assert.NoError(t, err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}

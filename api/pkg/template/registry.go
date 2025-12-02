@@ -15,7 +15,7 @@ func (e *Engine) localRegistryHost() string {
 	if e.registrySettings == nil {
 		return ""
 	}
-	return e.registrySettings.Host
+	return e.registrySettings.LocalRegistryHost
 }
 
 // localRegistryAddress returns full registry address with namespace (e.g., "10.128.0.11:5000/myapp")
@@ -23,7 +23,7 @@ func (e *Engine) localRegistryAddress() string {
 	if e.registrySettings == nil {
 		return ""
 	}
-	return e.registrySettings.Address
+	return e.registrySettings.LocalRegistryAddress
 }
 
 // localRegistryNamespace returns the app-specific namespace for registry isolation
@@ -31,7 +31,7 @@ func (e *Engine) localRegistryNamespace() string {
 	if e.registrySettings == nil {
 		return ""
 	}
-	return e.registrySettings.Namespace
+	return e.registrySettings.LocalRegistryNamespace
 }
 
 // imagePullSecretName returns the standardized image pull secret name
