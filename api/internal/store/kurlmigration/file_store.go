@@ -331,10 +331,12 @@ func (f *fileStore) SetUserConfig(config types.LinuxInstallationConfig) error {
 		// If no migration exists yet, store config in memory temporarily
 		// It will be persisted when InitializeMigration is called
 		if err == types.ErrNoActiveKURLMigration {
-			f.pendingUserConfig = &types.LinuxInstallationConfig{}
-			if err := deepcopy.Copy(f.pendingUserConfig, &config); err != nil {
+			tempConfig := &types.LinuxInstallationConfig{}
+			if err := deepcopy.Copy(tempConfig, &config); err != nil {
 				return fmt.Errorf("deep copy pending user config: %w", err)
 			}
+			// Only assign after successful copy
+			f.pendingUserConfig = tempConfig
 			return nil
 		}
 		return err
