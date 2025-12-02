@@ -287,7 +287,7 @@ spec:
       args: [ "sysinfo" ]
   - copy:
       collectorName: installer-logs
-      path: /var/log/embedded-cluster/*.log
+      path: {{ .LogsDir }}/*.log
   - copy:
       collectorName: installer-logs-old
       path: {{ .DataDir }}/logs/*.log
