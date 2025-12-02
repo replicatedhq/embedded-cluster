@@ -730,8 +730,13 @@ func TestCalculateRegistrySettings(t *testing.T) {
 				LocalRegistryHost:      "10.96.0.11:5000",
 				LocalRegistryAddress:   "10.96.0.11:5000/test-app",
 				LocalRegistryNamespace: "test-app",
+				LocalRegistryUsername:  "embedded-cluster",
+				LocalRegistryPassword:  registry.GetRegistryPassword(),
 				ImagePullSecretName:    "test-app-registry",
-				ImagePullSecretValue:   base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`{"auths":{"10.96.0.11:5000":{"username": "embedded-cluster", "password": "%s"}}}`, registry.GetRegistryPassword()))),
+				ImagePullSecretValue: func() string {
+					authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+					return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`{"auths":{"10.96.0.11:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registry.GetRegistryPassword(), authString)))
+				}(),
 			},
 		},
 		{
