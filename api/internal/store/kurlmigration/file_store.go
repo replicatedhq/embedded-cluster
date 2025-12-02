@@ -79,6 +79,11 @@ func (f *fileStore) writeState(state *persistedState) error {
 		return fmt.Errorf("marshal migration state: %w", err)
 	}
 
+	// Ensure parent directory exists
+	if err := os.MkdirAll(f.dataDir, 0755); err != nil {
+		return fmt.Errorf("create data directory: %w", err)
+	}
+
 	// Create temp file in same directory for atomic rename
 	tmpPath := f.statePath() + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
