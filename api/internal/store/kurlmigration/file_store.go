@@ -102,6 +102,9 @@ func (f *fileStore) InitializeMigration(migrationID string, transferMode string,
 	// Check if file already exists
 	if _, err := os.Stat(f.statePath()); err == nil {
 		return types.ErrKURLMigrationAlreadyStarted
+	} else if !os.IsNotExist(err) {
+		// Other filesystem errors (permission denied, I/O errors, etc.)
+		return fmt.Errorf("check migration state file: %w", err)
 	}
 
 	// Use pending user config if it was set before initialization
@@ -110,7 +113,6 @@ func (f *fileStore) InitializeMigration(migrationID string, transferMode string,
 		if err := deepcopy.Copy(&userConfig, f.pendingUserConfig); err != nil {
 			return fmt.Errorf("copy pending user config: %w", err)
 		}
-		f.pendingUserConfig = nil // Clear pending config after using it
 	}
 
 	// Create new state
@@ -131,6 +133,9 @@ func (f *fileStore) InitializeMigration(migrationID string, transferMode string,
 	if err := f.writeState(state); err != nil {
 		return fmt.Errorf("initialize migration: %w", err)
 	}
+
+	// Clear pending config only after successful write
+	f.pendingUserConfig = nil
 
 	return nil
 }

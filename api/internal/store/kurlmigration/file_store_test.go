@@ -24,13 +24,15 @@ func TestNewFileStore(t *testing.T) {
 
 func TestFileStore_InitializeMigration(t *testing.T) {
 	tests := []struct {
-		name         string
-		setup        func(Store) // Optional setup before test
-		migrationID  string
-		transferMode string
-		config       types.LinuxInstallationConfig
-		wantErr      error
-		validate     func(*testing.T, Store) // Optional additional validation
+		name            string
+		setup           func(Store) // Optional setup before test
+		storeFactory    func(*testing.T) Store
+		migrationID     string
+		transferMode    string
+		config          types.LinuxInstallationConfig
+		wantErr         error
+		wantErrContains string
+		validate        func(*testing.T, Store) // Optional additional validation
 	}{
 		{
 			name:         "success - creates file and initializes state",
@@ -97,12 +99,62 @@ func TestFileStore_InitializeMigration(t *testing.T) {
 				assert.Equal(t, "http://proxy.example.com:8080", userCfg.HTTPProxy)
 			},
 		},
+		{
+			name: "error - filesystem error on stat check",
+			storeFactory: func(t *testing.T) Store {
+				// Create a store with invalid dataDir to trigger filesystem errors
+				tmpDir := t.TempDir()
+				filePath := filepath.Join(tmpDir, "not-a-directory")
+				err := os.WriteFile(filePath, []byte("test"), 0644)
+				require.NoError(t, err)
+				return NewFileStore(filePath)
+			},
+			migrationID:     "test-id",
+			transferMode:    "copy",
+			config:          types.LinuxInstallationConfig{},
+			wantErrContains: "check migration state file",
+		},
+		{
+			name: "error - pending user config preserved on write failure",
+			storeFactory: func(t *testing.T) Store {
+				// Create a directory with read+execute but not write permissions
+				// This allows stat check to pass but write to fail
+				tmpDir := t.TempDir()
+				err := os.Chmod(tmpDir, 0555) // Read+execute, no write
+				require.NoError(t, err)
+				return NewFileStore(tmpDir)
+			},
+			setup: func(s Store) {
+				// Set user config before initialization
+				_ = s.SetUserConfig(types.LinuxInstallationConfig{
+					HTTPProxy: "http://proxy.example.com:8080",
+				})
+			},
+			migrationID:     "test-id",
+			transferMode:    "copy",
+			config:          types.LinuxInstallationConfig{},
+			wantErrContains: "initialize migration",
+			validate: func(t *testing.T, s Store) {
+				// Verify pending user config is still available after failed write
+				userCfg, err := s.GetUserConfig()
+				require.NoError(t, err)
+				assert.Equal(t, "http://proxy.example.com:8080", userCfg.HTTPProxy)
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			store := NewFileStore(tmpDir)
+			var store Store
+			var tmpDir string
+
+			// Use custom store factory if provided, otherwise create default
+			if tt.storeFactory != nil {
+				store = tt.storeFactory(t)
+			} else {
+				tmpDir = t.TempDir()
+				store = NewFileStore(tmpDir)
+			}
 
 			if tt.setup != nil {
 				tt.setup(store)
@@ -112,15 +164,29 @@ func TestFileStore_InitializeMigration(t *testing.T) {
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
+				if tt.validate != nil {
+					tt.validate(t, store)
+				}
+				return
+			}
+
+			if tt.wantErrContains != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErrContains)
+				if tt.validate != nil {
+					tt.validate(t, store)
+				}
 				return
 			}
 
 			require.NoError(t, err)
 
-			// Verify file was created
-			statePath := filepath.Join(tmpDir, "migration-state.json")
-			_, err = os.Stat(statePath)
-			assert.NoError(t, err)
+			// Verify file was created (only check if we have tmpDir)
+			if tmpDir != "" {
+				statePath := filepath.Join(tmpDir, "migration-state.json")
+				_, err = os.Stat(statePath)
+				assert.NoError(t, err)
+			}
 
 			if tt.validate != nil {
 				tt.validate(t, store)
