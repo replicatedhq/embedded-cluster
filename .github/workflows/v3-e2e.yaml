@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
-      KUBE_VERSION: "${{ needs.output-vars.outputs.k0s_minor_version }}"
+      KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
       CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
       CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
     steps:
