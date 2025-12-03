@@ -68,15 +68,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kotsadm",
+			Name: "test-app",
 		},
 	}
 	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
 
 	t.Run("Success", func(t *testing.T) {
-		// Create a fake kube client WITHOUT kotsadm namespace so KotsadmNamespace() returns AppSlug()
-		fakeKcliNoKotsadm := fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
-
 		// Create InstallableHelmCharts with weights - should already be sorted at this stage
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", 10, map[string]any{
@@ -214,7 +211,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 			WithHelmClient(mockHelmClient),
 			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
-			WithKubeClient(fakeKcliNoKotsadm),
+			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
