@@ -1,0 +1,87 @@
+name: V3 E2E
+
+on:
+  pull_request:
+    paths-ignore:
+      - ".claude/**"
+
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".claude/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  output-vars:
+    name: Output variables
+    runs-on: ubuntu-latest
+    outputs:
+      ec_version: ${{ steps.output_vars.outputs.ec_version }}
+      app_version: ${{ steps.output_vars.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # necessary for getting the last tag
+      - uses: ./.github/actions/git-sha
+        id: git_sha
+      - name: Output variables
+        id: output_vars
+        run: |
+          ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+
+          EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
+
+          APP_VERSION="appver-dev-${{ steps.git_sha.outputs.git_sha }}"
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+
+  build-release:
+    name: Build release
+    needs:
+      - output-vars
+    runs-on: ubuntu-latest
+    env:
+      EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
+      APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+      APP_CHANNEL: CI-V3
+      APP_CHANNEL_ID: 36LoGcOOLvEPFXQXCUsFub28Abi
+      APP_CHANNEL_SLUG: ci-v3
+      AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+      AWS_REGION: "us-east-1"
+      USE_CHAINGUARD: "1"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          make e2e-v3-initial-release
+
+  e2e-headless-online:
+    name: E2E headless online
+    needs:
+      - output-vars
+      - build-release
+    runs-on: ubuntu-latest
+    env:
+      APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+      KUBE_VERSION: "1.33"
+      CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+      CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - run: |
+          dagger call e-2-e-run-headless-online \
+            --app-version=$APP_VERSION \
+            --kube-version=$KUBE_VERSION \
+            --license-file ./e2e/licenses/ci-v3.yaml \
+            string

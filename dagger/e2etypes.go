@@ -72,7 +72,7 @@ type CheckResult struct {
 }
 
 func (c *CheckResult) String() string {
-	return fmt.Sprintf("CheckResult{Passed: %t, ErrorMessage: %s, Details: %s}", c.Passed, c.ErrorMessage, c.Details)
+	return fmt.Sprintf("CheckResult{Passed: %t, ErrorMessage: %q, Details: %q}", c.Passed, c.ErrorMessage, c.Details)
 }
 
 // TestResult contains the result of an E2E test execution.
@@ -89,4 +89,9 @@ type TestResult struct {
 	Duration string
 	// Validation results from the test
 	ValidationResults *ValidationResult
+}
+
+func (t *TestResult) String() string {
+	return fmt.Sprintf("TestResult{Scenario: %s, Mode: %s, Success: %t, Error: %q, Duration: %s, ValidationResults: %s}",
+		t.Scenario, t.Mode, t.Success, t.Error, t.Duration, t.ValidationResults)
 }
