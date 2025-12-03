@@ -29,7 +29,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/jedib0t/go-pretty/v6 v6.6.8
-	github.com/k0sproject/k0s v1.33.5-0.20250819091818-6da1d9c31be6
+	github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78
 	github.com/mattn/go-isatty v0.0.20
 	github.com/ohler55/ojg v1.26.10
 	github.com/onsi/ginkgo/v2 v2.27.2
@@ -361,9 +361,9 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.34.1 // indirect
-	k8s.io/cloud-provider v0.33.4 // indirect
+	k8s.io/cloud-provider v0.33.6 // indirect
 	k8s.io/component-base v0.34.1 // indirect
-	k8s.io/controller-manager v0.33.4 // indirect
+	k8s.io/controller-manager v0.33.6 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kms v0.34.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
