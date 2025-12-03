@@ -6,13 +6,23 @@ import (
 	"os"
 	"runtime/debug"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 // Install installs the app with the provided config values
-func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart) error {
+func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues) error {
+	license := &kotsv1beta1.License{}
+	if err := kyaml.Unmarshal(m.license, license); err != nil {
+		return fmt.Errorf("parse license: %w", err)
+	}
+
 	if err := m.initKubeClient(); err != nil {
 		return fmt.Errorf("init kube client: %w", err)
 	}
@@ -27,12 +37,47 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 		return fmt.Errorf("initialize components: %w", err)
 	}
 
-	// Install Helm charts
+	// Install Helm charts first
 	if err := m.installHelmCharts(ctx, installableCharts, kotsadmNamespace); err != nil {
 		return fmt.Errorf("install helm charts: %w", err)
 	}
 
+	// Then install the app using KOTS CLI
+	if err := m.installWithKotsCLI(license, kotsadmNamespace, configValues); err != nil {
+		return fmt.Errorf("install with kots cli: %w", err)
+	}
+
 	return nil
+}
+
+func (m *appInstallManager) installWithKotsCLI(license *kotsv1beta1.License, kotsadmNamespace string, configValues kotsv1beta1.ConfigValues) error {
+	ecDomains := utils.GetDomains(m.releaseData)
+
+	installOpts := kotscli.InstallOptions{
+		AppSlug:      license.Spec.AppSlug,
+		License:      m.license,
+		Namespace:    kotsadmNamespace,
+		ClusterID:    m.clusterID,
+		AirgapBundle: m.airgapBundle,
+		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
+		SkipPreflights: true,
+		// Skip pushing images to the registry since we do it separately earlier in the install process
+		DisableImagePush:      true,
+		ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		Stdout:                m.newLogWriter(),
+	}
+
+	configValuesFile, err := m.createConfigValuesFile(configValues)
+	if err != nil {
+		return fmt.Errorf("creating config values file: %w", err)
+	}
+	installOpts.ConfigValuesFile = configValuesFile
+
+	if m.kotsCLI != nil {
+		return m.kotsCLI.Install(installOpts)
+	}
+
+	return kotscli.Install(installOpts)
 }
 
 func (m *appInstallManager) installHelmCharts(ctx context.Context, installableCharts []types.InstallableHelmChart, kotsadmNamespace string) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -13,8 +14,8 @@ type MockAppInstallManager struct {
 }
 
 // Install mocks the Install method
-func (m *MockAppInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart) error {
-	args := m.Called(ctx, installableCharts)
+func (m *MockAppInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues) error {
+	args := m.Called(ctx, installableCharts, configValues)
 	return args.Error(0)
 }
 

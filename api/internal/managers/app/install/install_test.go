@@ -7,27 +7,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	appinstallstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/install"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubectl/pkg/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func TestAppInstallManager_Install(t *testing.T) {
+	// Setup environment variable for V3
+	t.Setenv("ENABLE_V3", "1")
+
 	// Create valid helm chart archive
 	mockChartArchive := createTestChartArchive(t, "test-chart", "0.1.0")
+
+	// Create test license
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			AppSlug: "test-app",
+		},
+	}
+	licenseBytes, err := kyaml.Marshal(license)
+	require.NoError(t, err)
 
 	// Create test release data with helm chart archives
 	releaseData := &release.ReleaseData{
@@ -38,6 +54,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		},
 	}
+
+	// Set up release data globally so AppSlug() returns the correct value for v3
+	err = release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
 
 	// create fake kube client with kotsadm namespace
 	kotsadmNamespace := &corev1.Namespace{
@@ -52,6 +74,9 @@ func TestAppInstallManager_Install(t *testing.T) {
 	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
 
 	t.Run("Success", func(t *testing.T) {
+		// Create a fake kube client WITHOUT kotsadm namespace so KotsadmNamespace() returns AppSlug()
+		fakeKcliNoKotsadm := fake.NewClientBuilder().WithScheme(scheme.Scheme).Build()
+
 		// Create InstallableHelmCharts with weights - should already be sorted at this stage
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", 10, map[string]any{
@@ -108,22 +133,97 @@ func TestAppInstallManager_Install(t *testing.T) {
 			databaseCall,
 		)
 
+		configValues := kotsv1beta1.ConfigValues{
+			Spec: kotsv1beta1.ConfigValuesSpec{
+				Values: map[string]kotsv1beta1.ConfigValue{
+					"key1": {
+						Value: "value1",
+					},
+					"key2": {
+						Value: "value2",
+					},
+				},
+			},
+		}
+
+		// Create mock installer with detailed verification
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.MatchedBy(func(opts kotscli.InstallOptions) bool {
+			// Verify basic install options
+			if opts.AppSlug != "test-app" {
+				t.Logf("AppSlug mismatch: expected 'test-app', got '%s'", opts.AppSlug)
+				return false
+			}
+			if opts.License == nil {
+				t.Logf("License is nil")
+				return false
+			}
+			if opts.Namespace != "test-app" {
+				t.Logf("Namespace mismatch: expected 'test-app', got '%s'", opts.Namespace)
+				return false
+			}
+			if opts.ClusterID != "test-cluster" {
+				t.Logf("ClusterID mismatch: expected 'test-cluster', got '%s'", opts.ClusterID)
+				return false
+			}
+			if opts.AirgapBundle != "test-airgap.tar.gz" {
+				t.Logf("AirgapBundle mismatch: expected 'test-airgap.tar.gz', got '%s'", opts.AirgapBundle)
+				return false
+			}
+			if opts.ReplicatedAppEndpoint == "" {
+				t.Logf("ReplicatedAppEndpoint is empty")
+				return false
+			}
+			if opts.ConfigValuesFile == "" {
+				t.Logf("ConfigValuesFile is empty")
+				return false
+			}
+			if !opts.DisableImagePush {
+				t.Logf("DisableImagePush is false")
+				return false
+			}
+
+			// Verify config values file content
+			b, err := os.ReadFile(opts.ConfigValuesFile)
+			if err != nil {
+				t.Logf("Failed to read config values file: %v", err)
+				return false
+			}
+			var cv kotsv1beta1.ConfigValues
+			if err := kyaml.Unmarshal(b, &cv); err != nil {
+				t.Logf("Failed to unmarshal config values: %v", err)
+				return false
+			}
+			if cv.Spec.Values["key1"].Value != "value1" {
+				t.Logf("Config value key1 mismatch: expected 'value1', got '%s'", cv.Spec.Values["key1"].Value)
+				return false
+			}
+			if cv.Spec.Values["key2"].Value != "value2" {
+				t.Logf("Config value key2 mismatch: expected 'value2', got '%s'", cv.Spec.Values["key2"].Value)
+				return false
+			}
+			return true
+		})).Return(nil)
+
 		// Create manager
 		manager, err := NewAppInstallManager(
 			WithClusterID("test-cluster"),
 			WithAirgapBundle("test-airgap.tar.gz"),
 			WithReleaseData(releaseData),
+			WithLicense(licenseBytes),
 			WithHelmClient(mockHelmClient),
+			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
-			WithKubeClient(fakeKcli),
+			WithKubeClient(fakeKcliNoKotsadm),
 		)
 		require.NoError(t, err)
 
 		// Run installation with InstallableHelmCharts
-		err = manager.Install(context.Background(), installableCharts)
+		err = manager.Install(context.Background(), installableCharts, configValues)
 		require.NoError(t, err)
 
 		mockHelmClient.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
@@ -137,6 +237,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 			return opts.ChartPath != "" && opts.ReleaseName == "prometheus" && opts.Namespace == "monitoring"
 		})).Return("Release \"prometheus\" has been installed.", nil)
 
+		// Create mock KOTS CLI
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.Anything).Return(nil)
+
 		// Create manager with initialized store
 		store := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
@@ -144,7 +248,9 @@ func TestAppInstallManager_Install(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
+			WithLicense(licenseBytes),
 			WithHelmClient(mockHelmClient),
+			WithKotsCLI(mockKotsCLI),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
 			WithKubeClient(fakeKcli),
@@ -157,7 +263,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StatePending, appInstall.Status.State)
 
 		// Run installation
-		err = manager.Install(t.Context(), installableCharts)
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
 		require.NoError(t, err)
 
 		// Verify components status
@@ -166,6 +272,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.NotEmpty(t, appInstall.Components)
 
 		mockHelmClient.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
@@ -186,6 +293,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithClusterID("test-cluster"),
 			WithReleaseData(releaseData),
+			WithLicense(licenseBytes),
 			WithHelmClient(mockHelmClient),
 			WithLogger(logger.NewDiscardLogger()),
 			WithAppInstallStore(store),
@@ -194,7 +302,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation (should fail)
-		err = manager.Install(t.Context(), installableCharts)
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
 		assert.Error(t, err)
 
 		mockHelmClient.AssertExpectations(t)
@@ -227,7 +335,6 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, "Installing application", appInstall.Status.Description)
 		assert.Equal(t, "Installation started\n", appInstall.Logs)
 	})
-
 }
 
 // createTarGzArchive creates a tar.gz archive with the given files
@@ -300,6 +407,15 @@ func createTestInstallableHelmChart(t *testing.T, chartName, chartVersion, relea
 
 // TestComponentStatusTracking tests that components are properly initialized and tracked
 func TestComponentStatusTracking(t *testing.T) {
+	// Create test license
+	license := &kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			AppSlug: "test-app",
+		},
+	}
+	licenseBytes, err := kyaml.Marshal(license)
+	require.NoError(t, err)
+
 	// create fake kube client with kotsadm namespace
 	kotsadmNamespace := &corev1.Namespace{
 		TypeMeta: metav1.TypeMeta{
@@ -332,6 +448,10 @@ func TestComponentStatusTracking(t *testing.T) {
 			return opts.ReleaseName == "nginx" && opts.Namespace == "web"
 		})).Return("Release \"nginx\" has been installed.", nil).Once()
 
+		// Create mock KOTS CLI
+		mockKotsCLI := &kotscli.MockKotsCLI{}
+		mockKotsCLI.On("Install", mock.Anything).Return(nil)
+
 		// Create manager with in-memory store
 		appInstallStore := appinstallstore.NewMemoryStore(appinstallstore.WithAppInstall(types.AppInstall{
 			Status: types.Status{State: types.StatePending},
@@ -339,14 +459,16 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
+			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
+			WithKotsCLI(mockKotsCLI),
 			WithKubeClient(fakeKcli),
 		)
 		require.NoError(t, err)
 
 		// Install the charts
-		err = manager.Install(t.Context(), installableCharts)
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
 		require.NoError(t, err)
 
 		// Verify that components were registered and have correct status
@@ -364,6 +486,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		assert.Equal(t, types.StateSucceeded, appInstall.Components[1].Status.State)
 
 		mockHelmClient.AssertExpectations(t)
+		mockKotsCLI.AssertExpectations(t)
 	})
 
 	t.Run("Component failure is tracked correctly", func(t *testing.T) {
@@ -385,6 +508,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
 			WithReleaseData(&release.ReleaseData{}),
+			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
 			WithKubeClient(fakeKcli),
@@ -392,7 +516,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Install the charts (should fail)
-		err = manager.Install(t.Context(), installableCharts)
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
 		require.Error(t, err)
 
 		// Verify that component failure is tracked
