@@ -463,7 +463,7 @@ The V3 installer includes a Dagger-based E2E test framework that provides portab
 ```bash
 # Provision a test VM
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  test-provision-vm string
+  provision-cmx-vm string
 ```
 
 **Documentation:** See [dagger/e2e/README.md](dagger/e2e/README.md) for comprehensive E2E testing guide, including:
