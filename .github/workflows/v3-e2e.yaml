@@ -41,15 +41,19 @@ jobs:
     name: Output variables
     runs-on: ubuntu-latest
     outputs:
+      git_version: ${{ steps.output_vars.outputs.git_version }}
+      k0s_minor_version: ${{ steps.output_vars.outputs.k0s_minor_version }}
       ec_version: ${{ steps.output_vars.outputs.ec_version }}
       app_version: ${{ steps.output_vars.outputs.app_version }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # necessary for getting the last tag
 
-      - uses: ./.github/actions/git-sha
+      - name: Get git sha
         id: git_sha
+        uses: ./.github/actions/git-sha
 
       - name: Output variables
         id: output_vars
@@ -75,21 +79,9 @@ jobs:
     needs:
       - output-vars
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.output-vars.outputs.git_version }}
-      EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
-      APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
-      APP_CHANNEL: CI-V3
-      APP_CHANNEL_ID: 36LoGcOOLvEPFXQXCUsFub28Abi
-      APP_CHANNEL_SLUG: ci-v3
-      AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
-      AWS_REGION: "us-east-1"
-      REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
-      USE_CHAINGUARD: "1"
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Cache embedded bins
         uses: actions/cache@v4
@@ -111,16 +103,32 @@ jobs:
         with:
           node-version-file: ./web/.nvmrc
 
-      - uses: oras-project/setup-oras@v1
+      - name: Setup oras
+        uses: oras-project/setup-oras@v1
 
-      - uses: imjasonh/setup-crane@v0.4
+      - name: Setup crane
+        uses: imjasonh/setup-crane@v0.4
 
-      - name: Install dagger
+      - name: Setup dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - run: |
+      - name: Build release
+        env:
+          VERSION: ${{ needs.output-vars.outputs.git_version }}
+          EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
+          APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+          APP_CHANNEL: CI-V3
+          APP_CHANNEL_ID: 36LoGcOOLvEPFXQXCUsFub28Abi
+          APP_CHANNEL_SLUG: ci-v3
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          USE_CHAINGUARD: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           make e2e-v3-initial-release
 
   e2e-headless-online:
@@ -129,20 +137,22 @@ jobs:
       - output-vars
       - build-release
     runs-on: ubuntu-latest
-    env:
-      APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
-      KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
-      CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
-      CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Install dagger
+      - name: Setup dagger
         run: |
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
-      - run: |
+      - name: Run test
+        env:
+          APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+          KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
+          CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
+        run: |
           dagger call e-2-e-run-headless-online \
             --app-version=$APP_VERSION \
             --kube-version=$KUBE_VERSION \
