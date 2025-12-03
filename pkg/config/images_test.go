@@ -48,7 +48,7 @@ func TestListK0sImages(t *testing.T) {
 	}
 
 	// make sure images are proxied
-	rx := regexp.MustCompile("proxy.replicated.com/(anonymous|library)/")
+	rx := regexp.MustCompile("proxy.replicated.com/library/")
 	for _, image := range filtered {
 		assert.Regexp(t, rx, image, "image %s should be proxied", image)
 	}
