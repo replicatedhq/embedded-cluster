@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kyaml "sigs.k8s.io/yaml"
 )
 

@@ -938,6 +938,11 @@ export interface components {
             logs: string;
             status: components["schemas"]["types.Status"];
         };
+        "types.AppComponent": {
+            /** @description Chart name */
+            name: string;
+            status: components["schemas"]["types.Status"];
+        };
         "types.AppConfig": {
             groups: components["schemas"]["v1beta1.ConfigGroup"][];
         };
@@ -956,6 +961,7 @@ export interface components {
             values: components["schemas"]["types.AppConfigValues"];
         };
         "types.AppInstall": {
+            components: components["schemas"]["types.AppComponent"][];
             logs: string;
             status: components["schemas"]["types.Status"];
         };
@@ -1833,6 +1839,7 @@ export interface components {
          * @enum {string}
          */
         "types.State": "Pending" | "Running" | "Succeeded" | "Failed";
+        /** @description Uses existing Status type */
         "types.Status": {
             description: string;
             lastUpdated: string;
