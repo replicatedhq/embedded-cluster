@@ -16,8 +16,8 @@ import (
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  with-cmx-vm --vm-id 8a2a66ef validate \
-//	    --scenario=online --expected-kube-version=1.31 --expected-app-version=v1.0.0
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  validate --scenario=online --expected-kube-version=1.33 --expected-app-version=appver-dev-xpXCTO string
 func (i *CmxInstance) Validate(
 	ctx context.Context,
 	// Scenario (online, airgap)
@@ -26,7 +26,7 @@ func (i *CmxInstance) Validate(
 	expectedKubeVersion string,
 	// Expected app version (e.g., "v1.0.0")
 	expectedAppVersion string,
-) (*ValidationResult, error) {
+) *ValidationResult {
 	validationResult := &ValidationResult{
 		Success: true,
 	}
@@ -52,12 +52,14 @@ func (i *CmxInstance) Validate(
 	}
 
 	for _, check := range allChecks {
+		fmt.Println(check.String())
+
 		if check != nil && !check.Passed {
 			validationResult.Success = false
 		}
 	}
 
-	return validationResult, nil
+	return validationResult
 }
 
 // validateClusterHealth validates Kubernetes cluster health.
@@ -178,7 +180,7 @@ func (i *CmxInstance) validateAppDeployment(ctx context.Context, expectedAppVers
 
 	// Wait for nginx pods to be Running (with timeout)
 	nginxReady := false
-	timeout := time.After(3 * time.Minute)
+	timeout := time.After(1 * time.Minute)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -233,8 +235,7 @@ waitLoop:
 
 		// Check for expected version with "deployed" status
 		// Format: version number deployed
-		expectedPattern := fmt.Sprintf("%s", expectedAppVersion)
-		if !strings.Contains(versions, expectedPattern) || !strings.Contains(versions, "deployed") {
+		if !strings.Contains(versions, expectedAppVersion) || !strings.Contains(versions, "deployed") {
 			result.Passed = false
 			result.ErrorMessage = fmt.Sprintf("app version %s not deployed", expectedAppVersion)
 			result.Details = fmt.Sprintf("versions output:\n%s", versions)
