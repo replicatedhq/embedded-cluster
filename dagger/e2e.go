@@ -2,125 +2,312 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 
 	"dagger/embedded-cluster/internal/dagger"
+
+	"go.yaml.in/yaml/v3"
 )
 
-// Provisions a new CMX VM for E2E testing.
+//go:embed assets/config-values.yaml
+var configValuesFileContent string
+
+// E2eRunHeadlessOnline runs an online headless installation E2E test.
 //
-// This creates a fresh VM with the specified configuration and waits for it to be ready.
-// The VM is automatically configured with SSH access and networking.
+// This method provisions a fresh CMX VM, performs a headless installation via CLI,
+// validates the installation, and cleans up the VM afterward. It is designed to test
+// the online installation scenario without Playwright.
+//
+// The test:
+// - Provisions an Ubuntu 22.04 VM with r1.large instance type (8GB RAM, 4 CPUs)
+// - Downloads and installs embedded-cluster via CLI with license
+// - Validates installation success using Kubernetes client
+// - Returns comprehensive test results including validation details
 //
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  test-provision-vm --name="my-test-vm"
-func (m *EmbeddedCluster) TestProvisionVM(
+//	  e-2-e-run-headless-online --app-version=v1.0.0 --kube-version=1.31 --license-file=./local-dev/ethan-dev-license.yaml
+func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 	ctx context.Context,
-	// Name for the VM
-	// +default="ec-e2e-test"
-	name string,
-	// OS distribution
-	// +default="ubuntu"
-	distribution string,
-	// Distribution version
-	// +default="22.04"
-	version string,
-	// Instance type
-	// +default="r1.medium"
-	instanceType string,
-	// Disk size in GB
-	// +default=50
-	diskSize int,
-	// How long to wait for VM to be ready
-	// +default="10m"
-	wait string,
-	// TTL for the VM
-	// +default="2h"
-	ttl string,
-	// SSH user
-	// +default="ec-e2e-test"
-	sshUser string,
-) (*CMXInstance, error) {
-	// Get CMX API token and SSH key from 1Password
-	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
-	sshKey := m.mustResolveSecret(nil, "CMX_SSH_PRIVATE_KEY")
+	// App version to install
+	appVersion string,
+	// Expected Kubernetes version (e.g., "1.31")
+	kubeVersion string,
+	// License file
+	licenseFile *dagger.File,
+	// Skip cleanup
+	// +default=false
+	skipCleanup bool,
+) (*TestResult, error) {
+	startTime := ctx.Value("startTime")
+	if startTime == nil {
+		// Track start time for duration calculation
+		ctx = context.WithValue(ctx, "startTime", fmt.Sprintf("%d", 0))
+	}
 
-	// Create VM using Replicated Dagger module
-	vms, err := dag.
-		Replicated(cmxToken).
-		VMCreate(
-			ctx,
-			dagger.ReplicatedVMCreateOpts{
-				Name:         name,
-				Wait:         wait,
-				TTL:          ttl,
-				Distribution: distribution,
-				Version:      version,
-				Count:        1,
-				Disk:         diskSize,
-				InstanceType: instanceType,
-			},
-		)
+	scenario := "online"
+	mode := "headless"
+
+	// Log test start
+	fmt.Printf("Starting E2E test: scenario=%s mode=%s app-version=%s kube-version=%s\n",
+		scenario, mode, appVersion, kubeVersion)
+
+	// Provision a fresh CMX VM for testing
+	fmt.Printf("Provisioning CMX VM for %s %s test...\n", scenario, mode)
+	vm, err := m.ProvisionCmxVm(
+		ctx,
+		fmt.Sprintf("ec-e2e-%s-%s", scenario, mode),
+		"ubuntu",
+		"22.04",
+		"r1.large", // 8GB RAM, 4 CPUs - enough for single-node cluster
+		50,         // 50GB disk
+		"10m",      // 10 minute wait for VM to be ready
+		"2h",       // 2 hour TTL
+	)
 	if err != nil {
-		return nil, fmt.Errorf("create vm: %w", err)
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    fmt.Sprintf("failed to provision VM: %v", err),
+		}, err
 	}
 
-	// Get the first VM
-	if len(vms) == 0 {
-		return nil, fmt.Errorf("no VMs created")
-	}
-	vm := vms[0]
+	// Ensure VM is cleaned up after test completes
+	defer func() {
+		if skipCleanup {
+			return
+		}
+		fmt.Printf("Cleaning up CMX VM %s...\n", vm.VmID)
+		if _, cleanupErr := vm.Cleanup(ctx); cleanupErr != nil {
+			fmt.Printf("Warning: failed to cleanup VM %s: %v\n", vm.VmID, cleanupErr)
+		}
+	}()
 
-	// Get VM details
-	vmID, err := vm.ItemID(ctx)
+	// Run headless installation
+	fmt.Printf("Running headless installation on VM %s...\n", vm.VmID)
+	installResult, err := vm.InstallHeadless(
+		ctx,
+		scenario,
+		appVersion,
+		licenseFile,
+		dag.File("config-values.yaml", configValuesFileContent),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("get vm id: %w", err)
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    fmt.Sprintf("installation failed: %v", err),
+		}, err
 	}
 
-	vmName, err := vm.Name(ctx)
+	if !installResult.Success {
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    "installation reported failure",
+		}, fmt.Errorf("installation failed")
+	}
+
+	// Validate installation
+	fmt.Printf("Validating installation on VM %s...\n", vm.VmID)
+	validationResult, err := vm.Validate(
+		ctx,
+		scenario,
+		kubeVersion,
+		appVersion,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("get vm name: %w", err)
+		return &TestResult{
+			Scenario:          scenario,
+			Mode:              mode,
+			Success:           false,
+			Error:             fmt.Sprintf("validation error: %v", err),
+			ValidationResults: validationResult,
+		}, err
 	}
 
-	networkID, err := vm.NetworkID(ctx)
+	// Build final test result
+	testResult := &TestResult{
+		Scenario:          scenario,
+		Mode:              mode,
+		Success:           validationResult.Success,
+		ValidationResults: validationResult,
+	}
+
+	if !validationResult.Success {
+		testResult.Error = "validation checks failed"
+		fmt.Printf("Test FAILED: %s %s test validation failed\n", scenario, mode)
+		return testResult, fmt.Errorf("validation checks failed")
+	}
+
+	fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
+	return testResult, nil
+}
+
+// E2eRunHeadlessAirgap runs an airgap headless installation E2E test.
+//
+// This method provisions a fresh CMX VM, performs a headless airgap installation via CLI,
+// validates the installation, and cleans up the VM afterward. It is designed to test
+// the airgap installation scenario without Playwright.
+//
+// The test:
+// - Provisions an Ubuntu 22.04 VM with r1.large instance type (8GB RAM, 4 CPUs)
+// - Downloads airgap bundle and installs embedded-cluster via CLI with license
+// - Validates installation success using Kubernetes client
+// - Returns comprehensive test results including validation details
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  e-2-e-run-headless-airgap --app-version=v1.0.0 --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml
+func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
+	ctx context.Context,
+	// App version to install
+	appVersion string,
+	// Expected Kubernetes version (e.g., "1.31")
+	kubeVersion string,
+	// License file
+	licenseFile *dagger.File,
+	// Skip cleanup
+	// +default=false
+	skipCleanup bool,
+) (*TestResult, error) {
+	startTime := ctx.Value("startTime")
+	if startTime == nil {
+		// Track start time for duration calculation
+		ctx = context.WithValue(ctx, "startTime", fmt.Sprintf("%d", 0))
+	}
+
+	scenario := "airgap"
+	mode := "headless"
+
+	// Log test start
+	fmt.Printf("Starting E2E test: scenario=%s mode=%s app-version=%s kube-version=%s\n",
+		scenario, mode, appVersion, kubeVersion)
+
+	// Provision a fresh CMX VM for testing
+	fmt.Printf("Provisioning CMX VM for %s %s test...\n", scenario, mode)
+	vm, err := m.ProvisionCmxVm(
+		ctx,
+		fmt.Sprintf("ec-e2e-%s-%s", scenario, mode),
+		"ubuntu",
+		"22.04",
+		"r1.large", // 8GB RAM, 4 CPUs - enough for single-node cluster
+		50,         // 50GB disk
+		"10m",      // 10 minute wait for VM to be ready
+		"2h",       // 2 hour TTL
+	)
 	if err != nil {
-		return nil, fmt.Errorf("get network id: %w", err)
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    fmt.Sprintf("failed to provision VM: %v", err),
+		}, err
 	}
 
-	sshEndpoint, err := vm.DirectSshendpoint(ctx)
+	// Ensure VM is cleaned up after test completes
+	defer func() {
+		if skipCleanup {
+			return
+		}
+		fmt.Printf("Cleaning up CMX VM %s...\n", vm.VmID)
+		if _, cleanupErr := vm.Cleanup(ctx); cleanupErr != nil {
+			fmt.Printf("Warning: failed to cleanup VM %s: %v\n", vm.VmID, cleanupErr)
+		}
+	}()
+
+	// For airgap, we need to download the airgap bundle to the VM first
+	// This would typically be done by downloading from S3 or Replicated
+	// For now, we'll assume the airgap bundle needs to be prepared
+	fmt.Printf("Preparing airgap bundle on VM %s...\n", vm.VmID)
+	// TODO: Implement airgap bundle download logic
+	// This should download the airgap bundle from S3 or Replicated
+	// and place it at /tmp/airgap-bundle.tar.gz on the VM
+
+	// Run headless installation
+	fmt.Printf("Running headless airgap installation on VM %s...\n", vm.VmID)
+	installResult, err := vm.InstallHeadless(
+		ctx,
+		scenario,
+		appVersion,
+		licenseFile,
+		dag.File("config-values.yaml", configValuesFileContent),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("get ssh endpoint: %w", err)
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    fmt.Sprintf("installation failed: %v", err),
+		}, err
 	}
 
-	directSSHPort, err := vm.DirectSshport(ctx)
+	if !installResult.Success {
+		return &TestResult{
+			Scenario: scenario,
+			Mode:     mode,
+			Success:  false,
+			Error:    "installation reported failure",
+		}, fmt.Errorf("installation failed")
+	}
+
+	// Validate installation
+	fmt.Printf("Validating installation on VM %s...\n", vm.VmID)
+	validationResult, err := vm.Validate(
+		ctx,
+		scenario,
+		kubeVersion,
+		appVersion,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("get direct ssh port: %w", err)
+		return &TestResult{
+			Scenario:          scenario,
+			Mode:              mode,
+			Success:           false,
+			Error:             fmt.Sprintf("validation error: %v", err),
+			ValidationResults: validationResult,
+		}, err
 	}
 
-	instance := &CMXInstance{
-		VmID:        string(vmID),
-		Name:        vmName,
-		NetworkID:   networkID,
-		SSHEndpoint: sshEndpoint,
-		SSHPort:     directSSHPort,
-		SSHUser:     sshUser,
-		SSHKey:      sshKey,
-		CMXToken:    cmxToken,
+	// Build final test result
+	testResult := &TestResult{
+		Scenario:          scenario,
+		Mode:              mode,
+		Success:           validationResult.Success,
+		ValidationResults: validationResult,
 	}
 
-	// Wait for SSH to be available
-	if err := instance.waitForSSH(ctx); err != nil {
-		return nil, fmt.Errorf("wait for ssh: %w", err)
+	if !validationResult.Success {
+		testResult.Error = "validation checks failed"
+		fmt.Printf("Test FAILED: %s %s test validation failed\n", scenario, mode)
+	} else {
+		fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
 	}
 
-	// Discover private IP
-	privateIP, err := instance.discoverPrivateIP(ctx)
+	return testResult, nil
+}
+
+func parseLicense(ctx context.Context, licenseFile *dagger.File) (contents string, licenseID string, channelID string, err error) {
+	contents, err = licenseFile.Contents(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("discover private ip: %w", err)
+		return
 	}
-	instance.PrivateIP = privateIP
-
-	return instance, nil
+	var license struct {
+		Spec struct {
+			LicenseID string `yaml:"licenseID"`
+			ChannelID string `yaml:"channelID"`
+		} `yaml:"spec"`
+	}
+	if err = yaml.Unmarshal([]byte(contents), &license); err != nil {
+		return
+	}
+	licenseID = license.Spec.LicenseID
+	channelID = license.Spec.ChannelID
+	return
 }

@@ -9,8 +9,183 @@ import (
 	"dagger/embedded-cluster/internal/dagger"
 )
 
-// CMXInstance wraps the CMX VM instance.
-type CMXInstance struct {
+const (
+	SSHUser = "ec-e2e-test"
+	DataDir = "/var/lib/embedded-cluster-smoke-test-staging-app"
+)
+
+// Provisions a new CMX VM for E2E testing.
+//
+// This creates a fresh VM with the specified configuration and waits for it to be ready.
+// The VM is automatically configured with SSH access and networking.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  provision-cmx-vm --name="my-test-vm"
+func (m *EmbeddedCluster) ProvisionCmxVm(
+	ctx context.Context,
+	// Name for the VM
+	// +default="ec-e2e-test"
+	name string,
+	// OS distribution
+	// +default="ubuntu"
+	distribution string,
+	// Distribution version
+	// +default="22.04"
+	version string,
+	// Instance type
+	// +default="r1.medium"
+	instanceType string,
+	// Disk size in GB
+	// +default=50
+	diskSize int,
+	// How long to wait for VM to be ready
+	// +default="10m"
+	wait string,
+	// TTL for the VM
+	// +default="2h"
+	ttl string,
+) (*CmxInstance, error) {
+	// Get CMX API token and SSH key from 1Password
+	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+
+	// Create VM using Replicated Dagger module
+	vms, err := dag.
+		Replicated(cmxToken).
+		VMCreate(
+			ctx,
+			dagger.ReplicatedVMCreateOpts{
+				Name:         name,
+				Wait:         wait,
+				TTL:          ttl,
+				Distribution: distribution,
+				Version:      version,
+				Count:        1,
+				Disk:         diskSize,
+				InstanceType: instanceType,
+			},
+		)
+	if err != nil {
+		return nil, fmt.Errorf("create vm: %w", err)
+	}
+
+	// Get the first VM
+	if len(vms) == 0 {
+		return nil, fmt.Errorf("no VMs created")
+	}
+	vm := vms[0]
+
+	return m.cmxVmToCmxInstance(ctx, &vm)
+}
+
+// WithCmxVm connects to an existing CMX VM by ID.
+//
+// This queries the CMX API to get the VM details and creates a CmxInstance.
+// Unlike ProvisionCmxVm, this does not create a new VM - it connects to one that already exists.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  with-cmx-vm --vm-id="abc123"
+func (m *EmbeddedCluster) WithCmxVm(
+	ctx context.Context,
+	// VM ID
+	vmId string,
+	// SSH user
+	// +default="ec-e2e-test"
+	sshUser string,
+) (*CmxInstance, error) {
+	// Get CMX API token and SSH key from 1Password
+	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+
+	// List all VMs and find the one with matching ID
+	vms, err := dag.
+		Replicated(cmxToken).
+		VMList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list vms: %w", err)
+	}
+
+	// Find VM with matching ID
+	var vm *dagger.ReplicatedVM
+	for _, v := range vms {
+		id, err := v.ItemID(ctx)
+		if err != nil {
+			continue
+		}
+		if string(id) == vmId {
+			vm = &v
+			break
+		}
+	}
+
+	if vm == nil {
+		return nil, fmt.Errorf("vm with id %s not found", vmId)
+	}
+
+	return m.cmxVmToCmxInstance(ctx, vm)
+}
+
+func (m *EmbeddedCluster) cmxVmToCmxInstance(ctx context.Context, vm *dagger.ReplicatedVM) (*CmxInstance, error) {
+	// Get CMX API token and SSH key from 1Password
+	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+	sshKey := m.mustResolveSecret(nil, "CMX_SSH_PRIVATE_KEY")
+
+	// Get VM details
+	vmID, err := vm.ItemID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get vm id: %w", err)
+	}
+
+	vmName, err := vm.Name(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get vm name: %w", err)
+	}
+
+	networkID, err := vm.NetworkID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get network id: %w", err)
+	}
+
+	sshEndpoint, err := vm.DirectSshendpoint(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get ssh endpoint: %w", err)
+	}
+
+	directSSHPort, err := vm.DirectSshport(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get direct ssh port: %w", err)
+	}
+
+	instance := &CmxInstance{
+		VmID:        string(vmID),
+		Name:        vmName,
+		NetworkID:   networkID,
+		SSHEndpoint: sshEndpoint,
+		SSHPort:     directSSHPort,
+		SSHUser:     SSHUser,
+		SSHKey:      sshKey,
+		CMXToken:    cmxToken,
+	}
+
+	// Wait for SSH to be available
+	if err := instance.waitForSSH(ctx); err != nil {
+		return nil, fmt.Errorf("wait for ssh: %w", err)
+	}
+
+	// Discover private IP
+	privateIP, err := instance.discoverPrivateIP(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("discover private ip: %w", err)
+	}
+	instance.PrivateIP = privateIP
+
+	return instance, nil
+}
+
+// CmxInstance wraps the CMX VM instance.
+type CmxInstance struct {
 	// VM ID
 	VmID string
 	// VM name
@@ -32,13 +207,13 @@ type CMXInstance struct {
 }
 
 // String returns a string representation of the CMX instance.
-func (i *CMXInstance) String() string {
-	return fmt.Sprintf("CMXInstance{VmID: %s, SSHEndpoint: %s, SSHPort: %d}", i.VmID, i.SSHEndpoint, i.SSHPort)
+func (i *CmxInstance) String() string {
+	return fmt.Sprintf("CmxInstance{VmID: %s, SSHEndpoint: %s, SSHPort: %d}", i.VmID, i.SSHEndpoint, i.SSHPort)
 }
 
 // sshClient returns a container with openssh-client installed and the SSH key configured.
 // The key is mounted at /root/.ssh/id_rsa with proper permissions and formatting.
-func (i *CMXInstance) sshClient() *dagger.Container {
+func (i *CmxInstance) sshClient() *dagger.Container {
 	return dag.Container().
 		From("ubuntu:24.04").
 		WithEnvVariable("DEBIAN_FRONTEND", "noninteractive").
@@ -52,7 +227,7 @@ func (i *CMXInstance) sshClient() *dagger.Container {
 }
 
 // waitForSSH waits for SSH to become available on the VM.
-func (i *CMXInstance) waitForSSH(ctx context.Context) error {
+func (i *CmxInstance) waitForSSH(ctx context.Context) error {
 	timeout := time.After(5 * time.Minute)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -62,7 +237,7 @@ func (i *CMXInstance) waitForSSH(ctx context.Context) error {
 		case <-timeout:
 			return fmt.Errorf("timed out waiting for ssh")
 		case <-ticker.C:
-			_, err := i.RunCommand(ctx, []string{"uptime"})
+			_, err := i.Command(`uptime`).Stdout(ctx)
 			if err == nil {
 				return nil
 			}
@@ -72,8 +247,8 @@ func (i *CMXInstance) waitForSSH(ctx context.Context) error {
 }
 
 // discoverPrivateIP discovers the private IP address of the VM.
-func (i *CMXInstance) discoverPrivateIP(ctx context.Context) (string, error) {
-	stdout, err := i.RunCommand(ctx, []string{"hostname", "-I"})
+func (i *CmxInstance) discoverPrivateIP(ctx context.Context) (string, error) {
+	stdout, err := i.Command(`hostname -I`).Stdout(ctx)
 	if err != nil {
 		return "", fmt.Errorf("run hostname command: %w", err)
 	}
@@ -88,64 +263,119 @@ func (i *CMXInstance) discoverPrivateIP(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("no private ip found starting with 10")
 }
 
-// RunCommand runs a command on the CMX VM.
+// Command returns a dagger container that runs a command on the CMX VM.
 //
 // Commands are executed with sudo and the PATH is set to include /usr/local/bin.
-// Arguments are properly shell-escaped to handle spaces and special characters.
+// The returned container can be further customized before calling .Stdout() or other methods.
 //
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  test-provision-vm run-command --command="ls,-la,/tmp"
-func (i *CMXInstance) RunCommand(
-	ctx context.Context,
-	// Command to run (as array of strings)
-	command []string,
-) (string, error) {
-	if len(command) == 0 {
-		return "", fmt.Errorf("command cannot be empty")
-	}
-
-	// Build the full command with sudo prefix
-	fullCmd := append([]string{"sudo", "PATH=$PATH:/usr/local/bin"}, command...)
-
-	// Shell-escape each argument to handle spaces and special characters
-	escapedArgs := make([]string, len(fullCmd))
-	for i, arg := range fullCmd {
-		escapedArgs[i] = shellEscape(arg)
-	}
-	cmdStr := strings.Join(escapedArgs, " ")
-
-	stdout, err := i.sshClient().
-		WithExec([]string{
-			"ssh",
-			"-i", "/root/.ssh/id_rsa",
-			"-o", "StrictHostKeyChecking=no",
-			"-o", "BatchMode=yes",
-			"-p", fmt.Sprintf("%d", i.SSHPort),
-			fmt.Sprintf("%s@%s", i.SSHUser, i.SSHEndpoint),
-			cmdStr,
-		}).
-		Stdout(ctx)
-
-	if err != nil {
-		return "", fmt.Errorf("run command failed: %w", err)
-	}
-
-	return stdout, nil
+//	  provision-cmx-vm command --command="ls -la /tmp" stdout
+func (i *CmxInstance) Command(
+	// Command to run
+	command string,
+) *dagger.Container {
+	return i.CommandWithEnv(command, nil)
 }
 
-// shellEscape escapes a string for safe use in a shell command.
-// It wraps the string in single quotes and escapes any single quotes within.
+// CommandWithEnv runs a command with custom environment variables set on the remote system.
+//
+// Environment variables are passed as KEY=value pairs and will be available to the command.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  provision-cmx-vm command-with-env --command="kubectl get pods" --env="KUBECONFIG=/path/to/kubeconfig" stdout
+func (i *CmxInstance) CommandWithEnv(
+	// Command to run
+	command string,
+	// Environment variables (e.g., "KUBECONFIG=/path/to/config")
+	// +optional
+	env []string,
+) *dagger.Container {
+	env = append([]string{
+		fmt.Sprintf("PATH=$PATH:%s/bin", DataDir),
+		fmt.Sprintf("KUBECONFIG=%s", fmt.Sprintf("%s/k0s/pki/admin.conf", DataDir)),
+	}, env...)
+
+	// Build environment variable prefix if provided
+	envPrefix := strings.Join(env, " ")
+
+	// Build the full remote command with sudo and env vars
+	remoteCmd := fmt.Sprintf("sudo -E %s %s", envPrefix, command)
+	escapedRemoteCmd := shellEscape(remoteCmd)
+
+	// Build SSH command
+	sshCmd := fmt.Sprintf(
+		"ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -p %d %s@%s",
+		i.SSHPort, i.SSHUser, i.SSHEndpoint,
+	)
+
+	// Return container with SSH exec
+	return i.sshClient().
+		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
+		WithExec([]string{
+			"bash",
+			"-c",
+			fmt.Sprintf(`%s "%s"`, sshCmd, escapedRemoteCmd),
+		})
+}
+
+// shellEscape escapes a full command string for safe inclusion inside
+// a double-quoted shell argument (e.g., ssh "<cmd>").
+// It escapes backslashes, double quotes, dollar signs, and backticks.
 func shellEscape(s string) string {
-	// If the string doesn't contain any special characters, return as-is
-	if !strings.ContainsAny(s, " \t\n'\"\\$`!*?[](){};<>|&~") {
-		return s
+	replacer := strings.NewReplacer(
+		`"`, `\"`,
+		`$`, `\$`,
+		"`", "\\`",
+		`\`, `\\`,
+	)
+	return replacer.Replace(s)
+}
+
+// UploadFile uploads file content to a path on the VM using SCP.
+//
+// This uses SCP to transfer the file to /tmp first (avoiding permission issues),
+// then moves it to the final destination using sudo.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  provision-cmx-vm upload-file --path=/tmp/myfile.txt --file=/path/to/file.txt
+func (i *CmxInstance) UploadFile(
+	ctx context.Context,
+	// Destination path on the VM
+	path string,
+	// File to upload
+	file *dagger.File,
+) error {
+	// Create a temporary file in the container with the content
+	tempPath := "/tmp/upload-file"
+	tmpDest := fmt.Sprintf("/tmp/upload-%d", time.Now().UnixNano())
+
+	container := i.sshClient().
+		WithFile(tempPath, file).
+		WithEnvVariable("CACHE_BUSTER", time.Now().String())
+
+	// Use SCP to upload the file to /tmp on the VM (user has write access)
+	scpCmd := fmt.Sprintf(
+		"scp -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -P %d %s %s@%s:%s",
+		i.SSHPort, tempPath, i.SSHUser, i.SSHEndpoint, tmpDest,
+	)
+
+	if _, err := container.WithExec([]string{"bash", "-c", scpCmd}).Stdout(ctx); err != nil {
+		return fmt.Errorf("scp upload to %s: %w", tmpDest, err)
 	}
 
-	// Use single quotes and escape any single quotes in the string
-	// by replacing ' with '\''
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+	// Move the file to the final destination using sudo
+	moveCmd := fmt.Sprintf("mv %s %s", tmpDest, path)
+	if _, err := i.Command(moveCmd).Stdout(ctx); err != nil {
+		return fmt.Errorf("move file to %s: %w", path, err)
+	}
+
+	return nil
 }
 
 // ExposePort exposes a port on the VM and returns the public hostname.
@@ -153,8 +383,8 @@ func shellEscape(s string) string {
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e2e-init e2e-provision-vm expose-port --port=30000 --protocol="https"
-func (i *CMXInstance) ExposePort(
+//	  with-cmx-vm --vm-id 8a2a66ef expose-port --port=30000 --protocol="https"
+func (i *CmxInstance) ExposePort(
 	ctx context.Context,
 	// Port to expose
 	port int,
@@ -187,8 +417,8 @@ func (i *CMXInstance) ExposePort(
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e2e-init e2e-provision-vm cleanup
-func (i *CMXInstance) Cleanup(ctx context.Context) (string, error) {
+//	  with-cmx-vm --vm-id 8a2a66ef cleanup
+func (i *CmxInstance) Cleanup(ctx context.Context) (string, error) {
 	result, err := dag.
 		Replicated(i.CMXToken).
 		VMRemove(ctx, dagger.ReplicatedVMRemoveOpts{
@@ -200,4 +430,142 @@ func (i *CMXInstance) Cleanup(ctx context.Context) (string, error) {
 	}
 
 	return result, nil
+}
+
+// downloadAndPrepareRelease downloads embedded-cluster release from replicated.app
+// and prepares it for installation. This matches how customers get the binary.
+//
+// The method downloads the release tarball, extracts it, and places the binary and
+// license file in the expected locations for installation.
+func (i *CmxInstance) downloadAndPrepareRelease(
+	ctx context.Context,
+	// Installation scenario (online, airgap)
+	scenario string,
+	// App version to download
+	appVersion string,
+	// Channel ID for downloading the release
+	channelID string,
+	// License ID for authorization
+	licenseID string,
+) error {
+	// Download embedded-cluster release from replicated.app
+	releaseURL := fmt.Sprintf("https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/%s/%s", channelID, appVersion)
+
+	if scenario == "airgap" {
+		releaseURL = fmt.Sprintf("%s?airgap=true", releaseURL)
+	}
+
+	downloadCmd := fmt.Sprintf(`curl --retry 5 --retry-all-errors -fL -o /tmp/ec-release.tgz "%s" -H "Authorization: %s"`, releaseURL, licenseID)
+	if _, err := i.Command(downloadCmd).Stdout(ctx); err != nil {
+		return fmt.Errorf("download release: %w", err)
+	}
+
+	// Extract release tarball
+	if _, err := i.Command(`tar xzf /tmp/ec-release.tgz -C /tmp`).Stdout(ctx); err != nil {
+		return fmt.Errorf("extract release: %w", err)
+	}
+
+	// Create assets directory
+	if _, err := i.Command(`mkdir -p /assets`).Stdout(ctx); err != nil {
+		return fmt.Errorf("create assets directory: %w", err)
+	}
+
+	// Move binary to /usr/local/bin
+	moveBinaryCmd := `mv /tmp/embedded-cluster-smoke-test-staging-app /usr/local/bin/embedded-cluster-smoke-test-staging-app`
+	if _, err := i.Command(moveBinaryCmd).Stdout(ctx); err != nil {
+		return fmt.Errorf("move binary: %w", err)
+	}
+
+	// Move license to /assets
+	moveLicenseCmd := `mv /tmp/license.yaml /assets/license.yaml`
+	if _, err := i.Command(moveLicenseCmd).Stdout(ctx); err != nil {
+		return fmt.Errorf("move license: %w", err)
+	}
+
+	if scenario == "airgap" {
+		// Move airgap bundle to /assets
+		moveAirgapBundleCmd := `mv /tmp/embedded-cluster-smoke-test-staging-app.airgap /assets/embedded-cluster-smoke-test-staging-app.airgap`
+		if _, err := i.Command(moveAirgapBundleCmd).Stdout(ctx); err != nil {
+			return fmt.Errorf("move airgap bundle: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// InstallHeadless performs a headless (CLI) installation without Playwright.
+//
+// This method downloads the release, optionally uploads a config file, builds the
+// installation command with appropriate flags, and runs the installation with a
+// 30-minute timeout. It supports both online and airgap scenarios.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  install-headless --scenario online \
+//	    --app-version=appver-dev-xpXCTO \
+//	    --license-file ./local-dev/ethan-dev-3-license.yaml \
+//	    --config-values-file ./assets/config-values.yaml
+func (i *CmxInstance) InstallHeadless(
+	ctx context.Context,
+	// Installation scenario (online, airgap)
+	scenario string,
+	// App version to install
+	appVersion string,
+	// License file
+	licenseFile *dagger.File,
+	// Config values file
+	configValuesFile *dagger.File,
+) (*InstallResult, error) {
+	// Get license content as plain text for passing to install command
+	_, licenseID, channelID, err := parseLicense(ctx, licenseFile)
+	if err != nil {
+		return nil, fmt.Errorf("parse license: %w", err)
+	}
+
+	// Download and prepare embedded-cluster release
+	if err := i.downloadAndPrepareRelease(ctx, scenario, appVersion, channelID, licenseID); err != nil {
+		return nil, fmt.Errorf("prepare release: %w", err)
+	}
+
+	// Upload config file if provided
+	if err := i.UploadFile(ctx, "/assets/config-values.yaml", configValuesFile); err != nil {
+		return nil, fmt.Errorf("upload config file: %w", err)
+	}
+
+	// Build install command
+	installCmd := `/usr/local/bin/embedded-cluster-smoke-test-staging-app install ` +
+		`--license /assets/license.yaml ` +
+		`--target linux ` +
+		`--headless ` +
+		`--config-values /assets/config-values.yaml ` +
+		`--admin-console-password password ` +
+		`--yes`
+
+	// Add airgap bundle for airgap scenario
+	if scenario == "airgap" {
+		installCmd = fmt.Sprintf(`%s --airgap-bundle /assets/embedded-cluster-smoke-test-staging-app.airgap`, installCmd)
+	}
+
+	// Run installation command with timeout
+	// Note: We use a simple approach here - start the command and wait for it to complete
+	// The command itself may take up to 30 minutes
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
+	defer cancel()
+
+	stdout, err := i.Command(installCmd).Stdout(ctx)
+	if err != nil {
+		return &InstallResult{
+			Success:         false,
+			InstallationLog: stdout,
+		}, fmt.Errorf("installation failed: %w", err)
+	}
+
+	// Installation succeeded
+	return &InstallResult{
+		Success:         true,
+		KubeconfigPath:  fmt.Sprintf("%s/k0s/pki/admin.conf", DataDir),
+		InstallationLog: stdout,
+	}, nil
 }
