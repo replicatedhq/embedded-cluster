@@ -66,11 +66,11 @@ jobs:
           echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
           echo "k0s_minor_version=$K0S_MINOR_VERSION" >> $GITHUB_OUTPUT
 
-          EC_VERSION=$(./scripts/print-ec-version.sh "$GIT_VERSION" "$K0S_MINOR_VERSION")
+          EC_VERSION="$(./scripts/print-ec-version.sh "$GIT_VERSION" "$K0S_MINOR_VERSION")-v3"
           echo "EC_VERSION=\"$EC_VERSION\""
           echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
 
-          APP_VERSION="appver-dev-${{ steps.git_sha.outputs.git_sha }}"
+          APP_VERSION="appver-dev-v3-${{ steps.git_sha.outputs.git_sha }}"
           echo "APP_VERSION=\"$APP_VERSION\""
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
