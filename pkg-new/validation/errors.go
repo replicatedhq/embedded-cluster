@@ -30,8 +30,8 @@ func NewRequiredReleasesError(requiredVersions []string, targetVersion string) *
 // installed release is required and it's in a failed state
 func NewCurrentReleaseFailedError(currentVersion string, targetVersion string) *ValidationError {
 	return &ValidationError{
-		Message: fmt.Sprintf("this upgrade requires the current installed version %s to be installed successfully and its current status is failed. Please this version is installed correctly before upgrading to %s",
-			currentVersion, targetVersion),
+		Message: fmt.Sprintf("Cannot upgrade to version %s, because the required version %s did not install successfully. Version %s must be fully installed before upgrading to version %s.",
+			targetVersion, currentVersion, currentVersion, targetVersion),
 	}
 }
 
