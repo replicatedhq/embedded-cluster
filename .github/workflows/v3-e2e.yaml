@@ -116,7 +116,8 @@ jobs:
 
       - name: Build release
         env:
-          VERSION: ${{ needs.output-vars.outputs.git_version }}
+          K0S_MINOR_VERSION: "${{ needs.output-vars.outputs.k0s_minor_version }}"
+          VERSION: "${{ needs.output-vars.outputs.git_version }}"
           EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
           APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
           APP_CHANNEL: CI-V3

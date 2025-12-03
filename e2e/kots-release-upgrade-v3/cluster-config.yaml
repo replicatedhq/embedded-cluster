@@ -4,7 +4,6 @@ metadata:
   name: "testconfig"
 spec:
   version: "__version_string__"
-  v2Enabled: __v2_enabled__
   binaryOverrideUrl: "__release_url__"
   metadataOverrideUrl: "__metadata_url__"
   domains:
