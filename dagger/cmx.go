@@ -305,47 +305,29 @@ func (i *CmxInstance) CommandWithEnv(
 	// Build environment variable string
 	envVars := strings.Join(env, " ")
 
+	// Escape single quotes in the command
+	command = strings.ReplaceAll(command, `'`, `'"'"'`)
+
 	// Build the full remote command
 	// Use 'env' to set environment variables for sudo to avoid secure_path issues
-	remoteCmd := fmt.Sprintf("sudo -E env %s %s", envVars, command)
+	remoteCmd := fmt.Sprintf(`sudo -E env %s bash -c '%s'`, envVars, command)
 
 	// Build SSH command
-	sshCmd := fmt.Sprintf(
-		"ssh -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -p %d %s@%s",
-		i.SSHPort, i.SSHUser, i.SSHEndpoint,
-	)
+	sshCmd := []string{
+		"ssh",
+		"-i", "/root/.ssh/id_rsa",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "BatchMode=yes",
+		"-p", fmt.Sprintf("%d", i.SSHPort),
+		fmt.Sprintf("%s@%s", i.SSHUser, i.SSHEndpoint),
+		remoteCmd,
+	}
 
 	// Return container with SSH exec
 	// We use double quotes around the remote command so variables can expand
 	return i.sshClient().
 		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
-		WithExec([]string{
-			"bash",
-			"-c",
-			fmt.Sprintf(`%s "%s"`, sshCmd, shellEscape(remoteCmd)),
-		})
-}
-
-// shellEscape escapes a string for safe inclusion inside a double-quoted shell argument.
-// This is used when constructing commands that go through bash -c → ssh → remote bash.
-//
-// It escapes special characters in the correct order:
-// 1. Backslashes first (to avoid double-escaping)
-// 2. Then other special characters (quotes, dollar signs, backticks)
-//
-// This ensures that:
-// - $PATH becomes \$PATH (expands on remote side)
-// - "quoted" becomes \"quoted\" (preserves quotes)
-// - `backtick` becomes \`backtick\` (prevents command substitution)
-func shellEscape(s string) string {
-	// Order matters! Escape backslash first to avoid double-escaping
-	replacer := strings.NewReplacer(
-		`\`, `\\`,
-		`"`, `\"`,
-		`$`, `\$`,
-		"`", "\\`",
-	)
-	return replacer.Replace(s)
+		WithExec(sshCmd)
 }
 
 // UploadFile uploads file content to a path on the VM using SCP.
@@ -374,12 +356,17 @@ func (i *CmxInstance) UploadFile(
 		WithEnvVariable("CACHE_BUSTER", time.Now().String())
 
 	// Use SCP to upload the file to /tmp on the VM (user has write access)
-	scpCmd := fmt.Sprintf(
-		"scp -i /root/.ssh/id_rsa -o StrictHostKeyChecking=no -o BatchMode=yes -P %d %s %s@%s:%s",
-		i.SSHPort, tempPath, i.SSHUser, i.SSHEndpoint, tmpDest,
-	)
+	scpCmd := []string{
+		"scp",
+		"-i", "/root/.ssh/id_rsa",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "BatchMode=yes",
+		"-P", fmt.Sprintf("%d", i.SSHPort),
+		tempPath,
+		fmt.Sprintf("%s@%s:%s", i.SSHUser, i.SSHEndpoint, tmpDest),
+	}
 
-	if _, err := container.WithExec([]string{"bash", "-c", scpCmd}).Stdout(ctx); err != nil {
+	if _, err := container.WithExec(scpCmd).Stdout(ctx); err != nil {
 		return fmt.Errorf("scp upload to %s: %w", tmpDest, err)
 	}
 
@@ -447,22 +434,73 @@ func (i *CmxInstance) Cleanup(ctx context.Context) (string, error) {
 	return result, nil
 }
 
-// downloadAndPrepareRelease downloads embedded-cluster release from replicated.app
+// InstallKotsCli installs the kubectl-kots CLI if not already present.
+// This is needed for validation commands that use kubectl kots.
+func (i *CmxInstance) InstallKotsCli(ctx context.Context) error {
+	// Check if kubectl-kots is already installed
+	_, err := i.Command("command -v kubectl-kots").Stdout(ctx)
+	if err == nil {
+		// Already installed
+		return nil
+	}
+
+	// Install curl if needed
+	_, err = i.Command("command -v curl").Stdout(ctx)
+	if err != nil {
+		installCurlCmd := "apt-get update && apt-get install -y curl"
+		if _, err := i.Command(installCurlCmd).Stdout(ctx); err != nil {
+			return fmt.Errorf("install curl: %w", err)
+		}
+	}
+
+	// Get AdminConsole version from embedded-cluster
+	versionOutput, err := i.Command("embedded-cluster-smoke-test-staging-app version").Stdout(ctx)
+	if err != nil {
+		return fmt.Errorf("get embedded-cluster version: %w", err)
+	}
+
+	// Parse version from output like "AdminConsole: v1.117.2-ec.2"
+	// We want to extract "1.117.2" (without the 'v' prefix and '-ec.2' suffix)
+	getVersionCmd := `embedded-cluster-smoke-test-staging-app version | grep AdminConsole | awk '{print substr($4,2)}' | cut -d'-' -f1`
+	kotsVersion, err := i.Command(getVersionCmd).Stdout(ctx)
+	if err != nil {
+		return fmt.Errorf("parse kots version: %w", err)
+	}
+
+	kotsVersion = strings.TrimSpace(kotsVersion)
+	if kotsVersion == "" {
+		return fmt.Errorf("could not determine kots version from: %s", versionOutput)
+	}
+
+	// Download and install kots CLI
+	installKotsCmd := fmt.Sprintf(`curl --retry 5 -fL -o /tmp/kotsinstall.sh "https://kots.io/install/%s" && chmod +x /tmp/kotsinstall.sh && /tmp/kotsinstall.sh`, kotsVersion)
+	if _, err := i.Command(installKotsCmd).Stdout(ctx); err != nil {
+		return fmt.Errorf("install kots cli: %w", err)
+	}
+
+	return nil
+}
+
+// DownloadAndPrepareRelease downloads embedded-cluster release from replicated.app
 // and prepares it for installation. This matches how customers get the binary.
 //
 // The method downloads the release tarball, extracts it, and places the binary and
 // license file in the expected locations for installation.
-func (i *CmxInstance) downloadAndPrepareRelease(
+func (i *CmxInstance) DownloadAndPrepareRelease(
 	ctx context.Context,
 	// Installation scenario (online, airgap)
 	scenario string,
 	// App version to download
 	appVersion string,
-	// Channel ID for downloading the release
-	channelID string,
-	// License ID for authorization
-	licenseID string,
+	// License file
+	licenseFile *dagger.File,
 ) error {
+	// Get license content as plain text for passing to install command
+	_, licenseID, channelID, err := parseLicense(ctx, licenseFile)
+	if err != nil {
+		return fmt.Errorf("parse license: %w", err)
+	}
+
 	// Download embedded-cluster release from replicated.app
 	releaseURL := fmt.Sprintf("https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/%s/%s", channelID, appVersion)
 
@@ -505,6 +543,11 @@ func (i *CmxInstance) downloadAndPrepareRelease(
 		}
 	}
 
+	// Install kots CLI if not already installed
+	if err := i.InstallKotsCli(ctx); err != nil {
+		return fmt.Errorf("install kots cli: %w", err)
+	}
+
 	return nil
 }
 
@@ -533,14 +576,8 @@ func (i *CmxInstance) InstallHeadless(
 	// Config values file
 	configValuesFile *dagger.File,
 ) (*InstallResult, error) {
-	// Get license content as plain text for passing to install command
-	_, licenseID, channelID, err := parseLicense(ctx, licenseFile)
-	if err != nil {
-		return nil, fmt.Errorf("parse license: %w", err)
-	}
-
 	// Download and prepare embedded-cluster release
-	if err := i.downloadAndPrepareRelease(ctx, scenario, appVersion, channelID, licenseID); err != nil {
+	if err := i.DownloadAndPrepareRelease(ctx, scenario, appVersion, licenseFile); err != nil {
 		return nil, fmt.Errorf("prepare release: %w", err)
 	}
 
