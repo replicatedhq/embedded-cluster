@@ -34,10 +34,12 @@ jobs:
       - name: Output variables
         id: output_vars
         run: |
-          ec_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
-          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          git_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "k0s_minor_version=$K0S_MINOR_VERSION" >> $GITHUB_OUTPUT
 
-          EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
+          EC_VERSION=$(./scripts/print-ec-version.sh "$git_version" "$K0S_MINOR_VERSION")
           echo "EC_VERSION=\"$EC_VERSION\""
           echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
 
@@ -59,6 +61,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
       AWS_REGION: "us-east-1"
+      REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
       USE_CHAINGUARD: "1"
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -74,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
-      KUBE_VERSION: "1.33"
+      KUBE_VERSION: "${{ needs.output-vars.outputs.k0s_minor_version }}"
       CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
       CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
     steps:
