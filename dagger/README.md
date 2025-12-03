@@ -80,7 +80,7 @@ The V3 E2E test framework provides:
 
 2. **1Password Service Account Token**
 
-   The E2E framework uses 1Password for secret management. You need a service account token with access to the secrets.
+   The E2E framework uses 1Password for secret management. You need a service account token with access to the Vault.
 
    ```bash
    export OP_SERVICE_ACCOUNT_TOKEN="your-token-here"
@@ -93,54 +93,98 @@ The V3 E2E test framework provides:
 
 ##### Required Secrets
 
-The following secrets must be available in 1Password in the **"Developer Automation"** vault under the **"EC CI"** item:
+The following secrets are available in 1Password in the **"Developer Automation"** vault under the **"EC Dev"** item:
 
 | Secret Field Name | Purpose |
 |-------------------|---------|
 | `CMX_REPLICATED_API_TOKEN` | CMX API access for VM provisioning |
 | `CMX_SSH_PRIVATE_KEY` | SSH private key for accessing provisioned VMs |
+| `ARTIFACT_UPLOAD_AWS_ACCESS_KEY_ID` | AWS S3 access key for artifact uploads |
+| `ARTIFACT_UPLOAD_AWS_SECRET_ACCESS_KEY` | AWS S3 secret key for artifact uploads |
+| `STAGING_REPLICATED_API_TOKEN` | Replicated API access for creating releases |
 
 **Note:** The vault name defaults to "Developer Automation" and can be overridden via `--vault-name` parameter in the `with-one-password` call.
 
-Additional secrets (for future PRs):
-- `STAGING_REPLICATED_API_TOKEN` - Replicated API access for creating releases
-- `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID` - AWS S3 access key for artifact uploads
-- `STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET` - AWS S3 secret key
-- `GITHUB_TOKEN` - GitHub API access
-
 #### Quick Start
 
-##### 1. Provision a Test VM
+##### Building a Release
 
-Create a fresh CMX VM for testing:
+Before running E2E tests, you must build and release a version of embedded-cluster that can be tested against:
+
+```bash
+make e2e-v3-initial-release
+```
+
+This command:
+- Builds the embedded-cluster binaries
+- Uploads artifacts to S3
+- Creates a release in the Replicated staging environment
+- Generates an app version that can be used in E2E tests (e.g., `appver-dev-xpXCTO`)
+
+The app version returned by this command should be used as the `--app-version` parameter in your E2E test commands.
+
+##### Running a Complete E2E Test
+
+Run a complete online headless installation test (provisions VM, installs, validates, and cleans up):
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  e-2-e-run-headless-online \
+  --app-version=appver-dev-xpXCTO \
+  --kube-version=1.33 \
+  --license-file=./local-dev/ethan-dev-license.yaml
+```
+
+This will:
+- Provision a fresh Ubuntu 22.04 VM (8GB RAM, 4 CPUs)
+- Perform a headless CLI installation
+- Validate the installation
+- Clean up the VM automatically
+- Return comprehensive test results
+
+##### Running Test Steps Individually
+
+For debugging or development, you can run each test step separately:
+
+**1. Provision a Test VM:**
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
   provision-cmx-vm --name="my-test-vm" string
 ```
 
-This will:
-- Create a Ubuntu 22.04 VM with default settings
-- Wait for SSH to become available
-- Discover the private IP address
-- Return VM details (ID, name, network ID, IP address)
+This returns the VM ID which you'll use in subsequent steps.
 
-##### 2. Run Commands on VM
-
-Execute commands on the provisioned VM:
+**2. Install Embedded Cluster:**
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  provision-cmx-vm run-command --command="ls,-la,/tmp"
+  with-cmx-vm --vm-id=YOUR_VM_ID \
+  install-headless \
+  --scenario=online \
+  --app-version=appver-dev-xpXCTO \
+  --license-file=./local-dev/ethan-dev-license.yaml \
+  --config-values-file=./assets/config-values.yaml
 ```
 
-##### 3. Cleanup
-
-Remove the VM when done:
+**3. Validate Installation:**
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  provision-cmx-vm cleanup
+  with-cmx-vm --vm-id=YOUR_VM_ID \
+  validate \
+  --scenario=online \
+  --expected-kube-version=1.33 \
+  --expected-app-version=appver-dev-xpXCTO \
+  string
+```
+
+**4. Cleanup (when done):**
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  with-cmx-vm --vm-id=YOUR_VM_ID \
+  cleanup
 ```
 
 #### Available Commands

@@ -11,7 +11,7 @@ import (
 
 const (
 	SSHUser = "ec-e2e-test"
-	DataDir = "/var/lib/embedded-cluster-smoke-test-staging-app"
+	DataDir = "/var/lib/embedded-cluster"
 )
 
 // Provisions a new CMX VM for E2E testing.
@@ -271,7 +271,8 @@ func (i *CmxInstance) discoverPrivateIP(ctx context.Context) (string, error) {
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  provision-cmx-vm command --command="ls -la /tmp" stdout
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  command --command="ls -la /tmp" stdout
 func (i *CmxInstance) Command(
 	// Command to run
 	command string,
@@ -286,7 +287,8 @@ func (i *CmxInstance) Command(
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  provision-cmx-vm command-with-env --command="kubectl get pods" --env="KUBECONFIG=/path/to/kubeconfig" stdout
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  command-with-env --command="kubectl get pods" --env="KUBECONFIG=/path/to/kubeconfig" stdout
 func (i *CmxInstance) CommandWithEnv(
 	// Command to run
 	command string,
@@ -295,16 +297,17 @@ func (i *CmxInstance) CommandWithEnv(
 	env []string,
 ) *dagger.Container {
 	env = append([]string{
+		// Use \$PATH to escape the variable so it survives bash -c and expands on the remote side
 		fmt.Sprintf("PATH=$PATH:%s/bin", DataDir),
 		fmt.Sprintf("KUBECONFIG=%s", fmt.Sprintf("%s/k0s/pki/admin.conf", DataDir)),
 	}, env...)
 
-	// Build environment variable prefix if provided
-	envPrefix := strings.Join(env, " ")
+	// Build environment variable string
+	envVars := strings.Join(env, " ")
 
-	// Build the full remote command with sudo and env vars
-	remoteCmd := fmt.Sprintf("sudo -E %s %s", envPrefix, command)
-	escapedRemoteCmd := shellEscape(remoteCmd)
+	// Build the full remote command
+	// Use 'env' to set environment variables for sudo to avoid secure_path issues
+	remoteCmd := fmt.Sprintf("sudo -E env %s %s", envVars, command)
 
 	// Build SSH command
 	sshCmd := fmt.Sprintf(
@@ -313,24 +316,34 @@ func (i *CmxInstance) CommandWithEnv(
 	)
 
 	// Return container with SSH exec
+	// We use double quotes around the remote command so variables can expand
 	return i.sshClient().
 		WithEnvVariable("CACHE_BUSTER", time.Now().String()).
 		WithExec([]string{
 			"bash",
 			"-c",
-			fmt.Sprintf(`%s "%s"`, sshCmd, escapedRemoteCmd),
+			fmt.Sprintf(`%s "%s"`, sshCmd, shellEscape(remoteCmd)),
 		})
 }
 
-// shellEscape escapes a full command string for safe inclusion inside
-// a double-quoted shell argument (e.g., ssh "<cmd>").
-// It escapes backslashes, double quotes, dollar signs, and backticks.
+// shellEscape escapes a string for safe inclusion inside a double-quoted shell argument.
+// This is used when constructing commands that go through bash -c → ssh → remote bash.
+//
+// It escapes special characters in the correct order:
+// 1. Backslashes first (to avoid double-escaping)
+// 2. Then other special characters (quotes, dollar signs, backticks)
+//
+// This ensures that:
+// - $PATH becomes \$PATH (expands on remote side)
+// - "quoted" becomes \"quoted\" (preserves quotes)
+// - `backtick` becomes \`backtick\` (prevents command substitution)
 func shellEscape(s string) string {
+	// Order matters! Escape backslash first to avoid double-escaping
 	replacer := strings.NewReplacer(
+		`\`, `\\`,
 		`"`, `\"`,
 		`$`, `\$`,
 		"`", "\\`",
-		`\`, `\\`,
 	)
 	return replacer.Replace(s)
 }
@@ -343,7 +356,8 @@ func shellEscape(s string) string {
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  provision-cmx-vm upload-file --path=/tmp/myfile.txt --file=/path/to/file.txt
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  upload-file --path=/tmp/myfile.txt --file=/path/to/file.txt
 func (i *CmxInstance) UploadFile(
 	ctx context.Context,
 	// Destination path on the VM
@@ -383,7 +397,8 @@ func (i *CmxInstance) UploadFile(
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  with-cmx-vm --vm-id 8a2a66ef expose-port --port=30000 --protocol="https"
+//	  with-cmx-vm --vm-id 8a2a66ef \
+//	  expose-port --port=30000 --protocol="https"
 func (i *CmxInstance) ExposePort(
 	ctx context.Context,
 	// Port to expose

@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // HeadlessConfig holds configuration for headless (CLI) installations.
 type HeadlessConfig struct {
 	// Installation scenario (online, airgap)
@@ -46,6 +48,19 @@ type ValidationResult struct {
 	PodsAndJobs *CheckResult
 }
 
+func (v *ValidationResult) String() string {
+	return fmt.Sprintf(
+		"ValidationResult{\n  Success: %t\n  ClusterHealth: %s\n  InstallationCRD: %s\n  AppDeployment: %s\n  AdminConsole: %s\n  DataDirectories: %s\n  PodsAndJobs: %s\n}",
+		v.Success,
+		v.ClusterHealth.String(),
+		v.InstallationCRD.String(),
+		v.AppDeployment.String(),
+		v.AdminConsole.String(),
+		v.DataDirectories.String(),
+		v.PodsAndJobs.String(),
+	)
+}
+
 // CheckResult contains the result of a single validation check.
 type CheckResult struct {
 	// Whether the check passed
@@ -54,6 +69,10 @@ type CheckResult struct {
 	ErrorMessage string
 	// Additional context or details about the check
 	Details string
+}
+
+func (c *CheckResult) String() string {
+	return fmt.Sprintf("CheckResult{Passed: %t, ErrorMessage: %s, Details: %s}", c.Passed, c.ErrorMessage, c.Details)
 }
 
 // TestResult contains the result of an E2E test execution.

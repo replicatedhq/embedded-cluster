@@ -28,7 +28,7 @@ var configValuesFileContent string
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e-2-e-run-headless-online --app-version=v1.0.0 --kube-version=1.31 --license-file=./local-dev/ethan-dev-license.yaml
+//	  e-2-e-run-headless-online --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml
 func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 	ctx context.Context,
 	// App version to install
@@ -115,21 +115,12 @@ func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 
 	// Validate installation
 	fmt.Printf("Validating installation on VM %s...\n", vm.VmID)
-	validationResult, err := vm.Validate(
+	validationResult := vm.Validate(
 		ctx,
 		scenario,
 		kubeVersion,
 		appVersion,
 	)
-	if err != nil {
-		return &TestResult{
-			Scenario:          scenario,
-			Mode:              mode,
-			Success:           false,
-			Error:             fmt.Sprintf("validation error: %v", err),
-			ValidationResults: validationResult,
-		}, err
-	}
 
 	// Build final test result
 	testResult := &TestResult{
@@ -164,7 +155,8 @@ func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e-2-e-run-headless-airgap --app-version=v1.0.0 --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml
+//	  e-2-e-run-headless-airgap --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml \
+//	  validation-results string
 func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
 	ctx context.Context,
 	// App version to install
@@ -259,21 +251,12 @@ func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
 
 	// Validate installation
 	fmt.Printf("Validating installation on VM %s...\n", vm.VmID)
-	validationResult, err := vm.Validate(
+	validationResult := vm.Validate(
 		ctx,
 		scenario,
 		kubeVersion,
 		appVersion,
 	)
-	if err != nil {
-		return &TestResult{
-			Scenario:          scenario,
-			Mode:              mode,
-			Success:           false,
-			Error:             fmt.Sprintf("validation error: %v", err),
-			ValidationResults: validationResult,
-		}, err
-	}
 
 	// Build final test result
 	testResult := &TestResult{
@@ -286,10 +269,10 @@ func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
 	if !validationResult.Success {
 		testResult.Error = "validation checks failed"
 		fmt.Printf("Test FAILED: %s %s test validation failed\n", scenario, mode)
-	} else {
-		fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
+		return testResult, fmt.Errorf("validation checks failed")
 	}
 
+	fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
 	return testResult, nil
 }
 
