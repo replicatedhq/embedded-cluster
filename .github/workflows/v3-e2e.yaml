@@ -3,14 +3,26 @@ name: V3 E2E
 on:
   pull_request:
     paths: &paths
+      - .github/workflows/v3-e2e.yaml
       - api/**
       - cmd/**
       - dagger/**
+      - e2e/kots-release-install-v3/**
+      - e2e/licenses/ci-v3.yaml
       - kinds/**
       - local-artifact-mirror/**
+      - operator/**
       - pkg/**
       - pkg-new/**
+      - scripts/**
+      - utils/**
       - web/**
+      - common.mk
+      - dagger.json
+      - go.mod
+      - go.sum
+      - Makefile
+      - versions.mk
 
   push:
     branches:
@@ -42,12 +54,15 @@ jobs:
       - name: Output variables
         id: output_vars
         run: |
-          git_version=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          GIT_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          echo "GIT_VERSION=\"$GIT_VERSION\""
+          echo "git_version=$GIT_VERSION" >> $GITHUB_OUTPUT
+
           K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
           echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
           echo "k0s_minor_version=$K0S_MINOR_VERSION" >> $GITHUB_OUTPUT
 
-          EC_VERSION=$(./scripts/print-ec-version.sh "$git_version" "$K0S_MINOR_VERSION")
+          EC_VERSION=$(./scripts/print-ec-version.sh "$GIT_VERSION" "$K0S_MINOR_VERSION")
           echo "EC_VERSION=\"$EC_VERSION\""
           echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
 
@@ -61,6 +76,7 @@ jobs:
       - output-vars
     runs-on: ubuntu-latest
     env:
+      VERSION: ${{ needs.output-vars.outputs.git_version }}
       EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
       APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
       APP_CHANNEL: CI-V3
