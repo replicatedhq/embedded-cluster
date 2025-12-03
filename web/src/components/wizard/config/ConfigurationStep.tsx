@@ -45,7 +45,7 @@ function parseServerErrors(error: ApiError): Record<string, string> {
 // Helper function to get the general error message we show at the bottom of the page after a form submission
 export function getGeneralErrorMsgForSubmission(error: ApiError) {
   if (error.fieldErrors && error.fieldErrors.length > 0) {
-    return "Required items are missing"
+    return "Please address the issues above before proceeding"
   }
   return error?.details || error?.message || 'Failed to save configuration'
 }

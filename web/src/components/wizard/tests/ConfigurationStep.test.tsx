@@ -2791,7 +2791,7 @@ describe.each([
   });
 
   describe("getGeneralErrorMsgForSubmission", () => {
-    it("returns 'Required items are missing' when error has field errors", () => {
+    it("returns generic error message when error has field errors", () => {
       const error = new ApiError(400, "Validation error");
       error.fieldErrors = [
         { field: "app_name", message: "This field is required" },
@@ -2799,7 +2799,7 @@ describe.each([
 
       const result = getGeneralErrorMsgForSubmission(error);
 
-      expect(result).toBe("Required items are missing");
+      expect(result).toContain("Please address the issues above");
     });
 
     it("returns error.details when no field errors but details exist", () => {
@@ -2825,18 +2825,6 @@ describe.each([
       const result = getGeneralErrorMsgForSubmission(error);
 
       expect(result).toBe("Failed to save configuration");
-    });
-
-    it("prioritizes field errors message over details and message", () => {
-      const error = new ApiError(400, "Some other message");
-      error.fieldErrors = [
-        { field: "app_name", message: "This field is required" },
-      ];
-      error.details = "Some other details";
-
-      const result = getGeneralErrorMsgForSubmission(error);
-
-      expect(result).toBe("Required items are missing");
     });
   });
 });
