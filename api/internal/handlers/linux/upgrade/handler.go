@@ -287,10 +287,10 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 //	@Accept			json
 //	@Produce		json
 //	@Success		200	{object}	types.Infra
-//	@Failure		400	{object}	types.Error
-//	@Failure		401	{object}	types.Error
-//	@Failure		409	{object}	types.Error
-//	@Failure		500	{object}	types.Error
+//	@Failure		400	{object}	types.APIError
+//	@Failure		401	{object}	types.APIError
+//	@Failure		409	{object}	types.APIError
+//	@Failure		500	{object}	types.APIError
 //	@Router			/linux/upgrade/infra/upgrade [post]
 func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
 	err := h.controller.UpgradeInfra(r.Context())
@@ -312,8 +312,8 @@ func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
 //	@Security		bearerauth
 //	@Produce		json
 //	@Success		200	{object}	types.Infra
-//	@Failure		401	{object}	types.Error
-//	@Failure		500	{object}	types.Error
+//	@Failure		401	{object}	types.APIError
+//	@Failure		500	{object}	types.APIError
 //	@Router			/linux/upgrade/infra/status [get]
 func (h *Handler) GetInfraStatus(w http.ResponseWriter, r *http.Request) {
 	infra, err := h.controller.GetInfra(r.Context())
