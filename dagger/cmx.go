@@ -11,7 +11,7 @@ import (
 
 const (
 	SSHUser = "ec-e2e-test"
-	DataDir = "/var/lib/embedded-cluster"
+	DataDir = "/var/lib/embedded-cluster-smoke-test-staging-app"
 )
 
 // Provisions a new CMX VM for E2E testing.
@@ -190,6 +190,17 @@ func (m *EmbeddedCluster) cmxVmToCmxInstance(ctx context.Context, vm *dagger.Rep
 		return nil, fmt.Errorf("discover private ip: %w", err)
 	}
 	instance.PrivateIP = privateIP
+
+	// Log SSH access instructions
+	fmt.Printf("\n=== SSH Access Instructions ===\n")
+	fmt.Printf("VM ID: %s\n", instance.VmID)
+	fmt.Printf("VM Name: %s\n", instance.Name)
+	fmt.Printf("\n1. Get the SSH private key:\n")
+	fmt.Printf("   dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN one-password find-secret --field CMX_SSH_PRIVATE_KEY plaintext > /tmp/cmx-ssh-key\n")
+	fmt.Printf("   chmod 600 /tmp/cmx-ssh-key\n")
+	fmt.Printf("\n2. SSH into the server:\n")
+	fmt.Printf("   ssh -i /tmp/cmx-ssh-key -p %d %s@%s\n", instance.SSHPort, instance.SSHUser, instance.SSHEndpoint)
+	fmt.Printf("===============================\n\n")
 
 	return instance, nil
 }
@@ -643,4 +654,83 @@ func (i *CmxInstance) InstallHeadless(
 		KubeconfigPath:  fmt.Sprintf("%s/k0s/pki/admin.conf", DataDir),
 		InstallationLog: stdout,
 	}, nil
+}
+
+// DownloadFile downloads a file from the VM to the Dagger container.
+//
+// This method uses SCP to copy a file from the remote VM to the local container,
+// then returns it as a Dagger File that can be exported or used by other functions.
+func (i *CmxInstance) DownloadFile(
+	ctx context.Context,
+	// Source path on the VM
+	remotePath string,
+) (*dagger.File, error) {
+	// Local path in container where we'll download the file
+	localPath := fmt.Sprintf("/tmp/download-%d", time.Now().UnixNano())
+
+	container := i.sshClient().
+		WithEnvVariable("CACHE_BUSTER", time.Now().String())
+
+	// Use SCP to download the file from the VM
+	scpCmd := []string{
+		"scp",
+		"-i", "/root/.ssh/id_rsa",
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "BatchMode=yes",
+		"-P", fmt.Sprintf("%d", i.SSHPort),
+		fmt.Sprintf("%s@%s:%s", i.SSHUser, i.SSHEndpoint, remotePath),
+		localPath,
+	}
+
+	container, err := container.WithExec(scpCmd).Sync(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("scp download from %s: %w", remotePath, err)
+	}
+
+	// Return the downloaded file
+	return container.File(localPath), nil
+}
+
+// CollectClusterSupportBundle collects a cluster support bundle from the VM.
+//
+// This method runs kubectl support-bundle to collect diagnostic information from the cluster.
+// It tries two approaches:
+// 1. First attempts to collect using --load-cluster-specs (automatic spec discovery)
+// 2. If that fails, tries with the explicit cluster support bundle spec at /automation/troubleshoot/cluster-support-bundle.yaml
+//
+// The collected support bundle is downloaded from the VM and returned as a Dagger File
+// that can be exported as an artifact.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  with-cmx-vm --vm-id=8a2a66ef \
+//	  collect-cluster-support-bundle \
+//	  export --path=./support-bundle.tar.gz
+func (i *CmxInstance) CollectClusterSupportBundle(ctx context.Context) (*dagger.File, error) {
+	bundlePath := "/tmp/cluster-support-bundle.tar.gz"
+
+	// Try collecting support bundle with --load-cluster-specs first
+	cmd1 := fmt.Sprintf("kubectl support-bundle --output %s --interactive=false --load-cluster-specs", bundlePath)
+	_, err := i.Command(cmd1).Stdout(ctx)
+
+	// If first attempt failed, try with explicit spec path
+	if err != nil {
+		fmt.Printf("First support bundle attempt failed, trying with explicit spec: %v\n", err)
+		cmd2 := fmt.Sprintf("kubectl support-bundle --output %s --interactive=false --load-cluster-specs /automation/troubleshoot/cluster-support-bundle.yaml", bundlePath)
+		stdout, err := i.Command(cmd2).Stdout(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect cluster support bundle (both attempts): %w\nOutput: %s", err, stdout)
+		}
+	}
+
+	fmt.Printf("Support bundle collected successfully at %s\n", bundlePath)
+
+	// Download the support bundle from the VM
+	file, err := i.DownloadFile(ctx, bundlePath)
+	if err != nil {
+		return nil, fmt.Errorf("download support bundle: %w", err)
+	}
+
+	return file, nil
 }

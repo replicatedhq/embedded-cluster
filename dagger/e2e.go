@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 
 	"dagger/embedded-cluster/internal/dagger"
@@ -45,23 +46,27 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 	kubeVersion string,
 	// License file
 	licenseFile *dagger.File,
-	// Skip cleanup
-	// +default=false
-	skipCleanup bool,
 	// CMX API token
 	// +optional
 	cmxToken *dagger.Secret,
 	// SSH key
 	// +optional
 	sshKey *dagger.Secret,
-) (*TestResult, error) {
-	startTime := ctx.Value("startTime")
-	if startTime == nil {
-		// Track start time for duration calculation
-		ctx = context.WithValue(ctx, "startTime", fmt.Sprintf("%d", 0))
+	// Skip cleanup
+	// +default=false
+	skipCleanup bool,
+) (*dagger.Directory, error) {
+	mode := "headless"
+
+	// Initialize test result that will be built up throughout the function
+	testResult := &TestResult{
+		Scenario: scenario,
+		Mode:     mode,
+		Success:  false,
 	}
 
-	mode := "headless"
+	// Initialize results directory
+	resultsDir := dag.Directory()
 
 	// Log test start
 	fmt.Printf("Starting E2E test: scenario=%s mode=%s app-version=%s kube-version=%s\n",
@@ -82,16 +87,37 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 		sshKey,
 	)
 	if err != nil {
-		return &TestResult{
-			Scenario: scenario,
-			Mode:     mode,
-			Success:  false,
-			Error:    fmt.Sprintf("failed to provision VM: %v", err),
-		}, err
+		testResult.Error = fmt.Sprintf("failed to provision VM: %v", err)
+		resultJSON, _ := json.MarshalIndent(testResult, "", "  ")
+		return resultsDir.WithNewFile("result.json", string(resultJSON)), nil
 	}
 
-	// Ensure VM is cleaned up after test completes
+	fmt.Printf("Provisioned VM: %s\n", vm.VmID)
+	testResult.VMID = vm.VmID
+
+	// Defer function to collect support bundle and cleanup VM
 	defer func() {
+		// Collect support bundle before cleanup
+		if vm != nil {
+			fmt.Printf("Collecting support bundle from VM %s...\n", vm.VmID)
+			supportBundle, err := vm.CollectClusterSupportBundle(ctx)
+			if err != nil {
+				fmt.Printf("Warning: failed to collect support bundle: %v\n", err)
+				resultsDir = resultsDir.WithNewFile("support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", err))
+			} else {
+				resultsDir = resultsDir.WithFile("support-bundle.tar.gz", supportBundle)
+			}
+		}
+
+		// Marshal final test result to JSON
+		resultJSON, err := json.MarshalIndent(testResult, "", "  ")
+		if err != nil {
+			fmt.Printf("Warning: failed to marshal test result: %v\n", err)
+			return
+		}
+		resultsDir = resultsDir.WithNewFile("result.json", string(resultJSON))
+
+		// Cleanup VM
 		if skipCleanup {
 			return
 		}
@@ -103,19 +129,16 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 
 	// Download and prepare embedded-cluster release
 	if err := vm.PrepareRelease(ctx, scenario, appVersion, licenseFile); err != nil {
-		return nil, fmt.Errorf("prepare release: %w", err)
+		testResult.Error = fmt.Sprintf("failed to prepare release: %v", err)
+		return resultsDir, nil
 	}
 
 	// For airgap scenarios, apply network policy to block internet access
 	if scenario == "airgap" {
 		fmt.Printf("Applying airgap network policy on VM %s...\n", vm.VmID)
 		if err := vm.ApplyAirgapNetworkPolicy(ctx); err != nil {
-			return &TestResult{
-				Scenario: scenario,
-				Mode:     mode,
-				Success:  false,
-				Error:    fmt.Sprintf("failed to apply airgap network policy: %v", err),
-			}, err
+			testResult.Error = fmt.Sprintf("failed to apply airgap network policy: %v", err)
+			return resultsDir, nil
 		}
 	}
 
@@ -129,21 +152,13 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 		dag.File("config-values.yaml", configValuesFileContent),
 	)
 	if err != nil {
-		return &TestResult{
-			Scenario: scenario,
-			Mode:     mode,
-			Success:  false,
-			Error:    fmt.Sprintf("installation failed: %v", err),
-		}, err
+		testResult.Error = fmt.Sprintf("installation failed: %v", err)
+		return resultsDir, nil
 	}
 
 	if !installResult.Success {
-		return &TestResult{
-			Scenario: scenario,
-			Mode:     mode,
-			Success:  false,
-			Error:    "installation reported failure",
-		}, fmt.Errorf("installation failed")
+		testResult.Error = "installation reported failure"
+		return resultsDir, nil
 	}
 
 	// Validate installation
@@ -155,22 +170,18 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 		appVersion,
 	)
 
-	// Build final test result
-	testResult := &TestResult{
-		Scenario:          scenario,
-		Mode:              mode,
-		Success:           validationResult.Success,
-		ValidationResults: validationResult,
-	}
+	// Update final test result
+	testResult.Success = validationResult.Success
+	testResult.ValidationResults = validationResult
 
 	if !validationResult.Success {
 		testResult.Error = "validation checks failed"
 		fmt.Printf("Test FAILED: %s %s test validation failed\n", scenario, mode)
-		return testResult, fmt.Errorf("validation checks failed")
+	} else {
+		fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
 	}
 
-	fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
-	return testResult, nil
+	return resultsDir, nil
 }
 
 func parseLicense(ctx context.Context, licenseFile *dagger.File) (contents string, licenseID string, channelID string, err error) {
