@@ -209,10 +209,12 @@ jobs:
             if [ "$success" = "true" ]; then
               exit 0
             else
+              error=$(jq -r '.Error' ./e2e-results-online/result.json)
+              echo "::error::E2E test failed: $error"
               exit 1
             fi
           else
-            echo "Error: result.json not found"
+            echo "::error::result.json not found in e2e-results-online directory"
             exit 1
           fi
 
@@ -265,10 +267,12 @@ jobs:
             if [ "$success" = "true" ]; then
               exit 0
             else
+              error=$(jq -r '.Error' ./e2e-results-airgap/result.json)
+              echo "::error::E2E test failed: $error"
               exit 1
             fi
           else
-            echo "Error: result.json not found"
+            echo "::error::result.json not found in e2e-results-airgap directory"
             exit 1
           fi
 
