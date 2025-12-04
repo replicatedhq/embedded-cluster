@@ -110,8 +110,19 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
 
 	dir := dag.Directory().
-		WithDirectory("local-artifact-mirror", src.Directory("local-artifact-mirror")).
-		WithDirectory("cmd", src.Directory("cmd"))
+		WithDirectory("local-artifact-mirror",
+			src.Directory("local-artifact-mirror").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		).
+		WithDirectory("cmd",
+			src.Directory("cmd").
+				WithoutDirectory("installer/goods/bins").
+				WithNewFile("installer/goods/bins/.placeholder", ".placeholder").
+				WithoutDirectory("installer/goods/internal/bins").
+				WithNewFile("installer/goods/internal/bins/.placeholder", ".placeholder"),
+		)
 
 	build := m.chainguard.melangeBuildGo(
 		directoryWithCommonGoFiles(dir, src),
