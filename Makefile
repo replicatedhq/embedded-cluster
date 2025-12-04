@@ -183,6 +183,12 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+.PHONY: e2e-v3-initial-release
+e2e-v3-initial-release: export ARCH = amd64
+e2e-v3-initial-release: export UPLOAD_BINARIES = 1
+e2e-v3-initial-release: export ENABLE_V3 = 1
+e2e-v3-initial-release: initial-release
+
 .PHONY: initial-release
 initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 initial-release: export APP_VERSION = appver-dev-$(call random-string)
@@ -385,8 +391,12 @@ create-node%:
 	@$(MAKE) ssh-node$*
 
 .PHONY: ssh-node%
+ssh-node%: CUSTOMER_LICENSE_FILE = $(shell source ./local-dev/env.sh && echo "$$CUSTOMER_LICENSE_FILE")
 ssh-node%:
-	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
+	@docker exec -it -w /replicatedhq/embedded-cluster \
+		-e CUSTOMER_LICENSE_FILE="$(CUSTOMER_LICENSE_FILE)" \
+		node$* \
+		bash
 
 .PHONY: delete-node%
 delete-node%:

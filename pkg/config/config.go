@@ -10,6 +10,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/config"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
@@ -20,7 +21,12 @@ import (
 
 const (
 	DefaultVendorChartOrder = 10
+	// Name of the k0s component that runs the update prober.
+	UpdateProberComponent = "update-prober"
 )
+
+// disableUpdateProber indicates whether we can disable the update prober component in k0s install command. This variable is used during tests.
+var disableUpdateProber = canDisableUpdateProber()
 
 // k0sConfigPathOverride is used during tests to override the path to the k0s config file.
 var k0sConfigPathOverride string
@@ -152,8 +158,14 @@ func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostn
 }
 
 func AdditionalInstallFlagsController() []string {
+	disableComponents := "konnectivity-server"
+
+	// Disable the update prober component responsible for unintended outbound connections to an update service we don't need
+	if disableUpdateProber {
+		disableComponents = fmt.Sprintf("%s,%s", disableComponents, UpdateProberComponent)
+	}
 	return []string{
-		"--disable-components", "konnectivity-server",
+		"--disable-components", disableComponents,
 		"--enable-dynamic-config",
 	}
 }
@@ -284,4 +296,14 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 	}
 
 	return patch
+}
+
+// canDisableUpdateProber is a way to determine if the k0s release we're using allows disabling the update prober component
+// see relevant PR: https://github.com/k0sproject/k0s/pull/6326
+// We should be able to remove this check once we drop support for k0s < 1.33
+func canDisableUpdateProber() bool {
+	opts := k0sconfig.ControllerOptions{DisableComponents: []string{UpdateProberComponent}}
+	// Normalize validates the DisableComponents list contains valid known component names to k0s and will return an error otherwise
+	err := opts.Normalize()
+	return err == nil
 }

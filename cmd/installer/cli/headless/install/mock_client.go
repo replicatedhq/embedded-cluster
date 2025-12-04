@@ -358,5 +358,20 @@ func (m *mockAPIClient) TemplateKubernetesUpgradeAppConfig(ctx context.Context, 
 	return apitypes.AppConfig{}, nil
 }
 
+// GetKURLMigrationConfig returns empty config (mock implementation).
+func (m *mockAPIClient) GetKURLMigrationConfig(ctx context.Context) (apitypes.LinuxInstallationConfigResponse, error) {
+	return apitypes.LinuxInstallationConfigResponse{}, nil
+}
+
+// StartKURLMigration returns empty response (mock implementation).
+func (m *mockAPIClient) StartKURLMigration(ctx context.Context, transferMode string, config *apitypes.LinuxInstallationConfig) (apitypes.StartKURLMigrationResponse, error) {
+	return apitypes.StartKURLMigrationResponse{}, nil
+}
+
+// GetKURLMigrationStatus returns empty status (mock implementation).
+func (m *mockAPIClient) GetKURLMigrationStatus(ctx context.Context) (apitypes.KURLMigrationStatusResponse, error) {
+	return apitypes.KURLMigrationStatusResponse{}, nil
+}
+
 // Ensure mockAPIClient implements client.Client interface
 var _ client.Client = (*mockAPIClient)(nil)

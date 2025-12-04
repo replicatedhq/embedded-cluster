@@ -4,6 +4,33 @@
   "sdk": {
     "source": "go"
   },
+  "include": [
+    "!build",
+    "!cmd/installer/goods/bins/**",
+    "!cmd/installer/goods/internal/bins/**",
+    "!dagger/embedded-cluster",
+    "!dev/build",
+    "!local-artifact-mirror/bin",
+    "!local-artifact-mirror/build",
+    "!local-artifact-mirror/cache",
+    "!local-dev",
+    "!operator/bin",
+    "!operator/build",
+    "!operator/cache",
+    "!output",
+    "!.vscode",
+    "!.idea",
+    "!**/.gocache",
+    "!**/.gomodcache",
+    "!**/*.test",
+    "!**/node_modules",
+    "!**/*.coverage.out",
+    "!**/*.coverage.html",
+    "!**/*.tgz",
+    "!**/*.tar.gz",
+    "!**/*.zip",
+    "!**/*.log"
+  ],
   "dependencies": [
     {
       "name": "onepassword",
