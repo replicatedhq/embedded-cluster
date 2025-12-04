@@ -184,7 +184,6 @@ jobs:
 
       - name: Run test
         id: test
-        continue-on-error: true
         env:
           APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
           KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
@@ -241,7 +240,6 @@ jobs:
 
       - name: Run test
         id: test
-        continue-on-error: true
         env:
           APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
           KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
