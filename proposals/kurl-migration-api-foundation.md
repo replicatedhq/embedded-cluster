@@ -2,18 +2,18 @@
 
 ## TL;DR (solution in one paragraph)
 
-Build REST API endpoints to enable Admin Console UI integration for migrating single-node kURL clusters to Embedded Cluster V3. The API provides three core endpoints: GET /api/kurl-migration/config for configuration discovery, POST /api/kurl-migration/start for initiating async migration, and GET /api/kurl-migration/status for progress monitoring. This foundation enables the UI to guide users through migration while the backend orchestrates the complex multi-phase process of transitioning from kURL to EC without data loss.
+Build REST API endpoints to enable Admin Console UI integration for migrating single-node kURL clusters to Embedded Cluster V3. The API provides three core endpoints: GET /api/linux/kurl-migration/config for configuration discovery, POST /api/linux/kurl-migration/start for initiating async kURL migration, and GET /api/linux/kurl-migration/status for progress monitoring. This foundation enables the UI to guide users through kURL migration while the backend orchestrates the complex multi-phase process of transitioning from kURL to EC without data loss.
 
 ## The problem
 
-kURL users need a path to migrate to Embedded Cluster V3, but the migration process is complex, requiring careful orchestration of configuration extraction, network planning, data transfer, and service transitions. Without API endpoints, there's no way for the Admin Console UI to provide a guided migration experience. Users are affected by the inability to modernize their infrastructure, and we know from customer feedback that manual migration attempts have resulted in data loss and extended downtime. Metrics show 40% of kURL installations are candidates for migration.
+kURL users need a path to migrate to Embedded Cluster V3, but the kURL migration process is complex, requiring careful orchestration of configuration extraction, network planning, data transfer, and service transitions. Without API endpoints, there's no way for the Admin Console UI to provide a guided kURL migration experience. Users are affected by the inability to modernize their infrastructure, and we know from customer feedback that manual kURL migration attempts have resulted in data loss and extended downtime. Metrics show 40% of kURL installations are candidates for migration.
 
 ## Prototype / design
 
 ### API Flow Diagram
 ```
 ┌─────────────┐     GET /config       ┌─────────────┐
-│   Admin     │ ◄──────────────────►  │  Migration  │
+│   Admin     │ ◄──────────────────►  │kURL Migration│
 │   Console   │                       │     API     │
 │     UI      │  POST /start ────────►│             │
 │             │                       │  ┌────────┐ │
@@ -30,16 +30,17 @@ kURL users need a path to migrate to Embedded Cluster V3, but the migration proc
 
 ### Data Flow
 1. UI requests config → API extracts kURL config, merges with EC defaults
-2. UI posts user preferences → API validates, generates migration ID, starts async process
-3. UI polls status → API returns current phase, progress, messages
+2. UI posts user preferences → API validates, generates kURL migration ID, starts async process
+3. UI polls status → API returns current kURL migration phase, progress, messages
 4. Background process executes phases: Discovery → Preparation → ECInstall → DataTransfer → Completed
 
 ### Key Interfaces
 ```go
 type Controller interface {
     GetInstallationConfig(ctx) (LinuxInstallationConfigResponse, error)
-    StartMigration(ctx, transferMode, config) (migrationID string, error)
-    GetMigrationStatus(ctx) (MigrationStatusResponse, error)
+    StartKURLMigration(ctx, transferMode, config) (migrationID string, error)
+    GetKURLMigrationStatus(ctx) (KURLMigrationStatusResponse, error)
+    Run(ctx) error
 }
 
 type Manager interface {
@@ -49,6 +50,7 @@ type Manager interface {
 
     GetECDefaults(ctx) (LinuxInstallationConfig, error)
     MergeConfigs(user, kurl, defaults) LinuxInstallationConfig
+    ValidateTransferMode(mode) error
     ExecutePhase(ctx, phase) error
 }
 
@@ -57,9 +59,13 @@ func CalculateNonOverlappingCIDRs(kurlPodCIDR, kurlServiceCIDR, globalCIDR strin
 
 type Store interface {
     InitializeMigration(id, mode, config) error
-    GetStatus() (MigrationStatusResponse, error)
+    GetMigrationID() (string, error)
+    GetStatus() (KURLMigrationStatusResponse, error)
+    GetUserConfig() (LinuxInstallationConfig, error)
+    SetUserConfig(config) error
     SetState(state) error
     SetPhase(phase) error
+    SetError(errorMsg) error
 }
 ```
 
@@ -79,179 +85,173 @@ No new subagents or commands will be created in this PR. The API foundation prov
 
 **`api/routes.go`** - Route registration
 ```go
-// Register migration routes under /api/kurl-migration/ with auth middleware
+// Register kURL migration routes under /api/linux/kurl-migration/ with auth middleware
 // GET  /config - Get installation configuration
-// POST /start  - Start migration with transfer mode and optional config
-// GET  /status - Poll migration status
+// POST /start  - Start kURL migration with transfer mode and optional config
+// GET  /status - Poll kURL migration status
 ```
 
 **`api/handlers.go`** - Handler initialization
 ```go
-// Add Migration field to LinuxHandlers struct
-// Initialize migration store, manager, controller in NewLinuxHandlers()
+// Add KURLMigration field to LinuxHandlers struct
+// Initialize kURL migration store, manager, controller in NewLinuxHandlers()
 // Wire up dependencies: store -> manager -> controller -> handler
 ```
 
-**`api/internal/handlers/migration/handler.go`** - HTTP handlers with Swagger docs
+**`api/internal/handlers/kurlmigration/handler.go`** - HTTP handlers with Swagger docs
 ```go
 type Handler struct {
-    logger              *logrus.Logger
-    migrationController Controller
-    migrationStore      Store
+    logger                      *logrus.Logger
+    kurlMigrationController     Controller
 }
 
-func NewHandler(controller Controller, store Store, logger *logrus.Logger) *Handler
+func NewHandler(controller Controller, logger *logrus.Logger) *Handler
 
 // GetInstallationConfig returns kURL config merged with EC defaults (values/defaults/resolved)
-// @Router /api/kurl-migration/config [get]
+// @Router /api/linux/kurl-migration/config [get]
 func (h *Handler) GetInstallationConfig(w http.ResponseWriter, r *http.Request) {
     // Call controller.GetInstallationConfig(r.Context())
     // Use utils.JSON() to return LinuxInstallationConfigResponse with 200
     // Use utils.JSONError() to handle errors (controller returns typed errors)
 }
 
-// PostStartMigration initiates migration with transfer mode and optional config overrides
-// @Router /api/kurl-migration/start [post]
-func (h *Handler) PostStartMigration(w http.ResponseWriter, r *http.Request) {
-    // Use utils.BindJSON() to parse StartMigrationRequest body
-    // Call controller.StartMigration(r.Context(), req.TransferMode, req.Config)
-    // Use utils.JSON() to return StartMigrationResponse with 200
+// PostStartKURLMigration initiates kURL migration with transfer mode and optional config overrides
+// @Router /api/linux/kurl-migration/start [post]
+func (h *Handler) PostStartKURLMigration(w http.ResponseWriter, r *http.Request) {
+    // Use utils.BindJSON() to parse StartKURLMigrationRequest body
+    // Call controller.StartKURLMigration(r.Context(), req.TransferMode, req.Config)
+    // Use utils.JSON() to return StartKURLMigrationResponse with 200
     // Use utils.JSONError() to handle errors (controller returns typed errors like BadRequest/Conflict)
 }
 
-// GetMigrationStatus returns current state, phase, progress, and errors
-// @Router /api/kurl-migration/status [get]
-func (h *Handler) GetMigrationStatus(w http.ResponseWriter, r *http.Request) {
-    // Call controller.GetMigrationStatus(r.Context())
-    // Use utils.JSON() to return MigrationStatusResponse with 200
+// GetKURLMigrationStatus returns current state, phase, progress, and errors
+// @Router /api/linux/kurl-migration/status [get]
+func (h *Handler) GetKURLMigrationStatus(w http.ResponseWriter, r *http.Request) {
+    // Call controller.GetKURLMigrationStatus(r.Context())
+    // Use utils.JSON() to return KURLMigrationStatusResponse with 200
     // Use utils.JSONError() to handle errors (controller returns typed errors)
 }
 ```
 
-**`api/types/migration.go`** - Type definitions and errors
+**`api/types/kurl_migration.go`** - Type definitions and errors
 ```go
 // Error constants
 var (
-    ErrNoActiveMigration           = errors.New("no active migration")
-    ErrMigrationAlreadyStarted     = errors.New("migration already started")
-    ErrInvalidTransferMode         = errors.New("invalid transfer mode: must be 'copy' or 'move'")
-    ErrMigrationPhaseNotImplemented = errors.New("migration phase execution not yet implemented")
+    ErrNoActiveKURLMigration            = errors.New("no active kURL migration")
+    ErrKURLMigrationAlreadyStarted      = errors.New("kURL migration already started")
+    ErrInvalidTransferMode              = errors.New("invalid transfer mode: must be 'copy' or 'move'")
+    ErrKURLMigrationPhaseNotImplemented = errors.New("kURL migration phase execution not yet implemented")
 )
 
-// MigrationState: NotStarted, InProgress, Completed, Failed
-// MigrationPhase: Discovery, Preparation, ECInstall, DataTransfer, Completed
+// KURLMigrationState: NotStarted, InProgress, Completed, Failed
+// KURLMigrationPhase: Discovery, Preparation, ECInstall, DataTransfer, Completed
 
-type StartMigrationRequest struct {
+type StartKURLMigrationRequest struct {
     TransferMode string                     `json:"transferMode,omitempty"` // "copy" or "move", defaults to "copy"
     Config       *LinuxInstallationConfig   `json:"config,omitempty"`       // Optional config overrides
 }
 
-type StartMigrationResponse struct {
+type StartKURLMigrationResponse struct {
     MigrationID string `json:"migrationId"`
     Message     string `json:"message"`
 }
 
-type MigrationStatusResponse struct {
-    State       MigrationState `json:"state"`
-    Phase       MigrationPhase `json:"phase"`
-    Message     string         `json:"message"`
-    Progress    int            `json:"progress"`        // 0-100
-    Error       string         `json:"error,omitempty"`
-    StartedAt   string         `json:"startedAt,omitempty"`   // RFC3339
-    CompletedAt string         `json:"completedAt,omitempty"` // RFC3339
+type KURLMigrationStatusResponse struct {
+    State       KURLMigrationState `json:"state"`
+    Phase       KURLMigrationPhase `json:"phase"`
+    Message     string             `json:"message"`
+    Progress    int                `json:"progress"`        // 0-100
+    Error       string             `json:"error,omitempty"`
+    StartedAt   string             `json:"startedAt,omitempty"`   // RFC3339
+    CompletedAt string             `json:"completedAt,omitempty"` // RFC3339
 }
 ```
 
-**`api/controllers/migration/controller.go`** - Business logic orchestration
+**`api/controllers/kurlmigration/controller.go`** - Business logic orchestration
 ```go
 type Controller interface {
-    GetInstallationConfig(ctx context.Context) (*types.LinuxInstallationConfigResponse, error)
-    StartMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (string, error)
-    GetMigrationStatus(ctx context.Context) (*types.MigrationStatusResponse, error)
+    GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
+    StartKURLMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error)
+    GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error)
+    Run(ctx context.Context) error
 }
 
-// InstallationManager interface from api/internal/managers/linux/installation
-type InstallationManager interface {
-    GetDefaults(rc runtimeconfig.RuntimeConfig) (types.LinuxInstallationConfig, error)
-    ValidateConfig(config types.LinuxInstallationConfig, managerPort int) error
+type KURLMigrationController struct {
+    manager             kurlmigrationmanager.Manager
+    store               store.Store
+    installationManager linuxinstallation.InstallationManager
+    logger              logrus.FieldLogger
 }
 
-type MigrationController struct {
-    logger              *logrus.Logger
-    store               Store
-    manager             Manager
-    installationManager InstallationManager // Reuses existing validation and defaults
-}
-
-func NewController(store Store, manager Manager, installationMgr InstallationManager, logger *logrus.Logger) *MigrationController
+func NewKURLMigrationController(opts ...ControllerOption) (*KURLMigrationController, error)
 
 // GetInstallationConfig retrieves and merges installation configuration
-func (mc *MigrationController) GetInstallationConfig(ctx context.Context) (*types.LinuxInstallationConfigResponse, error) {
+func (c *KURLMigrationController) GetInstallationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error) {
     // Call manager.GetKurlConfig() to extract kURL config with non-overlapping CIDRs
     // Call manager.GetECDefaults() to get EC defaults
-    // Merge configs (kURL > defaults)
+    // Get user config from store (empty if not set yet)
+    // Merge configs (user > kURL > defaults)
     // Return response with values/defaults/resolved
 }
 
-// StartMigration initializes and starts the migration process
-func (mc *MigrationController) StartMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (string, error) {
-    // Check if migration already exists (return types.NewConflictError(ErrMigrationAlreadyStarted))
-    // Default transferMode to "copy" if empty
+// StartKURLMigration initializes and starts the kURL migration process
+func (c *KURLMigrationController) StartKURLMigration(ctx context.Context, transferMode types.TransferMode, config types.LinuxInstallationConfig) (string, error) {
     // Validate transfer mode using manager.ValidateTransferMode() (return types.NewBadRequestError(err) if invalid)
-    // Get base config (kURL + defaults) using mc.GetInstallationConfig()
-    // Merge with user config (user > kURL > defaults) using manager.MergeConfigs()
-    // Validate final config using installationManager.ValidateConfig() (return types.NewBadRequestError(err) if invalid)
-    // Generate migration ID (uuid)
-    // Initialize migration in store
-    // Launch background goroutine mc.runMigration()
-    // Return migration ID immediately
+    // Check if kURL migration already exists (return types.NewConflictError(ErrKURLMigrationAlreadyStarted))
+    // Generate UUID for kURL migration
+    // Get defaults and merge with user config (resolved = user > kURL > defaults)
+    // Store user-provided config for future reference
+    // Initialize kURL migration in store with resolved config
+    // Set initial state to NotStarted
+    // Launch background goroutine with detached context
+    // Return kURL migration ID immediately
 }
 
-// GetMigrationStatus retrieves the current migration status
-func (mc *MigrationController) GetMigrationStatus(ctx context.Context) (*types.MigrationStatusResponse, error) {
-    // Get migration from store
-    // Calculate progress based on phase (Discovery: 10%, Preparation: 30%, ECInstall: 50%, DataTransfer: 75%, Completed: 100%)
-    // Build and return MigrationStatusResponse
+// GetKURLMigrationStatus retrieves the current kURL migration status
+func (c *KURLMigrationController) GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error) {
+    // Get status from store
+    // Return types.NewNotFoundError(err) if ErrNoActiveKURLMigration
+    // Return status
 }
 
-// runMigration executes migration phases in background (SKELETON ONLY in this PR)
-func (mc *MigrationController) runMigration(ctx context.Context, migrationID string) {
-    // Set state to InProgress
-    // Set phase to Discovery
-    // Return ErrMigrationPhaseNotImplemented error (for dryrun testing)
-    // Set error in store
-    // Set state to Failed
-    // TODO (PR 8): Execute phases: Discovery, Preparation, ECInstall, DataTransfer, Completed
+// Run is the internal orchestration loop (SKELETON ONLY in this PR)
+func (c *KURLMigrationController) Run(ctx context.Context) error {
+    // Small delay to ensure HTTP response completes
+    // Defer handles all error cases by updating kURL migration state
+    // Get current state from store
+    // If InProgress, resume from current phase
+    // Execute phases: Discovery, Preparation, ECInstall, DataTransfer
+    // Set state to Completed
+    // TODO (PR sc-130983): Full phase implementations
 }
-
-func (mc *MigrationController) calculateProgress(phase types.MigrationPhase) int
 ```
 
-**`api/internal/managers/migration/manager.go`** - Core operations interface
+**`api/internal/managers/kurlmigration/manager.go`** - Core operations interface
 ```go
 type Manager interface {
-    GetKurlConfig(ctx context.Context) (*types.LinuxInstallationConfig, error)
-    GetECDefaults(ctx context.Context) (*types.LinuxInstallationConfig, error)
-    MergeConfigs(user, kurl, defaults *types.LinuxInstallationConfig) *types.LinuxInstallationConfig
-    ValidateTransferMode(mode string) error
+    GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error)
+    GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error)
+    MergeConfigs(user, kurl, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig
+    ValidateTransferMode(mode types.TransferMode) error
+    ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error
 }
 
-type manager struct {
-    logger              *logrus.Logger
-    kubeClient          client.Client
-    installationManager InstallationManager // For reusing existing validation
+type kurlMigrationManager struct {
+    store               kurlmigrationstore.Store
+    installationManager linuxinstallation.InstallationManager
+    logger              logrus.FieldLogger
 }
 
-func NewManager(kubeClient client.Client, installationMgr InstallationManager, logger *logrus.Logger) Manager
+func NewManager(opts ...ManagerOption) Manager
 
 // GetECDefaults delegates to installationManager.GetDefaults() to reuse existing defaults logic
-func (m *manager) GetECDefaults(ctx context.Context) (*types.LinuxInstallationConfig, error) {
+func (m *kurlMigrationManager) GetECDefaults(ctx context.Context) (types.LinuxInstallationConfig, error) {
     // Call installationManager.GetDefaults(runtimeConfig)
     // Returns: AdminConsolePort: 30000, DataDirectory: /var/lib/embedded-cluster, GlobalCIDR, proxy defaults, etc.
 }
 
 // MergeConfigs merges configs with precedence: user > kURL > defaults
-func (m *manager) MergeConfigs(user, kurl, defaults *types.LinuxInstallationConfig) *types.LinuxInstallationConfig {
+func (m *kurlMigrationManager) MergeConfigs(user, kurl, defaults types.LinuxInstallationConfig) types.LinuxInstallationConfig {
     // Start with defaults
     // Override with kURL values (includes non-overlapping CIDRs)
     // Override with user values (highest precedence)
@@ -259,83 +259,85 @@ func (m *manager) MergeConfigs(user, kurl, defaults *types.LinuxInstallationConf
 }
 
 // ValidateTransferMode checks mode is "copy" or "move"
-func (m *manager) ValidateTransferMode(mode string) error
+func (m *kurlMigrationManager) ValidateTransferMode(mode types.TransferMode) error
+
+// ExecutePhase executes a kURL migration phase (SKELETON ONLY in this PR)
+func (m *kurlMigrationManager) ExecutePhase(ctx context.Context, phase types.KURLMigrationPhase) error {
+    // Returns ErrKURLMigrationPhaseNotImplemented for all phases in this PR
+    // TODO (PR sc-130983): Implement phase execution logic
+}
 
 // NOTE: Config validation reuses installationManager.ValidateConfig() instead of duplicating validation logic
 // Validates: globalCIDR, podCIDR, serviceCIDR, networkInterface, adminConsolePort, localArtifactMirrorPort, dataDirectory
 ```
 
-**`api/internal/store/migration/store.go`** - In-memory state storage
+**`api/internal/store/kurlmigration/store.go`** - In-memory state storage
 ```go
+// Store provides methods for storing and retrieving kURL migration state
 type Store interface {
-    GetMigration() (*Migration, error)
-    InitializeMigration(migrationID, transferMode string, config *types.LinuxInstallationConfig) error
-    SetState(state types.MigrationState) error
-    SetPhase(phase types.MigrationPhase) error
-    SetMessage(message string) error
+    InitializeMigration(migrationID string, transferMode string, config types.LinuxInstallationConfig) error
+    GetMigrationID() (string, error)
+    GetStatus() (types.KURLMigrationStatusResponse, error)
+    GetUserConfig() (types.LinuxInstallationConfig, error)
+    SetUserConfig(config types.LinuxInstallationConfig) error
+    SetState(state types.KURLMigrationState) error
+    SetPhase(phase types.KURLMigrationPhase) error
     SetError(errorMsg string) error
 }
 
-type Migration struct {
-    MigrationID    string
-    State          types.MigrationState
-    Phase          types.MigrationPhase
-    Message        string
-    Error          string
-    TransferMode   string
-    Config         *types.LinuxInstallationConfig
-    StartedAt      time.Time
-    CompletedAt    *time.Time
+type memoryStore struct {
+    mu             sync.RWMutex
+    migrationID    string
+    state          types.KURLMigrationState
+    phase          types.KURLMigrationPhase
+    transferMode   string
+    config         types.LinuxInstallationConfig
+    userConfig     types.LinuxInstallationConfig
+    errorMsg       string
+    startedAt      time.Time
+    completedAt    *time.Time
 }
 
-type inMemoryStore struct {
-    mu        sync.RWMutex
-    migration *Migration
-}
+func NewMemoryStore() Store
 
-type StoreOption func(*inMemoryStore)
+// InitializeMigration creates new kURL migration, returns ErrKURLMigrationAlreadyStarted if exists
+func (s *memoryStore) InitializeMigration(migrationID string, transferMode string, config types.LinuxInstallationConfig) error
 
-func WithMigration(migration Migration) StoreOption
+// GetMigrationID returns current kURL migration ID, or ErrNoActiveKURLMigration if none exists
+func (s *memoryStore) GetMigrationID() (string, error)
 
-// NewInMemoryStore creates a new in-memory migration store with optional initialization
-func NewInMemoryStore(opts ...StoreOption) Store {
-    // Initialize empty store
-    // Apply options (e.g., WithMigration for testing)
-    // Return store
-}
+// GetStatus returns current kURL migration status with all fields
+func (s *memoryStore) GetStatus() (types.KURLMigrationStatusResponse, error)
 
-// GetMigration returns current migration with deep copy, or ErrNoActiveMigration if none exists
-func (s *inMemoryStore) GetMigration() (*Migration, error)
+// GetUserConfig returns user-provided config (empty if not set)
+func (s *memoryStore) GetUserConfig() (types.LinuxInstallationConfig, error)
 
-// InitializeMigration creates new migration, returns ErrMigrationAlreadyStarted if exists
-func (s *inMemoryStore) InitializeMigration(migrationID, transferMode string, config *types.LinuxInstallationConfig) error
+// SetUserConfig stores user-provided config for reference
+func (s *memoryStore) SetUserConfig(config types.LinuxInstallationConfig) error
 
-// SetState updates state, sets CompletedAt for Completed/Failed states
-func (s *inMemoryStore) SetState(state types.MigrationState) error
+// SetState updates kURL migration state, sets CompletedAt for Completed/Failed states
+func (s *memoryStore) SetState(state types.KURLMigrationState) error
 
-// SetPhase updates current phase
-func (s *inMemoryStore) SetPhase(phase types.MigrationPhase) error
+// SetPhase updates current kURL migration phase
+func (s *memoryStore) SetPhase(phase types.KURLMigrationPhase) error
 
-// SetMessage updates status message
-func (s *inMemoryStore) SetMessage(message string) error
-
-// SetError sets error message and Failed state
-func (s *inMemoryStore) SetError(errorMsg string) error
+// SetError sets error message (state is updated separately via SetState)
+func (s *memoryStore) SetError(errorMsg string) error
 ```
 
 **To Be Implemented:**
 
 **CLI-API Integration Pattern:**
-The API leverages existing kURL detection utilities from the `pkg-new/kurl` package (implemented in story sc-130962). The CLI handles password export via `exportKurlPasswordHash()`, while the API focuses on configuration extraction and migration orchestration. This separation ensures the API doesn't duplicate CLI detection logic.
+The API leverages existing kURL detection utilities from the `pkg-new/kurl` package (implemented in story sc-130962). The CLI handles password export via `exportKurlPasswordHash()`, while the API focuses on configuration extraction and kURL migration orchestration. This separation ensures the API doesn't duplicate CLI detection logic.
 
-**`api/internal/managers/migration/kurl_config.go`** - Extract kURL configuration
+**`api/internal/managers/kurlmigration/kurl_config.go`** - Extract kURL configuration
 ```go
 import (
     "github.com/replicatedhq/embedded-cluster/pkg-new/kurl"
 )
 
 // GetKurlConfig extracts configuration from kURL cluster and returns EC-ready config with non-overlapping CIDRs
-func (m *Manager) GetKurlConfig(ctx context.Context) (*types.LinuxInstallationConfig, error) {
+func (m *kurlMigrationManager) GetKurlConfig(ctx context.Context) (types.LinuxInstallationConfig, error) {
     // Use existing pkg-new/kurl.GetConfig() to get base kURL configuration
     // Extract kURL's pod/service CIDRs from kube-controller-manager
     // Extract admin console port, proxy settings from kotsadm resources
@@ -365,7 +367,7 @@ func extractProxySettings(ctx context.Context, kurlClient client.Client) (*Proxy
 func extractNetworkInterface(ctx context.Context, kurlClient client.Client) (string, error)
 ```
 
-**`api/internal/managers/migration/network.go`** - CIDR calculation logic
+**`api/internal/managers/kurlmigration/network.go`** - CIDR calculation logic
 ```go
 // calculateNonOverlappingCIDRs finds new CIDRs that don't overlap with kURL's existing ranges
 func calculateNonOverlappingCIDRs(kurlPodCIDR, kurlServiceCIDR, globalCIDR string) (newPodCIDR, newServiceCIDR string, err error) {
@@ -390,9 +392,9 @@ func incrementCIDR(cidr string) (string, error)
 
 
 ### Handlers/Controllers
-- Migration handlers are Linux-only (not available for Kubernetes target)
-- Registered under authenticated routes with logging middleware
-- No new Swagger/OpenAPI definitions needed (already annotated)
+- kURL migration handlers are Linux-only (not available for Kubernetes target)
+- Registered under authenticated routes with logging middleware at `/api/linux/kurl-migration/`
+- Swagger/OpenAPI definitions included via handler annotations
 
 ### Toggle Strategy
 - Feature flag: None required (Linux-only feature)
@@ -410,38 +412,40 @@ func incrementCIDR(cidr string) (string, error)
 ## Testing
 
 ### Unit Tests
-**Controller Tests** (`api/controllers/migration/controller_test.go`):
+**Controller Tests** (`api/controllers/kurlmigration/controller_test.go`):
 - GetInstallationConfig with various config combinations
-- StartMigration with different transfer modes (copy/move)
-- Migration already in progress returns 409 conflict (ErrMigrationAlreadyStarted)
+- StartKURLMigration with different transfer modes (copy/move)
+- kURL migration already in progress returns 409 conflict (ErrKURLMigrationAlreadyStarted)
 - Invalid transfer mode returns 400 bad request
-- GetMigrationStatus with active/inactive migrations
+- GetKURLMigrationStatus with active/inactive kURL migrations
 - Background goroutine execution and state transitions
 
-**Manager Tests** (`api/internal/managers/migration/manager_test.go`):
+**Manager Tests** (`api/internal/managers/kurlmigration/manager_test.go`):
 - Config merging precedence (user > kURL > defaults)
 - Transfer mode validation (copy/move only)
 - GetECDefaults delegates to InstallationManager.GetDefaults()
 - MergeConfigs properly overrides with correct precedence
+- ExecutePhase returns ErrKURLMigrationPhaseNotImplemented (skeleton in this PR)
 
-**Network Tests** (`api/internal/managers/migration/network_test.go` - CRITICAL):
+**Network Tests** (`api/internal/managers/kurlmigration/network_test.go` - CRITICAL):
 - `TestCalculateNonOverlappingCIDRs_ExcludesKurlRanges()` - Verify EC ranges don't overlap kURL
 - `TestCalculateNonOverlappingCIDRs_MultipleExclusions()` - Test with multiple excluded ranges
 - `TestCalculateNonOverlappingCIDRs_WithinGlobalCIDR()` - Verify calculated ranges respect global CIDR
 - `TestCalculateNonOverlappingCIDRs_NoAvailableRange()` - Handle exhaustion scenarios
 
-**kURL Config Tests** (`api/internal/managers/migration/kurl_config_test.go`):
+**kURL Config Tests** (`api/internal/managers/kurlmigration/kurl_config_test.go`):
 - discoverKotsadmNamespace finds Service in default namespace first
 - discoverKotsadmNamespace falls back to searching all namespaces
 - extractAdminConsolePort reads NodePort from discovered Service
 - extractProxySettings reads env vars from kotsadm Deployment
 
-**Store Tests** (`api/internal/store/migration/store_test.go`):
-- NewInMemoryStore with WithMigration option for test initialization
+**Store Tests** (`api/internal/store/kurlmigration/store_test.go`):
+- NewMemoryStore initialization
 - Thread-safe concurrent access (multiple goroutines reading/writing)
 - State transitions (NotStarted → InProgress → Completed/Failed)
-- Deep copy verification (GetMigration returns copy, not reference)
-- InitializeMigration returns ErrMigrationAlreadyStarted when exists
+- InitializeMigration returns ErrKURLMigrationAlreadyStarted when exists
+- GetMigrationID returns ErrNoActiveKURLMigration when no kURL migration exists
+- GetUserConfig/SetUserConfig for storing user-provided configuration
 
 ### Integration Tests
 - End-to-end API flow simulation
@@ -451,23 +455,27 @@ func incrementCIDR(cidr string) (string, error)
 ### Dryrun Tests
 **Extend existing test:** `tests/dryrun/upgrade_kurl_migration_test.go::TestUpgradeKURLMigration`
 
-The existing test validates CLI migration detection. Extend it to test the migration API foundation:
+The existing test validates CLI kURL migration detection. Extend it to test the kURL migration API foundation:
 
 ```go
 func TestUpgradeKURLMigration(t *testing.T) {
     // Existing setup: ENABLE_V3=1, mock kURL kubeconfig, dryrun.KubeUtils
     // Existing setup: Create kurl-config ConfigMap in kube-system namespace
-    // Existing test: Verify CLI upgrade detection and messaging
+    // Existing setup: Create kotsadm Service and kotsadm-password Secret in default namespace
 
-    // NEW: Test Migration API endpoints
+    // Test kURL Migration API endpoints
     t.Run("migration API skeleton", func(t *testing.T) {
-        // Start the API server with migration mode
-        // POST /api/kurl-migration/start with transferMode="copy"
-        // Verify response: migrationID returned with 200
+        // Start the upgrade command in non-headless mode so API stays up
+        // Build API client and authenticate with password
 
-        // GET /api/kurl-migration/status
-        // Verify response: state=Failed, error contains "migration phase execution not yet implemented"
-        // This validates ErrMigrationPhaseNotImplemented is properly returned
+        // POST /api/linux/kurl-migration/start with transferMode="copy"
+        // Verify response: migrationID returned with 200
+        // Verify response message: "kURL migration started successfully"
+
+        // GET /api/linux/kurl-migration/status (with polling)
+        // Verify kURL migration eventually reaches Failed state
+        // Verify error contains "kURL migration phase execution not yet implemented"
+        // This validates ErrKURLMigrationPhaseNotImplemented is properly returned
     })
 }
 ```
@@ -476,9 +484,10 @@ func TestUpgradeKURLMigration(t *testing.T) {
 - Uses `dryrun.KubeUtils{}` for mock Kubernetes clients
 - Creates kURL kubeconfig at `kubeutils.KURLKubeconfigPath`
 - Creates `kurl-config` ConfigMap: `Data["kurl_install_directory"] = "/var/lib/kurl"`
+- Creates `kotsadm` Service and `kotsadm-password` Secret for authentication
 - Uses `embedReleaseData()` helper for release artifacts
-- Captures logrus output for assertion
-- Runs actual CLI commands with flags
+- Runs upgrade command with `--yes` flag in goroutine
+- Waits for API to be ready, then tests endpoints
 
 **CIDR Exclusion Test** (critical validation):
 ```go
@@ -519,27 +528,27 @@ No special deployment handling required. The API endpoints will be available imm
 ## Trade-offs
 
 **Chosen Approach: Async Background Processing**
-- Optimizing for: UI responsiveness, handling long-running operations
+- Optimizing for: UI responsiveness, handling long-running kURL migration operations
 - Trade-off: Complexity of status polling vs simplicity of synchronous calls
-- Rationale: Migration can take 30+ minutes, sync calls would timeout
+- Rationale: kURL migration can take 30+ minutes, sync calls would timeout
 
 **Chosen Approach: In-Memory Store (this PR)**
 - Optimizing for: Simplicity, fast iteration
-- Trade-off: No persistence across restarts (added in PR 7)
-- Rationale: Allows testing API flow before adding persistence complexity
+- Trade-off: No persistence across restarts (added in PR sc-130972)
+- Rationale: Allows testing kURL migration API flow before adding persistence complexity
 
 **Chosen Approach: Three-Endpoint Design**
 - Optimizing for: Clear separation of concerns, RESTful design
 - Trade-off: More endpoints vs single GraphQL-style endpoint
-- Rationale: Follows existing API patterns, easier to test/document
+- Rationale: Follows existing API patterns at `/api/linux/kurl-migration/`, easier to test/document
 
 ## Alternative solutions considered
 
 1. **Single /migrate Endpoint with WebSocket**
    - Rejected: Adds WebSocket complexity, inconsistent with existing patterns
 
-2. **Synchronous Migration Execution**
-   - Rejected: Would timeout on long migrations, poor UX
+2. **Synchronous kURL Migration Execution**
+   - Rejected: Would timeout on long kURL migrations, poor UX
 
 3. **Direct UI to Controller Communication**
    - Rejected: Breaks architectural layers, harder to test
@@ -547,7 +556,7 @@ No special deployment handling required. The API endpoints will be available imm
 4. **GraphQL API**
    - Rejected: Inconsistent with REST-based architecture
 
-5. **Separate Migration Service**
+5. **Separate kURL Migration Service**
    - Rejected: Adds deployment complexity, harder to maintain
 
 ## Research
@@ -567,17 +576,16 @@ See detailed research document: [kurl-migration-api-foundation_research.md](./ku
 
 ## Checkpoints (PR plan)
 
-**This PR (sc-130971): API Foundation**
-- Complete handler implementation with Swagger docs
-- Controller with async execution
-- Manager skeleton with config merging
-- In-memory store implementation
-- Comprehensive unit tests
-- Sets foundation for subsequent PRs
+**This PR (sc-130971): kURL Migration API Foundation**
+- Complete handler implementation with Swagger docs at `/api/linux/kurl-migration/`
+- Controller with async execution (background goroutine with Run method)
+- Manager with config merging and validation
+- In-memory store implementation (memoryStore)
+- Skeleton phase execution (returns ErrKURLMigrationPhaseNotImplemented)
+- Comprehensive unit tests and dryrun tests
+- Sets foundation for subsequent kURL migration PRs
 
 **Future PRs (not in this PR):**
-- PR 7 (sc-130972): Add persistent file-based store
-- PR 8 (sc-130983): Implement phase orchestration
-- PR 9: Add kURL config extraction
-- PR 10: Implement CIDR calculation
-- PR 11: Add metrics reporting
+- PR sc-130972: Add persistent file-based store at `/var/lib/embedded-cluster/migration-state.json`
+- PR sc-130983: Implement kURL migration phase orchestration (Discovery, Preparation, ECInstall, DataTransfer)
+- Future PRs: Add kURL config extraction, CIDR calculation, metrics reporting

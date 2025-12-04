@@ -268,9 +268,13 @@ func setupMockRuntimeConfig(t *testing.T) *runtimeconfig.MockRuntimeConfig {
 	err := os.WriteFile(helmPath, []byte(mockK8sServer.URL), 0644)
 	require.NoError(t, err)
 
+	// Create temp directory for embedded cluster home
+	dataDir := t.TempDir()
+
 	rc := &runtimeconfig.MockRuntimeConfig{}
 	rc.On("GetKubernetesEnvSettings").Return(helmcli.New())
 	rc.On("PathToEmbeddedClusterBinary", "helm").Return(helmPath, nil)
+	rc.On("EmbeddedClusterHomeDirectory").Return(dataDir)
 	return rc
 }
 
