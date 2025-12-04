@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	SSHUser = "ec-e2e-test"
-	DataDir = "/var/lib/embedded-cluster-smoke-test-staging-app"
+	SSHUser      = "ec-e2e-test"
+	DataDir      = "/var/lib/embedded-cluster-smoke-test-staging-app"
+	AppNamespace = "embedded-cluster-smoke-test-staging-app"
 )
 
 // Provisions a new CMX VM for E2E testing.
