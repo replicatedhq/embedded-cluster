@@ -176,7 +176,6 @@ func (i *CmxInstance) validateInstallationCRD(ctx context.Context) *CheckResult 
 // Based on: e2e/scripts/common.sh::wait_for_nginx_pods, ensure_app_deployed, ensure_app_not_upgraded
 func (i *CmxInstance) validateAppDeployment(ctx context.Context, expectedAppVersion string, airgap bool) *CheckResult {
 	result := &CheckResult{Passed: true}
-	appNamespace := "kotsadm"
 
 	// Wait for nginx pods to be Running (with timeout)
 	nginxReady := false
@@ -192,16 +191,16 @@ waitLoop:
 			result.ErrorMessage = "nginx pods did not appear within timeout"
 
 			// Get debugging info
-			pods, _ := i.Command(fmt.Sprintf(`kubectl get pods -n %s`, appNamespace)).Stdout(ctx)
-			kotsadmPods, _ := i.Command(fmt.Sprintf(`kubectl get pods -n %s`, appNamespace)).Stdout(ctx)
-			logs, _ := i.Command(fmt.Sprintf(`kubectl logs -n %s -l app=kotsadm --tail=50`, appNamespace)).Stdout(ctx)
+			pods, _ := i.Command(fmt.Sprintf(`kubectl get pods -n %s`, AppNamespace)).Stdout(ctx)
+			kotsadmPods, _ := i.Command(fmt.Sprintf(`kubectl get pods -n %s`, AppNamespace)).Stdout(ctx)
+			logs, _ := i.Command(fmt.Sprintf(`kubectl logs -n %s -l app=kotsadm --tail=50`, AppNamespace)).Stdout(ctx)
 
 			result.Details = fmt.Sprintf("app pods:\n%s\n\nkotsadm pods:\n%s\n\nkotsadm logs:\n%s",
 				pods, kotsadmPods, logs)
 			return result
 
 		case <-ticker.C:
-			stdout, err := i.Command(fmt.Sprintf(`kubectl get pods -n %s --no-headers`, appNamespace)).Stdout(ctx)
+			stdout, err := i.Command(fmt.Sprintf(`kubectl get pods -n %s --no-headers`, AppNamespace)).Stdout(ctx)
 			if err == nil && strings.Contains(stdout, "nginx") && strings.Contains(stdout, "Running") {
 				nginxReady = true
 				break waitLoop
@@ -225,7 +224,7 @@ waitLoop:
 		}
 	} else {
 		// For online, use kubectl kots
-		versions, err := i.Command(`kubectl kots get versions -n kotsadm embedded-cluster-smoke-test-staging-app`).Stdout(ctx)
+		versions, err := i.Command(fmt.Sprintf(`kubectl kots get versions -n %s embedded-cluster-smoke-test-staging-app`, AppNamespace)).Stdout(ctx)
 		if err != nil {
 			result.Passed = false
 			result.ErrorMessage = fmt.Sprintf("failed to get app versions: %v", err)
@@ -254,7 +253,7 @@ waitLoop:
 	}
 
 	// Check for "second" app pods (should not exist for fresh install)
-	secondPods, _ := i.Command(`kubectl get pods -n ${appNamespace} -l app=second`).Stdout(ctx)
+	secondPods, _ := i.Command(fmt.Sprintf(`kubectl get pods -n %s -l app=second`, AppNamespace)).Stdout(ctx)
 	if strings.Contains(secondPods, "second") {
 		result.Passed = false
 		result.ErrorMessage = "found pods from app update (upgrade artifact)"
@@ -271,7 +270,7 @@ waitLoop:
 // Based on: e2e/scripts/common.sh::ensure_app_deployed_airgap
 func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersion string) error {
 	// Get kotsadm authstring
-	authStringCmd := `kubectl get secret -n kotsadm kotsadm-authstring -o jsonpath={.data.kotsadm-authstring}`
+	authStringCmd := fmt.Sprintf(`kubectl get secret -n %s kotsadm-authstring -o jsonpath={.data.kotsadm-authstring}`, AppNamespace)
 	authString64, err := i.Command(authStringCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get authstring: %w", err)
@@ -285,14 +284,14 @@ func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersi
 	}
 
 	// Get kotsadm service IP
-	kotsadmIPCmd := `kubectl get svc -n kotsadm kotsadm -o jsonpath={.spec.clusterIP}`
+	kotsadmIPCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath={.spec.clusterIP}`, AppNamespace)
 	kotsadmIP, err := i.Command(kotsadmIPCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm IP: %w", err)
 	}
 
 	// Get kotsadm service port
-	kotsadmPortCmd := `kubectl get svc -n kotsadm kotsadm -o jsonpath={.spec.ports[?(@.name=="http")].port}`
+	kotsadmPortCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath={.spec.ports[?(@.name=="http")].port}`, AppNamespace)
 	kotsadmPort, err := i.Command(kotsadmPortCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm port: %w", err)
@@ -336,7 +335,7 @@ func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
 	result := &CheckResult{Passed: true}
 
 	// Check kotsadm pods are running
-	kotsadmPods, err := i.Command(`kubectl get pods -n kotsadm -l app=kotsadm --no-headers`).Stdout(ctx)
+	kotsadmPods, err := i.Command(fmt.Sprintf(`kubectl get pods -n %s -l app=kotsadm --no-headers`, AppNamespace)).Stdout(ctx)
 	if err != nil {
 		result.Passed = false
 		result.ErrorMessage = fmt.Sprintf("failed to get kotsadm pods: %v", err)
@@ -351,7 +350,7 @@ func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
 	}
 
 	// Check kubectl kots command works
-	_, err = i.Command(`kubectl kots get apps -n kotsadm`).Stdout(ctx)
+	_, err = i.Command(fmt.Sprintf(`kubectl kots get apps -n %s`, AppNamespace)).Stdout(ctx)
 	if err != nil {
 		result.Passed = false
 		result.ErrorMessage = fmt.Sprintf("kubectl kots get apps failed: %v", err)
@@ -360,7 +359,7 @@ func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
 	}
 
 	// Check admin console branding configmap has DR label
-	cmCheck, err := i.Command(`kubectl get cm -n kotsadm kotsadm-application-metadata --show-labels`).Stdout(ctx)
+	cmCheck, err := i.Command(fmt.Sprintf(`kubectl get cm -n %s kotsadm-application-metadata --show-labels`, AppNamespace)).Stdout(ctx)
 	if err != nil {
 		result.Passed = false
 		result.ErrorMessage = fmt.Sprintf("failed to get kotsadm-application-metadata configmap: %v", err)
@@ -372,7 +371,7 @@ func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
 		result.ErrorMessage = "kotsadm-application-metadata configmap missing DR label"
 
 		// Get full configmap details
-		cmDetails, _ := i.Command(`kubectl get cm -n kotsadm kotsadm-application-metadata -o yaml`).Stdout(ctx)
+		cmDetails, _ := i.Command(fmt.Sprintf(`kubectl get cm -n %s kotsadm-application-metadata -o yaml`, AppNamespace)).Stdout(ctx)
 		result.Details = fmt.Sprintf("configmap:\n%s", cmDetails)
 		return result
 	}
