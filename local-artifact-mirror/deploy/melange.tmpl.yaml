@@ -17,7 +17,8 @@ environment:
       - git
       - go
   environment:
-    GOMODCACHE: /var/cache/melange
+    GOCACHE: /cache/melange/gocache
+    GOMODCACHE: /cache/melange/gomodcache
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 
 pipeline:
