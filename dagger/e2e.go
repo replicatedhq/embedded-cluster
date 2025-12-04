@@ -40,6 +40,12 @@ func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 	// Skip cleanup
 	// +default=false
 	skipCleanup bool,
+	// CMX API token
+	// +optional
+	cmxToken *dagger.Secret,
+	// SSH key
+	// +optional
+	sshKey *dagger.Secret,
 ) (*TestResult, error) {
 	startTime := ctx.Value("startTime")
 	if startTime == nil {
@@ -65,6 +71,8 @@ func (m *EmbeddedCluster) E2eRunHeadlessOnline(
 		50,         // 50GB disk
 		"10m",      // 10 minute wait for VM to be ready
 		"2h",       // 2 hour TTL
+		cmxToken,
+		sshKey,
 	)
 	if err != nil {
 		return &TestResult{
@@ -168,6 +176,12 @@ func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
 	// Skip cleanup
 	// +default=false
 	skipCleanup bool,
+	// CMX API token
+	// +optional
+	cmxToken *dagger.Secret,
+	// SSH key
+	// +optional
+	sshKey *dagger.Secret,
 ) (*TestResult, error) {
 	startTime := ctx.Value("startTime")
 	if startTime == nil {
@@ -193,6 +207,8 @@ func (m *EmbeddedCluster) E2eRunHeadlessAirgap(
 		50,         // 50GB disk
 		"10m",      // 10 minute wait for VM to be ready
 		"2h",       // 2 hour TTL
+		cmxToken,
+		sshKey,
 	)
 	if err != nil {
 		return &TestResult{

@@ -46,9 +46,16 @@ func (m *EmbeddedCluster) ProvisionCmxVm(
 	// TTL for the VM
 	// +default="2h"
 	ttl string,
+	// CMX API token
+	// +optional
+	cmxToken *dagger.Secret,
+	// SSH key
+	// +optional
+	sshKey *dagger.Secret,
 ) (*CmxInstance, error) {
-	// Get CMX API token and SSH key from 1Password
-	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+	// Get CMX API token and SSH key from 1Password if not provided
+	cmxToken = m.mustResolveSecret(cmxToken, "CMX_REPLICATED_API_TOKEN")
+	sshKey = m.mustResolveSecret(sshKey, "CMX_SSH_PRIVATE_KEY")
 
 	// Create VM using Replicated Dagger module
 	vms, err := dag.
@@ -76,7 +83,7 @@ func (m *EmbeddedCluster) ProvisionCmxVm(
 	}
 	vm := vms[0]
 
-	return m.cmxVmToCmxInstance(ctx, &vm)
+	return m.cmxVmToCmxInstance(ctx, &vm, cmxToken, sshKey)
 }
 
 // WithCmxVm connects to an existing CMX VM by ID.
@@ -95,9 +102,16 @@ func (m *EmbeddedCluster) WithCmxVm(
 	// SSH user
 	// +default="ec-e2e-test"
 	sshUser string,
+	// CMX API token
+	// +optional
+	cmxToken *dagger.Secret,
+	// SSH key
+	// +optional
+	sshKey *dagger.Secret,
 ) (*CmxInstance, error) {
-	// Get CMX API token and SSH key from 1Password
-	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
+	// Get CMX API token and SSH key from 1Password if not provided
+	cmxToken = m.mustResolveSecret(cmxToken, "CMX_REPLICATED_API_TOKEN")
+	sshKey = m.mustResolveSecret(sshKey, "CMX_SSH_PRIVATE_KEY")
 
 	// List all VMs and find the one with matching ID
 	vms, err := dag.
@@ -124,14 +138,10 @@ func (m *EmbeddedCluster) WithCmxVm(
 		return nil, fmt.Errorf("vm with id %s not found", vmId)
 	}
 
-	return m.cmxVmToCmxInstance(ctx, vm)
+	return m.cmxVmToCmxInstance(ctx, vm, cmxToken, sshKey)
 }
 
-func (m *EmbeddedCluster) cmxVmToCmxInstance(ctx context.Context, vm *dagger.ReplicatedVM) (*CmxInstance, error) {
-	// Get CMX API token and SSH key from 1Password
-	cmxToken := m.mustResolveSecret(nil, "CMX_REPLICATED_API_TOKEN")
-	sshKey := m.mustResolveSecret(nil, "CMX_SSH_PRIVATE_KEY")
-
+func (m *EmbeddedCluster) cmxVmToCmxInstance(ctx context.Context, vm *dagger.ReplicatedVM, cmxToken *dagger.Secret, sshKey *dagger.Secret) (*CmxInstance, error) {
 	// Get VM details
 	vmID, err := vm.ItemID(ctx)
 	if err != nil {

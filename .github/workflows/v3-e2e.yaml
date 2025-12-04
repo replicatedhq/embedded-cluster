@@ -193,4 +193,6 @@ jobs:
             --app-version=$APP_VERSION \
             --kube-version=$KUBE_VERSION \
             --license-file ./e2e/licenses/ci-v3.yaml \
+            --cmx-token=env://CMX_REPLICATED_API_TOKEN \
+            --ssh-key=env://CMX_SSH_PRIVATE_KEY \
             string
