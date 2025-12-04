@@ -183,12 +183,14 @@ jobs:
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Run test
+        id: test
         env:
           APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
           KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
           CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
         run: |
+          # Run test and export results directory
           dagger call e-2-e-run-headless \
             --scenario=online \
             --app-version=$APP_VERSION \
@@ -196,7 +198,30 @@ jobs:
             --license-file ./e2e/licenses/ci-v3.yaml \
             --cmx-token=env://CMX_REPLICATED_API_TOKEN \
             --ssh-key=env://CMX_SSH_PRIVATE_KEY \
-            string
+            export --path=./e2e-results-online
+
+          # Read result.json to extract test result
+          if [ -f ./e2e-results-online/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results-online/result.json)
+            echo "Test success: $success"
+
+            # Exit with test result
+            if [ "$success" = "true" ]; then
+              exit 0
+            else
+              exit 1
+            fi
+          else
+            echo "Error: result.json not found"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: ${{ !cancelled() && hashFiles('./e2e-results-online/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-online
+          path: ./e2e-results-online/
 
   e2e-headless-airgap:
     name: E2E headless airgap
@@ -214,12 +239,14 @@ jobs:
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Run test
+        id: test
         env:
           APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
           KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
           CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
         run: |
+          # Run test and export results directory
           dagger call e-2-e-run-headless \
             --scenario=airgap \
             --app-version=$APP_VERSION \
@@ -227,4 +254,27 @@ jobs:
             --license-file ./e2e/licenses/ci-v3.yaml \
             --cmx-token=env://CMX_REPLICATED_API_TOKEN \
             --ssh-key=env://CMX_SSH_PRIVATE_KEY \
-            string
+            export --path=./e2e-results-airgap
+
+          # Read result.json to extract test result
+          if [ -f ./e2e-results-airgap/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results-airgap/result.json)
+            echo "Test success: $success"
+
+            # Exit with test result
+            if [ "$success" = "true" ]; then
+              exit 0
+            else
+              exit 1
+            fi
+          else
+            echo "Error: result.json not found"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: ${{ !cancelled() && hashFiles('./e2e-results-airgap/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-airgap
+          path: ./e2e-results-airgap/

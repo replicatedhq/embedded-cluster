@@ -26,7 +26,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	arch string,
 ) *dagger.File {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
@@ -67,7 +67,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	arch string,
 ) (string, error) {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)

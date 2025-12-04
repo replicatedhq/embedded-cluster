@@ -87,11 +87,13 @@ type TestResult struct {
 	Error string
 	// Test execution duration
 	Duration string
+	// VM ID used for the test (for cleanup or support bundle collection)
+	VMID string
 	// Validation results from the test
 	ValidationResults *ValidationResult
 }
 
 func (t *TestResult) String() string {
-	return fmt.Sprintf("TestResult{Scenario: %s, Mode: %s, Success: %t, Error: %q, Duration: %s, ValidationResults: %s}",
-		t.Scenario, t.Mode, t.Success, t.Error, t.Duration, t.ValidationResults)
+	return fmt.Sprintf("TestResult{Scenario: %s, Mode: %s, Success: %t, Error: %q, Duration: %s, VMID: %s, ValidationResults: %s}",
+		t.Scenario, t.Mode, t.Success, t.Error, t.Duration, t.VMID, t.ValidationResults)
 }

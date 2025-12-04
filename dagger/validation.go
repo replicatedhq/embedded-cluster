@@ -406,7 +406,7 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 			errors = append(errors, fmt.Sprintf("OpenEBS basePath not set to %s", expectedOpenEBSDataDir))
 
 			// Get specific section for details
-			grepCmd := fmt.Sprintf(`sh -c "kubectl get charts -n kube-system k0s-addon-chart-openebs -o yaml | grep -v apiVersion | grep 'basePath:' -A5 -B5"`)
+			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-openebs -o yaml | grep -v apiVersion | grep 'basePath:' -A5 -B5"`
 			section, _ := i.Command(grepCmd).Stdout(ctx)
 			result.Details += fmt.Sprintf("\nOpenEBS chart basePath section:\n%s", section)
 		}
@@ -421,7 +421,7 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 			errors = append(errors, fmt.Sprintf("SeaweedFS hostPathPrefix not under %s", expectedPattern))
 
 			// Get specific section for details
-			grepCmd := fmt.Sprintf(`sh -c "kubectl get charts -n kube-system k0s-addon-chart-seaweedfs -o yaml | grep -v apiVersion | grep -m 1 'hostPathPrefix:' -A5 -B5"`)
+			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-seaweedfs -o yaml | grep -v apiVersion | grep -m 1 'hostPathPrefix:' -A5 -B5"`
 			section, _ := i.Command(grepCmd).Stdout(ctx)
 			result.Details += fmt.Sprintf("\nSeaweedFS chart hostPathPrefix section:\n%s", section)
 		}
@@ -436,7 +436,7 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 			errors = append(errors, fmt.Sprintf("Velero podVolumePath not set to %s", expectedVeleroPath))
 
 			// Get specific section for details
-			grepCmd := fmt.Sprintf(`sh -c "kubectl get charts -n kube-system k0s-addon-chart-velero -o yaml | grep -v apiVersion | grep 'podVolumePath:' -A5 -B5"`)
+			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-velero -o yaml | grep -v apiVersion | grep 'podVolumePath:' -A5 -B5"`
 			section, _ := i.Command(grepCmd).Stdout(ctx)
 			result.Details += fmt.Sprintf("\nVelero chart podVolumePath section:\n%s", section)
 		}
