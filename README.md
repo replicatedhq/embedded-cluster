@@ -464,10 +464,11 @@ The V3 installer includes a Dagger-based E2E test framework that provides portab
 make e2e-v3-initial-release
 
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  e-2-e-run-headless-online \
+  e-2-e-run-headless \
+  --scenario=online \
   --app-version=<app version> \
   --kube-version=1.33 \
-  --license-file=./local-dev/<channel name>-license.yaml
+  --license-file=./local-dev/license.yaml
 ```
 
 **Documentation:** See [dagger/README.md](dagger/README.md) for comprehensive E2E testing guide, including:
