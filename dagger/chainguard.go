@@ -20,7 +20,7 @@ func (m *chainguard) melangeBuildGo(
 	keygen := m.melangeKeygen(imageTag)
 
 	// Create cache volumes for improved build performance
-	goModCache := dag.CacheVolume("ec-melange-gomodcache")
+	goCache := dag.CacheVolume("ec-melange-gocache")
 	apkCache := dag.CacheVolume("ec-melange-apkcache")
 
 	c := dag.Container().
@@ -30,7 +30,7 @@ func (m *chainguard) melangeBuildGo(
 		WithFile("/workspace/melange.rsa", keygen.File("/workspace/melange.rsa")).
 		WithEnvVariable("MELANGE_CACHE_DIR", "/cache/melange").
 		WithEnvVariable("MELANGE_APK_CACHE_DIR", "/cache/apk").
-		WithMountedCache("/cache/melange", goModCache, dagger.ContainerWithMountedCacheOpts{
+		WithMountedCache("/cache/melange", goCache, dagger.ContainerWithMountedCacheOpts{
 			Sharing: dagger.CacheSharingModeShared,
 		}).
 		WithMountedCache("/cache/apk", apkCache, dagger.ContainerWithMountedCacheOpts{
