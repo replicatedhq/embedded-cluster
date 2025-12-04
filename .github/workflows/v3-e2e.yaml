@@ -152,6 +152,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           USE_CHAINGUARD: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
