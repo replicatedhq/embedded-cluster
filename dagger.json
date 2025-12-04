@@ -39,8 +39,8 @@
     },
     {
       "name": "replicated",
-      "source": "github.com/replicatedhq/daggerverse/replicated@bf96fd742cf08239442ac155de7143bb7ef8f7fd",
-      "pin": "bf96fd742cf08239442ac155de7143bb7ef8f7fd"
+      "source": "github.com/replicatedhq/daggerverse/replicated@41123ddba40a9594307f24cb69ef6fbafda38e44",
+      "pin": "41123ddba40a9594307f24cb69ef6fbafda38e44"
     }
   ],
   "source": "dagger",
