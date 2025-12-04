@@ -290,8 +290,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./dev/.gocache
-            ./dev/.gomodcache
+            ./dev/build/.gocache
+            ./dev/build/.gomodcache
           key: dryrun-tests-go-cache-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             dryrun-tests-go-cache-

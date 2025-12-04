@@ -7,7 +7,9 @@
   "include": [
     "!build",
     "!cmd/installer/goods/bins/**",
+    "cmd/installer/goods/bins/.placeholder",
     "!cmd/installer/goods/internal/bins/**",
+    "cmd/installer/goods/internal/bins/.placeholder",
     "!dagger/embedded-cluster",
     "!dev/build",
     "!local-artifact-mirror/bin",
