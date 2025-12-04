@@ -114,6 +114,14 @@ jobs:
           curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
+      - name: Setup replicated cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+          mv replicated /usr/local/bin/replicated
+
       - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
         run: |
           df -h
