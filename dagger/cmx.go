@@ -610,7 +610,7 @@ func (i *CmxInstance) InstallHeadless(
 	}
 
 	// Build install command
-	installCmd := `/usr/local/bin/embedded-cluster-smoke-test-staging-app install ` +
+	installCmd := `ENABLE_V3=1 /usr/local/bin/embedded-cluster-smoke-test-staging-app install ` +
 		`--license /assets/license.yaml ` +
 		`--target linux ` +
 		`--headless ` +
