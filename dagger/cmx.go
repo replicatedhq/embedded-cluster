@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -552,9 +553,17 @@ func (i *CmxInstance) PrepareRelease(
 		releaseURL = fmt.Sprintf("%s?airgap=true", releaseURL)
 	}
 
-	downloadCmd := fmt.Sprintf(`curl --retry 5 --retry-all-errors -fL -o /tmp/ec-release.tgz "%s" -H "Authorization: %s"`, releaseURL, licenseID)
-	if _, err := i.Command(downloadCmd).Stdout(ctx); err != nil {
-		return fmt.Errorf("download release: %w", err)
+	// For airgap, retry up to 20 times with 1 minute sleep between attempts
+	// The API returns 400 when the bundle is still being built
+	if scenario == "airgap" {
+		if err := i.downloadAirgapBundleWithRetry(ctx, releaseURL, licenseID); err != nil {
+			return fmt.Errorf("download airgap bundle: %w", err)
+		}
+	} else {
+		downloadCmd := fmt.Sprintf(`curl --retry 5 --retry-all-errors -fL -o /tmp/ec-release.tgz "%s" -H "Authorization: %s"`, releaseURL, licenseID)
+		if _, err := i.Command(downloadCmd).Stdout(ctx); err != nil {
+			return fmt.Errorf("download release: %w", err)
+		}
 	}
 
 	// Extract release tarball
@@ -593,6 +602,72 @@ func (i *CmxInstance) PrepareRelease(
 	}
 
 	return nil
+}
+
+// downloadAirgapBundleWithRetry downloads an airgap bundle with retry logic.
+//
+// The airgap bundle API may return 400 errors when the bundle is still being built.
+// This method retries up to 20 times with a 1 minute sleep between attempts,
+// and verifies the downloaded file is at least 1GB to ensure it's complete.
+func (i *CmxInstance) downloadAirgapBundleWithRetry(ctx context.Context, url string, licenseID string) error {
+	for attempt := 1; attempt <= 20; attempt++ {
+		fmt.Printf("Attempting to download airgap bundle (attempt %d/20)...\n", attempt)
+
+		// Download with curl -f which will fail on HTTP 4xx/5xx errors
+		downloadCmd := fmt.Sprintf(`curl -fL -o /tmp/ec-release.tgz "%s" -H "Authorization: %s"`, url, licenseID)
+		_, err := i.Command(downloadCmd).Stdout(ctx)
+
+		if err != nil {
+			fmt.Printf("Download attempt %d failed: %v\n", attempt, err)
+			if attempt < 20 {
+				fmt.Printf("Waiting 1 minute before retry...\n")
+				time.Sleep(1 * time.Minute)
+				continue
+			}
+			return fmt.Errorf("failed after 20 attempts: %w", err)
+		}
+
+		// Check file size - airgap bundles should be at least 1GB
+		sizeCmd := `du -b /tmp/ec-release.tgz | awk '{print $1}'`
+		sizeStr, err := i.Command(sizeCmd).Stdout(ctx)
+		if err != nil {
+			fmt.Printf("Failed to check file size: %v\n", err)
+			if attempt < 20 {
+				fmt.Printf("Waiting 1 minute before retry...\n")
+				time.Sleep(1 * time.Minute)
+				continue
+			}
+			return fmt.Errorf("failed to check file size after 20 attempts: %w", err)
+		}
+
+		sizeStr = strings.TrimSpace(sizeStr)
+		sizeBytes, err := strconv.ParseInt(sizeStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse file size %q: %w", sizeStr, err)
+		}
+
+		minSize := int64(1024 * 1024 * 1024) // 1GB
+		if sizeBytes < minSize {
+			fmt.Printf("Downloaded file is only %d bytes (%.2f GB), expected at least 1GB. Retrying...\n",
+				sizeBytes, float64(sizeBytes)/(1024*1024*1024))
+			// Remove the incomplete download
+			if _, err := i.Command("rm -f /tmp/ec-release.tgz").Stdout(ctx); err != nil {
+				fmt.Printf("Warning: failed to remove incomplete download: %v\n", err)
+			}
+			if attempt < 20 {
+				fmt.Printf("Waiting 1 minute before retry...\n")
+				time.Sleep(1 * time.Minute)
+				continue
+			}
+			return fmt.Errorf("downloaded file too small after 20 attempts: %d bytes", sizeBytes)
+		}
+
+		fmt.Printf("Successfully downloaded airgap bundle (%.2f GB) on attempt %d\n",
+			float64(sizeBytes)/(1024*1024*1024), attempt)
+		return nil
+	}
+
+	return fmt.Errorf("failed to download airgap bundle after 20 attempts")
 }
 
 // InstallHeadless performs a headless (CLI) installation without Playwright.
@@ -737,6 +812,51 @@ func (i *CmxInstance) CollectClusterSupportBundle(ctx context.Context) (*dagger.
 	file, err := i.DownloadFile(ctx, bundlePath)
 	if err != nil {
 		return nil, fmt.Errorf("download support bundle: %w", err)
+	}
+
+	return file, nil
+}
+
+// CollectHostSupportBundle collects a host support bundle from the VM.
+//
+// This method collects diagnostic information about the host system.
+// It tries two approaches:
+// 1. First attempts to collect using kubectl-support_bundle with the host spec
+// 2. If that fails, falls back to collecting installer logs from /var/log/embedded-cluster
+//
+// The collected support bundle is downloaded from the VM and returned as a Dagger File
+// that can be exported as an artifact.
+//
+// Example:
+//
+//	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+//	  with-cmx-vm --vm-id=8a2a66ef \
+//	  collect-host-support-bundle \
+//	  export --path=./host-support-bundle.tar.gz
+func (i *CmxInstance) CollectHostSupportBundle(ctx context.Context) (*dagger.File, error) {
+	bundlePath := "/tmp/host-support-bundle.tar.gz"
+
+	// Try collecting host support bundle with kubectl-support_bundle first
+	cmd1 := fmt.Sprintf("%s/bin/kubectl-support_bundle --output %s --interactive=false %s/support/host-support-bundle.yaml", DataDir, bundlePath, DataDir)
+	_, err := i.Command(cmd1).Stdout(ctx)
+
+	// If first attempt failed, try collecting installer logs as fallback
+	if err != nil {
+		fmt.Printf("Host support bundle attempt failed, trying to collect installer logs: %v\n", err)
+		cmd2 := fmt.Sprintf("tar -czf %s -C / var/log/embedded-cluster 2>/dev/null || tar -czf %s --files-from=/dev/null", bundlePath, bundlePath)
+		stdout, err := i.Command(cmd2).Stdout(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to collect host support bundle and installer logs (both attempts): %w\nOutput: %s", err, stdout)
+		}
+		fmt.Printf("Installer logs collected as fallback\n")
+	} else {
+		fmt.Printf("Host support bundle collected successfully at %s\n", bundlePath)
+	}
+
+	// Download the support bundle from the VM
+	file, err := i.DownloadFile(ctx, bundlePath)
+	if err != nil {
+		return nil, fmt.Errorf("download host support bundle: %w", err)
 	}
 
 	return file, nil

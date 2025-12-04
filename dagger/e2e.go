@@ -30,12 +30,14 @@ var configValuesFileContent string
 // Example (online):
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e-2-e-run-headless --scenario=online --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml
+//	  e-2-e-run-headless --scenario=online --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml \
+//	  export --path=./e2e-results-online
 //
 // Example (airgap):
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  e-2-e-run-headless --scenario=airgap --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml
+//	  e-2-e-run-headless --scenario=airgap --app-version=appver-dev-xpXCTO --kube-version=1.33 --license-file=./local-dev/ethan-dev-license.yaml \
+//	  export --path=./e2e-results-airgap
 func (m *EmbeddedCluster) E2eRunHeadless(
 	ctx context.Context,
 	// Scenario (online or airgap)
@@ -55,6 +57,9 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 	// Skip cleanup
 	// +default=false
 	skipCleanup bool,
+	// Skip support bundle collection
+	// +default=false
+	skipSupportBundleCollection bool,
 ) (resultsDir *dagger.Directory) {
 	mode := "headless"
 
@@ -99,7 +104,7 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 	// Defer function to collect support bundle and cleanup VM
 	defer func() {
 		// Collect support bundle before cleanup
-		if vm != nil {
+		if vm != nil && !skipSupportBundleCollection {
 			fmt.Printf("Collecting support bundle from VM %s...\n", vm.VmID)
 			supportBundle, bundleErr := vm.CollectClusterSupportBundle(ctx)
 			if bundleErr != nil {
@@ -107,6 +112,14 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 				resultsDir = resultsDir.WithNewFile("support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", bundleErr))
 			} else {
 				resultsDir = resultsDir.WithFile("support-bundle.tar.gz", supportBundle)
+			}
+
+			hostSupportBundle, hostBundleErr := vm.CollectHostSupportBundle(ctx)
+			if hostBundleErr != nil {
+				fmt.Printf("Warning: failed to collect host support bundle: %v\n", hostBundleErr)
+				resultsDir = resultsDir.WithNewFile("host-support-bundle-error.txt", fmt.Sprintf("Failed to collect host support bundle: %v", hostBundleErr))
+			} else {
+				resultsDir = resultsDir.WithFile("host-support-bundle.tar.gz", hostSupportBundle)
 			}
 		}
 
