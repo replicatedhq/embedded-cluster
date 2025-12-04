@@ -444,6 +444,24 @@ func (i *CmxInstance) Cleanup(ctx context.Context) (string, error) {
 	return result, nil
 }
 
+// ApplyAirgapNetworkPolicy applies a network policy to block internet access for airgap testing.
+//
+// This calls the Replicated module's NetworkUpdatePolicy to set the VM's network to airgap mode,
+// which prevents the VM from accessing external networks during airgap installation tests.
+func (i *CmxInstance) ApplyAirgapNetworkPolicy(ctx context.Context) error {
+	_, err := dag.
+		Replicated(i.CMXToken).
+		NetworkUpdatePolicy(ctx, "airgap", dagger.ReplicatedNetworkUpdatePolicyOpts{
+			NetworkID: i.NetworkID,
+		})
+
+	if err != nil {
+		return fmt.Errorf("update network policy to airgap: %w", err)
+	}
+
+	return nil
+}
+
 // InstallKotsCli installs the kubectl-kots CLI if not already present.
 // This is needed for validation commands that use kubectl kots.
 func (i *CmxInstance) InstallKotsCli(ctx context.Context) error {
@@ -491,12 +509,12 @@ func (i *CmxInstance) InstallKotsCli(ctx context.Context) error {
 	return nil
 }
 
-// DownloadAndPrepareRelease downloads embedded-cluster release from replicated.app
+// PrepareRelease downloads embedded-cluster release from replicated.app
 // and prepares it for installation. This matches how customers get the binary.
 //
 // The method downloads the release tarball, extracts it, and places the binary and
 // license file in the expected locations for installation.
-func (i *CmxInstance) DownloadAndPrepareRelease(
+func (i *CmxInstance) PrepareRelease(
 	ctx context.Context,
 	// Installation scenario (online, airgap)
 	scenario string,
@@ -586,11 +604,6 @@ func (i *CmxInstance) InstallHeadless(
 	// Config values file
 	configValuesFile *dagger.File,
 ) (*InstallResult, error) {
-	// Download and prepare embedded-cluster release
-	if err := i.DownloadAndPrepareRelease(ctx, scenario, appVersion, licenseFile); err != nil {
-		return nil, fmt.Errorf("prepare release: %w", err)
-	}
-
 	// Upload config file if provided
 	if err := i.UploadFile(ctx, "/assets/config-values.yaml", configValuesFile); err != nil {
 		return nil, fmt.Errorf("upload config file: %w", err)

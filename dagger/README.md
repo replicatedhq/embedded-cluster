@@ -125,11 +125,25 @@ The app version returned by this command should be used as the `--app-version` p
 
 ##### Running a Complete E2E Test
 
-Run a complete online headless installation test (provisions VM, installs, validates, and cleans up):
+Run a complete headless installation test (provisions VM, installs, validates, and cleans up):
+
+**Online Installation:**
 
 ```bash
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  e-2-e-run-headless-online \
+  e-2-e-run-headless \
+  --scenario=online \
+  --app-version=appver-dev-xpXCTO \
+  --kube-version=1.33 \
+  --license-file=./local-dev/ethan-dev-license.yaml
+```
+
+**Airgap Installation:**
+
+```bash
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  e-2-e-run-headless \
+  --scenario=airgap \
   --app-version=appver-dev-xpXCTO \
   --kube-version=1.33 \
   --license-file=./local-dev/ethan-dev-license.yaml
@@ -137,6 +151,7 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 
 This will:
 - Provision a fresh Ubuntu 22.04 VM (8GB RAM, 4 CPUs)
+- For airgap: apply network policy to block internet access
 - Perform a headless CLI installation
 - Validate the installation
 - Clean up the VM automatically
