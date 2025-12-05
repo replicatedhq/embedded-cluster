@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -139,18 +140,21 @@ func (m *appInstallManager) createConfigValuesSecret(ctx context.Context, config
 			return fmt.Errorf("create config values secret: %w", err)
 		}
 
-		// Secret exists, delete and recreate it
+		// Secret exists, get and update it
 		existingSecret := &corev1.Secret{}
-		existingSecret.Name = secretName
-		existingSecret.Namespace = namespace
-
-		if err := m.kcli.Delete(ctx, existingSecret); err != nil {
-			return fmt.Errorf("delete existing config values secret: %w", err)
+		if err := m.kcli.Get(ctx, client.ObjectKey{
+			Name:      secretName,
+			Namespace: namespace,
+		}, existingSecret); err != nil {
+			return fmt.Errorf("get existing config values secret: %w", err)
 		}
 
-		// Recreate with new data
-		if err := m.kcli.Create(ctx, secret); err != nil {
-			return fmt.Errorf("recreate config values secret: %w", err)
+		// Update the existing secret's data and labels
+		existingSecret.Data = secret.Data
+		existingSecret.Labels = secret.Labels
+
+		if err := m.kcli.Update(ctx, existingSecret); err != nil {
+			return fmt.Errorf("update config values secret: %w", err)
 		}
 	}
 

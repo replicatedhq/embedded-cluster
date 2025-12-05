@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -260,7 +259,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 			validateKotsCalled: true,
 		},
 		{
-			name: "existing secret is deleted and recreated",
+			name: "existing secret is fetched and updated",
 			releaseData: &release.ReleaseData{
 				ChannelRelease: &release.ChannelRelease{
 					VersionLabel: "v1.0.0",
@@ -367,7 +366,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 			validateKotsCalled:    false,
 		},
 		{
-			name: "fails when delete returns error",
+			name: "fails when get returns error",
 			releaseData: &release.ReleaseData{
 				ChannelRelease: &release.ChannelRelease{
 					VersionLabel: "v1.0.0",
@@ -400,18 +399,21 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 					WithScheme(sch).
 					WithObjects(existingSecret).
 					WithInterceptorFuncs(interceptor.Funcs{
-						Delete: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
-							return fmt.Errorf("simulated delete error")
+						Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+							if key.Name == "test-app-config-values" {
+								return fmt.Errorf("simulated get error")
+							}
+							return c.Get(ctx, key, obj, opts...)
 						},
 					}).
 					Build()
 			},
 			expectError:           true,
-			expectedErrorContains: "delete existing config values secret",
+			expectedErrorContains: "get existing config values secret",
 			validateKotsCalled:    false,
 		},
 		{
-			name: "fails when recreate returns error",
+			name: "fails when update returns error",
 			releaseData: &release.ReleaseData{
 				ChannelRelease: &release.ChannelRelease{
 					VersionLabel: "v1.0.0",
@@ -440,23 +442,21 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 					},
 				}
 
-				createCount := 0
 				return clientfake.NewClientBuilder().
 					WithScheme(sch).
 					WithObjects(existingSecret).
 					WithInterceptorFuncs(interceptor.Funcs{
-						Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-							createCount++
-							if createCount == 1 {
-								return apierrors.NewAlreadyExists(corev1.Resource("secrets"), "test-app-config-values")
+						Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+							if secret, ok := obj.(*corev1.Secret); ok && secret.Name == "test-app-config-values" {
+								return fmt.Errorf("simulated update error")
 							}
-							return fmt.Errorf("simulated recreate error")
+							return c.Update(ctx, obj, opts...)
 						},
 					}).
 					Build()
 			},
 			expectError:           true,
-			expectedErrorContains: "recreate config values secret",
+			expectedErrorContains: "update config values secret",
 			validateKotsCalled:    false,
 		},
 		{
