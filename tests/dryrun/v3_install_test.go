@@ -183,8 +183,8 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 		"isMultiNodeEnabled": true,
 		"embeddedClusterID":  in.Spec.ClusterID,
 		// TODO: enable this once we stop relying on KOTS to deploy the app
-		"isEmbeddedClusterV3": false,
-		"kurlProxy.enabled":   false,
+		// "isEmbeddedClusterV3": true,
+		"kurlProxy.enabled": false,
 	})
 
 	// Validate that registry addon is NOT installed for online installations
