@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLogWriter_Write(t *testing.T) {
+func TestLogFn_Write(t *testing.T) {
 	// Create store
 	store := appinstallstore.NewMemoryStore()
 
@@ -29,31 +29,31 @@ func TestLogWriter_Write(t *testing.T) {
 		{
 			name:           "Single line output",
 			input:          "Installing package X",
-			expectedOutput: "[kots] Installing package X",
+			expectedOutput: "[app] Installing package X",
 			expectedInLogs: true,
 		},
 		{
 			name:           "Output with newline",
 			input:          "Installing package Y\n",
-			expectedOutput: "[kots] Installing package Y",
+			expectedOutput: "[app] Installing package Y",
 			expectedInLogs: true,
 		},
 		{
 			name:           "Empty string",
 			input:          "",
-			expectedOutput: "",
-			expectedInLogs: false,
+			expectedOutput: "[app]",
+			expectedInLogs: true,
 		},
 		{
 			name:           "Whitespace only",
 			input:          "   \n\t  ",
-			expectedOutput: "",
-			expectedInLogs: false,
+			expectedOutput: "[app]",
+			expectedInLogs: true,
 		},
 		{
 			name:           "Multiple lines",
 			input:          "Line 1\nLine 2\n",
-			expectedOutput: "[kots] Line 1\nLine 2",
+			expectedOutput: "[app] Line 1\nLine 2",
 			expectedInLogs: true,
 		},
 	}
@@ -65,12 +65,10 @@ func TestLogWriter_Write(t *testing.T) {
 			concreteManager.appInstallStore = newStore
 
 			// Create new writer for the test
-			testWriter := concreteManager.newLogWriter()
+			logFn := concreteManager.logFn("app")
 
 			// Write to log writer
-			n, err := testWriter.Write([]byte(tt.input))
-			assert.NoError(t, err)
-			assert.Equal(t, len(tt.input), n)
+			logFn(tt.input)
 
 			// Check if logs were added
 			logs, err := concreteManager.appInstallStore.GetLogs()
@@ -85,15 +83,15 @@ func TestLogWriter_Write(t *testing.T) {
 	}
 }
 
-func TestLogWriter_WriteMultipleOperations(t *testing.T) {
+func TestLogFn_MultipleOperations(t *testing.T) {
 	// Create concrete manager directly for testing utilities
 	concreteManager := &appInstallManager{
 		appInstallStore: appinstallstore.NewMemoryStore(),
 		logger:          logger.NewDiscardLogger(),
 	}
 
-	// Create log writer
-	writer := concreteManager.newLogWriter()
+	// Create log function
+	logFn := concreteManager.logFn("app")
 
 	// Write multiple entries
 	entries := []string{
@@ -104,9 +102,7 @@ func TestLogWriter_WriteMultipleOperations(t *testing.T) {
 	}
 
 	for _, entry := range entries {
-		n, err := writer.Write([]byte(entry))
-		assert.NoError(t, err)
-		assert.Equal(t, len(entry), n)
+		logFn(entry)
 	}
 
 	// Verify all entries are in logs
@@ -114,7 +110,7 @@ func TestLogWriter_WriteMultipleOperations(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, entry := range entries {
-		expected := "[kots] " + entry
+		expected := "[app] " + entry
 		assert.Contains(t, logs, expected)
 	}
 
@@ -122,12 +118,12 @@ func TestLogWriter_WriteMultipleOperations(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(logs), "\n")
 	assert.Len(t, lines, len(entries))
 	for i, entry := range entries {
-		expected := "[kots] " + entry
+		expected := "[app] " + entry
 		assert.Equal(t, expected, lines[i])
 	}
 }
 
-func TestLogWriter_LargeOutput(t *testing.T) {
+func TestLogFn_LargeOutput(t *testing.T) {
 	// Create concrete manager directly for testing utilities
 	concreteManager := &appInstallManager{
 		appInstallStore: appinstallstore.NewMemoryStore(),
@@ -135,24 +131,22 @@ func TestLogWriter_LargeOutput(t *testing.T) {
 	}
 
 	// Create log writer
-	writer := concreteManager.newLogWriter()
+	logFn := concreteManager.logFn("app")
 
 	// Create a large output string
 	largeOutput := strings.Repeat("A", 1000)
 
 	// Write large output
-	n, err := writer.Write([]byte(largeOutput))
-	assert.NoError(t, err)
-	assert.Equal(t, 1000, n)
+	logFn(largeOutput)
 
 	// Verify it was logged with prefix
 	logs, err := concreteManager.appInstallStore.GetLogs()
 	require.NoError(t, err)
-	expected := "[kots] " + largeOutput
+	expected := "[app] " + largeOutput
 	assert.Contains(t, logs, expected)
 }
 
-func TestLogWriter_BinaryData(t *testing.T) {
+func TestLogFn_BinaryData(t *testing.T) {
 	// Create concrete manager directly for testing utilities
 	concreteManager := &appInstallManager{
 		appInstallStore: appinstallstore.NewMemoryStore(),
@@ -160,17 +154,15 @@ func TestLogWriter_BinaryData(t *testing.T) {
 	}
 
 	// Create log writer
-	writer := concreteManager.newLogWriter()
+	logFn := concreteManager.logFn("app")
 
 	// Write binary data (should still work as io.Writer)
 	binaryData := []byte{0x00, 0x01, 0x02, 0xFF, 0xFE}
-	n, err := writer.Write(binaryData)
-	assert.NoError(t, err)
-	assert.Equal(t, len(binaryData), n)
+	logFn(string(binaryData))
 
 	// Verify it was processed (though it may not be readable text)
 	logs, err := concreteManager.appInstallStore.GetLogs()
 	require.NoError(t, err)
-	// Should contain the [kots] prefix at minimum since binary data gets converted to string
-	assert.Contains(t, logs, "[kots]")
+	// Should contain the [app] prefix at minimum since binary data gets converted to string
+	assert.Contains(t, logs, "[app]")
 }

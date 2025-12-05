@@ -64,6 +64,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary in PATH
 				K8sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
 			})

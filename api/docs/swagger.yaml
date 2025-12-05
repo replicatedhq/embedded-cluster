@@ -35,6 +35,17 @@ components:
       - logs
       - status
       type: object
+    types.AppComponent:
+      properties:
+        name:
+          description: Chart name
+          type: string
+        status:
+          $ref: '#/components/schemas/types.Status'
+      required:
+      - name
+      - status
+      type: object
     types.AppConfig:
       properties:
         groups:
@@ -75,11 +86,17 @@ components:
       type: object
     types.AppInstall:
       properties:
+        components:
+          items:
+            $ref: '#/components/schemas/types.AppComponent'
+          type: array
+          uniqueItems: false
         logs:
           type: string
         status:
           $ref: '#/components/schemas/types.Status'
       required:
+      - components
       - logs
       - status
       type: object
@@ -398,6 +415,7 @@ components:
       - StateSucceeded
       - StateFailed
     types.Status:
+      description: Uses existing Status type
       properties:
         description:
           type: string

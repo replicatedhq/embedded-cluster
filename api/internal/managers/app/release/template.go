@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -54,6 +55,59 @@ func (m *appReleaseManager) ExtractAppPreflightSpec(ctx context.Context, configV
 	mergedSpec := mergePreflightSpecs(allPreflightSpecs)
 
 	return mergedSpec, nil
+}
+
+// ExtractInstallableHelmCharts extracts and processes installable Helm charts from app releases
+func (m *appReleaseManager) ExtractInstallableHelmCharts(ctx context.Context, configValues types.AppConfigValues, proxySpec *ecv1beta1.ProxySpec, registrySettings *types.RegistrySettings) ([]types.InstallableHelmChart, error) {
+	// Template Helm chart CRs with config values
+	templatedCRs, err := m.templateHelmChartCRs(configValues, proxySpec, registrySettings)
+	if err != nil {
+		return nil, fmt.Errorf("template helm chart CRs: %w", err)
+	}
+
+	var installableCharts []types.InstallableHelmChart
+
+	// Iterate over each templated CR and create installable chart with processed values
+	for _, cr := range templatedCRs {
+		// Check if the chart should be excluded
+		if !cr.Spec.Exclude.IsEmpty() {
+			exclude, err := cr.Spec.Exclude.Boolean()
+			if err != nil {
+				return nil, fmt.Errorf("parse templated CR exclude for %s: %w", cr.Name, err)
+			}
+			if exclude {
+				continue
+			}
+		}
+
+		// Find the corresponding chart archive for this HelmChart CR
+		chartArchive, err := findChartArchive(m.releaseData.HelmChartArchives, cr)
+		if err != nil {
+			return nil, fmt.Errorf("find chart archive for %s: %w", cr.Name, err)
+		}
+
+		// Generate Helm values from the templated CR
+		values, err := generateHelmValues(cr)
+		if err != nil {
+			return nil, fmt.Errorf("generate helm values for chart %s: %w", cr.Name, err)
+		}
+
+		// Create installable chart with archive, processed values, and CR
+		installableChart := types.InstallableHelmChart{
+			Archive: chartArchive,
+			Values:  values,
+			CR:      cr,
+		}
+
+		installableCharts = append(installableCharts, installableChart)
+	}
+
+	// Sort charts by weight field before returning
+	sort.Slice(installableCharts, func(i, j int) bool {
+		return installableCharts[i].CR.GetWeight() < installableCharts[j].CR.GetWeight()
+	})
+
+	return installableCharts, nil
 }
 
 // templateHelmChartCRs templates the HelmChart CRs from release data using the template engine and config values
@@ -172,7 +226,7 @@ func generateHelmValues(templatedCR *kotsv1beta2.HelmChart) (map[string]any, err
 	}
 
 	// Start with the base values
-	mergedValues := templatedCR.Spec.Values
+	mergedValues := maps.Clone(templatedCR.Spec.Values)
 	if mergedValues == nil {
 		mergedValues = map[string]kotsv1beta2.MappedChartValue{}
 	}

@@ -32,7 +32,7 @@ type Controller interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
-	InstallApp(ctx context.Context, ignoreAppPreflights bool) error
+	InstallApp(ctx context.Context, opts InstallAppOptions) error
 	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
 	UpgradeApp(ctx context.Context, ignoreAppPreflights bool) error
 	GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error)
@@ -263,6 +263,7 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 			appinstallmanager.WithKubeClient(controller.kcli),
 			appinstallmanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appinstallmanager.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
