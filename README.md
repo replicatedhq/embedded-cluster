@@ -476,32 +476,32 @@ dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
 
 ## Releasing
 
-Embedded Cluster maintains support for the current and two previous K0s minor versions, ensuring backward compatibility while supporting the latest features.
-All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported K0s version.
+Embedded Cluster maintains support for the current and two previous k8s minor versions, ensuring backward compatibility while supporting the latest features.
+All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported k8s version.
 
 ### Release Tagging Strategy
 
-Releases follow the format: `{APP_VERSION}+k0s-{K0S_MINOR_VERSION}`
+Releases follow the format: `{APP_VERSION}+k8s-{K0S_MINOR_VERSION}`
 
 **Examples:**
-- `2.10.0+k0s-1.33` - Application version 2.10.0 with K0s 1.33.x support
-- `2.10.0+k0s-1.32` - Application version 2.10.0 with K0s 1.32.x support
-- `2.10.0+k0s-1.31` - Application version 2.10.0 with K0s 1.31.x support
+- `2.10.0+k8s-1.33` - Application version 2.10.0 with k8s 1.33.x support
+- `2.10.0+k8s-1.32` - Application version 2.10.0 with k8s 1.32.x support
+- `2.10.0+k8s-1.31` - Application version 2.10.0 with k8s 1.31.x support
 
 ### Release Process
 
 1. **Prepare the release commit** - Ensure all changes are committed and tested
-2. **Create annotated tags** - Tag the same commit with all supported K0s minor versions using annotated tags with descriptive messages:
+2. **Create annotated tags** - Tag the same commit with all supported k8s minor versions using annotated tags with descriptive messages:
    ```bash
-   # Tag for K0s 1.33.x support
-   git tag -a 2.10.0+k0s-1.33 -m "Release 2.10.0+k0s-1.33"
-   git push origin 2.10.0+k0s-1.33
+   # Tag for k8s 1.33.x support
+   git tag -a 2.10.0+k8s-1.33 -m "Release 2.10.0+k8s-1.33"
+   git push origin 2.10.0+k8s-1.33
 
-   # Tag for K0s 1.32.x support
-   git tag -a 2.10.0+k0s-1.32 -m "Release 2.10.0+k0s-1.32"
-   git push origin 2.10.0+k0s-1.32
+   # Tag for k8s 1.32.x support
+   git tag -a 2.10.0+k8s-1.32 -m "Release 2.10.0+k8s-1.32"
+   git push origin 2.10.0+k8s-1.32
 
-   # Tag for K0s 1.31.x support
-   git tag -a 2.10.0+k0s-1.31 -m "Release 2.10.0+k0s-1.31"
-   git push origin 2.10.0+k0s-1.31
+   # Tag for k8s 1.31.x support
+   git tag -a 2.10.0+k8s-1.31 -m "Release 2.10.0+k8s-1.31"
+   git push origin 2.10.0+k8s-1.31
    ```
