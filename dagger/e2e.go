@@ -106,21 +106,7 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 		// Collect support bundle before cleanup
 		if vm != nil && !skipSupportBundleCollection {
 			fmt.Printf("Collecting support bundle from VM %s...\n", vm.VmID)
-			supportBundle, bundleErr := vm.CollectClusterSupportBundle(ctx)
-			if bundleErr != nil {
-				fmt.Printf("Warning: failed to collect support bundle: %v\n", bundleErr)
-				resultsDir = resultsDir.WithNewFile("support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", bundleErr))
-			} else {
-				resultsDir = resultsDir.WithFile("support-bundle.tar.gz", supportBundle)
-			}
-
-			hostSupportBundle, hostBundleErr := vm.CollectHostSupportBundle(ctx)
-			if hostBundleErr != nil {
-				fmt.Printf("Warning: failed to collect host support bundle: %v\n", hostBundleErr)
-				resultsDir = resultsDir.WithNewFile("host-support-bundle-error.txt", fmt.Sprintf("Failed to collect host support bundle: %v", hostBundleErr))
-			} else {
-				resultsDir = resultsDir.WithFile("host-support-bundle.tar.gz", hostSupportBundle)
-			}
+			resultsDir = collectSupportBundles(ctx, vm, resultsDir)
 		}
 
 		// Marshal final test result to JSON
@@ -187,15 +173,90 @@ func (m *EmbeddedCluster) E2eRunHeadless(
 	// Update final test result
 	testResult.Success = validationResult.Success
 	testResult.ValidationResults = validationResult
-
 	if !validationResult.Success {
 		testResult.Error = "validation checks failed"
-		fmt.Printf("Test FAILED: %s %s test validation failed\n", scenario, mode)
-	} else {
-		fmt.Printf("Test PASSED: %s %s test completed successfully\n", scenario, mode)
 	}
 
+	// Print formatted test results
+	printResults(validationResult, scenario, mode, appVersion, kubeVersion, vm)
+
 	return
+}
+
+func collectSupportBundles(ctx context.Context, vm *CmxInstance, resultsDir *dagger.Directory) *dagger.Directory {
+	fmt.Printf("Collecting support bundle from VM %s...\n", vm.VmID)
+	supportBundle, bundleErr := vm.CollectClusterSupportBundle(ctx)
+	if bundleErr != nil {
+		fmt.Printf("Warning: failed to collect support bundle: %v\n", bundleErr)
+		resultsDir = resultsDir.WithNewFile("support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", bundleErr))
+	} else {
+		resultsDir = resultsDir.WithFile("support-bundle.tar.gz", supportBundle)
+	}
+
+	hostSupportBundle, hostBundleErr := vm.CollectHostSupportBundle(ctx)
+	if hostBundleErr != nil {
+		fmt.Printf("Warning: failed to collect host support bundle: %v\n", hostBundleErr)
+		resultsDir = resultsDir.WithNewFile("host-support-bundle-error.txt", fmt.Sprintf("Failed to collect host support bundle: %v", hostBundleErr))
+	} else {
+		resultsDir = resultsDir.WithFile("host-support-bundle.tar.gz", hostSupportBundle)
+	}
+
+	return resultsDir
+}
+
+func printResults(validationResult *ValidationResult, scenario string, mode string, appVersion string, kubeVersion string, vm *CmxInstance) {
+	fmt.Printf("\n")
+	fmt.Printf("================================\n")
+	if validationResult.Success {
+		fmt.Printf("✓ E2E TEST PASSED\n")
+	} else {
+		fmt.Printf("✗ E2E TEST FAILED\n")
+	}
+	fmt.Printf("================================\n")
+	fmt.Printf("Scenario:        %s\n", scenario)
+	fmt.Printf("Mode:            %s\n", mode)
+	fmt.Printf("App Version:     %s\n", appVersion)
+	fmt.Printf("Kube Version:    %s\n", kubeVersion)
+	fmt.Printf("VM ID:           %s\n", vm.VmID)
+	fmt.Printf("\n")
+	fmt.Printf("Validation Results:\n")
+	fmt.Printf("  Cluster Health:     %s\n", formatCheckResult(validationResult.ClusterHealth))
+	fmt.Printf("  Installation CRD:   %s\n", formatCheckResult(validationResult.InstallationCRD))
+	fmt.Printf("  App Deployment:     %s\n", formatCheckResult(validationResult.AppDeployment))
+	fmt.Printf("  Admin Console:      %s\n", formatCheckResult(validationResult.AdminConsole))
+	fmt.Printf("  Data Directories:   %s\n", formatCheckResult(validationResult.DataDirectories))
+	fmt.Printf("  Pods and Jobs:      %s\n", formatCheckResult(validationResult.PodsAndJobs))
+
+	if !validationResult.Success {
+		fmt.Printf("\n")
+		fmt.Printf("Failed Checks:\n")
+		if !validationResult.ClusterHealth.Passed {
+			fmt.Printf("  • Cluster Health: %s\n", validationResult.ClusterHealth.ErrorMessage)
+		}
+		if !validationResult.InstallationCRD.Passed {
+			fmt.Printf("  • Installation CRD: %s\n", validationResult.InstallationCRD.ErrorMessage)
+		}
+		if !validationResult.AppDeployment.Passed {
+			fmt.Printf("  • App Deployment: %s\n", validationResult.AppDeployment.ErrorMessage)
+		}
+		if !validationResult.AdminConsole.Passed {
+			fmt.Printf("  • Admin Console: %s\n", validationResult.AdminConsole.ErrorMessage)
+		}
+		if !validationResult.DataDirectories.Passed {
+			fmt.Printf("  • Data Directories: %s\n", validationResult.DataDirectories.ErrorMessage)
+		}
+		if !validationResult.PodsAndJobs.Passed {
+			fmt.Printf("  • Pods and Jobs: %s\n", validationResult.PodsAndJobs.ErrorMessage)
+		}
+	}
+	fmt.Printf("================================\n\n")
+}
+
+func formatCheckResult(check *CheckResult) string {
+	if check.Passed {
+		return "✓ PASSED"
+	}
+	return "✗ FAILED"
 }
 
 func parseLicense(ctx context.Context, licenseFile *dagger.File) (contents string, licenseID string, channelID string, err error) {
