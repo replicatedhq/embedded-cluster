@@ -45,7 +45,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["embeddedClusterID"] = a.ClusterID
 		copiedValues["embeddedClusterDataDir"] = a.DataDir
 		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
-		copiedValues["isEmbeddedClusterV3"] = a.isV3()
+		// TODO: enable this once we stop relying on KOTS to deploy the app
+		// copiedValues["isEmbeddedClusterV3"] = a.isV3()
 	}
 
 	copiedValues["isHA"] = a.IsHA

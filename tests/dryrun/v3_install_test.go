@@ -179,10 +179,11 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 	adminConsoleOpts, found := isHelmReleaseInstalled(hcli, "admin-console")
 	require.True(t, found, "admin-console helm release should be installed")
 	assertHelmValues(t, adminConsoleOpts.Values, map[string]any{
-		"isAirgap":            false,
-		"isMultiNodeEnabled":  true,
-		"embeddedClusterID":   in.Spec.ClusterID,
-		"isEmbeddedClusterV3": true,
+		"isAirgap":           false,
+		"isMultiNodeEnabled": true,
+		"embeddedClusterID":  in.Spec.ClusterID,
+		// TODO: enable this once we stop relying on KOTS to deploy the app
+		"isEmbeddedClusterV3": false,
 		"kurlProxy.enabled":   false,
 	})
 
