@@ -73,12 +73,6 @@ func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) 
 		return fmt.Errorf("get app config values for app install: %w", err)
 	}
 
-	// Get KOTS config values for KOTS CLI install
-	kotsConfigValues, err := c.appConfigManager.GetKotsadmConfigValues()
-	if err != nil {
-		return fmt.Errorf("get kotsadm config values for app install: %w", err)
-	}
-
 	// Extract installable Helm charts from release manager
 	installableCharts, err := c.appReleaseManager.ExtractInstallableHelmCharts(ctx, appConfigValues, opts.ProxySpec, opts.RegistrySettings)
 	if err != nil {
@@ -118,7 +112,7 @@ func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) 
 		}
 
 		// Install the app with installable charts
-		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues, opts.RegistrySettings, opts.HostCABundlePath)
+		err = c.appInstallManager.Install(ctx, installableCharts, opts.RegistrySettings, opts.HostCABundlePath)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}

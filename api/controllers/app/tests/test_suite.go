@@ -509,23 +509,15 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 				appConfigValues := types.AppConfigValues{
 					"test-key": types.AppConfigValue{Value: "test-value"},
 				}
-				kotsConfigValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"test-key": {Value: "test-value"},
-						},
-					},
-				}
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
-					acm.On("GetKotsadmConfigValues").Return(kotsConfigValues, nil),
 					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return(expectedCharts, nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, expectedCharts, kotsConfigValues).Return(nil),
+					aim.On("Install", mock.Anything, expectedCharts, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded
@@ -542,23 +534,15 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 				appConfigValues := types.AppConfigValues{
 					"test-key": types.AppConfigValue{Value: "test-value"},
 				}
-				kotsConfigValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"test-key": {Value: "test-value"},
-						},
-					},
-				}
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
-					acm.On("GetKotsadmConfigValues").Return(kotsConfigValues, nil),
 					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return([]types.InstallableHelmChart{}, nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, kotsConfigValues).Return(nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded
@@ -575,23 +559,15 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 				appConfigValues := types.AppConfigValues{
 					"test-key": types.AppConfigValue{Value: "test-value"},
 				}
-				kotsConfigValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"test-key": {Value: "test-value"},
-						},
-					},
-				}
 				mock.InOrder(
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
-					acm.On("GetKotsadmConfigValues").Return(kotsConfigValues, nil),
 					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return([]types.InstallableHelmChart{}, nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, kotsConfigValues).Return(errors.New("install error")),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(errors.New("install error")),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && strings.Contains(status.Description, "install error")
@@ -620,13 +596,6 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 				appConfigValues := types.AppConfigValues{
 					"test-key": types.AppConfigValue{Value: "test-value"},
 				}
-				kotsConfigValues := kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"test-key": {Value: "test-value"},
-						},
-					},
-				}
 				mock.InOrder(
 					// Mock GetAppPreflightOutput to return non-strict failures (can be bypassed)
 					apm.On("GetAppPreflightOutput", mock.Anything).Return(&types.PreflightsOutput{
@@ -640,14 +609,13 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 					}, nil),
 
 					acm.On("GetConfigValues").Return(appConfigValues, nil),
-					acm.On("GetKotsadmConfigValues").Return(kotsConfigValues, nil),
 					arm.On("ExtractInstallableHelmCharts", mock.Anything, appConfigValues, mock.AnythingOfType("*v1beta1.ProxySpec"), mock.AnythingOfType("*types.RegistrySettings")).Return([]types.InstallableHelmChart{}, nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, kotsConfigValues).Return(nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded

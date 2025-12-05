@@ -2,9 +2,7 @@ package install
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -22,24 +20,6 @@ func (m *appInstallManager) addLogs(component string, format string, v ...interf
 	if err := m.appInstallStore.AddLogs(msg); err != nil {
 		m.logger.WithError(err).Error("add log")
 	}
-}
-
-// logWriter is an io.Writer that captures output and feeds it to the logs
-type logWriter struct {
-	manager *appInstallManager
-}
-
-func (m *appInstallManager) newLogWriter() io.Writer {
-	return &logWriter{manager: m}
-}
-
-func (lw *logWriter) Write(p []byte) (n int, err error) {
-	output := strings.TrimSpace(string(p))
-	if output != "" {
-		lw.manager.addLogs("kots", "%s", output)
-		lw.manager.logger.WithField("component", "kots").Debug(output)
-	}
-	return len(p), nil
 }
 
 func (m *appInstallManager) writeChartArchiveToTemp(chartArchive []byte) (string, error) {

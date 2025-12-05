@@ -9,11 +9,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-// Install installs the app with the provided config values
-func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues, registrySettings *types.RegistrySettings, hostCABundlePath string) error {
+// Install installs the app with the provided Helm charts
+func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, registrySettings *types.RegistrySettings, hostCABundlePath string) error {
 	if err := m.setupClients(); err != nil {
 		return fmt.Errorf("setup clients: %w", err)
 	}
