@@ -2,6 +2,7 @@ package install
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -13,9 +14,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -175,4 +180,409 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 
 	// Clean up
 	os.Remove(filename)
+}
+
+func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
+	// Set up environment and release data for all tests
+	t.Setenv("ENABLE_V3", "1")
+	err := release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                  string
+		releaseData           *release.ReleaseData
+		configValues          kotsv1beta1.ConfigValues
+		setupClient           func(t *testing.T) client.Client
+		expectError           bool
+		expectedErrorContains string
+		validateSecret        func(t *testing.T, kcli client.Client)
+		validateKotsCalled    bool
+	}{
+		{
+			name: "first install creates secret with multiple config values",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+						"key2": {Value: "value2"},
+						"key3": {Value: "value3"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return clientfake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret
+				secret := &corev1.Secret{}
+				err := kcli.Get(context.Background(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify labels
+				assert.Equal(t, "test-app", secret.Labels["app.kubernetes.io/name"])
+				assert.Equal(t, "v1.0.0", secret.Labels["app.kubernetes.io/version"])
+				assert.Equal(t, "config", secret.Labels["app.kubernetes.io/component"])
+				assert.Equal(t, "embedded-cluster", secret.Labels["app.kubernetes.io/part-of"])
+				assert.Equal(t, "embedded-cluster-installer", secret.Labels["app.kubernetes.io/managed-by"])
+
+				// Verify type
+				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type)
+
+				// Verify data
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+
+				// Unmarshal and verify values
+				var cv kotsv1beta1.ConfigValues
+				err = kyaml.Unmarshal(data, &cv)
+				require.NoError(t, err)
+				assert.Equal(t, "value1", cv.Spec.Values["key1"].Value)
+				assert.Equal(t, "value2", cv.Spec.Values["key2"].Value)
+				assert.Equal(t, "value3", cv.Spec.Values["key3"].Value)
+			},
+			validateKotsCalled: true,
+		},
+		{
+			name: "existing secret is deleted and recreated",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"newkey": {Value: "newvalue"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret with old version
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+						Labels: map[string]string{
+							"app.kubernetes.io/version": "v0.9.0",
+						},
+					},
+					Data: map[string][]byte{
+						"config-values.yaml": []byte("old: data"),
+					},
+				}
+
+				return clientfake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret was recreated
+				secret := &corev1.Secret{}
+				err := kcli.Get(context.Background(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify updated version label
+				assert.Equal(t, "v1.0.0", secret.Labels["app.kubernetes.io/version"])
+
+				// Verify new data
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+
+				var cv kotsv1beta1.ConfigValues
+				err = kyaml.Unmarshal(data, &cv)
+				require.NoError(t, err)
+				assert.Equal(t, "newvalue", cv.Spec.Values["newkey"].Value)
+			},
+			validateKotsCalled: true,
+		},
+		{
+			name:        "fails when release data is missing",
+			releaseData: nil,
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return clientfake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "release data is required",
+			validateKotsCalled:    false,
+		},
+		{
+			name: "fails when channel release is missing",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: nil,
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return clientfake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "release data is required",
+			validateKotsCalled:    false,
+		},
+		{
+			name: "fails when delete returns error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+					},
+				}
+
+				return clientfake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Delete: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+							return fmt.Errorf("simulated delete error")
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "delete existing config values secret",
+			validateKotsCalled:    false,
+		},
+		{
+			name: "fails when recreate returns error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+					},
+				}
+
+				createCount := 0
+				return clientfake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+							createCount++
+							if createCount == 1 {
+								return apierrors.NewAlreadyExists(corev1.Resource("secrets"), "test-app-config-values")
+							}
+							return fmt.Errorf("simulated recreate error")
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "recreate config values secret",
+			validateKotsCalled:    false,
+		},
+		{
+			name: "fails when create returns non-AlreadyExists error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{
+						"key1": {Value: "value1"},
+					},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				return clientfake.NewClientBuilder().
+					WithScheme(sch).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+							if _, ok := obj.(*corev1.Secret); ok {
+								return fmt.Errorf("simulated create error")
+							}
+							return c.Create(ctx, obj, opts...)
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "create config values secret",
+			validateKotsCalled:    false,
+		},
+		{
+			name: "handles empty config values",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: kotsv1beta1.ConfigValues{
+				Spec: kotsv1beta1.ConfigValuesSpec{
+					Values: map[string]kotsv1beta1.ConfigValue{},
+				},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return clientfake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret was created even with empty values
+				secret := &corev1.Secret{}
+				err := kcli.Get(context.Background(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify data exists
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+				require.NotEmpty(t, data)
+			},
+			validateKotsCalled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			license := &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{AppSlug: "test-app"},
+			}
+			licenseBytes, err := kyaml.Marshal(license)
+			require.NoError(t, err)
+
+			mockKotsCLI := &kotscli.MockKotsCLI{}
+			if tt.validateKotsCalled {
+				mockKotsCLI.On("Install", mock.Anything).Return(nil)
+			}
+
+			kcli := tt.setupClient(t)
+
+			manager, err := NewAppInstallManager(
+				WithLicense(licenseBytes),
+				WithClusterID("test-cluster"),
+				WithAirgapBundle("test-airgap.tar.gz"),
+				WithReleaseData(tt.releaseData),
+				WithKotsCLI(mockKotsCLI),
+				WithLogger(logger.NewDiscardLogger()),
+				WithKubeClient(kcli),
+			)
+			require.NoError(t, err)
+
+			// Execute
+			err = manager.Install(context.Background(), tt.configValues)
+
+			// Verify
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorContains)
+			} else {
+				require.NoError(t, err)
+				if tt.validateSecret != nil {
+					tt.validateSecret(t, kcli)
+				}
+			}
+
+			if tt.validateKotsCalled {
+				mockKotsCLI.AssertExpectations(t)
+			} else {
+				mockKotsCLI.AssertNotCalled(t, "Install")
+			}
+		})
+	}
 }
