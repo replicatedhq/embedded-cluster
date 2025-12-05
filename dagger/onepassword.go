@@ -41,7 +41,7 @@ func (m *OnePassword) FindSecret(
 // Example:
 //
 //	dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-//	  test-provision-vm
+//	  provision-cmx-vm
 func (m *EmbeddedCluster) WithOnePassword(
 	serviceAccount *dagger.Secret,
 	// +default="Developer Automation"

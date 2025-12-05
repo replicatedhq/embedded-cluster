@@ -13,7 +13,7 @@ if [ -z "$component" ]; then
 fi
 
 # Ensure dev go cache / go mod cache directories exists
-mkdir -p dev/.gocache dev/.gomodcache
+mkdir -p dev/build/.gocache dev/build/.gomodcache
 
 # Build and load the image into the embedded cluster
 ec_build_and_load "$component"
