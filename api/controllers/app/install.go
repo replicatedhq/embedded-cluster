@@ -117,7 +117,7 @@ func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) 
 		}
 
 		// Install the app with installable charts and KOTS CLI
-		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues)
+		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues, opts.RegistrySettings)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}

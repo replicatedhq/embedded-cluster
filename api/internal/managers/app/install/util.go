@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kyaml "sigs.k8s.io/yaml"
 )
 
 func (m *appInstallManager) logFn(component string) func(format string, v ...interface{}) {
@@ -42,28 +40,6 @@ func (lw *logWriter) Write(p []byte) (n int, err error) {
 		lw.manager.logger.WithField("component", "kots").Debug(output)
 	}
 	return len(p), nil
-}
-
-// createConfigValuesFile creates a temporary file with the config values
-func (m *appInstallManager) createConfigValuesFile(configValues kotsv1beta1.ConfigValues) (string, error) {
-	// Use Kubernetes-specific YAML serialization to properly handle TypeMeta and ObjectMeta
-	data, err := kyaml.Marshal(configValues)
-	if err != nil {
-		return "", fmt.Errorf("marshal config values: %w", err)
-	}
-
-	configValuesFile, err := os.CreateTemp("", "config-values*.yaml")
-	if err != nil {
-		return "", fmt.Errorf("create temp file: %w", err)
-	}
-	defer configValuesFile.Close()
-
-	if _, err := configValuesFile.Write(data); err != nil {
-		_ = os.Remove(configValuesFile.Name())
-		return "", fmt.Errorf("write config values to temp file: %w", err)
-	}
-
-	return configValuesFile.Name(), nil
 }
 
 func (m *appInstallManager) writeChartArchiveToTemp(chartArchive []byte) (string, error) {

@@ -20,7 +20,7 @@ var _ AppInstallManager = &appInstallManager{}
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
 	// Install installs the app with the provided config values
-	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues) error
+	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues, registrySettings *types.RegistrySettings) error
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface
