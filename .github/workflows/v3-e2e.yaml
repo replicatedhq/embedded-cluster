@@ -198,32 +198,32 @@ jobs:
             --license-file ./e2e/licenses/ci-v3.yaml \
             --cmx-token=env://CMX_REPLICATED_API_TOKEN \
             --ssh-key=env://CMX_SSH_PRIVATE_KEY \
-            export --path=./e2e-results-online
+            export --path=./e2e-results
 
           # Read result.json to extract test result
-          if [ -f ./e2e-results-online/result.json ]; then
-            success=$(jq -r '.Success' ./e2e-results-online/result.json)
+          if [ -f ./e2e-results/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results/result.json)
             echo "Test success: $success"
 
             # Exit with test result
             if [ "$success" = "true" ]; then
               exit 0
             else
-              error=$(jq -r '.Error' ./e2e-results-online/result.json)
+              error=$(jq -r '.Error' ./e2e-results/result.json)
               echo "::error::E2E test failed: $error"
               exit 1
             fi
           else
-            echo "::error::result.json not found in e2e-results-online directory"
+            echo "::error::result.json not found in e2e-results directory"
             exit 1
           fi
 
       - name: Upload test results
-        if: ${{ !cancelled() && hashFiles('./e2e-results-online/**') != '' }}
+        if: ${{ !cancelled() && hashFiles('./e2e-results/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results-online
-          path: ./e2e-results-online/
+          name: e2e-results-headless-online
+          path: ./e2e-results/
 
   e2e-headless-airgap:
     name: E2E headless airgap
@@ -256,29 +256,29 @@ jobs:
             --license-file ./e2e/licenses/ci-v3.yaml \
             --cmx-token=env://CMX_REPLICATED_API_TOKEN \
             --ssh-key=env://CMX_SSH_PRIVATE_KEY \
-            export --path=./e2e-results-airgap
+            export --path=./e2e-results
 
           # Read result.json to extract test result
-          if [ -f ./e2e-results-airgap/result.json ]; then
-            success=$(jq -r '.Success' ./e2e-results-airgap/result.json)
+          if [ -f ./e2e-results/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results/result.json)
             echo "Test success: $success"
 
             # Exit with test result
             if [ "$success" = "true" ]; then
               exit 0
             else
-              error=$(jq -r '.Error' ./e2e-results-airgap/result.json)
+              error=$(jq -r '.Error' ./e2e-results/result.json)
               echo "::error::E2E test failed: $error"
               exit 1
             fi
           else
-            echo "::error::result.json not found in e2e-results-airgap directory"
+            echo "::error::result.json not found in e2e-results directory"
             exit 1
           fi
 
       - name: Upload test results
-        if: ${{ !cancelled() && hashFiles('./e2e-results-airgap/**') != '' }}
+        if: ${{ !cancelled() && hashFiles('./e2e-results/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-results-airgap
-          path: ./e2e-results-airgap/
+          name: e2e-results-headless-airgap
+          path: ./e2e-results/
