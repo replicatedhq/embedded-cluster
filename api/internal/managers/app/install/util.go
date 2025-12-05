@@ -57,18 +57,31 @@ func (m *appInstallManager) writeChartArchiveToTemp(chartArchive []byte) (string
 	return tmpFile.Name(), nil
 }
 
-func (m *appInstallManager) initKubeClient() error {
-	if m.kcli == nil {
-		var restClientGetter genericclioptions.RESTClientGetter
-		if m.kubernetesEnvSettings != nil {
-			restClientGetter = m.kubernetesEnvSettings.RESTClientGetter()
-		}
+// setupClients initializes the kube, metadata, and helm clients if they are not already set.
+func (m *appInstallManager) setupClients() error {
+	var restClientGetter genericclioptions.RESTClientGetter
+	if m.kubernetesEnvSettings != nil {
+		restClientGetter = m.kubernetesEnvSettings.RESTClientGetter()
+	}
 
+	if m.kcli == nil {
 		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
 		if err != nil {
 			return fmt.Errorf("create kube client: %w", err)
 		}
 		m.kcli = kcli
+	}
+
+	if m.mcli == nil && restClientGetter != nil {
+		mcli, err := clients.NewMetadataClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
+		if err != nil {
+			return fmt.Errorf("create metadata client: %w", err)
+		}
+		m.mcli = mcli
+	}
+
+	if m.hcli == nil {
+		return fmt.Errorf("helm client is required")
 	}
 
 	return nil

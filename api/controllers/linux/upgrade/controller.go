@@ -321,6 +321,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux upgrades use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
+			appcontroller.WithMetadataClient(controller.mcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)

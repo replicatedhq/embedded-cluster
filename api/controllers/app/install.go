@@ -20,6 +20,7 @@ type InstallAppOptions struct {
 	IgnoreAppPreflights bool
 	ProxySpec           *ecv1beta1.ProxySpec
 	RegistrySettings    *types.RegistrySettings
+	HostCABundlePath    string
 }
 
 // InstallApp triggers app installation with proper state transitions and panic handling
@@ -116,8 +117,8 @@ func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) 
 			return fmt.Errorf("set status to running: %w", err)
 		}
 
-		// Install the app with installable charts and KOTS CLI
-		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues, opts.RegistrySettings)
+		// Install the app with installable charts
+		err = c.appInstallManager.Install(ctx, installableCharts, kotsConfigValues, opts.RegistrySettings, opts.HostCABundlePath)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}

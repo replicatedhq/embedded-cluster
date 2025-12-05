@@ -225,6 +225,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
+			appcontroller.WithMetadataClient(controller.mcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)

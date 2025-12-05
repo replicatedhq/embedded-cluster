@@ -4,15 +4,19 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
+	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -20,13 +24,15 @@ const (
 	reconcileInterval = 5 * time.Second
 )
 
-// NamespaceReconciler handles ensuring image pull secrets in app namespaces.
-// It reads additionalNamespaces from the Application CR, ensures secrets exist
+// NamespaceReconciler handles ensuring image pull secrets and CA configmaps in app namespaces.
+// It reads additionalNamespaces from the Application CR, ensures secrets and configmaps exist
 // in those namespaces plus the kotsadm namespace, and polls for new namespace
-// creation to deploy secrets to them.
+// creation to deploy resources to them.
 type NamespaceReconciler struct {
 	kcli             client.Client
+	mcli             metadata.Interface
 	registrySettings *types.RegistrySettings
+	hostCABundlePath string
 	logger           logrus.FieldLogger
 
 	watchedNamespaces []string
@@ -37,18 +43,15 @@ type NamespaceReconciler struct {
 // 1. Reads additionalNamespaces from release.GetApplication()
 // 2. Immediately ensures image pull secrets and other resources in all watched namespaces
 // 3. Starts background polling to reconcile namespaces periodically
-// Returns nil if registry settings are not provided (nothing to reconcile).
+// Returns a cancellable namespace reconciler instance.
 func runNamespaceReconciler(
 	ctx context.Context,
 	kcli client.Client,
+	mcli metadata.Interface,
 	registrySettings *types.RegistrySettings,
+	hostCABundlePath string,
 	logger logrus.FieldLogger,
 ) (*NamespaceReconciler, error) {
-	// If no registry settings, nothing to do
-	if registrySettings == nil || registrySettings.ImagePullSecretName == "" || registrySettings.ImagePullSecretValue == "" {
-		return nil, fmt.Errorf("registry settings are nil or empty")
-	}
-
 	// Get kotsadm namespace
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
@@ -65,7 +68,9 @@ func runNamespaceReconciler(
 
 	r := &NamespaceReconciler{
 		kcli:              kcli,
+		mcli:              mcli,
 		registrySettings:  registrySettings,
+		hostCABundlePath:  hostCABundlePath,
 		logger:            logger,
 		watchedNamespaces: watchedNamespaces,
 		cancel:            cancel,
@@ -128,21 +133,11 @@ func (r *NamespaceReconciler) reconcile(ctx context.Context) {
 
 // watchesAllNamespaces returns true if "*" is in the watched namespaces list
 func (r *NamespaceReconciler) watchesAllNamespaces() bool {
-	for _, ns := range r.watchedNamespaces {
-		if ns == "*" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.watchedNamespaces, "*")
 }
 
 // reconcileNamespace creates namespace if needed and ensures required resources exist
 func (r *NamespaceReconciler) reconcileNamespace(ctx context.Context, namespace string) error {
-	// Skip wildcard entry
-	if namespace == "*" {
-		return nil
-	}
-
 	// Create namespace if it doesn't exist
 	ns := &corev1.Namespace{}
 	err := r.kcli.Get(ctx, client.ObjectKey{Name: namespace}, ns)
@@ -162,11 +157,20 @@ func (r *NamespaceReconciler) reconcileNamespace(ctx context.Context, namespace 
 		return fmt.Errorf("ensure image pull secret: %w", err)
 	}
 
+	if err := r.ensureCAConfigmap(ctx, namespace); err != nil {
+		return fmt.Errorf("ensure ca configmap: %w", err)
+	}
+
 	return nil
 }
 
 // ensureImagePullSecret creates or updates the image pull secret in a namespace
 func (r *NamespaceReconciler) ensureImagePullSecret(ctx context.Context, namespace string) error {
+	// Skip if no registry settings
+	if r.registrySettings == nil || r.registrySettings.ImagePullSecretName == "" || r.registrySettings.ImagePullSecretValue == "" {
+		return nil
+	}
+
 	secretData, err := base64.StdEncoding.DecodeString(r.registrySettings.ImagePullSecretValue)
 	if err != nil {
 		return fmt.Errorf("decode secret value: %w", err)
@@ -207,4 +211,18 @@ func (r *NamespaceReconciler) ensureImagePullSecret(ctx context.Context, namespa
 	}
 
 	return nil
+}
+
+// ensureCAConfigmap ensures the CA configmap exists in the namespace
+func (r *NamespaceReconciler) ensureCAConfigmap(ctx context.Context, namespace string) error {
+	// Skip if no CA bundle path
+	if r.hostCABundlePath == "" {
+		return nil
+	}
+
+	logFn := func(format string, args ...interface{}) {
+		r.logger.Infof(format, args...)
+	}
+
+	return adminconsole.EnsureCAConfigmap(ctx, addonstypes.LogFunc(logFn), r.kcli, r.mcli, namespace, r.hostCABundlePath)
 }

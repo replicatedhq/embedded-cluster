@@ -13,13 +13,13 @@ import (
 )
 
 // Install installs the app with the provided config values
-func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues, registrySettings *types.RegistrySettings) error {
-	if err := m.initKubeClient(); err != nil {
-		return fmt.Errorf("init kube client: %w", err)
+func (m *appInstallManager) Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues, registrySettings *types.RegistrySettings, hostCABundlePath string) error {
+	if err := m.setupClients(); err != nil {
+		return fmt.Errorf("setup clients: %w", err)
 	}
 
 	// Start the namespace reconciler to ensure image pull secrets and other required resources in app namespaces
-	nsReconciler, err := runNamespaceReconciler(ctx, m.kcli, registrySettings, m.logger)
+	nsReconciler, err := runNamespaceReconciler(ctx, m.kcli, m.mcli, registrySettings, hostCABundlePath, m.logger)
 	if err != nil {
 		return fmt.Errorf("start namespace reconciler: %w", err)
 	}

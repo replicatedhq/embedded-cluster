@@ -15,6 +15,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,6 +29,7 @@ var _ Controller = (*UpgradeController)(nil)
 type UpgradeController struct {
 	hcli                  helm.Client
 	kcli                  client.Client
+	mcli                  metadata.Interface
 	preflightRunner       preflights.PreflightRunnerInterface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	releaseData           *release.ReleaseData
@@ -58,6 +60,12 @@ func WithHelmClient(hcli helm.Client) UpgradeControllerOption {
 func WithKubeClient(kcli client.Client) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.mcli = mcli
 	}
 }
 
@@ -151,6 +159,7 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			appcontroller.WithPrivateCACertConfigMapName(""), // Private CA ConfigMap functionality not yet implemented for Kubernetes installations
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
+			appcontroller.WithMetadataClient(controller.mcli),
 			appcontroller.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
 			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)
