@@ -45,7 +45,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        version=$(gh release list --repo helm/helm --json tagName,isLatest | jq -r '.[] | select(.isLatest) | .tagName')
+        version=$(gh release list --repo helm/helm --json tagName,createdAt | jq -r '.[] | select(.tagName | startswith("v3.")) | .tagName' | head -1)
         echo "helm version: $version"
         sed -i "/^HELM_VERSION/c\HELM_VERSION = $version" versions.mk
 
