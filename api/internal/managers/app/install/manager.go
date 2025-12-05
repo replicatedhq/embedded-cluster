@@ -12,6 +12,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -20,7 +21,7 @@ var _ AppInstallManager = &appInstallManager{}
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
 	// Install installs the app with the provided config values
-	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues) error
+	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues kotsv1beta1.ConfigValues, registrySettings *types.RegistrySettings) error
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface
@@ -33,6 +34,7 @@ type appInstallManager struct {
 	kotsCLI               kotscli.KotsCLI
 	hcli                  helm.Client
 	kcli                  client.Client
+	clientset             kubernetes.Interface
 	kubernetesEnvSettings *helmcli.EnvSettings
 	logger                logrus.FieldLogger
 }
@@ -90,6 +92,12 @@ func WithKotsCLI(kotsCLI kotscli.KotsCLI) AppInstallManagerOption {
 func WithKubeClient(kcli client.Client) AppInstallManagerOption {
 	return func(m *appInstallManager) {
 		m.kcli = kcli
+	}
+}
+
+func WithClientset(clientset kubernetes.Interface) AppInstallManagerOption {
+	return func(m *appInstallManager) {
+		m.clientset = clientset
 	}
 }
 

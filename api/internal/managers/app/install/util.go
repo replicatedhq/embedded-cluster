@@ -81,18 +81,27 @@ func (m *appInstallManager) writeChartArchiveToTemp(chartArchive []byte) (string
 	return tmpFile.Name(), nil
 }
 
-func (m *appInstallManager) initKubeClient() error {
-	if m.kcli == nil {
-		var restClientGetter genericclioptions.RESTClientGetter
-		if m.kubernetesEnvSettings != nil {
-			restClientGetter = m.kubernetesEnvSettings.RESTClientGetter()
-		}
+func (m *appInstallManager) initClients() error {
+	var restClientGetter genericclioptions.RESTClientGetter
+	if m.kubernetesEnvSettings != nil {
+		restClientGetter = m.kubernetesEnvSettings.RESTClientGetter()
+	}
+	opts := clients.KubeClientOptions{RESTClientGetter: restClientGetter}
 
-		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
+	if m.kcli == nil {
+		kcli, err := clients.NewKubeClient(opts)
 		if err != nil {
 			return fmt.Errorf("create kube client: %w", err)
 		}
 		m.kcli = kcli
+	}
+
+	if m.clientset == nil {
+		clientset, err := clients.NewClientset(opts)
+		if err != nil {
+			return fmt.Errorf("create clientset: %w", err)
+		}
+		m.clientset = clientset
 	}
 
 	return nil

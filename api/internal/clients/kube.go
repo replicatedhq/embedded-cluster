@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	coreclientset "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
@@ -68,6 +69,15 @@ func NewDiscoveryClient(opts KubeClientOptions) (discovery.DiscoveryInterface, e
 		return nil, err
 	}
 	return discovery.NewDiscoveryClientForConfig(restConfig)
+}
+
+// NewClientset returns a new kubernetes clientset.
+func NewClientset(opts KubeClientOptions) (kubernetes.Interface, error) {
+	restConfig, err := getRESTConfig(opts)
+	if err != nil {
+		return nil, err
+	}
+	return kubernetes.NewForConfig(restConfig)
 }
 
 func getRESTConfig(opts KubeClientOptions) (*rest.Config, error) {

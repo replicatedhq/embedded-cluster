@@ -216,7 +216,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation with InstallableHelmCharts
-		err = manager.Install(context.Background(), installableCharts, configValues)
+		err = manager.Install(context.Background(), installableCharts, configValues, nil)
 		require.NoError(t, err)
 
 		mockHelmClient.AssertExpectations(t)
@@ -260,7 +260,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StatePending, appInstall.Status.State)
 
 		// Run installation
-		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{}, nil)
 		require.NoError(t, err)
 
 		// Verify components status
@@ -299,7 +299,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation (should fail)
-		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{}, nil)
 		assert.Error(t, err)
 
 		mockHelmClient.AssertExpectations(t)
@@ -465,7 +465,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Install the charts
-		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{}, nil)
 		require.NoError(t, err)
 
 		// Verify that components were registered and have correct status
@@ -513,7 +513,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Install the charts (should fail)
-		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{})
+		err = manager.Install(t.Context(), installableCharts, kotsv1beta1.ConfigValues{}, nil)
 		require.Error(t, err)
 
 		// Verify that component failure is tracked
