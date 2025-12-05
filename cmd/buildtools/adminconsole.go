@@ -58,12 +58,9 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 			return nil
 		}
 
-		upstream := "proxy.replicated.com/library/admin-console"
-		withproto := fmt.Sprintf("oci://%s", upstream)
-
 		newmeta := release.AddonMetadata{
 			Version:  latest,
-			Location: withproto,
+			Location: "oci://proxy.replicated.com/library/admin-console",
 			Images:   make(map[string]release.AddonImage),
 		}
 
@@ -73,7 +70,7 @@ var updateAdminConsoleAddonCommand = &cli.Command{
 		}
 
 		logrus.Infof("extracting images from chart")
-		images, err := helm.ExtractImagesFromChart(hcli, withproto, latest, values)
+		images, err := helm.ExtractImagesFromChart(hcli, "oci://registry.replicated.com/library/admin-console", latest, values)
 		if err != nil {
 			return fmt.Errorf("failed to get images from admin console chart: %w", err)
 		}
