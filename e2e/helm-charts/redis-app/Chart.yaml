@@ -1,6 +1,0 @@
-apiVersion: v2
-name: redis-app
-description: A Helm chart for Redis server with a test client
-type: application
-version: 0.1.0
-appVersion: "1.0.0" 

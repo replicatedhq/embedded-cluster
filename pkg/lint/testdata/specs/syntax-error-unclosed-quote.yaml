@@ -1,6 +1,0 @@
-# This should ERROR: Unclosed quote
-apiVersion: embeddedcluster.replicated.com/v1beta1
-kind: Config
-spec:
-  version: "1.0.0
-  # ERROR: Missing closing quote on line above

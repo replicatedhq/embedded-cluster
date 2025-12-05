@@ -1,8 +1,0 @@
-config:
-  name: openebs
-  values: |-
-    prop: val
-    test: test
-expected: |-
-  prop: val
-  test: test

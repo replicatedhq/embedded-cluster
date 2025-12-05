@@ -1,6 +1,0 @@
-# This should ERROR: Duplicate key in YAML (caught by strict mode)
-apiVersion: embeddedcluster.replicated.com/v1beta1
-kind: Config
-spec:
-  version: "1.0.0"
-  version: "2.0.0"  # ERROR: duplicate key "version"

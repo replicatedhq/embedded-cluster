@@ -1,8 +1,0 @@
-apiVersion: kots.io/v1beta1
-kind: ConfigValues
-spec:
-  values:
-    ahostname:
-      value: abc123test
-    apw:
-      value: passwordtest

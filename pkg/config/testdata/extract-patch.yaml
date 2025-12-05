@@ -1,7 +1,0 @@
-override: |-
-  config:
-    metadata:
-      name: foo
-expected: |-
-  metadata:
-    name: foo

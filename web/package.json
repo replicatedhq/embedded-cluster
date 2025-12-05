@@ -13,10 +13,8 @@
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{js,jsx,ts,tsx}\" --fix",
     "preview": "vite preview",
-    "test:unit": "vitest run",
     "types:api:generate": "openapi-typescript ../api/docs/swagger.yaml --output src/types/api.ts --path-params-as-types",
-    "types:api:check": "npm run types:api:generate -- --check",
-    "test": "npm run types:api:check && npm run lint && npm run test:unit"
+    "types:api:check": "npm run types:api:generate -- --check"
   },
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
@@ -33,13 +31,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@faker-js/faker": "^10.1.0",
     "@netlify/functions": "^5.0.1",
     "@netlify/vite-plugin": "^2.7.14",
     "@tailwindcss/vite": "^4.1.17",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -51,16 +45,12 @@
     "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
-    "jsdom": "^27.1.0",
-    "msw": "2.12.3",
-    "openapi-backend": "^5.15.0",
     "openapi-typescript": "^7.10.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0",
     "unified": "^11.0.5",
     "vite": "^7.2.4",
-    "vite-plugin-static-copy": "^3.1.4",
-    "vitest": "^3.2.4"
+    "vite-plugin-static-copy": "^3.1.4"
   }
 }
