@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster
 
-go 1.25.3
+go 1.25.4
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -38,34 +38,34 @@ require (
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d
-	github.com/replicatedhq/troubleshoot v0.123.12
+	github.com/replicatedhq/troubleshoot v0.123.15
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	github.com/swaggo/swag/v2 v2.0.0-rc4
-	github.com/tiendc/go-deepcopy v1.7.1
+	github.com/tiendc/go-deepcopy v1.7.2
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/vmware-tanzu/velero v1.17.0
+	github.com/vmware-tanzu/velero v1.17.1
 	go.uber.org/multierr v1.11.0
 	go.yaml.in/yaml/v3 v3.0.4
 	golang.org/x/crypto v0.45.0
 	golang.org/x/term v0.37.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
-	helm.sh/helm/v3 v3.19.0
-	k8s.io/api v0.34.1
-	k8s.io/apiextensions-apiserver v0.34.1
-	k8s.io/apimachinery v0.34.1
-	k8s.io/cli-runtime v0.34.1
-	k8s.io/client-go v0.34.1
-	k8s.io/component-helpers v0.34.1
-	k8s.io/kubectl v0.34.1
+	helm.sh/helm/v3 v3.19.2
+	k8s.io/api v0.34.2
+	k8s.io/apiextensions-apiserver v0.34.2
+	k8s.io/apimachinery v0.34.2
+	k8s.io/cli-runtime v0.34.2
+	k8s.io/client-go v0.34.2
+	k8s.io/component-helpers v0.34.2
+	k8s.io/kubectl v0.34.2
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	oras.land/oras-go/v2 v2.6.0
-	sigs.k8s.io/controller-runtime v0.22.3
+	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -127,10 +127,10 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
-	github.com/cilium/ebpf v0.19.0 // indirect
+	github.com/cilium/ebpf v0.20.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
-	github.com/containerd/cgroups/v3 v3.0.5 // indirect
+	github.com/containerd/cgroups/v3 v3.1.1 // indirect
 	github.com/containerd/containerd v1.7.29 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -145,14 +145,14 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
-	github.com/cyphar/filepath-securejoin v0.5.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/distribution/v3 v3.0.0 // indirect
-	github.com/docker/cli v28.3.2+incompatible // indirect
+	github.com/docker/cli v28.5.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
-	github.com/docker/docker v28.3.3+incompatible // indirect
+	github.com/docker/docker v28.5.1+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
+	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
@@ -209,7 +209,7 @@ require (
 	github.com/hashicorp/aws-sdk-go-base/v2 v2.0.0-beta.65 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-getter v1.8.2 // indirect
+	github.com/hashicorp/go-getter v1.8.3 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/golang-lru/arc/v2 v2.0.7 // indirect
@@ -266,7 +266,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/opencontainers/runtime-spec v1.2.1 // indirect
+	github.com/opencontainers/runtime-spec v1.3.0 // indirect
 	github.com/opencontainers/selinux v1.13.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -287,7 +287,7 @@ require (
 	github.com/secure-systems-lab/go-securesystemslib v0.9.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.25.9 // indirect
+	github.com/shirou/gopsutil/v4 v4.25.10 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sigstore/fulcio v1.6.6 // indirect
 	github.com/sigstore/protobuf-specs v0.4.1 // indirect
@@ -360,17 +360,17 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiserver v0.34.1 // indirect
+	k8s.io/apiserver v0.34.2 // indirect
 	k8s.io/cloud-provider v0.33.6 // indirect
-	k8s.io/component-base v0.34.1 // indirect
+	k8s.io/component-base v0.34.2 // indirect
 	k8s.io/controller-manager v0.33.6 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
-	k8s.io/kms v0.34.1 // indirect
+	k8s.io/kms v0.34.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	k8s.io/kubelet v0.34.1 // indirect
 	k8s.io/kubernetes v1.34.1 // indirect
-	k8s.io/metrics v0.34.1 // indirect
-	oras.land/oras-go v1.2.6 // indirect
+	k8s.io/metrics v0.34.2 // indirect
+	oras.land/oras-go v1.2.7 // indirect
 	periph.io/x/host/v3 v3.8.5 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.32.0 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
@@ -379,3 +379,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
+
+replace github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.5.2
