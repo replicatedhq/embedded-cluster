@@ -31,7 +31,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78
 	github.com/mattn/go-isatty v0.0.20
-	github.com/ohler55/ojg v1.26.10
+	github.com/ohler55/ojg v1.27.0
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/pkg/errors v0.9.1
