@@ -112,7 +112,7 @@ func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) 
 		}
 
 		// Install the app with installable charts
-		err = c.appInstallManager.Install(ctx, installableCharts, opts.RegistrySettings, opts.HostCABundlePath)
+		err = c.appInstallManager.Install(ctx, installableCharts, appConfigValues, opts.RegistrySettings, opts.HostCABundlePath)
 		if err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}

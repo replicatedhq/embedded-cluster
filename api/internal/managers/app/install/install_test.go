@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -23,10 +24,12 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	metadatafake "k8s.io/client-go/metadata/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -75,6 +78,12 @@ func TestAppInstallManager_Install(t *testing.T) {
 	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
 
 	t.Run("Success", func(t *testing.T) {
+		configValues := types.AppConfigValues{
+			"key1": {Value: "value1"},
+			"key2": {Value: "value2"},
+			"key3": {Value: "value3"},
+		}
+
 		// Create InstallableHelmCharts with weights - should already be sorted at this stage
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "nginx-chart", "1.0.0", "web-server", "web", 10, map[string]any{
@@ -164,7 +173,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation with registry settings and host CA bundle path
-		err = manager.Install(t.Context(), installableCharts, registrySettings, tmpCAFile.Name())
+		err = manager.Install(t.Context(), installableCharts, configValues, registrySettings, tmpCAFile.Name())
 		require.NoError(t, err)
 
 		mockHelmClient.AssertExpectations(t)
@@ -190,6 +199,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 	})
 
 	t.Run("Install updates status correctly", func(t *testing.T) {
+		configValues := types.AppConfigValues{
+			"key1": {Value: "value1"},
+		}
+
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "monitoring-chart", "1.0.0", "prometheus", "monitoring", 0, map[string]any{"key": "value"}),
 		}
@@ -221,7 +234,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		assert.Equal(t, types.StatePending, appInstall.Status.State)
 
 		// Run installation
-		err = manager.Install(t.Context(), installableCharts, nil, "")
+		err = manager.Install(t.Context(), installableCharts, configValues, nil, "")
 		require.NoError(t, err)
 
 		// Verify components status
@@ -233,6 +246,10 @@ func TestAppInstallManager_Install(t *testing.T) {
 	})
 
 	t.Run("Install handles errors correctly", func(t *testing.T) {
+		configValues := types.AppConfigValues{
+			"key1": {Value: "value1"},
+		}
+
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "logging-chart", "1.0.0", "fluentd", "logging", 0, map[string]any{"key": "value"}),
 		}
@@ -259,7 +276,7 @@ func TestAppInstallManager_Install(t *testing.T) {
 		require.NoError(t, err)
 
 		// Run installation (should fail)
-		err = manager.Install(t.Context(), installableCharts, nil, "")
+		err = manager.Install(t.Context(), installableCharts, configValues, nil, "")
 		assert.Error(t, err)
 
 		mockHelmClient.AssertExpectations(t)
@@ -386,6 +403,12 @@ func TestComponentStatusTracking(t *testing.T) {
 	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(kotsadmNamespace).Build()
 
 	t.Run("Components are registered and status is tracked", func(t *testing.T) {
+		configValues := types.AppConfigValues{
+			"key1": {Value: "value1"},
+			"key2": {Value: "value2"},
+			"key3": {Value: "value3"},
+		}
+
 		// Create test charts with different weights
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "database-chart", "1.0.0", "postgres", "data", 10, map[string]any{"key": "value1"}),
@@ -411,7 +434,11 @@ func TestComponentStatusTracking(t *testing.T) {
 		}))
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
-			WithReleaseData(&release.ReleaseData{}),
+			WithReleaseData(&release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+				},
+			}),
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
@@ -420,7 +447,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Install the charts
-		err = manager.Install(t.Context(), installableCharts, nil, "")
+		err = manager.Install(t.Context(), installableCharts, configValues, nil, "")
 		require.NoError(t, err)
 
 		// Verify that components were registered and have correct status
@@ -441,6 +468,10 @@ func TestComponentStatusTracking(t *testing.T) {
 	})
 
 	t.Run("Component failure is tracked correctly", func(t *testing.T) {
+		configValues := types.AppConfigValues{
+			"key1": {Value: "value1"},
+		}
+
 		// Create test chart
 		installableCharts := []types.InstallableHelmChart{
 			createTestInstallableHelmChart(t, "failing-chart", "1.0.0", "failing-app", "default", 0, map[string]any{"key": "value"}),
@@ -458,7 +489,11 @@ func TestComponentStatusTracking(t *testing.T) {
 		}))
 		manager, err := NewAppInstallManager(
 			WithAppInstallStore(appInstallStore),
-			WithReleaseData(&release.ReleaseData{}),
+			WithReleaseData(&release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+				},
+			}),
 			WithLicense(licenseBytes),
 			WithClusterID("test-cluster"),
 			WithHelmClient(mockHelmClient),
@@ -467,7 +502,7 @@ func TestComponentStatusTracking(t *testing.T) {
 		require.NoError(t, err)
 
 		// Install the charts (should fail)
-		err = manager.Install(t.Context(), installableCharts, nil, "")
+		err = manager.Install(t.Context(), installableCharts, configValues, nil, "")
 		require.Error(t, err)
 
 		// Verify that component failure is tracked
@@ -485,4 +520,363 @@ func TestComponentStatusTracking(t *testing.T) {
 
 		mockHelmClient.AssertExpectations(t)
 	})
+}
+
+func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
+	// Set up environment and release data for all tests
+	t.Setenv("ENABLE_V3", "1")
+	err := release.SetReleaseDataForTests(map[string][]byte{
+		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
+	})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name                  string
+		releaseData           *release.ReleaseData
+		configValues          types.AppConfigValues
+		setupClient           func(t *testing.T) client.Client
+		expectError           bool
+		expectedErrorContains string
+		validateSecret        func(t *testing.T, kcli client.Client)
+	}{
+		{
+			name: "first install creates secret with multiple config values",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+				"key2": {Value: "value2"},
+				"key3": {Value: "value3"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return fake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret
+				secret := &corev1.Secret{}
+				err := kcli.Get(t.Context(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify labels
+				assert.Equal(t, "test-app", secret.Labels["app.kubernetes.io/name"])
+				assert.Equal(t, "v1.0.0", secret.Labels["app.kubernetes.io/version"])
+				assert.Equal(t, "config", secret.Labels["app.kubernetes.io/component"])
+				assert.Equal(t, "embedded-cluster", secret.Labels["app.kubernetes.io/part-of"])
+				assert.Equal(t, "embedded-cluster-installer", secret.Labels["app.kubernetes.io/managed-by"])
+
+				// Verify type
+				assert.Equal(t, corev1.SecretTypeOpaque, secret.Type)
+
+				// Verify data
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+
+				// Unmarshal and verify values
+				var cv types.AppConfigValues
+				err = kyaml.Unmarshal(data, &cv)
+				require.NoError(t, err)
+				assert.Equal(t, "value1", cv["key1"].Value)
+				assert.Equal(t, "value2", cv["key2"].Value)
+				assert.Equal(t, "value3", cv["key3"].Value)
+			},
+		},
+		{
+			name: "existing secret is fetched and updated",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"newkey": {Value: "newvalue"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret with old version
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+						Labels: map[string]string{
+							"app.kubernetes.io/version": "v0.9.0",
+						},
+					},
+					Data: map[string][]byte{
+						"config-values.yaml": []byte("old: data"),
+					},
+				}
+
+				return fake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret was recreated
+				secret := &corev1.Secret{}
+				err := kcli.Get(t.Context(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify updated version label
+				assert.Equal(t, "v1.0.0", secret.Labels["app.kubernetes.io/version"])
+
+				// Verify new data
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+
+				var cv types.AppConfigValues
+				err = kyaml.Unmarshal(data, &cv)
+				require.NoError(t, err)
+				assert.Equal(t, "newvalue", cv["newkey"].Value)
+			},
+		},
+		{
+			name:        "fails when release data is missing",
+			releaseData: nil,
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return fake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "release data is required",
+		},
+		{
+			name: "fails when channel release is missing",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: nil,
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return fake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "release data is required",
+		},
+		{
+			name: "fails when get returns error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+					},
+				}
+
+				return fake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+							if key.Name == "test-app-config-values" {
+								return fmt.Errorf("simulated get error")
+							}
+							return c.Get(ctx, key, obj, opts...)
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "get existing config values secret",
+		},
+		{
+			name: "fails when update returns error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				// Create existing secret
+				existingSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-app-config-values",
+						Namespace: "test-app",
+					},
+				}
+
+				return fake.NewClientBuilder().
+					WithScheme(sch).
+					WithObjects(existingSecret).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+							if secret, ok := obj.(*corev1.Secret); ok && secret.Name == "test-app-config-values" {
+								return fmt.Errorf("simulated update error")
+							}
+							return c.Update(ctx, obj, opts...)
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "update config values secret",
+		},
+		{
+			name: "fails when create returns non-AlreadyExists error",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+
+				return fake.NewClientBuilder().
+					WithScheme(sch).
+					WithInterceptorFuncs(interceptor.Funcs{
+						Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+							if _, ok := obj.(*corev1.Secret); ok {
+								return fmt.Errorf("simulated create error")
+							}
+							return c.Create(ctx, obj, opts...)
+						},
+					}).
+					Build()
+			},
+			expectError:           true,
+			expectedErrorContains: "create config values secret",
+		},
+		{
+			name: "handles empty config values",
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					VersionLabel: "v1.0.0",
+					DefaultDomains: release.Domains{
+						ReplicatedAppDomain: "replicated.app",
+					},
+				},
+			},
+			configValues: types.AppConfigValues{
+				"key1": {Value: "value1"},
+			},
+			setupClient: func(t *testing.T) client.Client {
+				sch := runtime.NewScheme()
+				require.NoError(t, corev1.AddToScheme(sch))
+				require.NoError(t, scheme.AddToScheme(sch))
+				return fake.NewClientBuilder().WithScheme(sch).Build()
+			},
+			expectError: false,
+			validateSecret: func(t *testing.T, kcli client.Client) {
+				// Get and verify secret was created even with empty values
+				secret := &corev1.Secret{}
+				err := kcli.Get(t.Context(), client.ObjectKey{
+					Name:      "test-app-config-values",
+					Namespace: "test-app",
+				}, secret)
+				require.NoError(t, err)
+
+				// Verify data exists
+				data, ok := secret.Data["config-values.yaml"]
+				require.True(t, ok)
+				require.NotEmpty(t, data)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			license := &kotsv1beta1.License{
+				Spec: kotsv1beta1.LicenseSpec{AppSlug: "test-app"},
+			}
+			licenseBytes, err := kyaml.Marshal(license)
+			require.NoError(t, err)
+
+			kcli := tt.setupClient(t)
+
+			// Create mock helm client
+			mockHelmClient := &helm.MockClient{}
+
+			manager, err := NewAppInstallManager(
+				WithLicense(licenseBytes),
+				WithClusterID("test-cluster"),
+				WithAirgapBundle("test-airgap.tar.gz"),
+				WithReleaseData(tt.releaseData),
+				WithLogger(logger.NewDiscardLogger()),
+				WithKubeClient(kcli),
+				WithHelmClient(mockHelmClient),
+			)
+			require.NoError(t, err)
+
+			// Execute
+			err = manager.Install(t.Context(), nil, tt.configValues, nil, "")
+
+			// Verify
+			if tt.expectError {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorContains)
+			} else {
+				require.NoError(t, err)
+				if tt.validateSecret != nil {
+					tt.validateSecret(t, kcli)
+				}
+			}
+		})
+	}
 }

@@ -19,7 +19,7 @@ var _ AppInstallManager = &appInstallManager{}
 // AppInstallManager provides methods for managing app installation
 type AppInstallManager interface {
 	// Install installs the app with the provided Helm charts
-	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, registrySettings *types.RegistrySettings, hostCABundlePath string) error
+	Install(ctx context.Context, installableCharts []types.InstallableHelmChart, configValues types.AppConfigValues, registrySettings *types.RegistrySettings, hostCABundlePath string) error
 }
 
 // appInstallManager is an implementation of the AppInstallManager interface
