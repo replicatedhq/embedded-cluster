@@ -737,36 +737,36 @@ spec:
       fileName: host-collectors/run-host/k0scontroller-logs.txt
       regex: '(error when evicting pods|Cannot evict pod as it would violate the pod''s disruption budget)'
       outcomes:
-      - fail:
-          when: "true"
-          message: |-
-            PodDisruptionBudgets are preventing pod eviction during cluster upgrade.
+        - fail:
+            when: "true"
+            message: |-
+                PodDisruptionBudgets are preventing pod eviction during cluster upgrade.
 
-            The k0scontroller cannot evict pods, causing the autopilot upgrade process to hang.
-            This makes the cluster unable to complete upgrades.
+                The k0scontroller cannot evict pods, causing the autopilot upgrade process to hang.
+                This makes the cluster unable to complete upgrades.
 
-            To resolve this issue:
+                To resolve this issue:
 
-            1. List all PodDisruptionBudgets in the cluster:
-               kubectl get pdb -A
+                1. List all PodDisruptionBudgets in the cluster:
+                kubectl get pdb -A
 
-            2. Identify which PDBs are blocking eviction. Look for PDBs with:
-               - minAvailable set too high (not allowing enough pods to be evicted)
-               - maxUnavailable set too low (too restrictive)
+                2. Identify which PDBs are blocking eviction. Look for PDBs with:
+                - minAvailable set too high (not allowing enough pods to be evicted)
+                - maxUnavailable set too low (too restrictive)
 
-            3. Temporarily adjust or remove the problematic PDBs:
-               kubectl delete pdb <pdb-name> -n <namespace>
+                3. Temporarily adjust or remove the problematic PDBs:
+                kubectl delete pdb <pdb-name> -n <namespace>
 
-               Or edit to allow more disruption:
-               kubectl edit pdb <pdb-name> -n <namespace>
+                Or edit to allow more disruption:
+                kubectl edit pdb <pdb-name> -n <namespace>
 
-            4. After the upgrade completes, restore the PDBs if needed.
+                4. After the upgrade completes, restore the PDBs if needed.
 
-            WARNING: Modifying PDBs reduces availability guarantees. Coordinate with
-            application owners and consider scheduling during maintenance windows.
-      - pass:
-          when: "false"
-          message: No PodDisruptionBudget eviction failures detected
+                WARNING: Modifying PDBs reduces availability guarantees. Coordinate with
+                application owners and consider scheduling during maintenance windows.
+        - pass:
+            when: "false"
+            message: No PodDisruptionBudget eviction failures detected
   - textAnalyze:
       checkName: Check if localhost resolves to 127.0.0.1
       fileName: host-collectors/run-host/localhost-ips.txt
