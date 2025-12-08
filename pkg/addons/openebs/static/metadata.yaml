@@ -5,14 +5,9 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 4.3.3
+version: 4.4.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
-    kubectl:
-        repo: proxy.replicated.com/library/kubectl
-        tag:
-            amd64: 1.34.2-amd64@sha256:5383cd50f71e8971700afc69f67c91113a09f05905b04df1a61257854190f26c
-            arm64: 1.34.2-arm64@sha256:c976b98fa758b16152b8da0dab7e3d7e668aded6f0a859ec7afb36e8ee474827
     openebs-linux-utils:
         repo: proxy.replicated.com/library/openebs-linux-utils
         tag:
@@ -21,5 +16,5 @@ images:
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/library/openebs-provisioner-localpv
         tag:
-            amd64: 4.3.0-amd64@sha256:7f3325a2249eba601fd222a23e27f741e9e6ddc5663ab9f5b8f7587930d1ef8d
-            arm64: 4.3.0-arm64@sha256:a218a9ad454a7452c663fa82453ec96b524faf220ccea8c7c2047ddc9c86fcfc
+            amd64: 4.4.0-amd64@sha256:a1e7eeeef83e48c86ce69e04855c301b93dab478aaf19e9cf8b4ae6433502c62
+            arm64: 4.4.0-arm64@sha256:343f11c0b8708fa4ed3d60331fe3eaf1420871a51cac27cb7fedd0017ea49f7a
