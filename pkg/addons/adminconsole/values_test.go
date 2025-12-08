@@ -112,8 +112,7 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.Equal(t, "123", values["embeddedClusterID"])
 		assert.Equal(t, dataDir, values["embeddedClusterDataDir"])
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
-		// TODO: enable this once we stop relying on KOTS to deploy the app
-		// assert.Equal(t, true, values["isEmbeddedClusterV3"])
+		assert.Equal(t, true, values["isEmbeddedClusterV3"])
 
 		assert.Contains(t, values["extraEnv"], map[string]interface{}{
 			"name":  "SSL_CERT_CONFIGMAP",

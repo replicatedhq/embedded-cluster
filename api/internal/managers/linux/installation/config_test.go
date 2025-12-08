@@ -2,17 +2,22 @@ package installation
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 func TestValidateConfig(t *testing.T) {
@@ -600,6 +605,180 @@ func TestConfigureHost(t *testing.T) {
 
 			// Verify all mock expectations were met
 			mockHostUtils.AssertExpectations(t)
+		})
+	}
+}
+
+func TestCalculateRegistrySettings(t *testing.T) {
+	// Helper to create a test license
+	createTestLicense := func(licenseID, appSlug string) []byte {
+		license := kotsv1beta1.License{
+			Spec: kotsv1beta1.LicenseSpec{
+				LicenseID: licenseID,
+				AppSlug:   appSlug,
+			},
+		}
+		licenseBytes, _ := kyaml.Marshal(license)
+		return licenseBytes
+	}
+
+	// Helper to create test release data
+	createTestReleaseData := func(appSlug string, domains *ecv1beta1.Domains) *release.ReleaseData {
+		releaseData := &release.ReleaseData{
+			ChannelRelease: &release.ChannelRelease{
+				AppSlug: appSlug,
+			},
+		}
+		if domains != nil {
+			releaseData.EmbeddedClusterConfig = &ecv1beta1.Config{
+				Spec: ecv1beta1.ConfigSpec{
+					Domains: *domains,
+				},
+			}
+		}
+		return releaseData
+	}
+
+	// Helper to create runtime config
+	createTestRuntimeConfig := func() runtimeconfig.RuntimeConfig {
+		return runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+			Network: ecv1beta1.NetworkSpec{
+				ServiceCIDR: "10.96.0.0/12",
+			},
+		})
+	}
+
+	tests := []struct {
+		name           string
+		license        []byte
+		releaseData    *release.ReleaseData
+		airgapBundle   string
+		expectedResult *types.RegistrySettings
+		expectedError  string
+	}{
+		{
+			name:         "online mode with default domains",
+			license:      createTestLicense("test-license-123", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "", // Online mode
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:     false,
+				ImagePullSecretName:  "test-app-registry",
+				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(`{"auths":{"proxy.replicated.com":{"username": "LICENSE_ID", "password": "test-license-123"},"registry.replicated.com":{"username": "LICENSE_ID", "password": "test-license-123"}}}`)),
+			},
+		},
+		{
+			name:    "online mode with custom domains",
+			license: createTestLicense("custom-license-456", "custom-app"),
+			releaseData: createTestReleaseData("custom-app", &ecv1beta1.Domains{
+				ProxyRegistryDomain:      "custom-proxy.example.com",
+				ReplicatedRegistryDomain: "custom-registry.example.com",
+			}),
+			airgapBundle: "", // Online mode
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:     false,
+				ImagePullSecretName:  "custom-app-registry",
+				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(`{"auths":{"custom-proxy.example.com":{"username": "LICENSE_ID", "password": "custom-license-456"},"custom-registry.example.com":{"username": "LICENSE_ID", "password": "custom-license-456"}}}`)),
+			},
+		},
+		{
+			name:          "online mode missing license",
+			license:       nil,
+			releaseData:   createTestReleaseData("test-app", nil),
+			airgapBundle:  "", // Online mode
+			expectedError: "license is required for online registry settings",
+		},
+		{
+			name:          "online mode empty license",
+			license:       []byte{},
+			releaseData:   createTestReleaseData("test-app", nil),
+			airgapBundle:  "", // Online mode
+			expectedError: "license is required for online registry settings",
+		},
+		{
+			name:          "online mode invalid license format",
+			license:       []byte("invalid yaml"),
+			releaseData:   createTestReleaseData("test-app", nil),
+			airgapBundle:  "", // Online mode
+			expectedError: "parse license:",
+		},
+		{
+			name:          "online mode missing release data",
+			license:       createTestLicense("test-license", "test-app"),
+			releaseData:   nil,
+			airgapBundle:  "", // Online mode
+			expectedError: "release data with app slug is required for registry settings",
+		},
+		{
+			name:    "online mode missing app slug",
+			license: createTestLicense("test-license", "test-app"),
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "", // Empty app slug
+				},
+			},
+			airgapBundle:  "", // Online mode
+			expectedError: "release data with app slug is required for registry settings",
+		},
+		{
+			name:         "airgap mode",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.96.0.11:5000",
+				LocalRegistryAddress:   "10.96.0.11:5000/test-app",
+				LocalRegistryNamespace: "test-app",
+				LocalRegistryUsername:  "embedded-cluster",
+				LocalRegistryPassword:  registry.GetRegistryPassword(),
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue: func() string {
+					authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+					return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(`{"auths":{"10.96.0.11:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`, registry.GetRegistryPassword(), authString)))
+				}(),
+			},
+		},
+		{
+			name:          "airgap mode missing release data",
+			license:       createTestLicense("test-license", "test-app"),
+			releaseData:   nil,
+			airgapBundle:  "test-bundle.tar",
+			expectedError: "release data with app slug is required for registry settings",
+		},
+		{
+			name:    "airgap mode missing app slug",
+			license: createTestLicense("test-license", "test-app"),
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "", // Empty app slug
+				},
+			},
+			airgapBundle:  "test-bundle.tar",
+			expectedError: "release data with app slug is required for registry settings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := createTestRuntimeConfig()
+
+			manager := NewInstallationManager(
+				WithLicense(tt.license),
+				WithReleaseData(tt.releaseData),
+				WithAirgapBundle(tt.airgapBundle),
+			)
+
+			result, err := manager.CalculateRegistrySettings(context.Background(), rc)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResult, result)
+			}
 		})
 	}
 }

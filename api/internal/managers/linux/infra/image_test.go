@@ -10,8 +10,8 @@ import (
 
 func Test_DestECImage(t *testing.T) {
 	registryOps := &types.RegistrySettings{
-		Host:      "localhost:5000",
-		Namespace: "somebigbank",
+		LocalRegistryHost:      "localhost:5000",
+		LocalRegistryNamespace: "somebigbank",
 	}
 
 	type args struct {
@@ -29,7 +29,7 @@ func Test_DestECImage(t *testing.T) {
 				registry: registryOps,
 				srcImage: "411111111111.dkr.ecr.us-west-1.amazonaws.com/myrepo:v0.0.1",
 			},
-			want: fmt.Sprintf("%s/%s/embedded-cluster/myrepo:v0.0.1", registryOps.Host, registryOps.Namespace),
+			want: fmt.Sprintf("%s/%s/embedded-cluster/myrepo:v0.0.1", registryOps.LocalRegistryHost, registryOps.LocalRegistryNamespace),
 		},
 		{
 			name: "Quay image with tag",
@@ -37,7 +37,7 @@ func Test_DestECImage(t *testing.T) {
 				registry: registryOps,
 				srcImage: "quay.io/someorg/debian:0.1",
 			},
-			want: fmt.Sprintf("%s/%s/embedded-cluster/debian:0.1", registryOps.Host, registryOps.Namespace),
+			want: fmt.Sprintf("%s/%s/embedded-cluster/debian:0.1", registryOps.LocalRegistryHost, registryOps.LocalRegistryNamespace),
 		},
 		{
 			name: "Quay image with digest",
@@ -45,7 +45,7 @@ func Test_DestECImage(t *testing.T) {
 				registry: registryOps,
 				srcImage: "quay.io/someorg/debian@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5",
 			},
-			want: fmt.Sprintf("%s/%s/embedded-cluster/debian@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5", registryOps.Host, registryOps.Namespace),
+			want: fmt.Sprintf("%s/%s/embedded-cluster/debian@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5", registryOps.LocalRegistryHost, registryOps.LocalRegistryNamespace),
 		},
 		{
 			name: "Image with tag and digest",
@@ -53,17 +53,17 @@ func Test_DestECImage(t *testing.T) {
 				registry: registryOps,
 				srcImage: "quay.io/someorg/debian:0.1@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5",
 			},
-			want: fmt.Sprintf("%s/%s/embedded-cluster/debian@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5", registryOps.Host, registryOps.Namespace),
+			want: fmt.Sprintf("%s/%s/embedded-cluster/debian@sha256:17c5f462c92fc39303e6363c65e074559f8d6a1354150027ed5053557e3298c5", registryOps.LocalRegistryHost, registryOps.LocalRegistryNamespace),
 		},
 		{
 			name: "No Namespace",
 			args: args{
 				registry: &types.RegistrySettings{
-					Host: "localhost:5000",
+					LocalRegistryHost: "localhost:5000",
 				},
 				srcImage: "quay.io/someorg/debian:0.1",
 			},
-			want: fmt.Sprintf("%s/embedded-cluster/debian:0.1", registryOps.Host),
+			want: fmt.Sprintf("%s/embedded-cluster/debian:0.1", registryOps.LocalRegistryHost),
 		},
 	}
 	for _, tt := range tests {

@@ -67,14 +67,14 @@ func TestEngine_LocalRegistryHost(t *testing.T) {
 		{
 			name: "empty host returns empty string",
 			registrySettings: &types.RegistrySettings{
-				Host: "",
+				LocalRegistryHost: "",
 			},
 			expectedResult: "",
 		},
 		{
 			name: "host with port returns host",
 			registrySettings: &types.RegistrySettings{
-				Host: "10.128.0.11:5000",
+				LocalRegistryHost: "10.128.0.11:5000",
 			},
 			expectedResult: "10.128.0.11:5000",
 		},
@@ -112,14 +112,14 @@ func TestEngine_LocalRegistryAddress(t *testing.T) {
 		{
 			name: "empty address returns empty string",
 			registrySettings: &types.RegistrySettings{
-				Address: "",
+				LocalRegistryAddress: "",
 			},
 			expectedResult: "",
 		},
 		{
 			name: "address with namespace returns address",
 			registrySettings: &types.RegistrySettings{
-				Address: "10.128.0.11:5000/myapp",
+				LocalRegistryAddress: "10.128.0.11:5000/myapp",
 			},
 			expectedResult: "10.128.0.11:5000/myapp",
 		},
@@ -157,14 +157,14 @@ func TestEngine_LocalRegistryNamespace(t *testing.T) {
 		{
 			name: "empty namespace returns empty string",
 			registrySettings: &types.RegistrySettings{
-				Namespace: "",
+				LocalRegistryNamespace: "",
 			},
 			expectedResult: "",
 		},
 		{
 			name: "namespace returns namespace",
 			registrySettings: &types.RegistrySettings{
-				Namespace: "myapp",
+				LocalRegistryNamespace: "myapp",
 			},
 			expectedResult: "myapp",
 		},
@@ -209,9 +209,9 @@ func TestEngine_ImagePullSecretName(t *testing.T) {
 		{
 			name: "secret name returns secret name",
 			registrySettings: &types.RegistrySettings{
-				ImagePullSecretName: "embedded-cluster-registry",
+				ImagePullSecretName: "test-app-registry",
 			},
-			expectedResult: "embedded-cluster-registry",
+			expectedResult: "test-app-registry",
 		},
 	}
 
@@ -281,12 +281,12 @@ func TestEngine_LocalRegistryImagePullSecret(t *testing.T) {
 // TestEngine_RegistryFunctionsIntegrated tests multiple registry functions in a single template
 func TestEngine_RegistryFunctionsIntegrated(t *testing.T) {
 	registrySettings := &types.RegistrySettings{
-		HasLocalRegistry:     true,
-		Host:                 "10.128.0.11:5000",
-		Address:              "10.128.0.11:5000/myapp",
-		Namespace:            "myapp",
-		ImagePullSecretName:  "embedded-cluster-registry",
-		ImagePullSecretValue: "eyJhdXRocyI6e319",
+		HasLocalRegistry:       true,
+		LocalRegistryHost:      "10.128.0.11:5000",
+		LocalRegistryAddress:   "10.128.0.11:5000/myapp",
+		LocalRegistryNamespace: "myapp",
+		ImagePullSecretName:    "test-app-registry",
+		ImagePullSecretValue:   "eyJhdXRocyI6e319",
 	}
 
 	tests := []struct {
@@ -312,7 +312,7 @@ func TestEngine_RegistryFunctionsIntegrated(t *testing.T) {
 		{
 			name:           "image pull secret name in yaml",
 			template:       "- name: '{{repl ImagePullSecretName }}'",
-			expectedResult: "- name: 'embedded-cluster-registry'",
+			expectedResult: "- name: 'test-app-registry'",
 		},
 	}
 

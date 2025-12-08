@@ -53,3 +53,15 @@ func (m *MockStore) GetLogs() (string, error) {
 	args := m.Called()
 	return args.Get(0).(string), args.Error(1)
 }
+
+// SetComponentStatus mocks the SetComponentStatus method
+func (m *MockStore) SetComponentStatus(componentName string, status types.Status) error {
+	args := m.Called(componentName, status)
+	return args.Error(0)
+}
+
+// RegisterComponents mocks the RegisterComponents method
+func (m *MockStore) RegisterComponents(componentNames []string) error {
+	args := m.Called(componentNames)
+	return args.Error(0)
+}

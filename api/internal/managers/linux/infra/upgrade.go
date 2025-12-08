@@ -138,8 +138,8 @@ func (m *infraManager) getECArtifacts(registrySettings *types.RegistrySettings) 
 	}
 
 	opts := ECArtifactOCIPathOptions{
-		RegistryHost:      registrySettings.Host,
-		RegistryNamespace: registrySettings.Namespace,
+		RegistryHost:      registrySettings.LocalRegistryHost,
+		RegistryNamespace: registrySettings.LocalRegistryNamespace,
 		ChannelID:         airgapInfo.Spec.ChannelID,
 		UpdateCursor:      airgapInfo.Spec.UpdateCursor,
 		VersionLabel:      airgapInfo.Spec.VersionLabel,
@@ -276,7 +276,7 @@ func destECImage(registrySettings *types.RegistrySettings, srcImage string) (str
 	imageParts := strings.Split(srcImage, "/")
 	lastPart := imageParts[len(imageParts)-1]
 
-	return path.Join(registrySettings.Host, registrySettings.Namespace, "embedded-cluster", lastPart), nil
+	return path.Join(registrySettings.LocalRegistryHost, registrySettings.LocalRegistryNamespace, "embedded-cluster", lastPart), nil
 }
 
 func (m *infraManager) upgradeAddOns(ctx context.Context, in *ecv1beta1.Installation) error {

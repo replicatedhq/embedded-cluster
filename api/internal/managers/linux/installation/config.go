@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -15,8 +16,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	kyaml "sigs.k8s.io/yaml"
 )
 
 // GetConfig returns the resolved installation configuration, with the user provided values AND defaults applied
@@ -229,11 +232,14 @@ func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfi
 	return nil
 }
 
-// CalculateRegistrySettings calculates registry settings for airgap installations (should be used for new installations)
+// CalculateRegistrySettings calculates registry settings for both online and airgap installations
 func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
-	// Only return registry settings for airgap installations
 	if m.airgapBundle == "" {
-		return nil, nil
+		registrySettings, err := m.getOnlineRegistrySettings()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get online registry settings: %w", err)
+		}
+		return registrySettings, nil
 	}
 
 	// Use runtime config as the authoritative source for service CIDR
@@ -247,13 +253,14 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 	// Construct registry host with port
 	registryHost := fmt.Sprintf("%s:5000", registryIP)
 
-	// Get app namespace from release data - required for app preflights
+	// Get app slug for secret name
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
 		return nil, fmt.Errorf("release data with app slug is required for registry settings")
 	}
-	appNamespace := m.releaseData.ChannelRelease.AppSlug
+	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
+	appNamespace := appSlug // registry namespace is the same as the app slug in linux target
 	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
 
 	// Get registry credentials
@@ -267,22 +274,26 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
 
 	return &types.RegistrySettings{
-		HasLocalRegistry:     true,
-		Host:                 registryHost,
-		Address:              registryAddress,
-		Namespace:            appNamespace,
-		Username:             registryUsername,
-		Password:             registryPassword,
-		ImagePullSecretName:  "embedded-cluster-registry",
-		ImagePullSecretValue: imagePullSecretValue,
+		HasLocalRegistry:       true,
+		LocalRegistryHost:      registryHost,
+		LocalRegistryAddress:   registryAddress,
+		LocalRegistryNamespace: appNamespace,
+		LocalRegistryUsername:  registryUsername,
+		LocalRegistryPassword:  registryPassword,
+		ImagePullSecretName:    fmt.Sprintf("%s-registry", appSlug),
+		ImagePullSecretValue:   imagePullSecretValue,
 	}, nil
 }
 
-// GetRegistrySettings reads registry settings from the cluster for airgap installations (should be used for upgrades)
+// GetRegistrySettings reads registry settings from the cluster for airgap installations, and calculates them for online installations (should be used for upgrades)
 func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error) {
 	// If no airgap bundle, no registry settings needed
 	if m.airgapBundle == "" {
-		return nil, nil
+		registrySettings, err := m.getOnlineRegistrySettings()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get online registry settings: %w", err)
+		}
+		return registrySettings, nil
 	}
 
 	if m.kcli == nil {
@@ -350,22 +361,54 @@ func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtim
 	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
 		return nil, fmt.Errorf("release data with app slug is required for registry settings")
 	}
-	appNamespace := m.releaseData.ChannelRelease.AppSlug
+	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
+	appNamespace := appSlug // registry namespace is the same as the app slug in linux target
 	registryAddress := fmt.Sprintf("%s/%s", registryHost, appNamespace)
 
 	// Use the full dockerconfigjson as the image pull secret value
 	imagePullSecretValue := base64.StdEncoding.EncodeToString(dockerJson)
 
 	return &types.RegistrySettings{
-		HasLocalRegistry:     true,
-		Host:                 registryHost,
-		Address:              registryAddress,
-		Namespace:            appNamespace,
-		Username:             registryUsername,
-		Password:             registryPassword,
-		ImagePullSecretName:  "embedded-cluster-registry",
+		HasLocalRegistry:       true,
+		LocalRegistryHost:      registryHost,
+		LocalRegistryAddress:   registryAddress,
+		LocalRegistryNamespace: appNamespace,
+		LocalRegistryUsername:  registryUsername,
+		LocalRegistryPassword:  registryPassword,
+		ImagePullSecretName:    fmt.Sprintf("%s-registry", appSlug),
+		ImagePullSecretValue:   imagePullSecretValue,
+	}, nil
+}
+
+func (m *installationManager) getOnlineRegistrySettings() (*types.RegistrySettings, error) {
+	// Online mode: Use replicated proxy registry with license ID authentication
+	ecDomains := utils.GetDomains(m.releaseData)
+
+	// Parse license from bytes
+	if len(m.license) == 0 {
+		return nil, fmt.Errorf("license is required for online registry settings")
+	}
+	license := &kotsv1beta1.License{}
+	if err := kyaml.Unmarshal(m.license, license); err != nil {
+		return nil, fmt.Errorf("parse license: %w", err)
+	}
+
+	// Get app slug for secret name
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appSlug := m.releaseData.ChannelRelease.AppSlug
+
+	// Create auth config for both proxy and registry domains
+	authConfig := fmt.Sprintf(`{"auths":{"%s":{"username": "LICENSE_ID", "password": "%s"},"%s":{"username": "LICENSE_ID", "password": "%s"}}}`,
+		ecDomains.ProxyRegistryDomain, license.Spec.LicenseID, ecDomains.ReplicatedRegistryDomain, license.Spec.LicenseID)
+	imagePullSecretValue := base64.StdEncoding.EncodeToString([]byte(authConfig))
+
+	return &types.RegistrySettings{
+		HasLocalRegistry:     false,
+		ImagePullSecretName:  fmt.Sprintf("%s-registry", appSlug),
 		ImagePullSecretValue: imagePullSecretValue,
 	}, nil
 }

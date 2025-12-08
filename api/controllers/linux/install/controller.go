@@ -314,6 +314,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			appcontroller.WithPrivateCACertConfigMapName(adminconsole.PrivateCASConfigMapName), // Linux installations use the ConfigMap
 			appcontroller.WithHelmClient(controller.hcli),
 			appcontroller.WithKubeClient(controller.kcli),
+			appcontroller.WithMetadataClient(controller.mcli),
 			appcontroller.WithKubernetesEnvSettings(controller.rc.GetKubernetesEnvSettings()),
 			appcontroller.WithPreflightRunner(controller.preflightRunner),
 		)

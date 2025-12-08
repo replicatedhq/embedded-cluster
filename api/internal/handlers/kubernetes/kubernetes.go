@@ -138,6 +138,7 @@ func New(cfg types.APIConfig, opts ...Option) (*Handler, error) {
 				upgrade.WithConfigValues(h.cfg.ConfigValues),
 				upgrade.WithHelmClient(h.hcli),
 				upgrade.WithKubeClient(h.kcli),
+				upgrade.WithMetadataClient(h.mcli),
 				upgrade.WithPreflightRunner(h.preflightRunner),
 			)
 			if err != nil {

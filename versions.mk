@@ -20,14 +20,14 @@ K0S_GO_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 TROUBLESHOOT_VERSION = v0.122.0
 
 # Helm Version
-HELM_VERSION = v3.19.2
+HELM_VERSION = v3.19.0
 
 # FIO Version (for performance testing)
 FIO_VERSION = 3.41
 
 # Kubernetes Development Tool Versions
 CONTROLLER_TOOLS_VERSION = v0.19.0
-KUSTOMIZE_VERSION = v5.8.0
+KUSTOMIZE_VERSION = v5.7.1
 
 ### Overrides ###
 

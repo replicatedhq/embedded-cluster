@@ -20,6 +20,7 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	helmcli "helm.sh/helm/v3/pkg/cli"
+	"k8s.io/client-go/metadata"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kyaml "sigs.k8s.io/yaml"
 )
@@ -32,7 +33,7 @@ type Controller interface {
 	GetAppPreflightStatus(ctx context.Context) (types.Status, error)
 	GetAppPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error)
 	GetAppPreflightTitles(ctx context.Context) ([]string, error)
-	InstallApp(ctx context.Context, ignoreAppPreflights bool) error
+	InstallApp(ctx context.Context, opts InstallAppOptions) error
 	GetAppInstallStatus(ctx context.Context) (types.AppInstall, error)
 	UpgradeApp(ctx context.Context, ignoreAppPreflights bool) error
 	GetAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error)
@@ -52,6 +53,7 @@ type AppController struct {
 	releaseData                *release.ReleaseData
 	hcli                       helm.Client
 	kcli                       client.Client
+	mcli                       metadata.Interface
 	preflightRunner            preflights.PreflightRunnerInterface
 	kubernetesEnvSettings      *helmcli.EnvSettings
 	store                      store.Store
@@ -126,6 +128,12 @@ func WithHelmClient(hcli helm.Client) AppControllerOption {
 func WithKubeClient(kcli client.Client) AppControllerOption {
 	return func(c *AppController) {
 		c.kcli = kcli
+	}
+}
+
+func WithMetadataClient(mcli metadata.Interface) AppControllerOption {
+	return func(c *AppController) {
+		c.mcli = mcli
 	}
 }
 
@@ -262,7 +270,9 @@ func NewAppController(opts ...AppControllerOption) (*AppController, error) {
 			appinstallmanager.WithAirgapBundle(controller.airgapBundle),
 			appinstallmanager.WithAppInstallStore(controller.store.AppInstallStore()),
 			appinstallmanager.WithKubeClient(controller.kcli),
+			appinstallmanager.WithMetadataClient(controller.mcli),
 			appinstallmanager.WithKubernetesEnvSettings(controller.kubernetesEnvSettings),
+			appinstallmanager.WithHelmClient(controller.hcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create app install manager: %w", err)
