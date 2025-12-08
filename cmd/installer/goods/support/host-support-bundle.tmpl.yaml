@@ -398,7 +398,6 @@ spec:
         - -c
         - |
           pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
-
           if command -v pgrep >/dev/null 2>&1; then
             pgrep -afi "$pat"
           else
