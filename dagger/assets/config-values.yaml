@@ -1,0 +1,23 @@
+apiVersion: kots.io/v1beta1
+kind: ConfigValues
+spec:
+  values:
+    text_required:
+      value: "text required values"
+    text_required_with_regex:
+      value: "ethan@replicated.com"
+    password_required:
+      value: "password required value"
+    textarea_required:
+      value: "textarea required value"
+    checkbox_required:
+      value: "1"
+    dropdown_required:
+      value: "option1"
+    radio_required:
+      value: "option1"
+    file_required:
+      value: "ZmlsZSByZXF1aXJlZCB2YWx1ZQo="
+      filename: "file_required.txt"
+    hidden_required:
+      value: "hidden required value"

@@ -1,0 +1,226 @@
+name: V3 E2E
+
+on:
+  pull_request:
+    paths: &paths
+      - .github/workflows/v3-e2e.yaml
+      - api/**
+      - cmd/**
+      - dagger/**
+      - e2e/kots-release-install-v3/**
+      - e2e/licenses/ci-v3.yaml
+      - kinds/**
+      - local-artifact-mirror/**
+      - operator/**
+      - pkg/**
+      - pkg-new/**
+      - scripts/**
+      - utils/**
+      - web/**
+      - common.mk
+      - dagger.json
+      - go.mod
+      - go.sum
+      - Makefile
+      - versions.mk
+
+  push:
+    branches:
+      - main
+    paths: *paths
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  output-vars:
+    name: Output variables
+    runs-on: ubuntu-latest
+    outputs:
+      git_version: ${{ steps.output_vars.outputs.git_version }}
+      k0s_minor_version: ${{ steps.output_vars.outputs.k0s_minor_version }}
+      ec_version: ${{ steps.output_vars.outputs.ec_version }}
+      app_version: ${{ steps.output_vars.outputs.app_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # necessary for getting the last tag
+
+      - name: Get git sha
+        id: git_sha
+        uses: ./.github/actions/git-sha
+
+      - name: Output variables
+        id: output_vars
+        run: |
+          GIT_VERSION=$(git describe --tags --abbrev=4 --match='[0-9]*.[0-9]*.[0-9]*')
+          echo "GIT_VERSION=\"$GIT_VERSION\""
+          echo "git_version=$GIT_VERSION" >> $GITHUB_OUTPUT
+
+          K0S_MINOR_VERSION=$(make print-K0S_MINOR_VERSION)
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "k0s_minor_version=$K0S_MINOR_VERSION" >> $GITHUB_OUTPUT
+
+          EC_VERSION="$(./scripts/print-ec-version.sh "$GIT_VERSION" "$K0S_MINOR_VERSION")-v3"
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
+
+          APP_VERSION="appver-dev-v3-${{ steps.git_sha.outputs.git_sha }}"
+          echo "APP_VERSION=\"$APP_VERSION\""
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+
+  build-release:
+    name: Build release
+    needs:
+      - output-vars
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Cache embedded bins
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/bins
+          key: bins-cache-${{ hashFiles('Makefile', 'versions.mk') }}
+          restore-keys: |
+            bins-cache-
+
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - name: Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ./web/.nvmrc
+
+      - name: Setup oras
+        uses: oras-project/setup-oras@v1
+
+      - name: Setup crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Setup dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
+      - name: Setup replicated cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+          mv replicated /usr/local/bin/replicated
+
+      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+        run: |
+          df -h
+          sudo rm -rf \
+            /usr/share/swift \
+            /usr/share/dotnet \
+            /usr/lib/jvm \
+            /usr/local/share/boost \
+            /usr/local/lib/heroku \
+            /usr/local/julia* \
+            /usr/local/.ghcup \
+            /usr/local/share/powershell \
+            /usr/local/bin/aliyun \
+            /usr/local/bin/azcopy \
+            /usr/local/bin/bicep \
+            /usr/local/bin/cpack \
+            /usr/local/bin/hub \
+            /usr/local/bin/minikube \
+            /usr/local/bin/packer \
+            /usr/local/bin/pulumi* \
+            /usr/local/bin/sam \
+            /usr/local/bin/stack \
+            /usr/local/bin/terraform \
+            /usr/local/bin/oc
+          df -h
+
+      - name: Build release
+        env:
+          K0S_MINOR_VERSION: "${{ needs.output-vars.outputs.k0s_minor_version }}"
+          VERSION: "${{ needs.output-vars.outputs.git_version }}"
+          EC_VERSION: ${{ needs.output-vars.outputs.ec_version }}
+          APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+          APP_CHANNEL: CI-V3
+          APP_CHANNEL_ID: 36LoGcOOLvEPFXQXCUsFub28Abi
+          APP_CHANNEL_SLUG: ci-v3
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          USE_CHAINGUARD: "1"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make e2e-v3-initial-release
+
+  e2e-headless-online:
+    name: E2E headless online
+    needs:
+      - output-vars
+      - build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
+      - name: Run test
+        id: test
+        env:
+          APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+          KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
+          CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
+        run: |
+          # Run test and export results directory
+          dagger call e-2-e-run-headless \
+            --scenario=online \
+            --app-version=$APP_VERSION \
+            --kube-version=$KUBE_VERSION \
+            --license-file ./e2e/licenses/ci-v3.yaml \
+            --cmx-token=env://CMX_REPLICATED_API_TOKEN \
+            --ssh-key=env://CMX_SSH_PRIVATE_KEY \
+            export --path=./e2e-results
+
+          # Read result.json to extract test result
+          if [ -f ./e2e-results/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results/result.json)
+            echo "Test success: $success"
+
+            # Exit with test result
+            if [ "$success" = "true" ]; then
+              exit 0
+            else
+              error=$(jq -r '.Error' ./e2e-results/result.json)
+              echo "::error::E2E test failed: $error"
+              exit 1
+            fi
+          else
+            echo "::error::result.json not found in e2e-results directory"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: ${{ !cancelled() && hashFiles('./e2e-results/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-headless-online
+          path: ./e2e-results/
