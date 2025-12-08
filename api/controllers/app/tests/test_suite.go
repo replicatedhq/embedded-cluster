@@ -517,7 +517,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, expectedCharts, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
+					aim.On("Install", mock.Anything, expectedCharts, mock.AnythingOfType("types.AppConfigValues"), mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded
@@ -542,7 +542,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("types.AppConfigValues"), mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded
@@ -567,7 +567,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(errors.New("install error")),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("types.AppConfigValues"), mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(errors.New("install error")),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateFailed && strings.Contains(status.Description, "install error")
@@ -615,7 +615,7 @@ func (s *AppControllerTestSuite) TestInstallApp() {
 						return status.State == types.StateRunning
 					})).Return(nil),
 
-					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
+					aim.On("Install", mock.Anything, []types.InstallableHelmChart{}, mock.AnythingOfType("types.AppConfigValues"), mock.AnythingOfType("*types.RegistrySettings"), mock.AnythingOfType("string")).Return(nil),
 
 					store.AppInstallMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
 						return status.State == types.StateSucceeded
