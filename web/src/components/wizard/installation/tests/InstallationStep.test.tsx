@@ -668,6 +668,68 @@ describe('InstallationStep', () => {
       expect(screen.queryByTestId('app-installation-phase')).not.toBeInTheDocument();
       expect(screen.queryByTestId('app-installation-container')).not.toBeInTheDocument();
     });
+
+    it('does not auto-advance from the final phase to completion step', async () => {
+      // Configure the final phase (app-installation) to automatically succeed after 100ms
+      phaseMockConfig.appInstallation.autoStateChange = { delay: 100, state: 'Succeeded' };
+
+      renderInstallationStep('linux');
+
+      // Progress through all phases to reach the final one
+      // Linux preflight
+      await waitFor(() => {
+        expect(screen.getByTestId('installation-next-button')).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // Linux installation
+      await waitFor(() => {
+        expect(screen.getByTestId('linux-installation-phase')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // App preflight
+      await waitFor(() => {
+        expect(screen.getByTestId('app-preflight-phase')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('installation-next-button'));
+
+      // App installation (final phase)
+      await waitFor(() => {
+        expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
+      });
+
+      // Clear the mock calls that happened during phase progression
+      // We only care about whether onNext is called after the final phase succeeds
+      mockOnNext.mockClear();
+
+      // Wait for the final phase to auto-succeed
+      await waitFor(() => {
+        expect(screen.getAllByTestId('icon-succeeded').length).toBe(4);
+      });
+
+      // Give time for any potential auto-advance to occur (it should NOT happen)
+      await new Promise(resolve => setTimeout(resolve, 600)); // Wait 600ms (longer than the 500ms auto-click delay)
+
+      // Should still be on the final phase, not advance to completion
+      expect(screen.getByTestId('app-installation-phase')).toBeInTheDocument();
+      expect(screen.getByTestId('app-installation-container')).toHaveClass('block');
+      expect(screen.getByTestId('app-installation-container')).not.toHaveClass('hidden');
+
+      // The onNext callback should NOT have been called automatically after the final phase succeeded
+      expect(mockOnNext).not.toHaveBeenCalled();
+
+      // The next button should still be present and enabled
+      const nextButton = screen.getByTestId('installation-next-button');
+      expect(nextButton).not.toBeDisabled();
+      expect(nextButton).toHaveTextContent('Next: Finish');
+
+      // User must manually click to finish
+      fireEvent.click(nextButton);
+      await waitFor(() => {
+        expect(mockOnNext).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('Back Button Behavior', () => {
