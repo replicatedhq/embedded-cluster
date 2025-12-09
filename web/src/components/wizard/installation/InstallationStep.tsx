@@ -93,8 +93,12 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
   const [nextButtonConfig, setNextButtonConfig] = useState<NextButtonConfig | null>(null);
   const [backButtonConfig, setBackButtonConfig] = useState<BackButtonConfig | null>(null);
   const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const currentPhaseRef = useRef<InstallationPhase>(currentPhase);
   const [ignoreHostPreflights, setIgnoreHostPreflights] = useState(false);
   const [ignoreAppPreflights, setIgnoreAppPreflights] = useState(false);
+
+  // Keep ref in sync with current phase
+  currentPhaseRef.current = currentPhase;
 
   const [phases, setPhases] = useState<Record<InstallationPhase, PhaseStatus>>(() => ({
     'linux-preflight': {
@@ -136,12 +140,22 @@ const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) =
     }));
 
     // Auto-advance to next phase when current phase succeeds
+    // But don't auto-advance on the final phase (user must click "Finish" button)
     if (phase === currentPhase && status === 'Succeeded') {
-      setTimeout(() => {
-        nextButtonRef.current?.click();
-      }, 500);
+      const phaseIndex = phaseOrder.indexOf(phase);
+      const isLastPhase = phaseIndex === phaseOrder.length - 1;
+
+      if (!isLastPhase) {
+        setTimeout(() => {
+          // Check if we're still on the same phase when the timer fires
+          // to prevent old timers from triggering advances on later phases
+          if (currentPhaseRef.current === phase) {
+            nextButtonRef.current?.click();
+          }
+        }, 500);
+      }
     }
-  }, [currentPhase]);
+  }, [currentPhase, phaseOrder]);
 
   const goToNextPhase = () => {
     // Mark current phase as completed
