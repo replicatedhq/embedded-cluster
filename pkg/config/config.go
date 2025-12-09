@@ -67,7 +67,7 @@ func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Network.KubeRouter = nil
 	cfg.Spec.Network.Provider = "calico"
 	if cfg.Spec.Network.Calico == nil {
-		cfg.Spec.Network.Calico = &k0sv1beta1.Calico{}
+		cfg.Spec.Network.Calico = k0sv1beta1.DefaultCalico()
 	}
 	if cfg.Spec.Network.Calico.EnvVars == nil {
 		cfg.Spec.Network.Calico.EnvVars = make(map[string]string)
