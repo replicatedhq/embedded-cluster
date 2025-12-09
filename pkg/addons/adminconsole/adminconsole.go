@@ -73,7 +73,7 @@ func getBackupLabels() map[string]string {
 func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
-		chartName = fmt.Sprintf("oci://proxy.replicated.com/anonymous/%s", AdminConsoleChartRepoOverride)
+		chartName = fmt.Sprintf("oci://proxy.replicated.com/library/%s", AdminConsoleChartRepoOverride)
 	}
 
 	if domains.ProxyRegistryDomain != "" {
