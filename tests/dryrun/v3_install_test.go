@@ -197,9 +197,9 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 
 	// Validate config values secret exists and contains correct values
 	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
-		"text_required": {Value: "text required value"},
+		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required": {ValuePlaintext: "password required value"},
+		"password_required":        {ValuePlaintext: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
@@ -397,9 +397,9 @@ func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFi
 
 	// Validate config values secret exists and contains correct values
 	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
-		"text_required": {Value: "text required value"},
+		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required": {ValuePlaintext: "password required value"},
+		"password_required":        {ValuePlaintext: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
