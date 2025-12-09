@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -325,6 +326,50 @@ func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namesp
 	var secret corev1.Secret
 	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
 	assert.Error(t, err, "secret %s should not exist in namespace %s", name, namespace)
+}
+
+// assertConfigValuesSecret validates that a config values secret exists with the expected values
+func assertConfigValuesSecret(t *testing.T, kcli client.Client, name string, namespace string, expectedValues map[string]kotsv1beta1.ConfigValue) {
+	t.Helper()
+
+	// Get the secret
+	var secret corev1.Secret
+	err := kcli.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &secret)
+	require.NoError(t, err, "config values secret %s should exist in namespace %s", name, namespace)
+
+	// Verify secret type
+	assert.Equal(t, corev1.SecretTypeOpaque, secret.Type, "config values secret should be Opaque type")
+
+	// Verify labels exist
+	assert.Contains(t, secret.Labels, "app.kubernetes.io/name", "secret should have app name label")
+	assert.Contains(t, secret.Labels, "app.kubernetes.io/version", "secret should have version label")
+	assert.Equal(t, "config", secret.Labels["app.kubernetes.io/component"], "secret should have config component label")
+	assert.Equal(t, "embedded-cluster", secret.Labels["app.kubernetes.io/part-of"], "secret should have part-of label")
+	assert.Equal(t, "embedded-cluster-installer", secret.Labels["app.kubernetes.io/managed-by"], "secret should have managed-by label")
+
+	// Get and unmarshal the config values data
+	data, ok := secret.Data["config-values.yaml"]
+	require.True(t, ok, "secret should contain config-values.yaml key")
+	require.NotEmpty(t, data, "config-values.yaml should not be empty")
+
+	// Unmarshal config values
+	var configValues kotsv1beta1.ConfigValues
+	err = yaml.Unmarshal(data, &configValues)
+	require.NoError(t, err, "should be able to unmarshal config values from secret")
+
+	fmt.Println("VALUES", configValues.Spec.Values)
+	// Validate each expected value
+	for key, expectedValue := range expectedValues {
+		actualValue, exists := configValues.Spec.Values[key]
+		require.True(t, exists, "config value %s should exist", key)
+
+		assert.Equal(t, expectedValue.Value, actualValue.Value, "config value %s should match", key)
+		assert.Equal(t, expectedValue.ValuePlaintext, actualValue.ValuePlaintext, "config value plaintext %s should match", key)
+
+		if expectedValue.Filename != "" {
+			assert.Equal(t, expectedValue.Filename, actualValue.Filename, "config value filename %s should match", key)
+		}
+	}
 }
 
 func isHelmReleaseInstalled(hcli *helm.MockClient, releaseName string) (helm.InstallOptions, bool) {
