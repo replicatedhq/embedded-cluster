@@ -11,9 +11,10 @@ spec:
         - name: hostname
           title: Hostname
           type: text
-        - name: pw
+        - name: password_required
           title: Password
           type: password
+          required: true
         - name: text_required
           title: Text Required
           type: text

@@ -6,5 +6,7 @@ spec:
   values:
     text_required:
       value: "text required value"
+    password_required:
+      valuePlaintext: "password required value"
     text_required_with_regex:
       value: "invalid email address"
