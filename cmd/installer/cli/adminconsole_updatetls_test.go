@@ -145,6 +145,7 @@ func Test_updateTLSSecret(t *testing.T) {
 		hostname     string
 		wantErr      string
 		wantHostname string
+		wantCreate   bool
 	}{
 		{
 			name: "update existing secret without hostname",
@@ -176,9 +177,27 @@ func Test_updateTLSSecret(t *testing.T) {
 			wantHostname: "new.example.com",
 		},
 		{
-			name:    "secret not found",
-			secret:  nil,
-			wantErr: "failed to get kotsadm-tls secret",
+			name:       "secret not found creates new secret",
+			secret:     nil,
+			wantCreate: true,
+		},
+		{
+			name:         "secret not found creates new secret with hostname",
+			secret:       nil,
+			hostname:     "new.example.com",
+			wantHostname: "new.example.com",
+			wantCreate:   true,
+		},
+		{
+			name: "secret with nil Data map",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      kotsadmTLSSecretName,
+					Namespace: "test-namespace",
+				},
+				Data: nil,
+			},
+			hostname: "",
 		},
 	}
 
@@ -208,23 +227,30 @@ func Test_updateTLSSecret(t *testing.T) {
 			if tt.wantErr != "" {
 				req.Error(err)
 				req.Contains(err.Error(), tt.wantErr)
-			} else {
-				req.NoError(err)
+				return
+			}
 
-				// Verify the secret was updated
-				updatedSecret := &corev1.Secret{}
-				err = fakeClient.Get(context.Background(), client.ObjectKey{
-					Namespace: "test-namespace",
-					Name:      kotsadmTLSSecretName,
-				}, updatedSecret)
-				req.NoError(err)
+			req.NoError(err)
 
-				assert.Equal(t, newCert, updatedSecret.Data["tls.crt"])
-				assert.Equal(t, newKey, updatedSecret.Data["tls.key"])
+			// Verify the secret exists and has correct data
+			updatedSecret := &corev1.Secret{}
+			err = fakeClient.Get(context.Background(), client.ObjectKey{
+				Namespace: "test-namespace",
+				Name:      kotsadmTLSSecretName,
+			}, updatedSecret)
+			req.NoError(err)
 
-				if tt.wantHostname != "" {
-					assert.Equal(t, tt.wantHostname, updatedSecret.StringData["hostname"])
-				}
+			assert.Equal(t, newCert, updatedSecret.Data["tls.crt"])
+			assert.Equal(t, newKey, updatedSecret.Data["tls.key"])
+
+			// Verify secret type for created secrets
+			if tt.wantCreate {
+				assert.Equal(t, corev1.SecretTypeTLS, updatedSecret.Type)
+			}
+
+			if tt.wantHostname != "" {
+				// For created secrets, hostname is in StringData; for updated secrets, also in StringData
+				assert.Equal(t, tt.wantHostname, updatedSecret.StringData["hostname"])
 			}
 		})
 	}
@@ -237,6 +263,7 @@ func TestAdminConsoleUpdateTLSCmd(t *testing.T) {
 	assert.Equal(t, "update-tls", cmd.Use)
 	assert.Contains(t, cmd.Short, "Update the TLS certificate")
 	assert.Contains(t, cmd.Long, "kotsadm-tls secret")
+	assert.Contains(t, cmd.Long, "creates it if it does not exist")
 	assert.Contains(t, cmd.Long, "watch for changes")
 
 	// Check required flags

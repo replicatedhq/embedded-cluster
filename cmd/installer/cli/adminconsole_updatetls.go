@@ -13,6 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,9 +32,10 @@ func AdminConsoleUpdateTLSCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Update the TLS certificate and key for the %s Admin Console", name),
 		Long: fmt.Sprintf(`Update the TLS certificate and key used by the %s Admin Console.
 
-This command updates the kotsadm-tls secret. Pods using this secret are
-expected to watch for changes and automatically reload the TLS configuration.
-This provides a secure alternative to the acceptAnonymousUploads workflow.
+This command updates the kotsadm-tls secret, or creates it if it does not exist.
+Pods using this secret are expected to watch for changes and automatically reload
+the TLS configuration. This provides a secure alternative to the acceptAnonymousUploads
+workflow.
 
 The --hostname flag is optional and only affects the display URL shown
 to users. It does not affect TLS certificate validation.`, name),
@@ -114,10 +117,34 @@ func updateTLSSecret(ctx context.Context, kcli client.Client, namespace string, 
 		Namespace: namespace,
 		Name:      kotsadmTLSSecretName,
 	}, secret)
-	if err != nil {
-		return fmt.Errorf("failed to get kotsadm-tls secret: %w", err)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("getting kotsadm-tls secret: %w", err)
 	}
 
+	if apierrors.IsNotFound(err) {
+		secret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      kotsadmTLSSecretName,
+				Namespace: namespace,
+			},
+			Type: corev1.SecretTypeTLS,
+			Data: map[string][]byte{
+				"tls.crt": certBytes,
+				"tls.key": keyBytes,
+			},
+		}
+		if hostname != "" {
+			secret.StringData = map[string]string{"hostname": hostname}
+		}
+		if err := kcli.Create(ctx, secret); err != nil {
+			return fmt.Errorf("creating kotsadm-tls secret: %w", err)
+		}
+		return nil
+	}
+
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
 	secret.Data["tls.crt"] = certBytes
 	secret.Data["tls.key"] = keyBytes
 
@@ -129,7 +156,7 @@ func updateTLSSecret(ctx context.Context, kcli client.Client, namespace string, 
 	}
 
 	if err := kcli.Update(ctx, secret); err != nil {
-		return fmt.Errorf("failed to update kotsadm-tls secret: %w", err)
+		return fmt.Errorf("updating kotsadm-tls secret: %w", err)
 	}
 
 	return nil
