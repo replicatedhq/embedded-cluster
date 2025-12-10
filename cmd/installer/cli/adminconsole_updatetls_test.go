@@ -268,9 +268,8 @@ func TestAdminConsoleUpdateTLSCmd(t *testing.T) {
 
 	assert.Equal(t, "update-tls", cmd.Use)
 	assert.Contains(t, cmd.Short, "Update the TLS certificate")
-	assert.Contains(t, cmd.Long, "kotsadm-tls secret")
-	assert.Contains(t, cmd.Long, "creates it if it does not exist")
-	assert.Contains(t, cmd.Long, "watch for changes")
+	assert.Contains(t, cmd.Long, "Update the TLS certificate and key")
+	assert.Contains(t, cmd.Long, "--hostname flag is optional")
 
 	// Check required flags
 	tlsCertFlag := cmd.Flags().Lookup("tls-cert")
