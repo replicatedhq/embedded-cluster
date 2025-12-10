@@ -28,11 +28,6 @@ func AdminConsoleUpdateTLSCmd(ctx context.Context, name string) *cobra.Command {
 		Short: fmt.Sprintf("Update the TLS certificate and key for the %s Admin Console", name),
 		Long: fmt.Sprintf(`Update the TLS certificate and key used by the %s Admin Console.
 
-This command updates the kotsadm-tls secret, or creates it if it does not exist.
-Pods using this secret are expected to watch for changes and automatically reload
-the TLS configuration. This provides a secure alternative to the acceptAnonymousUploads
-workflow.
-
 The --hostname flag is optional and only affects the display URL shown
 to users. It does not affect TLS certificate validation.`, name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
