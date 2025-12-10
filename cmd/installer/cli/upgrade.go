@@ -356,12 +356,6 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.endUserConfig = eucfg
 
-	cv, err := getCurrentConfigValues(appSlug, upgradeConfig.clusterID, upgradeConfig.kotsadmNamespace)
-	if err != nil {
-		return fmt.Errorf("failed to get current config values: %w", err)
-	}
-	upgradeConfig.configValues = cv
-
 	// Check if infrastructure upgrade is required
 	requiresInfraUpgrade, err := checkRequiresInfraUpgrade(ctx)
 	if err != nil {
@@ -427,34 +421,6 @@ func verifyAndPromptUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeC
 	}
 
 	return nil
-}
-
-func getCurrentConfigValues(appSlug string, clusterID string, namespace string) (apitypes.AppConfigValues, error) {
-	// Get the kots config YAML using the kotscli package
-	configYaml, err := kotscli.GetConfigValues(kotscli.GetConfigValuesOptions{
-		AppSlug:               appSlug,
-		Namespace:             namespace,
-		ClusterID:             clusterID,
-		ReplicatedAppEndpoint: replicatedAppURL(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get current config values for app %s: %w", appSlug, err)
-	}
-
-	// Return empty AppConfigValues if no config values were returned by kots
-	// It is valid for an app to have no config values
-	if strings.TrimSpace(configYaml) == "" {
-		return apitypes.AppConfigValues{}, nil
-	}
-
-	// Parse the YAML using helpers
-	kotsConfigValues, err := helpers.ParseConfigValuesFromString(configYaml)
-	if err != nil {
-		return nil, fmt.Errorf("parse config values YAML for app %s: %w", appSlug, err)
-	}
-
-	// Convert to AppConfigValues format
-	return apitypes.ConvertToAppConfigValues(kotsConfigValues), nil
 }
 
 // getClusterID gets the cluster ID from the latest installation in the cluster

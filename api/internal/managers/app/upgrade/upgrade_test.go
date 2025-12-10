@@ -206,6 +206,9 @@ func TestAppUpgradeManager_NewWithOptions(t *testing.T) {
 }
 
 func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
+	// Setup environment variable for V3
+	t.Setenv("ENABLE_V3", "1")
+
 	err := release.SetReleaseDataForTests(map[string][]byte{
 		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
 	})

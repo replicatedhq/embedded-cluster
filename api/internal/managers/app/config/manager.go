@@ -125,9 +125,11 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 		return nil, fmt.Errorf("failed to read existing config values from kube: %w", err)
 	}
 
-	// initialize store with existing config values
-	if err := manager.PatchConfigValues(configValues); err != nil {
-		return nil, fmt.Errorf("failed to initialize config store with existing config values: %w", err)
+	if len(configValues) > 0 {
+		// initialize store with existing config values if any
+		if err := manager.PatchConfigValues(configValues); err != nil {
+			return nil, fmt.Errorf("failed to initialize config store with existing config values: %w", err)
+		}
 	}
 
 	return manager, nil
