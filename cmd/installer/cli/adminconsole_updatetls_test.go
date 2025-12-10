@@ -151,7 +151,7 @@ func Test_updateTLSSecret(t *testing.T) {
 			name: "update existing secret without hostname",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kotsadmTLSSecretName,
+					Name:      "kotsadm-tls",
 					Namespace: "test-namespace",
 				},
 				Data: map[string][]byte{
@@ -165,7 +165,7 @@ func Test_updateTLSSecret(t *testing.T) {
 			name: "update existing secret with hostname",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kotsadmTLSSecretName,
+					Name:      "kotsadm-tls",
 					Namespace: "test-namespace",
 				},
 				Data: map[string][]byte{
@@ -192,7 +192,7 @@ func Test_updateTLSSecret(t *testing.T) {
 			name: "secret with nil Data map",
 			secret: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      kotsadmTLSSecretName,
+					Name:      "kotsadm-tls",
 					Namespace: "test-namespace",
 				},
 				Data: nil,
@@ -236,7 +236,7 @@ func Test_updateTLSSecret(t *testing.T) {
 			updatedSecret := &corev1.Secret{}
 			err = fakeClient.Get(context.Background(), client.ObjectKey{
 				Namespace: "test-namespace",
-				Name:      kotsadmTLSSecretName,
+				Name:      "kotsadm-tls",
 			}, updatedSecret)
 			req.NoError(err)
 

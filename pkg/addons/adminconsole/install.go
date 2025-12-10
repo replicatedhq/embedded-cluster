@@ -221,26 +221,7 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client) 
 		return nil
 	}
 
-	secret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "kotsadm-tls",
-			Namespace:   a.Namespace(),
-			Labels:      GetKotsadmLabels(),
-			Annotations: GetTLSSecretAnnotations(),
-		},
-		Type: "kubernetes.io/tls",
-		Data: map[string][]byte{
-			"tls.crt": a.TLSCertBytes,
-			"tls.key": a.TLSKeyBytes,
-		},
-		StringData: map[string]string{
-			"hostname": a.Hostname,
-		},
-	}
+	secret := NewTLSSecret(a.Namespace(), a.TLSCertBytes, a.TLSKeyBytes, a.Hostname)
 
 	if a.DryRun {
 		b := bytes.NewBuffer(nil)

@@ -20,6 +20,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/validation"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -477,7 +478,7 @@ func readTLSConfig(ctx context.Context, kcli client.Client, namespace string) (a
 	tlsSecret := &corev1.Secret{}
 	err := kcli.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
-		Name:      "kotsadm-tls",
+		Name:      adminconsole.TLSSecretName(),
 	}, tlsSecret)
 	if err != nil {
 		return tlsConfig, fmt.Errorf("read kotsadm-tls secret from cluster: %w", err)

@@ -15,12 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	kotsadmTLSSecretName = "kotsadm-tls"
 )
 
 func AdminConsoleUpdateTLSCmd(ctx context.Context, name string) *cobra.Command {
@@ -116,29 +111,14 @@ func updateTLSSecret(ctx context.Context, kcli client.Client, namespace string, 
 	secret := &corev1.Secret{}
 	err := kcli.Get(ctx, client.ObjectKey{
 		Namespace: namespace,
-		Name:      kotsadmTLSSecretName,
+		Name:      adminconsole.TLSSecretName(),
 	}, secret)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("getting kotsadm-tls secret: %w", err)
 	}
 
 	if apierrors.IsNotFound(err) {
-		secret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        kotsadmTLSSecretName,
-				Namespace:   namespace,
-				Labels:      adminconsole.GetKotsadmLabels(),
-				Annotations: adminconsole.GetTLSSecretAnnotations(),
-			},
-			Type: corev1.SecretTypeTLS,
-			Data: map[string][]byte{
-				"tls.crt": certBytes,
-				"tls.key": keyBytes,
-			},
-		}
-		if hostname != "" {
-			secret.StringData = map[string]string{"hostname": hostname}
-		}
+		secret = adminconsole.NewTLSSecret(namespace, certBytes, keyBytes, hostname)
 		if err := kcli.Create(ctx, secret); err != nil {
 			return fmt.Errorf("creating kotsadm-tls secret: %w", err)
 		}

@@ -7,6 +7,8 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -70,18 +72,39 @@ func getBackupLabels() map[string]string {
 	}
 }
 
-// GetKotsadmLabels returns labels for kotsadm resources including disaster recovery labels.
-func GetKotsadmLabels() map[string]string {
-	labels := getBackupLabels()
-	labels["kots.io/kotsadm"] = "true"
-	return labels
+// TLSSecretName returns the name of the kotsadm TLS secret.
+func TLSSecretName() string {
+	return "kotsadm-tls"
 }
 
-// GetTLSSecretAnnotations returns annotations for the kotsadm-tls secret.
-func GetTLSSecretAnnotations() map[string]string {
-	return map[string]string{
-		"acceptAnonymousUploads": "0",
+// NewTLSSecret creates a new kotsadm-tls secret with the given certificate, key, and hostname.
+func NewTLSSecret(namespace string, certBytes, keyBytes []byte, hostname string) *corev1.Secret {
+	labels := getBackupLabels()
+	labels["kots.io/kotsadm"] = "true"
+
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      TLSSecretName(),
+			Namespace: namespace,
+			Labels:    labels,
+			Annotations: map[string]string{
+				"acceptAnonymousUploads": "0",
+			},
+		},
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"tls.crt": certBytes,
+			"tls.key": keyBytes,
+		},
 	}
+	if hostname != "" {
+		secret.StringData = map[string]string{"hostname": hostname}
+	}
+	return secret
 }
 
 func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
