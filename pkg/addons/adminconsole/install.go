@@ -227,16 +227,10 @@ func (a *AdminConsole) createTLSSecret(ctx context.Context, kcli client.Client) 
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "kotsadm-tls",
-			Namespace: a.Namespace(),
-			Labels: map[string]string{
-				"kots.io/kotsadm":                        "true",
-				"replicated.com/disaster-recovery":       "infra",
-				"replicated.com/disaster-recovery-chart": "admin-console",
-			},
-			Annotations: map[string]string{
-				"acceptAnonymousUploads": "0",
-			},
+			Name:        "kotsadm-tls",
+			Namespace:   a.Namespace(),
+			Labels:      GetKotsadmLabels(),
+			Annotations: GetTLSSecretAnnotations(),
 		},
 		Type: "kubernetes.io/tls",
 		Data: map[string][]byte{

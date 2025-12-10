@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -124,8 +125,10 @@ func updateTLSSecret(ctx context.Context, kcli client.Client, namespace string, 
 	if apierrors.IsNotFound(err) {
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      kotsadmTLSSecretName,
-				Namespace: namespace,
+				Name:        kotsadmTLSSecretName,
+				Namespace:   namespace,
+				Labels:      adminconsole.GetKotsadmLabels(),
+				Annotations: adminconsole.GetTLSSecretAnnotations(),
 			},
 			Type: corev1.SecretTypeTLS,
 			Data: map[string][]byte{

@@ -243,9 +243,15 @@ func Test_updateTLSSecret(t *testing.T) {
 			assert.Equal(t, newCert, updatedSecret.Data["tls.crt"])
 			assert.Equal(t, newKey, updatedSecret.Data["tls.key"])
 
-			// Verify secret type for created secrets
+			// Verify secret type, labels, and annotations for created secrets
 			if tt.wantCreate {
 				assert.Equal(t, corev1.SecretTypeTLS, updatedSecret.Type)
+				// Verify disaster recovery labels are set
+				assert.Equal(t, "true", updatedSecret.Labels["kots.io/kotsadm"])
+				assert.Equal(t, "infra", updatedSecret.Labels["replicated.com/disaster-recovery"])
+				assert.Equal(t, "admin-console", updatedSecret.Labels["replicated.com/disaster-recovery-chart"])
+				// Verify annotations
+				assert.Equal(t, "0", updatedSecret.Annotations["acceptAnonymousUploads"])
 			}
 
 			if tt.wantHostname != "" {

@@ -70,6 +70,20 @@ func getBackupLabels() map[string]string {
 	}
 }
 
+// GetKotsadmLabels returns labels for kotsadm resources including disaster recovery labels.
+func GetKotsadmLabels() map[string]string {
+	labels := getBackupLabels()
+	labels["kots.io/kotsadm"] = "true"
+	return labels
+}
+
+// GetTLSSecretAnnotations returns annotations for the kotsadm-tls secret.
+func GetTLSSecretAnnotations() map[string]string {
+	return map[string]string{
+		"acceptAnonymousUploads": "0",
+	}
+}
+
 func (a *AdminConsole) ChartLocation(domains ecv1beta1.Domains) string {
 	chartName := Metadata.Location
 	if AdminConsoleChartRepoOverride != "" {
