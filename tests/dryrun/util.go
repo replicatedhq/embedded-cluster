@@ -357,7 +357,6 @@ func assertConfigValuesSecret(t *testing.T, kcli client.Client, name string, nam
 	err = yaml.Unmarshal(data, &configValues)
 	require.NoError(t, err, "should be able to unmarshal config values from secret")
 
-	fmt.Println("VALUES", configValues.Spec.Values)
 	// Validate each expected value
 	for key, expectedValue := range expectedValues {
 		actualValue, exists := configValues.Spec.Values[key]
