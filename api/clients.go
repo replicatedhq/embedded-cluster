@@ -15,6 +15,28 @@ func (a *API) initClients() error {
 			return fmt.Errorf("init helm client: %w", err)
 		}
 	}
+	if a.kcli == nil {
+		if err := a.initKubeClient(); err != nil {
+			return fmt.Errorf("init kube client: %w", err)
+		}
+	}
+	return nil
+}
+
+// initKubeClient initializes the Kubernetes client
+func (a *API) initKubeClient() error {
+	// We can only initialize the kube client in upgrade mode as other modes may not have a cluster yet
+	switch a.cfg.Mode {
+	case types.ModeUpgrade:
+		kubeClient, err := clients.NewKubeClient(clients.KubeClientOptions{
+			RESTClientGetter: a.cfg.RuntimeConfig.GetKubernetesEnvSettings().RESTClientGetter(),
+		})
+		if err != nil {
+			return fmt.Errorf("create kube client: %w", err)
+		}
+		a.kcli = kubeClient
+		return nil
+	}
 	return nil
 }
 

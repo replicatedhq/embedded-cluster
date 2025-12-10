@@ -2,12 +2,8 @@ package appupgrademanager
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
-
-	"github.com/replicatedhq/embedded-cluster/api/internal/clients"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
 // logWriter is an io.Writer that captures output and feeds it to the logs
@@ -41,21 +37,4 @@ func (m *appUpgradeManager) log(fields any, format string, v ...any) {
 		logger.Debugf(format, v...)
 	}
 	m.addLogs(format, v...)
-}
-
-func (m *appUpgradeManager) initKubeClient() error {
-	if m.kcli == nil {
-		var restClientGetter genericclioptions.RESTClientGetter
-		if m.kubernetesEnvSettings != nil {
-			restClientGetter = m.kubernetesEnvSettings.RESTClientGetter()
-		}
-
-		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{RESTClientGetter: restClientGetter})
-		if err != nil {
-			return fmt.Errorf("create kube client: %w", err)
-		}
-		m.kcli = kcli
-	}
-
-	return nil
 }
