@@ -26,7 +26,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -329,7 +328,7 @@ func assertSecretNotExists(t *testing.T, kcli client.Client, name string, namesp
 }
 
 // assertConfigValuesSecret validates that a config values secret exists with the expected values
-func assertConfigValuesSecret(t *testing.T, kcli client.Client, name string, namespace string, expectedValues map[string]kotsv1beta1.ConfigValue) {
+func assertConfigValuesSecret(t *testing.T, kcli client.Client, name string, namespace string, expectedValues map[string]apitypes.AppConfigValue) {
 	t.Helper()
 
 	// Get the secret
@@ -353,17 +352,16 @@ func assertConfigValuesSecret(t *testing.T, kcli client.Client, name string, nam
 	require.NotEmpty(t, data, "config-values.yaml should not be empty")
 
 	// Unmarshal config values
-	var configValues kotsv1beta1.ConfigValues
+	var configValues apitypes.AppConfigValues
 	err = yaml.Unmarshal(data, &configValues)
 	require.NoError(t, err, "should be able to unmarshal config values from secret")
 
 	// Validate each expected value
 	for key, expectedValue := range expectedValues {
-		actualValue, exists := configValues.Spec.Values[key]
+		actualValue, exists := configValues[key]
 		require.True(t, exists, "config value %s should exist", key)
 
 		assert.Equal(t, expectedValue.Value, actualValue.Value, "config value %s should match", key)
-		assert.Equal(t, expectedValue.ValuePlaintext, actualValue.ValuePlaintext, "config value plaintext %s should match", key)
 
 		if expectedValue.Filename != "" {
 			assert.Equal(t, expectedValue.Filename, actualValue.Filename, "config value filename %s should match", key)

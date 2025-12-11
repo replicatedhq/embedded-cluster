@@ -9,14 +9,22 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 )
 
 var (
 	ErrAppPreflightChecksFailed = errors.New("app preflight checks failed")
 )
 
+type InstallAppOptions struct {
+	IgnoreAppPreflights bool
+	ProxySpec           *ecv1beta1.ProxySpec
+	RegistrySettings    *types.RegistrySettings
+	HostCABundlePath    string
+}
+
 // InstallApp triggers app installation with proper state transitions and panic handling
-func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool) (finalErr error) {
+func (c *AppController) InstallApp(ctx context.Context, opts InstallAppOptions) (finalErr error) {
 	logger := c.logger.WithField("operation", "install-app")
 
 	lock, err := c.stateMachine.AcquireLock()
@@ -45,7 +53,7 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 		}
 
 		allowIgnoreAppPreflights := true // TODO: implement if we decide to support a ignore-app-preflights CLI flag for V3
-		if !ignoreAppPreflights || !allowIgnoreAppPreflights {
+		if !opts.IgnoreAppPreflights || !allowIgnoreAppPreflights {
 			return types.NewBadRequestError(ErrAppPreflightChecksFailed)
 		}
 
@@ -60,9 +68,15 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 	}
 
 	// Get config values for app installation
-	configValues, err := c.appConfigManager.GetKotsadmConfigValues()
+	appConfigValues, err := c.GetAppConfigValues(ctx)
 	if err != nil {
-		return fmt.Errorf("get kotsadm config values for app install: %w", err)
+		return fmt.Errorf("get app config values for app install: %w", err)
+	}
+
+	// Extract installable Helm charts from release manager
+	installableCharts, err := c.appReleaseManager.ExtractInstallableHelmCharts(ctx, appConfigValues, opts.ProxySpec, opts.RegistrySettings)
+	if err != nil {
+		return fmt.Errorf("extract installable helm charts: %w", err)
 	}
 
 	err = c.stateMachine.Transition(lock, states.StateAppInstalling, nil)
@@ -97,9 +111,8 @@ func (c *AppController) InstallApp(ctx context.Context, ignoreAppPreflights bool
 			return fmt.Errorf("set status to running: %w", err)
 		}
 
-		// Install the app
-		err := c.appInstallManager.Install(ctx, configValues)
-		if err != nil {
+		// Install the app with installable charts
+		if err := c.appInstallManager.Install(ctx, installableCharts, appConfigValues, opts.RegistrySettings, opts.HostCABundlePath); err != nil {
 			return fmt.Errorf("install app: %w", err)
 		}
 

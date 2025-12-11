@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -195,11 +194,14 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 	// Validate that registry-creds secret is NOT created for online installations
 	assertSecretNotExists(t, kcli, "registry-creds", adminConsoleNamespace)
 
+	// Validate that image pull secret IS created for online installations
+	assertSecretExists(t, kcli, "fake-app-slug-registry", adminConsoleNamespace)
+
 	// Validate config values secret exists and contains correct values
-	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
+	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]apitypes.AppConfigValue{
 		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required":        {ValuePlaintext: "password required value"},
+		"password_required":        {Value: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
@@ -235,13 +237,11 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 		},
 	})
 
-	// Validate that KOTS CLI install command is present
-	assertCommands(t, dr.Commands,
-		[]any{
-			regexp.MustCompile(`kubectl-kots.* install fake-app-slug/fake-channel-slug .*`),
-		},
-		false,
-	)
+	// Validate that app charts are installed via Helm
+	_, found = isHelmReleaseInstalled(hcli, "nginx-app")
+	require.True(t, found, "nginx-app helm release should be installed")
+	_, found = isHelmReleaseInstalled(hcli, "redis-app")
+	require.True(t, found, "redis-app helm release should be installed")
 }
 
 func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
@@ -266,7 +266,7 @@ func TestV3InstallHeadless_HappyPathAirgap(t *testing.T) {
 
 	require.NoError(t, err, "headless installation should succeed")
 
-	validateHappyPathAirgap(t, hcli, airgapBundleFile)
+	validateHappyPathAirgap(t, hcli)
 
 	if !t.Failed() {
 		t.Logf("V3 headless airgap installation test passed")
@@ -306,14 +306,14 @@ func TestV3Install_HappyPathAirgap(t *testing.T) {
 		ignoreAppPreflights:  false,
 	})
 
-	validateHappyPathAirgap(t, hcli, airgapBundleFile)
+	validateHappyPathAirgap(t, hcli)
 
 	if !t.Failed() {
 		t.Logf("V3 airgap installation test passed")
 	}
 }
 
-func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFile string) {
+func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient) {
 	t.Helper()
 
 	adminConsoleNamespace := "fake-app-slug"
@@ -395,28 +395,25 @@ func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient, airgapBundleFi
 	// Validate that registry-creds secret IS created for airgap installations
 	assertSecretExists(t, kcli, "registry-creds", adminConsoleNamespace)
 
+	// Validate that image pull secret IS created for airgap installations
+	assertSecretExists(t, kcli, "fake-app-slug-registry", adminConsoleNamespace)
+
+	// Validate that app charts are installed via Helm for airgap installations
+	_, found = isHelmReleaseInstalled(hcli, "nginx-app")
+	require.True(t, found, "nginx-app helm release should be installed")
+	_, found = isHelmReleaseInstalled(hcli, "redis-app")
+	require.True(t, found, "redis-app helm release should be installed")
+
 	// Validate config values secret exists and contains correct values
-	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
+	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]apitypes.AppConfigValue{
 		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required":        {ValuePlaintext: "password required value"},
+		"password_required":        {Value: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
 		},
 	})
-
-	// Validate that KOTS CLI install command includes --airgap-bundle flag for airgap installations
-	// The --airgap-bundle flag flows through: Installer → Install Controller → App Install Manager
-	// The App Install Manager uses it to set kotscli.InstallOptions.AirgapBundle (install.go:68)
-	// This ensures the KOTS installer receives the airgap bundle path
-	assertCommands(t, dr.Commands,
-		[]any{
-			// KOTS install command should contain --airgap-bundle with the correct path
-			regexp.MustCompile(fmt.Sprintf(`kubectl-kots.* install fake-app-slug/fake-channel-slug .* --airgap-bundle %s`, regexp.QuoteMeta(airgapBundleFile))),
-		},
-		false,
-	)
 }
 
 func TestV3InstallHeadless_Metrics(t *testing.T) {

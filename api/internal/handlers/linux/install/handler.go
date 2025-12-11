@@ -483,7 +483,19 @@ func (h *Handler) PostInstallApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.controller.InstallApp(r.Context(), req.IgnoreAppPreflights)
+	registrySettings, err := h.controller.CalculateRegistrySettings(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to calculate registry settings")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	err = h.controller.InstallApp(r.Context(), appcontroller.InstallAppOptions{
+		IgnoreAppPreflights: req.IgnoreAppPreflights,
+		ProxySpec:           h.cfg.RuntimeConfig.ProxySpec(),
+		RegistrySettings:    registrySettings,
+		HostCABundlePath:    h.cfg.RuntimeConfig.HostCABundlePath(),
+	})
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to install app")
 		utils.JSONError(w, r, err, h.logger)
