@@ -242,6 +242,12 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 		return registrySettings, nil
 	}
 
+	// Get app slug for secret name
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appSlug := m.releaseData.ChannelRelease.AppSlug
+
 	// Use runtime config as the authoritative source for service CIDR
 	serviceCIDR := rc.ServiceCIDR()
 
@@ -252,12 +258,6 @@ func (m *installationManager) CalculateRegistrySettings(ctx context.Context, rc 
 
 	// Construct registry host with port
 	registryHost := fmt.Sprintf("%s:5000", registryIP)
-
-	// Get app slug for secret name
-	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
-		return nil, fmt.Errorf("release data with app slug is required for registry settings")
-	}
-	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
 	appNamespace := appSlug // registry namespace is the same as the app slug in linux target
@@ -295,6 +295,12 @@ func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtim
 		}
 		return registrySettings, nil
 	}
+
+	// Get app slug for secret name
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
+		return nil, fmt.Errorf("release data with app slug is required for registry settings")
+	}
+	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	if m.kcli == nil {
 		kcli, err := clients.NewKubeClient(clients.KubeClientOptions{KubeConfigPath: rc.PathToKubeConfig()})
@@ -356,12 +362,6 @@ func (m *installationManager) GetRegistrySettings(ctx context.Context, rc runtim
 	if registryHost == "" {
 		return nil, fmt.Errorf("embedded-cluster username not found in registry-creds secret")
 	}
-
-	// Get app namespace from release data
-	if m.releaseData == nil || m.releaseData.ChannelRelease == nil || m.releaseData.ChannelRelease.AppSlug == "" {
-		return nil, fmt.Errorf("release data with app slug is required for registry settings")
-	}
-	appSlug := m.releaseData.ChannelRelease.AppSlug
 
 	// Construct full registry address with namespace
 	appNamespace := appSlug // registry namespace is the same as the app slug in linux target

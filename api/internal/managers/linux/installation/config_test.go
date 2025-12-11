@@ -17,6 +17,10 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -609,44 +613,45 @@ func TestConfigureHost(t *testing.T) {
 	}
 }
 
+// Helper to create a test license
+func createTestLicense(licenseID, appSlug string) []byte {
+	license := kotsv1beta1.License{
+		Spec: kotsv1beta1.LicenseSpec{
+			LicenseID: licenseID,
+			AppSlug:   appSlug,
+		},
+	}
+	licenseBytes, _ := kyaml.Marshal(license)
+	return licenseBytes
+}
+
+// Helper to create test release data
+func createTestReleaseData(appSlug string, domains *ecv1beta1.Domains) *release.ReleaseData {
+	releaseData := &release.ReleaseData{
+		ChannelRelease: &release.ChannelRelease{
+			AppSlug: appSlug,
+		},
+	}
+	if domains != nil {
+		releaseData.EmbeddedClusterConfig = &ecv1beta1.Config{
+			Spec: ecv1beta1.ConfigSpec{
+				Domains: *domains,
+			},
+		}
+	}
+	return releaseData
+}
+
+// Helper to create runtime config
+func createTestRuntimeConfig() runtimeconfig.RuntimeConfig {
+	return runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
+		Network: ecv1beta1.NetworkSpec{
+			ServiceCIDR: "10.96.0.0/12",
+		},
+	})
+}
+
 func TestCalculateRegistrySettings(t *testing.T) {
-	// Helper to create a test license
-	createTestLicense := func(licenseID, appSlug string) []byte {
-		license := kotsv1beta1.License{
-			Spec: kotsv1beta1.LicenseSpec{
-				LicenseID: licenseID,
-				AppSlug:   appSlug,
-			},
-		}
-		licenseBytes, _ := kyaml.Marshal(license)
-		return licenseBytes
-	}
-
-	// Helper to create test release data
-	createTestReleaseData := func(appSlug string, domains *ecv1beta1.Domains) *release.ReleaseData {
-		releaseData := &release.ReleaseData{
-			ChannelRelease: &release.ChannelRelease{
-				AppSlug: appSlug,
-			},
-		}
-		if domains != nil {
-			releaseData.EmbeddedClusterConfig = &ecv1beta1.Config{
-				Spec: ecv1beta1.ConfigSpec{
-					Domains: *domains,
-				},
-			}
-		}
-		return releaseData
-	}
-
-	// Helper to create runtime config
-	createTestRuntimeConfig := func() runtimeconfig.RuntimeConfig {
-		return runtimeconfig.New(&ecv1beta1.RuntimeConfigSpec{
-			Network: ecv1beta1.NetworkSpec{
-				ServiceCIDR: "10.96.0.0/12",
-			},
-		})
-	}
 
 	tests := []struct {
 		name           string
@@ -770,6 +775,228 @@ func TestCalculateRegistrySettings(t *testing.T) {
 			)
 
 			result, err := manager.CalculateRegistrySettings(context.Background(), rc)
+
+			if tt.expectedError != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResult, result)
+			}
+		})
+	}
+}
+
+func TestGetRegistrySettings(t *testing.T) {
+	tests := []struct {
+		name              string
+		license           []byte
+		releaseData       *release.ReleaseData
+		airgapBundle      string
+		setupCluster      func() client.Client
+		expectedResult    *types.RegistrySettings
+		expectedError     string
+		skipEnableV3Unset bool
+	}{
+		{
+			name:         "online mode with default domains",
+			license:      createTestLicense("test-license-123", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "", // Online mode
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:     false,
+				ImagePullSecretName:  "test-app-registry",
+				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(`{"auths":{"proxy.replicated.com":{"username": "LICENSE_ID", "password": "test-license-123"},"registry.replicated.com":{"username": "LICENSE_ID", "password": "test-license-123"}}}`)),
+			},
+		},
+		{
+			name:    "online mode with custom domains",
+			license: createTestLicense("custom-license-456", "custom-app"),
+			releaseData: createTestReleaseData("custom-app", &ecv1beta1.Domains{
+				ProxyRegistryDomain:      "custom-proxy.example.com",
+				ReplicatedRegistryDomain: "custom-registry.example.com",
+			}),
+			airgapBundle: "", // Online mode
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:     false,
+				ImagePullSecretName:  "custom-app-registry",
+				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(`{"auths":{"custom-proxy.example.com":{"username": "LICENSE_ID", "password": "custom-license-456"},"custom-registry.example.com":{"username": "LICENSE_ID", "password": "custom-license-456"}}}`)),
+			},
+		},
+		{
+			name:         "airgap mode with valid registry-creds secret",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				// Create a fake kubernetes client with the registry-creds secret
+				authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+				dockerConfigJSON := fmt.Sprintf(`{"auths":{"10.96.0.11:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
+					registry.GetRegistryPassword(), authString)
+
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry-creds",
+						Namespace: "kotsadm",
+					},
+					Type: corev1.SecretTypeDockerConfigJson,
+					Data: map[string][]byte{
+						".dockerconfigjson": []byte(dockerConfigJSON),
+					},
+				}
+
+				return fake.NewClientBuilder().WithObjects(secret).Build()
+			},
+			expectedResult: &types.RegistrySettings{
+				HasLocalRegistry:       true,
+				LocalRegistryHost:      "10.96.0.11:5000",
+				LocalRegistryAddress:   "10.96.0.11:5000/test-app",
+				LocalRegistryNamespace: "test-app",
+				LocalRegistryUsername:  "embedded-cluster",
+				LocalRegistryPassword:  registry.GetRegistryPassword(),
+				ImagePullSecretName:    "test-app-registry",
+				ImagePullSecretValue: func() string {
+					authString := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("embedded-cluster:%s", registry.GetRegistryPassword())))
+					dockerConfigJSON := fmt.Sprintf(`{"auths":{"10.96.0.11:5000":{"username": "embedded-cluster", "password": "%s", "auth": "%s"}}}`,
+						registry.GetRegistryPassword(), authString)
+					return base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON))
+				}(),
+			},
+		},
+		{
+			name:         "airgap mode with missing registry-creds secret",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				return fake.NewClientBuilder().Build()
+			},
+			expectedError: "get registry-creds secret:",
+		},
+		{
+			name:         "airgap mode with invalid secret type",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry-creds",
+						Namespace: "kotsadm",
+					},
+					Type: corev1.SecretTypeOpaque, // Wrong type
+					Data: map[string][]byte{
+						".dockerconfigjson": []byte(`{}`),
+					},
+				}
+				return fake.NewClientBuilder().WithObjects(secret).Build()
+			},
+			expectedError: "registry-creds secret is not of type kubernetes.io/dockerconfigjson",
+		},
+		{
+			name:         "airgap mode with missing dockerconfigjson",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry-creds",
+						Namespace: "kotsadm",
+					},
+					Type: corev1.SecretTypeDockerConfigJson,
+					Data: map[string][]byte{}, // Missing .dockerconfigjson
+				}
+				return fake.NewClientBuilder().WithObjects(secret).Build()
+			},
+			expectedError: "registry-creds secret missing .dockerconfigjson data",
+		},
+		{
+			name:         "airgap mode with invalid json in dockerconfigjson",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry-creds",
+						Namespace: "kotsadm",
+					},
+					Type: corev1.SecretTypeDockerConfigJson,
+					Data: map[string][]byte{
+						".dockerconfigjson": []byte("invalid json"),
+					},
+				}
+				return fake.NewClientBuilder().WithObjects(secret).Build()
+			},
+			expectedError: "parse dockerconfigjson:",
+		},
+		{
+			name:         "airgap mode with missing embedded-cluster username",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  createTestReleaseData("test-app", nil),
+			airgapBundle: "test-bundle.tar",
+			setupCluster: func() client.Client {
+				dockerConfigJSON := `{"auths":{"registry.example.com":{"username": "other-user", "password": "other-pass"}}}`
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "registry-creds",
+						Namespace: "kotsadm",
+					},
+					Type: corev1.SecretTypeDockerConfigJson,
+					Data: map[string][]byte{
+						".dockerconfigjson": []byte(dockerConfigJSON),
+					},
+				}
+				return fake.NewClientBuilder().WithObjects(secret).Build()
+			},
+			expectedError: "embedded-cluster username not found in registry-creds secret",
+		},
+		{
+			name:         "airgap mode missing release data",
+			license:      createTestLicense("test-license", "test-app"),
+			releaseData:  nil,
+			airgapBundle: "test-bundle.tar",
+			// No need to setup cluster - validation happens before cluster access
+			expectedError: "release data with app slug is required for registry settings",
+		},
+		{
+			name:    "airgap mode missing app slug",
+			license: createTestLicense("test-license", "test-app"),
+			releaseData: &release.ReleaseData{
+				ChannelRelease: &release.ChannelRelease{
+					AppSlug: "", // Empty app slug
+				},
+			},
+			airgapBundle: "test-bundle.tar",
+			// No need to setup cluster - validation happens before cluster access
+			expectedError: "release data with app slug is required for registry settings",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Ensure ENABLE_V3 is not set so KotsadmNamespace returns "kotsadm"
+			if !tt.skipEnableV3Unset {
+				t.Setenv("ENABLE_V3", "")
+			}
+
+			rc := createTestRuntimeConfig()
+
+			var kcli client.Client
+			if tt.setupCluster != nil {
+				kcli = tt.setupCluster()
+			}
+
+			manager := NewInstallationManager(
+				WithLicense(tt.license),
+				WithReleaseData(tt.releaseData),
+				WithAirgapBundle(tt.airgapBundle),
+				WithKubeClient(kcli),
+			)
+
+			result, err := manager.GetRegistrySettings(context.Background(), rc)
 
 			if tt.expectedError != "" {
 				assert.Error(t, err)
