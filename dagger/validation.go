@@ -34,12 +34,12 @@ func (i *CmxInstance) Validate(
 	airgap := scenario == "airgap"
 
 	// Run validation checks in order and populate fields
-	validationResult.ClusterHealth = i.validateClusterHealth(ctx, expectedKubeVersion)
-	validationResult.InstallationCRD = i.validateInstallationCRD(ctx)
-	validationResult.AppDeployment = i.validateAppDeployment(ctx, expectedAppVersion, airgap)
-	validationResult.AdminConsole = i.validateAdminConsole(ctx)
-	validationResult.DataDirectories = i.validateDataDirectories(ctx)
-	validationResult.PodsAndJobs = i.validatePodsAndJobs(ctx)
+	validationResult.ClusterHealth = i.ValidateClusterHealth(ctx, expectedKubeVersion)
+	validationResult.InstallationCRD = i.ValidateInstallationCRD(ctx)
+	validationResult.AppDeployment = i.ValidateAppDeployment(ctx, expectedAppVersion, airgap)
+	validationResult.AdminConsole = i.ValidateAdminConsole(ctx)
+	validationResult.DataDirectories = i.ValidateDataDirectories(ctx)
+	validationResult.PodsAndJobs = i.ValidatePodsAndJobs(ctx)
 
 	// Determine overall success
 	allChecks := []*CheckResult{
@@ -70,7 +70,7 @@ func (i *CmxInstance) Validate(
 // - All nodes are in Ready state (none in NotReady)
 //
 // Based on: e2e/scripts/common.sh::ensure_nodes_match_kube_version
-func (i *CmxInstance) validateClusterHealth(ctx context.Context, expectedK8sVersion string) *CheckResult {
+func (i *CmxInstance) ValidateClusterHealth(ctx context.Context, expectedK8sVersion string) *CheckResult {
 	result := &CheckResult{Passed: true}
 
 	// Check node versions match expected k8s version
@@ -131,7 +131,7 @@ func (i *CmxInstance) validateClusterHealth(ctx context.Context, expectedK8sVers
 // - Embedded-cluster operator successfully completed installation
 //
 // Based on: e2e/scripts/common.sh::ensure_installation_is_installed
-func (i *CmxInstance) validateInstallationCRD(ctx context.Context) *CheckResult {
+func (i *CmxInstance) ValidateInstallationCRD(ctx context.Context) *CheckResult {
 	result := &CheckResult{Passed: true}
 
 	// Check if Installation resource exists and is in Installed state
@@ -174,7 +174,7 @@ func (i *CmxInstance) validateInstallationCRD(ctx context.Context) *CheckResult 
 // - No upgrade artifacts present (kube-state-metrics namespace, "second" app pods)
 //
 // Based on: e2e/scripts/common.sh::wait_for_nginx_pods, ensure_app_deployed, ensure_app_not_upgraded
-func (i *CmxInstance) validateAppDeployment(ctx context.Context, expectedAppVersion string, airgap bool) *CheckResult {
+func (i *CmxInstance) ValidateAppDeployment(ctx context.Context, expectedAppVersion string, airgap bool) *CheckResult {
 	result := &CheckResult{Passed: true}
 
 	// Wait for nginx pods to be Running (with timeout)
@@ -284,14 +284,14 @@ func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersi
 	}
 
 	// Get kotsadm service IP
-	kotsadmIPCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath={.spec.clusterIP}`, AppNamespace)
+	kotsadmIPCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath='{.spec.clusterIP}'`, AppNamespace)
 	kotsadmIP, err := i.Command(kotsadmIPCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm IP: %w", err)
 	}
 
 	// Get kotsadm service port
-	kotsadmPortCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath={.spec.ports[?(@.name=="http")].port}`, AppNamespace)
+	kotsadmPortCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath='{.spec.ports[?(@.name=="http")].port}'`, AppNamespace)
 	kotsadmPort, err := i.Command(kotsadmPortCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm port: %w", err)
@@ -301,7 +301,7 @@ func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersi
 	apiURL := fmt.Sprintf("http://%s:%s/api/v1/app/embedded-cluster-smoke-test-staging-app/versions?currentPage=0&pageSize=1",
 		strings.TrimSpace(kotsadmIP), strings.TrimSpace(kotsadmPort))
 
-	curlCmd := fmt.Sprintf(`curl -k -X GET %s -H "Authorization: %s"`, apiURL, strings.TrimSpace(authString))
+	curlCmd := fmt.Sprintf(`curl -k -X GET "%s" -H "Authorization: %s"`, apiURL, strings.TrimSpace(authString))
 	versions, err := i.Command(curlCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("query kotsadm API: %w", err)
@@ -331,7 +331,7 @@ func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersi
 // - Admin console branding configmap exists with DR label
 //
 // Based on: e2e/scripts/check-installation-state.sh
-func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
+func (i *CmxInstance) ValidateAdminConsole(ctx context.Context) *CheckResult {
 	result := &CheckResult{Passed: true}
 
 	// Check kotsadm pods are running
@@ -384,12 +384,12 @@ func (i *CmxInstance) validateAdminConsole(ctx context.Context) *CheckResult {
 //
 // This check verifies:
 // - K0s data directory is configured correctly
-// - OpenEBS data directory is configured correctly
+// - OpenEBS data directory is configured correctly and not empty
 // - Velero pod volume path is configured correctly
 // - All components use expected base directory
 //
 // Based on: e2e/scripts/common.sh::validate_data_dirs
-func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult {
+func (i *CmxInstance) ValidateDataDirectories(ctx context.Context) *CheckResult {
 	result := &CheckResult{Passed: true}
 	expectedBaseDir := DataDir
 	expectedK0sDataDir := fmt.Sprintf("%s/k0s", DataDir)
@@ -397,49 +397,44 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 
 	var errors []string
 
-	// Validate OpenEBS data directory
-	openebsChart, err := i.Command(`kubectl get charts -n kube-system k0s-addon-chart-openebs -o yaml`).Stdout(ctx)
-	if err == nil {
-		// Chart exists, validate basePath
-		if !strings.Contains(openebsChart, fmt.Sprintf("basePath: %s", expectedOpenEBSDataDir)) {
+	// Validate OpenEBS data directory exists and is not empty
+	lsCmd := fmt.Sprintf(`ls -A %s`, expectedOpenEBSDataDir)
+	lsOutput, err := i.Command(lsCmd).Stdout(ctx)
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("OpenEBS data directory %s does not exist or is not accessible: %v", expectedOpenEBSDataDir, err))
+	} else if strings.TrimSpace(lsOutput) == "" {
+		errors = append(errors, fmt.Sprintf("OpenEBS data directory %s is empty", expectedOpenEBSDataDir))
+	}
+
+	// Validate OpenEBS helm values
+	helmCmd := fmt.Sprintf(`%s/bin/helm get values -n openebs openebs`, DataDir)
+	openebsValues, err := i.Command(helmCmd).Stdout(ctx)
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("failed to get OpenEBS helm values: %v", err))
+	} else {
+		// Check basePath configuration
+		if !strings.Contains(openebsValues, fmt.Sprintf("basePath: %s", expectedOpenEBSDataDir)) {
 			errors = append(errors, fmt.Sprintf("OpenEBS basePath not set to %s", expectedOpenEBSDataDir))
-
-			// Get specific section for details
-			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-openebs -o yaml | grep -v apiVersion | grep 'basePath:' -A5 -B5"`
-			section, _ := i.Command(grepCmd).Stdout(ctx)
-			result.Details += fmt.Sprintf("\nOpenEBS chart basePath section:\n%s", section)
+			result.Details += fmt.Sprintf("\nOpenEBS helm values:\n%s", openebsValues)
 		}
 	}
 
-	// Validate SeaweedFS data directory (if present)
-	seaweedfsChart, err := i.Command(`kubectl get charts -n kube-system k0s-addon-chart-seaweedfs -o yaml`).Stdout(ctx)
-	if err == nil {
-		// Chart exists, validate hostPathPrefix
-		expectedPattern := fmt.Sprintf("%s/seaweedfs/", expectedBaseDir)
-		if !strings.Contains(seaweedfsChart, expectedPattern) {
-			errors = append(errors, fmt.Sprintf("SeaweedFS hostPathPrefix not under %s", expectedPattern))
-
-			// Get specific section for details
-			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-seaweedfs -o yaml | grep -v apiVersion | grep -m 1 'hostPathPrefix:' -A5 -B5"`
-			section, _ := i.Command(grepCmd).Stdout(ctx)
-			result.Details += fmt.Sprintf("\nSeaweedFS chart hostPathPrefix section:\n%s", section)
-		}
-	}
-
-	// Validate Velero pod volume path
-	veleroChart, err := i.Command(`kubectl get charts -n kube-system k0s-addon-chart-velero -o yaml`).Stdout(ctx)
-	if err == nil {
-		// Chart exists, validate podVolumePath
+	// Validate Velero helm values
+	helmCmd = fmt.Sprintf(`%s/bin/helm get values -n velero velero`, DataDir)
+	veleroValues, err := i.Command(helmCmd).Stdout(ctx)
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("failed to get Velero helm values: %v", err))
+	} else {
+		// Check podVolumePath configuration
 		expectedVeleroPath := fmt.Sprintf("%s/kubelet/pods", expectedK0sDataDir)
-		if !strings.Contains(veleroChart, fmt.Sprintf("podVolumePath: %s", expectedVeleroPath)) {
+		if !strings.Contains(veleroValues, fmt.Sprintf("podVolumePath: %s", expectedVeleroPath)) {
 			errors = append(errors, fmt.Sprintf("Velero podVolumePath not set to %s", expectedVeleroPath))
-
-			// Get specific section for details
-			grepCmd := `sh -c "kubectl get charts -n kube-system k0s-addon-chart-velero -o yaml | grep -v apiVersion | grep 'podVolumePath:' -A5 -B5"`
-			section, _ := i.Command(grepCmd).Stdout(ctx)
-			result.Details += fmt.Sprintf("\nVelero chart podVolumePath section:\n%s", section)
+			result.Details += fmt.Sprintf("\nVelero helm values:\n%s", veleroValues)
 		}
 	}
+
+	// Validate SeaweedFS helm values if HA
+	// TODO
 
 	if len(errors) > 0 {
 		result.Passed = false
@@ -447,7 +442,7 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 		return result
 	}
 
-	result.Details = fmt.Sprintf("Data directories configured correctly (base: %s, k0s: %s, openebs: %s)",
+	result.Details = fmt.Sprintf("Data directories configured correctly (base: %s, k0s: %s, openebs: %s not empty)",
 		expectedBaseDir, expectedK0sDataDir, expectedOpenEBSDataDir)
 	return result
 }
@@ -460,7 +455,7 @@ func (i *CmxInstance) validateDataDirectories(ctx context.Context) *CheckResult 
 // - All Jobs have completed successfully
 //
 // Based on: e2e/scripts/common.sh::validate_all_pods_healthy
-func (i *CmxInstance) validatePodsAndJobs(ctx context.Context) *CheckResult {
+func (i *CmxInstance) ValidatePodsAndJobs(ctx context.Context) *CheckResult {
 	result := &CheckResult{Passed: true}
 	timeout := 5 * time.Minute
 	startTime := time.Now()

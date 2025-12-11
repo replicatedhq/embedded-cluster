@@ -98,6 +98,7 @@ func Install(opts InstallOptions) error {
 		LogOnSuccess: true,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+			"POD_NAMESPACE":       opts.Namespace, // This is required for kots to find the registry-creds secret
 		},
 	}
 	if opts.Stdout != nil {
