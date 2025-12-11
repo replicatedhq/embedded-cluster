@@ -33,10 +33,15 @@ var airgapStateTransitions = map[statemachine.State][]statemachine.State{
 	states.StateAirgapProcessingFailed: {},
 }
 
-// Infrastructure-specific state transitions
+// Infrastructure-specific state transitions (includes host preflights that run before infra upgrade)
 var infraStateTransitions = map[statemachine.State][]statemachine.State{
-	states.StateInfrastructureUpgrading: {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
-	states.StateInfrastructureUpgraded:  {states.StateAppPreflightsRunning},
+	states.StateHostPreflightsRunning:          {states.StateHostPreflightsSucceeded, states.StateHostPreflightsFailed, states.StateHostPreflightsExecutionFailed},
+	states.StateHostPreflightsExecutionFailed:  {states.StateHostPreflightsRunning},
+	states.StateHostPreflightsSucceeded:        {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
+	states.StateHostPreflightsFailed:           {states.StateHostPreflightsRunning, states.StateHostPreflightsFailedBypassed},
+	states.StateHostPreflightsFailedBypassed:   {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
+	states.StateInfrastructureUpgrading:        {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
+	states.StateInfrastructureUpgraded:         {states.StateAppPreflightsRunning},
 	// final states
 	states.StateInfrastructureUpgradeFailed: {},
 }
@@ -47,6 +52,11 @@ func buildStateTransitions(requiresInfraUpgrade bool, isAirgap bool) map[statema
 
 	// Copy base transitions
 	maps.Copy(transitions, baseStateTransitions)
+
+	// Add infrastructure-specific transitions if needed (includes host preflights)
+	if requiresInfraUpgrade {
+		maps.Copy(transitions, infraStateTransitions)
+	}
 
 	// Add airgap-specific transitions if needed
 	if isAirgap {
@@ -60,7 +70,7 @@ func buildStateTransitions(requiresInfraUpgrade bool, isAirgap bool) map[statema
 
 		// Add next state from AirgapProcessed based on infra requirement
 		if requiresInfraUpgrade {
-			transitions[states.StateAirgapProcessed] = []statemachine.State{states.StateInfrastructureUpgrading}
+			transitions[states.StateAirgapProcessed] = []statemachine.State{states.StateHostPreflightsRunning}
 		} else {
 			transitions[states.StateAirgapProcessed] = []statemachine.State{states.StateAppPreflightsRunning}
 		}
@@ -69,7 +79,7 @@ func buildStateTransitions(requiresInfraUpgrade bool, isAirgap bool) map[statema
 		if requiresInfraUpgrade {
 			transitions[states.StateApplicationConfigured] = append(
 				transitions[states.StateApplicationConfigured],
-				states.StateInfrastructureUpgrading,
+				states.StateHostPreflightsRunning,
 			)
 		} else {
 			transitions[states.StateApplicationConfigured] = append(
@@ -77,11 +87,6 @@ func buildStateTransitions(requiresInfraUpgrade bool, isAirgap bool) map[statema
 				states.StateAppPreflightsRunning,
 			)
 		}
-	}
-
-	// Add infrastructure-specific transitions if needed
-	if requiresInfraUpgrade {
-		maps.Copy(transitions, infraStateTransitions)
 	}
 
 	return transitions

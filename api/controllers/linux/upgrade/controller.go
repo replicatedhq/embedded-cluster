@@ -9,6 +9,7 @@ import (
 	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
@@ -45,6 +46,7 @@ type UpgradeController struct {
 	installationManager  installation.InstallationManager
 	infraManager         infra.InfraManager
 	airgapManager        airgapmanager.AirgapManager
+	hostPreflightManager preflight.HostPreflightManager
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
@@ -175,6 +177,12 @@ func WithAirgapManager(airgapManager airgapmanager.AirgapManager) UpgradeControl
 	}
 }
 
+func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManager) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.hostPreflightManager = hostPreflightManager
+	}
+}
+
 func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.rc = rc
@@ -297,6 +305,15 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			return nil, fmt.Errorf("create airgap manager: %w", err)
 		}
 		controller.airgapManager = manager
+	}
+
+	if controller.hostPreflightManager == nil {
+		controller.hostPreflightManager = preflight.NewHostPreflightManager(
+			preflight.WithLogger(controller.logger),
+			preflight.WithHostPreflightStore(controller.store.LinuxPreflightStore()),
+			preflight.WithNetUtils(controller.netUtils),
+			preflight.WithPreflightRunner(controller.preflightRunner),
+		)
 	}
 
 	// Initialize the state machine
