@@ -461,12 +461,17 @@ The V3 installer includes a Dagger-based E2E test framework that provides portab
 
 **Quick Start:**
 ```bash
-# Provision a test VM
+make e2e-v3-initial-release
+
 dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  test-provision-vm string
+  e-2-e-run-headless \
+  --scenario=online \
+  --app-version=<app version> \
+  --kube-version=1.33 \
+  --license-file=./local-dev/license.yaml
 ```
 
-**Documentation:** See [dagger/e2e/README.md](dagger/e2e/README.md) for comprehensive E2E testing guide, including:
+**Documentation:** See [dagger/README.md](dagger/README.md) for comprehensive E2E testing guide, including:
 - Setup and prerequisites
 - Available test scenarios
 - Troubleshooting

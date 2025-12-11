@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+MAKEFLAGS += --no-print-directory
 
 ARCH ?= $(shell go env GOARCH)
 CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))

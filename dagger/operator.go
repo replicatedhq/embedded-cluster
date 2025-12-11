@@ -26,7 +26,7 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	arch string,
 ) *dagger.File {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
@@ -67,7 +67,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	arch string,
 ) (string, error) {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
@@ -111,7 +111,12 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
 
 	dir := dag.Directory().
-		WithDirectory("operator", src.Directory("operator"))
+		WithDirectory("operator",
+			src.Directory("operator").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		)
 
 	build := m.chainguard.melangeBuildGo(
 		directoryWithCommonGoFiles(dir, src),

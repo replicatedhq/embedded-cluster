@@ -37,8 +37,9 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
-	cfg.Spec.Network.KubeRouter = nil
-	cfg.Spec.Network.Provider = "calico"
+
+	enableCalicoNetworkProvider(cfg)
+
 	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
 	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
 	// We can drop the json.Unmarshal once we drop support for 1.30
@@ -55,6 +56,23 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sv1beta1.NllbTypeEnvoyProxy
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
+}
+
+// enableCalicoNetworkProvider enables the calico network provider and disables the kube-router
+// network provider.
+func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
+	if cfg.Spec.Network == nil {
+		cfg.Spec.Network = &k0sv1beta1.Network{}
+	}
+	cfg.Spec.Network.KubeRouter = nil
+	cfg.Spec.Network.Provider = "calico"
+	if cfg.Spec.Network.Calico == nil {
+		cfg.Spec.Network.Calico = k0sv1beta1.DefaultCalico()
+	}
+	if cfg.Spec.Network.Calico.EnvVars == nil {
+		cfg.Spec.Network.Calico.EnvVars = make(map[string]string)
+	}
+	cfg.Spec.Network.Calico.EnvVars["FELIX_USAGEREPORTINGENABLED"] = "false"
 }
 
 // extractK0sConfigPatch extracts the k0s config portion of the provided patch.
