@@ -530,13 +530,6 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup license
-			license := &kotsv1beta1.License{
-				Spec: kotsv1beta1.LicenseSpec{AppSlug: "test-app"},
-			}
-			licenseBytes, err := kyaml.Marshal(license)
-			require.NoError(t, err)
-
 			// Setup mock KotsCLI
 			mockKotsCLI := &kotscli.MockKotsCLI{}
 			if tt.validateKotsCalled {
@@ -552,7 +545,6 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				WithLogger(logger.NewDiscardLogger()),
 				WithAppUpgradeStore(store),
 				WithReleaseData(tt.releaseData),
-				WithLicense(licenseBytes),
 				WithClusterID("test-cluster"),
 				WithKotsCLI(mockKotsCLI),
 				WithKubeClient(kcli),

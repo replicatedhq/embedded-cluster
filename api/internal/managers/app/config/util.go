@@ -27,7 +27,7 @@ func (m *appConfigManager) readConfigValuesFromKube() (types.AppConfigValues, er
 	// Try to get existing config values secret, if not found return early
 	secret := &corev1.Secret{}
 	if err := m.kcli.Get(context.TODO(), client.ObjectKey{
-		Name:      utils.GetConfigValuesSecretName(m.license.Spec.AppSlug),
+		Name:      utils.GetConfigValuesSecretName(m.releaseData.ChannelRelease.AppSlug),
 		Namespace: kotsadmNamespace,
 	}, secret); err != nil {
 		if apierrors.IsNotFound(err) {

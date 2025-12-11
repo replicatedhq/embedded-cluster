@@ -7,6 +7,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,8 +36,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   nil,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -70,8 +71,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -139,8 +140,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -211,8 +212,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -260,8 +261,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -307,8 +308,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -352,8 +353,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},
@@ -388,8 +389,8 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 				return &appConfigManager{
 					kcli:   fakeKcli,
 					logger: logger.NewDiscardLogger(),
-					license: &kotsv1beta1.License{
-						Spec: kotsv1beta1.LicenseSpec{
+					releaseData: &release.ReleaseData{
+						ChannelRelease: &release.ChannelRelease{
 							AppSlug: "test-app",
 						},
 					},

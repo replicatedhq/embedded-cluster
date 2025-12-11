@@ -41,7 +41,7 @@ func (m *appUpgradeManager) Upgrade(ctx context.Context, configValues kotsv1beta
 	}
 
 	// Create or update secret with config values before upgrading
-	if err := m.createConfigValuesSecret(ctx, license.Spec.AppSlug, kotsadmNamespace, configValues); err != nil {
+	if err := m.createConfigValuesSecret(ctx, m.releaseData.ChannelRelease.AppSlug, kotsadmNamespace, configValues); err != nil {
 		return fmt.Errorf("creating config values secret: %w", err)
 	}
 
