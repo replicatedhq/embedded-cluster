@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime/debug"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -24,11 +25,18 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 	}
 
 	// Start the namespace reconciler to ensure image pull secrets and other required resources in app namespaces
-	nsReconciler, err := runNamespaceReconciler(ctx, m.kcli, m.mcli, registrySettings, hostCABundlePath, m.logger)
+	nsReconciler, err := newNamespaceReconciler(
+		ctx, m.kcli, m.mcli, registrySettings, hostCABundlePath,
+		m.releaseData.ChannelRelease.AppSlug, m.releaseData.ChannelRelease.VersionLabel,
+		m.logger,
+	)
 	if err != nil {
-		return fmt.Errorf("start namespace reconciler: %w", err)
+		return fmt.Errorf("create namespace reconciler: %w", err)
 	}
-	defer nsReconciler.Stop()
+
+	if err := nsReconciler.reconcile(ctx); err != nil {
+		return fmt.Errorf("reconcile namespaces: %w", err)
+	}
 
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
@@ -84,13 +92,7 @@ func (m *appInstallManager) createConfigValuesSecret(ctx context.Context, config
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       license.Spec.AppSlug,
-				"app.kubernetes.io/version":    m.releaseData.ChannelRelease.VersionLabel,
-				"app.kubernetes.io/component":  "config",
-				"app.kubernetes.io/part-of":    "embedded-cluster",
-				"app.kubernetes.io/managed-by": "embedded-cluster-installer",
-			},
+			Labels:    utils.GetK8sObjectMetaLabels(license.Spec.AppSlug, m.releaseData.ChannelRelease.VersionLabel, "config"),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{

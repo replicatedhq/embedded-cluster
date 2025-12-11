@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"slices"
-	"time"
 
+	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
-	addonstypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -20,38 +18,32 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	reconcileInterval = 5 * time.Second
-)
-
-// NamespaceReconciler handles ensuring image pull secrets and CA configmaps in app namespaces.
-// It reads additionalNamespaces from the Application CR, ensures secrets and configmaps exist
-// in those namespaces plus the kotsadm namespace, and polls for new namespace
-// creation to deploy resources to them.
-type NamespaceReconciler struct {
+// namespaceReconciler handles ensuring image pull secrets and CA configmaps in app namespaces.
+// It reads additionalNamespaces from the Application CR and ensures secrets and configmaps exist
+// in those namespaces plus the kotsadm namespace.
+type namespaceReconciler struct {
 	kcli             client.Client
 	mcli             metadata.Interface
 	registrySettings *types.RegistrySettings
 	hostCABundlePath string
+	appSlug          string
+	versionLabel     string
 	logger           logrus.FieldLogger
 
-	watchedNamespaces []string
-	cancel            context.CancelFunc
+	namespaces []string
 }
 
-// runNamespaceReconciler creates and starts a reconciler that:
-// 1. Reads additionalNamespaces from release.GetApplication()
-// 2. Immediately ensures image pull secrets and other resources in all watched namespaces
-// 3. Starts background polling to reconcile namespaces periodically
-// Returns a cancellable namespace reconciler instance.
-func runNamespaceReconciler(
+// newNamespaceReconciler creates a new namespace reconciler
+func newNamespaceReconciler(
 	ctx context.Context,
 	kcli client.Client,
 	mcli metadata.Interface,
 	registrySettings *types.RegistrySettings,
 	hostCABundlePath string,
+	appSlug string,
+	versionLabel string,
 	logger logrus.FieldLogger,
-) (*NamespaceReconciler, error) {
+) (*namespaceReconciler, error) {
 	// Get kotsadm namespace
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
@@ -61,83 +53,42 @@ func runNamespaceReconciler(
 	// Get watched namespaces from Application CR
 	watchedNamespaces := []string{kotsadmNamespace}
 	if app := release.GetApplication(); app != nil {
-		watchedNamespaces = append(watchedNamespaces, app.Spec.AdditionalNamespaces...)
+		for _, ns := range app.Spec.AdditionalNamespaces {
+			// NOTE: we no longer support watching all namespaces ("*")
+			if ns == "*" {
+				logger.Warn("watching all namespaces is not supported (\"*\")")
+			} else {
+				watchedNamespaces = append(watchedNamespaces, ns)
+			}
+		}
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
-
-	r := &NamespaceReconciler{
-		kcli:              kcli,
-		mcli:              mcli,
-		registrySettings:  registrySettings,
-		hostCABundlePath:  hostCABundlePath,
-		logger:            logger,
-		watchedNamespaces: watchedNamespaces,
-		cancel:            cancel,
+	r := &namespaceReconciler{
+		kcli:             kcli,
+		mcli:             mcli,
+		registrySettings: registrySettings,
+		hostCABundlePath: hostCABundlePath,
+		appSlug:          appSlug,
+		versionLabel:     versionLabel,
+		logger:           logger,
+		namespaces:       watchedNamespaces,
 	}
-
-	// Immediately reconcile all namespaces
-	r.reconcile(ctx)
-
-	// Start background polling
-	go r.run(ctx)
 
 	return r, nil
 }
 
-// Stop stops the background reconciler
-func (r *NamespaceReconciler) Stop() {
-	if r.cancel != nil {
-		r.cancel()
-	}
-}
-
-// run polls periodically to reconcile namespaces
-func (r *NamespaceReconciler) run(ctx context.Context) {
-	ticker := time.NewTicker(reconcileInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			r.reconcile(ctx)
-		}
-	}
-}
-
 // reconcile ensures all watched namespaces have the required resources
-func (r *NamespaceReconciler) reconcile(ctx context.Context) {
-	namespaces := r.watchedNamespaces
-
-	// If watching all namespaces, list them
-	if r.watchesAllNamespaces() {
-		nsList := &corev1.NamespaceList{}
-		if err := r.kcli.List(ctx, nsList); err != nil {
-			r.logger.WithError(err).Warn("failed to list namespaces")
-			return
-		}
-		namespaces = make([]string, 0, len(nsList.Items))
-		for _, ns := range nsList.Items {
-			namespaces = append(namespaces, ns.Name)
-		}
-	}
-
-	for _, ns := range namespaces {
+func (r *namespaceReconciler) reconcile(ctx context.Context) error {
+	for _, ns := range r.namespaces {
 		if err := r.reconcileNamespace(ctx, ns); err != nil {
-			r.logger.WithError(err).Warnf("failed to reconcile namespace %s", ns)
+			return fmt.Errorf("reconcile namespace %s: %w", ns, err)
 		}
 	}
-}
-
-// watchesAllNamespaces returns true if "*" is in the watched namespaces list
-func (r *NamespaceReconciler) watchesAllNamespaces() bool {
-	return slices.Contains(r.watchedNamespaces, "*")
+	return nil
 }
 
 // reconcileNamespace creates namespace if needed and ensures required resources exist
-func (r *NamespaceReconciler) reconcileNamespace(ctx context.Context, namespace string) error {
+func (r *namespaceReconciler) reconcileNamespace(ctx context.Context, namespace string) error {
 	// Create namespace if it doesn't exist
 	ns := &corev1.Namespace{}
 	err := r.kcli.Get(ctx, client.ObjectKey{Name: namespace}, ns)
@@ -165,7 +116,7 @@ func (r *NamespaceReconciler) reconcileNamespace(ctx context.Context, namespace 
 }
 
 // ensureImagePullSecret creates or updates the image pull secret in a namespace
-func (r *NamespaceReconciler) ensureImagePullSecret(ctx context.Context, namespace string) error {
+func (r *namespaceReconciler) ensureImagePullSecret(ctx context.Context, namespace string) error {
 	// Skip if no registry settings
 	if r.registrySettings == nil || r.registrySettings.ImagePullSecretName == "" || r.registrySettings.ImagePullSecretValue == "" {
 		return nil
@@ -185,6 +136,7 @@ func (r *NamespaceReconciler) ensureImagePullSecret(ctx context.Context, namespa
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      r.registrySettings.ImagePullSecretName,
 				Namespace: namespace,
+				Labels:    utils.GetK8sObjectMetaLabels(r.appSlug, r.versionLabel, "registry"),
 			},
 			Type: corev1.SecretTypeDockerConfigJson,
 			Data: map[string][]byte{
@@ -214,15 +166,11 @@ func (r *NamespaceReconciler) ensureImagePullSecret(ctx context.Context, namespa
 }
 
 // ensureCAConfigmap ensures the CA configmap exists in the namespace
-func (r *NamespaceReconciler) ensureCAConfigmap(ctx context.Context, namespace string) error {
+func (r *namespaceReconciler) ensureCAConfigmap(ctx context.Context, namespace string) error {
 	// Skip if no CA bundle path
 	if r.hostCABundlePath == "" {
 		return nil
 	}
 
-	logFn := func(format string, args ...interface{}) {
-		r.logger.Infof(format, args...)
-	}
-
-	return adminconsole.EnsureCAConfigmap(ctx, addonstypes.LogFunc(logFn), r.kcli, r.mcli, namespace, r.hostCABundlePath)
+	return adminconsole.EnsureCAConfigmap(ctx, r.logger.Infof, r.kcli, r.mcli, namespace, r.hostCABundlePath)
 }

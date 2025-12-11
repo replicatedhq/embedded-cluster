@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -19,10 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestRunNamespaceReconciler(t *testing.T) {
+func Test_namespaceReconciler_reconcile(t *testing.T) {
 	dockerConfigJSON := `{"auths":{"registry.example.com":{"auth":"dXNlcjpwYXNz"}}}`
 
 	appSlug := "test-app"
+	versionLabel := "1.0.0"
 
 	tests := []struct {
 		name               string
@@ -33,7 +33,7 @@ func TestRunNamespaceReconciler(t *testing.T) {
 		existingSecrets    []corev1.Secret
 		existingConfigMaps []corev1.ConfigMap
 
-		wantWatchedNs         []string
+		wantNamespaces        []string
 		wantCreatedNs         []string
 		wantSecretInNs        []string
 		wantNoSecretInNs      []string
@@ -49,7 +49,7 @@ func TestRunNamespaceReconciler(t *testing.T) {
 				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON)),
 			},
 			existingNamespaces:    []string{appSlug},
-			wantWatchedNs:         []string{appSlug},
+			wantNamespaces:        []string{appSlug},
 			wantCreatedNs:         []string{},
 			wantSecretInNs:        []string{appSlug},
 			wantNoCAConfigmapInNs: []string{appSlug},
@@ -67,7 +67,7 @@ spec:
 				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON)),
 			},
 			existingNamespaces:    []string{appSlug},
-			wantWatchedNs:         []string{appSlug},
+			wantNamespaces:        []string{appSlug},
 			wantCreatedNs:         []string{},
 			wantSecretInNs:        []string{appSlug},
 			wantNoCAConfigmapInNs: []string{appSlug},
@@ -88,13 +88,13 @@ spec:
 				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON)),
 			},
 			existingNamespaces:    []string{appSlug},
-			wantWatchedNs:         []string{appSlug, "app-ns-1", "app-ns-2"},
+			wantNamespaces:        []string{appSlug, "app-ns-1", "app-ns-2"},
 			wantCreatedNs:         []string{"app-ns-1", "app-ns-2"},
 			wantSecretInNs:        []string{appSlug, "app-ns-1", "app-ns-2"},
 			wantNoCAConfigmapInNs: []string{appSlug, "app-ns-1", "app-ns-2"},
 		},
 		{
-			name: "application with wildcard namespace",
+			name: "application with wildcard namespace - now skipped with warning",
 			applicationYAML: `apiVersion: kots.io/v1beta1
 kind: Application
 metadata:
@@ -108,9 +108,10 @@ spec:
 				ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON)),
 			},
 			existingNamespaces:    []string{appSlug, "existing-ns-1", "existing-ns-2"},
-			wantWatchedNs:         []string{appSlug, "*"},
+			wantNamespaces:        []string{appSlug}, // "*" is now skipped
 			wantCreatedNs:         []string{},
-			wantSecretInNs:        []string{appSlug, "existing-ns-1", "existing-ns-2"},
+			wantSecretInNs:        []string{appSlug}, // Only appSlug gets the secret
+			wantNoSecretInNs:      []string{"existing-ns-1", "existing-ns-2"},
 			wantNoCAConfigmapInNs: []string{appSlug, "existing-ns-1", "existing-ns-2"},
 		},
 		{
@@ -125,7 +126,7 @@ spec:
     - app-ns`,
 			registrySettings:      nil,
 			existingNamespaces:    []string{appSlug},
-			wantWatchedNs:         []string{appSlug, "app-ns"},
+			wantNamespaces:        []string{appSlug, "app-ns"},
 			wantCreatedNs:         []string{"app-ns"},
 			wantSecretInNs:        []string{},
 			wantNoSecretInNs:      []string{appSlug, "app-ns"},
@@ -147,7 +148,7 @@ spec:
 			},
 			withCABundle:        true,
 			existingNamespaces:  []string{appSlug},
-			wantWatchedNs:       []string{appSlug, "app-ns"},
+			wantNamespaces:      []string{appSlug, "app-ns"},
 			wantCreatedNs:       []string{"app-ns"},
 			wantSecretInNs:      []string{appSlug, "app-ns"},
 			wantCAConfigmapInNs: []string{appSlug, "app-ns"},
@@ -177,7 +178,7 @@ spec:
 					},
 				},
 			},
-			wantWatchedNs:  []string{appSlug},
+			wantNamespaces: []string{appSlug},
 			wantCreatedNs:  []string{},
 			wantSecretInNs: []string{appSlug},
 		},
@@ -209,7 +210,7 @@ spec:
 					},
 				},
 			},
-			wantWatchedNs:       []string{appSlug},
+			wantNamespaces:      []string{appSlug},
 			wantCreatedNs:       []string{},
 			wantSecretInNs:      []string{appSlug},
 			wantCAConfigmapInNs: []string{appSlug},
@@ -261,26 +262,30 @@ spec:
 				hostCABundlePath = tmpFile.Name()
 			}
 
-			// Run the reconciler
-			reconciler, err := runNamespaceReconciler(
+			// Create the reconciler
+			reconciler, err := newNamespaceReconciler(
 				t.Context(),
 				fakeKcli,
 				fakeMcli,
 				tt.registrySettings,
 				hostCABundlePath,
+				appSlug,
+				versionLabel,
 				logger.NewDiscardLogger(),
 			)
+			require.NoError(t, err)
+			require.NotNil(t, reconciler)
 
+			// Verify namespaces to be reconciled
+			assert.Equal(t, tt.wantNamespaces, reconciler.namespaces)
+
+			// Run the reconciler
+			err = reconciler.reconcile(t.Context())
 			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			require.NotNil(t, reconciler)
-			defer reconciler.Stop()
-
-			// Verify watched namespaces
-			assert.Equal(t, tt.wantWatchedNs, reconciler.watchedNamespaces)
 
 			// Verify namespaces were created
 			for _, nsName := range tt.wantCreatedNs {
@@ -331,117 +336,6 @@ spec:
 				}, configMap)
 				assert.Error(t, err, "CA configmap should not exist in namespace %s", nsName)
 			}
-		})
-	}
-}
-
-func TestRunNamespaceReconciler_DynamicNamespace(t *testing.T) {
-	t.Setenv("ENABLE_V3", "1")
-
-	dockerConfigJSON := `{"auths":{"registry.example.com":{"auth":"dXNlcjpwYXNz"}}}`
-	appSlug := "test-app"
-
-	// Set up release data with wildcard namespace
-	releaseData := map[string][]byte{
-		"channelrelease.yaml": []byte("# channel release object\nappSlug: " + appSlug),
-		"application.yaml": []byte(`apiVersion: kots.io/v1beta1
-kind: Application
-metadata:
-  name: test-app
-spec:
-  title: Test App
-  additionalNamespaces:
-    - "*"`),
-	}
-	require.NoError(t, release.SetReleaseDataForTests(releaseData))
-
-	// Start with only the app namespace
-	appNs := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: appSlug},
-	}
-	fakeKcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(appNs).Build()
-	fakeMcli := metadatafake.NewSimpleMetadataClient(metadatafake.NewTestScheme())
-
-	registrySettings := &types.RegistrySettings{
-		ImagePullSecretName:  "test-secret",
-		ImagePullSecretValue: base64.StdEncoding.EncodeToString([]byte(dockerConfigJSON)),
-	}
-
-	// Run the reconciler
-	reconciler, err := runNamespaceReconciler(
-		t.Context(),
-		fakeKcli,
-		fakeMcli,
-		registrySettings,
-		"",
-		logger.NewDiscardLogger(),
-	)
-	require.NoError(t, err)
-	defer reconciler.Stop()
-
-	// Verify initial state - secret exists in app namespace
-	secret := &corev1.Secret{}
-	err = fakeKcli.Get(t.Context(), client.ObjectKey{
-		Namespace: appSlug,
-		Name:      "test-secret",
-	}, secret)
-	require.NoError(t, err, "secret should exist in app namespace")
-
-	// Create a new namespace dynamically (simulating external namespace creation)
-	newNs := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{Name: "dynamic-ns"},
-	}
-	require.NoError(t, fakeKcli.Create(t.Context(), newNs))
-
-	// Wait for the background reconciler to create the secret in the new namespace
-	assert.Eventually(t, func() bool {
-		err := fakeKcli.Get(t.Context(), client.ObjectKey{
-			Namespace: "dynamic-ns",
-			Name:      "test-secret",
-		}, secret)
-		return err == nil
-	}, 10*time.Second, 100*time.Millisecond, "secret should be created in dynamic namespace by background reconciler")
-
-	assert.Equal(t, corev1.SecretTypeDockerConfigJson, secret.Type)
-	assert.Equal(t, dockerConfigJSON, string(secret.Data[".dockerconfigjson"]))
-}
-
-func TestNamespaceReconciler_watchesAllNamespaces(t *testing.T) {
-	tests := []struct {
-		name              string
-		watchedNamespaces []string
-		want              bool
-	}{
-		{
-			name:              "returns true when * is in list",
-			watchedNamespaces: []string{"kotsadm", "*"},
-			want:              true,
-		},
-		{
-			name:              "returns true when only * is in list",
-			watchedNamespaces: []string{"*"},
-			want:              true,
-		},
-		{
-			name:              "returns false when * is not in list",
-			watchedNamespaces: []string{"kotsadm", "app-ns"},
-			want:              false,
-		},
-		{
-			name:              "returns false for empty list",
-			watchedNamespaces: []string{},
-			want:              false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &NamespaceReconciler{
-				watchedNamespaces: tt.watchedNamespaces,
-			}
-
-			got := r.watchesAllNamespaces()
-			assert.Equal(t, tt.want, got)
 		})
 	}
 }
