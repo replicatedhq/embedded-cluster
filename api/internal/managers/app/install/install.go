@@ -24,6 +24,10 @@ func (m *appInstallManager) Install(ctx context.Context, installableCharts []typ
 		return fmt.Errorf("setup clients: %w", err)
 	}
 
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil {
+		return fmt.Errorf("release data is required for app installation")
+	}
+
 	// Start the namespace reconciler to ensure image pull secrets and other required resources in app namespaces
 	nsReconciler, err := newNamespaceReconciler(
 		ctx, m.kcli, m.mcli, registrySettings, hostCABundlePath,
