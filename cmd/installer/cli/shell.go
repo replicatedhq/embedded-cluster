@@ -152,6 +152,10 @@ func openInteractiveShell(shpath string, rc runtimeconfig.RuntimeConfig) error {
 	_, _ = shellpty.WriteString(config)
 	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 
+	config = "export TROUBLESHOOT_AUTO_UPDATE=false\nPREFLIGHT_AUTO_UPDATE=false\n"
+	_, _ = shellpty.WriteString(config)
+	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
 	// if /etc/bash_completion is present enable kubectl auto completion.
 	if _, err := os.Stat("/etc/bash_completion"); err == nil {
 		config = fmt.Sprintf("source <(k0s completion %s)\n", filepath.Base(shpath))
