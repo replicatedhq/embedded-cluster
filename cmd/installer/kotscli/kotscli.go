@@ -166,6 +166,7 @@ func AirgapUpdate(opts AirgapUpdateOptions) error {
 		Stdout: loading,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+			"POD_NAMESPACE":       opts.Namespace,
 		},
 	}
 	if err := helpers.RunCommandWithOptions(runCommandOptions, kotsBinPath, airgapUpdateArgs...); err != nil {
@@ -360,6 +361,7 @@ func Deploy(opts DeployOptions) error {
 		LogOnSuccess: true,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+			"POD_NAMESPACE":       opts.Namespace,
 		},
 	}
 	if opts.Stdout != nil {
@@ -380,6 +382,7 @@ func Deploy(opts DeployOptions) error {
 // PushImagesOptions represents options for pushing images to a registry
 type PushImagesOptions struct {
 	AirgapBundle     string
+	Namespace        string
 	RegistryAddress  string
 	RegistryUsername string
 	RegistryPassword string
@@ -410,6 +413,7 @@ func PushImages(opts PushImagesOptions) error {
 		LogOnSuccess: true,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+			"POD_NAMESPACE":       opts.Namespace,
 		},
 	}
 	if opts.Stdout != nil {
@@ -529,6 +533,7 @@ func GetConfigValues(opts GetConfigValuesOptions) (string, error) {
 		Stdout: &outputBuffer,
 		Env: map[string]string{
 			"EMBEDDED_CLUSTER_ID": opts.ClusterID,
+			"POD_NAMESPACE":       opts.Namespace,
 		},
 	}
 	if opts.ReplicatedAppEndpoint != "" {

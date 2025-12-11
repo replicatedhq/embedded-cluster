@@ -6,6 +6,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	kotscli "github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
 // Process processes the airgap bundle
@@ -22,8 +23,14 @@ func (m *airgapManager) Process(ctx context.Context, registrySettings *types.Reg
 
 	m.addLogs("Processing air gap bundle")
 
-	err := kotscli.PushImages(kotscli.PushImagesOptions{
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+
+	err = kotscli.PushImages(kotscli.PushImagesOptions{
 		AirgapBundle:     m.airgapBundle,
+		Namespace:        kotsadmNamespace,
 		RegistryAddress:  registrySettings.Address,
 		RegistryUsername: registrySettings.Username,
 		RegistryPassword: registrySettings.Password,
