@@ -19,7 +19,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -199,10 +198,10 @@ func validateHappyPathOnline(t *testing.T, hcli *helm.MockClient) {
 	assertSecretExists(t, kcli, "fake-app-slug-registry", adminConsoleNamespace)
 
 	// Validate config values secret exists and contains correct values
-	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
+	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]apitypes.AppConfigValue{
 		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required":        {ValuePlaintext: "password required value"},
+		"password_required":        {Value: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
@@ -406,10 +405,10 @@ func validateHappyPathAirgap(t *testing.T, hcli *helm.MockClient) {
 	require.True(t, found, "redis-app helm release should be installed")
 
 	// Validate config values secret exists and contains correct values
-	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]kotsv1beta1.ConfigValue{
+	assertConfigValuesSecret(t, kcli, "fake-app-slug-config-values", adminConsoleNamespace, map[string]apitypes.AppConfigValue{
 		"text_required":            {Value: "text required value"},
 		"text_required_with_regex": {Value: "ethan@replicated.com"},
-		"password_required":        {ValuePlaintext: "password required value"},
+		"password_required":        {Value: "password required value"},
 		"file_required": {
 			Value:    "ZmlsZSByZXF1aXJlZCB2YWx1ZQo=",
 			Filename: "file_required.txt",
