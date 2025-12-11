@@ -123,12 +123,62 @@ func TestStateMachineTransitions(t *testing.T) {
 
 		// States specific to requiresInfraUpgrade=true, isAirgap=false
 		{
-			name:                 `State "ApplicationConfigured" can transition to "ApplicationConfiguring" or "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=false)`,
+			name:                 `State "ApplicationConfigured" can transition to "ApplicationConfiguring" or "HostPreflightsRunning" (requiresInfraUpgrade=true, isAirgap=false)`,
 			startState:           states.StateApplicationConfigured,
 			requiresInfraUpgrade: true,
 			isAirgap:             false,
 			validTransitions: []statemachine.State{
 				states.StateApplicationConfiguring,
+				states.StateHostPreflightsRunning,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsRunning" can transition to "HostPreflightsSucceeded", "HostPreflightsFailed", or "HostPreflightsExecutionFailed" (requiresInfraUpgrade=true, isAirgap=false)`,
+			startState:           states.StateHostPreflightsRunning,
+			requiresInfraUpgrade: true,
+			isAirgap:             false,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsSucceeded,
+				states.StateHostPreflightsFailed,
+				states.StateHostPreflightsExecutionFailed,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsExecutionFailed" can transition to "HostPreflightsRunning" (requiresInfraUpgrade=true, isAirgap=false)`,
+			startState:           states.StateHostPreflightsExecutionFailed,
+			requiresInfraUpgrade: true,
+			isAirgap:             false,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsSucceeded" can transition to "HostPreflightsRunning" or "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=false)`,
+			startState:           states.StateHostPreflightsSucceeded,
+			requiresInfraUpgrade: true,
+			isAirgap:             false,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+				states.StateInfrastructureUpgrading,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsFailed" can transition to "HostPreflightsRunning" or "HostPreflightsFailedBypassed" (requiresInfraUpgrade=true, isAirgap=false)`,
+			startState:           states.StateHostPreflightsFailed,
+			requiresInfraUpgrade: true,
+			isAirgap:             false,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+				states.StateHostPreflightsFailedBypassed,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsFailedBypassed" can transition to "HostPreflightsRunning" or "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=false)`,
+			startState:           states.StateHostPreflightsFailedBypassed,
+			requiresInfraUpgrade: true,
+			isAirgap:             false,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
 				states.StateInfrastructureUpgrading,
 			},
 		},
@@ -193,11 +243,61 @@ func TestStateMachineTransitions(t *testing.T) {
 			},
 		},
 		{
-			name:                 `State "AirgapProcessed" can transition to "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=true)`,
+			name:                 `State "AirgapProcessed" can transition to "HostPreflightsRunning" (requiresInfraUpgrade=true, isAirgap=true)`,
 			startState:           states.StateAirgapProcessed,
 			requiresInfraUpgrade: true,
 			isAirgap:             true,
 			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsRunning" can transition to "HostPreflightsSucceeded", "HostPreflightsFailed", or "HostPreflightsExecutionFailed" (requiresInfraUpgrade=true, isAirgap=true)`,
+			startState:           states.StateHostPreflightsRunning,
+			requiresInfraUpgrade: true,
+			isAirgap:             true,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsSucceeded,
+				states.StateHostPreflightsFailed,
+				states.StateHostPreflightsExecutionFailed,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsExecutionFailed" can transition to "HostPreflightsRunning" (requiresInfraUpgrade=true, isAirgap=true)`,
+			startState:           states.StateHostPreflightsExecutionFailed,
+			requiresInfraUpgrade: true,
+			isAirgap:             true,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsSucceeded" can transition to "HostPreflightsRunning" or "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=true)`,
+			startState:           states.StateHostPreflightsSucceeded,
+			requiresInfraUpgrade: true,
+			isAirgap:             true,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+				states.StateInfrastructureUpgrading,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsFailed" can transition to "HostPreflightsRunning" or "HostPreflightsFailedBypassed" (requiresInfraUpgrade=true, isAirgap=true)`,
+			startState:           states.StateHostPreflightsFailed,
+			requiresInfraUpgrade: true,
+			isAirgap:             true,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
+				states.StateHostPreflightsFailedBypassed,
+			},
+		},
+		{
+			name:                 `State "HostPreflightsFailedBypassed" can transition to "HostPreflightsRunning" or "InfrastructureUpgrading" (requiresInfraUpgrade=true, isAirgap=true)`,
+			startState:           states.StateHostPreflightsFailedBypassed,
+			requiresInfraUpgrade: true,
+			isAirgap:             true,
+			validTransitions: []statemachine.State{
+				states.StateHostPreflightsRunning,
 				states.StateInfrastructureUpgrading,
 			},
 		},

@@ -11,6 +11,7 @@ import (
 	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
@@ -20,6 +21,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -284,7 +286,318 @@ func TestProcessAirgap(t *testing.T) {
 	}
 }
 
-func getTestReleaseData(appConfig *kotsv1beta1.Config) *release.ReleaseData {
+func TestRunHostPreflights(t *testing.T) {
+	expectedHPF := &troubleshootv1beta2.HostPreflightSpec{
+		Collectors: []*troubleshootv1beta2.HostCollect{
+			{
+				Time: &troubleshootv1beta2.HostTime{},
+			},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		currentState  statemachine.State
+		expectedState statemachine.State
+		setupMocks    func(*preflight.MockHostPreflightManager, runtimeconfig.RuntimeConfig, *store.MockStore)
+		expectedErr   bool
+	}{
+		{
+			name:          "successful run preflights without preflight errors",
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateHostPreflightsSucceeded,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
+					pm.On("PrepareHostPreflights", mock.Anything, rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+						return expectedHPF == opts.HostPreflightSpec
+					})).Return(successfulPreflightOutput, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateSucceeded
+					})).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "successful run preflights with preflight errors",
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateHostPreflightsFailed,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
+					pm.On("PrepareHostPreflights", mock.Anything, rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+						return expectedHPF == opts.HostPreflightSpec
+					})).Return(failedPreflightOutput, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed
+					})).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "run preflights execution error",
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateHostPreflightsExecutionFailed,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
+					pm.On("PrepareHostPreflights", mock.Anything, rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+						return expectedHPF == opts.HostPreflightSpec
+					})).Return(nil, errors.New("run preflights error")),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && status.Description == "run host preflights: run preflights error"
+					})).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "run preflights panic",
+			currentState:  states.StateApplicationConfigured,
+			expectedState: states.StateHostPreflightsExecutionFailed,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+				mock.InOrder(
+					pm.On("ClearHostPreflightResults", mock.Anything).Return(nil),
+					pm.On("PrepareHostPreflights", mock.Anything, rc, mock.Anything).Return(expectedHPF, nil),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateRunning
+					})).Return(nil),
+					pm.On("RunHostPreflights", mock.Anything, rc, mock.MatchedBy(func(opts preflight.RunHostPreflightOptions) bool {
+						return expectedHPF == opts.HostPreflightSpec
+					})).Panic("this is a panic"),
+					st.LinuxPreflightMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+						return status.State == types.StateFailed && strings.HasPrefix(status.Description, "panic: this is a panic")
+					})).Return(nil),
+				)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "invalid state transition",
+			currentState:  states.StateInfrastructureUpgrading,
+			expectedState: states.StateInfrastructureUpgrading,
+			setupMocks: func(pm *preflight.MockHostPreflightManager, rc runtimeconfig.RuntimeConfig, st *store.MockStore) {
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+
+			sm := NewStateMachine(
+				WithCurrentState(tt.currentState),
+				WithRequiresInfraUpgrade(true),
+			)
+
+			mockPreflightManager := &preflight.MockHostPreflightManager{}
+			mockStore := &store.MockStore{}
+
+			tt.setupMocks(mockPreflightManager, rc, mockStore)
+
+			// Mock GetConfigValues call that happens during controller initialization
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
+			controller, err := NewUpgradeController(
+				WithRuntimeConfig(rc),
+				WithStateMachine(sm),
+				WithHostPreflightManager(mockPreflightManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
+			)
+			require.NoError(t, err)
+
+			err = controller.RunHostPreflights(context.Background())
+
+			if tt.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Wait for the goroutine to complete and state to transition
+			assert.Eventually(t, func() bool {
+				return sm.CurrentState() == tt.expectedState
+			}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+			assert.Eventually(t, func() bool {
+				return !sm.IsLockAcquired()
+			}, time.Second, 100*time.Millisecond, "state machine should not be locked")
+
+			mockPreflightManager.AssertExpectations(t)
+			mockStore.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetHostPreflightsStatus(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupMocks     func(*preflight.MockHostPreflightManager)
+		expectedStatus types.HostPreflights
+		expectedErr    bool
+	}{
+		{
+			name: "successful get status",
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+				pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{
+					State:       types.StateSucceeded,
+					Description: "Host preflights succeeded",
+				}, nil)
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(successfulPreflightOutput, nil)
+				pm.On("GetHostPreflightTitles", mock.Anything).Return([]string{"Test Check"}, nil)
+			},
+			expectedStatus: types.HostPreflights{
+				Status: types.Status{
+					State:       types.StateSucceeded,
+					Description: "Host preflights succeeded",
+				},
+				Output: successfulPreflightOutput,
+				Titles: []string{"Test Check"},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "error getting status",
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+				pm.On("GetHostPreflightStatus", mock.Anything).Return(types.Status{}, errors.New("get status error"))
+			},
+			expectedStatus: types.HostPreflights{},
+			expectedErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockPreflightManager := &preflight.MockHostPreflightManager{}
+			tt.setupMocks(mockPreflightManager)
+
+			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
+			controller, err := NewUpgradeController(
+				WithHostPreflightManager(mockPreflightManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
+			)
+			require.NoError(t, err)
+
+			status, err := controller.GetHostPreflightsStatus(context.Background())
+
+			if tt.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, status)
+			}
+
+			mockPreflightManager.AssertExpectations(t)
+		})
+	}
+}
+
+func TestBypassHostPreflights(t *testing.T) {
+	tests := []struct {
+		name          string
+		currentState  statemachine.State
+		expectedState statemachine.State
+		setupMocks    func(*preflight.MockHostPreflightManager)
+		expectedErr   bool
+	}{
+		{
+			name:          "successful bypass",
+			currentState:  states.StateHostPreflightsFailed,
+			expectedState: states.StateHostPreflightsFailedBypassed,
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+			},
+			expectedErr: false,
+		},
+		{
+			name:          "invalid state transition",
+			currentState:  states.StateInfrastructureUpgrading,
+			expectedState: states.StateInfrastructureUpgrading,
+			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+				// Even for invalid transitions, we try to get the output first
+				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sm := NewStateMachine(
+				WithCurrentState(tt.currentState),
+				WithRequiresInfraUpgrade(true),
+			)
+
+			mockPreflightManager := &preflight.MockHostPreflightManager{}
+			tt.setupMocks(mockPreflightManager)
+
+			mockStore := &store.MockStore{}
+			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
+
+			controller, err := NewUpgradeController(
+				WithStateMachine(sm),
+				WithHostPreflightManager(mockPreflightManager),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithStore(mockStore),
+				WithHelmClient(&helm.MockClient{}),
+			)
+			require.NoError(t, err)
+
+			err = controller.BypassHostPreflights(context.Background())
+
+			if tt.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedState, sm.CurrentState())
+			}
+
+			mockPreflightManager.AssertExpectations(t)
+		})
+	}
+}
+
+var failedPreflightOutput = &types.PreflightsOutput{
+	Fail: []types.PreflightsRecord{
+		{
+			Title:   "Test Check",
+			Message: "Test check failed",
+		},
+	},
+}
+
+var successfulPreflightOutput = &types.PreflightsOutput{
+	Pass: []types.PreflightsRecord{
+		{
+			Title:   "Test Check",
+			Message: "Test check passed",
+		},
+	},
+}
+
+func getTestReleaseData(appConfig *kotsv1beta1.Config) *release.ReleaseData{
 	return &release.ReleaseData{
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease:        &release.ChannelRelease{},
