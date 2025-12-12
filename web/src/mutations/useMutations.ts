@@ -48,12 +48,13 @@ export function useUpgradeInfra(args?: { ignoreHostPreflights?: boolean }) {
 }
 
 export function useRunHostPreflights() {
+  const { mode } = useWizard();
   const { token } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getWizardBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", mode);
 
       const { data, error } = await client.POST(
         `${apiBase}/host-preflights/run`,

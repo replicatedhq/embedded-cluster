@@ -39,12 +39,13 @@ export function useHostPreflightStatus(options?: {
   gcTime?: number;
 }) {
   const { token } = useAuth();
+  const { mode } = useWizard();
 
   return useQuery({
     queryKey: ["hostPreflightStatus"],
     queryFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getWizardBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", mode);
 
       const { data } = await client.GET(`${apiBase}/host-preflights/status`);
 
