@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -80,6 +81,7 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 		IsUI:                         opts.IsUI,
 		IsV3:                         true,
 		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
+		Mode:                         apitypes.ModeUpgrade,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr
