@@ -224,3 +224,61 @@ jobs:
         with:
           name: e2e-results-headless-online
           path: ./e2e-results/
+
+  e2e-headless-airgap:
+    name: E2E headless airgap
+    needs:
+      - output-vars
+      - build-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
+      - name: Run test
+        id: test
+        env:
+          APP_VERSION: ${{ needs.output-vars.outputs.app_version }}
+          KUBE_VERSION: "1.${{ needs.output-vars.outputs.k0s_minor_version }}"
+          CMX_REPLICATED_API_TOKEN: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          CMX_SSH_PRIVATE_KEY: ${{ secrets.CMX_SSH_PRIVATE_KEY }}
+        run: |
+          # Run test and export results directory
+          dagger call e-2-e-run-headless \
+            --scenario=airgap \
+            --app-version=$APP_VERSION \
+            --kube-version=$KUBE_VERSION \
+            --license-file ./e2e/licenses/ci-v3.yaml \
+            --cmx-token=env://CMX_REPLICATED_API_TOKEN \
+            --ssh-key=env://CMX_SSH_PRIVATE_KEY \
+            export --path=./e2e-results
+
+          # Read result.json to extract test result
+          if [ -f ./e2e-results/result.json ]; then
+            success=$(jq -r '.Success' ./e2e-results/result.json)
+            echo "Test success: $success"
+
+            # Exit with test result
+            if [ "$success" = "true" ]; then
+              exit 0
+            else
+              error=$(jq -r '.Error' ./e2e-results/result.json)
+              echo "::error::E2E test failed: $error"
+              exit 1
+            fi
+          else
+            echo "::error::result.json not found in e2e-results directory"
+            exit 1
+          fi
+
+      - name: Upload test results
+        if: ${{ !cancelled() && hashFiles('./e2e-results/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-headless-airgap
+          path: ./e2e-results/

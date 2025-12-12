@@ -188,9 +188,9 @@ func collectSupportBundles(ctx context.Context, vm *CmxInstance, resultsDir *dag
 	supportBundle, bundleErr := vm.CollectClusterSupportBundle(ctx)
 	if bundleErr != nil {
 		fmt.Printf("Warning: failed to collect support bundle: %v\n", bundleErr)
-		resultsDir = resultsDir.WithNewFile("support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", bundleErr))
+		resultsDir = resultsDir.WithNewFile("cluster-support-bundle-error.txt", fmt.Sprintf("Failed to collect support bundle: %v", bundleErr))
 	} else {
-		resultsDir = resultsDir.WithFile("support-bundle.tar.gz", supportBundle)
+		resultsDir = resultsDir.WithFile("cluster-support-bundle.tar.gz", supportBundle)
 	}
 
 	hostSupportBundle, hostBundleErr := vm.CollectHostSupportBundle(ctx)

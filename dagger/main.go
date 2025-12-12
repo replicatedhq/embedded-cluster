@@ -10,6 +10,7 @@ const (
 	APKOImageVersion    = "latest"
 	MelangeImageVersion = "latest"
 
+	GoVersion   = "1.25"
 	NodeVersion = "22"
 )
 

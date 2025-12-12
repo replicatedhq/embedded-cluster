@@ -348,6 +348,7 @@ func NewInstallController(opts ...InstallControllerOption) (*InstallController, 
 			airgapmanager.WithAirgapStore(controller.store.AirgapStore()),
 			airgapmanager.WithAirgapBundle(controller.airgapBundle),
 			airgapmanager.WithClusterID(controller.clusterID),
+			airgapmanager.WithKubeClient(controller.kcli),
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create airgap manager: %w", err)

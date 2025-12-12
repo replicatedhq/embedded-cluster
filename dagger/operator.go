@@ -110,16 +110,8 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 
 	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
 
-	dir := dag.Directory().
-		WithDirectory("operator",
-			src.Directory("operator").
-				WithoutDirectory("bin").
-				WithoutDirectory("build").
-				WithoutDirectory("cache"),
-		)
-
 	build := m.chainguard.melangeBuildGo(
-		directoryWithCommonGoFiles(dir, src),
+		operatorDirectory(src),
 		melangeFile,
 		arch,
 		MelangeImageVersion,
@@ -164,4 +156,16 @@ func (m *EmbeddedCluster) melangeTemplateOperator(
 		"melange.tmpl.yaml",
 		"melange.yaml",
 	)
+}
+
+func operatorDirectory(src *dagger.Directory) *dagger.Directory {
+	dir := directoryWithCommonGoFiles(dag.Directory(), src)
+	dir = dir.
+		WithDirectory("operator",
+			src.Directory("operator").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		)
+	return dir
 }

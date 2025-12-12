@@ -7,6 +7,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ AirgapManager = &airgapManager{}
@@ -24,6 +25,7 @@ type airgapManager struct {
 	airgapStore  airgapstore.Store
 	airgapBundle string
 	clusterID    string
+	kcli         client.Client
 	logger       logrus.FieldLogger
 }
 
@@ -50,6 +52,12 @@ func WithAirgapBundle(airgapBundle string) AirgapManagerOption {
 func WithClusterID(clusterID string) AirgapManagerOption {
 	return func(m *airgapManager) {
 		m.clusterID = clusterID
+	}
+}
+
+func WithKubeClient(kcli client.Client) AirgapManagerOption {
+	return func(c *airgapManager) {
+		c.kcli = kcli
 	}
 }
 
