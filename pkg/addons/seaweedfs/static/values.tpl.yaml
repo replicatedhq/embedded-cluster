@@ -54,6 +54,9 @@ master:
       fs.meta.load filer-backup.meta
     """
     sleep_minutes = 17          # sleep minutes between each script execution
+  resources:
+    requests:
+      cpu: "500m" # reserved cpu to prevent raft timeouts due to resource contention
 
 volume:
   # replicas must be at least replication (2) + 1 = 3
