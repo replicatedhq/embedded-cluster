@@ -3,8 +3,11 @@ import { useEffect } from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { renderWithProviders } from '../../../../test/setup.tsx';
-import InstallationStep from '../InstallationStep.tsx';
+import InstallationStep, { getPhaseOrder } from '../InstallationStep.tsx';
 import type { components } from "../../../../types/api";
+import type { WizardMode } from '../../../../types/wizard-mode';
+import type { InstallationTarget } from '../../../../types/installation-target';
+import type { InstallationPhaseId } from '../../../../types';
 
 type State = components["schemas"]["types.State"];
 
@@ -844,6 +847,189 @@ describe('InstallationStep', () => {
 
       // Back button should not be present for kubernetes target
       expect(screen.queryByTestId('installation-back-button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('getPhaseOrder', () => {
+    describe.each<{
+      mode: WizardMode;
+      target: InstallationTarget;
+      isAirgap: boolean;
+      requiresInfraUpgrade: boolean;
+      expected: InstallationPhaseId[];
+      description: string;
+    }>([
+      // Install mode - Linux target
+      {
+        mode: 'install',
+        target: 'linux',
+        isAirgap: false,
+        requiresInfraUpgrade: false,
+        expected: ['linux-preflight', 'linux-installation', 'app-preflight', 'app-installation'],
+        description: 'install mode, linux target, no airgap'
+      },
+      {
+        mode: 'install',
+        target: 'linux',
+        isAirgap: true,
+        requiresInfraUpgrade: false,
+        expected: ['linux-preflight', 'linux-installation', 'airgap-processing', 'app-preflight', 'app-installation'],
+        description: 'install mode, linux target, with airgap'
+      },
+      // Install mode - Kubernetes target
+      {
+        mode: 'install',
+        target: 'kubernetes',
+        isAirgap: false,
+        requiresInfraUpgrade: false,
+        expected: ['kubernetes-installation', 'app-preflight', 'app-installation'],
+        description: 'install mode, kubernetes target, no airgap'
+      },
+      {
+        mode: 'install',
+        target: 'kubernetes',
+        isAirgap: true,
+        requiresInfraUpgrade: false,
+        expected: ['kubernetes-installation', 'app-preflight', 'app-installation'],
+        description: 'install mode, kubernetes target, with airgap (airgap ignored for kubernetes)'
+      },
+      // Upgrade mode - Linux target - with infrastructure upgrade
+      {
+        mode: 'upgrade',
+        target: 'linux',
+        isAirgap: false,
+        requiresInfraUpgrade: true,
+        expected: ['linux-preflight', 'linux-installation', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, linux target, infra upgrade required, no airgap'
+      },
+      {
+        mode: 'upgrade',
+        target: 'linux',
+        isAirgap: true,
+        requiresInfraUpgrade: true,
+        expected: ['airgap-processing', 'linux-preflight', 'linux-installation', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, linux target, infra upgrade required, with airgap'
+      },
+      // Upgrade mode - Linux target - without infrastructure upgrade
+      {
+        mode: 'upgrade',
+        target: 'linux',
+        isAirgap: false,
+        requiresInfraUpgrade: false,
+        expected: ['app-preflight', 'app-installation'],
+        description: 'upgrade mode, linux target, no infra upgrade, no airgap'
+      },
+      {
+        mode: 'upgrade',
+        target: 'linux',
+        isAirgap: true,
+        requiresInfraUpgrade: false,
+        expected: ['airgap-processing', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, linux target, no infra upgrade, with airgap'
+      },
+      // Upgrade mode - Kubernetes target - with infrastructure upgrade
+      {
+        mode: 'upgrade',
+        target: 'kubernetes',
+        isAirgap: false,
+        requiresInfraUpgrade: true,
+        expected: ['kubernetes-installation', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, kubernetes target, infra upgrade required, no airgap'
+      },
+      {
+        mode: 'upgrade',
+        target: 'kubernetes',
+        isAirgap: true,
+        requiresInfraUpgrade: true,
+        expected: ['airgap-processing', 'kubernetes-installation', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, kubernetes target, infra upgrade required, with airgap'
+      },
+      // Upgrade mode - Kubernetes target - without infrastructure upgrade
+      {
+        mode: 'upgrade',
+        target: 'kubernetes',
+        isAirgap: false,
+        requiresInfraUpgrade: false,
+        expected: ['app-preflight', 'app-installation'],
+        description: 'upgrade mode, kubernetes target, no infra upgrade, no airgap'
+      },
+      {
+        mode: 'upgrade',
+        target: 'kubernetes',
+        isAirgap: true,
+        requiresInfraUpgrade: false,
+        expected: ['airgap-processing', 'app-preflight', 'app-installation'],
+        description: 'upgrade mode, kubernetes target, no infra upgrade, with airgap'
+      },
+    ])('$description', ({ mode, target, isAirgap, requiresInfraUpgrade, expected }) => {
+      it('returns correct phase order', () => {
+        const result = getPhaseOrder(mode, target, isAirgap, requiresInfraUpgrade);
+        expect(result).toEqual(expected);
+      });
+    });
+
+    describe('phase ordering invariants', () => {
+      it('always ends with app-preflight and app-installation', () => {
+        const testCases: Array<[WizardMode, InstallationTarget, boolean, boolean]> = [
+          ['install', 'linux', false, false],
+          ['install', 'linux', true, false],
+          ['install', 'kubernetes', false, false],
+          ['install', 'kubernetes', true, false],
+          ['upgrade', 'linux', false, true],
+          ['upgrade', 'linux', true, true],
+          ['upgrade', 'kubernetes', false, true],
+          ['upgrade', 'kubernetes', true, true],
+        ];
+
+        testCases.forEach(([mode, target, isAirgap, requiresInfraUpgrade]) => {
+          const phases = getPhaseOrder(mode, target, isAirgap, requiresInfraUpgrade);
+          const lastTwo = phases.slice(-2);
+          expect(lastTwo).toEqual(['app-preflight', 'app-installation']);
+        });
+      });
+
+      it('places linux-preflight before linux-installation when both present', () => {
+        // Upgrade + Linux + infra upgrade
+        const phases = getPhaseOrder('upgrade', 'linux', false, true);
+        const preflightIndex = phases.indexOf('linux-preflight');
+        const installIndex = phases.indexOf('linux-installation');
+
+        expect(preflightIndex).toBeGreaterThan(-1);
+        expect(installIndex).toBeGreaterThan(-1);
+        expect(preflightIndex).toBeLessThan(installIndex);
+      });
+
+      it('places airgap-processing before infrastructure installation when present', () => {
+        // Upgrade + Linux + airgap + infra upgrade
+        const phases = getPhaseOrder('upgrade', 'linux', true, true);
+        const airgapIndex = phases.indexOf('airgap-processing');
+        const linuxInstallIndex = phases.indexOf('linux-installation');
+
+        expect(airgapIndex).toBeGreaterThan(-1);
+        expect(linuxInstallIndex).toBeGreaterThan(-1);
+        expect(airgapIndex).toBeLessThan(linuxInstallIndex);
+      });
+
+      it('never includes linux-preflight for kubernetes target', () => {
+        const testCases: Array<[WizardMode, boolean, boolean]> = [
+          ['install', false, false],
+          ['install', true, false],
+          ['upgrade', false, true],
+          ['upgrade', true, true],
+        ];
+
+        testCases.forEach(([mode, isAirgap, requiresInfraUpgrade]) => {
+          const phases = getPhaseOrder(mode, 'kubernetes', isAirgap, requiresInfraUpgrade);
+          expect(phases).not.toContain('linux-preflight');
+        });
+      });
+
+      it('ignores requiresInfraUpgrade parameter in install mode', () => {
+        const phasesWithoutUpgrade = getPhaseOrder('install', 'linux', false, false);
+        const phasesWithUpgrade = getPhaseOrder('install', 'linux', false, true);
+
+        expect(phasesWithoutUpgrade).toEqual(phasesWithUpgrade);
+      });
     });
   });
 });
