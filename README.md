@@ -510,3 +510,15 @@ Releases follow the format: `{APP_VERSION}+k8s-{K0S_MINOR_VERSION}`
    git tag -a 2.10.0+k8s-1.31 -m "Release 2.10.0+k8s-1.31"
    git push origin 2.10.0+k8s-1.31
    ```
+
+## Special Third-Party Licenses
+
+This software includes code from the following open source projects licensed under AGPL-3.0, including but not limited to:
+
+### LXD
+
+- **Source**: https://github.com/canonical/lxd
+- **License**: GNU Affero General Public License v3.0 (AGPL-3.0)
+- **Copyright**: Canonical Ltd.
+
+A copy of the AGPL-3.0 license can be found in the LICENSE-AGPL file or at: https://www.gnu.org/licenses/agpl-3.0.txt
