@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -512,9 +513,16 @@ func TestComputeCIDRs(t *testing.T) {
 }
 
 func TestConfigureHost(t *testing.T) {
+	testReleaseData := &release.ReleaseData{
+		ChannelRelease: &release.ChannelRelease{
+			VersionLabel: "v1.0.0",
+		},
+	}
+
 	tests := []struct {
 		name        string
 		rc          runtimeconfig.RuntimeConfig
+		releaseData *release.ReleaseData
 		setupMocks  func(*hostutils.MockHostUtils)
 		expectedErr bool
 	}{
@@ -530,6 +538,7 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
+			releaseData: testReleaseData,
 			setupMocks: func(hum *hostutils.MockHostUtils) {
 				mock.InOrder(
 					hum.On("ConfigureHost", mock.Anything,
@@ -538,6 +547,7 @@ func TestConfigureHost(t *testing.T) {
 								rc.PodCIDR() == "10.0.0.0/16" &&
 								rc.ServiceCIDR() == "10.1.0.0/16"
 						}),
+						testReleaseData.ChannelRelease,
 						hostutils.InitForInstallOptions{
 							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
@@ -554,12 +564,14 @@ func TestConfigureHost(t *testing.T) {
 				})
 				return rc
 			}(),
+			releaseData: testReleaseData,
 			setupMocks: func(hum *hostutils.MockHostUtils) {
 				mock.InOrder(
 					hum.On("ConfigureHost", mock.Anything,
 						mock.MatchedBy(func(rc runtimeconfig.RuntimeConfig) bool {
 							return rc.EmbeddedClusterHomeDirectory() == "/var/lib/embedded-cluster"
 						}),
+						testReleaseData.ChannelRelease,
 						hostutils.InitForInstallOptions{
 							License:      []byte("metadata:\n  name: test-license"),
 							AirgapBundle: "bundle.tar",
@@ -584,6 +596,7 @@ func TestConfigureHost(t *testing.T) {
 			// Create manager with mocks
 			manager := NewInstallationManager(
 				WithHostUtils(mockHostUtils),
+				WithReleaseData(tt.releaseData),
 				WithLicense([]byte("metadata:\n  name: test-license")),
 				WithAirgapBundle("bundle.tar"),
 			)

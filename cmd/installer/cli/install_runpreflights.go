@@ -64,7 +64,7 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 
 func runInstallRunPreflights(ctx context.Context, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Debugf("configuring host")
-	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, release.GetChannelRelease(), hostutils.InitForInstallOptions{
 		License:      installCfg.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {

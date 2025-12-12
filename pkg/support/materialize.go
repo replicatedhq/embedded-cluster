@@ -26,12 +26,12 @@ type TemplateData struct {
 	NoProxy          string
 }
 
-func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, isAirgap bool) error {
+func MaterializeSupportBundleSpec(rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, isAirgap bool) error {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
-	domains := domains.GetDomains(embCfgSpec, nil)
+	domains := domains.GetDomains(embCfgSpec, channelRelease)
 
 	data := TemplateData{
 		DataDir:          rc.EmbeddedClusterHomeDirectory(),

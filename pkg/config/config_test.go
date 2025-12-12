@@ -10,7 +10,6 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/domains"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
@@ -102,7 +101,7 @@ func Test_extractK0sConfigPatch(t *testing.T) {
 }
 
 func TestRenderK0sConfig(t *testing.T) {
-	cfg := RenderK0sConfig(domains.DefaultProxyRegistryDomain)
+	cfg := RenderK0sConfig("proxy.replicated.com")
 
 	assert.Equal(t, "calico", cfg.Spec.Network.Provider)
 	assert.Equal(t, embeddedclusterv1beta1.DefaultNetworkNodePortRange, cfg.Spec.API.ExtraArgs["service-node-port-range"])

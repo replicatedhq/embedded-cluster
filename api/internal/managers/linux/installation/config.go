@@ -218,11 +218,15 @@ func (m *installationManager) validateDataDirectory(config types.LinuxInstallati
 }
 
 func (m *installationManager) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig) (finalErr error) {
+	if m.releaseData == nil || m.releaseData.ChannelRelease == nil {
+		return fmt.Errorf("release data with channel release is required for host configuration")
+	}
+
 	opts := hostutils.InitForInstallOptions{
 		License:      m.license,
 		AirgapBundle: m.airgapBundle,
 	}
-	if err := m.hostUtils.ConfigureHost(ctx, rc, opts); err != nil {
+	if err := m.hostUtils.ConfigureHost(ctx, rc, m.releaseData.ChannelRelease, opts); err != nil {
 		return fmt.Errorf("configure host: %w", err)
 	}
 
