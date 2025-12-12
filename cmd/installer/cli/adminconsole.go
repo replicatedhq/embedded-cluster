@@ -18,6 +18,7 @@ func AdminConsoleCmd(ctx context.Context, appTitle string) *cobra.Command {
 
 	cmd.AddCommand(AdminConsoleResetPasswordCmd(ctx, appTitle))
 	cmd.AddCommand(AdminConsoleUpdateTLSCmd(ctx, appTitle))
+	cmd.AddCommand(AdminConsoleResetTLSCmd(ctx, appTitle))
 
 	return cmd
 }
