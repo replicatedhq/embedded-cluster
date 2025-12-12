@@ -91,7 +91,6 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 
 		upgradeRouter.HandleFunc("/host-preflights/run", a.handlers.linux.Upgrade.PostRunHostPreflights).Methods("POST")
 		upgradeRouter.HandleFunc("/host-preflights/status", a.handlers.linux.Upgrade.GetHostPreflightsStatus).Methods("GET")
-		upgradeRouter.HandleFunc("/host-preflights/bypass", a.handlers.linux.Upgrade.PostBypassHostPreflights).Methods("POST")
 
 		upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.Upgrade.PostUpgradeApp).Methods("POST")
 		upgradeRouter.HandleFunc("/app/status", a.handlers.linux.Upgrade.GetAppUpgradeStatus).Methods("GET")

@@ -286,14 +286,20 @@ func (h *Handler) GetAppPreflightsStatus(w http.ResponseWriter, r *http.Request)
 //	@Security		bearerauth
 //	@Accept			json
 //	@Produce		json
-//	@Success		200	{object}	types.Infra
-//	@Failure		400	{object}	types.APIError
-//	@Failure		401	{object}	types.APIError
-//	@Failure		409	{object}	types.APIError
-//	@Failure		500	{object}	types.APIError
+//	@Param			request	body		types.LinuxInfraUpgradeRequest	true	"Infra Upgrade Request"
+//	@Success		200		{object}	types.Infra
+//	@Failure		400		{object}	types.APIError
+//	@Failure		401		{object}	types.APIError
+//	@Failure		409		{object}	types.APIError
+//	@Failure		500		{object}	types.APIError
 //	@Router			/linux/upgrade/infra/upgrade [post]
 func (h *Handler) PostUpgradeInfra(w http.ResponseWriter, r *http.Request) {
-	err := h.controller.UpgradeInfra(r.Context())
+	var req types.LinuxInfraUpgradeRequest
+	if err := utils.BindJSON(w, r, &req, h.logger); err != nil {
+		return
+	}
+
+	err := h.controller.UpgradeInfra(r.Context(), req.IgnoreHostPreflights)
 	if err != nil {
 		utils.LogError(r, err, h.logger, "failed to upgrade infra")
 		utils.JSONError(w, r, err, h.logger)
@@ -413,27 +419,4 @@ func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	utils.JSON(w, r, http.StatusOK, hostPreflights, h.logger)
-}
-
-// PostBypassHostPreflights handler to bypass failed host preflights
-//
-//	@ID				postLinuxUpgradeBypassHostPreflights
-//	@Summary		Bypass failed host preflights
-//	@Description	Bypass failed host preflight checks to continue with upgrade
-//	@Tags			linux-upgrade
-//	@Security		bearerauth
-//	@Produce		json
-//	@Success		200	{object}	types.HostPreflights
-//	@Failure		400	{object}	types.APIError
-//	@Failure		409	{object}	types.APIError
-//	@Router			/linux/upgrade/host-preflights/bypass [post]
-func (h *Handler) PostBypassHostPreflights(w http.ResponseWriter, r *http.Request) {
-	err := h.controller.BypassHostPreflights(r.Context())
-	if err != nil {
-		utils.LogError(r, err, h.logger, "failed to bypass host preflights")
-		utils.JSONError(w, r, err, h.logger)
-		return
-	}
-
-	h.GetHostPreflightsStatus(w, r)
 }

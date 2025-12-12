@@ -30,7 +30,7 @@ import (
 )
 
 type Controller interface {
-	UpgradeInfra(ctx context.Context) error
+	UpgradeInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	ProcessAirgap(ctx context.Context) error
 	GetAirgapStatus(ctx context.Context) (types.Airgap, error)
@@ -39,7 +39,6 @@ type Controller interface {
 	// Host preflight methods
 	RunHostPreflights(ctx context.Context) error
 	GetHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error)
-	BypassHostPreflights(ctx context.Context) error
 	// App controller methods
 	appcontroller.Controller
 }
@@ -67,12 +66,13 @@ type UpgradeController struct {
 	hcli                 helm.Client
 	kcli                 client.Client
 	mcli                 metadata.Interface
-	preflightRunner      preflights.PreflightRunnerInterface
-	stateMachine         statemachine.Interface
-	requiresInfraUpgrade bool
-	logger               logrus.FieldLogger
-	targetVersion        string
-	initialVersion       string
+	preflightRunner           preflights.PreflightRunnerInterface
+	stateMachine              statemachine.Interface
+	requiresInfraUpgrade      bool
+	logger                    logrus.FieldLogger
+	targetVersion             string
+	initialVersion            string
+	allowIgnoreHostPreflights bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -238,6 +238,12 @@ func WithInitialVersion(initialVersion string) UpgradeControllerOption {
 func WithInfraUpgradeRequired(required bool) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.requiresInfraUpgrade = required
+	}
+}
+
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
 	}
 }
 

@@ -10,3 +10,8 @@ type AppUpgrade struct {
 type UpgradeAppRequest struct {
 	IgnoreAppPreflights bool `json:"ignoreAppPreflights"`
 }
+
+// LinuxInfraUpgradeRequest represents a request to upgrade infrastructure
+type LinuxInfraUpgradeRequest struct {
+	IgnoreHostPreflights bool `json:"ignoreHostPreflights"`
+}
