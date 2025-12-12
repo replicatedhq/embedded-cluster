@@ -21,23 +21,14 @@ import (
 )
 
 func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
-	var rc runtimeconfig.RuntimeConfig
-
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: fmt.Sprintf("Show the %s component versions", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// Initialize runtime config and set environment variables
-			// This sets up KUBECONFIG for accessing the cluster
-			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
-			// Ignore SetEnv error - if it fails, cluster access will fail gracefully
-			// and we'll only show client versions without server versions
-			_ = rc.SetEnv()
-
+			// Set KUBECONFIG if cluster exists
+			// If this fails, cluster access will fail gracefully and we'll only show binary versions
+			_ = setKubeconfigIfExists()
 			return nil
-		},
-		PostRun: func(cmd *cobra.Command, args []string) {
-			rc.Cleanup()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getenv("ENABLE_V3") == "1" {
@@ -70,10 +61,10 @@ func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 func runVersionV3(ctx context.Context) error {
 	channelRelease := release.GetChannelRelease()
 	binaryVersions, binaryOrder := collectBinaryVersions(channelRelease)
-	deployedVersions, hasCluster := collectDeployedVersions(ctx)
+	deployedVersions := collectDeployedVersions(ctx)
 
 	printVersionSection("CLIENT (Binary)", binaryVersions, binaryOrder)
-	if hasCluster {
+	if len(deployedVersions) > 0 {
 		fmt.Println()
 		printVersionSection("SERVER (Deployed)", deployedVersions, nil)
 		fmt.Println()
@@ -128,22 +119,46 @@ func collectAndNormalizeVersions(source map[string]string, target map[string]str
 	}
 }
 
+// setKubeconfigIfExists sets the KUBECONFIG environment variable if the cluster is installed.
+// This function does not require root permissions - it only reads existing files and does not create any directories.
+// Returns error if kubeconfig is not found (cluster not installed).
+func setKubeconfigIfExists() error {
+	// Try to discover runtime config from filesystem
+	rc, err := rcutil.GetRuntimeConfigFromFilesystem()
+	if err != nil {
+		// If we can't discover from filesystem, try the default location
+		rc = runtimeconfig.New(nil)
+	}
+
+	// Get kubeconfig path from runtime config
+	kubeconfigPath := rc.PathToKubeConfig()
+
+	// Verify the file exists
+	if _, err := os.Stat(kubeconfigPath); os.IsNotExist(err) {
+		return fmt.Errorf("kubeconfig not found")
+	}
+
+	// Set KUBECONFIG environment variable
+	return os.Setenv("KUBECONFIG", kubeconfigPath)
+}
+
 // collectDeployedVersions gathers component versions from the deployed cluster.
-// Returns a map of component name to version string and a boolean indicating if cluster is accessible.
-// Assumes KUBECONFIG has been set by RuntimeConfig.SetEnv() in PreRunE.
-func collectDeployedVersions(ctx context.Context) (map[string]string, bool) {
+// Returns a map of component name to version string. Returns empty map if cluster is not accessible.
+// Expects KUBECONFIG to be set by PreRunE - if not set, will return empty map.
+func collectDeployedVersions(ctx context.Context) map[string]string {
 	componentVersions := make(map[string]string)
 
+	// Create kube client - requires KUBECONFIG to be set
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
-		return componentVersions, false
+		return componentVersions
 	}
 
 	// Get deployed app version from the config-values secret label
 	appSlug := runtimeconfig.AppSlug()
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
 	if err != nil {
-		return componentVersions, false
+		return componentVersions
 	}
 
 	secret := &corev1.Secret{}
@@ -151,14 +166,14 @@ func collectDeployedVersions(ctx context.Context) (map[string]string, bool) {
 		Name:      fmt.Sprintf("%s-config-values", appSlug),
 		Namespace: kotsadmNamespace,
 	}, secret); err != nil {
-		return componentVersions, false
+		return componentVersions
 	}
 
 	if appVersion := secret.Labels["app.kubernetes.io/version"]; appVersion != "" {
 		componentVersions[appSlug] = appVersion
 	}
 
-	return componentVersions, true
+	return componentVersions
 }
 
 // printVersionSection prints a version section with the given header and component versions.

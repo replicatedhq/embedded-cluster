@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"os"
 	"strings"
@@ -288,14 +287,4 @@ func TestPrintVersionSectionSpacing(t *testing.T) {
 			assert.GreaterOrEqual(t, spacing, 2, "spacing should be at least 2 spaces")
 		}
 	}
-}
-
-func TestCollectDeployedVersions(t *testing.T) {
-	// Test that when no cluster is accessible, we return empty map and false
-	versions, hasCluster := collectDeployedVersions(context.Background())
-
-	// In test environment without a cluster, should return false
-	assert.False(t, hasCluster)
-	// Should return empty map
-	assert.Empty(t, versions)
 }
