@@ -794,13 +794,17 @@ func (i *CmxInstance) CollectClusterSupportBundle(ctx context.Context) (*dagger.
 
 	// Try collecting support bundle with --load-cluster-specs first
 	cmd1 := fmt.Sprintf("kubectl support-bundle --output %s --interactive=false --load-cluster-specs", bundlePath)
-	_, err := i.Command(cmd1).Stdout(ctx)
+	_, err := i.CommandWithEnv(cmd1, []string{
+		"TROUBLESHOOT_AUTO_UPDATE=false",
+	}).Stdout(ctx)
 
 	// If first attempt failed, try with explicit spec path
 	if err != nil {
 		fmt.Printf("First support bundle attempt failed, trying with explicit spec: %v\n", err)
 		cmd2 := fmt.Sprintf("kubectl support-bundle --output %s --interactive=false --load-cluster-specs /automation/troubleshoot/cluster-support-bundle.yaml", bundlePath)
-		stdout, err := i.Command(cmd2).Stdout(ctx)
+		stdout, err := i.CommandWithEnv(cmd2, []string{
+			"TROUBLESHOOT_AUTO_UPDATE=false",
+		}).Stdout(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to collect cluster support bundle (both attempts): %w\nOutput: %s", err, stdout)
 		}
@@ -838,7 +842,9 @@ func (i *CmxInstance) CollectHostSupportBundle(ctx context.Context) (*dagger.Fil
 
 	// Try collecting host support bundle with kubectl-support_bundle first
 	cmd1 := fmt.Sprintf("%s/bin/kubectl-support_bundle --output %s --interactive=false %s/support/host-support-bundle.yaml", DataDir, bundlePath, DataDir)
-	_, err := i.Command(cmd1).Stdout(ctx)
+	_, err := i.CommandWithEnv(cmd1, []string{
+		"TROUBLESHOOT_AUTO_UPDATE=false",
+	}).Stdout(ctx)
 
 	// If first attempt failed, try collecting installer logs as fallback
 	if err != nil {

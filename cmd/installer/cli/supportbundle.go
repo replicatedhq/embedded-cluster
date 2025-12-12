@@ -78,6 +78,7 @@ func SupportBundleCmd(ctx context.Context) *cobra.Command {
 				helpers.RunCommandOptions{
 					Stdout:       stdout,
 					Stderr:       stderr,
+					Env:          map[string]string{"TROUBLESHOOT_AUTO_UPDATE": "false"},
 					LogOnSuccess: true,
 				},
 				supportBundle,
