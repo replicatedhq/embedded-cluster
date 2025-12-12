@@ -36,6 +36,10 @@ type Controller interface {
 	GetAirgapStatus(ctx context.Context) (types.Airgap, error)
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 	GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
+	// Host preflight methods
+	RunHostPreflights(ctx context.Context) error
+	GetHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error)
+	BypassHostPreflights(ctx context.Context) error
 	// App controller methods
 	appcontroller.Controller
 }
