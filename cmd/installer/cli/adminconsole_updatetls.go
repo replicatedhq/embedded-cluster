@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,7 +35,9 @@ to users. It does not affect TLS certificate validation.`, name),
 			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("update-tls command must be run as root")
 			}
-			return nil
+
+			rc := rcutil.InitBestRuntimeConfig(cmd.Context())
+			return rc.SetEnv()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpdateTLS(cmd.Context(), tlsCertPath, tlsKeyPath, hostname)
