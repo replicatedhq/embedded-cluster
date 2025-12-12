@@ -153,15 +153,15 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		addons.WithDomains(domains),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -323,15 +323,15 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 		addons.WithDomains(domains),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -390,7 +390,13 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-3", "pod3.yaml")
 }
 
-func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
+func enableHAAndCancelContextOnMessage(t *testing.T, kubeconfig string, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
+	t.Cleanup(func() {
+		if t.Failed() {
+			printSeaweedFSDebugInfo(t, kubeconfig)
+		}
+	})
+
 	canEnable, reason, err := addOns.CanEnableHA(t.Context())
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
@@ -543,6 +549,81 @@ func (h *logrusHook) Levels() []logrus.Level {
 func (h *logrusHook) Fire(entry *logrus.Entry) error {
 	h.writer.Write([]byte(entry.Message + "\n"))
 	return nil
+}
+
+func printSeaweedFSDebugInfo(t *testing.T, kubeconfig string) {
+	t.Logf("%s ===== SEAWEEDFS DEBUG INFO =====", formattedTime())
+
+	// Get StatefulSet status
+	t.Logf("%s --- SeaweedFS Master StatefulSet Status ---", formattedTime())
+	cmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "statefulset", "seaweedfs-master", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get statefulset: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Describe StatefulSet
+	t.Logf("%s --- SeaweedFS Master StatefulSet Describe ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "describe", "statefulset", "seaweedfs-master", "-n", "seaweedfs")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to describe statefulset: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Get Pods status
+	t.Logf("%s --- SeaweedFS Pods ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pods", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get pods: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Describe each pod
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pods", "-n", "seaweedfs", "-o", "jsonpath={.items[*].metadata.name}")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		podNames := strings.Fields(string(out))
+		for _, podName := range podNames {
+			t.Logf("%s --- Pod %s Describe ---", formattedTime(), podName)
+			descCmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "describe", "pod", podName, "-n", "seaweedfs")
+			if descOut, descErr := descCmd.CombinedOutput(); descErr == nil {
+				t.Logf("%s\n%s", formattedTime(), string(descOut))
+			} else {
+				t.Logf("%s Failed to describe pod %s: %v", formattedTime(), podName, descErr)
+			}
+
+			// Get pod logs
+			t.Logf("%s --- Pod %s Logs ---", formattedTime(), podName)
+			logCmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "logs", podName, "-n", "seaweedfs", "--tail=100")
+			if logOut, logErr := logCmd.CombinedOutput(); logErr == nil {
+				t.Logf("%s\n%s", formattedTime(), string(logOut))
+			} else {
+				t.Logf("%s Failed to get logs for pod %s: %v\n%s", formattedTime(), podName, logErr, string(logOut))
+			}
+		}
+	}
+
+	// Get events
+	t.Logf("%s --- SeaweedFS Namespace Events ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "events", "-n", "seaweedfs", "--sort-by=.lastTimestamp")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get events: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Get PVCs
+	t.Logf("%s --- SeaweedFS PVCs ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pvc", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get PVCs: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	t.Logf("%s ===== END SEAWEEDFS DEBUG INFO =====", formattedTime())
 }
 
 func formattedTime() string {
