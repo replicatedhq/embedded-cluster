@@ -371,7 +371,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags inst
 	}
 
 	logrus.Debugf("configuring host")
-	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, release.GetChannelRelease(), hostutils.InitForInstallOptions{
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
 		return fmt.Errorf("configure host: %w", err)

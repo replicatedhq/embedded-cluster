@@ -1244,7 +1244,7 @@ func initializeInstall(ctx context.Context, flags installFlags, installCfg *inst
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, release.GetChannelRelease(), hostutils.InitForInstallOptions{
 		License:      installCfg.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {

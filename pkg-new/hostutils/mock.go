@@ -3,6 +3,7 @@ package hostutils
 import (
 	"context"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
@@ -28,8 +29,8 @@ func (m *MockHostUtils) RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) er
 }
 
 // ConfigureHost mocks the ConfigureHost method
-func (m *MockHostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	args := m.Called(ctx, rc, opts)
+func (m *MockHostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, opts InitForInstallOptions) error {
+	args := m.Called(ctx, rc, channelRelease, opts)
 	return args.Error(0)
 }
 
@@ -64,8 +65,8 @@ func (m *MockHostUtils) ResetFirewalld(ctx context.Context) error {
 }
 
 // MaterializeFiles mocks the MaterializeFiles method
-func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
-	args := m.Called(rc, airgapBundle)
+func (m *MockHostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, airgapBundle string) error {
+	args := m.Called(rc, channelRelease, airgapBundle)
 	return args.Error(0)
 }
 

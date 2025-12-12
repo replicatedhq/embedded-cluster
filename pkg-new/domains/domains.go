@@ -5,16 +5,18 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 )
 
-const DefaultReplicatedAppDomain = "replicated.app"
-const DefaultProxyRegistryDomain = "proxy.replicated.com"
-const DefaultReplicatedRegistryDomain = "registry.replicated.com"
+const (
+	defaultReplicatedAppDomain      = "replicated.app"
+	defaultProxyRegistryDomain      = "proxy.replicated.com"
+	defaultReplicatedRegistryDomain = "registry.replicated.com"
+)
 
 // GetDomains returns the domains for the embedded cluster. The first priority is the domains configured within the provided config spec.
 // The second priority is the domains configured within the channel release. If neither is configured, the default domains are returned.
 func GetDomains(cfgspec *ecv1beta1.ConfigSpec, rel *release.ChannelRelease) ecv1beta1.Domains {
-	replicatedAppDomain := DefaultReplicatedAppDomain
-	proxyRegistryDomain := DefaultProxyRegistryDomain
-	replicatedRegistryDomain := DefaultReplicatedRegistryDomain
+	replicatedAppDomain := defaultReplicatedAppDomain
+	proxyRegistryDomain := defaultProxyRegistryDomain
+	replicatedRegistryDomain := defaultReplicatedRegistryDomain
 
 	// get defaults from channel release if available
 	if rel != nil {
