@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -35,6 +36,7 @@ type PrepareHostPreflightOptions struct {
 	IsJoin                       bool
 	IsUI                         bool
 	IsV3                         bool
+	Mode                         apitypes.Mode
 	ControllerAirgapStorageSpace string
 	WorkerAirgapStorageSpace     string
 }
@@ -78,7 +80,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		data.NoProxy = opts.Proxy.NoProxy
 	}
 
-	chpfs, err := GetClusterHostPreflights(ctx, data)
+	chpfs, err := GetClusterHostPreflights(ctx, opts.Mode, data)
 	if err != nil {
 		return nil, fmt.Errorf("get cluster host preflights: %w", err)
 	}

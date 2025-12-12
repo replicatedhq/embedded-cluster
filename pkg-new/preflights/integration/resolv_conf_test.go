@@ -230,7 +230,7 @@ func TestIntegration_ResolvConf(t *testing.T) {
 			req := require.New(t)
 			ctx := context.Background()
 
-			hpfs, err := preflights.GetClusterHostPreflights(ctx, types.HostPreflightTemplateData{})
+			hpfs, err := preflights.GetClusterHostPreflights(ctx, apitypes.ModeInstall, types.HostPreflightTemplateData{})
 			req.NoError(err)
 			req.NotEmpty(hpfs)
 
