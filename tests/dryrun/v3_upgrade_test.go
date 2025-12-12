@@ -246,8 +246,19 @@ func runV3Upgrade(t *testing.T, args v3UpgradeArgs) {
 		})
 	}
 
+	// Run host preflights and wait for completion
+	_, err = c.RunLinuxUpgradeHostPreflights(ctx)
+	require.NoError(t, err)
+	assertEventuallySucceeded(t, "host preflights", func() (apitypes.State, string, error) {
+		st, err := c.GetLinuxUpgradeHostPreflightsStatus(ctx)
+		if err != nil {
+			return "", "", err
+		}
+		return st.Status.State, st.Status.Description, nil
+	})
+
 	// Run infrastructure upgrade and wait for completion
-	_, err = c.UpgradeLinuxInfra(ctx)
+	_, err = c.UpgradeLinuxInfra(ctx, false)
 	require.NoError(t, err)
 	assertEventuallySucceeded(t, "infrastructure upgrade", func() (apitypes.State, string, error) {
 		st, err := c.GetLinuxUpgradeInfraStatus(ctx)
