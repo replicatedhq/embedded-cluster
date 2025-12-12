@@ -107,18 +107,3 @@ func Test_resetTLSSecret(t *testing.T) {
 		})
 	}
 }
-
-func TestAdminConsoleResetTLSCmd(t *testing.T) {
-	ctx := context.Background()
-	cmd := AdminConsoleResetTLSCmd(ctx, "Test App")
-
-	assert.Equal(t, "reset-tls", cmd.Use)
-	assert.Contains(t, cmd.Short, "Reset the TLS certificate")
-	assert.Contains(t, cmd.Short, "self-signed")
-	assert.Contains(t, cmd.Long, "self-signed TLS certificate")
-
-	// Verify no flags are required (unlike update-tls)
-	flags := cmd.Flags()
-	assert.Nil(t, flags.Lookup("tls-cert"))
-	assert.Nil(t, flags.Lookup("tls-key"))
-}

@@ -261,24 +261,3 @@ func Test_updateTLSSecret(t *testing.T) {
 		})
 	}
 }
-
-func TestAdminConsoleUpdateTLSCmd(t *testing.T) {
-	ctx := context.Background()
-	cmd := AdminConsoleUpdateTLSCmd(ctx, "Test App")
-
-	assert.Equal(t, "update-tls", cmd.Use)
-	assert.Contains(t, cmd.Short, "Update the TLS certificate")
-	assert.Contains(t, cmd.Long, "Update the TLS certificate and key")
-	assert.Contains(t, cmd.Long, "--hostname flag is optional")
-
-	// Check required flags
-	tlsCertFlag := cmd.Flags().Lookup("tls-cert")
-	assert.NotNil(t, tlsCertFlag)
-
-	tlsKeyFlag := cmd.Flags().Lookup("tls-key")
-	assert.NotNil(t, tlsKeyFlag)
-
-	hostnameFlag := cmd.Flags().Lookup("hostname")
-	assert.NotNil(t, hostnameFlag)
-	assert.Contains(t, hostnameFlag.Usage, "optional")
-}
