@@ -15,6 +15,8 @@ import AirgapPhase from './phases/AirgapPhase';
 import { NextButtonConfig, BackButtonConfig } from './types';
 import type { InstallationPhaseId as InstallationPhase } from '../../../types';
 import type { components } from "../../../types/api";
+import type { WizardMode } from '../../../types/wizard-mode';
+import type { InstallationTarget } from '../../../types/installation-target';
 
 type State = components["schemas"]["types.State"];
 
@@ -23,50 +25,67 @@ interface InstallationStepProps {
   onBack: () => void;
 }
 
+/**
+ * Determines the order of installation phases based on mode, target, and configuration
+ * @param mode - Operation mode ('install' or 'upgrade')
+ * @param target - Installation target ('linux' or 'kubernetes')
+ * @param isAirgap - Whether this is an airgap installation
+ * @param requiresInfraUpgrade - Whether infrastructure upgrade is required (upgrade mode only)
+ * @returns Array of installation phase IDs in the order they should be executed
+ */
+export function getPhaseOrder(
+  mode: WizardMode,
+  target: InstallationTarget,
+  isAirgap: boolean,
+  requiresInfraUpgrade: boolean
+): InstallationPhase[] {
+  // Upgrade mode
+  if (mode === 'upgrade') {
+    const phases: InstallationPhase[] = [];
+
+    // Add airgap processing if airgap
+    if (isAirgap) {
+      phases.push("airgap-processing");
+    }
+
+    // Add infrastructure upgrade if required
+    if (requiresInfraUpgrade) {
+      // Add host preflights for Linux target only
+      if (target === 'linux') {
+        phases.push('linux-preflight');
+      }
+      phases.push(`${target}-installation` as InstallationPhase);
+    }
+
+    // Always add app preflight and installation
+    phases.push("app-preflight", "app-installation");
+
+    return phases;
+  }
+
+  // Install mode
+  if (target === 'kubernetes') {
+    return ["kubernetes-installation", "app-preflight", "app-installation"];
+  }
+
+  const phases: InstallationPhase[] = ["linux-preflight", "linux-installation"];
+
+  if (isAirgap) {
+    phases.push("airgap-processing");
+  }
+
+  phases.push("app-preflight", "app-installation");
+
+  return phases;
+}
+
 const InstallationStep: React.FC<InstallationStepProps> = ({ onNext, onBack }) => {
   const { target, text, isAirgap, mode, requiresInfraUpgrade } = useWizard();
   const { settings } = useSettings();
   const { installationPhase: storedPhase, setInstallationPhase } = useInstallationProgress();
   const themeColor = settings.themeColor;
 
-  const getPhaseOrder = (): InstallationPhase[] => {
-    // Upgrade mode
-    if (mode === 'upgrade') {
-      const phases: InstallationPhase[] = [];
-
-      // Add airgap processing if airgap
-      if (isAirgap) {
-        phases.push("airgap-processing");
-      }
-
-      // Add infrastructure upgrade if required
-      if (requiresInfraUpgrade) {
-        phases.push(`${target}-installation` as InstallationPhase);
-      }
-
-      // Always add app preflight and installation
-      phases.push("app-preflight", "app-installation");
-
-      return phases;
-    }
-
-    // Install mode
-    if (target === 'kubernetes') {
-      return ["kubernetes-installation", "app-preflight", "app-installation"];
-    }
-
-    const phases: InstallationPhase[] = ["linux-preflight", "linux-installation"];
-
-    if (isAirgap) {
-      phases.push("airgap-processing");
-    }
-
-    phases.push("app-preflight", "app-installation");
-
-    return phases;
-  };
-
-  const phaseOrder = getPhaseOrder();
+  const phaseOrder = getPhaseOrder(mode, target, isAirgap, requiresInfraUpgrade);
   const completedPhaseSet = new Set<InstallationPhase>();
 
   // If we have a stored phase then we need to set all the completed phases before too
