@@ -284,14 +284,14 @@ func (i *CmxInstance) ensureAppDeployedAirgap(ctx context.Context, expectedVersi
 	}
 
 	// Get kotsadm service IP
-	kotsadmIPCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath='{.spec.clusterIP}'`, AppNamespace)
+	kotsadmIPCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath={.spec.clusterIP}`, AppNamespace)
 	kotsadmIP, err := i.Command(kotsadmIPCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm IP: %w", err)
 	}
 
 	// Get kotsadm service port
-	kotsadmPortCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o jsonpath='{.spec.ports[?(@.name=="http")].port}'`, AppNamespace)
+	kotsadmPortCmd := fmt.Sprintf(`kubectl get svc -n %s kotsadm -o "jsonpath={.spec.ports[?(@.name=="http")].port}"`, AppNamespace)
 	kotsadmPort, err := i.Command(kotsadmPortCmd).Stdout(ctx)
 	if err != nil {
 		return fmt.Errorf("get kotsadm port: %w", err)
