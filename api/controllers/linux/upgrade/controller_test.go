@@ -37,7 +37,7 @@ func TestUpgradeInfra(t *testing.T) {
 	}{
 		{
 			name:          "successful upgrade",
-			currentState:  states.StateApplicationConfigured,
+			currentState:  states.StateHostPreflightsSucceeded,
 			expectedState: states.StateInfrastructureUpgraded,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, st *store.MockStore) {
 				st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
@@ -53,7 +53,7 @@ func TestUpgradeInfra(t *testing.T) {
 		},
 		{
 			name:          "upgrade error",
-			currentState:  states.StateApplicationConfigured,
+			currentState:  states.StateHostPreflightsSucceeded,
 			expectedState: states.StateInfrastructureUpgradeFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, st *store.MockStore) {
 				st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
@@ -69,7 +69,7 @@ func TestUpgradeInfra(t *testing.T) {
 		},
 		{
 			name:          "upgrade panic",
-			currentState:  states.StateApplicationConfigured,
+			currentState:  states.StateHostPreflightsSucceeded,
 			expectedState: states.StateInfrastructureUpgradeFailed,
 			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, st *store.MockStore) {
 				st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
@@ -133,7 +133,7 @@ func TestUpgradeInfra(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			err = controller.UpgradeInfra(context.Background())
+			err = controller.UpgradeInfra(context.Background(), false)
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)
@@ -514,30 +514,54 @@ func TestGetHostPreflightsStatus(t *testing.T) {
 	}
 }
 
-func TestBypassHostPreflights(t *testing.T) {
+func TestUpgradeInfraWithHostPreflightBypass(t *testing.T) {
 	tests := []struct {
-		name          string
-		currentState  statemachine.State
-		expectedState statemachine.State
-		setupMocks    func(*preflight.MockHostPreflightManager)
-		expectedErr   bool
+		name                      string
+		currentState              statemachine.State
+		expectedState             statemachine.State
+		ignoreHostPreflights      bool
+		allowIgnoreHostPreflights bool
+		setupMocks                func(runtimeconfig.RuntimeConfig, *infra.MockInfraManager, *installation.MockInstallationManager, *preflight.MockHostPreflightManager, *store.MockStore)
+		expectedErr               bool
 	}{
 		{
-			name:          "successful bypass",
-			currentState:  states.StateHostPreflightsFailed,
-			expectedState: states.StateHostPreflightsFailedBypassed,
-			setupMocks: func(pm *preflight.MockHostPreflightManager) {
+			name:                      "successful bypass with ignoreHostPreflights=true and allowIgnoreHostPreflights=true",
+			currentState:              states.StateHostPreflightsFailed,
+			expectedState:             states.StateInfrastructureUpgraded,
+			ignoreHostPreflights:      true,
+			allowIgnoreHostPreflights: true,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager, st *store.MockStore) {
 				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+				st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+					return status.State == types.StateRunning
+				})).Return(nil)
+				instMgr.On("GetRegistrySettings", mock.Anything, rc).Return(nil, nil)
+				im.On("Upgrade", mock.Anything, rc, mock.Anything).Return(nil)
+				st.LinuxInfraMockStore.On("SetStatus", mock.MatchedBy(func(status types.Status) bool {
+					return status.State == types.StateSucceeded
+				})).Return(nil)
 			},
 			expectedErr: false,
 		},
 		{
-			name:          "invalid state transition",
-			currentState:  states.StateInfrastructureUpgrading,
-			expectedState: states.StateInfrastructureUpgrading,
-			setupMocks: func(pm *preflight.MockHostPreflightManager) {
-				// Even for invalid transitions, we try to get the output first
-				pm.On("GetHostPreflightOutput", mock.Anything).Return(failedPreflightOutput, nil)
+			name:                      "bypass rejected with ignoreHostPreflights=true but allowIgnoreHostPreflights=false",
+			currentState:              states.StateHostPreflightsFailed,
+			expectedState:             states.StateHostPreflightsFailed,
+			ignoreHostPreflights:      true,
+			allowIgnoreHostPreflights: false,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager, st *store.MockStore) {
+				// No mocks needed as it should fail before calling any methods
+			},
+			expectedErr: true,
+		},
+		{
+			name:                      "bypass rejected with ignoreHostPreflights=false",
+			currentState:              states.StateHostPreflightsFailed,
+			expectedState:             states.StateHostPreflightsFailed,
+			ignoreHostPreflights:      false,
+			allowIgnoreHostPreflights: true,
+			setupMocks: func(rc runtimeconfig.RuntimeConfig, im *infra.MockInfraManager, instMgr *installation.MockInstallationManager, pm *preflight.MockHostPreflightManager, st *store.MockStore) {
+				// No mocks needed as it should fail before calling any methods
 			},
 			expectedErr: true,
 		},
@@ -545,36 +569,67 @@ func TestBypassHostPreflights(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rc := runtimeconfig.New(nil)
+			rc.SetDataDir(t.TempDir())
+			rc.SetManagerPort(9001)
+
 			sm := NewStateMachine(
 				WithCurrentState(tt.currentState),
 				WithRequiresInfraUpgrade(true),
 			)
 
+			mockInfraManager := &infra.MockInfraManager{}
+			mockInstallationManager := &installation.MockInstallationManager{}
 			mockPreflightManager := &preflight.MockHostPreflightManager{}
-			tt.setupMocks(mockPreflightManager)
 
 			mockStore := &store.MockStore{}
 			mockStore.AppConfigMockStore.On("GetConfigValues").Return(types.AppConfigValues{}, nil)
 
-			controller, err := NewUpgradeController(
-				WithStateMachine(sm),
-				WithHostPreflightManager(mockPreflightManager),
-				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
-				WithStore(mockStore),
-				WithHelmClient(&helm.MockClient{}),
+			tt.setupMocks(rc, mockInfraManager, mockInstallationManager, mockPreflightManager, mockStore)
+
+			appController, err := appcontroller.NewAppController(
+				appcontroller.WithStateMachine(sm),
+				appcontroller.WithStore(mockStore),
+				appcontroller.WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				appcontroller.WithHelmClient(&helm.MockClient{}),
 			)
 			require.NoError(t, err)
 
-			err = controller.BypassHostPreflights(context.Background())
+			controller, err := NewUpgradeController(
+				WithRuntimeConfig(rc),
+				WithStateMachine(sm),
+				WithInfraManager(mockInfraManager),
+				WithInstallationManager(mockInstallationManager),
+				WithHostPreflightManager(mockPreflightManager),
+				WithAppController(appController),
+				WithStore(mockStore),
+				WithReleaseData(getTestReleaseData(&kotsv1beta1.Config{})),
+				WithHelmClient(&helm.MockClient{}),
+				WithAllowIgnoreHostPreflights(tt.allowIgnoreHostPreflights),
+			)
+			require.NoError(t, err)
+
+			err = controller.UpgradeInfra(context.Background(), tt.ignoreHostPreflights)
 
 			if tt.expectedErr {
 				require.Error(t, err)
+				assert.Equal(t, tt.expectedState, sm.CurrentState())
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tt.expectedState, sm.CurrentState())
+				// Wait for the goroutine to complete and state to transition
+				assert.Eventually(t, func() bool {
+					return sm.CurrentState() == tt.expectedState
+				}, time.Second, 100*time.Millisecond, "state should be %s but is %s", tt.expectedState, sm.CurrentState())
+
+				assert.Eventually(t, func() bool {
+					return !sm.IsLockAcquired()
+				}, time.Second, 100*time.Millisecond, "state machine should not be locked")
 			}
 
+			mockInfraManager.AssertExpectations(t)
+			mockInstallationManager.AssertExpectations(t)
 			mockPreflightManager.AssertExpectations(t)
+			mockStore.AssertExpectations(t)
 		})
 	}
 }

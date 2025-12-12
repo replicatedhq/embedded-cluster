@@ -293,6 +293,13 @@ components:
       required:
       - ignoreHostPreflights
       type: object
+    types.LinuxInfraUpgradeRequest:
+      properties:
+        ignoreHostPreflights:
+          type: boolean
+      required:
+      - ignoreHostPreflights
+      type: object
     types.LinuxInstallationConfig:
       description: Config contains optional installation configuration that will be
         merged with defaults
@@ -1831,34 +1838,6 @@ paths:
       summary: Upgrade the app
       tags:
       - linux-upgrade
-  /linux/upgrade/host-preflights/bypass:
-    post:
-      description: Bypass failed host preflight checks to continue with upgrade
-      operationId: postLinuxUpgradeBypassHostPreflights
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.HostPreflights'
-          description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Bad Request
-        "409":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/types.APIError'
-          description: Conflict
-      security:
-      - bearerauth: []
-      summary: Bypass failed host preflights
-      tags:
-      - linux-upgrade
   /linux/upgrade/host-preflights/run:
     post:
       description: Run upgrade host preflight checks before infrastructure upgrade
@@ -1946,7 +1925,9 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/types.LinuxInfraUpgradeRequest'
+        description: Infra Upgrade Request
+        required: true
       responses:
         "200":
           content:

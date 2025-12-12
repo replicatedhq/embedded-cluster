@@ -153,23 +153,6 @@ func (c *UpgradeController) GetHostPreflightsStatus(ctx context.Context) (types.
 	}, nil
 }
 
-// BypassHostPreflights allows bypassing failed host preflights
-func (c *UpgradeController) BypassHostPreflights(ctx context.Context) error {
-	lock, err := c.stateMachine.AcquireLock()
-	if err != nil {
-		return types.NewConflictError(err)
-	}
-	defer lock.Release()
-
-	// Get current preflight output to include in transition data
-	output, err := c.hostPreflightManager.GetHostPreflightOutput(ctx)
-	if err != nil {
-		return fmt.Errorf("get preflight output: %w", err)
-	}
-
-	return c.stateMachine.Transition(lock, states.StateHostPreflightsFailedBypassed, output)
-}
-
 func (c *UpgradeController) setHostPreflightStatus(state types.State, description string) error {
 	return c.store.LinuxPreflightStore().SetStatus(types.Status{
 		State:       state,
