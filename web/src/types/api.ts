@@ -940,6 +940,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/linux/upgrade/host-preflights/bypass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bypass failed host preflights
+         * @description Bypass failed host preflight checks to continue with upgrade
+         */
+        post: operations["postLinuxUpgradeBypassHostPreflights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/upgrade/host-preflights/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run upgrade host preflight checks
+         * @description Run upgrade host preflight checks before infrastructure upgrade
+         */
+        post: operations["postLinuxUpgradeRunHostPreflights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/upgrade/host-preflights/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get host preflight status for upgrade
+         * @description Get the current status and results of host preflight checks for upgrade
+         */
+        get: operations["getLinuxUpgradeHostPreflightsStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/linux/upgrade/infra/status": {
         parameters: {
             query?: never;
@@ -1031,6 +1091,12 @@ export interface components {
         };
         "types.GetListAvailableNetworkInterfacesResponse": {
             networkInterfaces: string[];
+        };
+        "types.HostPreflights": {
+            allowIgnoreHostPreflights: boolean;
+            output: components["schemas"]["types.PreflightsOutput"];
+            status: components["schemas"]["types.Status"];
+            titles: string[];
         };
         "types.Infra": {
             components: components["schemas"]["types.InfraComponent"][];
@@ -2678,6 +2744,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["types.AppUpgrade"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    postLinuxUpgradeBypassHostPreflights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.HostPreflights"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    postLinuxUpgradeRunHostPreflights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.HostPreflights"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    getLinuxUpgradeHostPreflightsStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.HostPreflights"];
                 };
             };
             /** @description Bad Request */
