@@ -117,6 +117,25 @@ components:
       required:
       - networkInterfaces
       type: object
+    types.HostPreflights:
+      properties:
+        allowIgnoreHostPreflights:
+          type: boolean
+        output:
+          $ref: '#/components/schemas/types.PreflightsOutput'
+        status:
+          $ref: '#/components/schemas/types.Status'
+        titles:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+      required:
+      - allowIgnoreHostPreflights
+      - output
+      - status
+      - titles
+      type: object
     types.Infra:
       properties:
         components:
@@ -1810,6 +1829,85 @@ paths:
       security:
       - bearerauth: []
       summary: Upgrade the app
+      tags:
+      - linux-upgrade
+  /linux/upgrade/host-preflights/bypass:
+    post:
+      description: Bypass failed host preflight checks to continue with upgrade
+      operationId: postLinuxUpgradeBypassHostPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.HostPreflights'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Conflict
+      security:
+      - bearerauth: []
+      summary: Bypass failed host preflights
+      tags:
+      - linux-upgrade
+  /linux/upgrade/host-preflights/run:
+    post:
+      description: Run upgrade host preflight checks before infrastructure upgrade
+      operationId: postLinuxUpgradeRunHostPreflights
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.HostPreflights'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Conflict
+      security:
+      - bearerauth: []
+      summary: Run upgrade host preflight checks
+      tags:
+      - linux-upgrade
+  /linux/upgrade/host-preflights/status:
+    get:
+      description: Get the current status and results of host preflight checks for
+        upgrade
+      operationId: getLinuxUpgradeHostPreflightsStatus
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.HostPreflights'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/types.APIError'
+          description: Bad Request
+      security:
+      - bearerauth: []
+      summary: Get host preflight status for upgrade
       tags:
       - linux-upgrade
   /linux/upgrade/infra/status:
