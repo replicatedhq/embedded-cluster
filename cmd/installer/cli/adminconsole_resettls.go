@@ -24,7 +24,7 @@ func AdminConsoleResetTLSCmd(ctx context.Context, name string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reset-tls",
 		Short: fmt.Sprintf("Reset the TLS certificate for the %s Admin Console to the default self-signed certificate", name),
-		Long:  fmt.Sprintf("Reset the TLS certificate used by the %s Admin Console to the default self-signed certificate", name),
+		Long:  fmt.Sprintf("Reset the TLS certificate used by the %s Admin Console to the default self-signed TLS certificate", name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if !dryrun.Enabled() && os.Getuid() != 0 {
 				return fmt.Errorf("reset-tls command must be run as root")

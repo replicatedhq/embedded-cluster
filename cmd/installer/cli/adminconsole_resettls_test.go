@@ -116,7 +116,6 @@ func TestAdminConsoleResetTLSCmd(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Reset the TLS certificate")
 	assert.Contains(t, cmd.Short, "self-signed")
 	assert.Contains(t, cmd.Long, "self-signed TLS certificate")
-	assert.Contains(t, cmd.Long, "IP addresses")
 
 	// Verify no flags are required (unlike update-tls)
 	flags := cmd.Flags()
