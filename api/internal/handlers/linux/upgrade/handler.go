@@ -369,3 +369,71 @@ func (h *Handler) GetAirgapStatus(w http.ResponseWriter, r *http.Request) {
 
 	utils.JSON(w, r, http.StatusOK, airgap, h.logger)
 }
+
+// PostRunHostPreflights handler to run upgrade host preflight checks
+//
+//	@ID				postLinuxUpgradeRunHostPreflights
+//	@Summary		Run upgrade host preflight checks
+//	@Description	Run upgrade host preflight checks before infrastructure upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.HostPreflights
+//	@Failure		400	{object}	types.APIError
+//	@Failure		409	{object}	types.APIError
+//	@Router			/linux/upgrade/host-preflights/run [post]
+func (h *Handler) PostRunHostPreflights(w http.ResponseWriter, r *http.Request) {
+	err := h.controller.RunHostPreflights(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to run host preflights")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetHostPreflightsStatus(w, r)
+}
+
+// GetHostPreflightsStatus handler to get host preflight status for upgrade
+//
+//	@ID				getLinuxUpgradeHostPreflightsStatus
+//	@Summary		Get host preflight status for upgrade
+//	@Description	Get the current status and results of host preflight checks for upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.HostPreflights
+//	@Failure		400	{object}	types.APIError
+//	@Router			/linux/upgrade/host-preflights/status [get]
+func (h *Handler) GetHostPreflightsStatus(w http.ResponseWriter, r *http.Request) {
+	hostPreflights, err := h.controller.GetHostPreflightsStatus(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to get upgrade host preflights status")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	utils.JSON(w, r, http.StatusOK, hostPreflights, h.logger)
+}
+
+// PostBypassHostPreflights handler to bypass failed host preflights
+//
+//	@ID				postLinuxUpgradeBypassHostPreflights
+//	@Summary		Bypass failed host preflights
+//	@Description	Bypass failed host preflight checks to continue with upgrade
+//	@Tags			linux-upgrade
+//	@Security		bearerauth
+//	@Produce		json
+//	@Success		200	{object}	types.HostPreflights
+//	@Failure		400	{object}	types.APIError
+//	@Failure		409	{object}	types.APIError
+//	@Router			/linux/upgrade/host-preflights/bypass [post]
+func (h *Handler) PostBypassHostPreflights(w http.ResponseWriter, r *http.Request) {
+	err := h.controller.BypassHostPreflights(r.Context())
+	if err != nil {
+		utils.LogError(r, err, h.logger, "failed to bypass host preflights")
+		utils.JSONError(w, r, err, h.logger)
+		return
+	}
+
+	h.GetHostPreflightsStatus(w, r)
+}
