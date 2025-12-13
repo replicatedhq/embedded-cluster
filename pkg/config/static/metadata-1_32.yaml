@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.6-amd64@sha256:15790bbcbe19f1f853df21bc57b68c1f1a3d6df3e04ce5d4ef6229e56c9fdcf1
-            arm64: v3.29.6-arm64@sha256:fc4b58b7c0a1a3f94bfcd9e22c97cef8fbce713e85d58034c2ae37152fd85fb1
+            amd64: v3.29.7-amd64@sha256:2cb05a358515a50cb488d2f15e9e43968f9fa628c749ab251e6f06a500379776
+            arm64: v3.29.7-arm64@sha256:162a4ca2c604e06c6671e861fa41afa01bd7288952b90ee0f4043aada4aaf2b3
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.29.6-amd64@sha256:50bdc6f28570ad629ad7857c7cfdb38cad088a513e368ae676e2ee609de55beb
-            arm64: v3.29.6-arm64@sha256:e3d437a8b9d3ef1cdd679a9a00c05aef1dc766d1b135c066a2d6b0ddc52d411f
+            amd64: v3.29.7-amd64@sha256:d3e43b615a647149ccc25e0727216323441823c7a573b2545894c6b4717a2ce1
+            arm64: v3.29.7-arm64@sha256:b9720dfb4f0df8c0f0b4b14fcd86460f5208430d9042da803665d5b3bf0914c0
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.29.6-amd64@sha256:0b42d75c98255f53dcfeb06eb5d5423acfb6b887febd8d59b938295079100262
-            arm64: v3.29.6-arm64@sha256:dd5f96afe6cb7f7a784d5781d18813e39b598f68c310b91db0a250029fd38d42
+            amd64: v3.29.7-amd64@sha256:2025909529125b98f2fe3a2a9c4eabb07894582f05fa142d66a2ebec0f8f9abe
+            arm64: v3.29.7-arm64@sha256:f9d7f85785dcdc109252e96c7af2e954b55b649b94c538e00b05e17ac230713c
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.13.1-amd64@sha256:309d688713873b4d135308331d4bd60cb27cf56f90d61d8618e18e17980b772b
-            arm64: 1.13.1-arm64@sha256:a164fc954a7fb543b2ec0109cf84a48ddf22aa56759b9099f84c0b99a4092ea2
+            amd64: 1.13.2-amd64@sha256:67810d1f80b7c47076e760974c95b2b59c578496e7c1ba18b5f9d2479d311536
+            arm64: 1.13.2-arm64@sha256:9380acdc44ff8f4d80b76b4d914135163f49c0a057deda98837d8b213f158c1e
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: v1.31.2-amd64@sha256:5838ff882b83f7a5b5e798684873937abdc60a55ff21f46975b674b84b06b1e8
-            arm64: v1.31.2-arm64@sha256:5707bd783fd68afe7539afd2d04bceea6c0ae5cdff05376fecb580ebde8ec246
+            amd64: v1.31.2-amd64@sha256:7e93ee30d24ec05e270d7b6ee72c66903b66232f1c1c0e2eba42fb0204318610
+            arm64: v1.31.2-arm64@sha256:ce32eb79cb62b9dc8388ac7500f616e5319e7a917953e3f763970ae22b443c37
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.32.9-amd64@sha256:2dccabbbd7835a428cc36b8fe8ebd657863a656d11c005a2cb2a47c56821d115
-            arm64: v1.32.9-arm64@sha256:5696342a8ca234b445b3177b7bed4b0423d87cd2298b414bcfdecf25c7588283
+            amd64: v1.32.9-amd64@sha256:435537ac646a4ab443c3be68d91b0e7f5d95dfe7f91cee90aabe7e3f508bf45b
+            arm64: v1.32.9-arm64@sha256:310aad113457c9f3815e8d35a0f47fa59f3a9bdff39aa9f448617d324c3eb21a
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.0-amd64@sha256:f0a44c9f544557332a32bdc84e3b7c980b5ed0c4a60ac4d03ade9e970d16b8e5
-            arm64: v0.8.0-arm64@sha256:ff4e5cf660f494305fd551c2272f7ee09bd1129225f66284adc10805b84529a3
+            amd64: v0.8.0-amd64@sha256:52b1c30dcd3b8aa5e9a16ee63b29b0e8e19bd96d91776f44e9b3dccc74461a18
+            arm64: v0.8.0-arm64@sha256:82b2606029bb2befd5dc1cf701a221afa6ca7bed5c2defd2db44b82dc9c04aa6
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:0e70ddcd79ce98ae5c8c7454e460320324a5884cacdf13c2fb776678b24e20ab
-            arm64: 3.9-arm64@sha256:17817b12aa3cb3b4a60295dacdf9d1ac7647fa9931f1ba10cf3e4ae1fe2e1faf
+            amd64: 3.9-amd64@sha256:697ae7c2adf846faba3117ed606ecec599ac746e3b8c017c564e7a090afbab26
+            arm64: 3.9-arm64@sha256:3f1170953acfb8035202d682d135890c6777143686bafda6e177e1cc20419d18
