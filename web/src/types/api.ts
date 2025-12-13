@@ -940,6 +940,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/linux/upgrade/host-preflights/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run upgrade host preflight checks
+         * @description Run upgrade host preflight checks before infrastructure upgrade
+         */
+        post: operations["postLinuxUpgradeRunHostPreflights"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/linux/upgrade/host-preflights/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get host preflight status for upgrade
+         * @description Get the current status and results of host preflight checks for upgrade
+         */
+        get: operations["getLinuxUpgradeHostPreflightsStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/linux/upgrade/infra/status": {
         parameters: {
             query?: never;
@@ -1032,6 +1072,12 @@ export interface components {
         "types.GetListAvailableNetworkInterfacesResponse": {
             networkInterfaces: string[];
         };
+        "types.HostPreflights": {
+            allowIgnoreHostPreflights: boolean;
+            output: components["schemas"]["types.PreflightsOutput"];
+            status: components["schemas"]["types.Status"];
+            titles: string[];
+        };
         "types.Infra": {
             components: components["schemas"]["types.InfraComponent"][];
             logs: string;
@@ -1101,6 +1147,9 @@ export interface components {
             values: components["schemas"]["types.KubernetesInstallationConfig"];
         };
         "types.LinuxInfraSetupRequest": {
+            ignoreHostPreflights: boolean;
+        };
+        "types.LinuxInfraUpgradeRequest": {
             ignoreHostPreflights: boolean;
         };
         /** @description Config contains optional installation configuration that will be merged with defaults */
@@ -2691,6 +2740,73 @@ export interface operations {
             };
         };
     };
+    postLinuxUpgradeRunHostPreflights: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.HostPreflights"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
+    getLinuxUpgradeHostPreflightsStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.HostPreflights"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["types.APIError"];
+                };
+            };
+        };
+    };
     getLinuxUpgradeInfraStatus: {
         parameters: {
             query?: never;
@@ -2736,9 +2852,10 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        /** @description Infra Upgrade Request */
+        requestBody: {
             content: {
-                "application/json": Record<string, never>;
+                "application/json": components["schemas"]["types.LinuxInfraUpgradeRequest"];
             };
         };
         responses: {

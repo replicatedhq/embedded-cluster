@@ -9,6 +9,7 @@ import (
 	airgapmanager "github.com/replicatedhq/embedded-cluster/api/internal/managers/airgap"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/infra"
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/installation"
+	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
 	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
@@ -29,12 +30,15 @@ import (
 )
 
 type Controller interface {
-	UpgradeInfra(ctx context.Context) error
+	UpgradeInfra(ctx context.Context, ignoreHostPreflights bool) error
 	GetInfra(ctx context.Context) (types.Infra, error)
 	ProcessAirgap(ctx context.Context) error
 	GetAirgapStatus(ctx context.Context) (types.Airgap, error)
 	CalculateRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
 	GetRegistrySettings(ctx context.Context, rc runtimeconfig.RuntimeConfig) (*types.RegistrySettings, error)
+	// Host preflight methods
+	RunHostPreflights(ctx context.Context) error
+	GetHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error)
 	// App controller methods
 	appcontroller.Controller
 }
@@ -45,6 +49,7 @@ type UpgradeController struct {
 	installationManager  installation.InstallationManager
 	infraManager         infra.InfraManager
 	airgapManager        airgapmanager.AirgapManager
+	hostPreflightManager preflight.HostPreflightManager
 	hostUtils            hostutils.HostUtilsInterface
 	netUtils             utils.NetUtils
 	metricsReporter      metrics.ReporterInterface
@@ -61,12 +66,13 @@ type UpgradeController struct {
 	hcli                 helm.Client
 	kcli                 client.Client
 	mcli                 metadata.Interface
-	preflightRunner      preflights.PreflightRunnerInterface
-	stateMachine         statemachine.Interface
-	requiresInfraUpgrade bool
-	logger               logrus.FieldLogger
-	targetVersion        string
-	initialVersion       string
+	preflightRunner           preflights.PreflightRunnerInterface
+	stateMachine              statemachine.Interface
+	requiresInfraUpgrade      bool
+	logger                    logrus.FieldLogger
+	targetVersion             string
+	initialVersion            string
+	allowIgnoreHostPreflights bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -175,6 +181,12 @@ func WithAirgapManager(airgapManager airgapmanager.AirgapManager) UpgradeControl
 	}
 }
 
+func WithHostPreflightManager(hostPreflightManager preflight.HostPreflightManager) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.hostPreflightManager = hostPreflightManager
+	}
+}
+
 func WithRuntimeConfig(rc runtimeconfig.RuntimeConfig) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.rc = rc
@@ -226,6 +238,12 @@ func WithInitialVersion(initialVersion string) UpgradeControllerOption {
 func WithInfraUpgradeRequired(required bool) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.requiresInfraUpgrade = required
+	}
+}
+
+func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
 	}
 }
 
@@ -297,6 +315,15 @@ func NewUpgradeController(opts ...UpgradeControllerOption) (*UpgradeController, 
 			return nil, fmt.Errorf("create airgap manager: %w", err)
 		}
 		controller.airgapManager = manager
+	}
+
+	if controller.hostPreflightManager == nil {
+		controller.hostPreflightManager = preflight.NewHostPreflightManager(
+			preflight.WithLogger(controller.logger),
+			preflight.WithHostPreflightStore(controller.store.LinuxPreflightStore()),
+			preflight.WithNetUtils(controller.netUtils),
+			preflight.WithPreflightRunner(controller.preflightRunner),
+		)
 	}
 
 	// Initialize the state machine

@@ -8,16 +8,30 @@ import (
 	"math"
 	"text/template"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/replicatedhq/troubleshoot/pkg/loader"
 )
 
 //go:embed host-preflight.yaml
-var clusterHostPreflightYAML string
+var clusterHostPreflightInstallYAML string
 
-func GetClusterHostPreflights(ctx context.Context, data types.HostPreflightTemplateData) ([]v1beta2.HostPreflight, error) {
-	spec, err := renderHostPreflightTemplate(clusterHostPreflightYAML, data)
+//go:embed specs/host-preflight-upgrade.yaml
+var clusterHostPreflightUpgradeYAML string
+
+func GetClusterHostPreflights(ctx context.Context, mode apitypes.Mode, data types.HostPreflightTemplateData) ([]v1beta2.HostPreflight, error) {
+	// Select the appropriate spec based on mode
+	var specYAML string
+	switch mode {
+	case apitypes.ModeUpgrade:
+		specYAML = clusterHostPreflightUpgradeYAML
+	default:
+		// Default to install spec for compatibility with V2 installer
+		specYAML = clusterHostPreflightInstallYAML
+	}
+
+	spec, err := renderHostPreflightTemplate(specYAML, data)
 	if err != nil {
 		return nil, fmt.Errorf("render host preflight template: %w", err)
 	}

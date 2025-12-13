@@ -27,7 +27,7 @@ export function useProcessAirgap() {
   });
 }
 
-export function useUpgradeInfra() {
+export function useUpgradeInfra(args?: { ignoreHostPreflights?: boolean }) {
   const { token } = useAuth();
 
   return useMutation({
@@ -35,7 +35,11 @@ export function useUpgradeInfra() {
       const client = createAuthedClient(token);
       const apiBase = getWizardBasePath("linux", "upgrade");
 
-      const { data, error } = await client.POST(`${apiBase}/infra/upgrade`, {});
+      const { data, error } = await client.POST(`${apiBase}/infra/upgrade`, {
+        body: {
+          ignoreHostPreflights: args?.ignoreHostPreflights || false,
+        },
+      });
 
       if (error) throw error;
       return data;
@@ -44,12 +48,13 @@ export function useUpgradeInfra() {
 }
 
 export function useRunHostPreflights() {
+  const { mode } = useWizard();
   const { token } = useAuth();
 
   return useMutation({
     mutationFn: async () => {
       const client = createAuthedClient(token);
-      const apiBase = getWizardBasePath("linux", "install");
+      const apiBase = getWizardBasePath("linux", mode);
 
       const { data, error } = await client.POST(
         `${apiBase}/host-preflights/run`,

@@ -1,0 +1,7 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: embedded-cluster-upgrade
+spec:
+  collectors: []
+  analyzers: []

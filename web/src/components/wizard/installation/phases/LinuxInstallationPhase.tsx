@@ -29,7 +29,7 @@ const LinuxInstallationPhase: React.FC<LinuxInstallationPhaseProps> = ({ onNext,
   const [showLogs, setShowLogs] = useState(false);
   const themeColor = settings.themeColor;
   const startInfraSetup = useStartInfraSetup({ ignoreHostPreflights });
-  const upgradeInfra = useUpgradeInfra();
+  const upgradeInfra = useUpgradeInfra({ ignoreHostPreflights });
   const mutationStarted = useRef(false);
 
   // Use the appropriate mutation based on mode
