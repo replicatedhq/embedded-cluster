@@ -10,21 +10,21 @@ runs:
   steps:
   - name: Upload Host Support Bundle
     id: upload-host-support-bundle
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
       path: ./e2e/support-bundle-host-*.tar.gz
 
   - name: Upload Cluster Support Bundle
     id: upload-cluster-support-bundle
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
 
   - name: Upload Playwright Report
     id: upload-playwright-report
-    uses: actions/upload-artifact@v5
+    uses: actions/upload-artifact@v6
     with:
       name: ${{ inputs.test-name }}-playwright-report.tar.gz
       path: ./e2e/playwright-report.tar.gz
