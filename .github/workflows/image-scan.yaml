@@ -66,7 +66,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -117,7 +117,7 @@ jobs:
           ./output/bin/embedded-cluster version list-images > images.txt
 
       - name: Upload images artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: images
           path: images.txt
