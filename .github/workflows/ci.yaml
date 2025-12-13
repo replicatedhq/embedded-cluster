@@ -669,12 +669,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
       - name: Download embedded-cluster artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -903,7 +903,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -981,7 +981,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -1020,7 +1020,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin

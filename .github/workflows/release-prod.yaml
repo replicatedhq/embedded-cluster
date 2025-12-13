@@ -178,7 +178,7 @@ jobs:
       - uses: imjasonh/setup-crane@v0.4
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
@@ -444,7 +444,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Download embedded-cluster-release-builder
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: embedded-cluster-release-builder
           path: output/bin
@@ -506,7 +506,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -582,7 +582,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
