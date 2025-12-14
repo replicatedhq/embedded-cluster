@@ -94,7 +94,7 @@ jobs:
           sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
