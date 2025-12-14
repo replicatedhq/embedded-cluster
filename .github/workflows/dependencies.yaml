@@ -77,7 +77,7 @@ jobs:
         sed -i "/^KUSTOMIZE_VERSION/c\KUSTOMIZE_VERSION = $version" versions.mk
 
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GH_PAT }}
         commit-message: Update Makefile versions
