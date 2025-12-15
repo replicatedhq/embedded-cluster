@@ -58,6 +58,7 @@ func (c *UpgradeController) RunHostPreflights(ctx context.Context) (finalErr err
 		IsAirgap:              c.airgapBundle != "",
 		AirgapInfo:            airgapInfo,
 		EmbeddedAssetsSize:    c.embeddedAssetsSize,
+		Mode:                  apitypes.ModeUpgrade,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)

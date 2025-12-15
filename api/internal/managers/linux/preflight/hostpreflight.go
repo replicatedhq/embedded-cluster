@@ -25,6 +25,7 @@ type PrepareHostPreflightOptions struct {
 	IsUI                   bool
 	AirgapInfo             *kotsv1beta1.Airgap
 	EmbeddedAssetsSize     int64
+	Mode                   apitypes.Mode
 }
 
 type RunHostPreflightOptions struct {
@@ -81,7 +82,7 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 		IsUI:                         opts.IsUI,
 		IsV3:                         true,
 		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
-		Mode:                         apitypes.ModeUpgrade,
+		Mode:                         opts.Mode,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr

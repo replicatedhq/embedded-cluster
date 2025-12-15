@@ -10,6 +10,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
@@ -58,6 +59,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		IsUI:                  opts.IsUI,
 		AirgapInfo:            airgapInfo,
 		EmbeddedAssetsSize:    c.embeddedAssetsSize,
+		Mode:                  apitypes.ModeInstall,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)
