@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/replicatedhq/embedded-cluster/api/types"
-	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -25,7 +24,7 @@ type PrepareHostPreflightOptions struct {
 	IsUI                   bool
 	AirgapInfo             *kotsv1beta1.Airgap
 	EmbeddedAssetsSize     int64
-	Mode                   apitypes.Mode
+	Mode                   types.Mode
 }
 
 type RunHostPreflightOptions struct {

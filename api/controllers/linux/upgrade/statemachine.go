@@ -35,13 +35,13 @@ var airgapStateTransitions = map[statemachine.State][]statemachine.State{
 
 // Infrastructure-specific state transitions (includes host preflights that run before infra upgrade)
 var infraStateTransitions = map[statemachine.State][]statemachine.State{
-	states.StateHostPreflightsRunning:          {states.StateHostPreflightsSucceeded, states.StateHostPreflightsFailed, states.StateHostPreflightsExecutionFailed},
-	states.StateHostPreflightsExecutionFailed:  {states.StateHostPreflightsRunning},
-	states.StateHostPreflightsSucceeded:        {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
-	states.StateHostPreflightsFailed:           {states.StateHostPreflightsRunning, states.StateHostPreflightsFailedBypassed},
-	states.StateHostPreflightsFailedBypassed:   {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
-	states.StateInfrastructureUpgrading:        {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
-	states.StateInfrastructureUpgraded:         {states.StateAppPreflightsRunning},
+	states.StateHostPreflightsRunning:         {states.StateHostPreflightsSucceeded, states.StateHostPreflightsFailed, states.StateHostPreflightsExecutionFailed},
+	states.StateHostPreflightsExecutionFailed: {states.StateHostPreflightsRunning},
+	states.StateHostPreflightsSucceeded:       {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
+	states.StateHostPreflightsFailed:          {states.StateHostPreflightsRunning, states.StateHostPreflightsFailedBypassed},
+	states.StateHostPreflightsFailedBypassed:  {states.StateHostPreflightsRunning, states.StateInfrastructureUpgrading},
+	states.StateInfrastructureUpgrading:       {states.StateInfrastructureUpgraded, states.StateInfrastructureUpgradeFailed},
+	states.StateInfrastructureUpgraded:        {states.StateAppPreflightsRunning},
 	// final states
 	states.StateInfrastructureUpgradeFailed: {},
 }

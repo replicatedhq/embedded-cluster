@@ -3,5 +3,16 @@ kind: HostPreflight
 metadata:
   name: embedded-cluster-upgrade
 spec:
-  collectors: []
-  analyzers: []
+  # we need some collectors and analyzers for now in order to not get a warning in the output
+  # these will be reviewed in a follow up PR
+  collectors:
+    - cpu: {}
+  analyzers:
+    - cpu:
+        checkName: CPU
+        outcomes:
+          - fail:
+              when: "count < 2"
+              message: At least 2 CPU cores are required, but fewer are present
+          - pass:
+              message: At least 2 CPU cores are present

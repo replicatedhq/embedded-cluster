@@ -652,7 +652,7 @@ var successfulPreflightOutput = &types.PreflightsOutput{
 	},
 }
 
-func getTestReleaseData(appConfig *kotsv1beta1.Config) *release.ReleaseData{
+func getTestReleaseData(appConfig *kotsv1beta1.Config) *release.ReleaseData {
 	return &release.ReleaseData{
 		EmbeddedClusterConfig: &ecv1beta1.Config{},
 		ChannelRelease:        &release.ChannelRelease{},
