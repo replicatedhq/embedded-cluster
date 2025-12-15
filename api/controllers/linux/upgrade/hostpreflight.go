@@ -148,9 +148,10 @@ func (c *UpgradeController) GetHostPreflightsStatus(ctx context.Context) (types.
 	}
 
 	return types.HostPreflights{
-		Status: status,
-		Output: output,
-		Titles: titles,
+		Status:                    status,
+		Output:                    output,
+		Titles:                    titles,
+		AllowIgnoreHostPreflights: c.allowIgnoreHostPreflights,
 	}, nil
 }
 
