@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -10,7 +11,11 @@ import (
 	"github.com/replicatedhq/embedded-cluster/api/types"
 )
 
-func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
+var (
+	ErrPreflightChecksFailed = errors.New("preflight checks failed")
+)
+
+func (c *UpgradeController) UpgradeInfra(ctx context.Context, ignoreHostPreflights bool) (finalErr error) {
 	logger := c.logger.WithField("operation", "upgrade-infra")
 
 	lock, err := c.stateMachine.AcquireLock()
@@ -26,6 +31,22 @@ func (c *UpgradeController) UpgradeInfra(ctx context.Context) (finalErr error) {
 			lock.Release()
 		}
 	}()
+
+	// Check if preflights have failed and if we should ignore them
+	if c.stateMachine.CurrentState() == states.StateHostPreflightsFailed {
+		if !ignoreHostPreflights || !c.allowIgnoreHostPreflights {
+			return types.NewBadRequestError(ErrPreflightChecksFailed)
+		}
+
+		preflightOutput, err := c.hostPreflightManager.GetHostPreflightOutput(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get host preflight output: %w", err)
+		}
+		err = c.stateMachine.Transition(lock, states.StateHostPreflightsFailedBypassed, preflightOutput)
+		if err != nil {
+			return fmt.Errorf("failed to transition states: %w", err)
+		}
+	}
 
 	err = c.stateMachine.Transition(lock, states.StateInfrastructureUpgrading, nil)
 	if err != nil {

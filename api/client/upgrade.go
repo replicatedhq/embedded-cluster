@@ -322,8 +322,73 @@ func (c *client) GetLinuxUpgradeAppPreflightsStatus(ctx context.Context) (types.
 	return status, nil
 }
 
-func (c *client) UpgradeLinuxInfra(ctx context.Context) (types.Infra, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/infra/upgrade", nil)
+// RunLinuxUpgradeHostPreflights runs host preflight checks before upgrade infrastructure
+func (c *client) RunLinuxUpgradeHostPreflights(ctx context.Context) (types.HostPreflights, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/host-preflights/run", nil)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.HostPreflights{}, errorFromResponse(resp)
+	}
+
+	var status types.HostPreflights
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+
+	return status, nil
+}
+
+// GetLinuxUpgradeHostPreflightsStatus gets the current status of upgrade host preflights
+func (c *client) GetLinuxUpgradeHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.apiURL+"/api/linux/upgrade/host-preflights/status", nil)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	setAuthorizationHeader(req, c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return types.HostPreflights{}, errorFromResponse(resp)
+	}
+
+	var status types.HostPreflights
+	err = json.NewDecoder(resp.Body).Decode(&status)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+
+	return status, nil
+}
+
+func (c *client) UpgradeLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (types.Infra, error) {
+	requestBody := types.LinuxInfraUpgradeRequest{
+		IgnoreHostPreflights: ignoreHostPreflights,
+	}
+
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return types.Infra{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.apiURL+"/api/linux/upgrade/infra/upgrade", bytes.NewReader(body))
 	if err != nil {
 		return types.Infra{}, err
 	}

@@ -1,4 +1,4 @@
-package install
+package upgrade
 
 import (
 	"context"
@@ -14,7 +14,8 @@ import (
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
-func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostPreflightsOptions) (finalErr error) {
+// RunHostPreflights runs host preflight checks for the upgrade
+func (c *UpgradeController) RunHostPreflights(ctx context.Context) (finalErr error) {
 	logger := c.logger.WithField("operation", "run-host-preflights")
 
 	lock, err := c.stateMachine.AcquireLock()
@@ -53,12 +54,11 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
 		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
 		HostPreflightSpec:     c.releaseData.HostPreflights,
-		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
+		EmbeddedClusterConfig: c.endUserConfig,
 		IsAirgap:              c.airgapBundle != "",
-		IsUI:                  opts.IsUI,
 		AirgapInfo:            airgapInfo,
 		EmbeddedAssetsSize:    c.embeddedAssetsSize,
-		Mode:                  types.ModeInstall,
+		Mode:                  types.ModeUpgrade,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)
@@ -96,7 +96,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			return fmt.Errorf("set status to running: %w", err)
 		}
 
-		// Create RunHostPreflightOptions from the provided options
+		// Create RunHostPreflightOptions from the prepared spec
 		runOpts := preflight.RunHostPreflightOptions{
 			HostPreflightSpec: hpf,
 		}
@@ -130,19 +130,32 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 	return nil
 }
 
-func (c *InstallController) GetHostPreflightStatus(ctx context.Context) (types.Status, error) {
-	return c.hostPreflightManager.GetHostPreflightStatus(ctx)
+// GetHostPreflightsStatus returns the current status of host preflights
+func (c *UpgradeController) GetHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error) {
+	status, err := c.hostPreflightManager.GetHostPreflightStatus(ctx)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+
+	output, err := c.hostPreflightManager.GetHostPreflightOutput(ctx)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+
+	titles, err := c.hostPreflightManager.GetHostPreflightTitles(ctx)
+	if err != nil {
+		return types.HostPreflights{}, err
+	}
+
+	return types.HostPreflights{
+		Status:                    status,
+		Output:                    output,
+		Titles:                    titles,
+		AllowIgnoreHostPreflights: c.allowIgnoreHostPreflights,
+	}, nil
 }
 
-func (c *InstallController) GetHostPreflightOutput(ctx context.Context) (*types.PreflightsOutput, error) {
-	return c.hostPreflightManager.GetHostPreflightOutput(ctx)
-}
-
-func (c *InstallController) GetHostPreflightTitles(ctx context.Context) ([]string, error) {
-	return c.hostPreflightManager.GetHostPreflightTitles(ctx)
-}
-
-func (c *InstallController) setHostPreflightStatus(state types.State, description string) error {
+func (c *UpgradeController) setHostPreflightStatus(state types.State, description string) error {
 	return c.store.LinuxPreflightStore().SetStatus(types.Status{
 		State:       state,
 		Description: description,

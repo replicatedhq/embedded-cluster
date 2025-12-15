@@ -523,13 +523,8 @@ describe.each([
       }, 'linux', mode),
       // Mock infra setup/upgrade endpoint to capture arguments
       mockHandlers.infra.setup(false, 'linux', mode, (body) => {
-        // Verify ignoreHostPreflights was passed correctly (upgrade mode also includes isUi)
-        if (mode === 'upgrade') {
-          expect(body).toHaveProperty('isUi', true);
-          expect(body).toHaveProperty('ignoreHostPreflights', true);
-        } else {
-          expect(body).toHaveProperty('ignoreHostPreflights', true);
-        }
+        // Verify ignoreHostPreflights was passed correctly
+        expect(body).toHaveProperty('ignoreHostPreflights', true);
       })
     );
 

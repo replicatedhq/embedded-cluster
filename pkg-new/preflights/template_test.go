@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/replicatedhq/troubleshoot/pkg/multitype"
@@ -318,7 +319,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			} else {
 				req.NoError(err)
 			}
-			hpfc, err := GetClusterHostPreflights(context.Background(), tl)
+			hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 			req.NoError(err)
 
 			spec := hpfc[0].Spec
@@ -348,7 +349,7 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 	req := require.New(t)
 	// No TCP connections are provided
 	tl := types.HostPreflightTemplateData{}
-	hpfc, err := GetClusterHostPreflights(context.Background(), tl)
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 	req.NoError(err)
 
 	spec := hpfc[0].Spec
@@ -598,7 +599,7 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			req := require.New(t)
 			tl := types.HostPreflightTemplateData{TCPConnectionsRequired: test.tcpConnections}
-			hpfc, err := GetClusterHostPreflights(context.Background(), tl)
+			hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 			req.NoError(err)
 
 			spec := hpfc[0].Spec
@@ -619,6 +620,55 @@ func TestTemplateTCPConnectionsRequired(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetClusterHostPreflightsUpgradeMode(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeUpgrade, tl)
+	req.NoError(err)
+	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+
+	// Verify we loaded the upgrade spec
+	req.Equal("embedded-cluster-upgrade", hpfc[0].Name)
+
+	// Verify the spec has collectors and analyzers
+	spec := hpfc[0].Spec
+	req.NotEmpty(spec.Collectors, "Upgrade spec should have collectors")
+	req.NotEmpty(spec.Analyzers, "Upgrade spec should have analyzers")
+}
+
+func TestGetClusterHostPreflightsInstallMode(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+
+	// Verify we loaded the install spec
+	req.NotEqual("embedded-cluster-upgrade", hpfc[0].Name)
+
+	// Verify the install spec has collectors and analyzers
+	spec := hpfc[0].Spec
+	req.NotEmpty(spec.Collectors, "Install spec should have collectors")
+	req.NotEmpty(spec.Analyzers, "Install spec should have analyzers")
+}
+
+func TestGetClusterHostPreflightsDefaultMode(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	// Pass empty string as mode to test default behavior
+	hpfc, err := GetClusterHostPreflights(context.Background(), "", tl)
+	req.NoError(err)
+	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+
+	// Verify default mode loads install spec (for V2 compatibility)
+	req.NotEqual("embedded-cluster-upgrade", hpfc[0].Name)
+
+	// Verify the install spec has collectors and analyzers
+	spec := hpfc[0].Spec
+	req.NotEmpty(spec.Collectors, "Default mode should load install spec with collectors")
+	req.NotEmpty(spec.Analyzers, "Default mode should load install spec with analyzers")
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {
