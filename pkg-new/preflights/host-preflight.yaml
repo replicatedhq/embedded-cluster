@@ -221,6 +221,58 @@ spec:
               if [ ! "$bin_dir_type_label" = "bin_t" ]; then
                 echo "bin_dir_type_label $bin_dir_type_label"
               fi
+    - run:
+        collectorName: "ps-detect-antivirus-and-security-tools"
+        command: "sh"
+        args:
+          - -c
+          - |
+            pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
+            if command -v pgrep >/dev/null 2>&1; then
+              pgrep -fli "$pat" | awk '{ $1=""; sub(/^ /,""); print }'
+            else
+              # Fallback: list only command names (not full args)
+              ps -eo comm=
+            fi \
+            | awk -v pat="$pat" '
+                BEGIN { IGNORECASE=1 }
+                {
+                  line=$0
+                  while (match(line, pat)) {
+                    print tolower(substr(line, RSTART, RLENGTH))
+                    line=substr(line, RSTART+RLENGTH)
+                  }
+                }
+              ' \
+            | sort -u \
+            | paste -sd ', ' - \
+            | tr -d '\n'
+    - systemPackages:
+        collectorName: security-tools-packages
+        ubuntu:
+          - sdcss-kmod
+          - sdcss
+          - sdcss-scripts
+        rhel:
+          - sdcss-kmod
+          - sdcss
+          - sdcss-scripts
+    - run:
+        collectorName: security-tools-installed
+        command: sh
+        args:
+          - -c
+          - |
+            pkgs="sdcss-kmod sdcss sdcss-scripts"
+            if command -v dpkg >/dev/null 2>&1; then
+              { for p in $pkgs; do
+                  dpkg -l "$p" >/dev/null 2>&1 && printf '%s\n' "$p";
+                done; } | paste -sd ', ' - | tr -d '\n'
+            elif command -v rpm >/dev/null 2>&1; then
+              { for p in $pkgs; do
+                  rpm -q "$p" >/dev/null 2>&1 && printf '%s\n' "$p";
+                done; } | paste -sd ', ' - | tr -d '\n'
+            fi
   analyzers:
     - cpu:
         checkName: CPU
@@ -1309,3 +1361,25 @@ spec:
                   The selinux type context label for the embedded cluster binary directory are incorrect. Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
           - pass:
               when: "false"
+    - textAnalyze:
+        checkName: "Detect Threat Management and Network Security Tools"
+        fileName: host-collectors/run-host/ps-detect-antivirus-and-security-tools.txt
+        regexGroups: '(?ms)(?P<Detected>.*)'
+        ignoreIfNoFiles: true
+        outcomes:
+          - pass:
+              when: "Detected == ''"
+              message: "No antivirus or network security tools detected."
+          - warn:
+              message: "The following antivirus or network security tools were detected: {{ "{{" }} .Detected {{ "}}" }}. These types of tools have been known to interfere with Kubernetes operation in various ways. If you experience an installation problem, you may need to disable these tools temporarily as part of the troubleshooting process to identify if any system administrator exceptions may be required to maintain necessary internal Kubernetes operations."
+    - textAnalyze:
+        checkName: "Detected Security Packages"
+        fileName: host-collectors/run-host/security-tools-installed.txt
+        regexGroups: '(?ms)(?P<Installed>.*)'
+        ignoreIfNoFiles: true
+        outcomes:
+          - pass:
+              when: "Installed == ''"
+              message: "No security packages detected."
+          - warn:
+              message: "The following security packages were detected: {{ "{{" }} .Installed {{ "}}" }}. These packages can interfere with Kubernetes operation. Ensure they are disabled or configured to not interfere with required Kubernetes traffic and processes."
