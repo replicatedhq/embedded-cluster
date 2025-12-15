@@ -35,7 +35,7 @@ func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Getenv("ENABLE_V3") == "1" {
-				return runVersionV3(ctx)
+				return runVersionV3(cmd.Context())
 			}
 
 			writer := table.NewWriter()
