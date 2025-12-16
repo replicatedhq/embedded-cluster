@@ -636,8 +636,8 @@ func TestGetClusterHostPreflightsUpgradeMode(t *testing.T) {
 
 	// Verify the spec has collectors and analyzers
 	spec := hpfc[1].Spec
-	req.NotEmpty(spec.Collectors, "Upgrade spec should have collectors")
-	req.NotEmpty(spec.Analyzers, "Upgrade spec should have analyzers")
+	req.Empty(spec.Collectors, "Upgrade spec  does not have collectors for now")
+	req.Empty(spec.Analyzers, "Upgrade spec does not have analyzers for now")
 }
 
 func TestGetClusterHostPreflightsInstallMode(t *testing.T) {

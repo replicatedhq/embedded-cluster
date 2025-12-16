@@ -10,20 +10,6 @@ spec:
     - diskUsage:
         collectorName: embedded-cluster-path-usage
         path: {{ .DataDir }}
-    - http:
-        collectorName: http-replicated-app
-        get:
-          url: '{{ .ReplicatedAppURL }}'
-          timeout: 5s
-          proxy: '{{ .HTTPSProxy }}'
-        exclude: '{{ or .IsAirgap (eq .ReplicatedAppURL "") }}'
-    - http:
-        collectorName: http-proxy-replicated-com
-        get:
-          url: '{{ .ProxyRegistryURL }}/v2/'
-          timeout: 5s
-          proxy: '{{ .HTTPSProxy }}'
-        exclude: '{{ or .IsAirgap (eq .ProxyRegistryURL "") }}'
     - tcpPortStatus:
         collectorName: ETCD Internal Port
         port: 2379
