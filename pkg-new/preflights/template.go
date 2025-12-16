@@ -14,7 +14,10 @@ import (
 	"github.com/replicatedhq/troubleshoot/pkg/loader"
 )
 
-//go:embed host-preflight.yaml
+//go:embed specs/host-preflight-common.yaml
+var clusterHostPreflightCommonYAML string
+
+//go:embed specs/host-preflight-install.yaml
 var clusterHostPreflightInstallYAML string
 
 //go:embed specs/host-preflight-upgrade.yaml
@@ -22,22 +25,27 @@ var clusterHostPreflightUpgradeYAML string
 
 func GetClusterHostPreflights(ctx context.Context, mode apitypes.Mode, data types.HostPreflightTemplateData) ([]v1beta2.HostPreflight, error) {
 	// Select the appropriate spec based on mode
-	var specYAML string
+	var mainSpecYAML string
 	switch mode {
 	case apitypes.ModeUpgrade:
-		specYAML = clusterHostPreflightUpgradeYAML
+		mainSpecYAML = clusterHostPreflightUpgradeYAML
 	default:
 		// Default to install spec for compatibility with V2 installer
-		specYAML = clusterHostPreflightInstallYAML
+		mainSpecYAML = clusterHostPreflightInstallYAML
 	}
 
-	spec, err := renderHostPreflightTemplate(specYAML, data)
+	commonSpec, err := renderHostPreflightTemplate(clusterHostPreflightCommonYAML, data)
 	if err != nil {
-		return nil, fmt.Errorf("render host preflight template: %w", err)
+		return nil, fmt.Errorf("render host preflight common template: %w", err)
+	}
+	mainSpec, err := renderHostPreflightTemplate(mainSpecYAML, data)
+	if err != nil {
+		return nil, fmt.Errorf("render host preflight main template: %w", err)
 	}
 	kinds, err := loader.LoadSpecs(ctx, loader.LoadOptions{
 		RawSpecs: []string{
-			spec,
+			commonSpec,
+			mainSpec,
 		},
 		Strict: true,
 	})

@@ -322,7 +322,7 @@ func TestTemplateWithCIDRData(t *testing.T) {
 			hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 			req.NoError(err)
 
-			spec := hpfc[0].Spec
+			spec := hpfc[1].Spec
 
 			for _, collector := range test.expectCollectors {
 				actual := getSubnetCollectorByName(collector.CollectorName, spec)
@@ -352,10 +352,10 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 	req.NoError(err)
 
-	spec := hpfc[0].Spec
+	commonSpec := hpfc[0].Spec
 
 	// No collectors are expected
-	for _, collector := range spec.Collectors {
+	for _, collector := range commonSpec.Collectors {
 		if collector.TCPConnect != nil && strings.Contains(collector.TCPConnect.CollectorName, "tcp-connect-") {
 			req.Failf("found tcp collector", "unexpected collector: %s", collector.TCPConnect.CollectorName)
 
@@ -363,7 +363,7 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 	}
 
 	// No analyzers are expected
-	for _, analyzer := range spec.Analyzers {
+	for _, analyzer := range commonSpec.Analyzers {
 		if analyzer.TCPConnect != nil && strings.Contains(analyzer.TCPConnect.CollectorName, "tcp-connect-") {
 			req.Failf("found tcp analyzer", "unexpected analyzer: %s", analyzer.TCPConnect.CollectorName)
 		}
@@ -627,15 +627,17 @@ func TestGetClusterHostPreflightsUpgradeMode(t *testing.T) {
 	tl := types.HostPreflightTemplateData{}
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeUpgrade, tl)
 	req.NoError(err)
-	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+	req.Len(hpfc, 2, "Expected exactly two preflight specs")
 
-	// Verify we loaded the upgrade spec
-	req.Equal("embedded-cluster-upgrade", hpfc[0].Name)
+	// Verify we loaded the common spec
+	req.Equal("embedded-cluster-common", hpfc[0].Name)
+	// Verify we loaded the upgdrade spec
+	req.Equal("embedded-cluster-upgrade", hpfc[1].Name)
 
 	// Verify the spec has collectors and analyzers
-	spec := hpfc[0].Spec
-	req.NotEmpty(spec.Collectors, "Upgrade spec should have collectors")
-	req.NotEmpty(spec.Analyzers, "Upgrade spec should have analyzers")
+	spec := hpfc[1].Spec
+	req.Empty(spec.Collectors, "Upgrade spec  does not have collectors for now")
+	req.Empty(spec.Analyzers, "Upgrade spec does not have analyzers for now")
 }
 
 func TestGetClusterHostPreflightsInstallMode(t *testing.T) {
@@ -643,13 +645,15 @@ func TestGetClusterHostPreflightsInstallMode(t *testing.T) {
 	tl := types.HostPreflightTemplateData{}
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 	req.NoError(err)
-	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+	req.Len(hpfc, 2, "Expected exactly two preflight specs")
 
+	// Verify we loaded the common spec
+	req.Equal("embedded-cluster-common", hpfc[0].Name)
 	// Verify we loaded the install spec
-	req.NotEqual("embedded-cluster-upgrade", hpfc[0].Name)
+	req.Equal("embedded-cluster-install", hpfc[1].Name)
 
 	// Verify the install spec has collectors and analyzers
-	spec := hpfc[0].Spec
+	spec := hpfc[1].Spec
 	req.NotEmpty(spec.Collectors, "Install spec should have collectors")
 	req.NotEmpty(spec.Analyzers, "Install spec should have analyzers")
 }
@@ -660,15 +664,10 @@ func TestGetClusterHostPreflightsDefaultMode(t *testing.T) {
 	// Pass empty string as mode to test default behavior
 	hpfc, err := GetClusterHostPreflights(context.Background(), "", tl)
 	req.NoError(err)
-	req.Len(hpfc, 1, "Expected exactly one preflight spec")
+	req.Len(hpfc, 2, "Expected exactly two preflight specs")
 
 	// Verify default mode loads install spec (for V2 compatibility)
-	req.NotEqual("embedded-cluster-upgrade", hpfc[0].Name)
-
-	// Verify the install spec has collectors and analyzers
-	spec := hpfc[0].Spec
-	req.NotEmpty(spec.Collectors, "Default mode should load install spec with collectors")
-	req.NotEmpty(spec.Analyzers, "Default mode should load install spec with analyzers")
+	req.Equal("embedded-cluster-install", hpfc[1].Name)
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {
