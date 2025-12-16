@@ -9,7 +9,19 @@ spec:
   # uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
   - clusterInfo: {}
-  - clusterResources: {}
+  - clusterResources:
+      namespaces:
+      - kube-system
+      - kube-node-lease
+      - kube-public
+      - openebs
+      - registry
+      - embedded-cluster
+      - seaweedfs
+      - kotsadm
+      - default
+      - velero
+      - k0s-autopilot
   - logs:
       name: podlogs/embedded-cluster-operator
       namespace: embedded-cluster
