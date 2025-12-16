@@ -127,8 +127,11 @@ func collectAndNormalizeVersions(source map[string]string, target map[string]str
 		if !strings.HasPrefix(v, "v") {
 			v = fmt.Sprintf("v%s", v)
 		}
+		_, exists := target[k]
 		target[k] = v
-		*keys = append(*keys, k)
+		if !exists {
+			*keys = append(*keys, k)
+		}
 	}
 }
 
