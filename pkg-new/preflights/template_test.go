@@ -352,10 +352,10 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
 	req.NoError(err)
 
-	spec := hpfc[1].Spec
+	commonSpec := hpfc[0].Spec
 
 	// No collectors are expected
-	for _, collector := range spec.Collectors {
+	for _, collector := range commonSpec.Collectors {
 		if collector.TCPConnect != nil && strings.Contains(collector.TCPConnect.CollectorName, "tcp-connect-") {
 			req.Failf("found tcp collector", "unexpected collector: %s", collector.TCPConnect.CollectorName)
 
@@ -363,7 +363,7 @@ func TestTemplateNoTCPConnectionsRequired(t *testing.T) {
 	}
 
 	// No analyzers are expected
-	for _, analyzer := range spec.Analyzers {
+	for _, analyzer := range commonSpec.Analyzers {
 		if analyzer.TCPConnect != nil && strings.Contains(analyzer.TCPConnect.CollectorName, "tcp-connect-") {
 			req.Failf("found tcp analyzer", "unexpected analyzer: %s", analyzer.TCPConnect.CollectorName)
 		}

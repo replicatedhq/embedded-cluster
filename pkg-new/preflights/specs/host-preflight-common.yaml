@@ -482,7 +482,6 @@ spec:
           - pass:
               when: 'true'
               message: No wildcard DNS entry detected.
-              message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
     - sysctl:
         checkName: "ARP Filter default value for newly created interfaces"
         outcomes:
