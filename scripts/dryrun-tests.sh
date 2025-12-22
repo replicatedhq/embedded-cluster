@@ -20,8 +20,8 @@ plog "INFO" "Compiling test binary..." "🔨"
 docker run --rm \
     -v "$(pwd)":/ec \
     -w /ec \
-    -e GOCACHE=/ec/dev/.gocache \
-    -e GOMODCACHE=/ec/dev/.gomodcache \
+    -e GOCACHE=/ec/dev/build/.gocache \
+    -e GOMODCACHE=/ec/dev/build/.gomodcache \
     ec-dryrun \
     go test -c -o /ec/dev/build/dryrun.test ./tests/dryrun/...
 

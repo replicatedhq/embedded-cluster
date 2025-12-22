@@ -9,13 +9,21 @@ import (
 const (
 	APKOImageVersion    = "latest"
 	MelangeImageVersion = "latest"
+
+	GoVersion   = "1.25"
+	NodeVersion = "22"
 )
 
 type EmbeddedCluster struct {
+	// +private
+	Source       *dagger.Directory
 	RegistryAuth *dagger.Directory
 
-	common
-	chainguard
+	// 1Password operations
+	OnePassword *OnePassword
+
+	common     common
+	chainguard chainguard
 }
 
 func (m *EmbeddedCluster) WithRegistryLogin(
@@ -28,7 +36,7 @@ func (m *EmbeddedCluster) WithRegistryLogin(
 	if err != nil {
 		return nil, fmt.Errorf("get registry password from secret: %w", err)
 	}
-	c := m.apkoLogin(dag.Directory(), server, username, plain, APKOImageVersion)
+	c := m.chainguard.apkoLogin(dag.Directory(), server, username, plain, APKOImageVersion)
 	m.RegistryAuth = c.Directory("/workspace/.docker")
 	return m, nil
 }
@@ -43,7 +51,13 @@ func directoryWithCommonGoFiles(dir *dagger.Directory, src *dagger.Directory) *d
 		WithFile("go.sum", src.File("go.sum")).
 		WithDirectory("pkg", src.Directory("pkg")).
 		WithDirectory("pkg-new", src.Directory("pkg-new")).
-		WithDirectory("cmd/installer/goods", src.Directory("cmd/installer/goods")).
+		WithDirectory("cmd/installer/goods",
+			src.Directory("cmd/installer/goods").
+				WithoutDirectory("bins").
+				WithNewFile("bins/.placeholder", ".placeholder").
+				WithoutDirectory("internal/bins").
+				WithNewFile("internal/bins/.placeholder", ".placeholder"),
+		).
 		WithDirectory("api", src.Directory("api")).
 		WithDirectory("kinds", src.Directory("kinds")).
 		WithDirectory("utils", src.Directory("utils"))

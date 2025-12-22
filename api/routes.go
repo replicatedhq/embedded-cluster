@@ -45,6 +45,9 @@ func (a *API) RegisterRoutes(router *mux.Router) {
 func (a *API) registerLinuxRoutes(router *mux.Router) {
 	linuxRouter := router.PathPrefix("/linux").Subrouter()
 
+	// kURL Migration routes (not mode-specific)
+	a.registerKURLMigrationRoutes(linuxRouter)
+
 	if a.cfg.Mode == types.ModeInstall {
 		installRouter := linuxRouter.PathPrefix("/install").Subrouter()
 		installRouter.HandleFunc("/installation/config", a.handlers.linux.Install.GetInstallationConfig).Methods("GET")
@@ -85,6 +88,9 @@ func (a *API) registerLinuxRoutes(router *mux.Router) {
 
 		upgradeRouter.HandleFunc("/airgap/process", a.handlers.linux.Upgrade.PostProcessAirgap).Methods("POST")
 		upgradeRouter.HandleFunc("/airgap/status", a.handlers.linux.Upgrade.GetAirgapStatus).Methods("GET")
+
+		upgradeRouter.HandleFunc("/host-preflights/run", a.handlers.linux.Upgrade.PostRunHostPreflights).Methods("POST")
+		upgradeRouter.HandleFunc("/host-preflights/status", a.handlers.linux.Upgrade.GetHostPreflightsStatus).Methods("GET")
 
 		upgradeRouter.HandleFunc("/app/upgrade", a.handlers.linux.Upgrade.PostUpgradeApp).Methods("POST")
 		upgradeRouter.HandleFunc("/app/status", a.handlers.linux.Upgrade.GetAppUpgradeStatus).Methods("GET")
@@ -131,4 +137,11 @@ func (a *API) registerKubernetesRoutes(router *mux.Router) {
 func (a *API) registerConsoleRoutes(router *mux.Router) {
 	consoleRouter := router.PathPrefix("/console").Subrouter()
 	consoleRouter.HandleFunc("/available-network-interfaces", a.handlers.console.GetListAvailableNetworkInterfaces).Methods("GET")
+}
+
+func (a *API) registerKURLMigrationRoutes(router *mux.Router) {
+	kurlMigrationRouter := router.PathPrefix("/kurl-migration").Subrouter()
+	kurlMigrationRouter.HandleFunc("/config", a.handlers.kurlmigration.GetInstallationConfig).Methods("GET")
+	kurlMigrationRouter.HandleFunc("/start", a.handlers.kurlmigration.PostStartMigration).Methods("POST")
+	kurlMigrationRouter.HandleFunc("/status", a.handlers.kurlmigration.GetMigrationStatus).Methods("GET")
 }

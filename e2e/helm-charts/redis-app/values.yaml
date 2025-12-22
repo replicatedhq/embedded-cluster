@@ -1,6 +1,11 @@
 # Default values for redis-app
 global:
   labels: {}
+
+# Preflight checks configuration
+preflight:
+  enabled: false
+
 # Server (Redis) configuration
 server:
   replicaCount: 1
@@ -29,7 +34,7 @@ client:
     repository: redis
     pullPolicy: IfNotPresent
     tag: "7.2"
-  intervalSeconds: 30  # Make a request every 30 seconds
+  intervalSeconds: 30 # Make a request every 30 seconds
   resources:
     limits:
       cpu: 100m
@@ -66,4 +71,4 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {} 
+affinity: {}

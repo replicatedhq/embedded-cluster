@@ -1,0 +1,29 @@
+{{- if .Values.preflight.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "redis-app.fullname" . }}-preflight
+  labels:
+    {{- include "redis-app.labels" . | nindent 4 }}
+data:
+  preflight.yaml: |
+    apiVersion: troubleshoot.sh/v1beta2
+    kind: Preflight
+    metadata:
+      name: redis-app-preflight
+    spec:
+      collectors:
+        - nodeResources: {}
+      analyzers:
+        - nodeResources:
+            checkName: Node status check
+            outcomes:
+              - fail:
+                  when: "nodeCondition(Ready) == False"
+                  message: "Not all nodes are online."
+              - fail:
+                  when: "nodeCondition(Ready) == Unknown"
+                  message: "Not all nodes are online."
+              - pass:
+                  message: "All nodes are online."
+{{- end }}

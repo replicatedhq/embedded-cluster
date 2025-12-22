@@ -26,7 +26,7 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 	arch string,
 ) *dagger.File {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
@@ -37,7 +37,7 @@ func (m *EmbeddedCluster) BuildOperatorImage(
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
-	build := m.apkoBuild(
+	build := m.chainguard.apkoBuild(
 		dir,
 		apkoFile,
 		image,
@@ -67,7 +67,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 	arch string,
 ) (string, error) {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateOprator(src, ecVersion, kzerosMinorVersion)
@@ -82,7 +82,7 @@ func (m *EmbeddedCluster) PublishOperatorImage(
 		dir = dir.WithDirectory(".docker", m.RegistryAuth)
 	}
 
-	publish := m.apkoPublish(
+	publish := m.chainguard.apkoPublish(
 		dir,
 		apkoFile,
 		image,
@@ -110,11 +110,8 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 
 	melangeFile := m.melangeTemplateOperator(src, ecVersion, kzerosMinorVersion)
 
-	dir := dag.Directory().
-		WithDirectory("operator", src.Directory("operator"))
-
-	build := m.melangeBuildGo(
-		directoryWithCommonGoFiles(dir, src),
+	build := m.chainguard.melangeBuildGo(
+		operatorDirectory(src),
 		melangeFile,
 		arch,
 		MelangeImageVersion,
@@ -134,7 +131,7 @@ func (m *EmbeddedCluster) apkoTemplateOprator(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("operator/deploy"),
 		vars,
 		"apko.tmpl.yaml",
@@ -153,10 +150,22 @@ func (m *EmbeddedCluster) melangeTemplateOperator(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("operator/deploy"),
 		vars,
 		"melange.tmpl.yaml",
 		"melange.yaml",
 	)
+}
+
+func operatorDirectory(src *dagger.Directory) *dagger.Directory {
+	dir := directoryWithCommonGoFiles(dag.Directory(), src)
+	dir = dir.
+		WithDirectory("operator",
+			src.Directory("operator").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		)
+	return dir
 }

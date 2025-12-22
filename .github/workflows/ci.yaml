@@ -26,7 +26,7 @@ jobs:
       git_sha: ${{ steps.git_sha.outputs.git_sha }}
       ec_version: ${{ steps.output_vars.outputs.ec_version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0 # necessary for getting the last tag
       - uses: ./.github/actions/git-sha
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -67,7 +67,7 @@ jobs:
         working-directory: web
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -106,17 +106,33 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.0
+        uses: tj-actions/changed-files@v47.0.1
         with:
           files: |
             kinds/**
             pkg/**
             pkg-new/**
             tests/integration/**
+
+  should-run-int-tests-preflights:
+    name: Should run integration tests (preflights)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changed-files.outputs.any_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v47.0.1
+        with:
+          files: |
+            pkg-new/preflights/**
 
   int-tests:
     name: Integration tests
@@ -149,7 +165,7 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -164,6 +180,29 @@ jobs:
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
           make -C tests/integration test-kind SHORT=true
 
+  int-tests-preflights:
+    name: Integration tests (preflights)
+    runs-on: ubuntu-latest
+    needs:
+      - output-vars
+      - should-run-int-tests-preflights
+    if: needs.should-run-int-tests-preflights.outputs.run == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Build preflight binary
+        run: |
+          make cmd/installer/goods/bins/kubectl-preflight
+      - name: Run tests
+        run: |
+          CGO_ENABLED=0 PREFLIGHT_BINARY=`pwd`/cmd/installer/goods/bins/kubectl-preflight \
+            go test -tags osusergo,netgo -v ./pkg-new/preflights/integration/...
+
   int-tests-kind-ha-registry:
     name: Integration tests (kind) HA registry
     runs-on: ubuntu-latest
@@ -173,7 +212,7 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -222,37 +261,14 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
-        run: |
-          df -h
-          sudo rm -rf \
-            /usr/share/swift \
-            /usr/share/dotnet \
-            /usr/lib/jvm \
-            /usr/local/share/boost \
-            /usr/local/lib/heroku \
-            /usr/local/julia* \
-            /usr/local/.ghcup \
-            /usr/local/share/powershell \
-            /usr/local/bin/aliyun \
-            /usr/local/bin/azcopy \
-            /usr/local/bin/bicep \
-            /usr/local/bin/cpack \
-            /usr/local/bin/hub \
-            /usr/local/bin/minikube \
-            /usr/local/bin/packer \
-            /usr/local/bin/pulumi* \
-            /usr/local/bin/sam \
-            /usr/local/bin/stack \
-            /usr/local/bin/terraform \
-            /usr/local/bin/oc
-          df -h
+      - name: Free up runner disk space
+        run: *free-disk-space
       - name: Install kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
         with:
@@ -267,13 +283,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
+      - name: Free up runner disk space
+        run: *free-disk-space
       - name: Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
-            ./dev/.gocache
-            ./dev/.gomodcache
+            ./dev/build/.gocache
+            ./dev/build/.gomodcache
           key: dryrun-tests-go-cache-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             dryrun-tests-go-cache-
@@ -288,7 +306,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -313,7 +331,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -335,7 +353,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -345,7 +363,7 @@ jobs:
         run: |
           make buildtools
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -357,11 +375,11 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.0
+        uses: tj-actions/changed-files@v47.0.1
         with:
           files: |
             e2e/**
@@ -386,6 +404,8 @@ jobs:
             fio/**
             local-artifact-mirror/**
             scripts/**
+            !**/*_test.go
+            !**/integration/**
 
   build-install:
     name: Build current
@@ -413,13 +433,13 @@ jobs:
       app_version_3: ${{ steps.export.outputs.app_version_3 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+      - name: Free up runner disk space
         run: *free-disk-space
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/bins
@@ -470,11 +490,11 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-install
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
@@ -494,7 +514,7 @@ jobs:
           fi
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: ${{ matrix.n == 0 }}
         with:
           name: current-release
@@ -504,7 +524,7 @@ jobs:
             output/bin/embedded-cluster-release-builder
 
       - name: Upload release previous k0s
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: ${{ matrix.n != 0 }}
         with:
           name: previous-k0s-${{ matrix.n }}-release
@@ -536,7 +556,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Export k0s version
         id: export
         env:
@@ -569,13 +589,13 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Free up runner disk space # this is much faster than .github/actions/free-disk-space
+      - name: Free up runner disk space
         run: *free-disk-space
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/bins
@@ -605,11 +625,11 @@ jobs:
 
       - name: Build
         env:
+          APP_CHANNEL: CI
           APP_CHANNEL_ID: 2cHXb1RCttzpR0xvnNWyaZCgDBP
           APP_CHANNEL_SLUG: ci
           RELEASE_YAML_DIR: e2e/kots-release-upgrade
-          S3_BUCKET: "tf-staging-embedded-cluster-bin"
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
           AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
           AWS_REGION: "us-east-1"
@@ -626,7 +646,7 @@ jobs:
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: upgrade-release
           path: |
@@ -647,14 +667,14 @@ jobs:
       - build-install
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
       - name: Download embedded-cluster artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -687,7 +707,7 @@ jobs:
       version_specifier: ${{ steps.export-version-specifier.outputs.version_specifier }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Export version specifier
         id: export-version-specifier
         run: |
@@ -706,7 +726,7 @@ jobs:
       - find-previous-stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -720,8 +740,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
-          USES_DEV_BUCKET: "0"
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
@@ -779,7 +798,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
 
@@ -882,9 +901,9 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -960,9 +979,9 @@ jobs:
             continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -999,9 +1018,9 @@ jobs:
           - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin

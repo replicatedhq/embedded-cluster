@@ -200,7 +200,7 @@ func (c *client) GetPendingReleases(ctx context.Context, channelID string, curre
 
 	params := url.Values{}
 	params.Set("selectedChannelId", channelID)
-	params.Set("channelSequence", fmt.Sprintf("%d", currentSequence))
+	params.Set("channelSequence", fmt.Sprintf("%d", channelSequence))
 	params.Set("isSemverSupported", fmt.Sprintf("%t", opts.IsSemverSupported))
 	if opts.SortOrder != "" {
 		params.Set("sortOrder", string(opts.SortOrder))
@@ -213,6 +213,11 @@ func (c *client) GetPendingReleases(ctx context.Context, channelID string, curre
 	}
 
 	req.Header.Set("Accept", "application/json")
+
+	// If we provide the current channel sequence, set it as an header since that's the way market API currently expects it
+	if opts.CurrentChannelSequence != 0 {
+		req.Header.Set("X-Replicated-CurrentChannelSequence", fmt.Sprintf("%d", opts.CurrentChannelSequence))
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

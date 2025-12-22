@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
 
     - name: Setup go
       uses: actions/setup-go@v6
@@ -45,7 +45,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        version=$(gh release list --repo helm/helm --json tagName,isLatest | jq -r '.[] | select(.isLatest) | .tagName')
+        version=$(gh release list --repo helm/helm --json tagName,createdAt | jq -r '.[] | select(.tagName | startswith("v3.")) | .tagName' | head -1)
         echo "helm version: $version"
         sed -i "/^HELM_VERSION/c\HELM_VERSION = $version" versions.mk
 
@@ -77,7 +77,7 @@ jobs:
         sed -i "/^KUSTOMIZE_VERSION/c\KUSTOMIZE_VERSION = $version" versions.mk
 
     - name: Create Pull Request
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GH_PAT }}
         commit-message: Update Makefile versions

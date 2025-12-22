@@ -8,20 +8,20 @@ set -euo pipefail
 EC_VERSION=${EC_VERSION:-}
 APP_VERSION=${APP_VERSION:-}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
+REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 APP_ID=${APP_ID:-2bViecGO8EZpChcGPeW5jbWKw2B}
-APP_CHANNEL_ID=${APP_CHANNEL_ID:-2lhrq5LDyoX98BdxmkHtdoqMT4P}
-APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-dev}
+APP_CHANNEL_ID=${APP_CHANNEL_ID:-}
+APP_CHANNEL_SLUG=${APP_CHANNEL_SLUG:-}
 RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 EC_BINARY=${EC_BINARY:-output/bin/embedded-cluster}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-USES_DEV_BUCKET=${USES_DEV_BUCKET:-1}
-V2_ENABLED=${V2_ENABLED:-0}
 
 require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
 require EC_BINARY "${EC_BINARY:-}"
-if [ "$USES_DEV_BUCKET" == "1" ]; then
-    require S3_BUCKET "${S3_BUCKET:-}"
-fi
+require S3_BUCKET "${S3_BUCKET:-}"
+
+require APP_CHANNEL_ID "${APP_CHANNEL_ID:-}"
+require APP_CHANNEL_SLUG "${APP_CHANNEL_SLUG:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
@@ -58,7 +58,11 @@ function create_release_archive() {
     cp -r "$RELEASE_YAML_DIR" output/tmp/release
 
     # get next channel sequence
-    local curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence')
+    local curr_channel_sequence=
+    curr_channel_sequence=$(replicated api get "/v3/app/${APP_ID}/channel/${APP_CHANNEL_ID}/releases?pageSize=1" | jq '.releases[0].channelSequence' || true)
+    if [ "$curr_channel_sequence" == "null" ]; then
+        curr_channel_sequence=-1 # this is a special value that means the channel has no releases yet
+    fi
     local next_channel_sequence=$((curr_channel_sequence + 1))
 
     {
@@ -74,17 +78,12 @@ function create_release_archive() {
         echo "  replicatedRegistryDomain: \"registry.staging.replicated.com\""
     } > output/tmp/release/release.yaml
 
-    if [ "$USES_DEV_BUCKET" == "1" ]; then
+    if uses_dev_bucket "${S3_BUCKET:-}"; then
         release_url="https://$S3_BUCKET.s3.amazonaws.com/releases/v$(url_encode_semver "${EC_VERSION#v}").tgz"
         metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
     fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    if [ "$V2_ENABLED" == "1" ]; then
-        sed -i.bak "s|__v2_enabled__|true|g" output/tmp/release/cluster-config.yaml
-    else
-        sed -i.bak "s|__v2_enabled__|false|g" output/tmp/release/cluster-config.yaml
-    fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
     

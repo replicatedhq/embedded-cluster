@@ -67,12 +67,13 @@ func newTestAirgapMetadataWithSequences(releases []airgapReleaseData) *airgap.Ai
 
 func TestWithAirgapRequiredReleases(t *testing.T) {
 	tests := []struct {
-		name             string
-		metadata         *airgap.AirgapMetadata
-		currentSequence  int64
-		expectedReleases []string
-		expectError      bool
-		errorContains    string
+		name                             string
+		metadata                         *airgap.AirgapMetadata
+		currentSequence                  int64
+		expectedReleases                 []string
+		expectedCurrentReleaseIsRequired bool
+		expectError                      bool
+		errorContains                    string
 	}{
 		{
 			name:             "no required releases",
@@ -105,17 +106,6 @@ func TestWithAirgapRequiredReleases(t *testing.T) {
 			expectError:      false,
 		},
 		{
-			name: "stops at current sequence",
-			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
-				{versionLabel: "1.4.0", updateCursor: "400"},
-				{versionLabel: "1.3.0", updateCursor: "300"},
-				{versionLabel: "1.2.0", updateCursor: "200"},
-			}),
-			currentSequence:  300,
-			expectedReleases: []string{"1.4.0"},
-			expectError:      false,
-		},
-		{
 			name: "all releases older than current",
 			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
 				{versionLabel: "1.2.0", updateCursor: "200"},
@@ -124,6 +114,28 @@ func TestWithAirgapRequiredReleases(t *testing.T) {
 			currentSequence:  300,
 			expectedReleases: []string{},
 			expectError:      false,
+		},
+		{
+			name: "current release is required",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.0.0", updateCursor: "300"},
+			}),
+			currentSequence:                  300,
+			expectedReleases:                 []string{},
+			expectError:                      false,
+			expectedCurrentReleaseIsRequired: true,
+		},
+		{
+			name: "current release is required and there's other required releases",
+			metadata: newTestAirgapMetadataWithSequences([]airgapReleaseData{
+				{versionLabel: "1.4.0", updateCursor: "400"},
+				{versionLabel: "1.3.0", updateCursor: "300"},
+				{versionLabel: "1.2.0", updateCursor: "200"},
+			}),
+			currentSequence:                  300,
+			expectedReleases:                 []string{"1.4.0"},
+			expectedCurrentReleaseIsRequired: true,
+			expectError:                      false,
 		},
 		{
 			name:            "nil metadata",
@@ -170,6 +182,7 @@ func TestWithAirgapRequiredReleases(t *testing.T) {
 				} else {
 					assert.Equal(t, tt.expectedReleases, opts.requiredReleases)
 				}
+				assert.Equal(t, tt.expectedCurrentReleaseIsRequired, opts.currentReleaseIsRequired)
 			}
 		})
 	}
@@ -177,11 +190,12 @@ func TestWithAirgapRequiredReleases(t *testing.T) {
 
 func TestHandlePendingReleases(t *testing.T) {
 	tests := []struct {
-		name             string
-		pendingReleases  []replicatedapi.ChannelRelease
-		currentSequence  int64
-		targetSequence   int64
-		expectedReleases []string
+		name                             string
+		pendingReleases                  []replicatedapi.ChannelRelease
+		currentSequence                  int64
+		targetSequence                   int64
+		expectedReleases                 []string
+		expectedCurrentReleaseIsRequired bool
 	}{
 		{
 			name: "no required releases",
@@ -255,6 +269,29 @@ func TestHandlePendingReleases(t *testing.T) {
 			targetSequence:   100,
 			expectedReleases: []string{},
 		},
+		{
+			name: "current sequence is required",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 99, VersionLabel: "1.0.0", IsRequired: true},
+			},
+			currentSequence:                  99,
+			targetSequence:                   100,
+			expectedReleases:                 []string{},
+			expectedCurrentReleaseIsRequired: true,
+		},
+		{
+			name: "current sequence is required and there's other required releases",
+			pendingReleases: []replicatedapi.ChannelRelease{
+				{ChannelSequence: 99, VersionLabel: "1.0.0", IsRequired: true},
+				{ChannelSequence: 101, VersionLabel: "1.1.0", IsRequired: true},
+				{ChannelSequence: 102, VersionLabel: "1.2.0", IsRequired: false},
+				{ChannelSequence: 103, VersionLabel: "1.3.0", IsRequired: true},
+			},
+			currentSequence:                  99,
+			targetSequence:                   104,
+			expectedReleases:                 []string{"1.1.0", "1.3.0"},
+			expectedCurrentReleaseIsRequired: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -271,6 +308,7 @@ func TestHandlePendingReleases(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.expectedReleases, opts.requiredReleases)
 			}
+			assert.Equal(t, tt.expectedCurrentReleaseIsRequired, opts.currentReleaseIsRequired)
 		})
 	}
 }
@@ -401,6 +439,40 @@ func TestValidateIsReleaseUpgradable(t *testing.T) {
 			},
 			expectError:         true,
 			expectValidationErr: true,
+		},
+		{
+			name: "current release failed and is required",
+			opts: UpgradableOptions{
+				CurrentAppVersion:        "1.0.0",
+				CurrentAppSequence:       100,
+				CurrentAppStatus:         "failed",
+				CurrentECVersion:         "2.0.0+k8s-1.29",
+				TargetAppVersion:         "1.5.0",
+				TargetAppSequence:        500,
+				TargetECVersion:          "2.1.0+k8s-1.29",
+				License:                  newTestLicense(true),
+				requiredReleases:         []string{},
+				currentReleaseIsRequired: true,
+			},
+			expectError:         true,
+			expectValidationErr: true,
+		},
+		{
+			name: "current release failed and is deployed",
+			opts: UpgradableOptions{
+				CurrentAppVersion:        "1.0.0",
+				CurrentAppSequence:       100,
+				CurrentAppStatus:         "deployed",
+				CurrentECVersion:         "2.0.0+k8s-1.29",
+				TargetAppVersion:         "1.5.0",
+				TargetAppSequence:        500,
+				TargetECVersion:          "2.1.0+k8s-1.29",
+				License:                  newTestLicense(true),
+				requiredReleases:         []string{},
+				currentReleaseIsRequired: true,
+			},
+			expectError:         false,
+			expectValidationErr: false,
 		},
 		{
 			name: "ec version downgrade",

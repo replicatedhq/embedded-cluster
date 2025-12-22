@@ -33,10 +33,12 @@ type mockAPIClient struct {
 	getLinuxUpgradeAppPreflightsStatusFunc  func(ctx context.Context) (apitypes.UpgradeAppPreflightsStatusResponse, error)
 	upgradeLinuxAppFunc                     func(ctx context.Context, ignoreAppPreflights bool) (apitypes.AppUpgrade, error)
 	getLinuxAppUpgradeStatusFunc            func(ctx context.Context) (apitypes.AppUpgrade, error)
-	upgradeLinuxInfraFunc                   func(ctx context.Context) (apitypes.Infra, error)
+	upgradeLinuxInfraFunc                   func(ctx context.Context, ignoreHostPreflights bool) (apitypes.Infra, error)
 	getLinuxUpgradeInfraStatusFunc          func(ctx context.Context) (apitypes.Infra, error)
 	processLinuxUpgradeAirgapFunc           func(ctx context.Context) (apitypes.Airgap, error)
 	getLinuxUpgradeAirgapStatusFunc         func(ctx context.Context) (apitypes.Airgap, error)
+	runLinuxUpgradeHostPreflightsFunc       func(ctx context.Context) (apitypes.HostPreflights, error)
+	getLinuxUpgradeHostPreflightsStatusFunc func(ctx context.Context) (apitypes.HostPreflights, error)
 
 	// Kubernetes methods (not used in current implementation, but required by interface)
 	getKubernetesInstallationConfigFunc         func(ctx context.Context) (apitypes.KubernetesInstallationConfigResponse, error)
@@ -224,9 +226,9 @@ func (m *mockAPIClient) GetLinuxAppUpgradeStatus(ctx context.Context) (apitypes.
 	return apitypes.AppUpgrade{}, nil
 }
 
-func (m *mockAPIClient) UpgradeLinuxInfra(ctx context.Context) (apitypes.Infra, error) {
+func (m *mockAPIClient) UpgradeLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (apitypes.Infra, error) {
 	if m.upgradeLinuxInfraFunc != nil {
-		return m.upgradeLinuxInfraFunc(ctx)
+		return m.upgradeLinuxInfraFunc(ctx, ignoreHostPreflights)
 	}
 	return apitypes.Infra{}, nil
 }
@@ -250,6 +252,20 @@ func (m *mockAPIClient) GetLinuxUpgradeAirgapStatus(ctx context.Context) (apityp
 		return m.getLinuxUpgradeAirgapStatusFunc(ctx)
 	}
 	return apitypes.Airgap{}, nil
+}
+
+func (m *mockAPIClient) RunLinuxUpgradeHostPreflights(ctx context.Context) (apitypes.HostPreflights, error) {
+	if m.runLinuxUpgradeHostPreflightsFunc != nil {
+		return m.runLinuxUpgradeHostPreflightsFunc(ctx)
+	}
+	return apitypes.HostPreflights{}, nil
+}
+
+func (m *mockAPIClient) GetLinuxUpgradeHostPreflightsStatus(ctx context.Context) (apitypes.HostPreflights, error) {
+	if m.getLinuxUpgradeHostPreflightsStatusFunc != nil {
+		return m.getLinuxUpgradeHostPreflightsStatusFunc(ctx)
+	}
+	return apitypes.HostPreflights{}, nil
 }
 
 // Kubernetes method implementations (not used in current implementation)
@@ -356,6 +372,21 @@ func (m *mockAPIClient) TemplateKubernetesUpgradeAppConfig(ctx context.Context, 
 		return m.templateKubernetesUpgradeAppConfigFunc(ctx, values)
 	}
 	return apitypes.AppConfig{}, nil
+}
+
+// GetKURLMigrationConfig returns empty config (mock implementation).
+func (m *mockAPIClient) GetKURLMigrationConfig(ctx context.Context) (apitypes.LinuxInstallationConfigResponse, error) {
+	return apitypes.LinuxInstallationConfigResponse{}, nil
+}
+
+// StartKURLMigration returns empty response (mock implementation).
+func (m *mockAPIClient) StartKURLMigration(ctx context.Context, transferMode string, config *apitypes.LinuxInstallationConfig) (apitypes.StartKURLMigrationResponse, error) {
+	return apitypes.StartKURLMigrationResponse{}, nil
+}
+
+// GetKURLMigrationStatus returns empty status (mock implementation).
+func (m *mockAPIClient) GetKURLMigrationStatus(ctx context.Context) (apitypes.KURLMigrationStatusResponse, error) {
+	return apitypes.KURLMigrationStatusResponse{}, nil
 }
 
 // Ensure mockAPIClient implements client.Client interface

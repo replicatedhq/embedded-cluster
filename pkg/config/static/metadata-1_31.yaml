@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.28.5-amd64@sha256:b94924e057545daa78ecc5a3ff24af2fc0bb3e95dcb45f3914124d3a2d0308c0
-            arm64: v3.28.5-arm64@sha256:89f6e9865ecb1511ae04e850c6445898bbdfe138691411d87124bce68d6ef68f
+            amd64: v3.28.5-amd64@sha256:db3c0dad7f0457b74a80b75fedaa2553c1dba12661f85188835cf6f4e3999e09
+            arm64: v3.28.5-arm64@sha256:68ddc71e385ab92d6ddd63923b71b5178abaf4d175b11aea78c98b3f4f9f9f00
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.28.5-amd64@sha256:d7797cce8adeea1ccd17414ae84bbfbd9f04fbf313cd4f55d140504b91c47f8d
-            arm64: v3.28.5-arm64@sha256:674aabfaacade2e460f52975c54809083d47f0cf0b69098f334a26f82c7cc2d1
+            amd64: v3.28.5-amd64@sha256:83cf58d1ee142578269f50f825172364546ccc1a745dd3293f6ee2a53d701d9b
+            arm64: v3.28.5-arm64@sha256:9fc0c4342e0e4e8b083f5f7511de11c9daba6182ce5d13ded30af80b1001b5ee
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.28.5-amd64@sha256:822c2516cda4d1686a8b0a07f8e856b555d5d2ae692c9d26cf336e01be319694
-            arm64: v3.28.5-arm64@sha256:6ef34c55135b230f9035e3c0cc5e6f3af0613e8b056348e2e7f86ac5618e6eba
+            amd64: v3.28.5-amd64@sha256:7c584c9de04219ebf8c80fd8dce933e0290d853810fcb17e79ecac0a55bd5237
+            arm64: v3.28.5-arm64@sha256:03e1430c1d08fa6ef679aecbc1e9bfb8d9836920ec926a07664af4c7621eafe0
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.13.1-amd64@sha256:50f3bff150d550c51a3fcb35647b2382d4941385832ae669f13cdbb39e560d63
-            arm64: 1.13.1-arm64@sha256:af215fb41f787102113aa279312625daa570425f9ec118f6663ad061db520fd9
+            amd64: 1.13.2-amd64@sha256:67810d1f80b7c47076e760974c95b2b59c578496e7c1ba18b5f9d2479d311536
+            arm64: 1.13.2-arm64@sha256:9380acdc44ff8f4d80b76b4d914135163f49c0a057deda98837d8b213f158c1e
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: v1.31.2-amd64@sha256:b612e54c7d9d6cb1af0a6d1aed67f162146618bd050eab2cdb34ff107517e54c
-            arm64: v1.31.2-arm64@sha256:b0cae887eefe86f278f550156cb699a4025f320253bf4b4a2a7c809108455ce6
+            amd64: v1.31.2-amd64@sha256:7e93ee30d24ec05e270d7b6ee72c66903b66232f1c1c0e2eba42fb0204318610
+            arm64: v1.31.2-arm64@sha256:ce32eb79cb62b9dc8388ac7500f616e5319e7a917953e3f763970ae22b443c37
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.31.13-amd64@sha256:6c8c8f140d926511a3984e86942d3969b6c910b4688300e7064eec41baaf9973
-            arm64: v1.31.13-arm64@sha256:4f120663fea6d2a7e6603407ac2ca7581fcb50b2180006b9a8593547f0b487d7
+            amd64: v1.31.13-amd64@sha256:aa8241ad2d80d3cf52853ec9d30a5db203a463571da8dbfb123e095b2c11f6aa
+            arm64: v1.31.13-arm64@sha256:c34df69626edde70933fdf17d5509507ec74093c8e8ffcace980701d7fa4d9f1
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.0-amd64@sha256:f0a44c9f544557332a32bdc84e3b7c980b5ed0c4a60ac4d03ade9e970d16b8e5
-            arm64: v0.8.0-arm64@sha256:ff4e5cf660f494305fd551c2272f7ee09bd1129225f66284adc10805b84529a3
+            amd64: v0.8.0-amd64@sha256:52b1c30dcd3b8aa5e9a16ee63b29b0e8e19bd96d91776f44e9b3dccc74461a18
+            arm64: v0.8.0-arm64@sha256:82b2606029bb2befd5dc1cf701a221afa6ca7bed5c2defd2db44b82dc9c04aa6
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:0e70ddcd79ce98ae5c8c7454e460320324a5884cacdf13c2fb776678b24e20ab
-            arm64: 3.9-arm64@sha256:17817b12aa3cb3b4a60295dacdf9d1ac7647fa9931f1ba10cf3e4ae1fe2e1faf
+            amd64: 3.9-amd64@sha256:697ae7c2adf846faba3117ed606ecec599ac746e3b8c017c564e7a090afbab26
+            arm64: 3.9-arm64@sha256:3f1170953acfb8035202d682d135890c6777143686bafda6e177e1cc20419d18

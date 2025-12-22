@@ -103,6 +103,14 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"embeddedClusterID":      in.Spec.ClusterID,
 		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
+		// kotsadm resources overrides
+		"kotsadm.resources.limits.memory":   "4Gi",
+		"kotsadm.resources.requests.cpu":    "200m",
+		"kotsadm.resources.requests.memory": "300Mi",
+		// rqlite resources overrides
+		"rqlite.resources.limits.memory":   "3Gi",
+		"rqlite.resources.requests.cpu":    "150m",
+		"rqlite.resources.requests.memory": "512Mi",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -117,6 +125,10 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"KUBECONFIG": "/var/lib/embedded-cluster/k0s/pki/admin.conf",
 	})
 
+	// --- validate log directory (V2 static path) --- //
+	logDir := runtimeconfig.EmbeddedClusterLogsSubDir()
+	assert.Equal(t, "/var/log/embedded-cluster", logDir, "V2 should use static log directory")
+
 	// --- validate commands --- //
 	// Get expected hostname to validate it's included in the kubelet args
 	expectedHostname, err := nodeutil.GetHostname("")
@@ -124,7 +136,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 
 	assertCommands(t, dr.Commands,
 		[]interface{}{
-			regexp.MustCompile(fmt.Sprintf(`k0s install controller .* --kubelet-extra-args --node-ip=.* --hostname-override=%s .*--data-dir /var/lib/embedded-cluster/k0s`, regexp.QuoteMeta(expectedHostname))),
+			regexp.MustCompile(fmt.Sprintf(`k0s install controller .* --kubelet-extra-args --node-ip=.* --hostname-override=%s .*--data-dir /var/lib/embedded-cluster/k0s .*--disable-components konnectivity-server,update-prober`, regexp.QuoteMeta(expectedHostname))),
 		},
 		false,
 	)

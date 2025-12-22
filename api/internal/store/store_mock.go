@@ -10,6 +10,7 @@ import (
 	appupgrade "github.com/replicatedhq/embedded-cluster/api/internal/store/app/upgrade"
 	"github.com/replicatedhq/embedded-cluster/api/internal/store/infra"
 	kubernetesinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/kubernetes/installation"
+	kurlmigration "github.com/replicatedhq/embedded-cluster/api/internal/store/kurlmigration"
 	linuxinstallation "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/installation"
 	linuxpreflight "github.com/replicatedhq/embedded-cluster/api/internal/store/linux/preflight"
 )
@@ -28,6 +29,7 @@ type MockStore struct {
 	AppInstallMockStore             appinstall.MockStore
 	AppUpgradeMockStore             appupgrade.MockStore
 	AirgapMockStore                 airgap.MockStore
+	KURLMigrationMockStore          kurlmigration.MockStore
 }
 
 // LinuxPreflightStore returns the mock linux preflight store
@@ -80,6 +82,12 @@ func (m *MockStore) AirgapStore() airgap.Store {
 	return &m.AirgapMockStore
 }
 
+// KURLMigrationStore returns the mock kURL migration store
+func (m *MockStore) KURLMigrationStore() kurlmigration.Store {
+	return &m.KURLMigrationMockStore
+}
+
+// AssertExpectations asserts expectations on all embedded mock stores
 func (m *MockStore) AssertExpectations(t *testing.T) {
 	m.LinuxPreflightMockStore.AssertExpectations(t)
 	m.LinuxInstallationMockStore.AssertExpectations(t)
@@ -91,4 +99,5 @@ func (m *MockStore) AssertExpectations(t *testing.T) {
 	m.AppInstallMockStore.AssertExpectations(t)
 	m.AppUpgradeMockStore.AssertExpectations(t)
 	m.AirgapMockStore.AssertExpectations(t)
+	m.KURLMigrationMockStore.AssertExpectations(t)
 }

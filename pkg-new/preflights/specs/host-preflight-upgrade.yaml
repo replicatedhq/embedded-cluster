@@ -1,0 +1,8 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: embedded-cluster-upgrade
+spec:
+  # upgrade only collectors and analyzers should be added here
+  collectors: []
+  analyzers: []

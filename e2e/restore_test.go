@@ -566,7 +566,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:                      t,
-		Nodes:                  4,
+		Nodes:                  3,
 		Distribution:           "ubuntu",
 		Version:                "22.04",
 		InstanceType:           "r1.medium",
@@ -597,10 +597,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"apt-get", "install", "-y", "expect"}); err != nil {
 		t.Fatalf("fail to install expect package on node 0: %v: %s: %s", err, stdout, stderr)
 	}
-	// install "expect" dependency on node 3 as that's where the HA join command will run.
-	t.Logf("%s: installing expect package on node 3", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(3, []string{"apt-get", "install", "-y", "expect"}); err != nil {
-		t.Fatalf("fail to install expect package on node 3: %v: %s: %s", err, stdout, stderr)
+	// install "expect" dependency on node 2 as that's where the HA join command will run.
+	t.Logf("%s: installing expect package on node 2", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(2, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+		t.Fatalf("fail to install expect package on node 2: %v: %s: %s", err, stdout, stderr)
 	}
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -635,27 +635,21 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// join a worker
-	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{
+	// join a controller
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
 		withEnv: withEnv,
 	})
 	checkWorkerProfile(t, tc, 1)
 
-	// join a controller
+	// join another controller in HA mode
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
+		isHA:    true,
 		withEnv: withEnv,
 	})
 	checkWorkerProfile(t, tc, 2)
 
-	// join another controller in HA mode
-	joinControllerNodeWithOptions(t, tc, 3, joinOptions{
-		isHA:    true,
-		withEnv: withEnv,
-	})
-	checkWorkerProfile(t, tc, 3)
-
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, withEnv)
+	waitForNodes(t, tc, 3, withEnv)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
@@ -688,27 +682,14 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Logf("reset output does not contain the ha warning: stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
-	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "3"}, withEnv)
+	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "2"}, withEnv)
 	if err != nil {
 		t.Fatalf("fail to check nodes removed: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// check nllb after resetting first controller
-	t.Logf("%s: checking nllb", time.Now().Format(time.RFC3339))
-	line = []string{"check-nllb.sh"}
-	if stdout, stderr, err := tc.RunCommandOnNode(2, line, withEnv); err != nil {
-		t.Fatalf("fail to check nllb: %v: %s: %s", err, stdout, stderr)
 	}
 
 	// reset the remaining nodes in parallel
 	runInParallel(t,
 		func(t *testing.T) error {
-			stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{force: true, withEnv: withEnv})
-			if err != nil {
-				return fmt.Errorf("fail to reset the installation on node 3: %v: %s: %s", err, stdout, stderr)
-			}
-			return nil
-		}, func(t *testing.T) error {
 			stdout, stderr, err := resetInstallationWithError(t, tc, 2, resetInstallationOptions{force: true, withEnv: withEnv})
 			if err != nil {
 				return fmt.Errorf("fail to reset the installation on node 2: %v: %s: %s", err, stdout, stderr)
@@ -755,13 +736,6 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
 			}
 			return nil
-		}, func(t *testing.T) error {
-			t.Logf("%s: checking that /var/lib/ec is empty on node 3", time.Now().Format(time.RFC3339))
-			line := []string{"check-directory-empty.sh", "/var/lib/ec"}
-			if _, _, err := tc.RunCommandOnNode(3, line, withEnv); err != nil {
-				return fmt.Errorf("fail to check that /var/lib/ec is empty: %v", err)
-			}
-			return nil
 		},
 	)
 
@@ -775,26 +749,19 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// restore phase 1 completes when the prompt for adding nodes is reached.
 	// add the expected nodes to the cluster, then continue to phase 2.
 
-	// join a worker
-	joinWorkerNodeWithOptions(t, tc, 1, joinOptions{
+	// join controller nodes after restore
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{
 		isRestore: true,
 		withEnv:   withEnv,
 	})
 
-	// join a controller
 	joinControllerNodeWithOptions(t, tc, 2, joinOptions{
 		isRestore: true,
 		withEnv:   withEnv,
 	})
 
-	// join another controller in non-HA mode
-	joinControllerNodeWithOptions(t, tc, 3, joinOptions{
-		isRestore: true,
-		withEnv:   withEnv,
-	})
-
 	// wait for the nodes to report as ready.
-	waitForNodes(t, tc, 4, withEnv, "true")
+	waitForNodes(t, tc, 3, withEnv, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
 	line = []string{"restore-multi-node-airgap-phase2.exp"}

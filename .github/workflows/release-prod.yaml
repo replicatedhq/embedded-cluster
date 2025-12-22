@@ -18,7 +18,7 @@ jobs:
       k0s_minor_version: ${{ steps.export.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -50,7 +50,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -63,7 +63,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -77,7 +77,7 @@ jobs:
       image: ${{ steps.operator-image.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install dagger
         run: |
@@ -104,7 +104,7 @@ jobs:
       chart: ${{ steps.operator-chart.outputs.chart }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build and push operator chart
         id: operator-chart
@@ -126,7 +126,7 @@ jobs:
       local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install dagger
         run: |
@@ -151,10 +151,10 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/bins
@@ -178,7 +178,7 @@ jobs:
       - uses: imjasonh/setup-crane@v0.4
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
@@ -259,7 +259,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Export k0s version
         id: export
         env:
@@ -296,7 +296,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -314,7 +314,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${{ github.ref_name }}-pre-minio-removal"
@@ -362,7 +362,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: CI-airgap
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           # promote a release containing the previous stable version of embedded-cluster to test upgrades
           export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
@@ -400,7 +400,7 @@ jobs:
           REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
           REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
           APP_CHANNEL: Stable
-          USES_DEV_BUCKET: "0"
+          S3_BUCKET: tf-staging-embedded-cluster-bin
         run: |
           # create a release in the stable channel of our test app for use by CMX
           export EC_VERSION="${{ github.ref_name }}"
@@ -417,7 +417,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -427,7 +427,7 @@ jobs:
         run: |
           make output/bin/embedded-cluster-release-builder
       - name: Upload embedded-cluster-release-builder artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: embedded-cluster-release-builder
           path: |
@@ -444,7 +444,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Download embedded-cluster-release-builder
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: embedded-cluster-release-builder
           path: output/bin
@@ -466,7 +466,7 @@ jobs:
           mv embedded-cluster output/bin/embedded-cluster-original
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: current-release
           path: |
@@ -504,9 +504,9 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -580,9 +580,9 @@ jobs:
             is-lxd: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: current-release
           path: output/bin
@@ -627,7 +627,7 @@ jobs:
     needs: [release, release-app, get-tag]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           

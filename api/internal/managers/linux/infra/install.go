@@ -288,7 +288,6 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *license
 	opts := addons.InstallOptions{
 		ClusterID:               m.clusterID,
 		AdminConsolePwd:         m.password,
-		AdminConsolePort:        rc.AdminConsolePort(),
 		License:                 license,
 		IsAirgap:                m.airgapBundle != "",
 		TLSCertBytes:            m.tlsConfig.CertBytes,

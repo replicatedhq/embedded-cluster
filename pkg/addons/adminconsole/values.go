@@ -45,6 +45,8 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 		copiedValues["embeddedClusterID"] = a.ClusterID
 		copiedValues["embeddedClusterDataDir"] = a.DataDir
 		copiedValues["embeddedClusterK0sDir"] = a.K0sDataDir
+		// TODO: enable this once we stop relying on KOTS to deploy the app
+		// copiedValues["isEmbeddedClusterV3"] = a.isV3()
 	}
 
 	copiedValues["isHA"] = a.IsHA
@@ -121,9 +123,16 @@ func (a *AdminConsole) GenerateHelmValues(ctx context.Context, kcli client.Clien
 	copiedValues["extraVolumes"] = extraVolumes
 	copiedValues["extraVolumeMounts"] = extraVolumeMounts
 
-	err = helm.SetValue(copiedValues, "kurlProxy.nodePort", a.AdminConsolePort)
-	if err != nil {
-		return nil, errors.Wrap(err, "set kurlProxy.nodePort")
+	if a.isV3() {
+		err := helm.SetValue(copiedValues, "kurlProxy.enabled", false)
+		if err != nil {
+			return nil, errors.Wrap(err, "set kurlProxy.enabled")
+		}
+	} else {
+		err := helm.SetValue(copiedValues, "kurlProxy.nodePort", a.AdminConsolePort)
+		if err != nil {
+			return nil, errors.Wrap(err, "set kurlProxy.nodePort")
+		}
 	}
 
 	for _, override := range overrides {

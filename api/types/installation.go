@@ -7,7 +7,6 @@ type LinuxInstallation struct {
 
 // LinuxInstallationConfig represents the configuration for an installation
 type LinuxInstallationConfig struct {
-	AdminConsolePort        int    `json:"adminConsolePort" validate:"optional"`
 	DataDirectory           string `json:"dataDirectory" validate:"optional"`
 	LocalArtifactMirrorPort int    `json:"localArtifactMirrorPort" validate:"optional"`
 	HTTPProxy               string `json:"httpProxy" validate:"optional"`

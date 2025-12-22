@@ -83,6 +83,8 @@ func executeCommand(shpath string, command string, rc runtimeconfig.RuntimeConfi
 	shell.Env = append(shell.Env, fmt.Sprintf("KUBECONFIG=%s", kcpath))
 	bindir := rc.EmbeddedClusterBinsSubDir()
 	shell.Env = append(shell.Env, fmt.Sprintf("PATH=%s:%s", os.Getenv("PATH"), bindir))
+	shell.Env = append(shell.Env, "TROUBLESHOOT_AUTO_UPDATE=false")
+	shell.Env = append(shell.Env, "PREFLIGHT_AUTO_UPDATE=false")
 
 	// Set working directory
 	var err error
@@ -149,6 +151,14 @@ func openInteractiveShell(shpath string, rc runtimeconfig.RuntimeConfig) error {
 
 	bindir := rc.EmbeddedClusterBinsSubDir()
 	config = fmt.Sprintf("export PATH=\"$PATH:%s\"\n", bindir)
+	_, _ = shellpty.WriteString(config)
+	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
+	config = "export TROUBLESHOOT_AUTO_UPDATE=false\n"
+	_, _ = shellpty.WriteString(config)
+	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
+
+	config = "export PREFLIGHT_AUTO_UPDATE=false\n"
 	_, _ = shellpty.WriteString(config)
 	_, _ = io.CopyN(io.Discard, shellpty, int64(len(config)+1))
 

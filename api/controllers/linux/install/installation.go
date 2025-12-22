@@ -129,7 +129,6 @@ func (c *InstallController) configureInstallation(_ context.Context, logger logr
 	// update the runtime config
 	c.rc.SetDataDir(resolvedConfig.DataDirectory)
 	c.rc.SetLocalArtifactMirrorPort(resolvedConfig.LocalArtifactMirrorPort)
-	c.rc.SetAdminConsolePort(resolvedConfig.AdminConsolePort)
 	c.rc.SetProxySpec(proxy)
 	c.rc.SetNetworkSpec(networkSpec)
 

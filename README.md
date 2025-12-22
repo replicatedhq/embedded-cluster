@@ -25,6 +25,7 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
 - jq
 - oras
 - crane
+- op (1Password CLI)
 - Kubectl (for integration tests)
 - Kind (for integration tests)
 
@@ -36,35 +37,10 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
     cd embedded-cluster
     ```
 
-1. Set the following environment variables:
+1. Sign into the 1Password CLI (access to the "Developer Automation" vault is required)
     ```bash
-    export REPLICATED_APP=
-    export REPLICATED_API_TOKEN=
-    export REPLICATED_API_ORIGIN=
-    export APP_CHANNEL=
-    export APP_CHANNEL_ID=
-    export APP_CHANNEL_SLUG=
-    export AWS_ACCESS_KEY_ID=
-    export AWS_SECRET_ACCESS_KEY=
+    op signin
     ```
-
-    | Environment Variable | Description | Default Value |
-    |----------------------|-------------|---------------|
-    | `REPLICATED_APP` | The application slug | `embedded-cluster-smoke-test-staging-app` |
-    | `REPLICATED_API_TOKEN` | A vendor portal API token with write access to the application | (required) |
-    | `REPLICATED_API_ORIGIN` | The vendor-api URL | `https://api.staging.replicated.com/vendor` |
-    | `APP_CHANNEL` | The channel name (it's recommended to create a new channel just for your development environment.) | (required) |
-    | `APP_CHANNEL_ID` | The channel ID | (required) |
-    | `APP_CHANNEL_SLUG` | The channel slug | (required) |
-    | `AWS_ACCESS_KEY_ID` | AWS access key ID with write access to the `dev-embedded-cluster-bin` bucket in Replicated's dev AWS account | (required) |
-    | `AWS_SECRET_ACCESS_KEY` | AWS secret access key with write access to the `dev-embedded-cluster-bin` bucket in Replicated's dev AWS account | (required) |
-
-    Note: 
-    - To use a different AWS bucket or account, override using the `S3_BUCKET` environment variable.
-    - To use the Replicated staging bucket used in CI, set `USES_DEV_BUCKET=0`.
-
-1. In the Vendor Portal, create and download a license that is assigned to the channel.
-We recommend storing this license in the `local-dev/` directory, as it is gitignored and not otherwise used by the CI.
 
 ### V2 installs
 
@@ -79,7 +55,7 @@ We recommend storing this license in the `local-dev/` directory, as it is gitign
     ```
 1. Install the release:
     ```bash
-    output/bin/embedded-cluster install --license <license-file>
+    output/bin/embedded-cluster install --license "$CUSTOMER_LICENSE_FILE"
     ```
 1. Once that completes, you can access the admin console at http://localhost:30000
 
@@ -140,7 +116,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
     ```
 1. Install the release:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license <license-file> --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license "$CUSTOMER_LICENSE_FILE" --target linux
     ```
 
 **For Airgap:**
@@ -156,7 +132,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
 1. Run the download and extract commands from the install instructions on the customer page.
 1. Run the following command to install the EC release in airgap mode:
     ```bash
-    ENABLE_V3=1 sudo -E ./<app-slug> install --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ENABLE_V3=1 sudo -E ./<app-slug> install --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
     ```
 
 **Note:** The release will be created using the manifests located in the `e2e/kots-release-install-v3` directory.
@@ -174,7 +150,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
     ```
 1. Run the following command to upgrade the EC release:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license <license-file> --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license "$CUSTOMER_LICENSE_FILE" --target linux
     ```
 
 **For Airgap:**
@@ -190,7 +166,7 @@ Embedded Cluster supports v3 releases which provide an enhanced manager UI exper
 1. Run the download and extract commands from the install instructions on the customer page.
 1. Run the following command to upgrade to the new EC release in airgap mode:
     ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license <license-file> --airgap-bundle <app-slug>.airgap --target linux
+    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
     ```
 
 **Note:** The release will be created using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
@@ -471,34 +447,78 @@ To upgrade the K0s minor version, the [.github/workflows/dependencies.yaml](.git
 
 > **Note:** For patch version updates within the same minor version (e.g., 1.33.4 to 1.33.5), the [automated dependency workflow](#automated-version-updates) handles this automatically.
 
+## Testing
+
+### E2E Tests (V3 Installer)
+
+The V3 installer includes a Dagger-based E2E test framework that provides portable, reproducible testing across local and CI environments.
+
+**Key Features:**
+- Portable execution (same tests run identically locally and in CI)
+- 1Password integration for centralized secret management
+- CMX VM provisioning for isolated test environments
+- Automated installation validation
+
+**Quick Start:**
+```bash
+make e2e-v3-initial-release
+
+dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
+  e-2-e-run-headless \
+  --scenario=online \
+  --app-version=<app version> \
+  --kube-version=1.33 \
+  --license-file=./local-dev/license.yaml
+```
+
+**Documentation:** See [dagger/README.md](dagger/README.md) for comprehensive E2E testing guide, including:
+- Setup and prerequisites
+- Available test scenarios
+- Troubleshooting
+- CI integration
+
+**Note:** V2 tests remain unchanged and continue to use the existing Docker/LXD/CMX-based framework.
+
 ## Releasing
 
-Embedded Cluster maintains support for the current and two previous K0s minor versions, ensuring backward compatibility while supporting the latest features.
-All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported K0s version.
+Embedded Cluster maintains support for the current and two previous k8s minor versions, ensuring backward compatibility while supporting the latest features.
+All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported k8s version.
 
 ### Release Tagging Strategy
 
-Releases follow the format: `{APP_VERSION}+k0s-{K0S_MINOR_VERSION}`
+Releases follow the format: `{APP_VERSION}+k8s-{K0S_MINOR_VERSION}`
 
 **Examples:**
-- `2.10.0+k0s-1.33` - Application version 2.10.0 with K0s 1.33.x support
-- `2.10.0+k0s-1.32` - Application version 2.10.0 with K0s 1.32.x support
-- `2.10.0+k0s-1.31` - Application version 2.10.0 with K0s 1.31.x support
+- `2.10.0+k8s-1.33` - Application version 2.10.0 with k8s 1.33.x support
+- `2.10.0+k8s-1.32` - Application version 2.10.0 with k8s 1.32.x support
+- `2.10.0+k8s-1.31` - Application version 2.10.0 with k8s 1.31.x support
 
 ### Release Process
 
 1. **Prepare the release commit** - Ensure all changes are committed and tested
-2. **Create annotated tags** - Tag the same commit with all supported K0s minor versions using annotated tags with descriptive messages:
+2. **Create annotated tags** - Tag the same commit with all supported k8s minor versions using annotated tags with descriptive messages:
    ```bash
-   # Tag for K0s 1.33.x support
-   git tag -a 2.10.0+k0s-1.33 -m "Release 2.10.0+k0s-1.33"
-   git push origin 2.10.0+k0s-1.33
+   # Tag for k8s 1.33.x support
+   git tag -a 2.10.0+k8s-1.33 -m "Release 2.10.0+k8s-1.33"
+   git push origin 2.10.0+k8s-1.33
 
-   # Tag for K0s 1.32.x support
-   git tag -a 2.10.0+k0s-1.32 -m "Release 2.10.0+k0s-1.32"
-   git push origin 2.10.0+k0s-1.32
+   # Tag for k8s 1.32.x support
+   git tag -a 2.10.0+k8s-1.32 -m "Release 2.10.0+k8s-1.32"
+   git push origin 2.10.0+k8s-1.32
 
-   # Tag for K0s 1.31.x support
-   git tag -a 2.10.0+k0s-1.31 -m "Release 2.10.0+k0s-1.31"
-   git push origin 2.10.0+k0s-1.31
+   # Tag for k8s 1.31.x support
+   git tag -a 2.10.0+k8s-1.31 -m "Release 2.10.0+k8s-1.31"
+   git push origin 2.10.0+k8s-1.31
    ```
+
+## Special Third-Party Licenses
+
+This software includes code from the following open source projects licensed under AGPL-3.0, including but not limited to:
+
+### LXD
+
+- **Source**: https://github.com/canonical/lxd
+- **License**: GNU Affero General Public License v3.0 (AGPL-3.0)
+- **Copyright**: Canonical Ltd.
+
+A copy of the AGPL-3.0 license can be found in the LICENSE-AGPL file or at: https://www.gnu.org/licenses/agpl-3.0.txt

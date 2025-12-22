@@ -5,6 +5,7 @@ DIR=/usr/local/bin
 . $DIR/common.sh
 
 function collect_support_bundle() {
+    export TROUBLESHOOT_AUTO_UPDATE=false
     "${EMBEDDED_CLUSTER_BASE_DIR}/bin/kubectl-support_bundle" --output host.tar.gz --interactive=false "${EMBEDDED_CLUSTER_BASE_DIR}/support/host-support-bundle.yaml"
 }
 

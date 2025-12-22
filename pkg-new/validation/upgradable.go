@@ -17,14 +17,16 @@ var k8sBuildRegex = regexp.MustCompile(`k8s-(\d+\.\d+)`)
 
 // UpgradableOptions holds configuration for validating release deployability
 type UpgradableOptions struct {
-	CurrentAppVersion  string
-	CurrentAppSequence int64
-	CurrentECVersion   string
-	TargetAppVersion   string
-	TargetAppSequence  int64
-	TargetECVersion    string
+	CurrentAppVersion        string
+	CurrentAppSequence       int64
+	CurrentECVersion         string
+	CurrentAppStatus         string
+	TargetAppVersion         string
+	TargetAppSequence        int64
+	TargetECVersion          string
 	License            *licensewrapper.LicenseWrapper
-	requiredReleases   []string
+	currentReleaseIsRequired bool
+	requiredReleases         []string
 }
 
 // WithAirgapRequiredReleases extracts the required releases from airgap metadata to be used for validation
@@ -42,8 +44,13 @@ func (opts *UpgradableOptions) WithAirgapRequiredReleases(metadata *airgap.Airga
 			if err != nil {
 				return fmt.Errorf("failed to parse airgap spec required release update cursor %s: %w", release.UpdateCursor, err)
 			}
-			// We've hit a release that is less than or equal to the current installed release, we can stop
-			if sequence <= opts.CurrentAppSequence {
+			// We've hit the current app sequence, mark that it's required and return
+			if sequence == opts.CurrentAppSequence {
+				opts.currentReleaseIsRequired = true
+				return nil
+			}
+			// We've hit a release that is less than the current installed release, we can stop
+			if sequence < opts.CurrentAppSequence {
 				return nil
 			}
 			opts.requiredReleases = append(opts.requiredReleases, release.VersionLabel)
@@ -52,17 +59,20 @@ func (opts *UpgradableOptions) WithAirgapRequiredReleases(metadata *airgap.Airga
 	return nil
 }
 
-// WithOnlineRequiredReleases fetches the pending releases from the current app sequence and extracts the required releases until the target app sequence
+// WithOnlineRequiredReleases fetches all the releases from the current app sequence (including it) and extracts the required releases until the target app sequence
 func (opts *UpgradableOptions) WithOnlineRequiredReleases(ctx context.Context, replAPIClient replicatedapi.Client) error {
 	if opts.License == nil {
 		return fmt.Errorf("license is required to check online upgrade required releases")
 	}
+	// We want to get current app sequence inclusive. In oder for us to do that in a way that works for both channel sequences and semver we need to set the CurrentChannelSequence to current app sequence and the channel sequence provided to the method to current app sequence - 1
 	options := &replicatedapi.PendingReleasesOptions{
 		IsSemverSupported: opts.License.IsSemverRequired(),
-		SortOrder:         replicatedapi.SortOrderAscending,
+		SortOrder:              replicatedapi.SortOrderAscending,
+		CurrentChannelSequence: opts.CurrentAppSequence,
 	}
 	// Get pending releases from the current app sequence in asceding order
-	pendingReleases, err := replAPIClient.GetPendingReleases(ctx, opts.License.GetChannelID(), opts.CurrentAppSequence, options)
+	pendingReleases, err := replAPIClient.GetPendingReleases(ctx, opts.License.Spec.ChannelID, opts.CurrentAppSequence-1, options)
+
 	if err != nil {
 		return fmt.Errorf("failed to get pending releases while checking required releases for upgrade: %w", err)
 	}
@@ -81,7 +91,13 @@ func (opts *UpgradableOptions) handlePendingReleases(pendingReleases []replicate
 			break
 		}
 		if release.IsRequired {
-			opts.requiredReleases = append(opts.requiredReleases, release.VersionLabel)
+			// Mark that the current app release is required if channel sequence matches
+			if release.ChannelSequence == opts.CurrentAppSequence {
+				opts.currentReleaseIsRequired = true
+				// Else append to required releases
+			} else {
+				opts.requiredReleases = append(opts.requiredReleases, release.VersionLabel)
+			}
 		}
 	}
 }
@@ -94,7 +110,7 @@ func ValidateIsReleaseUpgradable(ctx context.Context, opts UpgradableOptions) er
 	}
 
 	// Check 2: Required releases
-	if err := validateRequiredReleases(ctx, opts); err != nil {
+	if err := validateRequiredReleases(opts); err != nil {
 		return err
 	}
 
@@ -111,8 +127,13 @@ func ValidateIsReleaseUpgradable(ctx context.Context, opts UpgradableOptions) er
 	return nil
 }
 
-// validateRequiredReleases checks if any required releases are being skipped
-func validateRequiredReleases(ctx context.Context, opts UpgradableOptions) error {
+// validateRequiredReleases checks if:
+// - any required releases are being skipped
+// - current app status is failed and it's a required version
+func validateRequiredReleases(opts UpgradableOptions) error {
+	if opts.CurrentAppStatus == "failed" && opts.currentReleaseIsRequired {
+		return NewCurrentReleaseFailedError(opts.CurrentAppVersion, opts.TargetAppVersion)
+	}
 	if len(opts.requiredReleases) > 0 {
 		return NewRequiredReleasesError(opts.requiredReleases, opts.TargetAppVersion)
 	}

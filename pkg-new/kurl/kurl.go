@@ -87,12 +87,48 @@ func getInstallDirectory(ctx context.Context, kcli client.Client) (string, error
 	return installDir, nil
 }
 
-// GetPasswordHash reads the kotsadm-password secret from the kotsadm namespace
-// and returns the bcrypt password hash. This is used during migration to preserve the
-// existing admin console password.
+// DiscoverKotsadmNamespace finds the namespace containing the kotsadm Service.
+// It checks "default" first, then searches all namespaces for a Service with label "app=kotsadm".
+// While uncommon, it is possible for kotsadm to be in a different namespace,
+// so we discover it dynamically instead of hardcoding "default".
+// Returns namespace name or error if not found.
+func DiscoverKotsadmNamespace(ctx context.Context, cfg *Config) (string, error) {
+	// First, check the default namespace
+	defaultNsSvc := &corev1.Service{}
+	err := cfg.Client.Get(ctx, client.ObjectKey{
+		Namespace: "default",
+		Name:      "kotsadm",
+	}, defaultNsSvc)
+	if err == nil {
+		return "default", nil
+	}
+
+	// If not found in default, search all namespaces for Service with app=kotsadm label
+	serviceList := &corev1.ServiceList{}
+	err = cfg.Client.List(ctx, serviceList, client.MatchingLabels{"app": "kotsadm"})
+	if err != nil {
+		return "", fmt.Errorf("failed to list services: %w", err)
+	}
+
+	if len(serviceList.Items) == 0 {
+		return "", fmt.Errorf("kotsadm service not found in any namespace")
+	}
+
+	// Return the namespace of the first matching service
+	return serviceList.Items[0].Namespace, nil
+}
+
+// GetPasswordHash reads the kotsadm-password secret and returns the bcrypt password hash.
+// This is used during migration to preserve the existing admin console password.
+// If namespace is empty, it discovers the kotsadm namespace automatically.
 func GetPasswordHash(ctx context.Context, cfg *Config, namespace string) (string, error) {
+	// Auto-discover namespace if not provided
 	if namespace == "" {
-		namespace = KotsadmNamespace
+		discoveredNs, err := DiscoverKotsadmNamespace(ctx, cfg)
+		if err != nil {
+			return "", fmt.Errorf("discover kotsadm namespace: %w", err)
+		}
+		namespace = discoveredNs
 	}
 
 	secret := &corev1.Secret{}
@@ -101,7 +137,7 @@ func GetPasswordHash(ctx context.Context, cfg *Config, namespace string) (string
 		Name:      KotsadmPasswordSecret,
 	}, secret)
 	if err != nil {
-		return "", fmt.Errorf("read kotsadm-password secret from cluster: %w", err)
+		return "", fmt.Errorf("read kotsadm-password secret from namespace %s: %w", namespace, err)
 	}
 
 	passwordHash, exists := secret.Data[KotsadmPasswordSecretKey]

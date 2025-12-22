@@ -132,10 +132,8 @@ cmd/installer/goods/bins/local-artifact-mirror:
 
 output/bins/fio-%:
 	mkdir -p output/bins
-	docker build -t fio --build-arg FIO_VERSION=$(call split-hyphen,$*,1) --build-arg PLATFORM=$(OS)/$(call split-hyphen,$*,2) fio
-	docker rm -f fio && docker run --name fio fio
-	docker cp fio:/output/fio $@
-	docker rm -f fio
+	dagger call build-fio --version=$(call split-hyphen,$*,1) --arch=$(call split-hyphen,$*,2) export --path=$@
+	chmod +x $@
 	touch $@
 
 .PHONY: cmd/installer/goods/bins/fio
@@ -183,17 +181,22 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
+.PHONY: e2e-v3-initial-release
+e2e-v3-initial-release: export ARCH = amd64
+e2e-v3-initial-release: export UPLOAD_BINARIES = 1
+e2e-v3-initial-release: export ENABLE_V3 = 1
+e2e-v3-initial-release: initial-release
+
 .PHONY: initial-release
-initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-initial-release: export APP_VERSION = appver-dev-$(call random-string)
+initial-release: RANDOM_STRING = $(call random-string)
+initial-release: export EC_VERSION ?= $(VERSION)-$(RANDOM_STRING)
+initial-release: export APP_VERSION ?= appver-dev-$(RANDOM_STRING)
 initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-initial-release: export V2_ENABLED = 0
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
-rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
 rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
@@ -202,10 +205,9 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: upgrade-release
 upgrade-release: RANDOM_STRING = $(call random-string)
-upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
-upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
+upgrade-release: export EC_VERSION ?= $(VERSION)-upgrade-$(RANDOM_STRING)
+upgrade-release: export APP_VERSION ?= appver-dev-upgrade-$(RANDOM_STRING)
 upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
-upgrade-release: export V2_ENABLED = 0
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),1) \
 		./scripts/build-and-release.sh
@@ -385,8 +387,12 @@ create-node%:
 	@$(MAKE) ssh-node$*
 
 .PHONY: ssh-node%
+ssh-node%: CUSTOMER_LICENSE_FILE = $(shell source ./local-dev/env.sh && echo "$$CUSTOMER_LICENSE_FILE")
 ssh-node%:
-	@docker exec -it -w /replicatedhq/embedded-cluster node$* bash
+	@docker exec -it -w /replicatedhq/embedded-cluster \
+		-e CUSTOMER_LICENSE_FILE="$(CUSTOMER_LICENSE_FILE)" \
+		node$* \
+		bash
 
 .PHONY: delete-node%
 delete-node%:

@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup go
         uses: actions/setup-go@v6
@@ -38,7 +38,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -58,10 +58,10 @@ jobs:
           - adminconsole
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: buildtools
           path: output/bin
@@ -97,7 +97,7 @@ jobs:
           echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GH_PAT }}
           commit-message: updated ${{ matrix.addon }} version

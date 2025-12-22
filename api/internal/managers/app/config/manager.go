@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	configstore "github.com/replicatedhq/embedded-cluster/api/internal/store/app/config"
 	"github.com/replicatedhq/embedded-cluster/api/pkg/logger"
 	apitemplate "github.com/replicatedhq/embedded-cluster/api/pkg/template"
@@ -116,6 +118,19 @@ func NewAppConfigManager(config kotsv1beta1.Config, opts ...AppConfigManagerOpti
 			apitemplate.WithKubeClient(manager.kcli),
 			apitemplate.WithLogger(manager.logger),
 		)
+	}
+
+	// load existing config values from kube
+	configValues, err := manager.readConfigValuesFromKube()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read existing config values from kube: %w", err)
+	}
+
+	if len(configValues) > 0 {
+		// initialize store with existing config values if any
+		if err := manager.PatchConfigValues(configValues); err != nil {
+			return nil, fmt.Errorf("failed to initialize config store with existing config values: %w", err)
+		}
 	}
 
 	return manager, nil

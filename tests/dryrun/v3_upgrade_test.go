@@ -247,8 +247,19 @@ func runV3Upgrade(t *testing.T, args v3UpgradeArgs) {
 		})
 	}
 
+	// Run host preflights and wait for completion
+	_, err = c.RunLinuxUpgradeHostPreflights(ctx)
+	require.NoError(t, err)
+	assertEventuallySucceeded(t, "host preflights", func() (apitypes.State, string, error) {
+		st, err := c.GetLinuxUpgradeHostPreflightsStatus(ctx)
+		if err != nil {
+			return "", "", err
+		}
+		return st.Status.State, st.Status.Description, nil
+	})
+
 	// Run infrastructure upgrade and wait for completion
-	_, err = c.UpgradeLinuxInfra(ctx)
+	_, err = c.UpgradeLinuxInfra(ctx, false)
 	require.NoError(t, err)
 	assertEventuallySucceeded(t, "infrastructure upgrade", func() (apitypes.State, string, error) {
 		st, err := c.GetLinuxUpgradeInfraStatus(ctx)
@@ -319,7 +330,8 @@ func setupV3UpgradeTest(t *testing.T, hcli helm.Client, setupArgs *v3UpgradeSetu
 		"application.yaml":    []byte(applicationData),
 		"config.yaml":         []byte(configData),
 		"chart.yaml":          []byte(helmChartData),
-		"nginx-app-0.1.0.tgz": []byte(helmChartArchiveData),
+		"nginx-app-0.1.0.tgz": []byte(nginxChartArchiveData),
+		"redis-app-0.1.0.tgz": []byte(redisChartArchiveData),
 	}); err != nil {
 		t.Fatalf("fail to set release data: %v", err)
 	}
@@ -411,7 +423,13 @@ func setupV3UpgradeTestHelmClient() *helm.MockClient {
 		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
 			return opts.ReleaseName == "nginx-app"
 		})).
-		Return([][]byte{[]byte(renderedChartPreflightData)}, nil).
+		Return([][]byte{[]byte(renderedNginxChartPreflightData)}, nil).
+		Maybe()
+	hcli.
+		On("Render", mock.Anything, mock.MatchedBy(func(opts helm.InstallOptions) bool {
+			return opts.ReleaseName == "redis-app"
+		})).
+		Return([][]byte{[]byte(renderedRedisChartPreflightData)}, nil).
 		Maybe()
 	hcli.On("Close").Return(nil).Maybe()
 	return hcli

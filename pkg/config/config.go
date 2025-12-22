@@ -10,6 +10,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	k0sconfig "github.com/k0sproject/k0s/pkg/config"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
@@ -20,7 +21,12 @@ import (
 
 const (
 	DefaultVendorChartOrder = 10
+	// Name of the k0s component that runs the update prober.
+	UpdateProberComponent = "update-prober"
 )
+
+// disableUpdateProber indicates whether we can disable the update prober component in k0s install command. This variable is used during tests.
+var disableUpdateProber = canDisableUpdateProber()
 
 // k0sConfigPathOverride is used during tests to override the path to the k0s config file.
 var k0sConfigPathOverride string
@@ -31,8 +37,9 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
-	cfg.Spec.Network.KubeRouter = nil
-	cfg.Spec.Network.Provider = "calico"
+
+	enableCalicoNetworkProvider(cfg)
+
 	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
 	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
 	// We can drop the json.Unmarshal once we drop support for 1.30
@@ -49,6 +56,23 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sv1beta1.NllbTypeEnvoyProxy
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
+}
+
+// enableCalicoNetworkProvider enables the calico network provider and disables the kube-router
+// network provider.
+func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
+	if cfg.Spec.Network == nil {
+		cfg.Spec.Network = &k0sv1beta1.Network{}
+	}
+	cfg.Spec.Network.KubeRouter = nil
+	cfg.Spec.Network.Provider = "calico"
+	if cfg.Spec.Network.Calico == nil {
+		cfg.Spec.Network.Calico = k0sv1beta1.DefaultCalico()
+	}
+	if cfg.Spec.Network.Calico.EnvVars == nil {
+		cfg.Spec.Network.Calico.EnvVars = make(map[string]string)
+	}
+	cfg.Spec.Network.Calico.EnvVars["FELIX_USAGEREPORTINGENABLED"] = "false"
 }
 
 // extractK0sConfigPatch extracts the k0s config portion of the provided patch.
@@ -152,8 +176,14 @@ func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostn
 }
 
 func AdditionalInstallFlagsController() []string {
+	disableComponents := "konnectivity-server"
+
+	// Disable the update prober component responsible for unintended outbound connections to an update service we don't need
+	if disableUpdateProber {
+		disableComponents = fmt.Sprintf("%s,%s", disableComponents, UpdateProberComponent)
+	}
 	return []string{
-		"--disable-components", "konnectivity-server",
+		"--disable-components", disableComponents,
 		"--enable-dynamic-config",
 	}
 }
@@ -284,4 +314,14 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 	}
 
 	return patch
+}
+
+// canDisableUpdateProber is a way to determine if the k0s release we're using allows disabling the update prober component
+// see relevant PR: https://github.com/k0sproject/k0s/pull/6326
+// We should be able to remove this check once we drop support for k0s < 1.33
+func canDisableUpdateProber() bool {
+	opts := k0sconfig.ControllerOptions{DisableComponents: []string{UpdateProberComponent}}
+	// Normalize validates the DisableComponents list contains valid known component names to k0s and will return an error otherwise
+	err := opts.Normalize()
+	return err == nil
 }

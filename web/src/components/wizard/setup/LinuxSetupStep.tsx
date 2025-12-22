@@ -159,18 +159,6 @@ const LinuxSetupStep: React.FC<LinuxSetupStepProps> = ({ onNext, onBack }) => {
                   />
 
                   <Input
-                    id="adminConsolePort"
-                    label={fieldNames.adminConsolePort}
-                    value={configValues.adminConsolePort && configValues.adminConsolePort.toString() || ""}
-                    onChange={handleInputChange}
-                    defaultValue={defaults.adminConsolePort?.toString()}
-                    helpText="Port for the Admin Console"
-                    error={getFieldError("adminConsolePort")}
-                    className="w-96"
-                    dataTestId="admin-console-port-input"
-                  />
-
-                  <Input
                     id="localArtifactMirrorPort"
                     label={fieldNames.localArtifactMirrorPort}
                     value={configValues.localArtifactMirrorPort && configValues.localArtifactMirrorPort.toString() || ""}
@@ -316,7 +304,6 @@ export interface InstallationStatusEvaluation {
  * Maps internal field names to user-friendly display names.
  */
 export const fieldNames = {
-  adminConsolePort: "Admin Console Port",
   dataDirectory: "Data Directory",
   localArtifactMirrorPort: "Local Artifact Mirror Port",
   httpProxy: "HTTP Proxy",
@@ -340,7 +327,7 @@ export function processInputValue(
   value: string,
   currentValues: LinuxInstallationConfig
 ): LinuxInstallationConfig {
-  if (fieldId === "adminConsolePort" || fieldId === "localArtifactMirrorPort") {
+  if (fieldId === "localArtifactMirrorPort") {
     // Handle port fields - they need to be numbers
     if (value === "") {
       // Empty string becomes undefined

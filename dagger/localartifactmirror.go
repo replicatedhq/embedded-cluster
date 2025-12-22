@@ -26,7 +26,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	arch string,
 ) *dagger.File {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
@@ -37,7 +37,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
 		WithDirectory("packages", pkgBuild.Directory("packages"))
 
-	build := m.apkoBuild(
+	build := m.chainguard.apkoBuild(
 		dir,
 		apkoFile,
 		image,
@@ -67,7 +67,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	arch string,
 ) (string, error) {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
@@ -82,7 +82,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 		dir = dir.WithDirectory(".docker", m.RegistryAuth)
 	}
 
-	publish := m.apkoPublish(
+	publish := m.chainguard.apkoPublish(
 		dir,
 		apkoFile,
 		image,
@@ -109,12 +109,8 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 
 	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
 
-	dir := dag.Directory().
-		WithDirectory("local-artifact-mirror", src.Directory("local-artifact-mirror")).
-		WithDirectory("cmd", src.Directory("cmd"))
-
-	build := m.melangeBuildGo(
-		directoryWithCommonGoFiles(dir, src),
+	build := m.chainguard.melangeBuildGo(
+		localArtifactMirrorDirectory(src),
 		melangeFile,
 		arch,
 		MelangeImageVersion,
@@ -134,7 +130,7 @@ func (m *EmbeddedCluster) apkoTemplateLocalArtifactMirror(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("local-artifact-mirror/deploy"),
 		vars,
 		"apko.tmpl.yaml",
@@ -153,10 +149,29 @@ func (m *EmbeddedCluster) melangeTemplateLocalArtifactMirror(
 	if k0sMinorVersion != "" {
 		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
 	}
-	return m.renderTemplate(
+	return m.common.renderTemplate(
 		src.Directory("local-artifact-mirror/deploy"),
 		vars,
 		"melange.tmpl.yaml",
 		"melange.yaml",
 	)
+}
+
+func localArtifactMirrorDirectory(src *dagger.Directory) *dagger.Directory {
+	dir := directoryWithCommonGoFiles(dag.Directory(), src)
+	dir = dir.
+		WithDirectory("local-artifact-mirror",
+			src.Directory("local-artifact-mirror").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		).
+		WithDirectory("cmd",
+			src.Directory("cmd").
+				WithoutDirectory("installer/goods/bins").
+				WithNewFile("installer/goods/bins/.placeholder", ".placeholder").
+				WithoutDirectory("installer/goods/internal/bins").
+				WithNewFile("installer/goods/internal/bins/.placeholder", ".placeholder"),
+		)
+	return dir
 }

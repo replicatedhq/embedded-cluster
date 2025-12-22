@@ -35,10 +35,17 @@ type Client interface {
 	GetLinuxUpgradeAppPreflightsStatus(ctx context.Context) (types.UpgradeAppPreflightsStatusResponse, error)
 	UpgradeLinuxApp(ctx context.Context, ignoreAppPreflights bool) (types.AppUpgrade, error)
 	GetLinuxAppUpgradeStatus(ctx context.Context) (types.AppUpgrade, error)
-	UpgradeLinuxInfra(ctx context.Context) (types.Infra, error)
+	UpgradeLinuxInfra(ctx context.Context, ignoreHostPreflights bool) (types.Infra, error)
 	GetLinuxUpgradeInfraStatus(ctx context.Context) (types.Infra, error)
 	ProcessLinuxUpgradeAirgap(ctx context.Context) (types.Airgap, error)
 	GetLinuxUpgradeAirgapStatus(ctx context.Context) (types.Airgap, error)
+	RunLinuxUpgradeHostPreflights(ctx context.Context) (types.HostPreflights, error)
+	GetLinuxUpgradeHostPreflightsStatus(ctx context.Context) (types.HostPreflights, error)
+
+	// kURL Migration methods
+	GetKURLMigrationConfig(ctx context.Context) (types.LinuxInstallationConfigResponse, error)
+	StartKURLMigration(ctx context.Context, transferMode string, config *types.LinuxInstallationConfig) (types.StartKURLMigrationResponse, error)
+	GetKURLMigrationStatus(ctx context.Context) (types.KURLMigrationStatusResponse, error)
 
 	GetKubernetesInstallationConfig(ctx context.Context) (types.KubernetesInstallationConfigResponse, error)
 	ConfigureKubernetesInstallation(ctx context.Context, config types.KubernetesInstallationConfig) (types.Status, error)

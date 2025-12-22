@@ -58,6 +58,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		IsUI:                  opts.IsUI,
 		AirgapInfo:            airgapInfo,
 		EmbeddedAssetsSize:    c.embeddedAssetsSize,
+		Mode:                  types.ModeInstall,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)
