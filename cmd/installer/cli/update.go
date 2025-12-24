@@ -21,7 +21,7 @@ func UpdateCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: fmt.Sprintf("Update %s with a new air gap bundle", appTitle),
+		Short: fmt.Sprintf("Update %s with a new air gap bundlee", appTitle),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			// Skip root check if dryrun mode is enabled
 			if !dryrun.Enabled() && os.Getuid() != 0 {
