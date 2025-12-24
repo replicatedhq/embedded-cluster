@@ -125,9 +125,9 @@ func TestUpgradeKURLMigration(t *testing.T) {
 	licenseFile := filepath.Join(tempDir, "license.yaml")
 	require.NoError(t, os.WriteFile(licenseFile, []byte(licenseData), 0644))
 
-	// Test Migration API endpoints
-	t.Run("migration API skeleton", func(t *testing.T) {
-		testMigrationAPIEndpoints(t, tempDir, licenseFile)
+	// Test Migration API endpoints and state persistence
+	t.Run("migration API with file persistence", func(t *testing.T) {
+		testMigrationAPIWithFilePersistence(t, tempDir, licenseFile)
 	})
 }
 
@@ -156,8 +156,12 @@ func assertEventuallyMigrationState(t *testing.T, contextMsg string, expectedSta
 	}
 }
 
-// testMigrationAPIEndpoints tests the migration API endpoints return expected skeleton responses
-func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string) {
+// testMigrationAPIWithFilePersistence tests the migration API endpoints and verifies state persistence to disk
+func testMigrationAPIWithFilePersistence(t *testing.T, tempDir string, licenseFile string) {
+	// Clean up any existing migration state file from previous tests
+	statePath := filepath.Join("/var/lib/embedded-cluster", "migration-state.json")
+	os.Remove(statePath)
+
 	// Start the upgrade command in non-headless mode so API stays up
 	// Use --yes to bypass prompts
 	go func() {
@@ -210,4 +214,20 @@ func testMigrationAPIEndpoints(t *testing.T, tempDir string, licenseFile string)
 	require.Equal(t, apitypes.KURLMigrationStateFailed, finalStatus.State, "migration should be in Failed state")
 	require.Contains(t, finalStatus.Error, "kURL migration phase execution not yet implemented",
 		"expected skeleton error message in status")
+
+	// Verify migration-state.json exists and contains the migration state
+	// statePath already declared at the beginning of the function
+	require.FileExists(t, statePath, "migration-state.json should exist")
+
+	// Read and verify file contents
+	data, err := os.ReadFile(statePath)
+	require.NoError(t, err, "should be able to read migration-state.json")
+
+	// Verify critical fields are persisted
+	require.Contains(t, string(data), startResp.MigrationID, "migration ID should be in file")
+	require.Contains(t, string(data), "\"state\":", "state field should be in JSON")
+	require.Contains(t, string(data), "\"phase\":", "phase field should be in JSON")
+	require.Contains(t, string(data), "Failed", "Failed state should be persisted")
+
+	t.Logf("Successfully verified migration state persistence to %s", statePath)
 }
