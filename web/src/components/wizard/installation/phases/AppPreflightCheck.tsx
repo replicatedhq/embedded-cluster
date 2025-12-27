@@ -24,7 +24,8 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
   const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
   const hasStrictFailures = (response?: AppPreflightsResponse) => response?.hasStrictAppPreflightFailures ?? false;
-  const isSuccessful = (response?: AppPreflightsResponse) => response?.status?.state === "Succeeded";
+  const isSuccessful = (response?: AppPreflightsResponse) =>
+    response?.status?.state === "Succeeded" && !hasFailures(response?.output);
 
   const getErrorMessage = () => {
     if (runAppPreflights.error) {
@@ -63,13 +64,18 @@ const AppPreflightCheck: React.FC<AppPreflightCheckProps> = ({ onRun, onComplete
 
   // Handle preflight status changes
   useEffect(() => {
-    if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
+    if (preflightResponse?.status?.state === "Succeeded") {
+      // Execution completed successfully - check if there are preflight failures
       setIsPreflightsPolling(false);
       onComplete(
         !hasFailures(preflightResponse.output),
         preflightResponse.allowIgnoreAppPreflights ?? false,
         hasStrictFailures(preflightResponse)
       );
+    } else if (preflightResponse?.status?.state === "Failed") {
+      // Execution failed - treat as failure regardless of output
+      setIsPreflightsPolling(false);
+      onComplete(false, false, false);
     }
   }, [preflightResponse]);
 

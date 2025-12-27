@@ -9,7 +9,7 @@ const TEST_TOKEN = "test-auth-token";
 
 const createServer = (target: 'linux' | 'kubernetes') => setupServer(
   mockHandlers.preflights.app.getStatus({
-    status: { state: "Failed" },
+    status: { state: "Succeeded" },
     output: {
       pass: [{ title: "CPU Check", message: "CPU requirements met" }],
       warn: [{ title: "Memory Warning", message: "Memory is below recommended" }],
@@ -131,10 +131,10 @@ describe.each([
   });
 
   it("receives allowIgnoreAppPreflights field in preflight response", async () => {
-    // Mock preflight status endpoint with allowIgnoreAppPreflights: true
+    // Mock preflight status endpoint with allowIgnoreAppPreflights: true - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: {
           pass: [{ title: "CPU Check", message: "CPU requirements met" }],
           warn: [],
@@ -161,10 +161,10 @@ describe.each([
   });
 
   it("passes allowIgnoreAppPreflights false to onComplete callback", async () => {
-    // Mock preflight status endpoint with allowIgnoreAppPreflights: false
+    // Mock preflight status endpoint with allowIgnoreAppPreflights: false - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: {
           pass: [{ title: "CPU Check", message: "CPU requirements met" }],
           warn: [],
@@ -192,10 +192,10 @@ describe.each([
 
   // New tests for strict preflight functionality
   it("displays strict failures with visual distinction", async () => {
-    // Mock preflight status endpoint with strict and non-strict failures
+    // Mock preflight status endpoint with strict and non-strict failures - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: {
           pass: [],
           warn: [],
@@ -232,10 +232,10 @@ describe.each([
   });
 
   it("shows appropriate guidance for strict failures in What's Next section", async () => {
-    // Mock preflight status endpoint with strict failures
+    // Mock preflight status endpoint with strict failures - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: {
           pass: [],
           warn: [],
@@ -262,10 +262,10 @@ describe.each([
   });
 
   it("passes hasStrictAppPreflightFailures from API response to onComplete", async () => {
-    // Mock preflight status endpoint with hasStrictAppPreflightFailures field
+    // Mock preflight status endpoint with hasStrictAppPreflightFailures field - execution succeeds but checks fail
     server.use(
       mockHandlers.preflights.app.getStatus({
-        status: { state: "Failed" },
+        status: { state: "Succeeded" },
         output: {
           pass: [],
           warn: [],
