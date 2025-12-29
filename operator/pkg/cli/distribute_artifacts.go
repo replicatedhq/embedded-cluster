@@ -52,7 +52,7 @@ func DistributeArtifactsCmd() *cobra.Command {
 				appVersion = in.Spec.Config.Version
 			}
 
-			// Distribute artifacts to all nodes
+			// Distribute artifacts to all nodes (for airgap, this also creates and waits for the autopilot plan)
 			logger.Info("Distributing artifacts to all nodes...")
 			if err := artifacts.DistributeArtifacts(
 				cmd.Context(), kcli, rc, in,
@@ -63,16 +63,6 @@ func DistributeArtifactsCmd() *cobra.Command {
 				appVersion,
 			); err != nil {
 				return fmt.Errorf("distribute artifacts: %w", err)
-			}
-
-			// For airgap installations, create the autopilot plan to load images into containerd
-			// The autopilot controller will process this asynchronously
-			if in.Spec.AirGap {
-				logger.Info("Creating autopilot plan for airgap artifacts...")
-				if err := artifacts.EnsureAirgapArtifactsPlan(cmd.Context(), kcli, rc, in); err != nil {
-					return fmt.Errorf("ensure airgap artifacts plan: %w", err)
-				}
-				logger.Info("Autopilot plan created - images will be loaded asynchronously")
 			}
 
 			logger.Info("Artifacts distributed successfully")
