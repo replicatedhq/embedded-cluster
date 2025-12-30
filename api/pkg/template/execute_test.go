@@ -9,11 +9,19 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/replicatedhq/kotskinds/multitype"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kyaml "sigs.k8s.io/yaml"
 )
+
+// Helper function to wrap old-style license in LicenseWrapper for testing
+func wrapLicenseForExecuteTests(license *kotsv1beta1.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
+		V1: license,
+	}
+}
 
 func TestEngine_BasicTemplating(t *testing.T) {
 	config := &kotsv1beta1.Config{
@@ -614,7 +622,7 @@ func TestEngine_ComplexTemplate(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicenseForExecuteTests(license)))
 
 	// Test with user values overriding config values
 	configValues := types.AppConfigValues{

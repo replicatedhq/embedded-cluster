@@ -9,7 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/replicatedapi"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 // k8sBuildRegex holds the regex pattern we use for the build portion of our EC version - i.e. 2.11.3+k8s-1.33
@@ -24,7 +24,7 @@ type UpgradableOptions struct {
 	TargetAppVersion         string
 	TargetAppSequence        int64
 	TargetECVersion          string
-	License                  *kotsv1beta1.License
+	License            *licensewrapper.LicenseWrapper
 	currentReleaseIsRequired bool
 	requiredReleases         []string
 }
@@ -66,12 +66,13 @@ func (opts *UpgradableOptions) WithOnlineRequiredReleases(ctx context.Context, r
 	}
 	// We want to get current app sequence inclusive. In oder for us to do that in a way that works for both channel sequences and semver we need to set the CurrentChannelSequence to current app sequence and the channel sequence provided to the method to current app sequence - 1
 	options := &replicatedapi.PendingReleasesOptions{
-		IsSemverSupported:      opts.License.Spec.IsSemverRequired,
+		IsSemverSupported: opts.License.IsSemverRequired(),
 		SortOrder:              replicatedapi.SortOrderAscending,
 		CurrentChannelSequence: opts.CurrentAppSequence,
 	}
 	// Get pending releases from the current app sequence in asceding order
 	pendingReleases, err := replAPIClient.GetPendingReleases(ctx, opts.License.Spec.ChannelID, opts.CurrentAppSequence-1, options)
+
 	if err != nil {
 		return fmt.Errorf("failed to get pending releases while checking required releases for upgrade: %w", err)
 	}
@@ -143,7 +144,7 @@ func validateRequiredReleases(opts UpgradableOptions) error {
 // validateAppVersionDowngrade checks if the target app version is older than the current version
 func validateAppVersionDowngrade(opts UpgradableOptions) error {
 	// If using semver than compare using it
-	if opts.License.Spec.IsSemverRequired {
+	if opts.License.IsSemverRequired() {
 		currentVer, err := semver.NewVersion(opts.CurrentAppVersion)
 		if err != nil {
 			return fmt.Errorf("failed to parse current app version %s: %w", opts.CurrentAppVersion, err)

@@ -37,7 +37,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
-	github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d
+	github.com/replicatedhq/kotskinds v0.0.0-20251118214543-70b6df55b238
 	github.com/replicatedhq/troubleshoot v0.123.16
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.10.2
@@ -54,6 +54,7 @@ require (
 	golang.org/x/crypto v0.46.0
 	golang.org/x/term v0.38.0
 	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.19.4
 	k8s.io/api v0.34.3
@@ -360,7 +361,6 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.34.3 // indirect
 	k8s.io/cloud-provider v0.33.6 // indirect
 	k8s.io/component-base v0.34.3 // indirect

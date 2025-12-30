@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	kyaml "sigs.k8s.io/yaml"
 )
 
@@ -20,7 +21,7 @@ var _ Client = (*client)(nil)
 var defaultHTTPClient = newRetryableHTTPClient()
 
 // ClientFactory is a function type for creating replicatedapi clients
-type ClientFactory func(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error)
+type ClientFactory func(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error)
 
 var clientFactory ClientFactory = defaultNewClient
 
@@ -30,13 +31,13 @@ func SetClientFactory(factory ClientFactory) {
 }
 
 type Client interface {
-	SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error)
+	SyncLicense(ctx context.Context) (*licensewrapper.LicenseWrapper, []byte, error)
 	GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error)
 }
 
 type client struct {
 	replicatedAppURL string
-	license          *kotsv1beta1.License
+	license          *licensewrapper.LicenseWrapper
 	releaseData      *release.ReleaseData
 	clusterID        string
 	httpClient       *retryablehttp.Client
@@ -56,13 +57,13 @@ func WithHTTPClient(httpClient *retryablehttp.Client) ClientOption {
 	}
 }
 
-// NewClient creates a new replicatedapi client using the configured factory
-func NewClient(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
+func NewClient(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
+	// NewClient creates a new replicatedapi client using the configured factory
 	return clientFactory(replicatedAppURL, license, releaseData, opts...)
 }
 
 // defaultNewClient is the default implementation of NewClient
-func defaultNewClient(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
+func defaultNewClient(replicatedAppURL string, license *licensewrapper.LicenseWrapper, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
 	c := &client{
 		replicatedAppURL: replicatedAppURL,
 		license:          license,
@@ -79,11 +80,15 @@ func defaultNewClient(replicatedAppURL string, license *kotsv1beta1.License, rel
 }
 
 // SyncLicense fetches the latest license from the Replicated API
-func (c *client) SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte, error) {
-	u := fmt.Sprintf("%s/license/%s", c.replicatedAppURL, c.license.Spec.AppSlug)
+func (c *client) SyncLicense(ctx context.Context) (*licensewrapper.LicenseWrapper, []byte, error) {
+	if c.license.IsEmpty() {
+		return nil, nil, fmt.Errorf("no license configured")
+	}
+
+	u := fmt.Sprintf("%s/license/%s", c.replicatedAppURL, c.license.GetAppSlug())
 
 	params := url.Values{}
-	params.Set("licenseSequence", fmt.Sprintf("%d", c.license.Spec.LicenseSequence))
+	params.Set("licenseSequence", fmt.Sprintf("%d", c.license.GetLicenseSequence()))
 	if c.releaseData != nil && c.releaseData.ChannelRelease != nil {
 		params.Set("selectedChannelId", c.releaseData.ChannelRelease.ChannelID)
 	}
@@ -112,22 +117,23 @@ func (c *client) SyncLicense(ctx context.Context) (*kotsv1beta1.License, []byte,
 		return nil, nil, fmt.Errorf("read response body: %w", err)
 	}
 
-	var licenseResp kotsv1beta1.License
-	if err := kyaml.Unmarshal(body, &licenseResp); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal license response: %w", err)
+	// Parse response into wrapper (handles both v1beta1 and v1beta2 responses)
+	licenseWrapper, err := licensewrapper.LoadLicenseFromBytes(body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse license response: %w", err)
 	}
 
-	if licenseResp.Spec.LicenseID == "" {
+	if licenseWrapper.GetLicenseID() == "" {
 		return nil, nil, fmt.Errorf("license is empty")
 	}
 
-	c.license = &licenseResp
+	c.license = &licenseWrapper
 
 	if _, err := c.getChannelFromLicense(); err != nil {
 		return nil, nil, fmt.Errorf("get channel from license: %w", err)
 	}
 
-	return &licenseResp, body, nil
+	return &licenseWrapper, body, nil
 }
 
 // newRetryableRequest returns a retryablehttp.Request object with kots defaults set, including a User-Agent header.
@@ -144,8 +150,14 @@ func (c *client) newRetryableRequest(ctx context.Context, method string, url str
 
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
 func (c *client) injectHeaders(header http.Header) {
-	header.Set("Authorization", "Basic "+basicAuth(c.license.Spec.LicenseID, c.license.Spec.LicenseID))
+	licenseID := c.license.GetLicenseID()
+	header.Set("Authorization", "Basic "+basicAuth(licenseID, licenseID))
 	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+
+	// Add license version header for v1beta2 licenses
+	if c.license.IsV2() {
+		header.Set("X-Replicated-License-Version", "v1beta2")
+	}
 
 	c.injectReportingInfoHeaders(header)
 }
@@ -154,20 +166,26 @@ func (c *client) getChannelFromLicense() (*kotsv1beta1.Channel, error) {
 	if c.releaseData == nil || c.releaseData.ChannelRelease == nil || c.releaseData.ChannelRelease.ChannelID == "" {
 		return nil, fmt.Errorf("channel release is empty")
 	}
-	if c.license == nil || c.license.Spec.LicenseID == "" {
+	if c.license.IsEmpty() || c.license.GetLicenseID() == "" {
 		return nil, fmt.Errorf("license is empty")
 	}
-	for _, channel := range c.license.Spec.Channels {
+
+	// Check multi-channel licenses first
+	channels := c.license.GetChannels()
+	for _, channel := range channels {
 		if channel.ChannelID == c.releaseData.ChannelRelease.ChannelID {
 			return &channel, nil
 		}
 	}
-	if c.license.Spec.ChannelID == c.releaseData.ChannelRelease.ChannelID {
+
+	// Fallback to legacy single-channel license
+	if c.license.GetChannelID() == c.releaseData.ChannelRelease.ChannelID {
 		return &kotsv1beta1.Channel{
-			ChannelID:   c.license.Spec.ChannelID,
-			ChannelName: c.license.Spec.ChannelName,
+			ChannelID:   c.license.GetChannelID(),
+			ChannelName: c.license.GetChannelName(),
 		}, nil
 	}
+
 	return nil, fmt.Errorf("channel %s not found in license", c.releaseData.ChannelRelease.ChannelID)
 }
 
@@ -177,8 +195,8 @@ func basicAuth(username, password string) string {
 }
 
 // GetPendingReleases fetches pending releases from the Replicated API
-func (c *client) GetPendingReleases(ctx context.Context, channelID string, channelSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error) {
-	u := fmt.Sprintf("%s/release/%s/pending", c.replicatedAppURL, c.license.Spec.AppSlug)
+func (c *client) GetPendingReleases(ctx context.Context, channelID string, currentSequence int64, opts *PendingReleasesOptions) (*PendingReleasesResponse, error) {
+	u := fmt.Sprintf("%s/release/%s/pending", c.replicatedAppURL, c.license.GetAppSlug())
 
 	params := url.Values{}
 	params.Set("selectedChannelId", channelID)

@@ -26,6 +26,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	kotscrypto "github.com/replicatedhq/kotskinds/pkg/crypto"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/stretchr/testify/assert"
@@ -80,6 +81,18 @@ var (
 	testKeyPEM []byte
 )
 
+// dryrunPublicKey is the public key used for test license signature verification.
+// This must match the key ID 6f21b4d9865f45b8a15bd884fb4028d2 in the test license.
+const dryrunPublicKey = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwWEoVA/AQhzgG81k4V+C
+7c7xoNKSnP8XKSkuYiCbsYyicsWxMtwExkueVKXvEa/DQm7NCDBOdFQFhFQKzKvn
+Jh2rXnPZn3OyNQ9Ru+4XBi4kOa1V9g5VFSgwbBttuVtWtPZC2B4vdCVXyX4TzLYe
+c0rGbq+obBb4RNKBBGTdoWy+IHlObc5QOpEzubUmJ1VqmCTUyduKeOn24b+TvcmJ
+i5PY1r8iKGhJJOAPt4KjBlIj67uqcGq3N9RA8pHQjn0ZXsfiLOmCeR6kFHbnNr4n
+L7HvoEDR12K2Ci4+n7A/EAowHI/ZywcM7wADcWx4tOERPz0Pm2SUvVCjPVPc0xdN
+KwIDAQAB
+-----END PUBLIC KEY-----`
+
 func dryrunJoin(t *testing.T, args ...string) dryruntypes.DryRun {
 	if err := embedReleaseData(clusterConfigData); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
@@ -106,6 +119,16 @@ func dryrunInstall(t *testing.T, c *dryrun.Client, args ...string) dryruntypes.D
 }
 
 func dryrunInstallWithClusterConfig(t *testing.T, c *dryrun.Client, clusterConfig string, args ...string) dryruntypes.DryRun {
+	// Inject the dryrun test public key for license signature verification.
+	// The kotskinds library uses a global custom key if set, otherwise looks up by key ID.
+	// Our test license uses a test-only key that's not in kotskinds' default key map.
+	if err := kotscrypto.SetCustomPublicKeyRSA(dryrunPublicKey); err != nil {
+		t.Fatalf("failed to set custom public key: %v", err)
+	}
+	t.Cleanup(func() {
+		kotscrypto.ResetCustomPublicKeyRSA()
+	})
+
 	if err := embedReleaseData(clusterConfig); err != nil {
 		t.Fatalf("fail to embed release data: %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"time"
 
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 type apiChannelRelease struct {
@@ -26,20 +26,25 @@ type apiChannelRelease struct {
 	ReplicatedProxyDomain    string `json:"replicatedProxyDomain"`
 }
 
-func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.License, channelID string) (*apiChannelRelease, error) {
+func getCurrentAppChannelRelease(ctx context.Context, license *licensewrapper.LicenseWrapper, channelID string) (*apiChannelRelease, error) {
+	if license.IsEmpty() {
+		return nil, fmt.Errorf("license is required")
+	}
+
 	query := url.Values{}
 	query.Set("selectedChannelId", channelID)
 	query.Set("channelSequence", "") // sending an empty string will return the latest channel release
 	query.Set("isSemverSupported", "true")
 
 	apiURL := replicatedAppURL()
-	url := fmt.Sprintf("%s/release/%s/pending?%s", apiURL, license.Spec.AppSlug, query.Encode())
+	url := fmt.Sprintf("%s/release/%s/pending?%s", apiURL, license.GetAppSlug(), query.Encode())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", license.Spec.LicenseID, license.Spec.LicenseID))))
+	licenseID := license.GetLicenseID()
+	auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", licenseID, licenseID))))
 	req.Header.Set("Authorization", auth)
 
 	// This will use the proxy from the environment if set by the cli command.
