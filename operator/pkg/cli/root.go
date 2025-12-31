@@ -127,6 +127,7 @@ func addSubcommands(cmd *cobra.Command) {
 	cmd.AddCommand(
 		UpgradeCmd(),
 		UpgradeJobCmd(),
+		DistributeArtifactsCmd(),
 		MigrateCmd(),
 		MigrateV2Cmd(),
 		VersionCmd(),
