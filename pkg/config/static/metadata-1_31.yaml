@@ -44,5 +44,5 @@ images:
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:697ae7c2adf846faba3117ed606ecec599ac746e3b8c017c564e7a090afbab26
-            arm64: 3.9-arm64@sha256:3f1170953acfb8035202d682d135890c6777143686bafda6e177e1cc20419d18
+            amd64: 3.9-amd64@sha256:9728b33743cd71be459b8a7e4f59b0feed64a1b440253e382b1708f1b3485cb2
+            arm64: 3.9-arm64@sha256:c37090eb97dbbbc1423dfb883f3c5a7d981f1ee560137013bc498cc4806191d4
