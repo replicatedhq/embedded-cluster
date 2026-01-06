@@ -101,6 +101,9 @@ var copyArtifactsJobCommandAirgap = []string{
 		"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
+		"mkdir -p /embedded-cluster/k0s/images; \n" + // ensure k0s images directory exists
+		"cp /embedded-cluster/images/ec-images-*.tar /embedded-cluster/k0s/images/; \n" + // copy images for kotsadm to serve to joining nodes
+		"chmod 644 /embedded-cluster/k0s/images/ec-images-*.tar; \n" + // ensure images readable by kotsadm for node joins
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",

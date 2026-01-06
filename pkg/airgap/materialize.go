@@ -41,7 +41,8 @@ func MaterializeAirgap(rc runtimeconfig.RuntimeConfig, airgapReader io.Reader) e
 		}
 
 		if nextFile.Name == ECAiragapImagePath {
-			err = writeOneFile(tarreader, filepath.Join(rc.EmbeddedClusterK0sSubDir(), K0sImagePath), nextFile.Mode)
+			// Use 0644 to make images file readable by kotsadm for serving to joining nodes
+			err = writeOneFile(tarreader, filepath.Join(rc.EmbeddedClusterK0sSubDir(), K0sImagePath), 0644)
 			if err != nil {
 				return fmt.Errorf("failed to write k0s images file: %w", err)
 			}
@@ -139,7 +140,8 @@ func writeChartFiles(rc runtimeconfig.RuntimeConfig, reader io.Reader) error {
 
 		subdir := rc.EmbeddedClusterChartsSubDir()
 		dst := filepath.Join(subdir, nextFile.Name)
-		if err := writeOneFile(tarreader, dst, nextFile.Mode); err != nil {
+		// Use 0644 to make chart files readable by kotsadm for serving to joining nodes
+		if err := writeOneFile(tarreader, dst, 0644); err != nil {
 			return fmt.Errorf("failed to write chart file: %w", err)
 		}
 	}

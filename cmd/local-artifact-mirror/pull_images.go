@@ -54,6 +54,10 @@ func PullImagesCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to move images bundle: %w", err)
 			}
 
+			if err := os.Chmod(dst, 0644); err != nil {
+				return fmt.Errorf("unable to set permissions on images bundle: %w", err)
+			}
+
 			logrus.Infof("images materialized under %s", dst)
 			return nil
 		},

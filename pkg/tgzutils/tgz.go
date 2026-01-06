@@ -40,10 +40,9 @@ func Decompress(tgz, dst string) error {
 				return fmt.Errorf("unable to create directory: %v", err)
 			}
 		case tar.TypeReg:
-			mode := os.FileMode(header.Mode)
 			dst := filepath.Join(dst, header.Name)
 			opts := os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-			outfp, err := os.OpenFile(dst, opts, mode)
+			outfp, err := os.OpenFile(dst, opts, 0644)
 			if err != nil {
 				return fmt.Errorf("unable to create file: %v", err)
 			}
@@ -51,7 +50,7 @@ func Decompress(tgz, dst string) error {
 				return fmt.Errorf("unable to write file: %v", err)
 			}
 			outfp.Close()
-			if err := os.Chmod(dst, os.FileMode(header.Mode)); err != nil {
+			if err := os.Chmod(dst, 0644); err != nil {
 				return fmt.Errorf("unable to chmod file: %v", err)
 			}
 		default:
