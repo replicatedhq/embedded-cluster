@@ -58,6 +58,18 @@ func PullImagesCmd(cli *CLI) *cobra.Command {
 				return fmt.Errorf("unable to set permissions on images bundle: %w", err)
 			}
 
+			// Also copy to k0s/images directory for kotsadm to serve to joining nodes
+			k0sImagesDir := filepath.Join(cli.RC.EmbeddedClusterHomeDirectory(), "k0s", "images")
+			if err := os.MkdirAll(k0sImagesDir, 0755); err != nil {
+				return fmt.Errorf("unable to create k0s images directory: %w", err)
+			}
+
+			k0sDst := filepath.Join(k0sImagesDir, ImagesDstArtifactName)
+			logrus.Infof("copying %s > %s for node joins", dst, k0sDst)
+			if err := helpers.CopyFile(dst, k0sDst, 0644); err != nil {
+				return fmt.Errorf("unable to copy images bundle to k0s directory: %w", err)
+			}
+
 			logrus.Infof("images materialized under %s", dst)
 			return nil
 		},

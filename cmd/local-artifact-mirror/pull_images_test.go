@@ -189,15 +189,27 @@ func TestPullImagesCmd(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 
-				// Check that the destination file exists
+				// Check that the destination file exists in images directory
 				expectedDst := filepath.Join(dataDir, "images", ImagesDstArtifactName)
-				_, err := os.Stat(expectedDst)
+				info, err := os.Stat(expectedDst)
 				assert.NoError(t, err, "Expected destination file to exist")
+				assert.Equal(t, os.FileMode(0644), info.Mode().Perm(), "Expected file permissions to be 0644")
 
 				// Verify file content
 				content, err := os.ReadFile(expectedDst)
 				assert.NoError(t, err)
 				assert.Equal(t, "test artifact content", string(content))
+
+				// Check that the file was also copied to k0s/images directory
+				k0sDst := filepath.Join(dataDir, "k0s", "images", ImagesDstArtifactName)
+				k0sInfo, err := os.Stat(k0sDst)
+				assert.NoError(t, err, "Expected k0s destination file to exist")
+				assert.Equal(t, os.FileMode(0644), k0sInfo.Mode().Perm(), "Expected k0s file permissions to be 0644")
+
+				// Verify k0s file content matches
+				k0sContent, err := os.ReadFile(k0sDst)
+				assert.NoError(t, err)
+				assert.Equal(t, "test artifact content", string(k0sContent))
 			}
 		})
 	}
