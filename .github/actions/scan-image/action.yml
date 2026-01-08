@@ -131,7 +131,19 @@ runs:
                   "toolVersion": "latest"
                 }
               }
-            }' ${{ inputs.output-file }} > enriched-results.sarif
+            } |
+            .runs[0].results = [
+              .runs[0].results[] |
+              . + {
+                "fingerprints": {
+                  "0": (
+                    .ruleId + ":" +
+                    (.locations[0].physicalLocation.artifactLocation.uri | split("//")[0]) + ":" +
+                    (.locations[0].physicalLocation.artifactLocation.uri | split("//")[1])
+                  )
+                }
+              }
+            ]' ${{ inputs.output-file }} > enriched-results.sarif
 
         mv enriched-results.sarif ${{ inputs.output-file }}
 
