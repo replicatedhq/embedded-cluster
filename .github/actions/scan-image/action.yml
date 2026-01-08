@@ -134,15 +134,24 @@ runs:
             } |
             .runs[0].results = [
               .runs[0].results[] |
-              . + {
-                "fingerprints": {
-                  "0": (
-                    .ruleId + ":" +
-                    (.locations[0].physicalLocation.artifactLocation.uri | split("//")[0]) + ":" +
-                    (.locations[0].physicalLocation.artifactLocation.uri | split("//")[1])
-                  )
+              if (.locations | length) > 0 and .locations[0].physicalLocation.artifactLocation.uri != null then
+                . + {
+                  "fingerprints": {
+                    "0": (
+                      .ruleId + ":" +
+                      (.locations[0].physicalLocation.artifactLocation.uri |
+                        if contains("//") then
+                          split("//")[0] + ":" + split("//")[1]
+                        else
+                          . + ":unknown"
+                        end
+                      )
+                    )
+                  }
                 }
-              }
+              else
+                .
+              end
             ]' ${{ inputs.output-file }} > enriched-results.sarif
 
         mv enriched-results.sarif ${{ inputs.output-file }}
