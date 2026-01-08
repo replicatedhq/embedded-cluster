@@ -134,21 +134,26 @@ runs:
             } |
             .runs[0].results = [
               .runs[0].results[] |
-              if (.locations | length) > 0 and .locations[0].physicalLocation.artifactLocation.uri != null then
-                . + {
-                  "fingerprints": {
-                    "0": (
-                      .ruleId + ":" +
-                      (.locations[0].physicalLocation.artifactLocation.uri |
-                        if contains("//") then
-                          split("//")[0] + ":" + split("//")[1]
-                        else
-                          . + ":unknown"
-                        end
-                      )
-                    )
+              if .ruleId != null and .ruleId != "" and
+                 (.locations | length) > 0 and
+                 .locations[0].physicalLocation.artifactLocation.uri != null and
+                 .locations[0].physicalLocation.artifactLocation.uri != "" then
+                (.locations[0].physicalLocation.artifactLocation.uri | split("//")) as $parts |
+                if ($parts | length) >= 2 and $parts[0] != "" and $parts[1] != "" then
+                  . + {
+                    "fingerprints": {
+                      "0": (.ruleId + ":" + $parts[0] + ":" + ($parts[1:] | join("//")))
+                    }
                   }
-                }
+                elif ($parts | length) == 1 and $parts[0] != "" then
+                  . + {
+                    "fingerprints": {
+                      "0": (.ruleId + ":" + $parts[0] + ":unknown")
+                    }
+                  }
+                else
+                  .
+                end
               else
                 .
               end
