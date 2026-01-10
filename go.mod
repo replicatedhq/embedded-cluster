@@ -29,7 +29,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/jedib0t/go-pretty/v6 v6.7.8
-	github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78
+	github.com/k0sproject/k0s v1.33.8-0.20251218134629-eedb68ce50bb
 	github.com/mattn/go-isatty v0.0.20
 	github.com/ohler55/ojg v1.27.0
 	github.com/onsi/ginkgo/v2 v2.27.3
@@ -132,7 +132,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f // indirect
 	github.com/containerd/cgroups/v3 v3.1.1 // indirect
-	github.com/containerd/containerd v1.7.29 // indirect
+	github.com/containerd/containerd v1.7.30 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
@@ -362,9 +362,9 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiserver v0.34.3 // indirect
-	k8s.io/cloud-provider v0.33.6 // indirect
+	k8s.io/cloud-provider v0.33.7 // indirect
 	k8s.io/component-base v0.34.3 // indirect
-	k8s.io/controller-manager v0.33.6 // indirect
+	k8s.io/controller-manager v0.33.7 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kms v0.34.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
