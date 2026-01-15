@@ -130,14 +130,13 @@ func TestV3Install_HostPreflights_WithFailuresBypass(t *testing.T) {
 	}()
 
 	runV3Install(t, v3InstallArgs{
-		managerPort:              30080,
-		password:                 "password123",
-		isAirgap:                 false,
-		configValuesFile:         configFile,
-		installationConfig:       apitypes.LinuxInstallationConfig{},
-		ignoreHostPreflights:     true, // Bypass host preflight failures
-		ignoreAppPreflights:      false,
-		shouldHostPreflightsFail: true,
+		managerPort:          30080,
+		password:             "password123",
+		isAirgap:             false,
+		configValuesFile:     configFile,
+		installationConfig:   apitypes.LinuxInstallationConfig{},
+		ignoreHostPreflights: true, // Bypass host preflight failures
+		ignoreAppPreflights:  false,
 	})
 
 	require.NoError(t, dryrun.Dump(), "fail to dump dryrun output")
@@ -332,14 +331,13 @@ func TestV3Install_AppPreflights_WithFailuresBypass(t *testing.T) {
 	}()
 
 	runV3Install(t, v3InstallArgs{
-		managerPort:             30080,
-		password:                "password123",
-		isAirgap:                false,
-		configValuesFile:        configFile,
-		installationConfig:      apitypes.LinuxInstallationConfig{},
-		ignoreHostPreflights:    false,
-		ignoreAppPreflights:     true, // Bypass app preflight failures
-		shouldAppPreflightsFail: true,
+		managerPort:          30080,
+		password:             "password123",
+		isAirgap:             false,
+		configValuesFile:     configFile,
+		installationConfig:   apitypes.LinuxInstallationConfig{},
+		ignoreHostPreflights: false,
+		ignoreAppPreflights:  true, // Bypass app preflight failures
 	})
 
 	preflightRunner.AssertExpectations(t)

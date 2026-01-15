@@ -295,7 +295,7 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
 				return apitypes.InstallHostPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateFailed,
+						State:       apitypes.StateSucceeded,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -328,7 +328,7 @@ func Test_orchestrator_runHostPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallHostPreflightsStatusResponse, error) {
 				return apitypes.InstallHostPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateFailed,
+						State:       apitypes.StateSucceeded,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -645,7 +645,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateFailed,
+						State:       apitypes.StateSucceeded,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
@@ -677,7 +677,7 @@ func Test_orchestrator_runAppPreflights(t *testing.T) {
 			mockGetStatusFunc: func(ctx context.Context) (apitypes.InstallAppPreflightsStatusResponse, error) {
 				return apitypes.InstallAppPreflightsStatusResponse{
 					Status: apitypes.Status{
-						State:       apitypes.StateFailed,
+						State:       apitypes.StateSucceeded,
 						Description: "Completed with failures",
 					},
 					Output: &apitypes.PreflightsOutput{
