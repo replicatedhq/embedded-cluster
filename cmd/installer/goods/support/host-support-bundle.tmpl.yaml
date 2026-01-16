@@ -78,7 +78,9 @@ spec:
           '-s',
           '-X',
           'POST',
-          'https://localhost:2379/v3/cluster/member/list'
+          'https://localhost:2379/v3/cluster/member/list',
+          '-d',
+          '{}'
         ]
   # Run collectors for system information & metrics
   - run:
@@ -213,7 +215,7 @@ spec:
   - run:
       collectorName: curl-replicated-app
       command: sh
-      args: 
+      args:
         - -c
         - |
           if [ -n "{{ .HTTPSProxy }}" ]; then
@@ -414,7 +416,7 @@ spec:
         - -c
         - |
           pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp)'
-      
+
           if command -v pgrep >/dev/null 2>&1; then
             pgrep -afi "$pat"
           else
