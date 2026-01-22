@@ -15,16 +15,16 @@ import (
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/metadata"
 	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kyaml "sigs.k8s.io/yaml"
 )
 
 const K0sComponentName = "Runtime"
@@ -53,10 +53,14 @@ func (m *infraManager) Install(ctx context.Context, rc runtimeconfig.RuntimeConf
 	return nil
 }
 
-func (m *infraManager) initInstallComponentsList(license *kotsv1beta1.License) error {
+func (m *infraManager) initInstallComponentsList(license *licensewrapper.LicenseWrapper) error {
+	if license.IsEmpty() {
+		return fmt.Errorf("license is required for component initialization")
+	}
+
 	components := []types.InfraComponent{{Name: K0sComponentName}}
 
-	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.Spec.IsDisasterRecoverySupported)
+	addOnsNames := addons.GetAddOnsNamesForInstall(m.airgapBundle != "", license.IsDisasterRecoverySupported())
 	for _, addOnName := range addOnsNames {
 		components = append(components, types.InfraComponent{Name: addOnName})
 	}
@@ -72,8 +76,8 @@ func (m *infraManager) initInstallComponentsList(license *kotsv1beta1.License) e
 }
 
 func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConfig) error {
-	license := &kotsv1beta1.License{}
-	if err := kyaml.Unmarshal(m.license, license); err != nil {
+	license, err := helpers.ParseLicenseFromBytes(m.license)
+	if err != nil {
 		return fmt.Errorf("parse license: %w", err)
 	}
 
@@ -81,7 +85,7 @@ func (m *infraManager) install(ctx context.Context, rc runtimeconfig.RuntimeConf
 		return fmt.Errorf("init components: %w", err)
 	}
 
-	_, err := m.installK0s(ctx, rc)
+	_, err = m.installK0s(ctx, rc)
 	if err != nil {
 		return fmt.Errorf("install k0s: %w", err)
 	}
@@ -191,7 +195,7 @@ func (m *infraManager) installK0s(ctx context.Context, rc runtimeconfig.RuntimeC
 	return k0sCfg, nil
 }
 
-func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
+func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Client, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (*ecv1beta1.Installation, error) {
 	logFn := m.logFn("metadata")
 
 	// get the configured custom domains
@@ -227,7 +231,7 @@ func (m *infraManager) recordInstallation(ctx context.Context, kcli client.Clien
 	return in, nil
 }
 
-func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) error {
+func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -272,7 +276,11 @@ func (m *infraManager) installAddOns(ctx context.Context, kcli client.Client, mc
 	return nil
 }
 
-func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1beta1.License, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
+func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *licensewrapper.LicenseWrapper, rc runtimeconfig.RuntimeConfig) (addons.InstallOptions, error) {
+	if license.IsEmpty() {
+		return addons.InstallOptions{}, fmt.Errorf("license is required for addon installation")
+	}
+
 	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, m.kcli)
 	if err != nil {
 		return addons.InstallOptions{}, fmt.Errorf("get kotsadm namespace: %w", err)
@@ -285,8 +293,8 @@ func (m *infraManager) getAddonInstallOpts(ctx context.Context, license *kotsv1b
 		TLSCertBytes:            m.tlsConfig.CertBytes,
 		TLSKeyBytes:             m.tlsConfig.KeyBytes,
 		Hostname:                m.tlsConfig.Hostname,
-		DisasterRecoveryEnabled: license.Spec.IsDisasterRecoverySupported,
-		IsMultiNodeEnabled:      license.Spec.IsEmbeddedClusterMultiNodeEnabled,
+		DisasterRecoveryEnabled: license.IsDisasterRecoverySupported(),
+		IsMultiNodeEnabled:      license.IsEmbeddedClusterMultiNodeEnabled(),
 		EmbeddedConfigSpec:      m.getECConfigSpec(),
 		EndUserConfigSpec:       m.getEndUserConfigSpec(),
 		ProxySpec:               rc.ProxySpec(),

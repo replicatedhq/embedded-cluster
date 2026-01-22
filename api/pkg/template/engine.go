@@ -11,6 +11,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,7 +29,7 @@ const (
 type Engine struct {
 	mode                       Mode
 	config                     *kotsv1beta1.Config
-	license                    *kotsv1beta1.License
+	license                    *licensewrapper.LicenseWrapper
 	releaseData                *release.ReleaseData
 	privateCACertConfigMapName string // ConfigMap name for private CA certificates, empty string if not available
 	isAirgapInstallation       bool   // Whether the installation is an airgap installation
@@ -58,7 +59,7 @@ func WithMode(mode Mode) EngineOption {
 	}
 }
 
-func WithLicense(license *kotsv1beta1.License) EngineOption {
+func WithLicense(license *licensewrapper.LicenseWrapper) EngineOption {
 	return func(e *Engine) {
 		e.license = license
 	}

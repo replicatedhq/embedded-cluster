@@ -11,6 +11,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,7 +25,7 @@ type AppReleaseManager interface {
 type appReleaseManager struct {
 	rawConfig                  kotsv1beta1.Config
 	releaseData                *release.ReleaseData
-	license                    *kotsv1beta1.License
+	license                    *licensewrapper.LicenseWrapper
 	isAirgap                   bool
 	privateCACertConfigMapName string
 	kcli                       client.Client
@@ -60,7 +61,7 @@ func WithHelmClient(hcli helm.Client) AppReleaseManagerOption {
 	}
 }
 
-func WithLicense(license *kotsv1beta1.License) AppReleaseManagerOption {
+func WithLicense(license *licensewrapper.LicenseWrapper) AppReleaseManagerOption {
 	return func(m *appReleaseManager) {
 		m.license = license
 	}

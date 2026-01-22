@@ -24,6 +24,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
+	kotscrypto "github.com/replicatedhq/kotskinds/pkg/crypto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -308,6 +309,16 @@ type v3UpgradeSetupArgs struct {
 func setupV3UpgradeTest(t *testing.T, hcli helm.Client, setupArgs *v3UpgradeSetupArgs) (string, string) {
 	// Set ENABLE_V3 environment variable
 	t.Setenv("ENABLE_V3", "1")
+
+	// Inject the dryrun test public key for license signature verification.
+	// The kotskinds library uses a global custom key if set, otherwise looks up by key ID.
+	// Our test license uses a test-only key that's not in kotskinds' default key map.
+	if err := kotscrypto.SetCustomPublicKeyRSA(dryrunPublicKey); err != nil {
+		t.Fatalf("failed to set custom public key: %v", err)
+	}
+	t.Cleanup(func() {
+		kotscrypto.ResetCustomPublicKeyRSA()
+	})
 
 	// Ensure UI assets are available when starting API in non-headless tests
 	prepareWebAssetsForTests(t)

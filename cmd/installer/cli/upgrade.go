@@ -31,7 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/web"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -54,7 +54,7 @@ type upgradeConfig struct {
 	passwordHash         []byte
 	tlsConfig            apitypes.TLSConfig
 	tlsCert              tls.Certificate
-	license              *kotsv1beta1.License
+	license              *licensewrapper.LicenseWrapper
 	licenseBytes         []byte
 	airgapMetadata       *airgap.AirgapMetadata
 	embeddedAssetsSize   int64
@@ -156,9 +156,14 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 				initialVersion = currentInstallation.Spec.Config.Version
 			}
 
+			// Verify license is available for metrics reporting
+			if upgradeConfig.license.IsEmpty() {
+				return fmt.Errorf("license is required for upgrade")
+			}
+
 			metricsReporter := newUpgradeReporter(
 				replicatedAppURL(), cmd.CalledAs(), flagsToStringSlice(cmd.Flags()),
-				upgradeConfig.license.Spec.LicenseID, upgradeConfig.clusterID, upgradeConfig.license.Spec.AppSlug,
+				upgradeConfig.license.GetLicenseID(), upgradeConfig.clusterID, upgradeConfig.license.GetAppSlug(),
 				targetVersion, initialVersion,
 			)
 			metricsReporter.ReportUpgradeStarted(ctx)
@@ -286,8 +291,8 @@ func preRunUpgrade(ctx context.Context, flags UpgradeCmdFlags, upgradeConfig *up
 	}
 	upgradeConfig.license = l
 
-	// sync the license and initialize the replicated api client if we are not in airgap mode
-	if flags.airgapBundle == "" {
+	// sync the license if a license is provided and we are not in airgap mode
+	if !upgradeConfig.license.IsEmpty() && flags.airgapBundle == "" {
 		replicatedAPI, err := newReplicatedAPIClient(upgradeConfig.license, upgradeConfig.clusterID)
 		if err != nil {
 			return fmt.Errorf("failed to create replicated API client: %w", err)

@@ -12,13 +12,13 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/velero"
-	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 )
 
 type InstallOptions struct {
 	AdminConsolePwd    string
 	AdminConsolePort   int
-	License            *kotsv1beta1.License
+	License            *licensewrapper.LicenseWrapper
 	IsAirgap           bool
 	TLSCertBytes       []byte
 	TLSKeyBytes        []byte
@@ -43,7 +43,7 @@ type InstallOptions struct {
 type KubernetesInstallOptions struct {
 	AdminConsolePwd    string
 	AdminConsolePort   int
-	License            *kotsv1beta1.License
+	License            *licensewrapper.LicenseWrapper
 	IsAirgap           bool
 	TLSCertBytes       []byte
 	TLSKeyBytes        []byte

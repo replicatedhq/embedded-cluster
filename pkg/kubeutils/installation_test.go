@@ -14,6 +14,7 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -208,10 +209,12 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  false,
-				License: &kotsv1beta1.License{
-					Spec: kotsv1beta1.LicenseSpec{
-						IsDisasterRecoverySupported:       true,
-						IsEmbeddedClusterMultiNodeEnabled: false,
+				License: &licensewrapper.LicenseWrapper{
+					V1: &kotsv1beta1.License{
+						Spec: kotsv1beta1.LicenseSpec{
+							IsDisasterRecoverySupported:       true,
+							IsEmbeddedClusterMultiNodeEnabled: false,
+						},
 					},
 				},
 				ConfigSpec: &ecv1beta1.ConfigSpec{
@@ -248,12 +251,12 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  true,
-				License: &kotsv1beta1.License{
+				License: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: true,
 					},
-				},
+				}},
 				ConfigSpec: &ecv1beta1.ConfigSpec{
 					Version: "1.16.0+k8s-1.31",
 				},
@@ -283,12 +286,12 @@ func TestRecordInstallation(t *testing.T) {
 			opts: RecordInstallationOptions{
 				ClusterID: uuid.New().String(),
 				IsAirgap:  true,
-				License: &kotsv1beta1.License{
+				License: &licensewrapper.LicenseWrapper{V1: &kotsv1beta1.License{
 					Spec: kotsv1beta1.LicenseSpec{
 						IsDisasterRecoverySupported:       false,
 						IsEmbeddedClusterMultiNodeEnabled: false,
 					},
-				},
+				}},
 				ConfigSpec: &ecv1beta1.ConfigSpec{
 					Version: "1.18.0+k8s-1.33",
 				},

@@ -9,9 +9,25 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
+	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
+	"github.com/replicatedhq/kotskinds/pkg/licensewrapper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Helper function to wrap v1beta1 license in LicenseWrapper for testing
+func wrapLicense(license *kotsv1beta1.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
+		V1: license,
+	}
+}
+
+// Helper function to wrap v1beta2 license in LicenseWrapper for testing
+func wrapLicenseV2(license *kotsv1beta2.License) *licensewrapper.LicenseWrapper {
+	return &licensewrapper.LicenseWrapper{
+		V2: license,
+	}
+}
 
 func TestEngine_LicenseFieldValue(t *testing.T) {
 	license := &kotsv1beta1.License{
@@ -67,7 +83,7 @@ func TestEngine_LicenseFieldValue(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	// Test basic license fields
 	testCases := []struct {
@@ -157,7 +173,7 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
@@ -167,8 +183,8 @@ func TestEngine_LicenseFieldValue_Endpoint(t *testing.T) {
 }
 
 func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
-	license := &kotsv1beta1.License{
-		Spec: kotsv1beta1.LicenseSpec{
+	license := &kotsv1beta2.License{
+		Spec: kotsv1beta2.LicenseSpec{
 			CustomerName: "Acme Corp",
 			LicenseID:    "license-123",
 		},
@@ -180,7 +196,7 @@ func TestEngine_LicenseFieldValue_EndpointWithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicenseV2(license)))
 
 	err := engine.Parse("{{repl LicenseFieldValue \"endpoint\" }}")
 	require.NoError(t, err)
@@ -216,7 +232,7 @@ func TestEngine_LicenseDockerCfg(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -274,7 +290,7 @@ func TestEngine_LicenseDockerCfgWithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(nil, WithLicense(license))
+	engine := NewEngine(nil, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -304,7 +320,7 @@ func TestEngine_LicenseDockerCfgStagingEndpoint(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -367,7 +383,7 @@ func TestEngine_LicenseDockerCfgStagingEndpointWithReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl LicenseDockerCfg }}")
 	require.NoError(t, err)
@@ -439,7 +455,7 @@ func TestEngine_ChannelName(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -479,7 +495,7 @@ func TestEngine_ChannelName_FallbackToLicenseChannel(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -519,7 +535,7 @@ func TestEngine_ChannelName_WithoutReleaseData(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -550,7 +566,7 @@ func TestEngine_ChannelName_WithoutChannelRelease(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
@@ -590,7 +606,7 @@ func TestEngine_ChannelName_ChannelNotFound(t *testing.T) {
 		},
 	}
 
-	engine := NewEngine(config, WithLicense(license), WithReleaseData(releaseData))
+	engine := NewEngine(config, WithLicense(wrapLicense(license)), WithReleaseData(releaseData))
 
 	err := engine.Parse("{{repl ChannelName }}")
 	require.NoError(t, err)
