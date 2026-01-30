@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/google/uuid v1.6.0
 	github.com/k0sproject/dig v0.4.0
-	github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78
+	github.com/k0sproject/k0s v1.33.8-0.20251218134629-eedb68ce50bb
 	github.com/stretchr/testify v1.11.1
 	go.yaml.in/yaml/v3 v3.0.4
 	k8s.io/api v0.34.3
@@ -18,7 +18,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20240806141605-e8a1dd7889d6 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/cyphar/filepath-securejoin v0.5.2 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
