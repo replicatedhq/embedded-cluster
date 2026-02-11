@@ -324,11 +324,6 @@ const docTemplate = `{
                     "Preparation",
                     "ECInstall",
                     "DataTransfer",
-                    "Completed",
-                    "Discovery",
-                    "Preparation",
-                    "ECInstall",
-                    "DataTransfer",
                     "Completed"
                 ],
                 "example": "Discovery",
@@ -344,10 +339,6 @@ const docTemplate = `{
             "types.KURLMigrationState": {
                 "description": "State is the current state of the kURL migration",
                 "enum": [
-                    "NotStarted",
-                    "InProgress",
-                    "Completed",
-                    "Failed",
                     "NotStarted",
                     "InProgress",
                     "Completed",
@@ -617,10 +608,6 @@ const docTemplate = `{
                     "Pending",
                     "Running",
                     "Succeeded",
-                    "Failed",
-                    "Pending",
-                    "Running",
-                    "Succeeded",
                     "Failed"
                 ],
                 "example": "Succeeded",
@@ -665,8 +652,6 @@ const docTemplate = `{
             "types.TransferMode": {
                 "description": "TransferMode specifies whether to copy or move data during kURL migration",
                 "enum": [
-                    "copy",
-                    "move",
                     "copy",
                     "move"
                 ],

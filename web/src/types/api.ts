@@ -1314,7 +1314,7 @@ export interface operations {
         /** @description Auth Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.AuthRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.AuthRequest"];
             };
         };
         responses: {
@@ -1446,7 +1446,7 @@ export interface operations {
         /** @description Template App Config Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.TemplateAppConfigRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.TemplateAppConfigRequest"];
             };
         };
         responses: {
@@ -1509,7 +1509,7 @@ export interface operations {
         /** @description Patch App Config Values Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.PatchAppConfigValuesRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.PatchAppConfigValuesRequest"];
             };
         };
         responses: {
@@ -1543,7 +1543,7 @@ export interface operations {
         /** @description Install App Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.InstallAppRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.InstallAppRequest"];
             };
         };
         responses: {
@@ -1670,7 +1670,7 @@ export interface operations {
         /** @description Installation config */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.KubernetesInstallationConfig"];
+                "application/json": Record<string, never> | components["schemas"]["types.KubernetesInstallationConfig"];
             };
         };
         responses: {
@@ -1782,7 +1782,7 @@ export interface operations {
         /** @description Template App Config Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.TemplateAppConfigRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.TemplateAppConfigRequest"];
             };
         };
         responses: {
@@ -1845,7 +1845,7 @@ export interface operations {
         /** @description Patch App Config Values Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.PatchAppConfigValuesRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.PatchAppConfigValuesRequest"];
             };
         };
         responses: {
@@ -1908,7 +1908,7 @@ export interface operations {
         /** @description Upgrade App Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.UpgradeAppRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.UpgradeAppRequest"];
             };
         };
         responses: {
@@ -2058,7 +2058,7 @@ export interface operations {
         /** @description Template App Config Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.TemplateAppConfigRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.TemplateAppConfigRequest"];
             };
         };
         responses: {
@@ -2121,7 +2121,7 @@ export interface operations {
         /** @description Patch App Config Values Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.PatchAppConfigValuesRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.PatchAppConfigValuesRequest"];
             };
         };
         responses: {
@@ -2155,7 +2155,7 @@ export interface operations {
         /** @description Install App Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.InstallAppRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.InstallAppRequest"];
             };
         };
         responses: {
@@ -2218,7 +2218,7 @@ export interface operations {
         /** @description Post Install Run Host Preflights Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.PostInstallRunHostPreflightsRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.PostInstallRunHostPreflightsRequest"];
             };
         };
         responses: {
@@ -2263,7 +2263,7 @@ export interface operations {
         /** @description Infra Setup Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.LinuxInfraSetupRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.LinuxInfraSetupRequest"];
             };
         };
         responses: {
@@ -2328,7 +2328,7 @@ export interface operations {
         /** @description Installation config */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.LinuxInstallationConfig"];
+                "application/json": Record<string, never> | components["schemas"]["types.LinuxInstallationConfig"];
             };
         };
         responses: {
@@ -2402,7 +2402,7 @@ export interface operations {
         /** @description Start kURL Migration Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.StartKURLMigrationRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.StartKURLMigrationRequest"];
             };
         };
         responses: {
@@ -2590,7 +2590,7 @@ export interface operations {
         /** @description Template App Config Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.TemplateAppConfigRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.TemplateAppConfigRequest"];
             };
         };
         responses: {
@@ -2653,7 +2653,7 @@ export interface operations {
         /** @description Patch App Config Values Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.PatchAppConfigValuesRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.PatchAppConfigValuesRequest"];
             };
         };
         responses: {
@@ -2716,7 +2716,7 @@ export interface operations {
         /** @description Upgrade App Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.UpgradeAppRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.UpgradeAppRequest"];
             };
         };
         responses: {
@@ -2855,7 +2855,7 @@ export interface operations {
         /** @description Infra Upgrade Request */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["types.LinuxInfraUpgradeRequest"];
+                "application/json": Record<string, never> | components["schemas"]["types.LinuxInfraUpgradeRequest"];
             };
         };
         responses: {

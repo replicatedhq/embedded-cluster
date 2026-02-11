@@ -215,11 +215,6 @@ components:
       - ECInstall
       - DataTransfer
       - Completed
-      - Discovery
-      - Preparation
-      - ECInstall
-      - DataTransfer
-      - Completed
       example: Discovery
       type: string
       x-enum-varnames:
@@ -231,10 +226,6 @@ components:
     types.KURLMigrationState:
       description: State is the current state of the kURL migration
       enum:
-      - NotStarted
-      - InProgress
-      - Completed
-      - Failed
       - NotStarted
       - InProgress
       - Completed
@@ -425,10 +416,6 @@ components:
       - Running
       - Succeeded
       - Failed
-      - Pending
-      - Running
-      - Succeeded
-      - Failed
       example: Succeeded
       type: string
       x-enum-varnames:
@@ -460,8 +447,6 @@ components:
       description: TransferMode specifies whether to copy or move data during kURL
         migration
       enum:
-      - copy
-      - move
       - copy
       - move
       example: copy
