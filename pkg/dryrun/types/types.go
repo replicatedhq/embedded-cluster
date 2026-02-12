@@ -319,7 +319,7 @@ func (d *DryRun) GetClientset() (kubernetes.Interface, error) {
 			}
 			clientObjs = append(clientObjs, &u)
 		}
-		d.kclient = clientsetfake.NewSimpleClientset(clientObjs...)
+		d.kclient = clientsetfake.NewClientset(clientObjs...)
 	}
 	return d.kclient, nil
 }
