@@ -659,7 +659,6 @@ components:
       type: object
   securitySchemes:
     bearerauth:
-      bearerFormat: JWT
       scheme: bearer
       type: http
 externalDocs:
@@ -687,7 +686,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.AuthRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.AuthRequest'
+                description: Auth Request
+                summary: request
         description: Auth Request
         required: true
       responses:
@@ -788,7 +791,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+                description: Template App Config Request
+                summary: request
         description: Template App Config Request
         required: true
       responses:
@@ -838,7 +845,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+                description: Patch App Config Values Request
+                summary: request
         description: Patch App Config Values Request
         required: true
       responses:
@@ -867,7 +878,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InstallAppRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.InstallAppRequest'
+                description: Install App Request
+                summary: request
         description: Install App Request
         required: true
       responses:
@@ -971,7 +986,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.KubernetesInstallationConfig'
+                description: Installation config
+                summary: installationConfig
         description: Installation config
         required: true
       responses:
@@ -1061,7 +1080,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+                description: Template App Config Request
+                summary: request
         description: Template App Config Request
         required: true
       responses:
@@ -1111,7 +1134,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+                description: Patch App Config Values Request
+                summary: request
         description: Patch App Config Values Request
         required: true
       responses:
@@ -1162,7 +1189,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.UpgradeAppRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.UpgradeAppRequest'
+                description: Upgrade App Request
+                summary: request
         description: Upgrade App Request
         required: true
       responses:
@@ -1281,7 +1312,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+                description: Template App Config Request
+                summary: request
         description: Template App Config Request
         required: true
       responses:
@@ -1331,7 +1366,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+                description: Patch App Config Values Request
+                summary: request
         description: Patch App Config Values Request
         required: true
       responses:
@@ -1360,7 +1399,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.InstallAppRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.InstallAppRequest'
+                description: Install App Request
+                summary: request
         description: Install App Request
         required: true
       responses:
@@ -1412,7 +1455,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.PostInstallRunHostPreflightsRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.PostInstallRunHostPreflightsRequest'
+                description: Post Install Run Host Preflights Request
+                summary: request
         description: Post Install Run Host Preflights Request
         required: true
       responses:
@@ -1452,7 +1499,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.LinuxInfraSetupRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.LinuxInfraSetupRequest'
+                description: Infra Setup Request
+                summary: request
         description: Infra Setup Request
         required: true
       responses:
@@ -1507,7 +1558,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.LinuxInstallationConfig'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.LinuxInstallationConfig'
+                description: Installation config
+                summary: installationConfig
         description: Installation config
         required: true
       responses:
@@ -1570,7 +1625,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.StartKURLMigrationRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.StartKURLMigrationRequest'
+                description: Start kURL Migration Request
+                summary: request
         description: Start kURL Migration Request
         required: true
       responses:
@@ -1716,7 +1775,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.TemplateAppConfigRequest'
+                description: Template App Config Request
+                summary: request
         description: Template App Config Request
         required: true
       responses:
@@ -1766,7 +1829,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.PatchAppConfigValuesRequest'
+                description: Patch App Config Values Request
+                summary: request
         description: Patch App Config Values Request
         required: true
       responses:
@@ -1817,7 +1884,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.UpgradeAppRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.UpgradeAppRequest'
+                description: Upgrade App Request
+                summary: request
         description: Upgrade App Request
         required: true
       responses:
@@ -1925,7 +1996,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/types.LinuxInfraUpgradeRequest'
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/types.LinuxInfraUpgradeRequest'
+                description: Infra Upgrade Request
+                summary: request
         description: Infra Upgrade Request
         required: true
       responses:
