@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	dockerref "github.com/containers/image/v5/docker/reference"
+	dockerref "go.podman.io/image/v5/docker/reference"
 )
 
 // A valid tag must be valid ASCII and can contain lowercase and uppercase letters, digits, underscores, periods, and hyphens.
