@@ -7,14 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/containers/image/v5/copy"
-	"github.com/containers/image/v5/signature"
-	"github.com/containers/image/v5/transports/alltransports"
-	imagetypes "github.com/containers/image/v5/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/kind/registry/static"
 	"github.com/replicatedhq/embedded-cluster/tests/integration/util"
+	"go.podman.io/image/v5/copy"
+	"go.podman.io/image/v5/signature"
+	"go.podman.io/image/v5/transports/alltransports"
+	imagetypes "go.podman.io/image/v5/types"
 )
 
 func createHostPortService(t *testing.T, clusterName string, kubeconfig string) string {
