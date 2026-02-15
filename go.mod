@@ -38,7 +38,7 @@ require (
 	github.com/replicatedhq/embedded-cluster/utils v0.0.0
 	github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d
 	github.com/replicatedhq/troubleshoot v0.123.17
-	github.com/sirupsen/logrus v1.9.4-0.20251023124752-b61f268f75b6
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
