@@ -110,7 +110,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.1
+        uses: tj-actions/changed-files@v47.0.2
         with:
           files: |
             kinds/**
@@ -129,7 +129,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.1
+        uses: tj-actions/changed-files@v47.0.2
         with:
           files: |
             pkg-new/preflights/**
@@ -379,7 +379,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.1
+        uses: tj-actions/changed-files@v47.0.2
         with:
           files: |
             e2e/**
