@@ -24,7 +24,8 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
 
   const hasFailures = (output?: PreflightsOutput) => (output?.fail?.length ?? 0) > 0;
   const hasWarnings = (output?: PreflightsOutput) => (output?.warn?.length ?? 0) > 0;
-  const isSuccessful = (response?: HostPreflightResponse) => response?.status?.state === "Succeeded";
+  const isSuccessful = (response?: HostPreflightResponse) =>
+    response?.status?.state === "Succeeded" && !hasFailures(response?.output);
 
   const getErrorMessage = () => {
     if (runHostPreflights.error) {
@@ -69,9 +70,14 @@ const LinuxPreflightCheck: React.FC<LinuxPreflightCheckProps> = ({ onRun, onComp
 
   // Handle preflight status changes
   useEffect(() => {
-    if (preflightResponse?.status?.state === "Succeeded" || preflightResponse?.status?.state === "Failed") {
+    if (preflightResponse?.status?.state === "Succeeded") {
+      // Execution completed successfully - check if there are preflight failures
       setIsPreflightsPolling(false);
       onComplete(!hasFailures(preflightResponse.output), preflightResponse.allowIgnoreHostPreflights ?? false);
+    } else if (preflightResponse?.status?.state === "Failed") {
+      // Execution failed - treat as failure regardless of output
+      setIsPreflightsPolling(false);
+      onComplete(false, false);
     }
   }, [preflightResponse]);
 

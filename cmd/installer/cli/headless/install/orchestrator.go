@@ -253,8 +253,7 @@ func (o *orchestrator) runHostPreflights(ctx context.Context, ignoreFailures boo
 		return fmt.Errorf("run linux install host preflights: %w", err)
 	}
 
-	// For preflights, we poll until the operation completes (either succeeded or failed),
-	// then check if there are failures and decide whether to continue based on ignoreFailures
+	// Poll until the preflight execution completes
 	state, message, err := pollUntilComplete(ctx, func() (apitypes.State, string, error) {
 		resp, err = o.apiClient.GetLinuxInstallHostPreflightsStatus(ctx)
 		if err != nil {
@@ -267,15 +266,17 @@ func (o *orchestrator) runHostPreflights(ctx context.Context, ignoreFailures boo
 		return fmt.Errorf("poll until complete: %w", err)
 	}
 
-	if state == apitypes.StateFailed {
-		hasFailures := resp.Output != nil && resp.Output.HasFail()
+	// With the new behavior, preflights always return StateSucceeded when execution completes.
+	// We need to check the output for actual failures.
+	if state != apitypes.StateSucceeded {
+		loading.ErrorClosef("Host preflights execution failed")
+		return fmt.Errorf("host preflights execution failed: %s", message)
+	}
 
-		// If there are no failures, it means the execution failed
-		if !hasFailures {
-			loading.ErrorClosef("Host preflights execution failed")
-			return fmt.Errorf("host preflights execution failed: %s", message)
-		}
+	// Check if there are actual preflight failures
+	hasFailures := resp.Output != nil && resp.Output.HasFail()
 
+	if hasFailures {
 		loading.ErrorClosef("Host preflights completed with failures")
 
 		o.logger.Warn("\n⚠ Warning: Host preflight checks completed with failures\n")
@@ -400,8 +401,7 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 		return fmt.Errorf("run linux install app preflights: %w", err)
 	}
 
-	// For preflights, we poll until the operation completes (either succeeded or failed),
-	// then check if there are failures and decide whether to continue based on ignoreFailures
+	// Poll until the preflight execution completes
 	state, message, err := pollUntilComplete(ctx, func() (apitypes.State, string, error) {
 		resp, err = o.apiClient.GetLinuxInstallAppPreflightsStatus(ctx)
 		if err != nil {
@@ -414,15 +414,17 @@ func (o *orchestrator) runAppPreflights(ctx context.Context, ignoreFailures bool
 		return fmt.Errorf("poll until complete: %w", err)
 	}
 
-	if state == apitypes.StateFailed {
-		hasFailures := resp.Output != nil && resp.Output.HasFail()
+	// With the new behavior, preflights always return StateSucceeded when execution completes.
+	// We need to check the output for actual failures.
+	if state != apitypes.StateSucceeded {
+		loading.ErrorClosef("App preflights execution failed")
+		return fmt.Errorf("app preflights execution failed: %s", message)
+	}
 
-		// If there are no failures, it means the execution failed
-		if !hasFailures {
-			loading.ErrorClosef("App preflights execution failed")
-			return fmt.Errorf("app preflights execution failed: %s", message)
-		}
+	// Check if there are actual preflight failures
+	hasFailures := resp.Output != nil && resp.Output.HasFail()
 
+	if hasFailures {
 		loading.ErrorClosef("App preflights completed with failures")
 
 		o.logger.Warn("\n⚠ Warning: Application preflight checks completed with failures\n")
