@@ -110,9 +110,10 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 	}
 
 	meta := types.ReleaseMetadata{
-		Versions:  versionsMap,
-		K0sSHA:    sha,
-		Artifacts: artifacts,
+		Architecture: helpers.ClusterArch(),
+		Versions:     versionsMap,
+		K0sSHA:       sha,
+		Artifacts:    artifacts,
 	}
 
 	chtconfig, repconfig, err := addons.GenerateChartConfigs(context.Background(), nil)
