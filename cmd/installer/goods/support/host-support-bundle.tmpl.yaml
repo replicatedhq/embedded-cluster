@@ -414,7 +414,7 @@ spec:
       args:
         - -c
         - |
-          pat='(clamav|sophos|esets_daemon|fsav|symantec|mfend|ds_agent|kav|bdagent|s1agent|falcon|illumio|xagt|wdavdaemon|mdatp|mfeespd|mfetpd|masvc|macmnsvc|cbdaemon|BESClient|nessus)'
+          pat='(avast|avg|bdagent|BESClient|bitdefender|carbonblack|cbdaemon|clamav|crowdstrike|cylance|ds_agent|eset|esets_daemon|falcon|fsav|illumio|kaspersky|kav|macmnsvc|malwarebytes|masvc|mcafee|mdatp|mfeespd|mfend|mfetpd|nessus|qualys|rapid7|s1agent|sentinel|sophos|symantec|tanium|tenable|trend|wdavdaemon|xagt)'
 
           if command -v pgrep >/dev/null 2>&1; then
             pgrep -afi "$pat"
