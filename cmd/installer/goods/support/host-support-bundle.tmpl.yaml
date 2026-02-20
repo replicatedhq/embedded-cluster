@@ -92,6 +92,11 @@ spec:
       command: top
       args: ['-b', '-n', '1', '-c', '-w', '512']
   - run:
+      # -c and -w are not supported on all systems such as busybox
+      collectorName: top-few-args
+      command: top
+      args: ['-b', '-n', '1']
+  - run:
       collectorName: uname
       command: uname
       args: ['-a']
@@ -414,7 +419,7 @@ spec:
       args:
         - -c
         - |
-          pat='(avast|avg|bdagent|BESClient|bitdefender|carbonblack|cbdaemon|clamav|crowdstrike|cylance|ds_agent|eset|esets_daemon|falcon|fsav|illumio|kaspersky|kav|macmnsvc|malwarebytes|masvc|mcafee|mdatp|mfeespd|mfend|mfetpd|nessus|qualys|rapid7|s1agent|sentinel|sophos|symantec|tanium|tenable|trend|wdavdaemon|xagt)'
+          pat='(avast|avg|bdagent|BESClient|bitdefender|carbonblack|cbdaemon|clamav|crowdstrike|cylance|ds_agent|esets_daemon|falcon|fsav|illumio|kaspersky|kav|macmnsvc|malwarebytes|masvc|mcafee|mdatp|mfeespd|mfend|mfetpd|nessus|qualys|rapid7|s1agent|sentinel|sophos|symantec|tanium|tenable|trend|wdavdaemon|xagt)'
 
           if command -v pgrep >/dev/null 2>&1; then
             pgrep -afi "$pat"
