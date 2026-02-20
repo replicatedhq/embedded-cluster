@@ -135,7 +135,7 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.1 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.2.1 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -217,7 +217,7 @@ require (
 	github.com/k0sproject/dig v0.4.0 // indirect
 	github.com/k0sproject/version v0.7.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
-	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -236,7 +236,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.9.5 // indirect
 	github.com/miekg/dns v1.1.70 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
-	github.com/mistifyio/go-zfs/v3 v3.1.0 // indirect
+	github.com/mistifyio/go-zfs/v4 v4.0.0 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -328,7 +328,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0 // indirect
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
-	go.podman.io/storage v1.62.0 // indirect
+	go.podman.io/storage v1.62.1-0.20260218215809-4bd29ff8b87e // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect

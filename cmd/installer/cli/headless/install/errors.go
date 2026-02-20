@@ -27,9 +27,9 @@ func formatAPIError(apiErr *apitypes.APIError) string {
 		}
 		for _, fieldErr := range apiErr.Errors {
 			if fieldErr.Field != "" {
-				buf.WriteString(fmt.Sprintf("  - Field '%s': %s\n", fieldErr.Field, fieldErr.Message))
+				fmt.Fprintf(&buf, "  - Field '%s': %s\n", fieldErr.Field, fieldErr.Message)
 			} else {
-				buf.WriteString(fmt.Sprintf("  - %s\n", fieldErr.Message))
+				fmt.Fprintf(&buf, "  - %s\n", fieldErr.Message)
 			}
 		}
 	}

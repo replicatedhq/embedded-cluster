@@ -132,7 +132,7 @@ func generateDynamicSysctlConfig(getter sysctlValueGetter, configPath string) er
 		}
 
 		if needsUpdate {
-			config.WriteString(fmt.Sprintf("%s = %d\n", constraint.key, constraint.value))
+			fmt.Fprintf(&config, "%s = %d\n", constraint.key, constraint.value)
 		}
 	}
 
