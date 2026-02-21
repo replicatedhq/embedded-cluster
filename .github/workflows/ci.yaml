@@ -172,7 +172,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
       - name: Run tests
@@ -244,7 +244,7 @@ jobs:
             /usr/local/bin/oc
           df -h
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
       - name: Run tests
@@ -270,7 +270,7 @@ jobs:
       - name: Free up runner disk space
         run: *free-disk-space
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
       - name: Run tests
