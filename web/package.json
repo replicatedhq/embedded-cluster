@@ -55,7 +55,7 @@
     "msw": "2.12.10",
     "openapi-backend": "^5.15.0",
     "openapi-typescript": "^7.10.1",
-    "tailwindcss": "^4.1.13",
+    "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.51.0",
     "unified": "^11.0.5",
