@@ -460,7 +460,7 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
-      - uses: imjasonh/setup-crane@v0.4
+      - uses: imjasonh/setup-crane@v0.5
 
       - name: Install dagger
         run: |
@@ -616,7 +616,7 @@ jobs:
 
       - uses: oras-project/setup-oras@v1
 
-      - uses: imjasonh/setup-crane@v0.4
+      - uses: imjasonh/setup-crane@v0.5
 
       - name: Install dagger
         run: |
