@@ -464,8 +464,8 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/k0sproject/dig v0.4.0 h1:yBxFUUxNXAMGBg6b7c6ypxdx/o3RmhoI5v5ABOw5tn0=
 github.com/k0sproject/dig v0.4.0/go.mod h1:rlZ7N7ZEcB4Fi96TPXkZ4dqyAiDWOGLapyL9YpZ7Qz4=
-github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78 h1:lrA3V3mlmLKkHN01/f0lx4MF+x5ijYSsH2DdOhhwA1Y=
-github.com/k0sproject/k0s v1.33.7-0.20251119112034-a756314d3a78/go.mod h1:MOvHATSyFUudgQCXg7fD6r86hqFljRqz43QvbIgrKYs=
+github.com/k0sproject/k0s v1.33.9-0.20260218131128-cd041608f44a h1:W2AFCgZ5h2/OrghgYRLiqW4epwozOvAobthASMGybwk=
+github.com/k0sproject/k0s v1.33.9-0.20260218131128-cd041608f44a/go.mod h1:EG7fxXuQivLjIe2u08YxvKQN7yH2188MVnyYOq8+cuQ=
 github.com/k0sproject/version v0.7.0 h1:pWp60UaA7N9g/wKUz1HN6heFW1M6ioWHEo8glHYlq00=
 github.com/k0sproject/version v0.7.0/go.mod h1:iNV3O8blndsQhxZ8zACfpQhrLDlrTvDlCzx+vgCFtSI=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
