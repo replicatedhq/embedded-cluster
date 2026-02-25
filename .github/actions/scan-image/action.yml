@@ -92,6 +92,40 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
+    - name: Display vulnerability results
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        if [ ! -f "${{ inputs.output-file }}" ]; then
+          echo "No scan results file found"
+          exit 0
+        fi
+
+        COUNT=$(jq '.runs[0].results | length' "${{ inputs.output-file }}")
+
+        if [ "$COUNT" -eq 0 ]; then
+          echo "No vulnerabilities found in ${{ inputs.image-ref }}"
+          exit 0
+        fi
+
+        echo "Found $COUNT vulnerabilit$([ "$COUNT" -eq 1 ] && echo 'y' || echo 'ies') in ${{ inputs.image-ref }}:"
+        echo ""
+
+        # Build a severity lookup from rule definitions, then print each result
+        jq -r '
+          (.runs[0].tool.driver.rules
+            | map({key: .id, value: (.properties.severity // "unknown")})
+            | from_entries
+          ) as $sev |
+          ["CVE ID", "SEVERITY", "DESCRIPTION"],
+          (.runs[0].results[] | [
+            .ruleId,
+            ($sev[.ruleId] // "unknown"),
+            (.message.text | split("\n")[0])
+          ]) |
+          @tsv
+        ' "${{ inputs.output-file }}" | column -t -s $'\t'
+
     - name: Check scan status
       if: steps.scan.outcome == 'failure' && inputs.fail-build == 'true'
       shell: bash
