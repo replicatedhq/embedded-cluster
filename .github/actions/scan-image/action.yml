@@ -1,41 +1,41 @@
 name: Scan Container Image Grype SARIF
-description: 'Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning'
+description: "Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning"
 inputs:
   image-ref:
-    description: 'The image to scan'
+    description: "The image to scan"
     required: true
   upload-sarif:
-    description: 'Whether to upload the scan results as a SARIF file'
+    description: "Whether to upload the scan results as a SARIF file"
     required: false
-    default: 'true'
+    default: "true"
   severity-cutoff:
-    description: 'Minimum severity to report (critical, high, medium, low, negligible)'
+    description: "Minimum severity to report (critical, high, medium, low, negligible)"
     required: false
-    default: 'medium'
+    default: "medium"
   fail-build:
-    description: 'Fail the workflow if vulnerabilities are found'
+    description: "Fail the workflow if vulnerabilities are found"
     required: false
-    default: 'true'
+    default: "true"
   output-file:
-    description: 'Output file name for SARIF results'
+    description: "Output file name for SARIF results"
     required: false
-    default: 'results.sarif'
+    default: "results.sarif"
   timeout-minutes:
-    description: 'Maximum time in minutes to wait for the scan to complete'
+    description: "Maximum time in minutes to wait for the scan to complete"
     required: false
-    default: '30'
+    default: "30"
   retention-days:
-    description: 'Number of days to retain the scan results artifact'
+    description: "Number of days to retain the scan results artifact"
     required: false
-    default: '90'
+    default: "90"
   category-prefix:
-    description: 'Prefix to use for the SARIF category name'
+    description: "Prefix to use for the SARIF category name"
     required: false
-    default: 'image-scan-'
+    default: "image-scan-"
   only-fixed:
-    description: 'Only report vulnerabilities that have a fix available'
+    description: "Only report vulnerabilities that have a fix available"
     required: false
-    default: 'true'
+    default: "true"
 
 runs:
   using: composite
@@ -46,7 +46,7 @@ runs:
       run: |
         image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
         echo "image_id=$image_id" >> $GITHUB_OUTPUT
-    
+
     - name: Extract image details
       id: image_details
       shell: bash
@@ -103,28 +103,29 @@ runs:
 
         COUNT=$(jq '.runs[0].results | length' "${{ inputs.output-file }}")
 
-        if [ "$COUNT" -eq 0 ]; then
-          echo "No vulnerabilities found in ${{ inputs.image-ref }}"
-          exit 0
-        fi
+        {
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No vulnerabilities found in ${{ inputs.image-ref }}"
+          else
+            echo "Found $COUNT vulnerabilit$([ "$COUNT" -eq 1 ] && echo 'y' || echo 'ies') in ${{ inputs.image-ref }}:"
+            echo ""
 
-        echo "Found $COUNT vulnerabilit$([ "$COUNT" -eq 1 ] && echo 'y' || echo 'ies') in ${{ inputs.image-ref }}:"
-        echo ""
-
-        # Build a severity lookup from rule definitions, then print each result
-        jq -r '
-          (.runs[0].tool.driver.rules
-            | map({key: .id, value: (.properties.severity // "unknown")})
-            | from_entries
-          ) as $sev |
-          ["CVE ID", "SEVERITY", "DESCRIPTION"],
-          (.runs[0].results[] | [
-            .ruleId,
-            ($sev[.ruleId] // "unknown"),
-            (.message.text | split("\n")[0])
-          ]) |
-          @tsv
-        ' "${{ inputs.output-file }}" | column -t -s $'\t'
+            # Build a severity lookup from rule definitions, then print each result
+            jq -r '
+              (.runs[0].tool.driver.rules
+                | map({key: .id, value: (.properties.severity // "unknown")})
+                | from_entries
+              ) as $sev |
+              ["CVE ID", "SEVERITY", "DESCRIPTION"],
+              (.runs[0].results[] | [
+                .ruleId,
+                ($sev[.ruleId] // "unknown"),
+                (.message.text | split("\n")[0])
+              ]) |
+              @tsv
+            ' "${{ inputs.output-file }}" | column -t -s $'\t'
+          fi
+        } | tee scan-output.txt
 
     - name: Check scan status
       if: steps.scan.outcome == 'failure' && inputs.fail-build == 'true'
@@ -200,8 +201,7 @@ runs:
       uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: ${{ inputs.output-file }}
-        category: '${{ inputs.category-prefix }}${{ steps.image_details.outputs.safe_image_name }}'
-
+        category: "${{ inputs.category-prefix }}${{ steps.image_details.outputs.safe_image_name }}"
 
     - name: Archive scan results
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}

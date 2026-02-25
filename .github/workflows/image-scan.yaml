@@ -147,3 +147,55 @@ jobs:
           retention-days: '90'
           category-prefix: 'image-scan-'
           only-fixed: 'true'
+
+      - name: Upload scan output for report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: scan-output-${{ strategy.job-index }}
+          path: scan-output.txt
+          retention-days: 1
+
+  report:
+    runs-on: ubuntu-latest
+    needs: [scan]
+    if: always()
+    steps:
+      - name: Download all scan outputs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: scan-output-*
+          path: scan-outputs
+          merge-multiple: false
+
+      - name: Build and upload combined report
+        run: |
+          REPORT=scan-report.txt
+          TOTAL_VULNS=0
+
+          echo "Image Scan Report" > "$REPORT"
+          echo "=================" >> "$REPORT"
+          echo "" >> "$REPORT"
+
+          for f in scan-outputs/scan-output-*/scan-output.txt; do
+            [ -f "$f" ] || continue
+            cat "$f" >> "$REPORT"
+            echo "" >> "$REPORT"
+            echo "-----------------------------------------" >> "$REPORT"
+            echo "" >> "$REPORT"
+            # Count lines that look like CVE IDs to tally total
+            VULNS=$(grep -c '^CVE-' "$f" || true)
+            TOTAL_VULNS=$((TOTAL_VULNS + VULNS))
+          done
+
+          echo "Total vulnerabilities found: $TOTAL_VULNS" >> "$REPORT"
+
+          cat "$REPORT"
+
+      - name: Upload combined scan report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: image-scan-report
+          path: scan-report.txt
+          retention-days: 90
