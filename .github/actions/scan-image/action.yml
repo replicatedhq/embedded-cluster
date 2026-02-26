@@ -110,13 +110,19 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Print Grype image scan results to console
+    - name: Add image label to scan output file
       if: ${{ !cancelled() }}
       shell: bash
       run: |
-        { echo "Image: ${{ inputs.image-ref }}"; echo ""; cat scan-output.txt; } > scan-output-labeled.txt
+        {
+          echo "========================================"
+          echo "Image: ${{ inputs.image-ref }}"
+          echo "========================================"
+          echo ""
+          cat scan-output.txt
+          echo ""
+        } > scan-output-labeled.txt
         mv scan-output-labeled.txt scan-output.txt
-        cat scan-output.txt
 
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
