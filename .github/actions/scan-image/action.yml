@@ -101,8 +101,14 @@ runs:
         fail-build: "false"
         severity-cutoff: "${{ inputs.severity-cutoff }}"
         output-format: table
+        output-file: scan-output.txt
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
+
+    - name: Print console scan results
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: cat scan-output.txt 2>/dev/null || true
 
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
