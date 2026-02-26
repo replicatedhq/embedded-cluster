@@ -37,6 +37,11 @@ inputs:
     required: false
     default: "true"
 
+outputs:
+  safe-name:
+    description: "URL-safe name derived from the image ref, suitable for artifact names"
+    value: ${{ steps.image_details.outputs.safe_name }}
+
 runs:
   using: composite
   steps:
@@ -92,7 +97,7 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Scan image with Grype (console output)
+    - name: Scan image with Grype (Table output)
       if: ${{ !cancelled() }}
       uses: anchore/scan-action@v7
       continue-on-error: true
@@ -105,7 +110,7 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Print console scan results
+    - name: Print Grype image scan results to console
       if: ${{ !cancelled() }}
       shell: bash
       run: cat scan-output.txt 2>/dev/null || true
