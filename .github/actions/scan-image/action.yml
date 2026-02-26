@@ -79,7 +79,7 @@ runs:
             echo "safe_image_name=${SAFE_IMAGE_NAME}"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Scan image with Grype (output sarif)
+    - name: Scan image with Grype (SARIF output)
       uses: anchore/scan-action@v7
       id: scan
       continue-on-error: ${{ inputs.fail-build != 'true' }}
@@ -92,7 +92,7 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Scan image with Grype (print results)
+    - name: Scan image with Grype (console output)
       if: ${{ !cancelled() }}
       uses: anchore/scan-action@v7
       continue-on-error: true
