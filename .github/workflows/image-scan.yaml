@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   build-deps:
+    name: Build dependencies
     outputs:
       local-artifact-mirror-image: ${{ steps.local-artifact-mirror.outputs.image }}
       operator-image: ${{ steps.operator.outputs.image }}
@@ -71,6 +72,7 @@ jobs:
           path: output/bin/buildtools
 
   output-matrix:
+    name: Build output matrix
     runs-on: ubuntu-latest
     needs:
       - build-deps
@@ -137,6 +139,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - uses: ./.github/actions/scan-image
+        id: scan-image
         with:
           image-ref: "${{ matrix.image }}"
           upload-sarif: ${{ github.ref == 'refs/heads/main' }}
@@ -146,3 +149,50 @@ jobs:
           retention-days: "90"
           category-prefix: "image-scan-"
           only-fixed: "true"
+
+      - name: Upload scan output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: scan-output-${{ steps.scan-image.outputs.safe-name }}
+          path: scan-output.txt
+          retention-days: 1
+
+  collect-scan-results:
+    name: Collect and print image scan results
+    runs-on: ubuntu-latest
+    needs: [scan]
+    # always() prevents GitHub's implicit success() check from skipping this job when
+    # scan fails due to vulnerabilities. The needs.scan.result check still ensures we
+    # skip if scan was cancelled or never ran (e.g. output-matrix failed).
+    if: always() && (needs.scan.result == 'success' || needs.scan.result == 'failure')
+    steps:
+      - name: Download all scan outputs
+        uses: actions/download-artifact@v7
+        with:
+          pattern: scan-output-*
+          path: scan-outputs
+          merge-multiple: false
+
+      - name: Combine into scan-results.txt
+        run: |
+          for f in scan-outputs/scan-output-*/scan-output.txt; do
+            [ -f "$f" ] || continue
+            cat "$f"
+            echo ""
+          done > scan-results.txt
+
+      - name: Print image scan results to console
+        run: |
+          cat scan-results.txt
+          echo '## Image Scan Results' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat scan-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload scan-results.txt
+        uses: actions/upload-artifact@v6
+        with:
+          name: scan-results
+          path: scan-results.txt
+          retention-days: 90

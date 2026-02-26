@@ -37,6 +37,11 @@ inputs:
     required: false
     default: "true"
 
+outputs:
+  safe-name:
+    description: "URL-safe name derived from the image ref, suitable for artifact names"
+    value: ${{ steps.image_details.outputs.safe_name }}
+
 runs:
   using: composite
   steps:
@@ -92,7 +97,7 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Scan image with Grype (console output)
+    - name: Scan image with Grype (Table output)
       if: ${{ !cancelled() }}
       uses: anchore/scan-action@v7
       continue-on-error: true
@@ -101,8 +106,23 @@ runs:
         fail-build: "false"
         severity-cutoff: "${{ inputs.severity-cutoff }}"
         output-format: table
+        output-file: scan-output.txt
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
+
+    - name: Add image label to scan output file
+      if: ${{ !cancelled() }}
+      shell: bash
+      run: |
+        {
+          echo "========================================"
+          echo "Image: ${{ inputs.image-ref }}"
+          echo "========================================"
+          echo ""
+          cat scan-output.txt
+          echo ""
+        } > scan-output-labeled.txt
+        mv scan-output-labeled.txt scan-output.txt
 
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
