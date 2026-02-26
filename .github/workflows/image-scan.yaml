@@ -162,10 +162,10 @@ jobs:
     name: Collect and print image scan results
     runs-on: ubuntu-latest
     needs: [scan]
-    # Run if scan executed (success = no vulns, failure = vulns found), but skip if
-    # scan was cancelled or never ran (e.g. output-matrix failed), since there would
-    # be no scan-output-* artifacts to collect.
-    if: needs.scan.result == 'success' || needs.scan.result == 'failure'
+    # always() prevents GitHub's implicit success() check from skipping this job when
+    # scan fails due to vulnerabilities. The needs.scan.result check still ensures we
+    # skip if scan was cancelled or never ran (e.g. output-matrix failed).
+    if: always() && (needs.scan.result == 'success' || needs.scan.result == 'failure')
     steps:
       - name: Download all scan outputs
         uses: actions/download-artifact@v7
