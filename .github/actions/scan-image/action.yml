@@ -113,7 +113,10 @@ runs:
     - name: Print Grype image scan results to console
       if: ${{ !cancelled() }}
       shell: bash
-      run: cat scan-output.txt 2>/dev/null || true
+      run: |
+        { echo "Image: ${{ inputs.image-ref }}"; echo ""; cat scan-output.txt; } > scan-output-labeled.txt
+        mv scan-output-labeled.txt scan-output.txt
+        cat scan-output.txt
 
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
