@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   build-deps:
+    name: Build dependencies
     outputs:
       local-artifact-mirror-image: ${{ steps.local-artifact-mirror.outputs.image }}
       operator-image: ${{ steps.operator.outputs.image }}
@@ -71,6 +72,7 @@ jobs:
           path: output/bin/buildtools
 
   output-matrix:
+    name: Build output matrix
     runs-on: ubuntu-latest
     needs:
       - build-deps
@@ -157,17 +159,10 @@ jobs:
           retention-days: 1
 
   collect-scan-results:
+    name: Collect image scan results and print to console
     runs-on: ubuntu-latest
     needs: [scan]
-    if: always()
     steps:
-      - name: Download all scan outputs
-        uses: actions/download-artifact@v7
-        with:
-          pattern: scan-output-*
-          path: scan-outputs
-          merge-multiple: false
-
       - name: Combine into scan-results.txt
         run: |
           for f in scan-outputs/scan-output-*/scan-output.txt; do
@@ -175,7 +170,14 @@ jobs:
             cat "$f"
             echo ""
           done > scan-results.txt
+
+      - name: Print image scan results to console
+        run: |
           cat scan-results.txt
+          echo '## Image Scan Results' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat scan-results.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload scan-results.txt
         uses: actions/upload-artifact@v6
