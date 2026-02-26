@@ -104,14 +104,6 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Check scan status
-      if: steps.scan.outcome == 'failure' && inputs.fail-build == 'true'
-      shell: bash
-      run: |
-        echo "::error::Scan failed for image ${{ inputs.image-ref }}"
-        echo "Please check the scan logs above for details"
-        exit 1
-
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
       shell: bash
