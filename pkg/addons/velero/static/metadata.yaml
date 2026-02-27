@@ -11,8 +11,8 @@ images:
     kubectl:
         repo: proxy.replicated.com/library/kubectl
         tag:
-            amd64: 1.35.1-amd64@sha256:1360af5d0323b66663e8725fa708f03ea906146f40d0f4ca94a2900877d4d7a7
-            arm64: 1.35.1-arm64@sha256:72508b98fcdf221560c83a376ca0f7bd63db5117a392a681436c1c6dfe19a2c5
+            amd64: 1.35.2-amd64@sha256:fdaeaa7806ee1f6a8a6d424340f9a41fde51e5bf5331bfc5ea5e4a5aedaa77a0
+            arm64: 1.35.2-arm64@sha256:6d3abf19e2d2d0bc827decfbd530aef63f21435768b2495859ce8a4bbe7f77f7
     velero:
         repo: proxy.replicated.com/library/velero
         tag:
