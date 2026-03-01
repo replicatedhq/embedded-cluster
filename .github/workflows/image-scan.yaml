@@ -66,7 +66,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -118,7 +118,7 @@ jobs:
           ./output/bin/embedded-cluster version list-images > images.txt
 
       - name: Upload images artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: images
           path: images.txt
@@ -152,7 +152,7 @@ jobs:
 
       - name: Upload scan output
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: scan-output-${{ steps.scan-image.outputs.safe-name }}
           path: scan-output.txt
@@ -191,7 +191,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload scan-results.txt
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: scan-results
           path: scan-results.txt
