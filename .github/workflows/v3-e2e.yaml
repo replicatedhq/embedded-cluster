@@ -107,7 +107,7 @@ jobs:
         uses: oras-project/setup-oras@v1
 
       - name: Setup crane
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Setup dagger
         run: |
