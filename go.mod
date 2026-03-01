@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20251211211505-425737d0d58c
-	github.com/coreos/go-systemd/v22 v22.6.0
+	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
 	github.com/docker/go-units v0.5.0
