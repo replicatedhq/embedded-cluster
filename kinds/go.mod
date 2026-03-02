@@ -54,3 +54,10 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
+
+replace (
+	// k8s staging repos required at v0.0.0 by k8s.io/kubernetes but replace directives don't propagate from k0s
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.34.4
+	k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.34.4
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.34.4
+)
