@@ -46,7 +46,7 @@ function main() {
     update_k0s_minor_version "$minor_version"
 
     # pin to the current major.minor version
-    sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION \?= .*$/K0S_MINOR_VERSION ?= $minor_version/" versions.mk
+    sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION ?= .*$/K0S_MINOR_VERSION ?= $minor_version/" versions.mk
 
     # only update images and code if there has been a change to the versions.mk file
     if ! git diff --exit-code --name-only versions.mk > /dev/null; then

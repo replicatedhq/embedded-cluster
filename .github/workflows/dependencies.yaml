@@ -25,6 +25,7 @@ jobs:
     - name: K0s
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        INPUT_K0S_MINOR_VERSION: ${{ inputs.k0s_minor_version }}
       run: |
         K0S_MINOR_VERSION=$INPUT_K0S_MINOR_VERSION
         if [ -z "$K0S_MINOR_VERSION" ]; then
