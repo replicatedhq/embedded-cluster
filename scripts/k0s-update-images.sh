@@ -47,8 +47,11 @@ function main() {
     # reset go.mod and go.sum
     git checkout -- **/go.mod **/go.sum
 
-    # substitute images for the current major.minor version
+    # substitute images for the current major.minor version — this one needs
+    # staging replace updates because the new k0s may reference k8s packages
+    # that don't exist in the previously checked-in staging package versions.
     export K0S_MINOR_VERSION="$minor_version"
+    make update-k8s-replaces
     update_go_dependencies
     update_k0s_metadata
 
