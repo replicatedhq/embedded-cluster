@@ -44,7 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -154,7 +154,7 @@ type InstallationReconciler struct {
 	MetadataClient metadata.Interface
 	Discovery      discovery.DiscoveryInterface
 	Scheme         *runtime.Scheme
-	Recorder       record.EventRecorder
+	Recorder       events.EventRecorder
 	RuntimeConfig  runtimeconfig.RuntimeConfig
 }
 
@@ -221,11 +221,11 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 			return nil, fmt.Errorf("failed to update node status: %w", err)
 		}
 		if isnew {
-			r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeAdded", "Node %s has been added", node.Name)
+			r.Recorder.Eventf(in, nil, corev1.EventTypeNormal, "NodeAdded", "NodeAdded", "Node %s has been added", node.Name)
 			batch.NodesAdded = append(batch.NodesAdded, event)
 			continue
 		}
-		r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeUpdated", "Node %s has been updated", node.Name)
+		r.Recorder.Eventf(in, nil, corev1.EventTypeNormal, "NodeUpdated", "NodeUpdated", "Node %s has been updated", node.Name)
 		batch.NodesUpdated = append(batch.NodesUpdated, event)
 	}
 	trimmed := []ecv1beta1.NodeStatus{}
@@ -237,7 +237,7 @@ func (r *InstallationReconciler) ReconcileNodeStatuses(ctx context.Context, in *
 		rmevent := metrics.NodeRemovedEvent{
 			ClusterID: in.Spec.ClusterID, NodeName: nodeStatus.Name,
 		}
-		r.Recorder.Eventf(in, corev1.EventTypeNormal, "NodeRemoved", "Node %s has been removed", nodeStatus.Name)
+		r.Recorder.Eventf(in, nil, corev1.EventTypeNormal, "NodeRemoved", "NodeRemoved", "Node %s has been removed", nodeStatus.Name)
 		batch.NodesRemoved = append(batch.NodesRemoved, rmevent)
 	}
 	sort.SliceStable(trimmed, func(i, j int) bool { return trimmed[i].Name < trimmed[j].Name })

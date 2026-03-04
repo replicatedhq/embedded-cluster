@@ -72,7 +72,7 @@ func RootCmd() *cobra.Command {
 				MetadataClient: metadataClient,
 				Scheme:         mgr.GetScheme(),
 				Discovery:      discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
-				Recorder:       mgr.GetEventRecorderFor("installation-controller"),
+				Recorder:       mgr.GetEventRecorder("installation-controller"),
 				RuntimeConfig:  runtimeconfig.New(nil),
 			}).SetupWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create controller", "controller", "Installation")
