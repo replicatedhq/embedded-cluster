@@ -70,6 +70,10 @@ func (s *SeaweedFS) Upgrade(
 		logrus.Debug("master.raftHashicorp=false and master.raftBootstrap=false set")
 	}
 
+	if err := s.ensurePostInstallHooksDeleted(ctx, kcli); err != nil {
+		return fmt.Errorf("ensure hooks deleted: %w", err)
+	}
+
 	_, err = hcli.Upgrade(ctx, helm.UpgradeOptions{
 		ReleaseName:  s.ReleaseName(),
 		ChartPath:    s.ChartLocation(domains),
