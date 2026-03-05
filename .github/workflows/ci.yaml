@@ -148,6 +148,9 @@ jobs:
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if int-tests-kind-ha-registry job was not successful
+        if: needs.int-tests-kind-ha-registry.result != 'success' && needs.int-tests-kind-ha-registry.result != 'skipped'
+        run: exit 1
       - name: fail if int-tests-kind-ha-registry-disable-hashi-raft job was not successful
         if: needs.int-tests-kind-ha-registry-disable-hashi-raft.result != 'success' && needs.int-tests-kind-ha-registry-disable-hashi-raft.result != 'skipped'
         run: exit 1
@@ -207,7 +210,7 @@ jobs:
     needs:
       - output-vars
       - should-run-int-tests-kind
-    if: false # temporarily disabled
+    if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v6
