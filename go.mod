@@ -47,7 +47,7 @@ require (
 	github.com/swaggo/swag/v2 v2.0.0-rc5
 	github.com/tiendc/go-deepcopy v1.7.2
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/vmware-tanzu/velero v1.17.2
+	github.com/vmware-tanzu/velero v1.18.0
 	go.podman.io/image/v5 v5.39.1
 	go.uber.org/multierr v1.11.0
 	go.yaml.in/yaml/v3 v3.0.4
