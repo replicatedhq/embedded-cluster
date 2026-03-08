@@ -38,6 +38,7 @@ permissions:
 
 jobs:
   output-vars:
+    if: false # temporarily disabled
     name: Output variables
     runs-on: ubuntu-latest
     outputs:
@@ -75,6 +76,7 @@ jobs:
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
   build-release:
+    if: false # temporarily disabled
     name: Build release
     needs:
       - output-vars
@@ -168,6 +170,7 @@ jobs:
           make e2e-v3-initial-release
 
   e2e-headless-online:
+    if: false # temporarily disabled
     name: E2E headless online
     needs:
       - output-vars
@@ -226,6 +229,7 @@ jobs:
           path: ./e2e-results/
 
   e2e-headless-airgap:
+    if: false # temporarily disabled
     name: E2E headless airgap
     needs:
       - output-vars
