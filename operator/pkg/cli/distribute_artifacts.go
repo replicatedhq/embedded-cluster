@@ -64,6 +64,7 @@ func DistributeArtifactsCmd() *cobra.Command {
 	if err != nil {
 		panic(err)
 	}
+
 	cmd.Flags().StringVar(&inFile, "installation", "", "Path to installation file (use '-' for stdin)")
 	cmd.Flags().StringVar(&licenseID, "license-id", "", "License ID")
 	cmd.Flags().StringVar(&appSlug, "app-slug", "", "App slug")
