@@ -488,6 +488,81 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// TestSingleNodeAirgapUpgradeFromPreviousStable tests upgrading from the previous stable EC version
+// to the current version in a single-node airgap environment. The upgrade updates the EC installer
+// to the current version without an additional k0s version bump (noop upgrade path).
+func TestSingleNodeAirgapUpgradeFromPreviousStable(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+		InstanceType: "r1.medium",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
+	upgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		},
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+	)
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap: true,
+		version:  initialVersion,
+	})
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", upgradeVersion); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after EC upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
 func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	t.Parallel()
 
