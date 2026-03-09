@@ -499,7 +499,6 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
-          - TestSingleNodeAirgapAppOnlyUpgrade
           - TestCollectSupportBundle
           - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
@@ -566,6 +565,7 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          - TestSingleNodeAirgapAppOnlyUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
