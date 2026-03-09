@@ -896,6 +896,7 @@ jobs:
           - TestSingleNodeResumeDisasterRecovery
           - TestMultiNodeHADisasterRecovery
           - TestSingleNodeInstallationNoopUpgrade
+          - TestSingleNodeAirgapAppOnlyUpgrade
           - TestCollectSupportBundle
           - TestHostCollectSupportBundleInCluster
           - TestInstallWithConfigValues
