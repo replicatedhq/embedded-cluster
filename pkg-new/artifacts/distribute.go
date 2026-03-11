@@ -168,7 +168,7 @@ func getAutopilotAirgapArtifactsPlan(ctx context.Context, cli client.Client, rc 
 
 	plan := &v1beta2.Plan{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: v1beta2.SchemeGroupVersion.String(),
+			APIVersion: v1beta2.GroupVersion.String(),
 			Kind:       "Plan",
 		},
 		ObjectMeta: metav1.ObjectMeta{
