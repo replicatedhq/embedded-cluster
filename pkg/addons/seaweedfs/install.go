@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -34,12 +35,12 @@ func (s *SeaweedFS) Install(
 		return errors.Wrap(err, "generate helm values")
 	}
 
-	if !s.DryRun {
-		err := s.ensurePostInstallHooksDeleted(ctx, kcli)
-		if err != nil {
-			return errors.Wrap(err, "ensure hooks deleted")
-		}
-	}
+	// if !s.DryRun {
+	// 	err := s.ensurePostInstallHooksDeleted(ctx, kcli)
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "ensure hooks deleted")
+	// 	}
+	// }
 
 	opts := helm.InstallOptions{
 		ReleaseName:  s.ReleaseName(),
@@ -235,9 +236,26 @@ func (s *SeaweedFS) ensurePostInstallHooksDeleted(ctx context.Context, kcli clie
 			Name:      fmt.Sprintf("%s-bucket-hook", s.ReleaseName()),
 		},
 	}
-	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationForeground))
 	if client.IgnoreNotFound(err) != nil {
 		return errors.Wrapf(err, "delete %s-bucket-hook job", s.ReleaseName())
+	}
+
+	// Wait for the Job to be fully deleted before returning, otherwise Helm may
+	// try to recreate it before the API server has removed it.
+	key := client.ObjectKeyFromObject(job)
+	for {
+		if err := kcli.Get(ctx, key, job); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				break
+			}
+			return errors.Wrapf(err, "wait for %s-bucket-hook job deletion", s.ReleaseName())
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
 	}
 
 	return nil
