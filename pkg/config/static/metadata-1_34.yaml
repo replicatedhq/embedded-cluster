@@ -19,13 +19,13 @@ images:
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.29.7-amd64@sha256:7ee4202a6b6eeda13fa1261c977c61668b75915667b05cd53ea41084a66f6503
-            arm64: v3.29.7-arm64@sha256:5bb5a84a5d756c5f0b71eeef188c89981e3f34a2302c14ddff037e85f5eefd5d
+            amd64: v3.29.7-amd64@sha256:3accd7f0faae693c220dbb804eee3ea85bd6def372fc8a2f674a5a6eef678e37
+            arm64: v3.29.7-arm64@sha256:859b7e2a36c7f6b74aa9e3ada4db60e220dce2dd4f53e53df1b79d74f98e9c25
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.2-amd64@sha256:715ead2f774a572ee0314dd8ec573a422f232df4f06e0652f7943066b75eddf4
-            arm64: 1.14.2-arm64@sha256:18beb1f805de0eab34832544e4aebf0efba06f2d457483b59901a92bb87f5160
+            amd64: 1.14.1-amd64@sha256:75f1817830ae5065531acf42a49e77a4949bef9541260f7296024a041ff267cb
+            arm64: 1.14.1-arm64@sha256:d40f695e9932af731b2022c32a270ca7a9fff66fd79d7b51ea8eb31041e025cf
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:

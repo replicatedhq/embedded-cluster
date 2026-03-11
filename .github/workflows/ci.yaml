@@ -913,7 +913,7 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Login to DockerHub to avoid rate limiting
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
