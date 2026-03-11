@@ -1,6 +1,6 @@
 module github.com/replicatedhq/embedded-cluster/kinds
 
-go 1.25.7
+go 1.26.1
 
 require (
 	github.com/google/uuid v1.6.0
