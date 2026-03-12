@@ -568,7 +568,7 @@ jobs:
           k0s_majmin_version="1.${previous_k0s_minor_version}"
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
            --exclude-drafts --exclude-pre-releases --json name --order desc \
-           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | .[${previous_release_gap}] | .name")"
+           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | if length == 0 then error(\"no releases found for k8s-${k0s_majmin_version}\") elif length <= ${previous_release_gap} then last.name else .[${previous_release_gap}].name end")"
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
