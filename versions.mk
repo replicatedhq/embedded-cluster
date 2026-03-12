@@ -3,12 +3,13 @@
 # The versions are kept up to date by the .github/workflows/dependencies.yaml github actions workflow
 
 # K0S Kubernetes Distribution Versions
-K0S_MINOR_VERSION ?= 34
+K0S_MINOR_VERSION ?= 35
 
 # K0S Versions
+K0S_VERSION_1_35 = v1.35.1+k0s.1
 K0S_VERSION_1_34 = v1.34.4+k0s.0
 K0S_VERSION_1_33 = v1.33.8+k0s.1
-K0S_VERSION_1_32 = v1.32.12+k0s.1
+K0S_VERSION_1_32 = v1.32.13+k0s.0
 K0S_VERSION_1_31 = v1.31.14+k0s.0
 K0S_VERSION_1_30 = v1.30.14+k0s.0
 K0S_VERSION_1_29 = v1.29.15+k0s.0
@@ -18,10 +19,10 @@ K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 K0S_GO_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 
 # Troubleshoot Version
-TROUBLESHOOT_VERSION = v0.123.18
+TROUBLESHOOT_VERSION = v0.125.0
 
 # Helm Version
-HELM_VERSION = v3.20.0
+HELM_VERSION = v3.20.1
 
 # FIO Version (for performance testing)
 FIO_VERSION = 3.41
