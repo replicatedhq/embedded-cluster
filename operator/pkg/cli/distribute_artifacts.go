@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/artifacts"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -14,7 +13,7 @@ import (
 // DistributeArtifactsCmd returns a cobra command for distributing artifacts to all nodes.
 // It is called by KOTS during app-only upgrades to ensure artifacts are available for joining nodes.
 func DistributeArtifactsCmd() *cobra.Command {
-	var inFile, licenseID, appSlug, channelID, appVersion string
+	var inFile, licenseID, appSlug, channelID, appVersion, localArtifactMirrorImage string
 
 	cmd := &cobra.Command{
 		Use:          "distribute-artifacts",
@@ -35,17 +34,6 @@ func DistributeArtifactsCmd() *cobra.Command {
 			}
 
 			rc := runtimeconfig.New(in.Spec.RuntimeConfig)
-
-			// Get metadata for local artifact mirror image
-			meta, err := release.MetadataFor(cmd.Context(), in, kcli)
-			if err != nil {
-				return fmt.Errorf("get release metadata: %w", err)
-			}
-
-			localArtifactMirrorImage, ok := meta.Artifacts["local-artifact-mirror-image"]
-			if !ok || localArtifactMirrorImage == "" {
-				return fmt.Errorf("local artifact mirror image not found in release metadata")
-			}
 
 			// Use config version if appVersion not provided
 			if appVersion == "" && in.Spec.Config != nil {
@@ -68,6 +56,13 @@ func DistributeArtifactsCmd() *cobra.Command {
 			logger.Info("Artifacts distributed successfully")
 			return nil
 		},
+	}
+
+	// TODO(upgrade): local-artifact-mirror-image should be included in the installation object
+	cmd.Flags().StringVar(&localArtifactMirrorImage, "local-artifact-mirror-image", "", "Local artifact mirror image")
+	err := cmd.MarkFlagRequired("local-artifact-mirror-image")
+	if err != nil {
+		panic(err)
 	}
 
 	cmd.Flags().StringVar(&inFile, "installation", "", "Path to installation file (use '-' for stdin)")
