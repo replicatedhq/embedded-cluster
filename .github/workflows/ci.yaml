@@ -566,9 +566,20 @@ jobs:
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
           previous_k0s_minor_version=$(($k0s_minor_version - 1))
           k0s_majmin_version="1.${previous_k0s_minor_version}"
-          EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
+          releases="$(gh release list --repo replicatedhq/embedded-cluster \
            --exclude-drafts --exclude-pre-releases --json name --order desc \
-           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | if length == 0 then error(\"no releases found for k8s-${k0s_majmin_version}\") elif length <= ${previous_release_gap} then last.name else .[${previous_release_gap}].name end")"
+           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))]")"
+          num_releases="$(echo "$releases" | jq 'length')"
+          if [ "$num_releases" -eq 0 ]; then
+            echo "::error::No releases found for k8s-${k0s_majmin_version}"
+            exit 1
+          elif [ "$num_releases" -le "$previous_release_gap" ]; then
+            actual_gap=$((num_releases - 1))
+            echo "::warning::Only ${num_releases} release(s) found for k8s-${k0s_majmin_version}, using gap of ${actual_gap} instead of ${previous_release_gap}"
+            EC_VERSION="$(echo "$releases" | jq -r 'last.name')"
+          else
+            EC_VERSION="$(echo "$releases" | jq -r ".[${previous_release_gap}].name")"
+          fi
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
