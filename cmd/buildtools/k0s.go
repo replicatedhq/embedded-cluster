@@ -151,21 +151,10 @@ func getK0sVersion() (*semver.Version, error) {
 }
 
 func getCalicoTag(opts addonComponentOptions) (string, error) {
-	calicoVersion := getCalicoVersion(opts)
-	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
+	constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
 	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
 	if err != nil {
 		return "", fmt.Errorf("failed to get calico release: %w", err)
 	}
 	return tag, nil
-}
-
-func getCalicoVersion(opts addonComponentOptions) *semver.Version {
-	// TODO: remove this check once we drop support for 1.31 (needed for building previous k0s version 1.30 in the k0s-1-31 branch)
-	// k0s versions prior to 1.31 use calico versions < 3.28,
-	// but securebuild doesn't have versions prior to 3.28
-	if opts.k0sVersion.LessThan(semver.MustParse("1.31")) {
-		return semver.MustParse("3.28.0")
-	}
-	return opts.upstreamVersion
 }
