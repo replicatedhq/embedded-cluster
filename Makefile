@@ -12,7 +12,7 @@ KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/stat
 
 ifeq ($(findstring ttl.sh,$(KOTS_BINARY_URL_OVERRIDE)),ttl.sh)
 KOTS_VERSION = kots-dev-$(shell oras manifest fetch $(KOTS_BINARY_URL_OVERRIDE) | jq '.layers[0].digest' | cut -c9-15)
-else ifdef KOTS_BINARY_FILE_OVERRIDE 
+else ifdef KOTS_BINARY_FILE_OVERRIDE
 KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 

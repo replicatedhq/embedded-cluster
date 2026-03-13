@@ -63,6 +63,7 @@ func UpgradeCmd() *cobra.Command {
 				return fmt.Errorf("get previous installation: %w", err)
 			}
 
+			logger.Info("Creating upgrade job (will distribute artifacts and create copy-artifacts jobs)")
 			err = upgrade.CreateUpgradeJob(
 				cmd.Context(), cli, rc, installation,
 				localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion,

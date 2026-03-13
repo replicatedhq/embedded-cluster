@@ -60,6 +60,7 @@ func CreateUpgradeJob(
 		return fmt.Errorf("copy version metadata to cluster: %w", err)
 	}
 
+	log.Info("Distributing artifacts to nodes (creates copy-artifacts jobs)")
 	err = pkgartifacts.DistributeArtifacts(ctx, cli, rc, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 	if err != nil {
 		return fmt.Errorf("distribute artifacts: %w", err)
