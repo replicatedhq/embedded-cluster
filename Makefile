@@ -251,7 +251,9 @@ crds:
 	$(MAKE) -C operator manifests
 
 .PHONY: build-deps
-build-deps: update-k8s-replaces go.mod crds
+build-deps: update-k8s-replaces
+	$(MAKE) go.mod
+	$(MAKE) crds
 
 .PHONY: buildtools
 buildtools:
