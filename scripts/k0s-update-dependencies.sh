@@ -29,6 +29,10 @@ function update_go_dependencies() {
     make go.mod
 }
 
+function update_go_dependencies_full() {
+    make update-k8s-replaces go.mod
+}
+
 function generate_crd_manifests() {
     make -C kinds generate
     make -C operator manifests
@@ -55,7 +59,7 @@ function main() {
 
         # prepare the code for the current major.minor version
         export K0S_MINOR_VERSION="$minor_version"
-        update_go_dependencies
+        update_go_dependencies_full
         generate_crd_manifests
     fi
 
