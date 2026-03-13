@@ -3,12 +3,15 @@ package preflights
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 )
 
@@ -67,6 +70,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		IsV3:                         opts.IsV3,
 		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
 		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
+		CgroupV2Required:             k0sRequiresCgroupV2(),
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
@@ -91,4 +95,20 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 	}
 
 	return hpf, nil
+}
+
+// k0sRequiresCgroupV2 returns true if the bundled k0s version requires cgroup v2.
+// k0s 1.35+ no longer supports cgroup v1.
+func k0sRequiresCgroupV2() bool {
+	// K0sVersion format: "v1.35.1+k0s.1" or "0.0.0" (default)
+	v := strings.TrimPrefix(versions.K0sVersion, "v")
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) < 2 {
+		return false
+	}
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return false
+	}
+	return minor >= 35
 }

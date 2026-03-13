@@ -212,6 +212,33 @@ upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),1) \
 		./scripts/build-and-release.sh
 
+# Go's MVS doesn't propagate replace directives from transitive deps, so we
+# must pin k8s staging packages ourselves. Staging packages have breaking API
+# changes across k8s minors, so they must all resolve to the same minor.
+#
+# Skipped when the target minor < checked-in minor — downgrading staging
+# packages causes cascading incompatibilities. Older k0s versions compile
+# fine against newer k8s APIs since they only consume them.
+.PHONY: update-k8s-replaces
+update-k8s-replaces:
+	TARGET_MINOR=$$(echo "$(K0S_VERSION)" | sed 's/v1\.\([0-9]*\).*/\1/') && \
+	CURRENT_MINOR=$$(awk '/k8s\.io\/api =>/ {split($$NF,a,"."); print a[2]; exit}' go.mod) && \
+	if [ "$$TARGET_MINOR" -lt "$$CURRENT_MINOR" ]; then \
+		echo "Skipping k8s replace update for k8s 1.$$TARGET_MINOR (checked-in replaces are at 1.$$CURRENT_MINOR)"; \
+	else \
+		K8S_VER=$$(echo "$(K0S_VERSION)" | sed 's/+k0s\..*//') && \
+		K8S_PKG_VER=$$(echo "$(K0S_VERSION)" | sed 's/v1\.\([0-9]*\.[0-9]*\).*/v0.\1/') && \
+		echo "Updating k8s replace directives to $$K8S_PKG_VER" && \
+		while IFS= read -r mod; do \
+			go mod edit -replace="$${mod}=$${mod}@$${K8S_PKG_VER}"; \
+		done < <(awk '/^[[:space:]]*k8s\.io\/[a-z-]* =>/ && !/k8s\.io\/kubernetes/ {print $$1}' go.mod) && \
+		while IFS= read -r mod; do \
+			(cd kinds && go mod edit -replace="$${mod}=$${mod}@$${K8S_PKG_VER}"); \
+		done < <(awk '/^[[:space:]]*k8s\.io\/[a-z-]* =>/ && !/k8s\.io\/kubernetes/ {print $$1}' kinds/go.mod) && \
+		go mod edit -replace="k8s.io/kubernetes=k8s.io/kubernetes@$${K8S_VER}" && \
+		(cd kinds && go mod edit -replace="k8s.io/kubernetes=k8s.io/kubernetes@$${K8S_VER}"); \
+	fi
+
 .PHONY: go.mod
 go.mod: Makefile
 	(cd kinds && go mod edit -require=github.com/k0sproject/k0s@$(K0S_GO_VERSION) && go mod tidy)
@@ -224,7 +251,9 @@ crds:
 	$(MAKE) -C operator manifests
 
 .PHONY: build-deps
-build-deps: go.mod crds
+build-deps: update-k8s-replaces
+	$(MAKE) go.mod
+	$(MAKE) crds
 
 .PHONY: buildtools
 buildtools:

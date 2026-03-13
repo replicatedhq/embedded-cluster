@@ -217,6 +217,21 @@ spec:
           - pass:
               when: 'true'
               message: One of cgroup v1 or v2 is enabled
+{{- if .CgroupV2Required }}
+    - jsonCompare:
+        checkName: Cgroup v2
+        fileName: host-collectors/system/cgroups.json
+        path: 'cgroup-v2.enabled'
+        value: |
+          true
+        outcomes:
+          - fail:
+              when: 'false'
+              message: "cgroup v2 is required for Kubernetes 1.35+, but only cgroup v1 was detected. Upgrade to an operating system that uses cgroup v2 (e.g. RHEL 9, Ubuntu 22.04, or later)."
+          - pass:
+              when: 'true'
+              message: cgroup v2 is enabled
+{{- end }}
     - jsonCompare:
         checkName: "'cpu' Cgroup Controller"
         fileName: host-collectors/system/cgroups.json
