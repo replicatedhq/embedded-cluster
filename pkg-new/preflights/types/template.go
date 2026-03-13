@@ -38,7 +38,7 @@ type HostPreflightTemplateData struct {
 	IsV3                         bool
 	ControllerAirgapStorageSpace string
 	WorkerAirgapStorageSpace     string
-	CgroupV2Required              bool
+	CgroupV2Required             bool
 }
 
 // WithCIDRData sets the respective CIDR properties in the HostPreflightTemplateData struct based on the provided CIDR strings
