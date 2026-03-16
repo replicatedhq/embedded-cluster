@@ -1,10 +1,8 @@
 package helm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,47 +14,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"go.yaml.in/yaml/v3"
-	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/chart/loader"
-	"helm.sh/helm/v3/pkg/chartutil"
 	helmcli "helm.sh/helm/v3/pkg/cli"
-	"helm.sh/helm/v3/pkg/downloader"
-	"helm.sh/helm/v3/pkg/getter"
-	"helm.sh/helm/v3/pkg/pusher"
-	"helm.sh/helm/v3/pkg/registry"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
-	"helm.sh/helm/v3/pkg/storage/driver"
-	"helm.sh/helm/v3/pkg/uploader"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	k8syaml "sigs.k8s.io/yaml"
-)
-
-var (
-	// getters is a list of known getters for both http and
-	// oci schemes.
-	getters = getter.Providers{
-		getter.Provider{
-			Schemes: []string{"http", "https"},
-			New:     getter.NewHTTPGetter,
-		},
-		getter.Provider{
-			Schemes: []string{"oci"},
-			New:     getter.NewOCIGetter,
-		},
-	}
-
-	// pushers holds all supported pushers (uploaders).
-	pushers = pusher.Providers{
-		pusher.Provider{
-			Schemes: []string{"oci"},
-			New:     pusher.NewOCIPusher,
-		},
-	}
 )
 
 var _ Client = (*HelmClient)(nil)
@@ -76,24 +38,13 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 		kversion = sv
 	}
 
-	registryOpts := []registry.ClientOption{}
-	if opts.Writer != nil {
-		registryOpts = append(registryOpts, registry.ClientOptWriter(opts.Writer))
-	}
-	regcli, err := registry.NewClient(registryOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("create registry client: %w", err)
-	}
-
 	return &HelmClient{
 		helmPath:              opts.HelmPath,
 		executor:              newBinaryExecutor(opts.HelmPath, tmpdir),
 		tmpdir:                tmpdir,
 		kversion:              kversion,
 		kubernetesEnvSettings: opts.KubernetesEnvSettings,
-		regcli:                regcli,
 		airgapPath:            opts.AirgapPath,
-		repositories:          []*repo.Entry{},
 	}, nil
 }
 
@@ -102,16 +53,16 @@ type HelmOptions struct {
 	KubernetesEnvSettings *helmcli.EnvSettings
 	K8sVersion            string
 	AirgapPath            string
-	Writer                io.Writer
+	Writer                io.Writer // kept for API compatibility, not used
 }
 
-type LogFn func(format string, args ...interface{})
+type LogFn func(format string, args ...any)
 
 type InstallOptions struct {
 	ReleaseName  string
 	ChartPath    string
 	ChartVersion string
-	Values       map[string]interface{}
+	Values       map[string]any
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
@@ -122,7 +73,7 @@ type UpgradeOptions struct {
 	ReleaseName  string
 	ChartPath    string
 	ChartVersion string
-	Values       map[string]interface{}
+	Values       map[string]any
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
@@ -153,79 +104,32 @@ type HelmClient struct {
 	tmpdir                string               // Temporary directory for helm
 	kversion              *semver.Version      // Kubernetes version for template rendering
 	kubernetesEnvSettings *helmcli.EnvSettings // Kubernetes environment settings
-	regcli                *registry.Client
-	repocfg               string
-	repos                 []*repo.Entry
-	reposChanged          bool
-	airgapPath            string        // Airgap path where charts are stored
-	repositories          []*repo.Entry // Repository entries for helm repo commands
-}
-
-func (h *HelmClient) prepare(_ context.Context) error {
-	// NOTE: this is a hack and should be refactored
-	if !h.reposChanged {
-		return nil
-	}
-
-	data, err := k8syaml.Marshal(repo.File{Repositories: h.repos})
-	if err != nil {
-		return fmt.Errorf("marshal repositories: %w", err)
-	}
-
-	repocfg := filepath.Join(h.tmpdir, "config.yaml")
-	if err := os.WriteFile(repocfg, data, 0644); err != nil {
-		return fmt.Errorf("write repositories: %w", err)
-	}
-
-	for _, repository := range h.repos {
-		chrepo, err := repo.NewChartRepository(
-			repository, getters,
-		)
-		if err != nil {
-			return fmt.Errorf("create chart repo: %w", err)
-		}
-		chrepo.CachePath = h.tmpdir
-		_, err = chrepo.DownloadIndexFile()
-		if err != nil {
-			return fmt.Errorf("download index file: %w", err)
-		}
-	}
-	h.repocfg = repocfg
-	h.reposChanged = false
-	return nil
+	airgapPath            string               // Airgap path where charts are stored
 }
 
 func (h *HelmClient) Close() error {
 	return os.RemoveAll(h.tmpdir)
 }
 
-func (h *HelmClient) AddRepo(_ context.Context, repo *repo.Entry) error {
-	h.repos = append(h.repos, repo)
-	h.reposChanged = true
-	return nil
+func (h *HelmClient) AddRepo(ctx context.Context, entry *repo.Entry) error {
+	return h.AddRepoBin(ctx, entry)
 }
 
 // AddRepoBin adds a repository to the helm client using the helm binary. This is necessary because
 // the AddRepo method does not work with other methods using the binary executor.
-func (h *HelmClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
-	// Use helm repo add command to add the repository
-	args := []string{"repo", "add", repo.Name, repo.URL}
+func (h *HelmClient) AddRepoBin(ctx context.Context, entry *repo.Entry) error {
+	args := []string{"repo", "add", entry.Name, entry.URL}
 
-	// Add username/password if provided
-	if repo.Username != "" {
-		args = append(args, "--username", repo.Username)
+	if entry.Username != "" {
+		args = append(args, "--username", entry.Username)
 	}
-	if repo.Password != "" {
-		args = append(args, "--password", repo.Password)
+	if entry.Password != "" {
+		args = append(args, "--password", entry.Password)
 	}
-
-	// Add insecure flag if needed
-	if repo.InsecureSkipTLSverify {
+	if entry.InsecureSkipTLSverify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-
-	// Add pass-credentials flag if needed
-	if repo.PassCredentialsAll {
+	if entry.PassCredentialsAll {
 		args = append(args, "--pass-credentials")
 	}
 
@@ -234,21 +138,17 @@ func (h *HelmClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
 		return fmt.Errorf("helm repo add: %w", err)
 	}
 
-	// Store the repository entry for future reference
-	h.repositories = append(h.repositories, repo)
 	return nil
 }
 
-func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string, error) {
-	// Use helm search repo with JSON output to find the latest version
-	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chart), "--version", ">0.0.0", "--versions", "--output", "json"}
+func (h *HelmClient) Latest(ctx context.Context, reponame, chartName string) (string, error) {
+	args := []string{"search", "repo", fmt.Sprintf("%s/%s", reponame, chartName), "--version", ">0.0.0", "--versions", "--output", "json"}
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return "", fmt.Errorf("helm search repo: %w", err)
 	}
 
-	// Parse JSON output
 	var results []struct {
 		Version string `json:"version"`
 	}
@@ -257,10 +157,9 @@ func (h *HelmClient) Latest(ctx context.Context, reponame, chart string) (string
 	}
 
 	if len(results) == 0 {
-		return "", fmt.Errorf("no charts found for %s/%s", reponame, chart)
+		return "", fmt.Errorf("no charts found for %s/%s", reponame, chartName)
 	}
 
-	// Return the version of the first result (latest version due to --versions flag)
 	return results[0].Version, nil
 }
 
@@ -282,50 +181,67 @@ func (h *HelmClient) PullByRefWithRetries(ctx context.Context, ref string, versi
 	}
 }
 
-func (h *HelmClient) Pull(ctx context.Context, reponame, chart string, version string) (string, error) {
-	ref := fmt.Sprintf("%s/%s", reponame, chart)
+func (h *HelmClient) Pull(ctx context.Context, reponame, chartName string, version string) (string, error) {
+	ref := fmt.Sprintf("%s/%s", reponame, chartName)
 	return h.PullByRef(ctx, ref, version)
 }
 
 func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) (string, error) {
-	if !isOCIChart(ref) {
-		if err := h.prepare(ctx); err != nil {
-			return "", fmt.Errorf("prepare: %w", err)
+	destDir, err := os.MkdirTemp("", "helm-pull-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp dir: %w", err)
+	}
+
+	args := []string{"pull", ref, "--destination", destDir}
+	if version != "" {
+		args = append(args, "--version", version)
+	}
+
+	_, _, err = h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	if err != nil {
+		os.RemoveAll(destDir)
+		return "", fmt.Errorf("helm pull %s: %w", ref, err)
+	}
+
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		os.RemoveAll(destDir)
+		return "", fmt.Errorf("read pull destination dir: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".tgz") {
+			return filepath.Join(destDir, entry.Name()), nil
 		}
 	}
 
-	dl := downloader.ChartDownloader{
-		Out:              io.Discard,
-		Options:          []getter.Option{},
-		RepositoryConfig: h.repocfg,
-		RepositoryCache:  h.tmpdir,
-		Getters:          getters,
-	}
+	os.RemoveAll(destDir)
+	return "", fmt.Errorf("no .tgz file found after pulling %s", ref)
+}
 
-	dst, _, err := dl.DownloadTo(ref, version, os.TempDir())
+func (h *HelmClient) RegistryAuth(ctx context.Context, server, user, pass string) error {
+	// Helm registry login requires domain-only (no scheme prefix)
+	server = strings.TrimPrefix(server, "https://")
+	server = strings.TrimPrefix(server, "http://")
+
+	args := []string{"registry", "login", server, "--username", user, "--password", pass}
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return "", fmt.Errorf("download chart %s: %w", ref, err)
+		return fmt.Errorf("helm registry login: %w", err)
 	}
-
-	return dst, nil
+	return nil
 }
 
-func (h *HelmClient) RegistryAuth(_ context.Context, server, user, pass string) error {
-	return h.regcli.Login(server, registry.LoginOptBasicAuth(user, pass))
-}
-
-func (h *HelmClient) Push(_ context.Context, path, dst string) error {
-	up := uploader.ChartUploader{
-		Out:     os.Stdout,
-		Pushers: pushers,
-		Options: []pusher.Option{pusher.WithRegistryClient(h.regcli)},
+func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
+	args := []string{"push", path, dst}
+	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	if err != nil {
+		return fmt.Errorf("helm push: %w", err)
 	}
-
-	return up.UploadTo(path, dst)
+	return nil
 }
 
 func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
-	// Use helm show chart to get chart metadata
 	args := []string{"show", "chart", ref}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -343,137 +259,161 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 	return &metadata, nil
 }
 
-// reference: https://github.com/helm/helm/blob/0d66425d9a745d8a289b1a5ebb6ccc744436da95/cmd/helm/upgrade.go#L122-L125
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
-	cfg, err := h.getActionCfg(namespace, nil)
+	args := []string{"history", releaseName, "--namespace", namespace, "--max", "1", "--output", "json"}
+	args = h.addKubernetesEnvArgs(args)
+
+	stdout, stderr, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return false, fmt.Errorf("get action configuration: %w", err)
+		if strings.Contains(stderr, "release: not found") || strings.Contains(err.Error(), "release: not found") {
+			return false, nil
+		}
+		return false, fmt.Errorf("helm history: %w", err)
 	}
 
-	client := action.NewHistory(cfg)
-	client.Max = 1
+	type historyEntry struct {
+		Status string `json:"status"`
+	}
+	var entries []historyEntry
+	if err := json.Unmarshal([]byte(stdout), &entries); err != nil {
+		return false, fmt.Errorf("parse helm history output: %w", err)
+	}
 
-	versions, err := client.Run(releaseName)
-	if errors.Is(err, driver.ErrReleaseNotFound) || isReleaseUninstalled(versions) {
+	if len(entries) == 0 {
 		return false, nil
 	}
-	if err != nil {
-		return false, fmt.Errorf("get release history: %w", err)
+
+	last := entries[len(entries)-1]
+	if last.Status == string(release.StatusUninstalled) {
+		return false, nil
 	}
 
 	return true, nil
 }
 
-func isReleaseUninstalled(versions []*release.Release) bool {
-	return len(versions) > 0 && versions[len(versions)-1].Info.Status == release.StatusUninstalled
-}
-
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
-	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
+	chartPath, err := h.resolveChartPath(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
 	if err != nil {
-		return nil, fmt.Errorf("get action configuration: %w", err)
+		return nil, fmt.Errorf("resolve chart path: %w", err)
 	}
 
-	client := action.NewInstall(cfg)
-	client.ReleaseName = opts.ReleaseName
-	client.Namespace = opts.Namespace
-	client.Labels = opts.Labels
-	client.Replace = true
-	client.CreateNamespace = true
-	client.WaitForJobs = true
-	client.Wait = true
-	// we don't set client.Atomic = true on install as it makes installation failures difficult to
-	// debug since it will rollback the release.
-
-	if opts.Timeout != 0 {
-		client.Timeout = opts.Timeout
-	} else {
-		client.Timeout = 5 * time.Minute
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
+	args := []string{
+		"install", opts.ReleaseName, chartPath,
+		"--namespace", opts.Namespace,
+		"--create-namespace",
+		"--wait",
+		"--wait-for-jobs",
+		"--replace",
+		"--timeout", formatDuration(timeout),
+	}
+
+	if opts.ChartVersion != "" && !isLocalPath(opts.ChartPath) && h.airgapPath == "" {
+		args = append(args, "--version", opts.ChartVersion)
+	}
+
+	for k, v := range opts.Labels {
+		args = append(args, "--labels", fmt.Sprintf("%s=%s", k, v))
+	}
+
+	valuesFile, cleanup, err := writeValuesFile(opts.Values)
 	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+		return nil, fmt.Errorf("write values file: %w", err)
+	}
+	defer cleanup()
+
+	if valuesFile != "" {
+		args = append(args, "--values", valuesFile)
 	}
 
-	if req := chartRequested.Metadata.Dependencies; req != nil {
-		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			return nil, fmt.Errorf("check chart dependencies: %w", err)
-		}
-	}
+	args = h.addKubernetesEnvArgs(args)
 
-	cleanVals, err := cleanUpGenericMap(opts.Values)
-	if err != nil {
-		return nil, fmt.Errorf("clean up generic map: %w", err)
-	}
-
-	release, err := client.RunWithContext(ctx, chartRequested, cleanVals)
+	_, _, err = h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm install: %w", err)
 	}
 
-	return release, nil
+	return nil, nil
 }
 
 func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
-	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
+	chartPath, err := h.resolveChartPath(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
 	if err != nil {
-		return nil, fmt.Errorf("get action configuration: %w", err)
+		return nil, fmt.Errorf("resolve chart path: %w", err)
 	}
 
-	client := action.NewUpgrade(cfg)
-	client.Namespace = opts.Namespace
-	client.Labels = opts.Labels
-	client.WaitForJobs = true
-	client.Wait = true
-	client.Atomic = true
-	client.Force = opts.Force
-
-	if opts.Timeout != 0 {
-		client.Timeout = opts.Timeout
-	} else {
-		client.Timeout = 5 * time.Minute
+	timeout := opts.Timeout
+	if timeout == 0 {
+		timeout = 5 * time.Minute
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
+	args := []string{
+		"upgrade", opts.ReleaseName, chartPath,
+		"--namespace", opts.Namespace,
+		"--wait",
+		"--wait-for-jobs",
+		"--atomic",
+		"--install",
+		"--timeout", formatDuration(timeout),
+	}
+
+	if opts.ChartVersion != "" && !isLocalPath(opts.ChartPath) && h.airgapPath == "" {
+		args = append(args, "--version", opts.ChartVersion)
+	}
+
+	if opts.Force {
+		args = append(args, "--force")
+	}
+
+	for k, v := range opts.Labels {
+		args = append(args, "--labels", fmt.Sprintf("%s=%s", k, v))
+	}
+
+	valuesFile, cleanup, err := writeValuesFile(opts.Values)
 	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+		return nil, fmt.Errorf("write values file: %w", err)
+	}
+	defer cleanup()
+
+	if valuesFile != "" {
+		args = append(args, "--values", valuesFile)
 	}
 
-	if req := chartRequested.Metadata.Dependencies; req != nil {
-		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			return nil, fmt.Errorf("check chart dependencies: %w", err)
-		}
-	}
+	args = h.addKubernetesEnvArgs(args)
 
-	cleanVals, err := cleanUpGenericMap(opts.Values)
-	if err != nil {
-		return nil, fmt.Errorf("clean up generic map: %w", err)
-	}
-
-	release, err := client.RunWithContext(ctx, opts.ReleaseName, chartRequested, cleanVals)
+	_, _, err = h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm upgrade: %w", err)
 	}
 
-	return release, nil
+	return nil, nil
 }
 
 func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error {
-	cfg, err := h.getActionCfg(opts.Namespace, opts.LogFn)
+	args := []string{"uninstall", opts.ReleaseName, "--namespace", opts.Namespace}
+
+	if opts.Wait {
+		args = append(args, "--wait")
+
+		if deadline, ok := ctx.Deadline(); ok {
+			remaining := time.Until(deadline)
+			if remaining > 0 {
+				args = append(args, "--timeout", formatDuration(remaining))
+			}
+		}
+	}
+
+	args = h.addKubernetesEnvArgs(args)
+
+	_, stderr, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
-		return fmt.Errorf("get action configuration: %w", err)
-	}
-
-	client := action.NewUninstall(cfg)
-	client.Wait = opts.Wait
-	client.IgnoreNotFound = opts.IgnoreNotFound
-
-	if deadline, ok := ctx.Deadline(); ok {
-		client.Timeout = time.Until(deadline)
-	}
-
-	if _, err := client.Run(opts.ReleaseName); err != nil {
+		if opts.IgnoreNotFound && (strings.Contains(stderr, "release: not found") || strings.Contains(err.Error(), "release: not found")) {
+			return nil
+		}
 		return fmt.Errorf("uninstall release: %w", err)
 	}
 
@@ -481,172 +421,125 @@ func (h *HelmClient) Uninstall(ctx context.Context, opts UninstallOptions) error
 }
 
 func (h *HelmClient) Render(ctx context.Context, opts InstallOptions) ([][]byte, error) {
-	cfg := &action.Configuration{}
+	chartPath, err := h.resolveChartPath(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
+	if err != nil {
+		return nil, fmt.Errorf("resolve chart path: %w", err)
+	}
 
-	client := action.NewInstall(cfg)
-	client.DryRun = true
-	client.ReleaseName = opts.ReleaseName
-	client.Replace = true
-	client.CreateNamespace = true
-	client.ClientOnly = true
-	client.IncludeCRDs = true
-	client.Namespace = opts.Namespace
-	client.Labels = opts.Labels
+	args := []string{
+		"template", opts.ReleaseName, chartPath,
+		"--namespace", opts.Namespace,
+		"--include-crds",
+	}
+
+	if opts.ChartVersion != "" && !isLocalPath(opts.ChartPath) && h.airgapPath == "" {
+		args = append(args, "--version", opts.ChartVersion)
+	}
 
 	if h.kversion != nil {
-		// since ClientOnly is true we need to initialize KubeVersion otherwise resorts defaults
-		client.KubeVersion = &chartutil.KubeVersion{
-			Version: fmt.Sprintf("v%d.%d.0", h.kversion.Major(), h.kversion.Minor()),
-			Major:   fmt.Sprintf("%d", h.kversion.Major()),
-			Minor:   fmt.Sprintf("%d", h.kversion.Minor()),
-		}
+		args = append(args, "--kube-version", fmt.Sprintf("%d.%d", h.kversion.Major(), h.kversion.Minor()))
 	}
 
-	chartRequested, err := h.loadChart(ctx, opts.ReleaseName, opts.ChartPath, opts.ChartVersion)
+	for k, v := range opts.Labels {
+		args = append(args, "--labels", fmt.Sprintf("%s=%s", k, v))
+	}
+
+	valuesFile, cleanup, err := writeValuesFile(opts.Values)
 	if err != nil {
-		return nil, fmt.Errorf("load chart: %w", err)
+		return nil, fmt.Errorf("write values file: %w", err)
+	}
+	defer cleanup()
+
+	if valuesFile != "" {
+		args = append(args, "--values", valuesFile)
 	}
 
-	if req := chartRequested.Metadata.Dependencies; req != nil {
-		if err := action.CheckDependencies(chartRequested, req); err != nil {
-			return nil, fmt.Errorf("failed dependency check: %w", err)
-		}
-	}
+	// Do NOT add kubernetes env args for Render - client-only, no k8s needed
 
-	cleanVals, err := cleanUpGenericMap(opts.Values)
+	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
-		return nil, fmt.Errorf("clean up generic map: %w", err)
+		return nil, fmt.Errorf("helm template: %w", err)
 	}
 
-	release, err := client.Run(chartRequested, cleanVals)
-	if err != nil {
-		return nil, fmt.Errorf("run render: %w", err)
-	}
-
-	var manifests bytes.Buffer
-	fmt.Fprintln(&manifests, strings.TrimSpace(release.Manifest))
-	for _, m := range release.Hooks {
-		fmt.Fprintf(&manifests, "---\n# Source: %s\n%s\n", m.Path, m.Manifest)
-	}
-
-	splitManifests, err := splitManifests(manifests.String())
+	manifests, err := splitManifests(stdout)
 	if err != nil {
 		return nil, fmt.Errorf("split manifests: %w", err)
 	}
-	return splitManifests, nil
+	return manifests, nil
 }
 
-func (h *HelmClient) getActionCfg(namespace string, logFn LogFn) (*action.Configuration, error) {
-	cfg := &action.Configuration{}
-	if logFn == nil {
-		logFn = _logFn
+// resolveChartPath determines the chart path to use for helm commands.
+func (h *HelmClient) resolveChartPath(_ context.Context, releaseName, chartPath, chartVersion string) (string, error) {
+	if isLocalPath(chartPath) {
+		return chartPath, nil
 	}
-	var restClientGetter genericclioptions.RESTClientGetter
-	if h.kubernetesEnvSettings != nil {
-		restClientGetter = h.kubernetesEnvSettings.RESTClientGetter()
-	} else {
-		restClientGetter = helmcli.New().RESTClientGetter() // use the default env settings from helm
+	if h.airgapPath != "" {
+		return filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion)), nil
 	}
-	restClientGetter = &namespacedRESTClientGetter{
-		RESTClientGetter: restClientGetter,
-		namespace:        namespace,
-	}
-	if err := cfg.Init(restClientGetter, namespace, "secret", action.DebugLog(logFn)); err != nil {
-		return nil, fmt.Errorf("init helm configuration: %w", err)
-	}
-	return cfg, nil
+	// Not local, not airgap: pass chartPath directly and let helm pull it (with --version flag added at call site)
+	return chartPath, nil
 }
 
-func (h *HelmClient) loadChart(ctx context.Context, releaseName, chartPath, chartVersion string) (*chart.Chart, error) {
-	var localPath string
-	if _, err := os.Stat(chartPath); err == nil {
-		localPath = chartPath
-	} else if h.airgapPath != "" {
-		// airgapped, use chart from airgap path
-		// TODO: this should just respect the chart path if it's a local path and leave it up to the caller to handle
-		localPath = filepath.Join(h.airgapPath, fmt.Sprintf("%s-%s.tgz", releaseName, chartVersion))
-	} else if !strings.HasPrefix(chartPath, "/") {
-		// Assume this is a chart from a repo if it doesn't start with a /
-		// This includes oci:// prefix
-		var err error
-		localPath, err = h.PullByRefWithRetries(ctx, chartPath, chartVersion, 3)
-		if err != nil {
-			return nil, fmt.Errorf("pull: %w", err)
-		}
-		defer os.RemoveAll(localPath)
+// isLocalPath returns true if the given path exists on the filesystem.
+func isLocalPath(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// writeValuesFile serializes opts.Values to a temporary YAML file for --values.
+// Returns the file path (empty string if values is nil/empty), a cleanup function, and any error.
+func writeValuesFile(values map[string]any) (string, func(), error) {
+	if len(values) == 0 {
+		return "", func() {}, nil
 	}
 
-	if localPath == "" {
-		return nil, fmt.Errorf("chart path not found: %s", chartPath)
-	}
-
-	chartRequested, err := loader.Load(localPath)
+	cleanVals, err := cleanUpGenericMap(values)
 	if err != nil {
-		return nil, fmt.Errorf("load: %w", err)
+		return "", func() {}, fmt.Errorf("clean up generic map: %w", err)
 	}
 
-	return chartRequested, nil
+	data, err := k8syaml.Marshal(cleanVals)
+	if err != nil {
+		return "", func() {}, fmt.Errorf("marshal values: %w", err)
+	}
+
+	f, err := os.CreateTemp("", "helm-values-*.yaml")
+	if err != nil {
+		return "", func() {}, fmt.Errorf("create values temp file: %w", err)
+	}
+
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return "", func() {}, fmt.Errorf("write values temp file: %w", err)
+	}
+	f.Close()
+
+	cleanup := func() {
+		os.Remove(f.Name())
+	}
+
+	return f.Name(), cleanup, nil
 }
 
-func cleanUpGenericMap(m map[string]interface{}) (map[string]interface{}, error) {
+// formatDuration formats a time.Duration as a helm-compatible duration string (e.g. "5m0s").
+func formatDuration(d time.Duration) string {
+	return d.String()
+}
+
+func cleanUpGenericMap(m map[string]any) (map[string]any, error) {
 	// we must first use yaml marshal to convert the map[interface{}]interface{} to a []byte
 	// otherwise we will get an error "unsupported type: map[interface {}]interface {}"
 	b, err := yaml.Marshal(m)
 	if err != nil {
 		return nil, fmt.Errorf("yaml marshal: %w", err)
 	}
-	next := map[string]interface{}{}
+	next := map[string]any{}
 	err = k8syaml.Unmarshal(b, &next)
 	if err != nil {
 		return nil, fmt.Errorf("yaml unmarshal: %w", err)
 	}
 	return next, nil
-}
-
-func isOCIChart(chartPath string) bool {
-	return strings.HasPrefix(chartPath, "oci://")
-}
-
-func _logFn(format string, args ...interface{}) {
-	log := logrus.WithField("component", "helm")
-	log.Debugf(format, args...)
-}
-
-type namespacedRESTClientGetter struct {
-	genericclioptions.RESTClientGetter
-	namespace string
-}
-
-func (n *namespacedRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
-	cfg := n.RESTClientGetter.ToRawKubeConfigLoader()
-	return &namespacedClientConfig{
-		cfg:       cfg,
-		namespace: n.namespace,
-	}
-}
-
-type namespacedClientConfig struct {
-	cfg       clientcmd.ClientConfig
-	namespace string
-}
-
-func (n *namespacedClientConfig) RawConfig() (clientcmdapi.Config, error) {
-	return n.cfg.RawConfig()
-}
-
-func (n *namespacedClientConfig) ClientConfig() (*restclient.Config, error) {
-	return n.cfg.ClientConfig()
-}
-
-func (n *namespacedClientConfig) Namespace() (string, bool, error) {
-	if n.namespace == "" {
-		return n.cfg.Namespace()
-	}
-	return n.namespace, true, nil
-}
-
-func (n *namespacedClientConfig) ConfigAccess() clientcmd.ConfigAccess {
-	return n.cfg.ConfigAccess()
 }
 
 // addKubernetesEnvArgs adds kubernetes environment arguments to the helm command
@@ -655,8 +548,6 @@ func (h *HelmClient) addKubernetesEnvArgs(args []string) []string {
 		return args
 	}
 
-	// Add all helm CLI flags from kubernetesEnvSettings
-	// Based on addKubernetesCLIFlags function below
 	if h.kubernetesEnvSettings.KubeConfig != "" {
 		args = append(args, "--kubeconfig", h.kubernetesEnvSettings.KubeConfig)
 	}
