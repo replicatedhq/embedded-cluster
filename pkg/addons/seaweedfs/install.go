@@ -304,4 +304,3 @@ func getServiceIP(serviceCIDR string) (string, error) {
 	}
 	return ip.String(), nil
 }
-
