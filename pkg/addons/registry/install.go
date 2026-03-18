@@ -66,6 +66,12 @@ func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client, 
 		return errors.Wrap(err, "create registry tls secret")
 	}
 
+	if r.IsHA {
+		if err := r.ensureHTTPSecret(ctx, kcli); err != nil {
+			return errors.Wrap(err, "create http secret")
+		}
+	}
+
 	return nil
 }
 
