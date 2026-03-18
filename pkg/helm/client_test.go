@@ -449,14 +449,14 @@ func TestHelmClient_Upgrade(t *testing.T) {
 		wantErr       bool
 	}{
 		{
-			name: "upgrade always uses --rollback-on-failure not --atomic",
-			opts: UpgradeOptions{ReleaseName: "r", ChartPath: "", Namespace: "ns"},
+			name:          "upgrade always uses --rollback-on-failure not --atomic",
+			opts:          UpgradeOptions{ReleaseName: "r", ChartPath: "", Namespace: "ns"},
 			requiredArgs:  []string{"upgrade", "--rollback-on-failure", "--output", "json"},
 			forbiddenArgs: []string{"--atomic", "--force", "--force-replace"},
 		},
 		{
-			name: "Force=true maps to --force-replace not --force",
-			opts: UpgradeOptions{ReleaseName: "r", ChartPath: "", Namespace: "ns", Force: true},
+			name:          "Force=true maps to --force-replace not --force",
+			opts:          UpgradeOptions{ReleaseName: "r", ChartPath: "", Namespace: "ns", Force: true},
 			requiredArgs:  []string{"upgrade", "--rollback-on-failure", "--force-replace", "--output", "json"},
 			forbiddenArgs: []string{"--atomic", "--force"},
 		},
@@ -504,13 +504,13 @@ func TestHelmClient_Uninstall(t *testing.T) {
 		requiredArgs []string
 	}{
 		{
-			name: "basic uninstall",
-			opts: UninstallOptions{ReleaseName: "myrelease", Namespace: "default"},
+			name:         "basic uninstall",
+			opts:         UninstallOptions{ReleaseName: "myrelease", Namespace: "default"},
 			requiredArgs: []string{"uninstall", "myrelease", "--namespace", "default"},
 		},
 		{
-			name: "with wait and ignore-not-found",
-			opts: UninstallOptions{ReleaseName: "r", Namespace: "ns", Wait: true, IgnoreNotFound: true},
+			name:         "with wait and ignore-not-found",
+			opts:         UninstallOptions{ReleaseName: "r", Namespace: "ns", Wait: true, IgnoreNotFound: true},
 			requiredArgs: []string{"uninstall", "r", "--namespace", "ns", "--wait", "--ignore-not-found"},
 		},
 	}

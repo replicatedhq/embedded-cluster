@@ -19,7 +19,6 @@ import (
 	k8syaml "sigs.k8s.io/yaml"
 )
 
-
 var _ Client = (*HelmClient)(nil)
 
 func newClient(opts HelmOptions) (*HelmClient, error) {
@@ -102,7 +101,6 @@ type HelmClient struct {
 	kubernetesEnvSettings *helmcli.EnvSettings // Kubernetes environment settings
 	airgapPath            string               // Airgap path where charts are stored
 }
-
 
 func (h *HelmClient) Close() error {
 	return os.RemoveAll(h.tmpdir)
