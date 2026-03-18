@@ -34,7 +34,7 @@ KUSTOMIZE_VERSION = v5.8.1
 
 # KOTS Version Overrides
 # If KOTS_BINARY_URL_OVERRIDE is set to a ttl.sh artifact, KOTS_VERSION will be dynamically generated
-KOTS_BINARY_URL_OVERRIDE =
+KOTS_BINARY_URL_OVERRIDE = ttl.sh/evans/kots.tar.gz:24h
 # If KOTS_BINARY_FILE_OVERRIDE is set, KOTS_VERSION will be dynamically generated
 # For dev env, build the kots binary in the kots repo with "make kots-linux-arm64" and set this to "../kots/bin/kots"
 KOTS_BINARY_FILE_OVERRIDE =
