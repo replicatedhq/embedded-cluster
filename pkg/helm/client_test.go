@@ -676,8 +676,7 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 				mock.MatchedBy(func(args []string) bool {
 					return args[0] == "list" &&
-						slices.Contains(args, "--output") && slices.Contains(args, "json") &&
-						slices.Contains(args, "--all")
+						slices.Contains(args, "--output") && slices.Contains(args, "json")
 				}),
 			).Return(tt.mockOut, "", nil)
 
