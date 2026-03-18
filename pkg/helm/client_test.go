@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -903,6 +904,42 @@ func TestHelmClient_PullByRef(t *testing.T) {
 	}
 }
 
+func TestHelmClient_PullByRef_SuccessCleansTempDir(t *testing.T) {
+	mockExec := &MockBinaryExecutor{}
+
+	var destinationDir string
+	mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
+		mock.MatchedBy(func(args []string) bool {
+			return len(args) >= 2 && args[0] == "pull" && args[1] == "myrepo/mychart" && containsArg(args, "--destination")
+		})).
+		Run(func(args mock.Arguments) {
+			cmdArgs := args.Get(3).([]string)
+			for i := 0; i < len(cmdArgs)-1; i++ {
+				if cmdArgs[i] == "--destination" {
+					destinationDir = cmdArgs[i+1]
+					break
+				}
+			}
+			require.NotEmpty(t, destinationDir)
+			require.NoError(t, os.WriteFile(filepath.Join(destinationDir, "mychart-1.0.0.tgz"), []byte("chart"), 0o644))
+		}).
+		Return("", "", nil)
+
+	client := &HelmClient{
+		helmPath: "/usr/local/bin/helm",
+		executor: mockExec,
+	}
+
+	path, err := client.PullByRef(t.Context(), "myrepo/mychart", "1.0.0")
+	require.NoError(t, err)
+	require.NotEmpty(t, path)
+	defer os.Remove(path)
+
+	_, statErr := os.Stat(destinationDir)
+	require.True(t, os.IsNotExist(statErr), "temporary pull directory should be removed")
+	mockExec.AssertExpectations(t)
+}
+
 func TestHelmClient_RegistryAuth(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -918,8 +955,8 @@ func TestHelmClient_RegistryAuth(t *testing.T) {
 			user:   "user",
 			pass:   "pass",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
-					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password", "pass"}).
+				m.On("ExecuteCommandWithInput", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password-stdin"}).
 					Return("", "", nil)
 			},
 		},
@@ -929,8 +966,8 @@ func TestHelmClient_RegistryAuth(t *testing.T) {
 			user:   "user",
 			pass:   "pass",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
-					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password", "pass"}).
+				m.On("ExecuteCommandWithInput", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password-stdin"}).
 					Return("", "", nil)
 			},
 		},
@@ -940,8 +977,8 @@ func TestHelmClient_RegistryAuth(t *testing.T) {
 			user:   "user",
 			pass:   "pass",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
-					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password", "pass"}).
+				m.On("ExecuteCommandWithInput", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password-stdin"}).
 					Return("", "", nil)
 			},
 		},
@@ -951,8 +988,8 @@ func TestHelmClient_RegistryAuth(t *testing.T) {
 			user:   "user",
 			pass:   "badpass",
 			setupMock: func(m *MockBinaryExecutor) {
-				m.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
-					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password", "badpass"}).
+				m.On("ExecuteCommandWithInput", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
+					[]string{"registry", "login", "registry.example.com", "--username", "user", "--password-stdin"}).
 					Return("", "unauthorized", assert.AnError)
 			},
 			wantErr: true,

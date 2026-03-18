@@ -211,7 +211,35 @@ func (h *HelmClient) PullByRef(ctx context.Context, ref string, version string) 
 
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".tgz") {
-			return filepath.Join(destDir, entry.Name()), nil
+			pulledChartPath := filepath.Join(destDir, entry.Name())
+
+			outFile, err := os.CreateTemp("", "helm-pull-chart-*.tgz")
+			if err != nil {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("create destination chart file: %w", err)
+			}
+			outPath := outFile.Name()
+			if err := outFile.Close(); err != nil {
+				os.Remove(outPath)
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("close destination chart file: %w", err)
+			}
+			if err := os.Remove(outPath); err != nil {
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("prepare destination chart file: %w", err)
+			}
+
+			if err := os.Rename(pulledChartPath, outPath); err != nil {
+				os.Remove(outPath)
+				os.RemoveAll(destDir)
+				return "", fmt.Errorf("move pulled chart to destination path: %w", err)
+			}
+			if err := os.RemoveAll(destDir); err != nil {
+				os.Remove(outPath)
+				return "", fmt.Errorf("cleanup pull destination dir: %w", err)
+			}
+
+			return outPath, nil
 		}
 	}
 
@@ -224,8 +252,8 @@ func (h *HelmClient) RegistryAuth(ctx context.Context, server, user, pass string
 	server = strings.TrimPrefix(server, "https://")
 	server = strings.TrimPrefix(server, "http://")
 
-	args := []string{"registry", "login", server, "--username", user, "--password", pass}
-	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
+	args := []string{"registry", "login", server, "--username", user, "--password-stdin"}
+	_, _, err := h.executor.ExecuteCommandWithInput(ctx, nil, strings.NewReader(pass+"\n"), nil, args...)
 	if err != nil {
 		return fmt.Errorf("helm registry login: %w", err)
 	}

@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"io"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -16,5 +17,11 @@ type MockBinaryExecutor struct {
 // ExecuteCommand mocks the ExecuteCommand method
 func (m *MockBinaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (string, string, error) {
 	callArgs := m.Called(ctx, env, logFn, args)
+	return callArgs.String(0), callArgs.String(1), callArgs.Error(2)
+}
+
+// ExecuteCommandWithInput mocks the ExecuteCommandWithInput method.
+func (m *MockBinaryExecutor) ExecuteCommandWithInput(ctx context.Context, env map[string]string, stdin io.Reader, logFn LogFn, args ...string) (string, string, error) {
+	callArgs := m.Called(ctx, env, stdin, logFn, args)
 	return callArgs.String(0), callArgs.String(1), callArgs.Error(2)
 }

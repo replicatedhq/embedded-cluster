@@ -17,6 +17,8 @@ import (
 type BinaryExecutor interface {
 	// ExecuteCommand runs a command and returns stdout, stderr, and error
 	ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (stdout string, stderr string, err error)
+	// ExecuteCommandWithInput runs a command with stdin and returns stdout, stderr, and error
+	ExecuteCommandWithInput(ctx context.Context, env map[string]string, stdin io.Reader, logFn LogFn, args ...string) (stdout string, stderr string, err error)
 }
 
 // binaryExecutor implements BinaryExecutor using helpers.RunCommandWithOptions
@@ -38,6 +40,11 @@ func newBinaryExecutor(bin string, homeDir string) BinaryExecutor {
 
 // ExecuteCommand runs a command using helpers.RunCommandWithOptions and returns stdout, stderr, and error
 func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]string, logFn LogFn, args ...string) (string, string, error) {
+	return c.ExecuteCommandWithInput(ctx, env, nil, logFn, args...)
+}
+
+// ExecuteCommandWithInput runs a command with stdin using helpers.RunCommandWithOptions.
+func (c *binaryExecutor) ExecuteCommandWithInput(ctx context.Context, env map[string]string, stdin io.Reader, logFn LogFn, args ...string) (string, string, error) {
 	var stdout, stderr bytes.Buffer
 	logWriter := &logWriter{logFn: logFn}
 
@@ -48,6 +55,7 @@ func (c *binaryExecutor) ExecuteCommand(ctx context.Context, env map[string]stri
 
 	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{
 		Context: ctx,
+		Stdin:   stdin,
 		Stdout:  &stdout,
 		Stderr:  io.MultiWriter(&stderr, logWriter), // Helm uses stderr for debug logging and progress
 		Env:     mergedEnv,
