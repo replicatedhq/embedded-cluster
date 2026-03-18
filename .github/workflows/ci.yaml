@@ -175,6 +175,10 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -247,6 +251,10 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -273,6 +281,10 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
