@@ -280,7 +280,11 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	if len(releases) == 0 {
 		return false, nil
 	}
-	return releases[len(releases)-1].Status != "uninstalling", nil
+	// A release is considered to not exist if it's uninstalling (in progress) or
+	// uninstalled (completed but kept in history via --keep-history). Callers
+	// should install (not upgrade) in both cases.
+	status := releases[len(releases)-1].Status
+	return status != "uninstalling" && status != "uninstalled", nil
 }
 
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*ReleaseInfo, error) {

@@ -3,6 +3,7 @@ package helm
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -388,13 +389,14 @@ func TestHelmClient_Install(t *testing.T) {
 						return args[0] == "install" &&
 							args[1] == "myrelease" &&
 							args[2] == chartFile &&
-							slicesContains(args, "--namespace") &&
-							slicesContains(args, "default") &&
-							slicesContains(args, "--create-namespace") &&
-							slicesContains(args, "--wait") &&
-							slicesContains(args, "--output") &&
-							slicesContains(args, "json") &&
-							!slicesContains(args, "--atomic") // Helm 4 does not use --atomic on install
+							slices.Contains(args, "--namespace") &&
+							slices.Contains(args, "--namespace") &&
+							slices.Contains(args, "default") &&
+							slices.Contains(args, "--create-namespace") &&
+							slices.Contains(args, "--wait") &&
+							slices.Contains(args, "--output") &&
+							slices.Contains(args, "json") &&
+							!slices.Contains(args, "--atomic") // Helm 4 does not use --atomic on install
 					}),
 				).Return(testReleaseJSON, "", nil)
 			},
@@ -438,16 +440,6 @@ func TestHelmClient_Install(t *testing.T) {
 	}
 }
 
-// slicesContains is a test helper that checks if a string slice contains a value.
-func slicesContains(s []string, v string) bool {
-	for _, x := range s {
-		if x == v {
-			return true
-		}
-	}
-	return false
-}
-
 func TestHelmClient_Upgrade(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -480,12 +472,12 @@ func TestHelmClient_Upgrade(t *testing.T) {
 			mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 				mock.MatchedBy(func(args []string) bool {
 					for _, required := range tt.requiredArgs {
-						if !slicesContains(args, required) {
+						if !slices.Contains(args, required) {
 							return false
 						}
 					}
 					for _, forbidden := range tt.forbiddenArgs {
-						if slicesContains(args, forbidden) {
+						if slices.Contains(args, forbidden) {
 							return false
 						}
 					}
@@ -528,7 +520,7 @@ func TestHelmClient_Uninstall(t *testing.T) {
 			mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 				mock.MatchedBy(func(args []string) bool {
 					for _, r := range tt.requiredArgs {
-						if !slicesContains(args, r) {
+						if !slices.Contains(args, r) {
 							return false
 						}
 					}
@@ -555,9 +547,9 @@ func TestHelmClient_Render(t *testing.T) {
 	mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 		mock.MatchedBy(func(args []string) bool {
 			return args[0] == "template" &&
-				slicesContains(args, "--include-crds") &&
-				slicesContains(args, "--kube-version") &&
-				!slicesContains(args, "--dry-run") // helm template doesn't need --dry-run
+				slices.Contains(args, "--include-crds") &&
+				slices.Contains(args, "--kube-version") &&
+				!slices.Contains(args, "--dry-run") // helm template doesn't need --dry-run
 		}),
 	).Return(mockOut, "", nil)
 
@@ -581,8 +573,8 @@ func TestHelmClient_PullByRef(t *testing.T) {
 			mock.MatchedBy(func(args []string) bool {
 				return args[0] == "pull" &&
 					args[1] == "oci://registry.example.com/mychart" &&
-					slicesContains(args, "--version") && slicesContains(args, "1.0.0") &&
-					slicesContains(args, "--destination")
+					slices.Contains(args, "--version") && slices.Contains(args, "1.0.0") &&
+					slices.Contains(args, "--destination")
 			}),
 		).Run(func(args mock.Arguments) {
 			helmArgs := args.Get(3).([]string)
@@ -671,6 +663,12 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			mockOut: `[{"name":"myrelease","namespace":"default","status":"uninstalling","revision":"1","chart":"c-1.0.0"}]`,
 			want:    false,
 		},
+		{
+			name:    "uninstalled treated as not found",
+			release: "myrelease",
+			mockOut: `[{"name":"myrelease","namespace":"default","status":"uninstalled","revision":"1","chart":"c-1.0.0"}]`,
+			want:    false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -678,8 +676,8 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
 				mock.MatchedBy(func(args []string) bool {
 					return args[0] == "list" &&
-						slicesContains(args, "--output") && slicesContains(args, "json") &&
-						slicesContains(args, "--all")
+						slices.Contains(args, "--output") && slices.Contains(args, "json") &&
+						slices.Contains(args, "--all")
 				}),
 			).Return(tt.mockOut, "", nil)
 
