@@ -43,6 +43,12 @@ s3:
   regionEndpoint: DYNAMIC
   rootdirectory: /registry
   secure: false
+extraEnvVars:
+- name: REGISTRY_HTTP_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: registry-http-secret
+      key: secret
 secrets:
   s3:
     secretRef: seaweedfs-s3-rw

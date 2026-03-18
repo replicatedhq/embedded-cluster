@@ -8,6 +8,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -71,8 +72,32 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 		if err := r.ensureS3Secret(ctx, kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
+
+		if err := r.ensureHTTPSecret(ctx, kcli); err != nil {
+			return errors.Wrap(err, "create http secret")
+		}
 	}
 
+	return nil
+}
+
+func (r *Registry) ensureHTTPSecret(ctx context.Context, kcli client.Client) error {
+	obj := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      _httpSecretName,
+			Namespace: r.Namespace(),
+			Labels: map[string]string{
+				"app": "docker-registry",
+			},
+		},
+		Data: map[string][]byte{
+			"secret": []byte(helpers.RandString(32)),
+		},
+	}
+
+	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "create http secret")
+	}
 	return nil
 }
 

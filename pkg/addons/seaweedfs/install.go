@@ -80,6 +80,10 @@ func (s *SeaweedFS) ensurePreRequisites(ctx context.Context, kcli client.Client)
 		return errors.Wrap(err, "create s3 secret")
 	}
 
+	if err := s.ensureHooksDeleted(ctx, kcli); err != nil {
+		return errors.Wrap(err, "delete bucket hook")
+	}
+
 	return nil
 }
 
@@ -303,4 +307,21 @@ func getServiceIP(serviceCIDR string) (string, error) {
 		return "", errors.Wrap(err, "get lower band ip")
 	}
 	return ip.String(), nil
+}
+
+// ensureHooksDeleted will delete helm hooks if for some reason they fail. It is
+// necessary if the hook does not have the "before-hook-creation" delete policy.
+func (s *SeaweedFS) ensureHooksDeleted(ctx context.Context, kcli client.Client) error {
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: s.Namespace(),
+			Name:      fmt.Sprintf("%s-bucket-hook", s.ReleaseName()),
+		},
+	}
+	err := kcli.Delete(ctx, job, client.PropagationPolicy(metav1.DeletePropagationBackground))
+	if client.IgnoreNotFound(err) != nil {
+		return errors.Wrapf(err, "delete %s-bucket-hook job", s.ReleaseName())
+	}
+
+	return nil
 }
