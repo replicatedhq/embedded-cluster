@@ -107,33 +107,19 @@ func (h *HelmClient) Close() error {
 }
 
 func (h *HelmClient) AddRepo(ctx context.Context, r *repo.Entry) error {
-	return h.AddRepoBin(ctx, r)
-}
-
-// AddRepoBin adds a repository to the helm client using the helm binary. This is necessary because
-// the AddRepo method does not work with other methods using the binary executor.
-func (h *HelmClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
-	// Use helm repo add command to add the repository
-	args := []string{"repo", "add", repo.Name, repo.URL}
-
-	// Add username/password if provided
-	if repo.Username != "" {
-		args = append(args, "--username", repo.Username)
+	args := []string{"repo", "add", r.Name, r.URL}
+	if r.Username != "" {
+		args = append(args, "--username", r.Username)
 	}
-	if repo.Password != "" {
-		args = append(args, "--password", repo.Password)
+	if r.Password != "" {
+		args = append(args, "--password", r.Password)
 	}
-
-	// Add insecure flag if needed
-	if repo.InsecureSkipTLSverify {
+	if r.InsecureSkipTLSverify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-
-	// Add pass-credentials flag if needed
-	if repo.PassCredentialsAll {
+	if r.PassCredentialsAll {
 		args = append(args, "--pass-credentials")
 	}
-
 	_, _, err := h.executor.ExecuteCommand(ctx, nil, nil, args...)
 	if err != nil {
 		return fmt.Errorf("helm repo add: %w", err)
