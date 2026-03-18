@@ -3,7 +3,7 @@ kind: SupportBundle
 metadata:
   name: embedded-cluster-cluster-support-bundle
   labels:
-    troubleshoot.io/kind: support-bundle
+    troubleshoot.sh/kind: support-bundle
 spec:
   # NOTE: This is commented out until we have a decision on how to handle this with custom domains.
   # uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
