@@ -2,13 +2,14 @@ package registry
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -82,6 +83,11 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 }
 
 func (r *Registry) ensureHTTPSecret(ctx context.Context, kcli client.Client) error {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return errors.Wrap(err, "generate http secret")
+	}
+
 	obj := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      _httpSecretName,
@@ -91,7 +97,7 @@ func (r *Registry) ensureHTTPSecret(ctx context.Context, kcli client.Client) err
 			},
 		},
 		Data: map[string][]byte{
-			"secret": []byte(helpers.RandString(32)),
+			"secret": []byte(hex.EncodeToString(b)),
 		},
 	}
 
