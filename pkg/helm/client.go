@@ -85,15 +85,6 @@ type UninstallOptions struct {
 	LogFn          LogFn // Log function override to use for uninstall command
 }
 
-type RollbackOptions struct {
-	ReleaseName string
-	Namespace   string
-	Revision    int // Target revision to rollback to, 0 for automatic
-	Timeout     time.Duration
-	Force       bool
-	LogFn       LogFn // Log function override to use for rollback command
-}
-
 type HelmClient struct {
 	executor              BinaryExecutor       // Mockable executor
 	tmpdir                string               // Temporary directory for helm
