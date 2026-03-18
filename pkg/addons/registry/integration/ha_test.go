@@ -29,9 +29,9 @@ func TestHA_HTTPSecretInjected(t *testing.T) {
 		// to the chart, which renders it into the chart-managed registry-secret.
 		// The deployment env var REGISTRY_HTTP_SECRET references registry-secret, not
 		// registry-http-secret directly.
-		httpSecretName    = "registry-http-secret"
-		chartSecretName   = "registry-secret"
-		chartSecretKey    = "haSharedSecret"
+		httpSecretName  = "registry-http-secret"
+		chartSecretName = "registry-secret"
+		chartSecretKey  = "haSharedSecret"
 	)
 
 	kcli := fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(
