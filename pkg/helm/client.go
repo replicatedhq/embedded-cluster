@@ -260,7 +260,6 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 		"--namespace", namespace,
 		"--filter", fmt.Sprintf("^%s$", releaseName),
 		"--output", "json",
-		"--all", // include uninstalling status
 	}
 	args = h.addKubernetesEnvArgs(args)
 
