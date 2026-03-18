@@ -87,7 +87,6 @@ func TestHelmClient_Latest(t *testing.T) {
 			tt.setupMock(mockExec)
 
 			client := &HelmClient{
-				helmPath: "/usr/local/bin/helm",
 				executor: mockExec,
 			}
 
@@ -139,7 +138,6 @@ appVersion: "1.0.0"`, "", nil)
 			tt.setupMock(mockExec)
 
 			client := &HelmClient{
-				helmPath: "/usr/local/bin/helm",
 				executor: mockExec,
 			}
 

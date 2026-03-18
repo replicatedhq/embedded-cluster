@@ -13,9 +13,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"go.yaml.in/yaml/v3"
-	chartv4 "helm.sh/helm/v4/pkg/chart/v2"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/repo"
+	chartv4 "helm.sh/helm/v4/pkg/chart/v2"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -38,7 +38,6 @@ func newClient(opts HelmOptions) (*HelmClient, error) {
 	}
 
 	return &HelmClient{
-		helmPath:              opts.HelmPath,
 		executor:              newBinaryExecutor(opts.HelmPath, tmpdir),
 		tmpdir:                tmpdir,
 		kversion:              kversion,
@@ -97,13 +96,11 @@ type RollbackOptions struct {
 }
 
 type HelmClient struct {
-	helmPath              string               // Path to helm binary
 	executor              BinaryExecutor       // Mockable executor
 	tmpdir                string               // Temporary directory for helm
 	kversion              *semver.Version      // Kubernetes version for template rendering
 	kubernetesEnvSettings *helmcli.EnvSettings // Kubernetes environment settings
-	airgapPath            string        // Airgap path where charts are stored
-	repositories          []*repo.Entry // Repository entries for helm repo commands
+	airgapPath            string               // Airgap path where charts are stored
 }
 
 
@@ -143,9 +140,6 @@ func (h *HelmClient) AddRepoBin(ctx context.Context, repo *repo.Entry) error {
 	if err != nil {
 		return fmt.Errorf("helm repo add: %w", err)
 	}
-
-	// Store the repository entry for future reference
-	h.repositories = append(h.repositories, repo)
 	return nil
 }
 
@@ -506,15 +500,6 @@ func (h *HelmClient) resolveChartPath(ctx context.Context, releaseName, chartPat
 		return localPath, func() { os.RemoveAll(pullDir) }, nil
 	}
 	return "", noop, fmt.Errorf("chart path not found: %s", chartPath)
-}
-
-func isOCIChart(chartPath string) bool {
-	return strings.HasPrefix(chartPath, "oci://")
-}
-
-func _logFn(format string, args ...interface{}) {
-	log := logrus.WithField("component", "helm")
-	log.Debugf(format, args...)
 }
 
 // addKubernetesEnvArgs adds kubernetes environment arguments to the helm command
