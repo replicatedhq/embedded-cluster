@@ -4,8 +4,7 @@ import (
 	"context"
 
 	"github.com/stretchr/testify/mock"
-	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/release"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	"helm.sh/helm/v3/pkg/repo"
 )
 
@@ -68,20 +67,20 @@ func (m *MockClient) ReleaseExists(ctx context.Context, namespace string, releas
 	return args.Bool(0), args.Error(1)
 }
 
-func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (*release.Release, error) {
+func (m *MockClient) Install(ctx context.Context, opts InstallOptions) (*ReleaseInfo, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*release.Release), args.Error(1)
+	return args.Get(0).(*ReleaseInfo), args.Error(1)
 }
 
-func (m *MockClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*release.Release, error) {
+func (m *MockClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*ReleaseInfo, error) {
 	args := m.Called(ctx, opts)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*release.Release), args.Error(1)
+	return args.Get(0).(*ReleaseInfo), args.Error(1)
 }
 
 func (m *MockClient) Uninstall(ctx context.Context, opts UninstallOptions) error {

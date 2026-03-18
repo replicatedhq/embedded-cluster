@@ -539,7 +539,6 @@ func NewHelm() (helm.Client, error) {
 		HelmPath:              "helm",        // use the helm binary in PATH
 		KubernetesEnvSettings: helmcli.New(), // use the default env settings from helm
 		K8sVersion:            sv.Original(),
-		Writer:                logrus.New().Writer(),
 	})
 }
 
