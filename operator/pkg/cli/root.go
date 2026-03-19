@@ -72,6 +72,7 @@ func RootCmd() *cobra.Command {
 				MetadataClient: metadataClient,
 				Scheme:         mgr.GetScheme(),
 				Discovery:      discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
+				//nolint:staticcheck // SA1019 GetEventRecorderFor is deprecated; migration to GetEventRecorder (events API) requires controller changes
 				Recorder:       mgr.GetEventRecorderFor("installation-controller"),
 				RuntimeConfig:  runtimeconfig.New(nil),
 			}).SetupWithManager(mgr); err != nil {
