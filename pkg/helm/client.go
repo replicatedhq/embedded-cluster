@@ -232,11 +232,14 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 	return &metadata, nil
 }
 
+// ReleaseExists checks if a release exists in the given namespace.
+// It returns false if release is not found or is uninstalled (kept in history).
 func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releaseName string) (bool, error) {
 	args := []string{
 		"list",
 		"--namespace", namespace,
 		"--filter", fmt.Sprintf("^%s$", releaseName),
+		"--max=1", // Helm 4: limit to one result
 		"--output", "json",
 	}
 	args = h.addKubernetesEnvArgs(args)
@@ -255,14 +258,7 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	if len(releases) == 0 {
 		return false, nil
 	}
-	// A release is considered to not exist if it's uninstalling (transient state
-	// during helm uninstall) or uninstalled (kept in history via --keep-history).
-	// Both can appear in helm list output: uninstalling is a transient active
-	// state; uninstalled appears in Helm 4's default output (all statuses) or
-	// when using --all/--uninstalled in Helm 3. Callers should install (not
-	// upgrade) in both cases.
-	status := releases[len(releases)-1].Status
-	return status != "uninstalling" && status != "uninstalled", nil
+	return releases[0].Status != "uninstalled", nil
 }
 
 func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*ReleaseInfo, error) {
@@ -289,10 +285,10 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*Release
 		"install", opts.ReleaseName, chartPath,
 		"--namespace", opts.Namespace,
 		"--create-namespace",
+		"--replace",
 		"--wait",
 		"--wait-for-jobs",
 		"--timeout", timeout.String(),
-		"--replace",
 		"--output", "json",
 	}
 	if valuesFile != "" {
@@ -351,7 +347,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 	args = h.addKubernetesEnvArgs(args)
 	if slices.Contains(args, "--force-replace") || slices.Contains(args, "--force") {
 		// SSA conflicts with --force-replace in Helm 4, so we need to disable it
-		args = append(args, "--server-side", "false")
+		args = append(args, "--server-side=false")
 	}
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
