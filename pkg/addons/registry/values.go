@@ -79,6 +79,17 @@ func (r *Registry) GenerateHelmValues(ctx context.Context, kcli client.Client, d
 			return nil, errors.Wrap(err, "get seaweedfs s3 endpoint")
 		}
 		copiedValues["s3"].(map[string]interface{})["regionEndpoint"] = seaweedFSEndpoint
+
+		var httpSecret corev1.Secret
+		if err := kcli.Get(ctx, client.ObjectKey{Namespace: r.Namespace(), Name: _httpSecretName}, &httpSecret); err != nil {
+			return nil, errors.Wrap(err, "get registry http secret")
+		}
+		copiedValues["secrets"] = map[string]interface{}{
+			"haSharedSecret": string(httpSecret.Data["secret"]),
+			"s3": map[string]interface{}{
+				"secretRef": seaweedfsS3SecretName,
+			},
+		}
 	}
 
 	for _, override := range overrides {
