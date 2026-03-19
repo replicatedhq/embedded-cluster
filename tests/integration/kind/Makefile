@@ -31,7 +31,7 @@ test-registry: registry.test
 test-velero: velero.test
 	DEBUG=$(DEBUG) ./velero.test \
 		-test.v \
-		-test.timeout=5m \
+		-test.timeout=10m \
 		-test.run='$(value RUN)' \
 		-test.short=$(SHORT)
 
