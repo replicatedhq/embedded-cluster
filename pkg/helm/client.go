@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -348,6 +349,10 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 		args = append(args, "--labels", fmt.Sprintf("%s=%s", k, v))
 	}
 	args = h.addKubernetesEnvArgs(args)
+	if slices.Contains(args, "--force-replace") || slices.Contains(args, "--force") {
+		// SSA conflicts with --force-replace in Helm 4, so we need to disable it
+		args = append(args, "--server-side", "false")
+	}
 
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
