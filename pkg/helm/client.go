@@ -254,9 +254,12 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	if len(releases) == 0 {
 		return false, nil
 	}
-	// A release is considered to not exist if it's uninstalling (in progress) or
-	// uninstalled (completed but kept in history via --keep-history). Callers
-	// should install (not upgrade) in both cases.
+	// A release is considered to not exist if it's uninstalling (transient state
+	// during helm uninstall) or uninstalled (kept in history via --keep-history).
+	// Both can appear in helm list output: uninstalling is a transient active
+	// state; uninstalled appears in Helm 4's default output (all statuses) or
+	// when using --all/--uninstalled in Helm 3. Callers should install (not
+	// upgrade) in both cases.
 	status := releases[len(releases)-1].Status
 	return status != "uninstalling" && status != "uninstalled", nil
 }
