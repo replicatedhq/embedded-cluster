@@ -54,7 +54,7 @@ func TestHA_HTTPSecretInjected(t *testing.T) {
 	values, err := addon.GenerateHelmValues(context.Background(), kcli, ecv1beta1.Domains{}, nil)
 	require.NoError(t, err, "GenerateHelmValues should not return an error")
 
-	hcli, err := helm.NewClient(helm.HelmOptions{})
+	hcli, err := helm.NewClient(helm.HelmOptions{HelmPath: "helm"})
 	require.NoError(t, err, "NewClient should not return an error")
 
 	manifests, err := hcli.Render(context.Background(), helm.InstallOptions{
