@@ -64,7 +64,7 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
-				HelmPath:              rc.PathToEmbeddedClusterBinary("helm"),
+				HelmPath:              "helm", // use the helm binary bundled in the container image and set in PATH
 				KubernetesEnvSettings: rc.GetKubernetesEnvSettings(),
 				K8sVersion:            versions.K0sVersion,
 				AirgapPath:            airgapChartsPath,
