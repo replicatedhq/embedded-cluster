@@ -28,18 +28,14 @@ func TestVelero_HostCABundle(t *testing.T) {
 
 	addon := &velero.Velero{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+		// /var/lib is the root directory for kind nodes. /var/lib/embedded-cluster/k0s will not exist
+		// causing velero node-agent pods to fail to start.
+		// In Helm 4, --wait (thanks to kstatus) will wait for node-agent Daemonset to be ready.
+		// It fails if the hostPath volumes do not exist.
+		K0sDataDir: "/var/lib",
 	}
 
-	// Helm 4 uses kstatus for resource readiness, which checks DaemonSet availability strictly
-	// (NumberAvailable >= DesiredNumberScheduled). Helm 3 had a bug where DaemonSets with
-	// maxUnavailable=1 and desiredNumberScheduled=1 were immediately considered ready
-	// (expectedReady = 1-1 = 0, so NumberReady >= 0 always passed).
-	//
-	// In kind clusters the k0s-specific kubelet paths don't exist, so node-agent pods fail
-	// to start. Disable hostPath mounts to allow node-agent to become available; this doesn't
-	// affect the CA bundle volumes being tested.
-	kindOverrides := []string{"nodeAgent:\n  disableHostPath: true\n  podVolumePath: /var/lib/kubelet/pods\n  pluginVolumePath: /var/lib/kubelet/plugins"}
-	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, domains, kindOverrides); err != nil {
+	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, domains, nil); err != nil {
 		t.Fatalf("failed to install velero: %v", err)
 	}
 
