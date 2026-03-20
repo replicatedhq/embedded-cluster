@@ -67,15 +67,16 @@ type InstallOptions struct {
 }
 
 type UpgradeOptions struct {
-	ReleaseName  string
-	ChartPath    string
-	ChartVersion string
-	Values       map[string]interface{}
-	Namespace    string
-	Labels       map[string]string
-	Timeout      time.Duration
-	Force        bool
-	LogFn        LogFn // Log function override to use for upgrade command
+	ReleaseName    string
+	ChartPath      string
+	ChartVersion   string
+	Values         map[string]interface{}
+	Namespace      string
+	Labels         map[string]string
+	Timeout        time.Duration
+	Force          bool
+	ForceConflicts bool  // if set, server-side apply will force changes against conflicts
+	LogFn          LogFn // Log function override to use for upgrade command
 }
 
 type UninstallOptions struct {
@@ -337,6 +338,9 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 	}
 	if opts.Force {
 		args = append(args, "--force-replace") // Helm 4: replaces --force
+	}
+	if opts.ForceConflicts {
+		args = append(args, "--force-conflicts")
 	}
 	if valuesFile != "" {
 		args = append(args, "--values", valuesFile)
