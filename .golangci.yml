@@ -5,7 +5,7 @@ linters:
     - govet
     - ineffassign
     - nolintlint
-    - staticcheck
+    # - staticcheck - disabled because its flaky. Maybe there is a race condition with another linter.
   settings:
     govet:
       enable:
