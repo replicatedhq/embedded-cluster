@@ -63,20 +63,21 @@ type InstallOptions struct {
 	Namespace    string
 	Labels       map[string]string
 	Timeout      time.Duration
+	DisableSSA   bool  // if set, server-side apply will be disabled (CSA mode)
 	LogFn        LogFn // Log function override to use for install command
 }
 
 type UpgradeOptions struct {
-	ReleaseName    string
-	ChartPath      string
-	ChartVersion   string
-	Values         map[string]interface{}
-	Namespace      string
-	Labels         map[string]string
-	Timeout        time.Duration
-	Force          bool
-	ForceConflicts bool  // if set, server-side apply will force changes against conflicts
-	LogFn          LogFn // Log function override to use for upgrade command
+	ReleaseName  string
+	ChartPath    string
+	ChartVersion string
+	Values       map[string]interface{}
+	Namespace    string
+	Labels       map[string]string
+	Timeout      time.Duration
+	Force        bool
+	DisableSSA   bool  // if set, server-side apply will be disabled
+	LogFn        LogFn // Log function override to use for upgrade command
 }
 
 type UninstallOptions struct {
@@ -292,6 +293,9 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*Release
 		"--timeout", timeout.String(),
 		"--output", "json",
 	}
+	if opts.DisableSSA {
+		args = append(args, "--server-side=false")
+	}
 	if valuesFile != "" {
 		args = append(args, "--values", valuesFile)
 	}
@@ -300,6 +304,7 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*Release
 	}
 	args = h.addKubernetesEnvArgs(args)
 
+	logrus.Infof("helm install %s args: %v", opts.ReleaseName, args)
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm install: %w", err)
@@ -339,8 +344,8 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 	if opts.Force {
 		args = append(args, "--force-replace") // Helm 4: replaces --force
 	}
-	if opts.ForceConflicts {
-		args = append(args, "--force-conflicts")
+	if opts.DisableSSA {
+		args = append(args, "--server-side=false")
 	}
 	if valuesFile != "" {
 		args = append(args, "--values", valuesFile)
@@ -354,6 +359,7 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 		args = append(args, "--server-side=false")
 	}
 
+	logrus.Infof("helm upgrade %s args: %v", opts.ReleaseName, args)
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm upgrade: %w", err)

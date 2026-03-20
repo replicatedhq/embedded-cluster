@@ -44,6 +44,7 @@ func (r *Registry) Install(
 		Values:       values,
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
+		DisableSSA:   true, // registry chart uses CSA for compatibility
 		LogFn:        helm.LogFn(logf),
 	})
 	if err != nil {
