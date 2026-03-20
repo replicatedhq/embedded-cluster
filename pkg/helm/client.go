@@ -16,7 +16,7 @@ import (
 	"go.yaml.in/yaml/v3"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/repo"
-	chartv4 "helm.sh/helm/v4/pkg/chart/v2"
+	chart "helm.sh/helm/v4/pkg/chart/v2"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -215,7 +215,7 @@ func (h *HelmClient) Push(ctx context.Context, path, dst string) error {
 	return nil
 }
 
-func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chartv4.Metadata, error) {
+func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version string) (*chart.Metadata, error) {
 	// Use helm show chart to get chart metadata
 	args := []string{"show", "chart", ref}
 	if version != "" {
@@ -227,7 +227,7 @@ func (h *HelmClient) GetChartMetadata(ctx context.Context, ref string, version s
 		return nil, fmt.Errorf("helm show chart: %w", err)
 	}
 
-	var metadata chartv4.Metadata
+	var metadata chart.Metadata
 	if err := k8syaml.Unmarshal([]byte(stdout), &metadata); err != nil {
 		return nil, fmt.Errorf("parse chart metadata YAML: %w", err)
 	}
@@ -240,8 +240,8 @@ func (h *HelmClient) ReleaseExists(ctx context.Context, namespace string, releas
 	args := []string{
 		"list",
 		"--namespace", namespace,
-		"--filter", fmt.Sprintf("^%s$", releaseName),
-		"--max=1", // Helm 4: limit to one result
+		"--filter", fmt.Sprintf("^%s$", releaseName), // regex ensures exact match
+		"--max=1",
 		"--output", "json",
 	}
 	args = h.addKubernetesEnvArgs(args)
