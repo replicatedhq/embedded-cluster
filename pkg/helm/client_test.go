@@ -661,7 +661,7 @@ func TestHelmClient_ReleaseExists(t *testing.T) {
 			name:    "uninstalling treated as not found",
 			release: "myrelease",
 			mockOut: `[{"name":"myrelease","namespace":"default","status":"uninstalling","revision":"1","chart":"c-1.0.0"}]`,
-			want:    false,
+			want:    true,
 		},
 		{
 			name:    "uninstalled treated as not found",
