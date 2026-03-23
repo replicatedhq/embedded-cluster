@@ -59,7 +59,10 @@ func (r *Registry) Upgrade(
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
-		LogFn:        helm.LogFn(logf),
+		// Field ownership changes when scaling registry replicas up and down
+		// when enabling HA which will lead to conflicts in SSA mode. Disable SSA
+		DisableSSA: true,
+		LogFn:      helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

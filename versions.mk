@@ -21,7 +21,7 @@ K0S_GO_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))
 TROUBLESHOOT_VERSION = v0.125.0
 
 # Helm Version
-HELM_VERSION = v3.20.1
+HELM_VERSION = v4.1.3
 
 # FIO Version (for performance testing)
 FIO_VERSION = 3.41

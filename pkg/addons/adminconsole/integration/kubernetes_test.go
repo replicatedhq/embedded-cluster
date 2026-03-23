@@ -32,7 +32,7 @@ func TestKubernetes_Airgap(t *testing.T) {
 		KotsadmNamespace: "my-app-namespace",
 	}
 
-	hcli, err := helm.NewClient(helm.HelmOptions{})
+	hcli, err := helm.NewClient(helm.HelmOptions{HelmPath: "helm"})
 	require.NoError(t, err, "NewClient should not return an error")
 
 	err = addon.Install(context.Background(), t.Logf, nil, nil, hcli, ecv1beta1.Domains{}, nil)

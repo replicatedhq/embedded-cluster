@@ -7,7 +7,7 @@ import (
 
 	kotsv1beta2 "github.com/replicatedhq/kotskinds/apis/kots/v1beta2"
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
-	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v4/pkg/chart/v2/loader"
 )
 
 // findChartArchive finds the chart archive that corresponds to the given HelmChart CR
