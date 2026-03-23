@@ -322,7 +322,7 @@ clean:
 	rm -rf cmd/installer/goods/internal/bins/*
 	rm -rf build
 	rm -rf bin
-	@$(MAKE) -C tests/integration/kind clean
+	@$(MAKE) -C tests/integration clean
 
 .PHONY: lint
 lint:
