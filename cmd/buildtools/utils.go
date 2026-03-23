@@ -355,7 +355,7 @@ func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *se
 
 func LatestChartVersion(ctx context.Context, hcli helm.Client, repo *repo.Entry, name string) (string, error) {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err := hcli.AddRepoBin(ctx, repo)
+	err := hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("add helm repo: %w", err)
 	}
@@ -479,7 +479,7 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	err = hcli.AddRepoBin(ctx, repo)
+	err = hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("add helm repo: %w", err)
 	}
@@ -539,7 +539,6 @@ func NewHelm() (helm.Client, error) {
 		HelmPath:              "helm",        // use the helm binary in PATH
 		KubernetesEnvSettings: helmcli.New(), // use the default env settings from helm
 		K8sVersion:            sv.Original(),
-		Writer:                logrus.New().Writer(),
 	})
 }
 

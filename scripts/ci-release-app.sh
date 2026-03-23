@@ -37,11 +37,11 @@ function init_vars() {
     require APP_VERSION "${APP_VERSION:-}"
     require APP_CHANNEL "${APP_CHANNEL:-}"
     require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
-    
+
     # Install Helm if not already installed
     if ! command -v helm &> /dev/null; then
         echo "Installing Helm..."
-        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
     fi
 }
 
@@ -64,16 +64,16 @@ function create_release() {
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
-    
+
     # Clean up backup files
     find output/tmp/release -name "*.bak" -type f -delete
-    
+
     # Package the Helm charts
     for CHART in nginx-app redis-app; do
         if [ -d "e2e/helm-charts/$CHART" ]; then
             echo "Packaging Helm chart: $CHART..."
             helm package -u e2e/helm-charts/$CHART -d output/tmp/release
-            
+
             # Get the packaged chart filename
             CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
             if [ -n "$CHART_FILENAME" ]; then
