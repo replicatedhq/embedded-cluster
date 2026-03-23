@@ -304,7 +304,6 @@ func (h *HelmClient) Install(ctx context.Context, opts InstallOptions) (*Release
 	}
 	args = h.addKubernetesEnvArgs(args)
 
-	logrus.Infof("helm install %s args: %v", opts.ReleaseName, args)
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm install: %w", err)
@@ -359,7 +358,6 @@ func (h *HelmClient) Upgrade(ctx context.Context, opts UpgradeOptions) (*Release
 		args = append(args, "--server-side=false")
 	}
 
-	logrus.Infof("helm upgrade %s args: %v", opts.ReleaseName, args)
 	stdout, _, err := h.executor.ExecuteCommand(ctx, nil, opts.LogFn, args...)
 	if err != nil {
 		return nil, fmt.Errorf("helm upgrade: %w", err)
