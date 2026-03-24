@@ -22,6 +22,7 @@ whitelist_txt="
 ec-e2e-proxy.testcluster.net
 ec-e2e-replicated-app.testcluster.net
 stefanprodan.github.io
+ghcr.io
 
 # dr
 .amazonaws.com
