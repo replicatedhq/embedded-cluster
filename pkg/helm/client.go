@@ -102,6 +102,7 @@ func (h *HelmClient) Close() error {
 
 func (h *HelmClient) AddRepo(ctx context.Context, r *repo.Entry) error {
 	if h.airgapPath != "" {
+		logrus.Debugf("Skipping helm repo add for %s in airgap mode", r.Name)
 		return nil
 	}
 	args := []string{"repo", "add", r.Name, r.URL}

@@ -21,6 +21,7 @@ http_access allow localnet
 whitelist_txt="
 ec-e2e-proxy.testcluster.net
 ec-e2e-replicated-app.testcluster.net
+stefanprodan.github.io
 
 # dr
 .amazonaws.com
