@@ -12,8 +12,44 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"helm.sh/helm/v3/pkg/repo"
 	k8syaml "sigs.k8s.io/yaml"
 )
+
+func TestHelmClient_AddRepo(t *testing.T) {
+	tests := []struct {
+		name        string
+		airgapPath  string
+		wantExecCmd bool
+	}{
+		{
+			name:        "calls helm repo add in non-airgap mode",
+			airgapPath:  "",
+			wantExecCmd: true,
+		},
+		{
+			name:        "skips helm repo add in airgap mode",
+			airgapPath:  "/some/airgap/path",
+			wantExecCmd: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockExec := &MockBinaryExecutor{}
+			if tt.wantExecCmd {
+				mockExec.On("ExecuteCommand", mock.Anything, mock.Anything, mock.Anything,
+					[]string{"repo", "add", "myrepo", "https://charts.example.com"},
+				).Return("", "", nil)
+			}
+
+			client := &HelmClient{executor: mockExec, airgapPath: tt.airgapPath}
+			err := client.AddRepo(t.Context(), &repo.Entry{Name: "myrepo", URL: "https://charts.example.com"})
+			require.NoError(t, err)
+			mockExec.AssertExpectations(t)
+		})
+	}
+}
 
 func TestHelmClient_Latest(t *testing.T) {
 	tests := []struct {
