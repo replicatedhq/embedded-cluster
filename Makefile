@@ -331,15 +331,6 @@ lint:
 lint-and-fix:
 	golangci-lint run --fix -c .golangci.yml ./... --build-tags $(GO_BUILD_TAGS)
 
-.PHONY: scan
-scan:
-	trivy fs \
-		--scanners vuln \
-		--exit-code=1 \
-		--severity="HIGH,CRITICAL" \
-		--ignore-unfixed \
-		./
-
 .PHONY: api-types
 api-types:
 	@echo "Generating OpenAPI documentation..."
