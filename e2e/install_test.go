@@ -834,6 +834,10 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
 		"*":                                     {}, // Triggered by host preflight wildcard-check
+		// from podinfo helm extension
+		"stefanprodan.github.io":               {},
+		"ghcr.io":                              {},
+		"pkg-containers.githubusercontent.com": {},
 	}
 
 	seenAllowedDomains := map[string]struct{}{}
