@@ -55,9 +55,6 @@ spec:
           chartname: podinfo/podinfo
           namespace: podinfo
           version: "6.11.1"
-          values: |
-            image:
-              repository: ec-e2e-proxy.testcluster.net/anonymous/ghcr.io/stefanprodan/podinfo
         - name: ingress-nginx
           chartname: oci://ec-e2e-proxy.testcluster.net/anonymous/public.ecr.aws/q7i7m9q2/embedded-cluster-charts/ingress-nginx
           namespace: ingress-nginx
