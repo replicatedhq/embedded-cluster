@@ -1,0 +1,20 @@
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: "testconfig"
+spec:
+  version: "testversion"
+  domains:
+    replicatedAppDomain: "fake-endpoint.com"
+    proxyRegistryDomain: "fake-replicated-proxy.test.net"
+  extensions:
+    helm:
+      repositories:
+        - name: test-repo
+          url: https://charts.external-domain.example.com
+      charts:
+        - name: test-chart
+          chartname: test-repo/test-chart
+          namespace: test-ns
+          version: "1.0.0"
+          order: 10
