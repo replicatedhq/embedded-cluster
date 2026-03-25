@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/pkg/errors"
@@ -44,7 +44,7 @@ func RegistryData(ctx context.Context) error {
 
 	slog.Info("Running registry data migration")
 
-	s3Uploader := s3manager.NewUploader(s3Client)
+	s3Uploader := transfermanager.New(s3Client)
 
 	total, err := countRegistryFiles()
 	if err != nil {
@@ -81,7 +81,7 @@ func RegistryData(ctx context.Context) error {
 		}, func(ctx context.Context) (bool, error) {
 			slog.Info("Uploading object", "path", relPath, "size", info.Size())
 
-			_, err = s3Uploader.Upload(ctx, &s3.PutObjectInput{
+			_, err = s3Uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 				Bucket: ptr.To(s3Bucket),
 				Key:    &relPath,
 				Body:   f,
