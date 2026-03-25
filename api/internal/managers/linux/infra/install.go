@@ -327,7 +327,7 @@ func (m *infraManager) installExtensions(ctx context.Context, hcli helm.Client) 
 
 	logFn := m.logFn("extensions")
 	logFn("installing extensions")
-	if err := extensions.Install(ctx, hcli, nil); err != nil {
+	if err := extensions.Install(ctx, hcli, nil, m.airgapBundle != ""); err != nil {
 		return fmt.Errorf("install extensions: %w", err)
 	}
 	return nil

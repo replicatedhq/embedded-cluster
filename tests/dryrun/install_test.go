@@ -433,6 +433,9 @@ func TestCustomPortsInstallation(t *testing.T) {
 var (
 	//go:embed assets/values.yaml
 	valuesYaml []byte
+
+	//go:embed assets/cluster-config-with-helm-repo.yaml
+	clusterConfigWithHelmRepoData string
 )
 
 func valuesFile(t *testing.T) string {
@@ -839,4 +842,45 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 	validateVeleroPlugin(t, hcli)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestHelmExtensionRepoAddOnlineVsAirgap verifies that helm repo add is called during
+// online installs (so the chart repository index is available), but skipped during airgap
+// installs (where charts are resolved from the local bundle and no outbound calls should
+// be made to external chart repository domains).
+func TestHelmExtensionRepoAddOnlineVsAirgap(t *testing.T) {
+	t.Run("online AddRepo is called", func(t *testing.T) {
+		hcli := &helm.MockClient{}
+		mock.InOrder(
+			// 4 built-in addons + 1 extension chart = 5 Install calls
+			hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+			hcli.On("Close").Once().Return(nil),
+		)
+		hcli.On("AddRepo", mock.Anything, mock.Anything).Once().Return(nil)
+
+		dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData)
+
+		hcli.AssertNumberOfCalls(t, "AddRepo", 1)
+		hcli.AssertExpectations(t)
+
+		t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+	})
+
+	t.Run("airgap AddRepo is never called", func(t *testing.T) {
+		hcli := &helm.MockClient{}
+		mock.InOrder(
+			// 5 built-in addons (registry added in airgap) + 1 extension chart = 6 Install calls
+			hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
+			hcli.On("Close").Once().Return(nil),
+		)
+
+		dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData,
+			"--airgap-bundle", airgapBundleFile(t),
+		)
+
+		hcli.AssertNotCalled(t, "AddRepo", mock.Anything, mock.Anything)
+		hcli.AssertExpectations(t)
+
+		t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+	})
 }

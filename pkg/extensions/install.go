@@ -14,7 +14,7 @@ type ExtensionsProgress struct {
 	Total   int
 }
 
-func Install(ctx context.Context, hcli helm.Client, progressChan chan<- ExtensionsProgress) error {
+func Install(ctx context.Context, hcli helm.Client, progressChan chan<- ExtensionsProgress, isAirgap bool) error {
 	if progressChan != nil {
 		defer close(progressChan)
 	}
@@ -24,8 +24,12 @@ func Install(ctx context.Context, hcli helm.Client, progressChan chan<- Extensio
 		return nil
 	}
 
-	if err := addRepos(ctx, hcli, config.AdditionalRepositories()); err != nil {
-		return errors.Wrap(err, "add additional helm repositories")
+	// In airgap mode charts are resolved from the local bundle, so repo add would
+	// attempt outbound network calls to external chart repository domains needlessly.
+	if !isAirgap {
+		if err := addRepos(ctx, hcli, config.AdditionalRepositories()); err != nil {
+			return errors.Wrap(err, "add additional helm repositories")
+		}
 	}
 
 	// sort by order first
