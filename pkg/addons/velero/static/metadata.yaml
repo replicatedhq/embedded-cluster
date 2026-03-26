@@ -6,7 +6,7 @@
 # $ output/bin/buildtools update addon <addon name>
 #
 version: 12.0.0
-location: oci://proxy.replicated.com/anonymous/ttl.sh/ethan/velero
+location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/velero
 images:
     velero:
         repo: proxy.replicated.com/library/velero
