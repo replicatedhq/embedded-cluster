@@ -27,7 +27,7 @@ require (
 )
 
 require (
-	dagger.io/dagger v0.20.3
+	dagger.io/dagger v0.19.11
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
