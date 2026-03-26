@@ -736,7 +736,7 @@ func runRestoreExtensions(ctx context.Context, installCfg *installConfig, rc run
 	defer hcli.Close()
 
 	logrus.Debugf("installing extensions")
-	if err := installExtensions(ctx, hcli); err != nil {
+	if err := installExtensions(ctx, hcli, installCfg.isAirgap); err != nil {
 		return fmt.Errorf("unable to install extensions: %w", err)
 	}
 

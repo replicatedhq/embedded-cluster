@@ -919,7 +919,7 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 	}
 
 	logrus.Debugf("installing extensions")
-	if err := installExtensions(ctx, hcli); err != nil {
+	if err := installExtensions(ctx, hcli, installCfg.isAirgap); err != nil {
 		return fmt.Errorf("failed to install extensions: %w", err)
 	}
 
@@ -1360,7 +1360,7 @@ func getDomains() ecv1beta1.Domains {
 	return domains.GetDomains(embCfgSpec, release.GetChannelRelease())
 }
 
-func installExtensions(ctx context.Context, hcli helm.Client) error {
+func installExtensions(ctx context.Context, hcli helm.Client, isAirgap bool) error {
 	progressChan := make(chan extensions.ExtensionsProgress)
 
 	loading := spinner.Start()
@@ -1375,7 +1375,7 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 		}
 	}()
 
-	err := extensions.Install(ctx, hcli, progressChan)
+	err := extensions.Install(ctx, hcli, progressChan, isAirgap)
 	<-done // Wait for the goroutine to finish processing all progress updates
 
 	if err != nil {

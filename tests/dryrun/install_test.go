@@ -433,6 +433,9 @@ func TestCustomPortsInstallation(t *testing.T) {
 var (
 	//go:embed assets/values.yaml
 	valuesYaml []byte
+
+	//go:embed assets/cluster-config-with-helm-repo.yaml
+	clusterConfigWithHelmRepoData string
 )
 
 func valuesFile(t *testing.T) string {
@@ -837,6 +840,47 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 
 	// Validate plugin configuration
 	validateVeleroPlugin(t, hcli)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestHelmExtensionRepoAddOnline verifies that helm repo add is called for extension
+// repositories during online installs so the chart repository index is available.
+func TestHelmExtensionRepoAddOnline(t *testing.T) {
+	hcli := &helm.MockClient{}
+	mock.InOrder(
+		// 4 built-in addons + 1 extension chart = 5 Install calls
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+	// AddRepo is registered outside InOrder so it doesn't compete with Install slots
+	hcli.On("AddRepo", mock.Anything, mock.Anything).Once().Return(nil)
+
+	dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData)
+
+	hcli.AssertNumberOfCalls(t, "AddRepo", 1)
+	hcli.AssertExpectations(t)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestHelmExtensionRepoAddAirgap verifies that helm repo add is never called during
+// airgap installs — charts are resolved from the local bundle and no outbound calls
+// should be made to external chart repository domains.
+func TestHelmExtensionRepoAddAirgap(t *testing.T) {
+	hcli := &helm.MockClient{}
+	mock.InOrder(
+		// 5 built-in addons (registry added in airgap) + 1 extension chart = 6 Install calls
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData,
+		"--airgap-bundle", airgapBundleFile(t),
+	)
+
+	hcli.AssertNotCalled(t, "AddRepo", mock.Anything, mock.Anything)
+	hcli.AssertExpectations(t)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
