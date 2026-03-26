@@ -41,14 +41,6 @@ var veleroImageComponents = map[string]addonComponent{
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
-	"registry.k8s.io/kubectl": {
-		name: "kubectl",
-		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "proxy.replicated.com/library/kubectl"
-			return getLatestImageNameAndTag(opts.ctx, ref, nil)
-		},
-		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
-	},
 }
 
 var veleroRepo = &repo.Entry{
@@ -210,7 +202,7 @@ func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL str
 		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
 
-	// make sure we include additional images
+	// make sure we include additional images not present in default chart templates
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
 
 	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images, filteredImages)
