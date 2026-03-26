@@ -41,7 +41,7 @@ var veleroImageComponents = map[string]addonComponent{
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
 	},
-	"docker.io/bitnamilegacy/kubectl": {
+	"registry.k8s.io/kubectl": {
 		name: "kubectl",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "proxy.replicated.com/library/kubectl"
