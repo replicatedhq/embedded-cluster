@@ -16,5 +16,5 @@ images:
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/library/openebs-provisioner-localpv
         tag:
-            amd64: 4.4.0-amd64@sha256:89e05caa6a6f218c43a086409bedbc4bc0525a63ad29d9e542f0293313e1bfa0
-            arm64: 4.4.0-arm64@sha256:13db94be95060f7a5f5019869b79580bbc1bd2c21651281ef672e1b58e80a110
+            amd64: 4.4.0-amd64@sha256:537ada79b46ebd9c0eecc5a7d87e3cc45774cbed1a90eaf8924d3261152d1753
+            arm64: 4.4.0-arm64@sha256:e9d1c7482c69c57a0734f25756610cd66c606b628764b6f43ddad249c2f3539c
