@@ -28,7 +28,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.13.1",
+    "react-router-dom": "^7.13.2",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
@@ -52,12 +52,12 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^17.4.0",
     "jsdom": "^29.0.1",
-    "msw": "2.12.13",
+    "msw": "2.12.14",
     "openapi-backend": "^5.16.1",
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
+    "typescript-eslint": "^8.57.2",
     "unified": "^11.0.5",
     "vite": "^7.3.1",
     "vite-plugin-static-copy": "^3.2.0",
