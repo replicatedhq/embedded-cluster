@@ -1211,12 +1211,23 @@ func listBackupsWithTimeout(ctx context.Context, kcli client.Client, tries int, 
 	if tries == 0 {
 		tries = 1
 	}
+retry:
 	for i := 0; i < tries; i++ {
 		backups, err := disasterrecovery.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
 		if len(backups) > 0 {
+			// check if the number of backups matches the expected number
+			for _, b := range backups {
+				expectedBackups := b.GetExpectedBackupCount()
+				if expectedBackups == len(backups) {
+					break
+				}
+				logrus.Debugf("Found %d backups, but expected %d. Waiting for all backups to be available...", len(backups), expectedBackups)
+				time.Sleep(sleep)
+				continue retry
+			}
 			logrus.Debugf("Found %d backups", len(backups))
 			return backups, nil
 		}
