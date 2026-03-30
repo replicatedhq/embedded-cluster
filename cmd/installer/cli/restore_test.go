@@ -465,6 +465,99 @@ func Test_ensureImprovedDrMetadata(t *testing.T) {
 	}
 }
 
+func Test_listBackupsWithTimeout(t *testing.T) {
+	scheme := kubeutils.Scheme
+
+	infraBackup := velerov1.Backup{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Backup",
+			APIVersion: "velero.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "instance-abcd",
+			Namespace: "velero",
+			Labels: map[string]string{
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
+			},
+			Annotations: map[string]string{
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeInfra,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
+			},
+			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 3, 0, 0, 0, 0, time.UTC)},
+		},
+		Status: velerov1.BackupStatus{Phase: velerov1.BackupPhaseCompleted},
+	}
+	appBackup := velerov1.Backup{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Backup",
+			APIVersion: "velero.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "application-abcd",
+			Namespace: "velero",
+			Labels: map[string]string{
+				disasterrecovery.InstanceBackupNameLabel: "app-slug-abcd",
+			},
+			Annotations: map[string]string{
+				disasterrecovery.BackupIsECAnnotation:            "true",
+				disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+				disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeApp,
+				disasterrecovery.InstanceBackupCountAnnotation:   "2",
+			},
+			CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 4, 0, 0, 0, 0, time.UTC)},
+		},
+		Status: velerov1.BackupStatus{Phase: velerov1.BackupPhaseCompleted},
+	}
+
+	tests := []struct {
+		name          string
+		kcli          client.Client
+		wantBackups   int
+		wantSubBackups int
+		wantErr       string
+	}{
+		{
+			name: "both sub-backups synced returns successfully",
+			kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+				&infraBackup,
+				&appBackup,
+			).Build(),
+			wantBackups:    1,
+			wantSubBackups: 2,
+		},
+		{
+			// Regression test: previously listBackupsWithTimeout returned as soon as
+			// len(backups) > 0, without checking that all sub-backups were synced. This
+			// caused isReplicatedBackupRestorable to fail with "has a different number of
+			// backups (1) than the expected number (2)" on the first restore attempt.
+			name: "only one of two sub-backups synced times out instead of returning partial backup",
+			kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+				&infraBackup,
+			).Build(),
+			wantErr: "timed out waiting for backups to become available",
+		},
+		{
+			name:    "no backups times out",
+			kcli:    fake.NewClientBuilder().WithScheme(scheme).Build(),
+			wantErr: "timed out waiting for backups to become available",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := listBackupsWithTimeout(context.Background(), tt.kcli, 3, 0)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+				require.Len(t, got, tt.wantBackups)
+				assert.Len(t, got[0], tt.wantSubBackups)
+			}
+		})
+	}
+}
+
 func embedFSToMap(t *testing.T, f embed.FS) map[string][]byte {
 	files := map[string][]byte{}
 	err := fs.WalkDir(f, ".", func(path string, d fs.DirEntry, err error) error {
