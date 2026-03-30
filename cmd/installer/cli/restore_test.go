@@ -512,11 +512,11 @@ func Test_listBackupsWithTimeout(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		kcli          client.Client
-		wantBackups   int
+		name           string
+		kcli           client.Client
+		wantBackups    int
 		wantSubBackups int
-		wantErr       string
+		wantErr        string
 	}{
 		{
 			name: "both sub-backups synced returns successfully",
