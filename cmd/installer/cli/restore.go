@@ -1220,18 +1220,17 @@ retry:
 		if len(backups) > 0 {
 			// Velero syncs backup metadata from S3 incrementally, so a logical backup
 			// may appear before all its sub-backups (instance + application) are present.
-			// Retry until at least one backup has its full set of sub-backups synced.
+			// Scan all backups and return as soon as any one has its full set of
+			// sub-backups synced. Only retry if none are complete yet.
 			for _, b := range backups {
-				expectedBackups := b.GetExpectedBackupCount()
-				if expectedBackups == len(b) {
-					break
+				if b.GetExpectedBackupCount() == len(b) {
+					logrus.Debugf("Found %d backups", len(backups))
+					return backups, nil
 				}
-				logrus.Debugf("Found %d sub-backups, but expected %d. Waiting for all sub-backups to be synced...", len(b), expectedBackups)
-				time.Sleep(sleep)
-				continue retry
 			}
-			logrus.Debugf("Found %d backups", len(backups))
-			return backups, nil
+			logrus.Debugf("Found %d backup(s) but none fully synced yet. Waiting for sub-backups to be synced...", len(backups))
+			time.Sleep(sleep)
+			continue retry
 		}
 
 		logrus.Debugf("No backups found yet...")

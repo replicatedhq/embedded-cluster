@@ -539,6 +539,35 @@ func Test_listBackupsWithTimeout(t *testing.T) {
 			wantErr: "timed out waiting for backups to become available",
 		},
 		{
+			// If the first backup in iteration order is partial but a later one is complete,
+			// we should return successfully rather than retrying past the complete one.
+			name: "first backup partial but second backup complete returns successfully",
+			kcli: fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+				&infraBackup,
+				&appBackup,
+				&velerov1.Backup{
+					TypeMeta: metav1.TypeMeta{Kind: "Backup", APIVersion: "velero.io/v1"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "instance-efgh",
+						Namespace: "velero",
+						Labels: map[string]string{
+							disasterrecovery.InstanceBackupNameLabel: "app-slug-efgh",
+						},
+						Annotations: map[string]string{
+							disasterrecovery.BackupIsECAnnotation:            "true",
+							disasterrecovery.InstanceBackupVersionAnnotation: disasterrecovery.InstanceBackupVersionCurrent,
+							disasterrecovery.InstanceBackupTypeAnnotation:    disasterrecovery.InstanceBackupTypeInfra,
+							disasterrecovery.InstanceBackupCountAnnotation:   "2",
+						},
+						CreationTimestamp: metav1.Time{Time: time.Date(2022, 1, 1, 0, 0, 0, 0, time.UTC)},
+					},
+					Status: velerov1.BackupStatus{Phase: velerov1.BackupPhaseCompleted},
+				},
+			).Build(),
+			wantBackups:    2,
+			wantSubBackups: 2,
+		},
+		{
 			name:    "no backups times out",
 			kcli:    fake.NewClientBuilder().WithScheme(scheme).Build(),
 			wantErr: "timed out waiting for backups to become available",
