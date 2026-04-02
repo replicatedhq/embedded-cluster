@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/api/internal/managers/linux/preflight"
+	"github.com/replicatedhq/embedded-cluster/api/internal/statemachine"
 	"github.com/replicatedhq/embedded-cluster/api/internal/states"
 	"github.com/replicatedhq/embedded-cluster/api/internal/utils"
 	"github.com/replicatedhq/embedded-cluster/api/types"
@@ -106,22 +107,30 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 			return fmt.Errorf("run host preflights: %w", err)
 		}
 
+		// Transition state machine based on whether there are failures
+		// This is used internally for workflow state tracking
+		var smState statemachine.State
 		if output.HasFail() {
-			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsFailed, output); err != nil {
-				return fmt.Errorf("transition states: %w", err)
-			}
-
-			if err := c.setHostPreflightStatus(types.StateFailed, "Host preflights failed"); err != nil {
-				return fmt.Errorf("set status to failed: %w", err)
-			}
+			smState = states.StateHostPreflightsFailed
 		} else {
-			if err := c.stateMachine.Transition(lock, states.StateHostPreflightsSucceeded, output); err != nil {
-				return fmt.Errorf("transition states: %w", err)
-			}
+			smState = states.StateHostPreflightsSucceeded
+		}
 
-			if err := c.setHostPreflightStatus(types.StateSucceeded, "Host preflights succeeded"); err != nil {
-				return fmt.Errorf("set status to succeeded: %w", err)
-			}
+		if err := c.stateMachine.Transition(lock, smState, output); err != nil {
+			return fmt.Errorf("transition states: %w", err)
+		}
+
+		// Always set status to StateSucceeded to indicate execution completed successfully
+		// The output will contain failures/warnings for the caller to check
+		var statusDescription string
+		if output.HasFail() {
+			statusDescription = "Host preflights completed with failures"
+		} else {
+			statusDescription = "Host preflights succeeded"
+		}
+
+		if err := c.setHostPreflightStatus(types.StateSucceeded, statusDescription); err != nil {
+			return fmt.Errorf("set status to succeeded: %w", err)
 		}
 
 		return nil
