@@ -1211,14 +1211,26 @@ func listBackupsWithTimeout(ctx context.Context, kcli client.Client, tries int, 
 	if tries == 0 {
 		tries = 1
 	}
+retry:
 	for i := 0; i < tries; i++ {
 		backups, err := disasterrecovery.ListReplicatedBackups(ctx, kcli)
 		if err != nil {
 			return nil, fmt.Errorf("unable to list backups: %w", err)
 		}
 		if len(backups) > 0 {
-			logrus.Debugf("Found %d backups", len(backups))
-			return backups, nil
+			// Velero syncs backup metadata from S3 incrementally, so a logical backup
+			// may appear before all its sub-backups (instance + application) are present.
+			// Scan all backups and return as soon as any one has its full set of
+			// sub-backups synced. Only retry if none are complete yet.
+			for _, b := range backups {
+				if b.GetExpectedBackupCount() == len(b) {
+					logrus.Debugf("Found %d backups", len(backups))
+					return backups, nil
+				}
+			}
+			logrus.Debugf("Found %d backup(s) but none fully synced yet. Waiting for sub-backups to be synced...", len(backups))
+			time.Sleep(sleep)
+			continue retry
 		}
 
 		logrus.Debugf("No backups found yet...")
