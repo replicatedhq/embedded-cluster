@@ -24,7 +24,7 @@ TROUBLESHOOT_VERSION = v0.125.1
 HELM_VERSION = v4.1.3
 
 # FIO Version (for performance testing)
-FIO_VERSION = 3.41
+FIO_VERSION = 3.42
 
 # Kubernetes Development Tool Versions
 CONTROLLER_TOOLS_VERSION = v0.20.1
