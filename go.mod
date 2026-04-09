@@ -28,7 +28,7 @@ require (
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/jedib0t/go-pretty/v6 v6.7.9
-	github.com/k0sproject/k0s v1.34.6-0.20260312074912-68d22c6d6cc6
+	github.com/k0sproject/k0s v1.34.7-0.20260329152645-c7811cd2c032
 	github.com/mattn/go-isatty v0.0.20
 	github.com/ohler55/ojg v1.28.1
 	github.com/onsi/ginkgo/v2 v2.28.1
@@ -354,9 +354,9 @@ require (
 	github.com/zitadel/logging v0.7.0 // indirect
 	github.com/zitadel/oidc/v3 v3.45.4 // indirect
 	github.com/zitadel/schema v1.3.2 // indirect
-	go.etcd.io/etcd/api/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/client/pkg/v3 v3.6.8 // indirect
-	go.etcd.io/etcd/client/v3 v3.6.8 // indirect
+	go.etcd.io/etcd/api/v3 v3.6.9 // indirect
+	go.etcd.io/etcd/client/pkg/v3 v3.6.9 // indirect
+	go.etcd.io/etcd/client/v3 v3.6.9 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
@@ -396,15 +396,15 @@ require (
 	k8s.io/cloud-provider v0.35.1 // indirect
 	k8s.io/component-base v0.35.2 // indirect
 	k8s.io/controller-manager v0.35.1 // indirect
-	k8s.io/cri-api v0.34.5 // indirect
-	k8s.io/cri-client v0.34.5 // indirect
+	k8s.io/cri-api v0.34.6 // indirect
+	k8s.io/cri-client v0.34.6 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kms v0.35.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/kubelet v0.35.2 // indirect
-	k8s.io/kubernetes v1.34.5 // indirect
+	k8s.io/kubernetes v1.34.6 // indirect
 	k8s.io/metrics v0.35.2 // indirect
-	k8s.io/mount-utils v0.34.5 // indirect
+	k8s.io/mount-utils v0.34.6 // indirect
 	periph.io/x/host/v3 v3.8.5 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.33.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
