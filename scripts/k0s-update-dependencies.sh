@@ -48,16 +48,13 @@ function main() {
     # pin to the current major.minor version
     sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION ?= .*$/K0S_MINOR_VERSION ?= $minor_version/" versions.mk
 
-    # only update images and code if there has been a change to the versions.mk file
-    if ! git diff --exit-code --name-only versions.mk > /dev/null; then
-        # update images for all major.minor versions
-        UPDATE_ALL_IMAGES=true ./scripts/k0s-update-images.sh "$minor_version"
+    # always update images for all major.minor versions to pull in the latest cve0 patches
+    UPDATE_ALL_IMAGES=true ./scripts/k0s-update-images.sh "$minor_version"
 
-        # prepare the code for the current major.minor version
-        export K0S_MINOR_VERSION="$minor_version"
-        update_go_dependencies
-        generate_crd_manifests
-    fi
+    # prepare the code for the current major.minor version
+    export K0S_MINOR_VERSION="$minor_version"
+    update_go_dependencies
+    generate_crd_manifests
 
     echo "Done"
 }
