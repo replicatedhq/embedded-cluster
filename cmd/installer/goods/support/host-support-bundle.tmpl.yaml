@@ -291,6 +291,7 @@ spec:
       collectorName: "sysctl"
       command: "sysctl"
       args: ["-a"]
+  - sysctl: {}
   - run:
       collectorName: k0s-version
       command: /usr/local/bin/k0s
@@ -319,6 +320,12 @@ spec:
   - copy:
       collectorName: runtime-config
       path: /etc/embedded-cluster/*
+  - copy:
+      collectorName: sysctl-config
+      path: /etc/sysctl.d/99-embedded-cluster.conf
+  - copy:
+      collectorName: sysctl-config-dynamic
+      path: /etc/sysctl.d/99-dynamic-embedded-cluster.conf
   - run:
       collectorName: "systemctl-firewalld-status"
       command: "systemctl"
@@ -799,3 +806,140 @@ spec:
             message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
         - fail:
             message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
+  # Sysctl networking parameters (required for Kubernetes networking)
+  - sysctl:
+      checkName: "sysctl: net.ipv4.ip_forward"
+      outcomes:
+        - pass:
+            when: "net.ipv4.ip_forward = 1"
+            message: "net.ipv4.ip_forward is correctly set to 1"
+        - fail:
+            message: "net.ipv4.ip_forward is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.all.forwarding"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.all.forwarding = 1"
+            message: "net.ipv4.conf.all.forwarding is correctly set to 1"
+        - fail:
+            message: "net.ipv4.conf.all.forwarding is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.default.forwarding"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.default.forwarding = 1"
+            message: "net.ipv4.conf.default.forwarding is correctly set to 1"
+        - fail:
+            message: "net.ipv4.conf.default.forwarding is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv6.conf.all.forwarding"
+      outcomes:
+        - pass:
+            when: "net.ipv6.conf.all.forwarding = 1"
+            message: "net.ipv6.conf.all.forwarding is correctly set to 1"
+        - fail:
+            message: "net.ipv6.conf.all.forwarding is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv6.conf.default.forwarding"
+      outcomes:
+        - pass:
+            when: "net.ipv6.conf.default.forwarding = 1"
+            message: "net.ipv6.conf.default.forwarding is correctly set to 1"
+        - fail:
+            message: "net.ipv6.conf.default.forwarding is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.bridge.bridge-nf-call-iptables"
+      outcomes:
+        - pass:
+            when: "net.bridge.bridge-nf-call-iptables = 1"
+            message: "net.bridge.bridge-nf-call-iptables is correctly set to 1"
+        - fail:
+            message: "net.bridge.bridge-nf-call-iptables is not set to 1 (required for Kubernetes networking)"
+
+  - sysctl:
+      checkName: "sysctl: net.bridge.bridge-nf-call-ip6tables"
+      outcomes:
+        - pass:
+            when: "net.bridge.bridge-nf-call-ip6tables = 1"
+            message: "net.bridge.bridge-nf-call-ip6tables is correctly set to 1"
+        - fail:
+            message: "net.bridge.bridge-nf-call-ip6tables is not set to 1 (required for Kubernetes networking)"
+
+  # Sysctl ARP and reverse-path filter parameters (misconfiguration causes Calico/routing issues)
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.default.arp_filter"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.default.arp_filter = 0"
+            message: "net.ipv4.conf.default.arp_filter is correctly set to 0"
+        - warn:
+            message: "net.ipv4.conf.default.arp_filter is not set to 0 (may cause ARP resolution issues across Calico interfaces)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.default.arp_ignore"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.default.arp_ignore = 0"
+            message: "net.ipv4.conf.default.arp_ignore is correctly set to 0"
+        - warn:
+            message: "net.ipv4.conf.default.arp_ignore is not set to 0 (may cause ARP resolution issues across Calico interfaces)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.all.arp_filter"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.all.arp_filter = 0"
+            message: "net.ipv4.conf.all.arp_filter is correctly set to 0"
+        - warn:
+            message: "net.ipv4.conf.all.arp_filter is not set to 0 (may cause ARP resolution issues across Calico interfaces)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.all.arp_ignore"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.all.arp_ignore = 0"
+            message: "net.ipv4.conf.all.arp_ignore is correctly set to 0"
+        - warn:
+            message: "net.ipv4.conf.all.arp_ignore is not set to 0 (may cause ARP resolution issues across Calico interfaces)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.default.rp_filter"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.default.rp_filter = 2"
+            message: "net.ipv4.conf.default.rp_filter is correctly set to 2 (loose reverse path filtering)"
+        - warn:
+            message: "net.ipv4.conf.default.rp_filter is not set to 2 (strict mode may disrupt Kubernetes service communication)"
+
+  - sysctl:
+      checkName: "sysctl: net.ipv4.conf.all.rp_filter"
+      outcomes:
+        - pass:
+            when: "net.ipv4.conf.all.rp_filter = 2"
+            message: "net.ipv4.conf.all.rp_filter is correctly set to 2 (loose reverse path filtering)"
+        - warn:
+            message: "net.ipv4.conf.all.rp_filter is not set to 2 (strict mode may disrupt Kubernetes service communication)"
+
+  # Sysctl inotify parameters (minimum values required for filesystem watch support)
+  - sysctl:
+      checkName: "sysctl: fs.inotify.max_user_instances"
+      outcomes:
+        - warn:
+            when: "fs.inotify.max_user_instances < 1024"
+            message: "fs.inotify.max_user_instances is below the required minimum of 1024 (may cause failures in applications that monitor filesystem events)"
+        - pass:
+            message: "fs.inotify.max_user_instances meets the minimum of 1024"
+
+  - sysctl:
+      checkName: "sysctl: fs.inotify.max_user_watches"
+      outcomes:
+        - warn:
+            when: "fs.inotify.max_user_watches < 65536"
+            message: "fs.inotify.max_user_watches is below the required minimum of 65536 (may cause failures in applications that monitor filesystem events)"
+        - pass:
+            message: "fs.inotify.max_user_watches meets the minimum of 65536"
