@@ -104,7 +104,7 @@ jobs:
           node-version-file: ./web/.nvmrc
 
       - name: Setup oras
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       - name: Setup crane
         uses: imjasonh/setup-crane@v0.5

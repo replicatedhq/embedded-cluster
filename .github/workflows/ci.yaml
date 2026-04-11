@@ -470,7 +470,7 @@ jobs:
         with:
           node-version-file: ./web/.nvmrc
 
-      - uses: oras-project/setup-oras@v1
+      - uses: oras-project/setup-oras@v2
 
       - uses: imjasonh/setup-crane@v0.5
 
@@ -626,7 +626,7 @@ jobs:
         with:
           node-version-file: ./web/.nvmrc
 
-      - uses: oras-project/setup-oras@v1
+      - uses: oras-project/setup-oras@v2
 
       - uses: imjasonh/setup-crane@v0.5
 
