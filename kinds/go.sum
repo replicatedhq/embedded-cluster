@@ -362,8 +362,8 @@ gopkg.in/natefinch/lumberjack.v2 v2.2.1/go.mod h1:YD8tP3GAjkrDg1eZH7EGmyESg/lsYs
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-helm.sh/helm/v3 v3.20.1 h1:T8PodUaH1UwNvE+imUA2mIKjJItY8g7CVvLVP5g4NzI=
-helm.sh/helm/v3 v3.20.1/go.mod h1:Fl1kBaWCpkUrM6IYXPjQ3bdZQfFrogKArqptvueZ6Ww=
+helm.sh/helm/v3 v3.20.2 h1:binM4rvPx5DcNsa1sIt7UZi55lRbu3pZUFmQkSoRh48=
+helm.sh/helm/v3 v3.20.2/go.mod h1:Fl1kBaWCpkUrM6IYXPjQ3bdZQfFrogKArqptvueZ6Ww=
 k8s.io/api v0.34.4 h1:Z5hsoQcZ2yBjelb9j5JKzCVo9qv9XLkVm5llnqS4h+0=
 k8s.io/api v0.34.4/go.mod h1:6SaGYuGPkMqqCgg8rPG/OQoCrhgSEV+wWn9v21fDP3o=
 k8s.io/apiextensions-apiserver v0.34.4 h1:TAh2mEduc27sR7lfEthOL2oNeQuux9pQCEJCVC9Gxrs=
