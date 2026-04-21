@@ -448,8 +448,8 @@ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsI
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
-github.com/jackc/pgx/v5 v5.9.1 h1:uwrxJXBnx76nyISkhr33kQLlUqjv7et7b9FjCen/tdc=
-github.com/jackc/pgx/v5 v5.9.1/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
+github.com/jackc/pgx/v5 v5.9.2 h1:3ZhOzMWnR4yJ+RW1XImIPsD1aNSz4T4fyP7zlQb56hw=
+github.com/jackc/pgx/v5 v5.9.2/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
 github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/jedib0t/go-pretty/v6 v6.7.9 h1:frarzQWmkZd97syT81+TH8INKPpzoxQnk+Mk5EIHSrM=
@@ -674,8 +674,8 @@ github.com/redis/go-redis/v9 v9.10.0 h1:FxwK3eV8p/CQa0Ch276C7u2d0eNC9kCmAYQ7mCXC
 github.com/redis/go-redis/v9 v9.10.0/go.mod h1:huWgSWd8mW6+m0VPhJjSSQ+d6Nh1VICQ6Q5lHuCH/Iw=
 github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d h1:N8t9W5SYs1MKPsuAp4PA5Haje4cOyCyubAq65qB1wzE=
 github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d/go.mod h1:+k4PHo2wukoU9kdiKrqqgi89Wmj+9AiwppYGVK11zig=
-github.com/replicatedhq/troubleshoot v0.127.0 h1:vyKrZB5uovJOebfPdVTJ10xn1+c/Fep3Xrh3jIHpxqo=
-github.com/replicatedhq/troubleshoot v0.127.0/go.mod h1:jnhdzjWVEJwpBKA0z3WlV2L6a8bkUvDYlrlOKci2DKk=
+github.com/replicatedhq/troubleshoot v0.127.1 h1:p6e4lbH71V/ne4zcS+Wbq6lgoVWKrPj8thPQYLzadUE=
+github.com/replicatedhq/troubleshoot v0.127.1/go.mod h1:fc0oCQlL561Nm60PAcFoy4Z9/YYcp3mhkRbZRo1cZWo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rs/cors v1.11.1 h1:eU3gRzXLRK57F5rKMGMZURNdIG4EoAmX8k94r9wXWHA=
