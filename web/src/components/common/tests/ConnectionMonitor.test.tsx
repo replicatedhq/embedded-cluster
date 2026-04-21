@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterEach, afterAll } from 'vitest';
 import { setupServer } from 'msw/node';
 import { mockHandlers, createHandler } from '../../../test/mockHandlers';
 import ConnectionMonitor from '../ConnectionMonitor';
@@ -9,13 +9,17 @@ const server = setupServer(
 );
 
 describe('ConnectionMonitor', () => {
-  beforeEach(() => {
+  beforeAll(() => {
     server.listen({ onUnhandledRequest: 'warn' });
   });
 
   afterEach(() => {
     server.resetHandlers();
     vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    server.close();
   });
 
   it('should not show modal when API is available', async () => {
