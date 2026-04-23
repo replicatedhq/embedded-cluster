@@ -72,6 +72,7 @@ func (a *API) initHandlers() error {
 
 		// kURL Migration handler (Linux only)
 		kurlMigrationHandler, err := kurlmigrationhandler.New(
+			a.cfg,
 			kurlmigrationhandler.WithLogger(a.logger),
 			kurlmigrationhandler.WithController(a.kurlMigrationController),
 		)
