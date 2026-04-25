@@ -10,8 +10,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.41.6
 	github.com/aws/aws-sdk-go-v2/config v1.32.16
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.15
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.17
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.99.1
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.1.18
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.100.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20260412055050-318087dfdf11
 	github.com/coreos/go-systemd/v22 v22.7.0
@@ -27,7 +27,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/jedib0t/go-pretty/v6 v6.7.9
+	github.com/jedib0t/go-pretty/v6 v6.7.10
 	github.com/k0sproject/k0s v1.34.7-0.20260329152645-c7811cd2c032
 	github.com/mattn/go-isatty v0.0.21
 	github.com/ohler55/ojg v1.28.1
