@@ -59,7 +59,7 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.0",
     "unified": "^11.0.5",
-    "vite": "^7.3.2",
+    "vite": "^8.0.10",
     "vite-plugin-static-copy": "^4.1.0",
     "vitest": "^3.2.4"
   }
