@@ -634,10 +634,10 @@ func TestGetClusterHostPreflightsUpgradeMode(t *testing.T) {
 	// Verify we loaded the upgdrade spec
 	req.Equal("embedded-cluster-upgrade", hpfc[1].Name)
 
-	// Verify the spec has collectors and analyzers
+	// Verify the upgrade spec has collectors and analyzers
 	spec := hpfc[1].Spec
-	req.Empty(spec.Collectors, "Upgrade spec  does not have collectors for now")
-	req.Empty(spec.Analyzers, "Upgrade spec does not have analyzers for now")
+	req.NotEmpty(spec.Collectors, "Upgrade spec should have collectors")
+	req.NotEmpty(spec.Analyzers, "Upgrade spec should have analyzers")
 }
 
 func TestGetClusterHostPreflightsInstallMode(t *testing.T) {

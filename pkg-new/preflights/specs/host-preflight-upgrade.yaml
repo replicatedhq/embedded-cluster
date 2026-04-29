@@ -4,5 +4,37 @@ metadata:
   name: embedded-cluster-upgrade
 spec:
   # upgrade only collectors and analyzers should be added here
-  collectors: []
-  analyzers: []
+  collectors:
+    - run:
+        collectorName: 'check-stale-containerd-tmpmounts'
+        command: 'sh'
+        args:
+          - -c
+          - |
+            # Detect stale containerd overlay mounts left by interrupted image pulls.
+            # These cause "device or resource busy" errors on subsequent pulls.
+            if grep -q 'containerd/tmpmounts' /proc/mounts 2>/dev/null; then
+              echo "stale_mounts_found=true"
+              echo "---"
+              grep 'containerd/tmpmounts' /proc/mounts
+            else
+              echo "stale_mounts_found=false"
+            fi
+  analyzers:
+    - textAnalyze:
+        checkName: Stale Containerd Temporary Mounts
+        fileName: host-collectors/run-host/check-stale-containerd-tmpmounts.txt
+        regex: 'stale_mounts_found=true'
+        outcomes:
+          - fail:
+              when: 'true'
+              message: >-
+                Stale containerd temporary mounts were detected. These leftover overlay
+                mounts from a previous interrupted operation will cause image pull failures
+                with "device or resource busy" errors during the upgrade. To resolve, run:
+                mount | grep containerd-mount | awk '{print $3}' | xargs -r umount -l
+                Then restart the k0s service with: systemctl restart k0scontroller.service
+                (or k0sworker.service on worker nodes).
+          - pass:
+              when: 'false'
+              message: No stale containerd temporary mounts detected
