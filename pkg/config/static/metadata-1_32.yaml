@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.7-amd64@sha256:c7bb74557e80a7ebd14184c8673721383f8fdc729158f381e3f145aa470ce9b4
-            arm64: v3.29.7-arm64@sha256:6b3212e31953f03230740fcd077930cd47cf5afab139f9527f2fbad3990a0557
+            amd64: v3.29.7-amd64@sha256:21c3247a8417bb01938bdb1da5ffa7ebc912345751b5189c8e5e2cc427f39a6c
+            arm64: v3.29.7-arm64@sha256:3f3c6281e606b87d0c12bdc266b79658cea2c33290899a7d4e3909eba2bfc3a6
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.29.7-amd64@sha256:3d2dda9a928200f5dc5f74b9b1df42729ad00670394ed669d339647775959d6a
-            arm64: v3.29.7-arm64@sha256:f792f74e53647d3d148684015728766188f2aa4a2f2b4f73395bd07659ff0797
+            amd64: v3.29.7-amd64@sha256:dc81fce83cc4afff99b8d9c94ae908358e413c16aa2241f7535f2798b078413b
+            arm64: v3.29.7-arm64@sha256:fb894d5fbed3159935cb2c2ddc4045548c7aecc097c60a33402e2da4bc92f9f0
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.29.7-amd64@sha256:1b94dbf5daafebf3388f8f3d3e6d2a86c4125b5af095f1f2978578b5af6f1536
-            arm64: v3.29.7-arm64@sha256:5171ab117c84555fd6af2a670e3d84d21d4499b095c130cf2b36d8461bf2e33d
+            amd64: v3.29.7-amd64@sha256:831e9eec1db24c55617db7f1f48f1afd2e1146a182ef4995d4d810fb032c4569
+            arm64: v3.29.7-arm64@sha256:dfb191e4c2fa56032b83e153634f727b4d2885a80a45b52c95b16cf83a3ac1cc
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.3-amd64@sha256:a79f21e4b9e3deb53ccb004519ef640fc1e4a558b931ce7e59c7fd8dd72159c1
-            arm64: 1.14.3-arm64@sha256:291cc8846e873dc49fa1417b81058cfa1e7bdc78e20bb9d0aac375b688ef10c5
+            amd64: 1.14.3-amd64@sha256:593a7573d170c5812505eb2f28e66fac1eff5ede26caf2bb07bdd57667f00f4d
+            arm64: 1.14.3-arm64@sha256:b2df26bdd1b1244b9e047e6f4d4813a66ff622c1d0e1f31357db279a1de7684d
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: v1.31.10-amd64@sha256:b3e7fd3d4e6b7d60dd50fd7c778dfbca4bee9c0046630a8ca95e85fdfc6b0494
-            arm64: v1.31.10-arm64@sha256:55efa65dd99bf4521164bdca0de930306f5b6789cf4efb356b6963e1dd43b4a7
+            amd64: v1.31.10-amd64@sha256:859b7da9a9f3f9008362bcc9163ad189771a1a1d420eff7335a94aa406786878
+            arm64: v1.31.10-arm64@sha256:7dc604e495433d90ca5e93b9fe60ca14b53f7cf403e468b3527940239164f7ee
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.32.13-amd64@sha256:4ee5df86460164a440d90b2438bfd3c28c4ce142353a0c5b68c79f899930d95e
-            arm64: v1.32.13-arm64@sha256:1266152972d12901a8a08a126d7b86883a5263a159c7863c920da5250371e07d
+            amd64: v1.32.13-amd64@sha256:d5a3c1ff3de8c53b68a25e57b8828656a3550c007eb441aa44d5002ebe76735e
+            arm64: v1.32.13-arm64@sha256:a0cd0d3ffa4d5ec67ad316852c81cf2f9651e043cdee722479cd462c8849fec6
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.1-amd64@sha256:b30c3bed2a8ecb820d8673c02203aeca99ef1bcb3aad494281f0395018911c9a
-            arm64: v0.8.1-arm64@sha256:cf2ba86c63a723bd302cc9cac72aac7ca89fc7aab83d2bca60ba422839869dc1
+            amd64: v0.8.1-amd64@sha256:792868328fa0a4c844c733410208f76ef24ce0371276fe95d361f1bc533eb85c
+            arm64: v0.8.1-arm64@sha256:9ee64f4cf7a7f41e73c2ed50c069e6008fa2bf4471a2cd45ed3989cc54c50498
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:9728b33743cd71be459b8a7e4f59b0feed64a1b440253e382b1708f1b3485cb2
-            arm64: 3.9-arm64@sha256:c37090eb97dbbbc1423dfb883f3c5a7d981f1ee560137013bc498cc4806191d4
+            amd64: 3.9-amd64@sha256:767d1808aa45b14ea20e6e75f1cac8e1d76dc212448ecfce39f1694652425770
+            arm64: 3.9-arm64@sha256:d9f6ac43ffc00e2578a61bc34914d5d9908370736609be339ef9d3489b045a9d
