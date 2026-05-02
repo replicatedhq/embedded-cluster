@@ -23,7 +23,7 @@
     "@tailwindcss/postcss": "^4.2.4",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.100.7",
-    "lucide-react": "^1.11.0",
+    "lucide-react": "^1.14.0",
     "openapi-fetch": "^0.17.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
