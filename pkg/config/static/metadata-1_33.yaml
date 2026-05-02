@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.7-amd64@sha256:c7bb74557e80a7ebd14184c8673721383f8fdc729158f381e3f145aa470ce9b4
-            arm64: v3.29.7-arm64@sha256:6b3212e31953f03230740fcd077930cd47cf5afab139f9527f2fbad3990a0557
+            amd64: v3.29.7-amd64@sha256:21c3247a8417bb01938bdb1da5ffa7ebc912345751b5189c8e5e2cc427f39a6c
+            arm64: v3.29.7-arm64@sha256:3f3c6281e606b87d0c12bdc266b79658cea2c33290899a7d4e3909eba2bfc3a6
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.29.7-amd64@sha256:3d2dda9a928200f5dc5f74b9b1df42729ad00670394ed669d339647775959d6a
-            arm64: v3.29.7-arm64@sha256:f792f74e53647d3d148684015728766188f2aa4a2f2b4f73395bd07659ff0797
+            amd64: v3.29.7-amd64@sha256:dc81fce83cc4afff99b8d9c94ae908358e413c16aa2241f7535f2798b078413b
+            arm64: v3.29.7-arm64@sha256:fb894d5fbed3159935cb2c2ddc4045548c7aecc097c60a33402e2da4bc92f9f0
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.29.7-amd64@sha256:1b94dbf5daafebf3388f8f3d3e6d2a86c4125b5af095f1f2978578b5af6f1536
-            arm64: v3.29.7-arm64@sha256:5171ab117c84555fd6af2a670e3d84d21d4499b095c130cf2b36d8461bf2e33d
+            amd64: v3.29.7-amd64@sha256:831e9eec1db24c55617db7f1f48f1afd2e1146a182ef4995d4d810fb032c4569
+            arm64: v3.29.7-arm64@sha256:dfb191e4c2fa56032b83e153634f727b4d2885a80a45b52c95b16cf83a3ac1cc
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.3-amd64@sha256:a79f21e4b9e3deb53ccb004519ef640fc1e4a558b931ce7e59c7fd8dd72159c1
-            arm64: 1.14.3-arm64@sha256:291cc8846e873dc49fa1417b81058cfa1e7bdc78e20bb9d0aac375b688ef10c5
+            amd64: 1.14.3-amd64@sha256:593a7573d170c5812505eb2f28e66fac1eff5ede26caf2bb07bdd57667f00f4d
+            arm64: 1.14.3-arm64@sha256:b2df26bdd1b1244b9e047e6f4d4813a66ff622c1d0e1f31357db279a1de7684d
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: v1.32.13-amd64@sha256:1dce5ea83bf0f57ccf397e98b20615d9cb6d4ad3265ad61a0e8d87d3c00e3529
-            arm64: v1.32.13-arm64@sha256:883c4c6f695f7680874abab1005a11a833647c74bdd0209d4eb6ef3c25de5788
+            amd64: v1.32.13-amd64@sha256:d041cddd665f5ac8bd64459766eb080e9a88f1b86372ff20d93f10850b499dfc
+            arm64: v1.32.13-arm64@sha256:0a1be7bdf75b660ea8fb232bda05f7ecfa7d38a72741dcc4c8a9b7c213758b11
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.33.11-amd64@sha256:b13b9b1ce564bb31d06debf28b10cf676c364882e2e6ff9e3e5f0417b7d3475c
-            arm64: v1.33.11-arm64@sha256:f4b43224a4ae09646f45fd9bcf7566dedb3727937d3835712f4b1a1b38d32932
+            amd64: v1.33.11-amd64@sha256:38bae6913d6b3cc63281735e08221bf9d4b3bb721a91b4de656c1249fbc351ed
+            arm64: v1.33.11-arm64@sha256:009633ed0f21ed6b730ba0479117c8b210a839a3812966180f285a1f19b3fbad
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.1-amd64@sha256:b30c3bed2a8ecb820d8673c02203aeca99ef1bcb3aad494281f0395018911c9a
-            arm64: v0.8.1-arm64@sha256:cf2ba86c63a723bd302cc9cac72aac7ca89fc7aab83d2bca60ba422839869dc1
+            amd64: v0.8.1-amd64@sha256:792868328fa0a4c844c733410208f76ef24ce0371276fe95d361f1bc533eb85c
+            arm64: v0.8.1-arm64@sha256:9ee64f4cf7a7f41e73c2ed50c069e6008fa2bf4471a2cd45ed3989cc54c50498
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.10.1-amd64@sha256:f929583959e0c6e312750d5fd5dafb0387c4b726e8319236f016afb04e98e603
-            arm64: 3.10.1-arm64@sha256:a24f3f47fe55fcaeb5f439df41f6b86d10e6b1205d3926a8ca425636433f3952
+            amd64: 3.10.1-amd64@sha256:e5b1bea963a74eb6ebeeb6f77e197ecd62c0604d399678506f6d48518be21cc6
+            arm64: 3.10.1-arm64@sha256:7bcca0aa15ef9768cf6e7c8970c1e1d5666ac2065d2a1f3b6b5c946fece16f2d
