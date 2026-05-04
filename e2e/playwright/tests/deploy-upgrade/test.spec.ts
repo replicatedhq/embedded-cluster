@@ -4,14 +4,38 @@ import { login, vaidateAppAndClusterReady } from '../shared';
 test('deploy upgrade', async ({ page }) => {
   test.setTimeout(15 * 60 * 1000); // 15 minutes
   await login(page);
-  await initiateUpgrade(page);
-  const iframe = page.frameLocator('#upgrade-service-iframe');
-  await fillConfigForm(iframe);
-  await handlePreflightChecks(iframe);
-  await deployUpgrade(iframe);
-  await waitForClusterUpdate(page);
+  await runDeployUpgradeWithRetry(page);
   await verifyUpgradeSuccess(page);
 });
+
+async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    await initiateUpgrade(page);
+    const iframe = page.frameLocator('#upgrade-service-iframe');
+    await fillConfigForm(iframe);
+    await handlePreflightChecks(iframe);
+    await deployUpgrade(iframe);
+    await waitForClusterUpdate(page);
+
+    // Check for the transient "Upgrade failed" modal (e.g. 404 on binary download)
+    const failedModal = page.locator('dialog, .Modal-body').filter({ hasText: 'Upgrade failed' });
+    try {
+      await failedModal.waitFor({ timeout: 5_000 });
+    } catch (e) {
+      // Only a timeout means the modal did not appear — upgrade succeeded
+      if (e instanceof Error && e.name === 'TimeoutError') {
+        return;
+      }
+      throw e;
+    }
+
+    // Modal was found — dismiss it and retry the full deploy flow
+    await page.getByRole('button', { name: 'Ok, got it!' }).click();
+    await expect(failedModal).not.toBeVisible({ timeout: 5_000 });
+    continue;
+  }
+  throw new Error(`Deploy upgrade failed after ${maxRetries} retries due to transient errors`);
+}
 
 async function initiateUpgrade(page: Page) {
   await page.getByRole('link', { name: 'Version history', exact: true }).click();
