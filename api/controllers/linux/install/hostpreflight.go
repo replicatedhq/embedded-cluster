@@ -57,7 +57,7 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 		IsAirgap:                          c.airgapBundle != "",
 		IsUI:                              opts.IsUI,
 		AirgapInfo:                        airgapInfo,
-		EmbeddedAssetsSize:              c.embeddedAssetsSize,
+		EmbeddedAssetsSize:                c.embeddedAssetsSize,
 		Mode:                              types.ModeInstall,
 		DisableFilesystemPerformanceCheck: c.disableFilesystemPerformanceCheck,
 	})

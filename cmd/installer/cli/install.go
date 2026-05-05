@@ -844,11 +844,11 @@ func buildAPIOptions(flags installFlags, installCfg *installConfig, rc runtimeco
 			Mode:                 apitypes.ModeInstall,
 			RequiresInfraUpgrade: false, // Always false for install
 
-		LinuxConfig: apitypes.LinuxConfig{
-			RuntimeConfig:                      rc,
-			AllowIgnoreHostPreflights:          flags.ignoreHostPreflights,
-			DisableFilesystemPerformanceCheck:    flags.disableFilesystemPerformanceCheck,
-		},
+			LinuxConfig: apitypes.LinuxConfig{
+				RuntimeConfig:                     rc,
+				AllowIgnoreHostPreflights:         flags.ignoreHostPreflights,
+				DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
+			},
 			KubernetesConfig: apitypes.KubernetesConfig{
 				Installation: ki,
 			},
