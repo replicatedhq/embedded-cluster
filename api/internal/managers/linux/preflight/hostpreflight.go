@@ -75,7 +75,7 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                             rc.ProxySpec(),
 		PodCIDR:                           rc.PodCIDR(),
-		ServiceCIDR:                     rc.ServiceCIDR(),
+		ServiceCIDR:                       rc.ServiceCIDR(),
 		NodeIP:                            nodeIP,
 		IsAirgap:                          opts.IsAirgap,
 		TCPConnectionsRequired:            opts.TCPConnectionsRequired,

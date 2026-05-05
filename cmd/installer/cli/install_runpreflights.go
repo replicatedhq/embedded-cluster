@@ -115,10 +115,10 @@ func runInstallPreflights(ctx context.Context, flags installFlags, installCfg *i
 		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
 		Proxy:                             rc.ProxySpec(),
 		PodCIDR:                           rc.PodCIDR(),
-		ServiceCIDR:                     rc.ServiceCIDR(),
+		ServiceCIDR:                       rc.ServiceCIDR(),
 		NodeIP:                            nodeIP,
 		IsAirgap:                          installCfg.isAirgap,
-		ControllerAirgapStorageSpace:        controllerAirgapStorageSpace,
+		ControllerAirgapStorageSpace:      controllerAirgapStorageSpace,
 		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {

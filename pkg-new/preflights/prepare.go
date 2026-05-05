@@ -18,25 +18,25 @@ var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight fa
 
 // PrepareOptions contains options for preparing preflights (shared across CLI and API)
 type PrepareHostPreflightOptions struct {
-	HostPreflightSpec            *v1beta2.HostPreflightSpec
-	ReplicatedAppURL             string
-	ProxyRegistryURL             string
-	AdminConsolePort             int
-	LocalArtifactMirrorPort      int
-	DataDir                      string
-	K0sDataDir                   string
-	OpenEBSDataDir               string
-	Proxy                        *ecv1beta1.ProxySpec
-	PodCIDR                      string
-	ServiceCIDR                  string
-	GlobalCIDR                   *string
-	NodeIP                       string
-	IsAirgap                     bool
-	TCPConnectionsRequired       []string
-	IsJoin                       bool
-	IsUI                         bool
-	IsV3                         bool
-	Mode                         apitypes.Mode
+	HostPreflightSpec                 *v1beta2.HostPreflightSpec
+	ReplicatedAppURL                  string
+	ProxyRegistryURL                  string
+	AdminConsolePort                  int
+	LocalArtifactMirrorPort           int
+	DataDir                           string
+	K0sDataDir                        string
+	OpenEBSDataDir                    string
+	Proxy                             *ecv1beta1.ProxySpec
+	PodCIDR                           string
+	ServiceCIDR                       string
+	GlobalCIDR                        *string
+	NodeIP                            string
+	IsAirgap                          bool
+	TCPConnectionsRequired            []string
+	IsJoin                            bool
+	IsUI                              bool
+	IsV3                              bool
+	Mode                              apitypes.Mode
 	ControllerAirgapStorageSpace      string
 	WorkerAirgapStorageSpace          string
 	DisableFilesystemPerformanceCheck bool
@@ -54,7 +54,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		ProxyRegistryURL:                  opts.ProxyRegistryURL,
 		IsAirgap:                          opts.IsAirgap,
 		AdminConsolePort:                  opts.AdminConsolePort,
-		LocalArtifactMirrorPort:         opts.LocalArtifactMirrorPort,
+		LocalArtifactMirrorPort:           opts.LocalArtifactMirrorPort,
 		DataDir:                           opts.DataDir,
 		K0sDataDir:                        opts.K0sDataDir,
 		OpenEBSDataDir:                    opts.OpenEBSDataDir,

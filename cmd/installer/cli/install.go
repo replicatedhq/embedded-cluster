@@ -70,15 +70,15 @@ type installFlags struct {
 	headless             bool
 
 	// linux flags
-	dataDir                 string
-	localArtifactMirrorPort int
-	skipHostPreflights                  bool
-	ignoreHostPreflights                bool
-	ignoreAppPreflights                 bool
-	disableFilesystemPerformanceCheck   bool
-	networkInterface                    string
-	cidrConfig              *newconfig.CIDRConfig
-	proxySpec               *ecv1beta1.ProxySpec
+	dataDir                           string
+	localArtifactMirrorPort           int
+	skipHostPreflights                bool
+	ignoreHostPreflights              bool
+	ignoreAppPreflights               bool
+	disableFilesystemPerformanceCheck bool
+	networkInterface                  string
+	cidrConfig                        *newconfig.CIDRConfig
+	proxySpec                         *ecv1beta1.ProxySpec
 
 	// kubernetes flags
 	kubernetesEnvSettings *helmcli.EnvSettings
