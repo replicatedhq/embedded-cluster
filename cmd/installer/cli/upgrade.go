@@ -41,12 +41,13 @@ import (
 
 // UpgradeCmdFlags holds command-line flags for the upgrade command
 type UpgradeCmdFlags struct {
-	target       string
-	licenseFile  string
-	assumeYes    bool
-	overrides    string
-	airgapBundle string
-	managerPort  int
+	target                            string
+	licenseFile                       string
+	assumeYes                         bool
+	overrides                         string
+	airgapBundle                      string
+	managerPort                       int
+	disableFilesystemPerformanceCheck bool
 }
 
 // upgradeConfig holds configuration data gathered during upgrade preparation
@@ -89,6 +90,13 @@ func UpgradeCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 			// TODO: Add check for kubernetes target when kubernetes support is added
 			if !slices.Contains([]string{"linux"}, flags.target) {
 				return fmt.Errorf(`invalid --target (must be: "linux")`)
+			}
+
+			// Disable filesystem performance check from env var (if flag not explicitly set)
+			if !cmd.Flags().Changed("disable-filesystem-performance-check") {
+				if os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "1" || os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "true" {
+					flags.disableFilesystemPerformanceCheck = true
+				}
 			}
 
 			// Skip root check if dryrun mode is enabled
@@ -237,6 +245,9 @@ func newCommonUpgradeFlags(flags *UpgradeCmdFlags) *pflag.FlagSet {
 
 	flagSet.BoolVarP(&flags.assumeYes, "yes", "y", false, "Assume yes to all prompts.")
 	flagSet.SetNormalizeFunc(normalizeNoPromptToYes)
+
+	flagSet.BoolVar(&flags.disableFilesystemPerformanceCheck, "disable-filesystem-performance-check", false, "Disable the filesystem write latency performance check")
+	mustMarkFlagHidden(flagSet, "disable-filesystem-performance-check")
 
 	return flagSet
 }
@@ -508,7 +519,8 @@ func runManagerExperienceUpgrade(
 			RequiresInfraUpgrade: upgradeConfig.requiresInfraUpgrade,
 
 			LinuxConfig: apitypes.LinuxConfig{
-				RuntimeConfig: rc,
+				RuntimeConfig:                     rc,
+				DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 			},
 		},
 		ManagerPort:     upgradeConfig.managerPort,
@@ -737,7 +749,8 @@ func runKURLMigrationAPI(
 			Mode:               apitypes.ModeUpgrade, // Use upgrade mode for kURL migration
 
 			LinuxConfig: apitypes.LinuxConfig{
-				RuntimeConfig: rc,
+				RuntimeConfig:                     rc,
+				DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 			},
 		},
 		ManagerPort: managerPort,
