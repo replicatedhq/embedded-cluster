@@ -46,8 +46,9 @@ const (
 )
 
 type LinuxConfig struct {
-	RuntimeConfig             runtimeconfig.RuntimeConfig
-	AllowIgnoreHostPreflights bool
+	RuntimeConfig                      runtimeconfig.RuntimeConfig
+	AllowIgnoreHostPreflights          bool
+	DisableFilesystemPerformanceCheck  bool
 }
 
 type KubernetesConfig struct {

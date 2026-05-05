@@ -50,15 +50,16 @@ func (c *InstallController) RunHostPreflights(ctx context.Context, opts RunHostP
 
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
-		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
-		HostPreflightSpec:     c.releaseData.HostPreflights,
-		EmbeddedClusterConfig: c.releaseData.EmbeddedClusterConfig,
-		IsAirgap:              c.airgapBundle != "",
-		IsUI:                  opts.IsUI,
-		AirgapInfo:            airgapInfo,
-		EmbeddedAssetsSize:    c.embeddedAssetsSize,
-		Mode:                  types.ModeInstall,
+		ReplicatedAppURL:                  netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		ProxyRegistryURL:                  netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
+		HostPreflightSpec:                 c.releaseData.HostPreflights,
+		EmbeddedClusterConfig:             c.releaseData.EmbeddedClusterConfig,
+		IsAirgap:                          c.airgapBundle != "",
+		IsUI:                              opts.IsUI,
+		AirgapInfo:                        airgapInfo,
+		EmbeddedAssetsSize:              c.embeddedAssetsSize,
+		Mode:                              types.ModeInstall,
+		DisableFilesystemPerformanceCheck: c.disableFilesystemPerformanceCheck,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)

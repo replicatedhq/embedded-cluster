@@ -72,7 +72,8 @@ type UpgradeController struct {
 	logger                    logrus.FieldLogger
 	targetVersion             string
 	initialVersion            string
-	allowIgnoreHostPreflights bool
+	allowIgnoreHostPreflights         bool
+	disableFilesystemPerformanceCheck bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -244,6 +245,12 @@ func WithInfraUpgradeRequired(required bool) UpgradeControllerOption {
 func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
+func WithDisableFilesystemPerformanceCheck(disableFilesystemPerformanceCheck bool) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.disableFilesystemPerformanceCheck = disableFilesystemPerformanceCheck
 	}
 }
 

@@ -77,8 +77,9 @@ type InstallController struct {
 	mcli                      metadata.Interface
 	preflightRunner           preflights.PreflightRunnerInterface
 	stateMachine              statemachine.Interface
-	logger                    logrus.FieldLogger
-	allowIgnoreHostPreflights bool
+	logger                            logrus.FieldLogger
+	allowIgnoreHostPreflights         bool
+	disableFilesystemPerformanceCheck bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -178,6 +179,12 @@ func WithClusterID(clusterID string) InstallControllerOption {
 func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
 	return func(c *InstallController) {
 		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
+func WithDisableFilesystemPerformanceCheck(disableFilesystemPerformanceCheck bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.disableFilesystemPerformanceCheck = disableFilesystemPerformanceCheck
 	}
 }
 
