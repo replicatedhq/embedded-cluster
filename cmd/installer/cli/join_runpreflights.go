@@ -29,7 +29,7 @@ func JoinRunPreflightsCmd(ctx context.Context, appSlug, appTitle string) *cobra.
 		Short: fmt.Sprintf("Run join host preflights for %s", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunJoin(&flags); err != nil {
+			if err := preRunJoin(cmd, &flags); err != nil {
 				return err
 			}
 
