@@ -125,8 +125,13 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 		line = append(line, "--data-dir", opts.dataDir)
 	}
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, opts.withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, env); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 }
@@ -199,8 +204,13 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		lines = append(lines, joinCommand)
 	}
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	for _, line := range lines {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, line, env); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
@@ -223,9 +233,14 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 	}
 	t.Log("worker join commands:", commands)
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
 	for _, command := range commands {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), env); err != nil {
 			t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 		}
 	}

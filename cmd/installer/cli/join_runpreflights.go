@@ -29,7 +29,7 @@ func JoinRunPreflightsCmd(ctx context.Context, appSlug, appTitle string) *cobra.
 		Short: fmt.Sprintf("Run join host preflights for %s", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunJoin(&flags); err != nil {
+			if err := preRunJoin(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -106,21 +106,22 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 	domains := domains.GetDomains(jcmd.InstallationSpec.Config, release.GetChannelRelease())
 
 	opts := preflights.PrepareHostPreflightOptions{
-		HostPreflightSpec:       release.GetHostPreflights(),
-		ReplicatedAppURL:        netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
-		ProxyRegistryURL:        netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
-		AdminConsolePort:        rc.AdminConsolePort(),
-		LocalArtifactMirrorPort: rc.LocalArtifactMirrorPort(),
-		DataDir:                 rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:              rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:          rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                   rc.ProxySpec(),
-		PodCIDR:                 cidrCfg.PodCIDR,
-		ServiceCIDR:             cidrCfg.ServiceCIDR,
-		NodeIP:                  nodeIP,
-		IsAirgap:                jcmd.InstallationSpec.AirGap,
-		TCPConnectionsRequired:  jcmd.TCPConnectionsRequired,
-		IsJoin:                  true,
+		HostPreflightSpec:                 release.GetHostPreflights(),
+		ReplicatedAppURL:                  netutils.MaybeAddHTTPS(domains.ReplicatedAppDomain),
+		ProxyRegistryURL:                  netutils.MaybeAddHTTPS(domains.ProxyRegistryDomain),
+		AdminConsolePort:                  rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:           rc.LocalArtifactMirrorPort(),
+		DataDir:                           rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                        rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                             rc.ProxySpec(),
+		PodCIDR:                           cidrCfg.PodCIDR,
+		ServiceCIDR:                       cidrCfg.ServiceCIDR,
+		NodeIP:                            nodeIP,
+		IsAirgap:                          jcmd.InstallationSpec.AirGap,
+		TCPConnectionsRequired:            jcmd.TCPConnectionsRequired,
+		IsJoin:                            true,
+		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 	}
 
 	// Calculate airgap storage space requirement based on node type

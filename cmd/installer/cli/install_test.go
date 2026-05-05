@@ -1347,6 +1347,7 @@ func Test_buildAPIOptions(t *testing.T) {
 				req.Equal(8800, opts.ManagerPort)
 				req.Equal(false, opts.Headless)
 				req.Equal(true, opts.AllowIgnoreHostPreflights)
+				req.Equal(false, opts.DisableFilesystemPerformanceCheck)
 				req.Equal(web.ModeInstall, opts.WebMode)
 			},
 		},
@@ -1376,6 +1377,7 @@ func Test_buildAPIOptions(t *testing.T) {
 				req.Equal(30000, opts.ManagerPort)
 				req.Equal(true, opts.Headless)
 				req.Equal(false, opts.AllowIgnoreHostPreflights)
+				req.Equal(false, opts.DisableFilesystemPerformanceCheck)
 			},
 		},
 	}

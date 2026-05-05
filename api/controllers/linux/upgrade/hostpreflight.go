@@ -51,14 +51,15 @@ func (c *UpgradeController) RunHostPreflights(ctx context.Context) (finalErr err
 
 	// Prepare host preflights
 	hpf, err := c.hostPreflightManager.PrepareHostPreflights(ctx, c.rc, preflight.PrepareHostPreflightOptions{
-		ReplicatedAppURL:      netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		ProxyRegistryURL:      netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
-		HostPreflightSpec:     c.releaseData.HostPreflights,
-		EmbeddedClusterConfig: c.endUserConfig,
-		IsAirgap:              c.airgapBundle != "",
-		AirgapInfo:            airgapInfo,
-		EmbeddedAssetsSize:    c.embeddedAssetsSize,
-		Mode:                  types.ModeUpgrade,
+		ReplicatedAppURL:                  netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
+		ProxyRegistryURL:                  netutils.MaybeAddHTTPS(ecDomains.ProxyRegistryDomain),
+		HostPreflightSpec:                 c.releaseData.HostPreflights,
+		EmbeddedClusterConfig:             c.endUserConfig,
+		IsAirgap:                          c.airgapBundle != "",
+		AirgapInfo:                        airgapInfo,
+		EmbeddedAssetsSize:                c.embeddedAssetsSize,
+		Mode:                              types.ModeUpgrade,
+		DisableFilesystemPerformanceCheck: c.disableFilesystemPerformanceCheck,
 	})
 	if err != nil {
 		return fmt.Errorf("prepare host preflights: %w", err)

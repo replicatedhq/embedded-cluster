@@ -105,20 +105,21 @@ func runInstallPreflights(ctx context.Context, flags installFlags, installCfg *i
 	}
 
 	opts := preflights.PrepareHostPreflightOptions{
-		HostPreflightSpec:            release.GetHostPreflights(),
-		ReplicatedAppURL:             replicatedAppURL,
-		ProxyRegistryURL:             proxyRegistryURL,
-		AdminConsolePort:             rc.AdminConsolePort(),
-		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
-		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                        rc.ProxySpec(),
-		PodCIDR:                      rc.PodCIDR(),
-		ServiceCIDR:                  rc.ServiceCIDR(),
-		NodeIP:                       nodeIP,
-		IsAirgap:                     installCfg.isAirgap,
-		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
+		HostPreflightSpec:                 release.GetHostPreflights(),
+		ReplicatedAppURL:                  replicatedAppURL,
+		ProxyRegistryURL:                  proxyRegistryURL,
+		AdminConsolePort:                  rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:           rc.LocalArtifactMirrorPort(),
+		DataDir:                           rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                        rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                             rc.ProxySpec(),
+		PodCIDR:                           rc.PodCIDR(),
+		ServiceCIDR:                       rc.ServiceCIDR(),
+		NodeIP:                            nodeIP,
+		IsAirgap:                          installCfg.isAirgap,
+		ControllerAirgapStorageSpace:      controllerAirgapStorageSpace,
+		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
 		opts.GlobalCIDR = &globalCIDR

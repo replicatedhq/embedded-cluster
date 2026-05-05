@@ -53,32 +53,33 @@ type RunHostPreflightsOptions struct {
 var _ Controller = (*InstallController)(nil)
 
 type InstallController struct {
-	installationManager       installation.InstallationManager
-	hostPreflightManager      preflight.HostPreflightManager
-	infraManager              infra.InfraManager
-	airgapManager             airgapmanager.AirgapManager
-	hostUtils                 hostutils.HostUtilsInterface
-	netUtils                  utils.NetUtils
-	metricsReporter           metrics.ReporterInterface
-	releaseData               *release.ReleaseData
-	password                  string
-	tlsConfig                 types.TLSConfig
-	license                   []byte
-	airgapBundle              string
-	airgapMetadata            *airgap.AirgapMetadata
-	embeddedAssetsSize        int64
-	configValues              types.AppConfigValues
-	endUserConfig             *ecv1beta1.Config
-	clusterID                 string
-	store                     store.Store
-	rc                        runtimeconfig.RuntimeConfig
-	hcli                      helm.Client
-	kcli                      client.Client
-	mcli                      metadata.Interface
-	preflightRunner           preflights.PreflightRunnerInterface
-	stateMachine              statemachine.Interface
-	logger                    logrus.FieldLogger
-	allowIgnoreHostPreflights bool
+	installationManager               installation.InstallationManager
+	hostPreflightManager              preflight.HostPreflightManager
+	infraManager                      infra.InfraManager
+	airgapManager                     airgapmanager.AirgapManager
+	hostUtils                         hostutils.HostUtilsInterface
+	netUtils                          utils.NetUtils
+	metricsReporter                   metrics.ReporterInterface
+	releaseData                       *release.ReleaseData
+	password                          string
+	tlsConfig                         types.TLSConfig
+	license                           []byte
+	airgapBundle                      string
+	airgapMetadata                    *airgap.AirgapMetadata
+	embeddedAssetsSize                int64
+	configValues                      types.AppConfigValues
+	endUserConfig                     *ecv1beta1.Config
+	clusterID                         string
+	store                             store.Store
+	rc                                runtimeconfig.RuntimeConfig
+	hcli                              helm.Client
+	kcli                              client.Client
+	mcli                              metadata.Interface
+	preflightRunner                   preflights.PreflightRunnerInterface
+	stateMachine                      statemachine.Interface
+	logger                            logrus.FieldLogger
+	allowIgnoreHostPreflights         bool
+	disableFilesystemPerformanceCheck bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -178,6 +179,12 @@ func WithClusterID(clusterID string) InstallControllerOption {
 func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) InstallControllerOption {
 	return func(c *InstallController) {
 		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
+func WithDisableFilesystemPerformanceCheck(disableFilesystemPerformanceCheck bool) InstallControllerOption {
+	return func(c *InstallController) {
+		c.disableFilesystemPerformanceCheck = disableFilesystemPerformanceCheck
 	}
 }
 

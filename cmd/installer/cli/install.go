@@ -70,14 +70,15 @@ type installFlags struct {
 	headless             bool
 
 	// linux flags
-	dataDir                 string
-	localArtifactMirrorPort int
-	skipHostPreflights      bool
-	ignoreHostPreflights    bool
-	ignoreAppPreflights     bool
-	networkInterface        string
-	cidrConfig              *newconfig.CIDRConfig
-	proxySpec               *ecv1beta1.ProxySpec
+	dataDir                           string
+	localArtifactMirrorPort           int
+	skipHostPreflights                bool
+	ignoreHostPreflights              bool
+	ignoreAppPreflights               bool
+	disableFilesystemPerformanceCheck bool
+	networkInterface                  string
+	cidrConfig                        *newconfig.CIDRConfig
+	proxySpec                         *ecv1beta1.ProxySpec
 
 	// kubernetes flags
 	kubernetesEnvSettings *helmcli.EnvSettings
@@ -299,6 +300,8 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 
 	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
 	flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
+	flagSet.BoolVar(&flags.disableFilesystemPerformanceCheck, "disable-filesystem-performance-check", false, "Disable the filesystem write latency performance check")
+	mustMarkFlagHidden(flagSet, "disable-filesystem-performance-check")
 
 	mustAddCIDRFlags(flagSet)
 
@@ -452,6 +455,13 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	if !cmd.Flags().Changed("skip-host-preflights") {
 		if os.Getenv("SKIP_HOST_PREFLIGHTS") == "1" || os.Getenv("SKIP_HOST_PREFLIGHTS") == "true" {
 			flags.skipHostPreflights = true
+		}
+	}
+
+	// Disable filesystem performance check from env var (if flag not explicitly set)
+	if !cmd.Flags().Changed("disable-filesystem-performance-check") {
+		if os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "1" || os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "true" {
+			flags.disableFilesystemPerformanceCheck = true
 		}
 	}
 
@@ -835,8 +845,9 @@ func buildAPIOptions(flags installFlags, installCfg *installConfig, rc runtimeco
 			RequiresInfraUpgrade: false, // Always false for install
 
 			LinuxConfig: apitypes.LinuxConfig{
-				RuntimeConfig:             rc,
-				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
+				RuntimeConfig:                     rc,
+				AllowIgnoreHostPreflights:         flags.ignoreHostPreflights,
+				DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
 			},
 			KubernetesConfig: apitypes.KubernetesConfig{
 				Installation: ki,

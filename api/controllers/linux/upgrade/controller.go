@@ -46,33 +46,34 @@ type Controller interface {
 var _ Controller = (*UpgradeController)(nil)
 
 type UpgradeController struct {
-	installationManager       installation.InstallationManager
-	infraManager              infra.InfraManager
-	airgapManager             airgapmanager.AirgapManager
-	hostPreflightManager      preflight.HostPreflightManager
-	hostUtils                 hostutils.HostUtilsInterface
-	netUtils                  utils.NetUtils
-	metricsReporter           metrics.ReporterInterface
-	releaseData               *release.ReleaseData
-	license                   []byte
-	airgapBundle              string
-	airgapMetadata            *airgap.AirgapMetadata
-	embeddedAssetsSize        int64
-	configValues              types.AppConfigValues
-	endUserConfig             *ecv1beta1.Config
-	clusterID                 string
-	store                     store.Store
-	rc                        runtimeconfig.RuntimeConfig
-	hcli                      helm.Client
-	kcli                      client.Client
-	mcli                      metadata.Interface
-	preflightRunner           preflights.PreflightRunnerInterface
-	stateMachine              statemachine.Interface
-	requiresInfraUpgrade      bool
-	logger                    logrus.FieldLogger
-	targetVersion             string
-	initialVersion            string
-	allowIgnoreHostPreflights bool
+	installationManager               installation.InstallationManager
+	infraManager                      infra.InfraManager
+	airgapManager                     airgapmanager.AirgapManager
+	hostPreflightManager              preflight.HostPreflightManager
+	hostUtils                         hostutils.HostUtilsInterface
+	netUtils                          utils.NetUtils
+	metricsReporter                   metrics.ReporterInterface
+	releaseData                       *release.ReleaseData
+	license                           []byte
+	airgapBundle                      string
+	airgapMetadata                    *airgap.AirgapMetadata
+	embeddedAssetsSize                int64
+	configValues                      types.AppConfigValues
+	endUserConfig                     *ecv1beta1.Config
+	clusterID                         string
+	store                             store.Store
+	rc                                runtimeconfig.RuntimeConfig
+	hcli                              helm.Client
+	kcli                              client.Client
+	mcli                              metadata.Interface
+	preflightRunner                   preflights.PreflightRunnerInterface
+	stateMachine                      statemachine.Interface
+	requiresInfraUpgrade              bool
+	logger                            logrus.FieldLogger
+	targetVersion                     string
+	initialVersion                    string
+	allowIgnoreHostPreflights         bool
+	disableFilesystemPerformanceCheck bool
 	// App controller composition
 	*appcontroller.AppController
 }
@@ -244,6 +245,12 @@ func WithInfraUpgradeRequired(required bool) UpgradeControllerOption {
 func WithAllowIgnoreHostPreflights(allowIgnoreHostPreflights bool) UpgradeControllerOption {
 	return func(c *UpgradeController) {
 		c.allowIgnoreHostPreflights = allowIgnoreHostPreflights
+	}
+}
+
+func WithDisableFilesystemPerformanceCheck(disableFilesystemPerformanceCheck bool) UpgradeControllerOption {
+	return func(c *UpgradeController) {
+		c.disableFilesystemPerformanceCheck = disableFilesystemPerformanceCheck
 	}
 }
 

@@ -14,17 +14,18 @@ import (
 )
 
 type PrepareHostPreflightOptions struct {
-	ReplicatedAppURL       string
-	ProxyRegistryURL       string
-	HostPreflightSpec      *troubleshootv1beta2.HostPreflightSpec
-	EmbeddedClusterConfig  *ecv1beta1.Config
-	TCPConnectionsRequired []string
-	IsAirgap               bool
-	IsJoin                 bool
-	IsUI                   bool
-	AirgapInfo             *kotsv1beta1.Airgap
-	EmbeddedAssetsSize     int64
-	Mode                   types.Mode
+	ReplicatedAppURL                  string
+	ProxyRegistryURL                  string
+	HostPreflightSpec                 *troubleshootv1beta2.HostPreflightSpec
+	EmbeddedClusterConfig             *ecv1beta1.Config
+	TCPConnectionsRequired            []string
+	IsAirgap                          bool
+	IsJoin                            bool
+	IsUI                              bool
+	AirgapInfo                        *kotsv1beta1.Airgap
+	EmbeddedAssetsSize                int64
+	Mode                              types.Mode
+	DisableFilesystemPerformanceCheck bool
 }
 
 type RunHostPreflightOptions struct {
@@ -63,25 +64,26 @@ func buildPrepareHostPreflightOptions(rc runtimeconfig.RuntimeConfig, opts Prepa
 	}
 
 	prepareOpts := preflights.PrepareHostPreflightOptions{
-		HostPreflightSpec:            opts.HostPreflightSpec,
-		ReplicatedAppURL:             opts.ReplicatedAppURL,
-		ProxyRegistryURL:             opts.ProxyRegistryURL,
-		AdminConsolePort:             rc.AdminConsolePort(),
-		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
-		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                        rc.ProxySpec(),
-		PodCIDR:                      rc.PodCIDR(),
-		ServiceCIDR:                  rc.ServiceCIDR(),
-		NodeIP:                       nodeIP,
-		IsAirgap:                     opts.IsAirgap,
-		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
-		IsJoin:                       opts.IsJoin,
-		IsUI:                         opts.IsUI,
-		IsV3:                         true,
-		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
-		Mode:                         opts.Mode,
+		HostPreflightSpec:                 opts.HostPreflightSpec,
+		ReplicatedAppURL:                  opts.ReplicatedAppURL,
+		ProxyRegistryURL:                  opts.ProxyRegistryURL,
+		AdminConsolePort:                  rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:           rc.LocalArtifactMirrorPort(),
+		DataDir:                           rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                        rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                             rc.ProxySpec(),
+		PodCIDR:                           rc.PodCIDR(),
+		ServiceCIDR:                       rc.ServiceCIDR(),
+		NodeIP:                            nodeIP,
+		IsAirgap:                          opts.IsAirgap,
+		TCPConnectionsRequired:            opts.TCPConnectionsRequired,
+		IsJoin:                            opts.IsJoin,
+		IsUI:                              opts.IsUI,
+		IsV3:                              true,
+		ControllerAirgapStorageSpace:      controllerAirgapStorageSpace,
+		Mode:                              opts.Mode,
+		DisableFilesystemPerformanceCheck: opts.DisableFilesystemPerformanceCheck,
 	}
 	if cidr := rc.GlobalCIDR(); cidr != "" {
 		prepareOpts.GlobalCIDR = &cidr
