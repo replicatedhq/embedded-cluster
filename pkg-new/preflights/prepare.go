@@ -37,8 +37,9 @@ type PrepareHostPreflightOptions struct {
 	IsUI                         bool
 	IsV3                         bool
 	Mode                         apitypes.Mode
-	ControllerAirgapStorageSpace string
-	WorkerAirgapStorageSpace     string
+	ControllerAirgapStorageSpace      string
+	WorkerAirgapStorageSpace          string
+	DisableFilesystemPerformanceCheck bool
 }
 
 // PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
@@ -49,24 +50,25 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 	}
 
 	data, err := types.HostPreflightTemplateData{
-		ReplicatedAppURL:             opts.ReplicatedAppURL,
-		ProxyRegistryURL:             opts.ProxyRegistryURL,
-		IsAirgap:                     opts.IsAirgap,
-		AdminConsolePort:             opts.AdminConsolePort,
-		LocalArtifactMirrorPort:      opts.LocalArtifactMirrorPort,
-		DataDir:                      opts.DataDir,
-		K0sDataDir:                   opts.K0sDataDir,
-		OpenEBSDataDir:               opts.OpenEBSDataDir,
-		SystemArchitecture:           helpers.ClusterArch(),
-		FromCIDR:                     opts.PodCIDR,
-		ToCIDR:                       opts.ServiceCIDR,
-		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
-		NodeIP:                       opts.NodeIP,
-		IsJoin:                       opts.IsJoin,
-		IsUI:                         opts.IsUI,
-		IsV3:                         opts.IsV3,
-		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
-		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
+		ReplicatedAppURL:                  opts.ReplicatedAppURL,
+		ProxyRegistryURL:                  opts.ProxyRegistryURL,
+		IsAirgap:                          opts.IsAirgap,
+		AdminConsolePort:                  opts.AdminConsolePort,
+		LocalArtifactMirrorPort:         opts.LocalArtifactMirrorPort,
+		DataDir:                           opts.DataDir,
+		K0sDataDir:                        opts.K0sDataDir,
+		OpenEBSDataDir:                    opts.OpenEBSDataDir,
+		SystemArchitecture:                helpers.ClusterArch(),
+		FromCIDR:                          opts.PodCIDR,
+		ToCIDR:                            opts.ServiceCIDR,
+		TCPConnectionsRequired:            opts.TCPConnectionsRequired,
+		NodeIP:                            opts.NodeIP,
+		IsJoin:                            opts.IsJoin,
+		IsUI:                              opts.IsUI,
+		IsV3:                              opts.IsV3,
+		ControllerAirgapStorageSpace:      opts.ControllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:          opts.WorkerAirgapStorageSpace,
+		DisableFilesystemPerformanceCheck: opts.DisableFilesystemPerformanceCheck,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {

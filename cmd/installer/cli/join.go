@@ -42,12 +42,13 @@ import (
 )
 
 type JoinCmdFlags struct {
-	noHA                 bool
-	networkInterface     string
-	assumeYes            bool
-	skipHostPreflights   bool
-	ignoreHostPreflights bool
-	embeddedAssetsSize   int64
+	noHA                              bool
+	networkInterface                  string
+	assumeYes                         bool
+	skipHostPreflights                bool
+	ignoreHostPreflights              bool
+	disableFilesystemPerformanceCheck bool
+	embeddedAssetsSize                int64
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
@@ -133,6 +134,10 @@ func preRunJoin(flags *JoinCmdFlags) error {
 		return fmt.Errorf("failed to get size of embedded files: %w", err)
 	}
 
+	if os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "1" || os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "true" {
+		flags.disableFilesystemPerformanceCheck = true
+	}
+
 	return nil
 }
 
@@ -151,6 +156,11 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 		return err
 	}
 	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
+		return err
+	}
+
+	cmd.Flags().BoolVar(&flags.disableFilesystemPerformanceCheck, "disable-filesystem-performance-check", false, "Disable the filesystem write latency performance check")
+	if err := cmd.Flags().MarkHidden("disable-filesystem-performance-check"); err != nil {
 		return err
 	}
 

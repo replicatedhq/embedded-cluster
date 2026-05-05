@@ -51,6 +51,7 @@ spec:
         collectorName: resolv.conf
         command: 'sh'
         args: ['-c', 'cat /etc/resolv.conf']
+{{- if not .DisableFilesystemPerformanceCheck }}
     - filesystemPerformance:
         collectorName: filesystem-write-latency-etcd
         timeout: 5m
@@ -59,6 +60,7 @@ spec:
         operationSize: 2300
         datasync: true
         runTime: "0" # let it run to completion
+{{- end }}
     - run:
         collectorName: check-data-dir-symlink
         command: sh
@@ -444,6 +446,7 @@ spec:
           - pass:
               when: "true"
               message: "Nameservers are configured in resolv.conf."
+{{- if not .DisableFilesystemPerformanceCheck }}
     - filesystemPerformance:
         checkName: Filesystem Write Latency
         collectorName: filesystem-write-latency-etcd
@@ -453,6 +456,7 @@ spec:
               message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, which is better than the 10 ms requirement.'
           - fail:
               message: 'P99 write latency for the disk at {{ .K0sDataDir }}/etcd is {{ "{{" }} .P99 {{ "}}" }}, but it must be less than 10 ms. A higher-performance disk is required.'
+{{- end }}
     - textAnalyze:
         checkName: Data Dir Symlink Check
         fileName: host-collectors/run-host/check-data-dir-symlink.txt
