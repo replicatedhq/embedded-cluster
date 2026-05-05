@@ -39,8 +39,8 @@ images:
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.1-amd64@sha256:a3ff767b81e94686286d611f8dc8cc82d33f748068e6fa5550babc59788ba12c
-            arm64: v0.8.1-arm64@sha256:675e1dbd9ef2e3ec2920453ede40ccc32ceb06538a09d538429e868524ef4b6c
+            amd64: v0.8.1-amd64@sha256:f43eadfe6bdc053a03f6eb377142fe1614f662092de37cbb36baf7c36d691f96
+            arm64: v0.8.1-arm64@sha256:3a3f5e0c40983da1ce74da936d101101af193f07f87ad52f0fe9385a75deeb6a
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
