@@ -191,6 +191,10 @@ func latestPatchConstraint(s *semver.Version) string {
 	return fmt.Sprintf(">=%d.%d,<%d.%d", s.Major(), s.Minor(), s.Major(), s.Minor()+1)
 }
 
+func latestMinorConstraint(s *semver.Version) string {
+	return fmt.Sprintf(">=%d.0.0,<%d.0.0", s.Major(), s.Major()+1)
+}
+
 type filterFn func(string) bool
 
 func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) (string, error) {

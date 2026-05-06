@@ -25,10 +25,8 @@ var registryImageComponents = map[string]addonComponent{
 		name: "registry",
 		getCustomImageName: func(opts addonComponentOptions) (string, error) {
 			ref := "proxy.replicated.com/library/registry"
-			// TODO: unpin this
-			return fmt.Sprintf("%s:%s", ref, "2.8.3"), nil
-			// constraints := mustParseSemverConstraints(latestPatchConstraint(opts.upstreamVersion))
-			// return getLatestImageNameAndTag(opts.ctx, ref, constraints)
+			constraints := mustParseSemverConstraints(latestMinorConstraint(opts.upstreamVersion))
+			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_REGISTRY_VERSION",
 	},
