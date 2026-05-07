@@ -27,7 +27,7 @@ HELM_VERSION = v4.1.4
 FIO_VERSION = 3.42
 
 # Kubernetes Development Tool Versions
-CONTROLLER_TOOLS_VERSION = v0.20.1
+CONTROLLER_TOOLS_VERSION = v0.21.0
 KUSTOMIZE_VERSION = v5.8.1
 
 ### Overrides ###
