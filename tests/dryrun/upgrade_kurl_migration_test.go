@@ -21,13 +21,8 @@ import (
 )
 
 // TestUpgradeKURLMigration tests that the upgrade command correctly detects
-// a kURL cluster and shows the migration message when ENABLE_V3=1.
+// a kURL cluster and shows the migration message.
 func TestUpgradeKURLMigration(t *testing.T) {
-	t.Setenv("ENABLE_V3", "1")
-
-	// Ensure UI assets are available when starting API in non-headless tests
-	prepareWebAssetsForTests(t)
-
 	// Create the kURL kubeconfig file at the production path
 	// This file doesn't need to be a valid kubeconfig since dryrun mode
 	// will use the mock client. It just needs to exist for the file check.

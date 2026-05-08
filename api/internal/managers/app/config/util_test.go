@@ -22,9 +22,6 @@ import (
 )
 
 func Test_readConfigValuesFromKube(t *testing.T) {
-	// Set ENABLE_V3=1 for all tests so KotsadmNamespace checks for the kotsadm namespace
-	t.Setenv("ENABLE_V3", "1")
-
 	tests := []struct {
 		name         string
 		setupManager func(t *testing.T) *appConfigManager
@@ -363,43 +360,6 @@ func Test_readConfigValuesFromKube(t *testing.T) {
 			validateFunc: func(t *testing.T, manager *appConfigManager) {
 				values, err := manager.readConfigValuesFromKube()
 				require.Error(t, err)
-				assert.Nil(t, values)
-			},
-		},
-		{
-			name: "KotsadmNamespace returns error - should return error",
-			setupManager: func(t *testing.T) *appConfigManager {
-				sch := runtime.NewScheme()
-				require.NoError(t, corev1.AddToScheme(sch))
-				require.NoError(t, scheme.AddToScheme(sch))
-
-				// Create interceptor that returns error for namespace Get
-				fakeKcli := clientfake.NewClientBuilder().
-					WithScheme(sch).
-					WithInterceptorFuncs(interceptor.Funcs{
-						Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-							if key.Name == "kotsadm" {
-								return fmt.Errorf("simulated namespace error")
-							}
-							return c.Get(ctx, key, obj, opts...)
-						},
-					}).
-					Build()
-
-				return &appConfigManager{
-					kcli:   fakeKcli,
-					logger: logger.NewDiscardLogger(),
-					releaseData: &release.ReleaseData{
-						ChannelRelease: &release.ChannelRelease{
-							AppSlug: "test-app",
-						},
-					},
-				}
-			},
-			validateFunc: func(t *testing.T, manager *appConfigManager) {
-				values, err := manager.readConfigValuesFromKube()
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "get kotsadm namespace:")
 				assert.Nil(t, values)
 			},
 		},

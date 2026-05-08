@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"text/template"
 
 	"github.com/spf13/cobra"
@@ -100,11 +99,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 func init() {
 	cobra.AddTemplateFuncs(template.FuncMap{
-		// usesTargetFlagMenu returns true if the target flag is present and the ENABLE_V3 environment variable is set.
 		"usesTargetFlagMenu": func(flagSet *pflag.FlagSet) bool {
-			if isV3Enabled() {
-				return flagSet.Lookup("target") != nil
-			}
 			return false
 		},
 		// commonFlags returns a flag set with all flags that do not have a target annotation.
@@ -120,10 +115,6 @@ func init() {
 			return filterFlagSetByTarget(flagSet, flagAnnotationTargetValueKubernetes)
 		},
 	})
-}
-
-func isV3Enabled() bool {
-	return os.Getenv("ENABLE_V3") == "1"
 }
 
 func mustSetFlagTargetLinux(flags *pflag.FlagSet, name string) {

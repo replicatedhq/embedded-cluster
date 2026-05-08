@@ -24,9 +24,6 @@ import (
 )
 
 func TestAppInstallManager_Install(t *testing.T) {
-	// Setup environment variable for V3
-	t.Setenv("ENABLE_V3", "1")
-
 	// Create test license
 	license := &kotsv1beta1.License{
 		Spec: kotsv1beta1.LicenseSpec{
@@ -44,12 +41,6 @@ func TestAppInstallManager_Install(t *testing.T) {
 			},
 		},
 	}
-
-	// Set up release data globally so AppSlug() returns the correct value for v3
-	err = release.SetReleaseDataForTests(map[string][]byte{
-		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
-	})
-	require.NoError(t, err)
 
 	t.Run("Config values should be passed to the installer", func(t *testing.T) {
 		configValues := kotsv1beta1.ConfigValues{
@@ -77,8 +68,8 @@ func TestAppInstallManager_Install(t *testing.T) {
 				t.Logf("License is nil")
 				return false
 			}
-			if opts.Namespace != "test-app" {
-				t.Logf("Namespace mismatch: expected 'test-app', got '%s'", opts.Namespace)
+			if opts.Namespace != "kotsadm" {
+				t.Logf("Namespace mismatch: expected 'kotsadm', got '%s'", opts.Namespace)
 				return false
 			}
 			if opts.ClusterID != "test-cluster" {
@@ -182,13 +173,6 @@ func TestAppInstallManager_createConfigValuesFile(t *testing.T) {
 }
 
 func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
-	// Set up environment and release data for all tests
-	t.Setenv("ENABLE_V3", "1")
-	err := release.SetReleaseDataForTests(map[string][]byte{
-		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
-	})
-	require.NoError(t, err)
-
 	tests := []struct {
 		name                  string
 		releaseData           *release.ReleaseData
@@ -230,7 +214,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
@@ -284,7 +268,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app.kubernetes.io/version": "v0.9.0",
 						},
@@ -305,7 +289,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
@@ -391,7 +375,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 					},
 				}
 
@@ -438,7 +422,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 					},
 				}
 
@@ -524,7 +508,7 @@ func TestAppInstallManager_Install_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
