@@ -187,16 +187,22 @@ func kernelModulesConfig() error {
 }
 
 // ensureKernelModulesLoaded ensures the kernel modules are loaded by iterating over the modules in
-// the config file and calling modprobe for each one.
+// the config file and calling modprobe for each one. Modules that are not available on the host
+// kernel are skipped gracefully.
 func ensureKernelModulesLoaded() (finalErr error) {
 	scanner := bufio.NewScanner(bytes.NewReader(embeddedClusterModulesConf))
 	for scanner.Scan() {
 		module := strings.TrimSpace(scanner.Text())
-		if module != "" && !strings.HasPrefix(module, "#") {
-			if err := modprobe(module); err != nil {
-				err = fmt.Errorf("modprobe %s: %w", module, err)
-				finalErr = multierr.Append(finalErr, err)
-			}
+		if module == "" || strings.HasPrefix(module, "#") {
+			continue
+		}
+		if !checkModuleExists(module) {
+			logrus.Debugf("Module %s not available on this kernel, skipping", module)
+			continue
+		}
+		if err := modprobe(module); err != nil {
+			err = fmt.Errorf("modprobe %s: %w", module, err)
+			finalErr = multierr.Append(finalErr, err)
 		}
 	}
 	return
@@ -205,6 +211,13 @@ func ensureKernelModulesLoaded() (finalErr error) {
 func modprobe(module string) error {
 	_, err := helpers.RunCommand("modprobe", module)
 	return err
+}
+
+// checkModuleExists verifies whether a kernel module is available (loadable or builtin)
+// using modprobe --dry-run.
+func checkModuleExists(module string) bool {
+	_, err := helpers.RunCommand("modprobe", "-n", module)
+	return err == nil
 }
 
 // CreateSystemdUnitFiles links the k0s systemd unit file. this also creates a new

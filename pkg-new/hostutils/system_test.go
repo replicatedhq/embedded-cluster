@@ -154,9 +154,17 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 
 	// Expected modprobe commands
 	expectedCommands := []string{
+		"modprobe -n overlay",
 		"modprobe overlay",
+		"modprobe -n ip_tables",
 		"modprobe ip_tables",
+		"modprobe -n nf_tables",
+		"modprobe nf_tables",
+		"modprobe -n nft_compat",
+		"modprobe nft_compat",
+		"modprobe -n br_netfilter",
 		"modprobe br_netfilter",
+		"modprobe -n nf_conntrack",
 		"modprobe nf_conntrack",
 	}
 
