@@ -17,7 +17,8 @@ spec:
           - |
             if modprobe -n ip_tables 2>/dev/null || lsmod | grep -q "^ip_tables"; then
               echo "backend=legacy"
-            elif modprobe -n nf_tables 2>/dev/null || lsmod | grep -q "^nf_tables"; then
+            elif (modprobe -n nf_tables 2>/dev/null || lsmod | grep -q "^nf_tables") && \
+                 (modprobe -n nft_compat 2>/dev/null || lsmod | grep -q "^nft_compat"); then
               echo "backend=nft"
             else
               echo "backend=none"
