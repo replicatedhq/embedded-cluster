@@ -670,6 +670,36 @@ func TestGetClusterHostPreflightsDefaultMode(t *testing.T) {
 	req.Equal("embedded-cluster-install", hpfc[1].Name)
 }
 
+func TestTemplateNetfilterBackendCollector(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var foundCollector bool
+	for _, c := range commonSpec.Collectors {
+		if c.HostRun != nil && c.HostRun.CollectorName == "check-netfilter-backend" {
+			foundCollector = true
+			req.Equal("sh", c.HostRun.Command)
+			break
+		}
+	}
+	req.True(foundCollector, "expected check-netfilter-backend run collector")
+
+	var foundAnalyzer bool
+	for _, a := range commonSpec.Analyzers {
+		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Netfilter backend" {
+			foundAnalyzer = true
+			req.Equal("host-collectors/run-host/check-netfilter-backend.txt", a.TextAnalyze.FileName)
+			req.Equal("backend=(legacy|nft)", a.TextAnalyze.RegexPattern)
+			break
+		}
+	}
+	req.True(foundAnalyzer, "expected Netfilter backend textAnalyze analyzer")
+}
+
 func TestCalculateAirgapStorageSpace(t *testing.T) {
 	embeddedAssetsSize := int64(1024 * 1024 * 1024)
 
