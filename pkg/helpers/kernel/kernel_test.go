@@ -192,3 +192,44 @@ func TestModuleLoaded(t *testing.T) {
 		})
 	}
 }
+
+func TestModuleExists(t *testing.T) {
+	tests := []struct {
+		name       string
+		execCmdCtx func(context.Context, string, ...string) *exec.Cmd
+		module     string
+		expected   bool
+	}{
+		{
+			name: "module available",
+			execCmdCtx: func(ctx context.Context, name string, args ...string) *exec.Cmd {
+				if name == "modprobe" && len(args) == 2 && args[0] == "-n" && args[1] == "nf_tables" {
+					return exec.Command("true")
+				}
+				return exec.Command("false")
+			},
+			module:   "nf_tables",
+			expected: true,
+		},
+		{
+			name: "module not available",
+			execCmdCtx: func(ctx context.Context, name string, args ...string) *exec.Cmd {
+				return exec.Command("false")
+			},
+			module:   "definitely_not_a_real_module_12345",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origExec := _execCmdCtx
+			_execCmdCtx = tt.execCmdCtx
+			t.Cleanup(func() {
+				_execCmdCtx = origExec
+			})
+
+			assert.Equal(t, tt.expected, ModuleExists(context.Background(), tt.module))
+		})
+	}
+}

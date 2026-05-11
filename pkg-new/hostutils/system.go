@@ -15,6 +15,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/kernel"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -196,7 +197,7 @@ func ensureKernelModulesLoaded() (finalErr error) {
 		if module == "" || strings.HasPrefix(module, "#") {
 			continue
 		}
-		if !checkModuleExists(module) {
+		if !_moduleExistsFunc(module) {
 			logrus.Debugf("Module %s not available on this kernel, skipping", module)
 			continue
 		}
@@ -213,11 +214,10 @@ func modprobe(module string) error {
 	return err
 }
 
-// checkModuleExists verifies whether a kernel module is available (loadable or builtin)
-// using modprobe --dry-run.
-func checkModuleExists(module string) bool {
-	_, err := helpers.RunCommand("modprobe", "-n", module)
-	return err == nil
+// _moduleExistsFunc is a testable hook that delegates to kernel.ModuleExists.
+// Tests can replace it to avoid executing real modprobe dry-runs.
+var _moduleExistsFunc = func(module string) bool {
+	return kernel.ModuleExists(context.Background(), module)
 }
 
 // CreateSystemdUnitFiles links the k0s systemd unit file. this also creates a new

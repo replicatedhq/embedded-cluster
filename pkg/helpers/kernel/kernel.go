@@ -39,14 +39,14 @@ func DetectIPTablesBackend(ctx context.Context) (IPTablesBackend, error) {
 	}
 
 	// 2. Check if ip_tables module is loadable or already loaded
-	if moduleExists(ctx, "ip_tables") || moduleLoaded("ip_tables") {
+	if ModuleExists(ctx, "ip_tables") || moduleLoaded("ip_tables") {
 		return BackendLegacy, nil
 	}
 	logrus.Debugf("Kernel module ip_tables not detected (may not be available)")
 
 	// 3. ip_tables is absent; check for nf_tables + nft_compat
-	if moduleExists(ctx, "nf_tables") || moduleLoaded("nf_tables") {
-		if moduleExists(ctx, "nft_compat") || moduleLoaded("nft_compat") {
+	if ModuleExists(ctx, "nf_tables") || moduleLoaded("nf_tables") {
+		if ModuleExists(ctx, "nft_compat") || moduleLoaded("nft_compat") {
 			return BackendNFT, nil
 		}
 		logrus.Debugf("Kernel module nft_compat not detected (may not be available)")
@@ -57,8 +57,8 @@ func DetectIPTablesBackend(ctx context.Context) (IPTablesBackend, error) {
 	return BackendUnknown, fmt.Errorf("neither ip_tables (legacy iptables) nor nf_tables+nft_compat (nftables) is available")
 }
 
-// moduleExists uses modprobe --dry-run to check if a kernel module is available.
-func moduleExists(ctx context.Context, module string) bool {
+// ModuleExists uses modprobe --dry-run to check if a kernel module is available.
+func ModuleExists(ctx context.Context, module string) bool {
 	cmd := _execCmdCtx(ctx, "modprobe", "-n", module)
 	if err := cmd.Run(); err != nil {
 		return false

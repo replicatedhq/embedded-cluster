@@ -146,25 +146,26 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 		helpers.Set(&helpers.Helpers{})
 	})
 
+	// Mock module existence check so all modules are considered available
+	origModuleExists := _moduleExistsFunc
+	_moduleExistsFunc = func(module string) bool { return true }
+	t.Cleanup(func() {
+		_moduleExistsFunc = origModuleExists
+	})
+
 	// Run the function being tested
 	err := ensureKernelModulesLoaded()
 	if err != nil {
 		t.Errorf("ensureKernelModulesLoaded() returned error: %v", err)
 	}
 
-	// Expected modprobe commands
+	// Expected modprobe commands (load only; dry-run checks now live in kernel package)
 	expectedCommands := []string{
-		"modprobe -n overlay",
 		"modprobe overlay",
-		"modprobe -n ip_tables",
 		"modprobe ip_tables",
-		"modprobe -n nf_tables",
 		"modprobe nf_tables",
-		"modprobe -n nft_compat",
 		"modprobe nft_compat",
-		"modprobe -n br_netfilter",
 		"modprobe br_netfilter",
-		"modprobe -n nf_conntrack",
 		"modprobe nf_conntrack",
 	}
 
