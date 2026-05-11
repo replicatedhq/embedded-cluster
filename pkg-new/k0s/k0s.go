@@ -136,6 +136,10 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 
+	if err := config.ApplyHostK0sConfigOverrides(context.Background(), cfg); err != nil {
+		return nil, fmt.Errorf("apply host k0s config overrides: %w", err)
+	}
+
 	if mutate != nil {
 		if err := mutate(cfg); err != nil {
 			return nil, err
