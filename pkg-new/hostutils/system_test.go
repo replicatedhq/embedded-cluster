@@ -2,12 +2,14 @@ package hostutils
 
 import (
 	_ "embed"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -146,16 +148,27 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 		helpers.Set(&helpers.Helpers{})
 	})
 
+	// Mock module existence check so all modules are considered available
+	origModuleExists := _moduleExistsFunc
+	_moduleExistsFunc = func(module string) bool { return true }
+	t.Cleanup(func() {
+		_moduleExistsFunc = origModuleExists
+	})
+
 	// Run the function being tested
-	err := ensureKernelModulesLoaded()
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	err := ensureKernelModulesLoaded(logger)
 	if err != nil {
 		t.Errorf("ensureKernelModulesLoaded() returned error: %v", err)
 	}
 
-	// Expected modprobe commands
+	// Expected modprobe commands (load only; dry-run checks now live in kernel package)
 	expectedCommands := []string{
 		"modprobe overlay",
 		"modprobe ip_tables",
+		"modprobe nf_tables",
+		"modprobe nft_compat",
 		"modprobe br_netfilter",
 		"modprobe nf_conntrack",
 	}

@@ -10,6 +10,20 @@ spec:
     - ipv4Interfaces: {}
     - kernelModules: {}
     - run:
+        collectorName: 'check-netfilter-backend'
+        command: 'sh'
+        args:
+          - '-c'
+          - |
+            if modprobe -n ip_tables 2>/dev/null || lsmod | grep -q "^ip_tables"; then
+              echo "backend=legacy"
+            elif (modprobe -n nf_tables 2>/dev/null || lsmod | grep -q "^nf_tables") && \
+                 (modprobe -n nft_compat 2>/dev/null || lsmod | grep -q "^nft_compat"); then
+              echo "backend=nft"
+            else
+              echo "backend=none"
+            fi
+    - run:
         collectorName: 'ip-route-table'
         command: 'ip'
         args: ['route']
@@ -611,18 +625,6 @@ spec:
               when: ""
               message: The 'overlay' kernel module is not loaded or loadable
     - kernelModules:
-        checkName: "IP tables kernel module"
-        outcomes:
-          - pass:
-              when: "rosetta == loaded"
-              message: The kernel is likely linuxkit, skipping kernel module check
-          - pass:
-              when: "ip_tables == loaded,loadable"
-              message: The 'ip_tables' kernel module is loaded or loadable
-          - fail:
-              when: ""
-              message: The 'ip_tables' kernel module is not loaded or loadable
-    - kernelModules:
         checkName: "BR Netfilter kernel module"
         outcomes:
           - pass:
@@ -646,6 +648,17 @@ spec:
           - fail:
               when: ""
               message: The 'nf_conntrack' kernel module is not loaded or loadable
+    - textAnalyze:
+        checkName: "Netfilter backend"
+        fileName: host-collectors/run-host/check-netfilter-backend.txt
+        regex: 'backend=(legacy|nft)'
+        outcomes:
+          - pass:
+              when: "true"
+              message: "Host has a usable netfilter backend (legacy iptables or nftables)"
+          - fail:
+              when: "false"
+              message: "No usable netfilter backend found. Neither ip_tables (legacy iptables) nor nf_tables (nftables) kernel module is available."
 {{- range $index, $element := .TCPConnectionsRequired}}
     - tcpConnect:
         checkName: "TCP Connection to {{ $element }}"

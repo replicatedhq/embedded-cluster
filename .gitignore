@@ -45,3 +45,6 @@ tests/dryrun/web/
 
 # Claude worktrees
 .claude/worktrees/
+
+# Superpowers worktrees
+.worktrees/

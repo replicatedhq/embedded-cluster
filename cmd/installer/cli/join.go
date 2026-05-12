@@ -505,6 +505,10 @@ func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.Runtime
 		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
 	}
 
+	if err := config.ApplyHostK0sConfigOverrides(context.TODO(), clusterSpec); err != nil {
+		return fmt.Errorf("apply host k0s config overrides: %w", err)
+	}
+
 	clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)
 	if err != nil {
 		return fmt.Errorf("unable to marshal cluster spec: %w", err)

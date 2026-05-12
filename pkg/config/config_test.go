@@ -1,8 +1,11 @@
 package config
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,8 +13,10 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/kernel"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
@@ -277,6 +282,116 @@ spec:
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedFlags, flags)
+			}
+		})
+	}
+}
+
+func TestApplyHostK0sConfigOverrides(t *testing.T) {
+	origOutput := logrus.StandardLogger().Out
+	logrus.SetOutput(io.Discard)
+	t.Cleanup(func() { logrus.SetOutput(origOutput) })
+
+	tests := []struct {
+		name          string
+		backend       kernel.IPTablesBackend
+		detectErr     error
+		inputCfg      *k0sv1beta1.ClusterConfig
+		expectedMode  string
+		expectNetwork bool
+	}{
+		{
+			name:    "BackendNFT sets kube-proxy mode to nftables",
+			backend: kernel.BackendNFT,
+			inputCfg: func() *k0sv1beta1.ClusterConfig {
+				cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{}}
+				return cfg
+			}(),
+			expectedMode:  "nftables",
+			expectNetwork: true,
+		},
+		{
+			name:    "BackendLegacy leaves mode unchanged",
+			backend: kernel.BackendLegacy,
+			inputCfg: func() *k0sv1beta1.ClusterConfig {
+				cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{}}
+				cfg.Spec.Network = &k0sv1beta1.Network{
+					KubeProxy: &k0sv1beta1.KubeProxy{
+						Mode: "ipvs",
+					},
+				}
+				return cfg
+			}(),
+			expectedMode:  "ipvs",
+			expectNetwork: true,
+		},
+		{
+			name:      "detection error leaves config unchanged",
+			backend:   "",
+			detectErr: fmt.Errorf("modprobe failed"),
+			inputCfg: func() *k0sv1beta1.ClusterConfig {
+				cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{}}
+				cfg.Spec.Network = &k0sv1beta1.Network{
+					KubeProxy: &k0sv1beta1.KubeProxy{
+						Mode: "ipvs",
+					},
+				}
+				return cfg
+			}(),
+			expectedMode:  "ipvs",
+			expectNetwork: true,
+		},
+		{
+			name:    "nil kube-proxy inside existing network is initialized for nft",
+			backend: kernel.BackendNFT,
+			inputCfg: func() *k0sv1beta1.ClusterConfig {
+				cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{}}
+				cfg.Spec.Network = &k0sv1beta1.Network{} // Network exists, KubeProxy nil
+				return cfg
+			}(),
+			expectedMode:  "nftables",
+			expectNetwork: true,
+		},
+		{
+			name:          "nil config returns error",
+			backend:       kernel.BackendNFT,
+			inputCfg:      nil,
+			expectNetwork: false,
+		},
+		{
+			name:    "legacy backend leaves nil network untouched",
+			backend: kernel.BackendLegacy,
+			inputCfg: func() *k0sv1beta1.ClusterConfig {
+				return &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{}}
+			}(),
+			expectedMode:  "",
+			expectNetwork: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			original := detectIPTablesBackend
+			detectIPTablesBackend = func(ctx context.Context) (kernel.IPTablesBackend, error) {
+				return tt.backend, tt.detectErr
+			}
+			t.Cleanup(func() {
+				detectIPTablesBackend = original
+			})
+
+			err := ApplyHostK0sConfigOverrides(context.Background(), tt.inputCfg)
+			if tt.inputCfg == nil {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			if tt.expectNetwork {
+				require.NotNil(t, tt.inputCfg.Spec.Network)
+				require.NotNil(t, tt.inputCfg.Spec.Network.KubeProxy)
+				assert.Equal(t, tt.expectedMode, tt.inputCfg.Spec.Network.KubeProxy.Mode)
+			} else {
+				assert.Nil(t, tt.inputCfg.Spec.Network)
 			}
 		})
 	}

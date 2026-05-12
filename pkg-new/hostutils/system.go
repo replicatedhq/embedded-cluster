@@ -15,6 +15,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/kernel"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers/systemd"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
@@ -168,7 +169,7 @@ func (h *HostUtils) ConfigureKernelModules() error {
 		return fmt.Errorf("materialize kernel modules config: %w", err)
 	}
 
-	if err := ensureKernelModulesLoaded(); err != nil {
+	if err := ensureKernelModulesLoaded(h.logger); err != nil {
 		return fmt.Errorf("ensure kernel modules are loaded: %w", err)
 	}
 	return nil
@@ -187,16 +188,22 @@ func kernelModulesConfig() error {
 }
 
 // ensureKernelModulesLoaded ensures the kernel modules are loaded by iterating over the modules in
-// the config file and calling modprobe for each one.
-func ensureKernelModulesLoaded() (finalErr error) {
+// the config file and calling modprobe for each one. Modules that are not available on the host
+// kernel are skipped gracefully.
+func ensureKernelModulesLoaded(logger logrus.FieldLogger) (finalErr error) {
 	scanner := bufio.NewScanner(bytes.NewReader(embeddedClusterModulesConf))
 	for scanner.Scan() {
 		module := strings.TrimSpace(scanner.Text())
-		if module != "" && !strings.HasPrefix(module, "#") {
-			if err := modprobe(module); err != nil {
-				err = fmt.Errorf("modprobe %s: %w", module, err)
-				finalErr = multierr.Append(finalErr, err)
-			}
+		if module == "" || strings.HasPrefix(module, "#") {
+			continue
+		}
+		if !_moduleExistsFunc(module) {
+			logger.Debugf("Module %s not available on this kernel, skipping", module)
+			continue
+		}
+		if err := modprobe(module); err != nil {
+			err = fmt.Errorf("modprobe %s: %w", module, err)
+			finalErr = multierr.Append(finalErr, err)
 		}
 	}
 	return
@@ -205,6 +212,12 @@ func ensureKernelModulesLoaded() (finalErr error) {
 func modprobe(module string) error {
 	_, err := helpers.RunCommand("modprobe", module)
 	return err
+}
+
+// _moduleExistsFunc is a testable hook that delegates to kernel.ModuleExists.
+// Tests can replace it to avoid executing real modprobe dry-runs.
+var _moduleExistsFunc = func(module string) bool {
+	return kernel.ModuleExists(context.Background(), module)
 }
 
 // CreateSystemdUnitFiles links the k0s systemd unit file. this also creates a new

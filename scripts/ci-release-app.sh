@@ -68,18 +68,30 @@ function create_release() {
     # Clean up backup files
     find output/tmp/release -name "*.bak" -type f -delete
 
-    # Package the Helm charts
+    # Package the Helm charts that have a corresponding HelmChart CR in the release directory
     for CHART in nginx-app redis-app; do
         if [ -d "e2e/helm-charts/$CHART" ]; then
-            echo "Packaging Helm chart: $CHART..."
-            helm package -u e2e/helm-charts/$CHART -d output/tmp/release
+            # Only package the chart if a HelmChart CR referencing it exists in the release YAMLs
+            has_cr=false
+            for f in "$RELEASE_YAML_DIR"/*.yaml; do
+                if [ -f "$f" ] && grep -q "kind: HelmChart" "$f" && grep -q "name: $CHART" "$f"; then
+                    has_cr=true
+                    break
+                fi
+            done
+            if [ "$has_cr" = true ]; then
+                echo "Packaging Helm chart: $CHART..."
+                helm package -u e2e/helm-charts/$CHART -d output/tmp/release
 
-            # Get the packaged chart filename
-            CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
-            if [ -n "$CHART_FILENAME" ]; then
-                echo "Created Helm chart package: $CHART_FILENAME"
+                # Get the packaged chart filename
+                CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
+                if [ -n "$CHART_FILENAME" ]; then
+                    echo "Created Helm chart package: $CHART_FILENAME"
+                else
+                    echo "Warning: Failed to create Helm chart package for $CHART"
+                fi
             else
-                echo "Warning: Failed to create Helm chart package for $CHART"
+                echo "Skipping Helm chart '$CHART': no matching HelmChart CR found in $RELEASE_YAML_DIR"
             fi
         else
             echo "Helm chart directory not found at e2e/helm-charts/$CHART"
