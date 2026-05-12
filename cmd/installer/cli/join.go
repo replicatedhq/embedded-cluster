@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
@@ -506,9 +505,7 @@ func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.Runtime
 		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := config.ApplyHostK0sConfigOverrides(ctx, clusterSpec); err != nil {
+	if err := config.ApplyHostK0sConfigOverrides(context.TODO(), clusterSpec); err != nil {
 		return fmt.Errorf("apply host k0s config overrides: %w", err)
 	}
 
