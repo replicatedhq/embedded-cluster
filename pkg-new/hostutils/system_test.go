@@ -2,6 +2,7 @@ package hostutils
 
 import (
 	_ "embed"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -155,7 +156,9 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 	})
 
 	// Run the function being tested
-	err := ensureKernelModulesLoaded(logrus.New())
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	err := ensureKernelModulesLoaded(logger)
 	if err != nil {
 		t.Errorf("ensureKernelModulesLoaded() returned error: %v", err)
 	}
