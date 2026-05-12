@@ -92,11 +92,11 @@ func ApplyHostK0sConfigOverrides(ctx context.Context, cfg *k0sv1beta1.ClusterCon
 	}
 	backend, err := detectIPTablesBackend(ctx)
 	if err != nil {
-		logrus.WithError(err).Warn("Failed to detect iptables backend, leaving kube-proxy mode unchanged")
+		logrus.WithError(err).Debug("Failed to detect iptables backend, leaving kube-proxy mode unchanged")
 		return nil
 	}
 	if backend == kernel.BackendNFT {
-		logrus.Info("Host lacks legacy iptables, configuring kube-proxy for nftables mode")
+		logrus.Debug("Host lacks legacy iptables, configuring kube-proxy for nftables mode")
 		if cfg.Spec.Network == nil {
 			cfg.Spec.Network = &k0sv1beta1.Network{}
 		}
