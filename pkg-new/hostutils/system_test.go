@@ -8,6 +8,7 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,7 +155,7 @@ func Test_ensureKernelModulesLoaded(t *testing.T) {
 	})
 
 	// Run the function being tested
-	err := ensureKernelModulesLoaded()
+	err := ensureKernelModulesLoaded(logrus.New())
 	if err != nil {
 		t.Errorf("ensureKernelModulesLoaded() returned error: %v", err)
 	}

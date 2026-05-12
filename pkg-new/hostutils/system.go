@@ -169,7 +169,7 @@ func (h *HostUtils) ConfigureKernelModules() error {
 		return fmt.Errorf("materialize kernel modules config: %w", err)
 	}
 
-	if err := ensureKernelModulesLoaded(); err != nil {
+	if err := ensureKernelModulesLoaded(h.logger); err != nil {
 		return fmt.Errorf("ensure kernel modules are loaded: %w", err)
 	}
 	return nil
@@ -190,7 +190,7 @@ func kernelModulesConfig() error {
 // ensureKernelModulesLoaded ensures the kernel modules are loaded by iterating over the modules in
 // the config file and calling modprobe for each one. Modules that are not available on the host
 // kernel are skipped gracefully.
-func ensureKernelModulesLoaded() (finalErr error) {
+func ensureKernelModulesLoaded(logger logrus.FieldLogger) (finalErr error) {
 	scanner := bufio.NewScanner(bytes.NewReader(embeddedClusterModulesConf))
 	for scanner.Scan() {
 		module := strings.TrimSpace(scanner.Text())
@@ -198,7 +198,7 @@ func ensureKernelModulesLoaded() (finalErr error) {
 			continue
 		}
 		if !_moduleExistsFunc(module) {
-			logrus.Debugf("Module %s not available on this kernel, skipping", module)
+			logger.Debugf("Module %s not available on this kernel, skipping", module)
 			continue
 		}
 		if err := modprobe(module); err != nil {
