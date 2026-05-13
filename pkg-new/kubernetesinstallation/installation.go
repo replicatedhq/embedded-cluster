@@ -1,8 +1,6 @@
 package kubernetesinstallation
 
 import (
-	"os"
-
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	helmcli "helm.sh/helm/v3/pkg/cli"
@@ -12,26 +10,9 @@ var _ Installation = &kubernetesInstallation{}
 
 type Option func(*kubernetesInstallation)
 
-type EnvSetter interface {
-	Setenv(key string, val string) error
-}
-
 type kubernetesInstallation struct {
 	installation          *ecv1beta1.KubernetesInstallation
-	envSetter             EnvSetter
 	kubernetesEnvSettings *helmcli.EnvSettings
-}
-
-type osEnvSetter struct{}
-
-func (o *osEnvSetter) Setenv(key string, val string) error {
-	return os.Setenv(key, val)
-}
-
-func WithEnvSetter(envSetter EnvSetter) Option {
-	return func(rc *kubernetesInstallation) {
-		rc.envSetter = envSetter
-	}
 }
 
 // New creates a new KubernetesInstallation instance
@@ -45,10 +26,6 @@ func New(installation *ecv1beta1.KubernetesInstallation, opts ...Option) Install
 	ki := &kubernetesInstallation{installation: installation}
 	for _, opt := range opts {
 		opt(ki)
-	}
-
-	if ki.envSetter == nil {
-		ki.envSetter = &osEnvSetter{}
 	}
 
 	return ki

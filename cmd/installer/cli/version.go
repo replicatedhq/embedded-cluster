@@ -10,14 +10,11 @@ import (
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/extensions"
-	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	rcutil "github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
@@ -34,10 +31,6 @@ func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if os.Getenv("ENABLE_V3") == "1" {
-				return runVersionV3(cmd.Context())
-			}
-
 			writer := table.NewWriter()
 			writer.AppendHeader(table.Row{"component", "version"})
 
@@ -57,33 +50,6 @@ func VersionCmd(ctx context.Context, appTitle string) *cobra.Command {
 	cmd.AddCommand(VersionListImagesCmd(ctx))
 
 	return cmd
-}
-
-// runVersionV3 implements the version command behavior for v3 (when ENABLE_V3=1).
-// A CLIENT (Binary) section is always displayed.
-// A SERVER (Deployed) section shows actual versions if running as root, otherwise shows a message
-// indicating that elevated privileges are required.
-func runVersionV3(ctx context.Context) error {
-	channelRelease := release.GetChannelRelease()
-	binaryVersions, binaryOrder := collectBinaryVersions(channelRelease)
-
-	printVersionSection("CLIENT (Binary)", binaryVersions, binaryOrder)
-	fmt.Println()
-
-	if !isRoot() {
-		printServerRequiresSudo()
-		fmt.Println()
-		return nil
-	}
-
-	if deployedVersions, err := collectDeployedVersions(ctx); err != nil {
-		printServerNotAvailable()
-	} else {
-		printVersionSection("SERVER (Deployed)", deployedVersions, nil)
-	}
-	fmt.Println()
-
-	return nil
 }
 
 // collectBinaryVersions gathers all component versions from the binary.
@@ -135,40 +101,6 @@ func collectAndNormalizeVersions(source map[string]string, target map[string]str
 	}
 }
 
-// collectDeployedVersions gathers component versions from the deployed cluster.
-// Returns a map of component name to version string and an error if cluster is not accessible.
-// Expects KUBECONFIG to be set by PreRunE.
-func collectDeployedVersions(ctx context.Context) (map[string]string, error) {
-	componentVersions := make(map[string]string)
-
-	// Create kube client - requires KUBECONFIG to be set
-	kcli, err := kubeutils.KubeClient()
-	if err != nil {
-		return componentVersions, err
-	}
-
-	// Get deployed app version from the config-values secret label
-	appSlug := runtimeconfig.AppSlug()
-	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
-	if err != nil {
-		return componentVersions, err
-	}
-
-	secret := &corev1.Secret{}
-	if err := kcli.Get(ctx, client.ObjectKey{
-		Name:      fmt.Sprintf("%s-config-values", appSlug),
-		Namespace: kotsadmNamespace,
-	}, secret); err != nil {
-		return componentVersions, err
-	}
-
-	if appVersion := secret.Labels["app.kubernetes.io/version"]; appVersion != "" {
-		componentVersions[appSlug] = appVersion
-	}
-
-	return componentVersions, nil
-}
-
 // printVersionSection prints a version section with the given header and component versions.
 // If orderedKeys is provided, components are printed in that order.
 // If orderedKeys is nil, components are sorted alphabetically.
@@ -206,24 +138,4 @@ func printVersionSection(header string, componentVersions map[string]string, ord
 // isRoot checks if the current process is running with root privileges.
 func isRoot() bool {
 	return os.Geteuid() == 0
-}
-
-// printServerRequiresSudo prints a message indicating that elevated privileges are required
-// to display deployed component versions.
-func printServerRequiresSudo() {
-	header := "SERVER (Deployed)"
-	fmt.Println(header)
-	fmt.Println(strings.Repeat("-", len(header)))
-	fmt.Println("  Not available (requires elevated privileges)")
-	fmt.Println()
-	fmt.Println("  Re-run with sudo to display deployed component versions:")
-	fmt.Printf("    sudo %s version\n", os.Args[0])
-}
-
-// printServerNotAvailable prints a message indicating that the cluster is not accessible.
-func printServerNotAvailable() {
-	header := "SERVER (Deployed)"
-	fmt.Println(header)
-	fmt.Println(strings.Repeat("-", len(header)))
-	fmt.Println("  Not available (cluster not accessible)")
 }

@@ -134,7 +134,7 @@ func serveAPI(ctx context.Context, listener net.Listener, cert tls.Certificate, 
 
 	api.RegisterRoutes(router.PathPrefix("/api").Subrouter())
 
-	// Only start web server for UI mode, not headless
+	// Start the web server for the UI
 	if !opts.Headless {
 		webServer, err := web.New(web.InitialState{
 			Title:                opts.ReleaseData.Application.Spec.Title,

@@ -55,8 +55,8 @@ func (m *appUpgradeManager) Upgrade(ctx context.Context, configValues kotsv1beta
 		ChannelID:             m.releaseData.ChannelRelease.ChannelID,
 		ChannelSequence:       m.releaseData.ChannelRelease.ChannelSequence,
 		ReplicatedAppEndpoint: netutils.MaybeAddHTTPS(ecDomains.ReplicatedAppDomain),
-		// Skip running the KOTS app preflights in the Admin Console; they run in the manager experience installer when ENABLE_V3 is enabled
-		SkipPreflights: os.Getenv("ENABLE_V3") == "1",
+		// Skip running the KOTS app preflights in the Admin Console
+		SkipPreflights: true,
 		Stdout:         m.newLogWriter(),
 	}
 

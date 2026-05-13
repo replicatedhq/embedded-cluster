@@ -36,7 +36,3 @@ type PreflightRunnerInterface interface {
 func RunHostPreflights(ctx context.Context, spec *troubleshootv1beta2.HostPreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
 	return p.RunHostPreflights(ctx, spec, opts)
 }
-
-func RunAppPreflights(ctx context.Context, spec *troubleshootv1beta2.PreflightSpec, opts RunOptions) (*apitypes.PreflightsOutput, string, error) {
-	return p.RunAppPreflights(ctx, spec, opts)
-}

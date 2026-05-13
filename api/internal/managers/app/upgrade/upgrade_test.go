@@ -24,9 +24,6 @@ import (
 )
 
 func TestAppUpgradeManager_Upgrade(t *testing.T) {
-	// Setup environment variable for V3
-	t.Setenv("ENABLE_V3", "1")
-
 	// Create test release data
 	releaseData := &release.ReleaseData{
 		ChannelRelease: &release.ChannelRelease{
@@ -39,12 +36,6 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 			},
 		},
 	}
-
-	// Set up release data globally so AppSlug() returns the correct value for v3
-	err := release.SetReleaseDataForTests(map[string][]byte{
-		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
-	})
-	require.NoError(t, err)
 
 	t.Run("Successful online upgrade", func(t *testing.T) {
 		configValues := kotsv1beta1.ConfigValues{
@@ -61,7 +52,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Deploy", mock.MatchedBy(func(opts kotscli.DeployOptions) bool {
 			return opts.AppSlug == "test-app" &&
-				opts.Namespace == "test-app" &&
+				opts.Namespace == "kotsadm" &&
 				opts.ClusterID == "test-cluster" &&
 				opts.AirgapBundle == "" && // No airgap bundle for online
 				len(opts.License) == 0 && // No license for online
@@ -136,7 +127,7 @@ func TestAppUpgradeManager_Upgrade(t *testing.T) {
 		mockKotsCLI := &kotscli.MockKotsCLI{}
 		mockKotsCLI.On("Deploy", mock.MatchedBy(func(opts kotscli.DeployOptions) bool {
 			return opts.AppSlug == "test-app" &&
-				opts.Namespace == "test-app" &&
+				opts.Namespace == "kotsadm" &&
 				opts.ClusterID == "test-cluster" &&
 				opts.AirgapBundle == "airgap-bundle.tar.gz" &&
 				len(opts.License) > 0 && // License provided for airgap
@@ -206,14 +197,6 @@ func TestAppUpgradeManager_NewWithOptions(t *testing.T) {
 }
 
 func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
-	// Setup environment variable for V3
-	t.Setenv("ENABLE_V3", "1")
-
-	err := release.SetReleaseDataForTests(map[string][]byte{
-		"channelrelease.yaml": []byte("# channel release object\nappSlug: test-app"),
-	})
-	require.NoError(t, err)
-
 	tests := []struct {
 		name                  string
 		releaseData           *release.ReleaseData
@@ -256,7 +239,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
@@ -310,7 +293,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 						Labels: map[string]string{
 							"app.kubernetes.io/version": "v1.0.0",
 						},
@@ -330,7 +313,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
@@ -415,7 +398,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 					},
 				}
 
@@ -464,7 +447,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				existingSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "test-app-config-values",
-						Namespace: "test-app",
+						Namespace: "kotsadm",
 					},
 				}
 
@@ -515,7 +498,7 @@ func TestAppUpgradeManager_Upgrade_ConfigValuesSecret(t *testing.T) {
 				secret := &corev1.Secret{}
 				err := kcli.Get(context.Background(), client.ObjectKey{
 					Name:      "test-app-config-values",
-					Namespace: "test-app",
+					Namespace: "kotsadm",
 				}, secret)
 				require.NoError(t, err)
 
