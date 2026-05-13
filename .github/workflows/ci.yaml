@@ -59,29 +59,6 @@ jobs:
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
-  web-tests:
-    name: Web unit tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-      - name: Install dependencies
-        run: |
-          npm install
-      - name: Run web tests (types check, lint, and unit tests)
-        run: |
-          npm run test
-      - name: Build web
-        run: |
-          npm run build
-
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -465,11 +442,6 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-
       - uses: oras-project/setup-oras@v2
 
       - uses: imjasonh/setup-crane@v0.5
@@ -620,11 +592,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v2
 
@@ -1064,7 +1031,6 @@ jobs:
       - sanitize
       - unit-tests
       - int-tests
-      - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds
@@ -1095,9 +1061,6 @@ jobs:
         run: exit 1
       - name: fail if int-tests job was not successful
         if: needs.int-tests.result != 'success'
-        run: exit 1
-      - name: fail if web-tests job was not successful
-        if: needs.web-tests.result != 'success'
         run: exit 1
       - name: fail if dryrun-tests job was not successful
         if: needs.dryrun-tests.result != 'success'
