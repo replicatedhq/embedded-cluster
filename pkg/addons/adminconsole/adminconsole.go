@@ -2,7 +2,6 @@ package adminconsole
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -128,6 +127,4 @@ func (a *AdminConsole) isEmbeddedCluster() bool {
 	return a.ClusterID != ""
 }
 
-func (a *AdminConsole) isV3() bool {
-	return os.Getenv("ENABLE_V3") == "1"
-}
+
