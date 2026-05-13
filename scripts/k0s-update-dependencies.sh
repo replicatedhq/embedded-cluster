@@ -2,12 +2,7 @@
 
 set -euo pipefail
 
-# Detect OS and use appropriate sed syntax
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    SED_ARGS=(-i '')
-else
-    SED_ARGS=(-i)
-fi
+source "$(dirname "$0")/k0s-update-common.sh"
 
 function update_k0s_minor_version() {
     local minor_version=$1
@@ -39,6 +34,7 @@ function main() {
     local minor_version_minus_1=$((minor_version - 1))
     local minor_version_minus_2=$((minor_version - 2))
     local minor_version_minus_3=$((minor_version - 3))
+    local k0s_version
 
     update_k0s_minor_version "$minor_version_minus_3"
     update_k0s_minor_version "$minor_version_minus_2"
@@ -53,6 +49,8 @@ function main() {
 
     # prepare the code for the current major.minor version
     export K0S_MINOR_VERSION="$minor_version"
+    k0s_version=$(get_k0s_version "$minor_version")
+    sync_k8s_replace_directives "$k0s_version"
     update_go_dependencies
     generate_crd_manifests
 
