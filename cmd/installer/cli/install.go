@@ -86,17 +86,17 @@ type installFlags struct {
 
 // installConfig holds computed/derived values from install flags
 type installConfig struct {
-	clusterID               string
-	isAirgap                bool
-	licenseBytes            []byte
-	license                 *kotsv1beta1.License
-	airgapMetadata          *airgap.AirgapMetadata
-	embeddedAssetsSize      int64
-	endUserConfig           *ecv1beta1.Config
-	tlsCert                 tls.Certificate
-	tlsCertBytes            []byte
-	tlsKeyBytes             []byte
-	configValues            *kotsv1beta1.ConfigValues
+	clusterID          string
+	isAirgap           bool
+	licenseBytes       []byte
+	license            *kotsv1beta1.License
+	airgapMetadata     *airgap.AirgapMetadata
+	embeddedAssetsSize int64
+	endUserConfig      *ecv1beta1.Config
+	tlsCert            tls.Certificate
+	tlsCertBytes       []byte
+	tlsKeyBytes        []byte
+	configValues       *kotsv1beta1.ConfigValues
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -630,7 +630,6 @@ func buildKubernetesInstallation(flags *installFlags, ki kubernetesinstallation.
 
 	return nil
 }
-
 
 func runInstall(ctx context.Context, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {
 	logrus.Debug("initializing install")

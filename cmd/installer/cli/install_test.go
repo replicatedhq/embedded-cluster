@@ -1132,7 +1132,6 @@ func Test_buildMetricsReporter(t *testing.T) {
 	}
 }
 
-
 func Test_buildHelmClientOptions(t *testing.T) {
 	dataDir := t.TempDir()
 

@@ -126,5 +126,3 @@ func (a *AdminConsole) DryRunManifests() [][]byte {
 func (a *AdminConsole) isEmbeddedCluster() bool {
 	return a.ClusterID != ""
 }
-
-
