@@ -16,6 +16,7 @@ environment:
       - busybox
       - git
       - go
+      - make
   environment:
     GOCACHE: /cache/melange/gocache
     GOMODCACHE: /cache/melange/gomodcache
