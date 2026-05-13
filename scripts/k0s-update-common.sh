@@ -27,7 +27,7 @@ function sync_k8s_replace_directives() {
     local gomod_path
 
     # Get k8s version from k0s go.mod
-    gomod_info=$(go mod download -json "github.com/k0sproject/k0s@${k0s_version}" 2>/dev/null)
+    gomod_info=$(go mod download -json "github.com/k0sproject/k0s@${k0s_version}" 2>/dev/null || true)
     if [[ -z "$gomod_info" ]]; then
         echo "Warning: failed to download k0s go.mod for ${k0s_version}, skipping k8s replace directive sync"
         return
@@ -39,7 +39,7 @@ function sync_k8s_replace_directives() {
         return
     fi
 
-    k8s_version=$(grep 'k8s.io/api => k8s.io/api v' "$gomod_path" | awk '{print $NF}')
+    k8s_version=$(grep 'k8s.io/api => k8s.io/api v' "$gomod_path" | awk '{print $NF}' || true)
     if [[ -z "$k8s_version" ]]; then
         echo "Warning: could not find k8s version in k0s go.mod, skipping k8s replace directive sync"
         return
