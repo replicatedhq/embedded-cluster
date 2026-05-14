@@ -52,7 +52,7 @@ function sync_k8s_replace_directives() {
             current_version=$(grep 'k8s.io/api => k8s.io/api v' "$modfile" | awk '{print $NF}')
             if [[ -n "$current_version" && "$current_version" != "$k8s_version" ]]; then
                 echo "Syncing k8s replace directives in ${modfile} from ${current_version} to ${k8s_version}"
-                sed "${SED_ARGS[@]}" "/k8s\\.io\\//s|${current_version}|${k8s_version}|g" "$modfile"
+                sed "${SED_ARGS[@]}" "/[[:space:]]k8s\\.io\\//s|${current_version}|${k8s_version}|g" "$modfile"
             fi
         fi
     done
