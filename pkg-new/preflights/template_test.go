@@ -700,7 +700,7 @@ func TestTemplateNetfilterBackendCollector(t *testing.T) {
 	req.True(foundAnalyzer, "expected Netfilter backend textAnalyze analyzer")
 }
 
-func TestTemplateCgroupV2Collector(t *testing.T) {
+func TestTemplateCgroupV2Analyzer(t *testing.T) {
 	req := require.New(t)
 	tl := types.HostPreflightTemplateData{RequiresCgroupV2: true}
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
@@ -708,29 +708,19 @@ func TestTemplateCgroupV2Collector(t *testing.T) {
 
 	commonSpec := hpfc[0].Spec
 
-	var foundCollector bool
-	for _, c := range commonSpec.Collectors {
-		if c.HostRun != nil && c.HostRun.CollectorName == "check-cgroup-v2" {
-			foundCollector = true
-			req.Equal("sh", c.HostRun.Command)
-			break
-		}
-	}
-	req.True(foundCollector, "expected check-cgroup-v2 run collector when RequiresCgroupV2 is true")
-
 	var foundAnalyzer bool
 	for _, a := range commonSpec.Analyzers {
-		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Cgroup Version" {
+		if a.JsonCompare != nil && a.JsonCompare.CheckName == "Cgroup Version" {
 			foundAnalyzer = true
-			req.Equal("host-collectors/run-host/check-cgroup-v2.txt", a.TextAnalyze.FileName)
-			req.Equal("cgroupv2", a.TextAnalyze.RegexPattern)
+			req.Equal("host-collectors/system/cgroups.json", a.JsonCompare.FileName)
+			req.Equal("{$['cgroup-v2'].enabled}", a.JsonCompare.JsonPath)
 			break
 		}
 	}
-	req.True(foundAnalyzer, "expected Cgroup Version textAnalyze analyzer when RequiresCgroupV2 is true")
+	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer when RequiresCgroupV2 is true")
 }
 
-func TestTemplateCgroupV2CollectorNotPresent(t *testing.T) {
+func TestTemplateCgroupV2AnalyzerExcluded(t *testing.T) {
 	req := require.New(t)
 	tl := types.HostPreflightTemplateData{RequiresCgroupV2: false}
 	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
@@ -738,17 +728,16 @@ func TestTemplateCgroupV2CollectorNotPresent(t *testing.T) {
 
 	commonSpec := hpfc[0].Spec
 
-	for _, c := range commonSpec.Collectors {
-		if c.HostRun != nil && c.HostRun.CollectorName == "check-cgroup-v2" {
-			req.Fail("check-cgroup-v2 collector should not be present when RequiresCgroupV2 is false")
-		}
-	}
-
+	var foundAnalyzer bool
 	for _, a := range commonSpec.Analyzers {
-		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Cgroup Version" {
-			req.Fail("Cgroup Version analyzer should not be present when RequiresCgroupV2 is false")
+		if a.JsonCompare != nil && a.JsonCompare.CheckName == "Cgroup Version" {
+			foundAnalyzer = true
+			req.NotNil(a.JsonCompare.Exclude)
+			req.Equal("true", a.JsonCompare.Exclude.StrVal)
+			break
 		}
 	}
+	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer to exist with exclude when RequiresCgroupV2 is false")
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {
