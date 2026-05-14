@@ -9,6 +9,28 @@ export APP_NAMESPACE="${APP_NAMESPACE:-kotsadm}"
 KUBECONFIG="${KUBECONFIG:-${EMBEDDED_CLUSTER_BASE_DIR}/k0s/pki/admin.conf}"
 export KUBECONFIG
 
+# Returns a flag to disable filesystem performance checks if the
+# DISABLE_FILESYSTEM_PERFORMANCE_CHECK env var is set.
+# For newer binaries, returns --disable-filesystem-performance-check.
+# For older binaries without that flag, falls back to --ignore-host-preflights
+# or --skip-host-preflights so tests can still pass on slow CI disks.
+function get_fsperf_disable_flag() {
+    if [ "${DISABLE_FILESYSTEM_PERFORMANCE_CHECK:-}" != "1" ] && [ "${DISABLE_FILESYSTEM_PERFORMANCE_CHECK:-}" != "true" ]; then
+        return
+    fi
+
+    # Check if the binary supports --disable-filesystem-performance-check
+    # by combining it with --help. New binaries accept the flag and show help
+    # (exit 0), old binaries fail with "unknown flag" (exit non-zero).
+    if embedded-cluster install --disable-filesystem-performance-check --help >/dev/null 2>&1; then
+        echo "--disable-filesystem-performance-check"
+    elif embedded-cluster install --ignore-host-preflights --help >/dev/null 2>&1; then
+        echo "--ignore-host-preflights"
+    elif embedded-cluster install --skip-host-preflights --help >/dev/null 2>&1; then
+        echo "--skip-host-preflights"
+    fi
+}
+
 function retry() {
     local retries=$1
     shift

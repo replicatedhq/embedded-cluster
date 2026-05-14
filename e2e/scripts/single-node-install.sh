@@ -76,6 +76,17 @@ main() {
         echo "Running install with additional args: $additional_args"
     fi
 
+    local fsperf_flag=
+    fsperf_flag=$(get_fsperf_disable_flag)
+    if [ -n "$fsperf_flag" ]; then
+        if [ -n "$additional_args" ]; then
+            additional_args="$additional_args $fsperf_flag"
+        else
+            additional_args="$fsperf_flag"
+        fi
+        echo "Running install with filesystem performance check disabled: $fsperf_flag"
+    fi
+
     if embedded-cluster install --yes $additional_args 2>&1 | tee /tmp/log ; then
         echo "Expected installation to fail without a license provided"
         exit 1
