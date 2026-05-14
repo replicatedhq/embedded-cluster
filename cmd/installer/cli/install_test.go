@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	newconfig "github.com/replicatedhq/embedded-cluster/pkg-new/config"
@@ -21,19 +20,16 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts/plain"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
-	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -472,89 +468,6 @@ func Test_buildInstallFlags_TLSValidation(t *testing.T) {
 	}
 }
 
-func Test_buildInstallFlags_HeadlessValidation(t *testing.T) {
-	tests := []struct {
-		name          string
-		headless      bool
-		configValues  string
-		adminPassword string
-		target        string
-		wantErr       string
-	}{
-		{
-			name:          "valid headless flags with valid config file",
-			headless:      true,
-			configValues:  "/path/to/valid-config.yaml",
-			adminPassword: "password123",
-			target:        string(apitypes.InstallTargetLinux),
-			wantErr:       "",
-		},
-		{
-			name:          "not headless - should pass even with invalid flags",
-			headless:      false,
-			configValues:  "",
-			adminPassword: "",
-			target:        string(apitypes.InstallTargetLinux),
-			wantErr:       "",
-		},
-		{
-			name:          "missing config values flag",
-			headless:      true,
-			configValues:  "",
-			adminPassword: "password123",
-			target:        string(apitypes.InstallTargetLinux),
-			wantErr:       "--config-values flag is required for headless installation",
-		},
-		{
-			name:          "missing admin console password",
-			headless:      true,
-			configValues:  "/path/to/valid-config.yaml",
-			adminPassword: "",
-			target:        string(apitypes.InstallTargetLinux),
-			wantErr:       "--admin-console-password flag is required for headless installation",
-		},
-		{
-			name:          "unsupported target",
-			headless:      true,
-			configValues:  "/path/to/valid-config.yaml",
-			adminPassword: "password123",
-			target:        string(apitypes.InstallTargetKubernetes),
-			wantErr:       "headless installation only supports --target=linux",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Enable V3 for headless validation to work
-			t.Setenv("ENABLE_V3", "1")
-
-			// Setup flags struct
-			flags := &installFlags{
-				networkInterface:     "eth0", // Skip network interface auto-detection
-				headless:             tt.headless,
-				configValues:         tt.configValues,
-				adminConsolePassword: tt.adminPassword,
-				target:               tt.target,
-			}
-
-			// Setup cobra command with flags
-			cmd := &cobra.Command{}
-			mustAddCIDRFlags(cmd.Flags())
-			mustAddProxyFlags(cmd.Flags())
-
-			// Call buildInstallFlags (this will call validateHeadlessInstallFlags internally if V3 is enabled)
-			err := buildInstallFlags(cmd, flags)
-
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 func Test_buildInstallConfig_License(t *testing.T) {
 	// Create a temporary directory for test license files
 	tmpdir := t.TempDir()
@@ -682,7 +595,7 @@ func Test_buildInstallConfig_TLS(t *testing.T) {
 	tmpdir := t.TempDir()
 	certPath, keyPath := writeTestCertAndKey(t, tmpdir)
 
-	// Create a valid config file for headless tests
+	// Create a valid config file for tests
 	validConfigFile := filepath.Join(tmpdir, "valid-config.yaml")
 	validConfigContent := `apiVersion: kots.io/v1beta1
 kind: ConfigValues
@@ -699,7 +612,6 @@ spec:
 		name        string
 		tlsCertFile string
 		tlsKeyFile  string
-		headless    bool
 		assumeYes   bool
 		wantErr     string
 		expectTLS   bool
@@ -743,43 +655,6 @@ spec:
 			wantErr:     "",
 			expectTLS:   true,
 		},
-		{
-			name:        "headless with valid TLS cert and key",
-			tlsCertFile: certPath,
-			tlsKeyFile:  keyPath,
-			headless:    true,
-			wantErr:     "",
-			expectTLS:   true,
-		},
-		{
-			name:        "headless with no TLS cert and key and assumeYes=false - cancels installation",
-			tlsCertFile: "",
-			tlsKeyFile:  "",
-			headless:    true,
-			wantErr:     "failed to get confirmation",
-			expectTLS:   false,
-		},
-		{
-			name:        "headless with no TLS cert and key and assumeYes=true - generates self-signed cert",
-			tlsCertFile: "",
-			tlsKeyFile:  "",
-			headless:    true,
-			assumeYes:   true,
-			wantErr:     "",
-			expectTLS:   true, // Self-signed cert is automatically generated in headless mode
-		},
-		{
-			name: "headless with invalid cert file",
-			tlsCertFile: func() string {
-				invalidCertPath := filepath.Join(tmpdir, "invalid-headless-cert.pem")
-				os.WriteFile(invalidCertPath, []byte("invalid cert data"), 0644)
-				return invalidCertPath
-			}(),
-			tlsKeyFile: keyPath,
-			headless:   true,
-			wantErr:    "failed to parse TLS certificate",
-			expectTLS:  false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -787,15 +662,7 @@ spec:
 			flags := &installFlags{
 				tlsCertFile: tt.tlsCertFile,
 				tlsKeyFile:  tt.tlsKeyFile,
-				headless:    tt.headless,
 				assumeYes:   tt.assumeYes,
-			}
-
-			if tt.headless {
-				t.Setenv("ENABLE_V3", "1")
-
-				flags.configValues = validConfigFile
-				flags.adminConsolePassword = "password123"
 			}
 
 			installCfg, err := buildInstallConfig(flags)
@@ -884,7 +751,7 @@ oxhVqyhpk86rf0rT5DcD/sBw
 	return certPath, keyPath
 }
 
-func Test_buildInstallConfig_HeadlessValidation(t *testing.T) {
+func Test_buildInstallConfig_ConfigValues(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := t.TempDir()
 
@@ -925,7 +792,7 @@ metadata:
 		wantConfigValues *kotsv1beta1.ConfigValues
 	}{
 		{
-			name:         "valid headless flags with valid config file",
+			name:         "valid config values file",
 			configValues: validConfigFile,
 			wantErr:      "",
 			wantConfigValues: &kotsv1beta1.ConfigValues{
@@ -949,7 +816,7 @@ metadata:
 			},
 		},
 		{
-			name:         "valid headless flags with empty config file",
+			name:         "empty config values file",
 			configValues: emptyConfigFile,
 			wantErr:      "",
 			wantConfigValues: &kotsv1beta1.ConfigValues{
@@ -978,11 +845,8 @@ metadata:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("ENABLE_V3", "1")
-
 			flags := &installFlags{
 				assumeYes:    true,
-				headless:     true,
 				configValues: tt.configValues,
 			}
 
@@ -1263,140 +1127,6 @@ func Test_buildMetricsReporter(t *testing.T) {
 
 			if tt.validate != nil {
 				tt.validate(t, reporter)
-			}
-		})
-	}
-}
-
-func Test_buildAPIOptions(t *testing.T) {
-	tests := []struct {
-		name            string
-		flags           installFlags
-		installCfg      *installConfig
-		rc              runtimeconfig.RuntimeConfig
-		ki              kubernetesinstallation.Installation
-		metricsReporter metrics.ReporterInterface
-		wantErr         bool
-		validate        func(*testing.T, apiOptions)
-	}{
-		{
-			name: "all options set",
-			flags: installFlags{
-				adminConsolePassword: "password123",
-				target:               "linux",
-				hostname:             "example.com",
-				managerPort:          8800,
-				headless:             false,
-				ignoreHostPreflights: true,
-				airgapBundle:         "/path/to/bundle.airgap",
-			},
-			installCfg: &installConfig{
-				licenseBytes: []byte("license-data"),
-				tlsCertBytes: []byte("cert-data"),
-				tlsKeyBytes:  []byte("key-data"),
-				clusterID:    "cluster-123",
-				airgapMetadata: &airgap.AirgapMetadata{
-					AirgapInfo: &kotsv1beta1.Airgap{},
-				},
-				embeddedAssetsSize: 1024 * 1024,
-				configValues: &kotsv1beta1.ConfigValues{
-					Spec: kotsv1beta1.ConfigValuesSpec{
-						Values: map[string]kotsv1beta1.ConfigValue{
-							"key1": {Value: "value1"},
-							"key2": {Value: "value2"},
-						},
-					},
-				},
-				endUserConfig: &ecv1beta1.Config{
-					Spec: ecv1beta1.ConfigSpec{},
-				},
-			},
-			rc: func() runtimeconfig.RuntimeConfig {
-				rc := runtimeconfig.New(nil)
-				rc.SetAdminConsolePort(30303)
-				return rc
-			}(),
-			ki: func() kubernetesinstallation.Installation {
-				ki := kubernetesinstallation.New(nil)
-				ki.SetAdminConsolePort(30304)
-				return ki
-			}(),
-			metricsReporter: &metrics.MockReporter{},
-			wantErr:         false,
-			validate: func(t *testing.T, opts apiOptions) {
-				req := require.New(t)
-				req.Equal(apitypes.InstallTargetLinux, opts.InstallTarget)
-				req.Equal("password123", opts.Password)
-				req.NotEmpty(opts.PasswordHash)
-				err := bcrypt.CompareHashAndPassword(opts.PasswordHash, []byte("password123"))
-				req.NoError(err)
-				req.Equal([]byte("cert-data"), opts.TLSConfig.CertBytes)
-				req.Equal([]byte("key-data"), opts.TLSConfig.KeyBytes)
-				req.Equal("example.com", opts.TLSConfig.Hostname)
-				req.Equal([]byte("license-data"), opts.License)
-				req.Equal("/path/to/bundle.airgap", opts.AirgapBundle)
-				req.NotNil(opts.AirgapMetadata)
-				req.Equal(int64(1024*1024), opts.EmbeddedAssetsSize)
-				req.Equal(apitypes.AppConfigValues{"key1": {Value: "value1"}, "key2": {Value: "value2"}}, opts.ConfigValues)
-				req.NotNil(opts.EndUserConfig)
-				req.Equal("cluster-123", opts.ClusterID)
-				req.Equal(apitypes.ModeInstall, opts.Mode)
-				req.Equal(30303, opts.RuntimeConfig.AdminConsolePort())
-				req.Equal(30304, opts.Installation.AdminConsolePort())
-				req.Equal(false, opts.RequiresInfraUpgrade)
-				req.Equal(8800, opts.ManagerPort)
-				req.Equal(false, opts.Headless)
-				req.Equal(true, opts.AllowIgnoreHostPreflights)
-				req.Equal(false, opts.DisableFilesystemPerformanceCheck)
-				req.Equal(web.ModeInstall, opts.WebMode)
-			},
-		},
-		{
-			name: "minimal options",
-			flags: installFlags{
-				adminConsolePassword: "pass",
-				target:               "kubernetes",
-				hostname:             "",
-				managerPort:          30000,
-				headless:             true,
-				ignoreHostPreflights: false,
-			},
-			installCfg: &installConfig{
-				clusterID: "cluster-123",
-			},
-			rc:              runtimeconfig.New(nil),
-			ki:              kubernetesinstallation.New(nil),
-			metricsReporter: &metrics.MockReporter{},
-			wantErr:         false,
-			validate: func(t *testing.T, opts apiOptions) {
-				req := require.New(t)
-				req.Equal(apitypes.InstallTargetKubernetes, opts.InstallTarget)
-				req.Equal("pass", opts.Password)
-				req.NotEmpty(opts.PasswordHash)
-				req.Equal("", opts.TLSConfig.Hostname)
-				req.Equal(30000, opts.ManagerPort)
-				req.Equal(true, opts.Headless)
-				req.Equal(false, opts.AllowIgnoreHostPreflights)
-				req.Equal(false, opts.DisableFilesystemPerformanceCheck)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := require.New(t)
-
-			opts, err := buildAPIOptions(tt.flags, tt.installCfg, tt.rc, tt.ki, tt.metricsReporter)
-
-			if tt.wantErr {
-				req.Error(err)
-				return
-			}
-
-			req.NoError(err)
-
-			if tt.validate != nil {
-				tt.validate(t, opts)
 			}
 		})
 	}

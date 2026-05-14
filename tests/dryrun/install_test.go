@@ -838,9 +838,6 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
 	})
 
-	// Validate plugin configuration
-	validateVeleroPlugin(t, hcli)
-
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 

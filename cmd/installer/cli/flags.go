@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"os"
 	"text/template"
 
 	"github.com/spf13/cobra"
@@ -12,43 +11,6 @@ const (
 	flagAnnotationTarget                = "replicated.com/target"
 	flagAnnotationTargetValueLinux      = "linux"
 	flagAnnotationTargetValueKubernetes = "kubernetes"
-)
-
-// TODO: Remove this and use defaultUsageTemplateV3 when kubernetes support is added
-const (
-	upgradeUsageTemplateV3Linux = `Usage:{{if .Runnable}}
-{{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
-{{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
-
-Aliases:
-{{.NameAndAliases}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
-
-Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
-
-{{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
-{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
-
-Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
-{{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}{{if (usesTargetFlagMenu .LocalFlags)}}
-
-Flags:
-{{(commonFlags .LocalFlags).FlagUsages | trimTrailingWhitespaces}}{{else}}
-
-Flags:
-{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{end}}{{if .HasAvailableInheritedFlags}}
-
-Global Flags:
-{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasExample}}
-
-Examples:
-{{.Example}}{{end}}{{if .HasHelpSubCommands}}
-
-Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
-{{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
-
-Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
-`
 )
 
 const (
@@ -100,11 +62,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 func init() {
 	cobra.AddTemplateFuncs(template.FuncMap{
-		// usesTargetFlagMenu returns true if the target flag is present and the ENABLE_V3 environment variable is set.
 		"usesTargetFlagMenu": func(flagSet *pflag.FlagSet) bool {
-			if isV3Enabled() {
-				return flagSet.Lookup("target") != nil
-			}
 			return false
 		},
 		// commonFlags returns a flag set with all flags that do not have a target annotation.
@@ -120,10 +78,6 @@ func init() {
 			return filterFlagSetByTarget(flagSet, flagAnnotationTargetValueKubernetes)
 		},
 	})
-}
-
-func isV3Enabled() bool {
-	return os.Getenv("ENABLE_V3") == "1"
 }
 
 func mustSetFlagTargetLinux(flags *pflag.FlagSet, name string) {
