@@ -431,7 +431,13 @@ func (h *hostInfo) drainNode() {
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
 // it stores any errors in h.KclientError
 func (h *hostInfo) configureKubernetesClient() {
-	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	// Controllers have admin kubeconfig with cluster-admin permissions.
+	// Workers only have kubelet auth config, so fall back when admin.conf is absent.
+	kubeconfigPath := h.Status.Vars.KubeletAuthConfigPath
+	if _, err := os.Stat(h.Status.Vars.AdminKubeConfigPath); err == nil {
+		kubeconfigPath = h.Status.Vars.AdminKubeConfigPath
+	}
+	os.Setenv("KUBECONFIG", kubeconfigPath)
 	client, err := kubeutils.KubeClient()
 	if err != nil {
 		h.KclientError = fmt.Errorf("unable to create kube client: %w", err)
