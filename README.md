@@ -101,84 +101,6 @@ Additionally, it includes a Registry when deployed in air gap mode, and SeaweedF
 1. Run `sudo ./<app-slug> airgap update --airgap bundle` to upload the bundle to the KOTS admin console.
 1. Deploy the update from the admin console version history page.
 
-### V3 installs
-
-Embedded Cluster supports v3 releases which provide an enhanced manager UI experience for installations and upgrades. V3 releases are enabled by setting the `ENABLE_V3` environment variable.
-
-**For Online:**
-1. Create the release:
-    ```bash
-    make initial-release ENABLE_V3=1
-    ```
-1. Create the node:
-    ```bash
-    make create-node0
-    ```
-1. Install the release:
-    ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster install --license "$CUSTOMER_LICENSE_FILE" --target linux
-    ```
-
-**For Airgap:**
-1. Create the release:
-    ```bash
-    make initial-release ENABLE_V3=1 UPLOAD_BINARIES=1
-    ```
-1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
-1. Create the node:
-    ```bash
-    make create-node0
-    ```
-1. Run the download and extract commands from the install instructions on the customer page.
-1. Run the following command to install the EC release in airgap mode:
-    ```bash
-    ENABLE_V3=1 sudo -E ./<app-slug> install --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
-    ```
-
-**Note:** The release will be created using the manifests located in the `e2e/kots-release-install-v3` directory.
-
-### V3 upgrades
-
-**For Online:**
-1. Create the release:
-    ```bash
-    make upgrade-release ENABLE_V3=1
-    ```
-1. SSH into the node:
-    ```bash
-    make ssh-node0
-    ```
-1. Run the following command to upgrade the EC release:
-    ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true output/bin/embedded-cluster upgrade --license "$CUSTOMER_LICENSE_FILE" --target linux
-    ```
-
-**For Airgap:**
-1. Create the release:
-    ```bash
-    make upgrade-release ENABLE_V3=1
-    ```
-1. Build the air gap bundle manually in the Vendor Portal from the channel history page for your channel.
-1. SSH into the node:
-    ```bash
-    make ssh-node0
-    ```
-1. Run the download and extract commands from the install instructions on the customer page.
-1. Run the following command to upgrade to the new EC release in airgap mode:
-    ```bash
-    ENABLE_V3=1 EC_DEV_ENV=true sudo -E ./<app-slug> upgrade --license "$CUSTOMER_LICENSE_FILE" --airgap-bundle <app-slug>.airgap --target linux
-    ```
-
-**Note:** The release will be created using the manifests located in the `e2e/kots-release-upgrade-v3` directory.
-
-**Required environment variables:**
-- `ENABLE_V3=1` - **Required** to enable v3 functionality and manager UI experience
-- `EC_DEV_ENV=true` - **Optional** for development mode, enables dynamic asset loading from `./web/dist` instead of embedded assets. This allows you to test web UI changes by simply running `npm run build` in the `web/` directory and refreshing the browser, without needing to rebuild the entire embedded-cluster binary or building a new release.
-
-**Required flags:**
-- `--target` - **Required** to specify the target platform. Valid options are `linux` or `kubernetes`
-- `--license` - **Required** path to the license file
-
 ### Interacting with the cluster
 
 You can interact with the cluster using `kubectl` by running the following command:
@@ -231,11 +153,7 @@ To view the list of available distributions:
 make list-distros
 ```
 
-**Note:** The development environment automatically mounts both data directories to support v2 and v3:
-- **v2 mode:** Uses `/var/lib/embedded-cluster/k0s`
-- **v3 mode:** Uses `/var/lib/{app-slug}/k0s` (determined from `REPLICATED_APP`)
-
-Both directories are mounted automatically, so the embedded cluster binary can use whichever one it needs without any manual configuration.
+**Note:** The development environment mounts the data directory at `/var/lib/embedded-cluster/k0s`.
 
 ### Deleting nodes
 
@@ -417,22 +335,6 @@ The build system checks for overrides in this order:
 
 The system automatically generates a KOTS version string based on your override, ensuring proper versioning for development builds on rebuilds.
 
-## API Type Generation (V3 Manager Experience Only)
-
-The V3 manager experience uses OpenAPI/Swagger to generate TypeScript types for the web frontend. When you make changes to API endpoints or types in the `api/` directory for the V3 installer, you need to regenerate the types:
-
-```bash
-make api-types
-```
-
-This command:
-1. Generates OpenAPI documentation from Go code annotations (`api/docs/swagger.yaml`)
-2. Generates TypeScript types from the OpenAPI spec (`web/src/types/api.ts`)
-
-The types are automatically generated before building the web frontend (`npm run build` runs `types:api:generate` as a pre-build step), but you should run `make api-types` manually when developing API changes to ensure the frontend types stay in sync.
-
-**Note:** This is only relevant when working on the V3 manager experience (the new installer UI). The V2 experience uses KOTS admin console and does not use these generated types.
-
 ## Dependency Versions
 
 The [versions.mk](versions.mk) file serves as the single source of truth for all external dependency versions.
@@ -446,38 +348,6 @@ Dependency versions are automatically kept up-to-date through the [.github/workf
 To upgrade the K0s minor version, the [.github/workflows/dependencies.yaml](.github/workflows/dependencies.yaml) workflow can be triggered manually with the target minor version as input.
 
 > **Note:** For patch version updates within the same minor version (e.g., 1.33.4 to 1.33.5), the [automated dependency workflow](#automated-version-updates) handles this automatically.
-
-## Testing
-
-### E2E Tests (V3 Installer)
-
-The V3 installer includes a Dagger-based E2E test framework that provides portable, reproducible testing across local and CI environments.
-
-**Key Features:**
-- Portable execution (same tests run identically locally and in CI)
-- 1Password integration for centralized secret management
-- CMX VM provisioning for isolated test environments
-- Automated installation validation
-
-**Quick Start:**
-```bash
-make e2e-v3-initial-release
-
-dagger call with-one-password --service-account=env:OP_SERVICE_ACCOUNT_TOKEN \
-  e-2-e-run-headless \
-  --scenario=online \
-  --app-version=<app version> \
-  --kube-version=1.33 \
-  --license-file=./local-dev/license.yaml
-```
-
-**Documentation:** See [dagger/README.md](dagger/README.md) for comprehensive E2E testing guide, including:
-- Setup and prerequisites
-- Available test scenarios
-- Troubleshooting
-- CI integration
-
-**Note:** V2 tests remain unchanged and continue to use the existing Docker/LXD/CMX-based framework.
 
 ## Releasing
 

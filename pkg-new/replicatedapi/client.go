@@ -50,12 +50,6 @@ func WithClusterID(clusterID string) ClientOption {
 	}
 }
 
-func WithHTTPClient(httpClient *retryablehttp.Client) ClientOption {
-	return func(c *client) {
-		c.httpClient = httpClient
-	}
-}
-
 // NewClient creates a new replicatedapi client using the configured factory
 func NewClient(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
 	return clientFactory(replicatedAppURL, license, releaseData, opts...)

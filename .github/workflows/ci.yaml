@@ -59,29 +59,6 @@ jobs:
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
-  web-tests:
-    name: Web unit tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-      - name: Install dependencies
-        run: |
-          npm install
-      - name: Run web tests (types check, lint, and unit tests)
-        run: |
-          npm run test
-      - name: Build web
-        run: |
-          npm run build
-
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -338,28 +315,6 @@ jobs:
             exit 1
           fi
 
-  check-swagger-docs:
-    name: Check swagger docs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Check swagger docs
-        run: |
-          make -C api swagger
-          git diff --exit-code --name-only
-          if [ $? -eq 0 ]; then
-            echo "Swagger docs are up to date"
-          else
-            echo "Swagger docs are out of date"
-            exit 1
-          fi
-
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
@@ -464,11 +419,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v2
 
@@ -620,11 +570,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
 
       - uses: oras-project/setup-oras@v2
 
@@ -1064,11 +1009,9 @@ jobs:
       - sanitize
       - unit-tests
       - int-tests
-      - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds
-      - check-swagger-docs
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -1096,9 +1039,6 @@ jobs:
       - name: fail if int-tests job was not successful
         if: needs.int-tests.result != 'success'
         run: exit 1
-      - name: fail if web-tests job was not successful
-        if: needs.web-tests.result != 'success'
-        run: exit 1
       - name: fail if dryrun-tests job was not successful
         if: needs.dryrun-tests.result != 'success'
         run: exit 1
@@ -1107,9 +1047,6 @@ jobs:
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
-        run: exit 1
-      - name: fail if check-swagger-docs job was not successful
-        if: needs.check-swagger-docs.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"

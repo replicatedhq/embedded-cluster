@@ -38,11 +38,6 @@ func CopyBundleTo(dst string) error {
 	return nil
 }
 
-// PrintTable prints the preflight output in a table format.
-func PrintTable(o *apitypes.PreflightsOutput) {
-	printTable(o)
-}
-
 // PrintTableWithoutInfo prints the preflight output in a table format without info results.
 func PrintTableWithoutInfo(o *apitypes.PreflightsOutput) {
 	withoutInfo := apitypes.PreflightsOutput{
