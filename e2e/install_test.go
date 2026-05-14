@@ -112,6 +112,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	checkInstallationState(t, tc)
 
+	// reset the worker without --force to verify it completes gracefully
+	t.Logf("%s: resetting worker node 3", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{})
+	if err != nil {
+		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
