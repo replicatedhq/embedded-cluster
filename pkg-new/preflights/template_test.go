@@ -700,6 +700,57 @@ func TestTemplateNetfilterBackendCollector(t *testing.T) {
 	req.True(foundAnalyzer, "expected Netfilter backend textAnalyze analyzer")
 }
 
+func TestTemplateCgroupV2Collector(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{RequiresCgroupV2: true}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var foundCollector bool
+	for _, c := range commonSpec.Collectors {
+		if c.HostRun != nil && c.HostRun.CollectorName == "check-cgroup-v2" {
+			foundCollector = true
+			req.Equal("sh", c.HostRun.Command)
+			break
+		}
+	}
+	req.True(foundCollector, "expected check-cgroup-v2 run collector when RequiresCgroupV2 is true")
+
+	var foundAnalyzer bool
+	for _, a := range commonSpec.Analyzers {
+		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Cgroup Version" {
+			foundAnalyzer = true
+			req.Equal("host-collectors/run-host/check-cgroup-v2.txt", a.TextAnalyze.FileName)
+			req.Equal("cgroupv2", a.TextAnalyze.RegexPattern)
+			break
+		}
+	}
+	req.True(foundAnalyzer, "expected Cgroup Version textAnalyze analyzer when RequiresCgroupV2 is true")
+}
+
+func TestTemplateCgroupV2CollectorNotPresent(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{RequiresCgroupV2: false}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	for _, c := range commonSpec.Collectors {
+		if c.HostRun != nil && c.HostRun.CollectorName == "check-cgroup-v2" {
+			req.Fail("check-cgroup-v2 collector should not be present when RequiresCgroupV2 is false")
+		}
+	}
+
+	for _, a := range commonSpec.Analyzers {
+		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Cgroup Version" {
+			req.Fail("Cgroup Version analyzer should not be present when RequiresCgroupV2 is false")
+		}
+	}
+}
+
 func TestCalculateAirgapStorageSpace(t *testing.T) {
 	embeddedAssetsSize := int64(1024 * 1024 * 1024)
 

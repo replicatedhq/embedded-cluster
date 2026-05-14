@@ -30,6 +30,12 @@ spec:
     # External k0s runtime dependencies
     # https://docs.k0sproject.io/stable/external-runtime-deps/
     - cgroups: {}
+{{- if .RequiresCgroupV2 }}
+    - run:
+        collectorName: 'check-cgroup-v2'
+        command: 'sh'
+        args: ['-c', 'if [ -f /sys/fs/cgroup/cgroup.controllers ]; then echo "cgroupv2"; elif [ -d /sys/fs/cgroup/memory ]; then echo "cgroupv1"; else echo "unknown"; fi']
+{{- end }}
     - run:
         collectorName: 'check-proc-filesystem'
         command: 'sh'
@@ -324,6 +330,19 @@ spec:
           - pass:
               when: 'true'
               message: "'pids' cgroup controller is enabled"
+{{- if .RequiresCgroupV2 }}
+    - textAnalyze:
+        checkName: Cgroup Version
+        fileName: host-collectors/run-host/check-cgroup-v2.txt
+        regex: 'cgroupv2'
+        outcomes:
+          - pass:
+              when: "true"
+              message: cgroup v2 is enabled
+          - fail:
+              when: "false"
+              message: cgroup v1 is not supported for Kubernetes 1.35 and later. Upgrade your operating system to one that uses cgroup v2.
+{{- end }}
     - textAnalyze:
         checkName: /proc Filesystem
         fileName: host-collectors/run-host/check-proc-filesystem.txt

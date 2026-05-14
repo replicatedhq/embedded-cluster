@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -120,6 +121,7 @@ func runInstallPreflights(ctx context.Context, flags installFlags, installCfg *i
 		IsAirgap:                          installCfg.isAirgap,
 		ControllerAirgapStorageSpace:      controllerAirgapStorageSpace,
 		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
+		K8sVersion:                        versions.K0sVersion,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
 		opts.GlobalCIDR = &globalCIDR
