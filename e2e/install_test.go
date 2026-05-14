@@ -461,6 +461,20 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		withEnv: withEnv,
 	})
 
+	// reset the worker without --force to verify it completes gracefully
+	t.Logf("%s: resetting worker node 1", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{withEnv: withEnv})
+	if err != nil {
+		t.Fatalf("fail to reset worker node 1: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// verify the worker node was removed from the cluster
+	t.Logf("%s: verifying worker node 1 was removed from the cluster", time.Now().Format(time.RFC3339))
+	line = []string{"/usr/local/bin/check-nodes-removed.sh", "1"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to verify worker node 1 was removed: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
