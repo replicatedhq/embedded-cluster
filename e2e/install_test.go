@@ -119,6 +119,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// verify the worker node was removed from the cluster
+	t.Logf("%s: verifying worker node 3 was removed from the cluster", time.Now().Format(time.RFC3339))
+	line := []string{"/usr/local/bin/check-nodes-removed.sh", "3"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to verify worker node 3 was removed: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
