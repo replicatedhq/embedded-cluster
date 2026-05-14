@@ -1,0 +1,147 @@
+package controllers
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+const nodeDeleteTokenJobPrefix = "node-delete-token-"
+
+var nodeDeleteTokenJobTemplate = &batchv1.Job{
+	ObjectMeta: metav1.ObjectMeta{
+		Namespace: ecNamespace,
+	},
+	Spec: batchv1.JobSpec{
+		BackoffLimit:            ptr.To(int32(2)),
+		TTLSecondsAfterFinished: ptr.To(int32(1 * 60)),
+		Template: corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				ServiceAccountName: "embedded-cluster-operator",
+				Volumes: []corev1.Volume{
+					{
+						Name: "host",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/var/lib/embedded-cluster",
+								Type: ptr.To(corev1.HostPathDirectory),
+							},
+						},
+					},
+				},
+				RestartPolicy: corev1.RestartPolicyNever,
+				Containers: []corev1.Container{
+					{
+						Name:  "node-delete-token-delivery",
+						Image: "busybox:latest",
+						Command: []string{
+							"/bin/sh",
+							"-e",
+							"-c",
+							"",
+						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "KUBECONFIG",
+								Value: "",
+							},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								Name:      "host",
+								MountPath: "/embedded-cluster",
+								ReadOnly:  false,
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+// ReconcileNodeDeleteRBAC ensures per-node RBAC exists for all current worker nodes and cleans
+// up RBAC for nodes that have been removed.
+func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, events *NodeEventsBatch) error {
+	log := log.FromContext(ctx)
+
+	for _, event := range events.NodesRemoved {
+		log.Info("Cleaning up node-delete RBAC for removed node", "node", event.NodeName)
+		if err := kubeutils.DeleteNodeDeleteRBAC(ctx, r.Client, ecNamespace, event.NodeName); err != nil {
+			log.Error(err, "Failed to cleanup node-delete RBAC", "node", event.NodeName)
+		}
+	}
+
+	var nodes corev1.NodeList
+	if err := r.List(ctx, &nodes); err != nil {
+		return fmt.Errorf("list nodes: %w", err)
+	}
+
+	for _, node := range nodes.Items {
+		if _, isController := node.Labels["node-role.kubernetes.io/control-plane"]; isController {
+			continue
+		}
+		if err := kubeutils.EnsureNodeDeleteRBAC(ctx, r.Client, ecNamespace, node.Name); err != nil {
+			return fmt.Errorf("ensure node-delete RBAC for %s: %w", node.Name, err)
+		}
+		delivered, err := kubeutils.NodeDeleteTokenIsDelivered(ctx, r.Client, ecNamespace, node.Name)
+		if err != nil {
+			return fmt.Errorf("check node-delete token for %s: %w", node.Name, err)
+		}
+		if !delivered {
+			log.Info("Creating node-delete token delivery job", "node", node.Name)
+			if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
+				return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *InstallationReconciler) createNodeDeleteTokenDeliveryJob(ctx context.Context, nodeName string) error {
+	labels := map[string]string{
+		"embedded-cluster/node-name": nodeName,
+	}
+
+	job := nodeDeleteTokenJobTemplate.DeepCopy()
+	job.Name = util.NameWithLengthLimit(nodeDeleteTokenJobPrefix, nodeName)
+	job.Labels = labels
+	job.Spec.Template.Labels = labels
+	job.Spec.Template.Spec.NodeName = nodeName
+	job.Spec.Template.Spec.Volumes[0].HostPath.Path = r.RuntimeConfig.EmbeddedClusterHomeDirectory()
+
+	secretName := kubeutils.NodeDeleteSecretName(nodeName)
+	tokenFileName := kubeutils.NodeDeleteTokenFileName
+
+	job.Spec.Template.Spec.Containers[0].Command[3] = fmt.Sprintf(
+		`for i in $(seq 1 30); do
+  TOKEN_B64=$(/embedded-cluster/bin/kubectl get secret %s -n %s -o jsonpath='{.data.token}')
+  if [ -n "$TOKEN_B64" ]; then
+    printf "%%s" "$TOKEN_B64" | base64 -d > /embedded-cluster/%s
+    chmod 600 /embedded-cluster/%s
+    exit 0
+  fi
+  sleep 1
+done
+echo "Timeout waiting for secret token"
+exit 1`,
+		secretName,
+		ecNamespace,
+		tokenFileName,
+		tokenFileName,
+	)
+
+	if err := r.Create(ctx, job); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create job: %w", err)
+	}
+	return nil
+}

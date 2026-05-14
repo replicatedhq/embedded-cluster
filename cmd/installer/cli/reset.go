@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	nodeutil "k8s.io/component-helpers/node/util"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,6 +45,7 @@ type hostInfo struct {
 	ControlNodeError error
 	Status           k0s.K0sStatus
 	RoleName         string
+	DataDir          string
 }
 
 func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
@@ -86,7 +90,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 			}
 
 			// populate options struct with host information
-			currentHost, err := newHostInfo(ctx)
+			currentHost, err := newHostInfo(ctx, rc.EmbeddedClusterHomeDirectory())
 			if !checkErrPrompt(assumeYes, force, err) {
 				return err
 			}
@@ -118,19 +122,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
 				if err != nil {
-					if k8serrors.IsForbidden(err) && currentHost.Status.Role == "worker" {
-						logrus.Warnf("Unable to delete this worker node from the API server due to insufficient permissions.")
-						logrus.Infof("To complete the reset, remove this node from the cluster by running 'kubectl delete node %s' from a surviving controller node.", currentHost.Hostname)
-						if !force && !assumeYes {
-							confirmed, promptErr := prompts.New().Confirm("Do you want to continue with the local reset anyway?", false)
-							if promptErr != nil {
-								return fmt.Errorf("failed to get confirmation: %w", promptErr)
-							}
-							if !confirmed {
-								return fmt.Errorf("reset aborted")
-							}
-						}
-					} else if !checkErrPrompt(assumeYes, force, err) {
+					if !checkErrPrompt(assumeYes, force, err) {
 						return err
 					}
 				}
@@ -312,8 +304,8 @@ func maybePrintHAWarning(ctx context.Context, rc runtimeconfig.RuntimeConfig) er
 }
 
 // newHostInfo returns a populated hostInfo struct
-func newHostInfo(ctx context.Context) (hostInfo, error) {
-	currentHost := hostInfo{}
+func newHostInfo(ctx context.Context, dataDir string) (hostInfo, error) {
+	currentHost := hostInfo{DataDir: dataDir}
 	// populate hostname
 	err := currentHost.getHostName()
 	if err != nil {
@@ -576,8 +568,86 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 		if k8serrors.IsNotFound(err) {
 			return nil
 		}
+		if k8serrors.IsForbidden(err) && h.Status.Role == "worker" {
+			return h.deleteNodeWithSAToken(ctx)
+		}
 		return fmt.Errorf("unable to delete Node: %w", err)
 	}
+	return nil
+}
+
+// deleteNodeWithSAToken attempts to delete the node using a stored ServiceAccount token
+// that was delivered by the controller for this purpose.
+func (h *hostInfo) deleteNodeWithSAToken(ctx context.Context) error {
+	tokenPath := filepath.Join(h.DataDir, kubeutils.NodeDeleteTokenFileName)
+	tokenBytes, err := os.ReadFile(tokenPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("unable to delete node: kubelet identity is forbidden by NodeRestriction and no node-delete token found at %s", tokenPath)
+		}
+		return fmt.Errorf("unable to read node-delete token: %w", err)
+	}
+	token := strings.TrimSpace(string(tokenBytes))
+
+	kubeletConfig, err := clientcmd.LoadFromFile(h.Status.Vars.KubeletAuthConfigPath)
+	if err != nil {
+		return fmt.Errorf("unable to load kubelet config: %w", err)
+	}
+
+	var clusterName string
+	for name := range kubeletConfig.Clusters {
+		clusterName = name
+		break
+	}
+	if clusterName == "" {
+		return fmt.Errorf("no cluster found in kubelet config")
+	}
+	cluster := kubeletConfig.Clusters[clusterName]
+
+	newConfig := clientcmdapi.NewConfig()
+	newConfig.Clusters["default"] = &clientcmdapi.Cluster{
+		Server:                   cluster.Server,
+		CertificateAuthorityData: cluster.CertificateAuthorityData,
+	}
+	newConfig.AuthInfos["default"] = &clientcmdapi.AuthInfo{
+		Token: token,
+	}
+	newConfig.Contexts["default"] = &clientcmdapi.Context{
+		Cluster:  "default",
+		AuthInfo: "default",
+	}
+	newConfig.CurrentContext = "default"
+
+	cfg, err := clientcmd.NewNonInteractiveClientConfig(
+		*newConfig,
+		"default",
+		&clientcmd.ConfigOverrides{},
+		nil,
+	).ClientConfig()
+	if err != nil {
+		return fmt.Errorf("unable to build rest config from service account token: %w", err)
+	}
+
+	cli, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return fmt.Errorf("unable to create client from service account token: %w", err)
+	}
+
+	node := corev1.Node{}
+	if err := cli.Get(ctx, client.ObjectKey{Name: h.Hostname}, &node); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("unable to get Node with SA token: %w", err)
+	}
+
+	if err := cli.Delete(ctx, &node); err != nil {
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("unable to delete Node with SA token: %w", err)
+	}
+
 	return nil
 }
 
