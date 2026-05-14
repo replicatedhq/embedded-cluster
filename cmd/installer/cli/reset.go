@@ -563,8 +563,7 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 			return nil
 		}
 		if k8serrors.IsForbidden(err) && h.Status.Role == "worker" {
-			logrus.Warnf("Unable to delete Node from API server (insufficient permissions), continuing with local reset")
-			return nil
+			return fmt.Errorf("unable to delete Node from API server: %w", err)
 		}
 		return fmt.Errorf("unable to delete Node: %w", err)
 	}
