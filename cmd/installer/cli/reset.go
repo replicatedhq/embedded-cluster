@@ -117,8 +117,22 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				removeCtx, removeCancel := context.WithTimeout(ctx, time.Minute)
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
-				if !checkErrPrompt(assumeYes, force, err) {
-					return err
+				if err != nil {
+					if k8serrors.IsForbidden(err) && currentHost.Status.Role == "worker" {
+						logrus.Warnf("Unable to delete this worker node from the API server due to insufficient permissions.")
+						logrus.Infof("To complete the reset, remove this node from the cluster by running 'kubectl delete node %s' from a surviving controller node.", currentHost.Hostname)
+						if !force && !assumeYes {
+							confirmed, promptErr := prompts.New().Confirm("Do you want to continue with the local reset anyway?", false)
+							if promptErr != nil {
+								return fmt.Errorf("failed to get confirmation: %w", promptErr)
+							}
+							if !confirmed {
+								return fmt.Errorf("reset aborted")
+							}
+						}
+					} else if !checkErrPrompt(assumeYes, force, err) {
+						return err
+					}
 				}
 
 				// controller pre-reset
@@ -431,7 +445,13 @@ func (h *hostInfo) drainNode() {
 // configureKubernetesClient optimistically sets up a client to use for kubernetes api calls
 // it stores any errors in h.KclientError
 func (h *hostInfo) configureKubernetesClient() {
-	os.Setenv("KUBECONFIG", h.Status.Vars.KubeletAuthConfigPath)
+	// Controllers have admin kubeconfig with cluster-admin permissions.
+	// Workers only have kubelet auth config, so fall back when admin.conf is absent.
+	kubeconfigPath := h.Status.Vars.KubeletAuthConfigPath
+	if _, err := os.Stat(h.Status.Vars.AdminKubeConfigPath); err == nil {
+		kubeconfigPath = h.Status.Vars.AdminKubeConfigPath
+	}
+	os.Setenv("KUBECONFIG", kubeconfigPath)
 	client, err := kubeutils.KubeClient()
 	if err != nil {
 		h.KclientError = fmt.Errorf("unable to create kube client: %w", err)

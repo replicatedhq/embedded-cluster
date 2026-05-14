@@ -16,6 +16,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -122,6 +123,7 @@ func runJoinPreflights(ctx context.Context, jcmd *join.JoinCommandResponse, flag
 		TCPConnectionsRequired:            jcmd.TCPConnectionsRequired,
 		IsJoin:                            true,
 		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
+		K8sVersion:                        versions.K0sVersion,
 	}
 
 	// Calculate airgap storage space requirement based on node type

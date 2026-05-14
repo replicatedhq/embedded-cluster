@@ -324,6 +324,20 @@ spec:
           - pass:
               when: 'true'
               message: "'pids' cgroup controller is enabled"
+    - jsonCompare:
+        checkName: Cgroup Version
+        fileName: host-collectors/system/cgroups.json
+        jsonPath: "{$['cgroup-v2'].enabled}"
+        value: |
+          true
+        exclude: '{{ not .RequiresCgroupV2 }}'
+        outcomes:
+          - fail:
+              when: 'false'
+              message: cgroup v1 is not supported for Kubernetes 1.35 and later. Upgrade your operating system to one that uses cgroup v2.
+          - pass:
+              when: 'true'
+              message: cgroup v2 is enabled
     - textAnalyze:
         checkName: /proc Filesystem
         fileName: host-collectors/run-host/check-proc-filesystem.txt

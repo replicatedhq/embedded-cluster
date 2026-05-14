@@ -700,6 +700,46 @@ func TestTemplateNetfilterBackendCollector(t *testing.T) {
 	req.True(foundAnalyzer, "expected Netfilter backend textAnalyze analyzer")
 }
 
+func TestTemplateCgroupV2Analyzer(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{RequiresCgroupV2: true}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var foundAnalyzer bool
+	for _, a := range commonSpec.Analyzers {
+		if a.JsonCompare != nil && a.JsonCompare.CheckName == "Cgroup Version" {
+			foundAnalyzer = true
+			req.Equal("host-collectors/system/cgroups.json", a.JsonCompare.FileName)
+			req.Equal("{$['cgroup-v2'].enabled}", a.JsonCompare.JsonPath)
+			break
+		}
+	}
+	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer when RequiresCgroupV2 is true")
+}
+
+func TestTemplateCgroupV2AnalyzerExcluded(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{RequiresCgroupV2: false}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var foundAnalyzer bool
+	for _, a := range commonSpec.Analyzers {
+		if a.JsonCompare != nil && a.JsonCompare.CheckName == "Cgroup Version" {
+			foundAnalyzer = true
+			req.NotNil(a.JsonCompare.Exclude)
+			req.Equal("true", a.JsonCompare.Exclude.StrVal)
+			break
+		}
+	}
+	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer to exist with exclude when RequiresCgroupV2 is false")
+}
+
 func TestCalculateAirgapStorageSpace(t *testing.T) {
 	embeddedAssetsSize := int64(1024 * 1024 * 1024)
 

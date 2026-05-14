@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
@@ -40,6 +41,20 @@ type PrepareHostPreflightOptions struct {
 	ControllerAirgapStorageSpace      string
 	WorkerAirgapStorageSpace          string
 	DisableFilesystemPerformanceCheck bool
+	K8sVersion                        string
+}
+
+// k8sVersionRequiresCgroupV2 checks if a given k0s version requires cgroup v2.
+// The version string is expected to be in k0s format (e.g. v1.35.0+k0s.0).
+func k8sVersionRequiresCgroupV2(version string) (bool, error) {
+	if version == "" {
+		return false, nil
+	}
+	sv, err := semver.NewVersion(version)
+	if err != nil {
+		return false, fmt.Errorf("parse k8s version %s: %w", version, err)
+	}
+	return sv.Major() == 1 && sv.Minor() >= 35, nil
 }
 
 // PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
@@ -47,6 +62,11 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 	hpf := opts.HostPreflightSpec
 	if hpf == nil {
 		hpf = &v1beta2.HostPreflightSpec{}
+	}
+
+	requiresCgroupV2, err := k8sVersionRequiresCgroupV2(opts.K8sVersion)
+	if err != nil {
+		return nil, fmt.Errorf("check cgroup v2 requirement: %w", err)
 	}
 
 	data, err := types.HostPreflightTemplateData{
@@ -69,6 +89,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		ControllerAirgapStorageSpace:      opts.ControllerAirgapStorageSpace,
 		WorkerAirgapStorageSpace:          opts.WorkerAirgapStorageSpace,
 		DisableFilesystemPerformanceCheck: opts.DisableFilesystemPerformanceCheck,
+		RequiresCgroupV2:                  requiresCgroupV2,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
