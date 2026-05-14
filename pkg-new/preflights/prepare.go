@@ -3,7 +3,6 @@ package preflights
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	"github.com/Masterminds/semver/v3"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
@@ -45,11 +44,8 @@ type PrepareHostPreflightOptions struct {
 	K8sVersion                        string
 }
 
-var k8sBuildRegex = regexp.MustCompile(`^k8s-(\d+\.\d+).*$`)
-
-// k8sVersionRequiresCgroupV2 checks if a given k0s or EC version requires cgroup v2.
-// It handles both k0s version strings (e.g. v1.35.0+k0s.0) and EC version strings
-// (e.g. 2.12.0+k8s-1.35-*).
+// k8sVersionRequiresCgroupV2 checks if a given k0s version requires cgroup v2.
+// The version string is expected to be in k0s format (e.g. v1.35.0+k0s.0).
 func k8sVersionRequiresCgroupV2(version string) bool {
 	if version == "" {
 		return false
@@ -58,19 +54,7 @@ func k8sVersionRequiresCgroupV2(version string) bool {
 	if err != nil {
 		return false
 	}
-	// Direct k0s version like v1.35.0+k0s.0
-	if sv.Major() == 1 && sv.Minor() >= 35 {
-		return true
-	}
-	// EC version like 2.12.0+k8s-1.35-*
-	matches := k8sBuildRegex.FindStringSubmatch(sv.Metadata())
-	if len(matches) == 2 {
-		k8sSv, err := semver.NewVersion(matches[1])
-		if err == nil && k8sSv.Major() == 1 && k8sSv.Minor() >= 35 {
-			return true
-		}
-	}
-	return false
+	return sv.Major() == 1 && sv.Minor() >= 35
 }
 
 // PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
