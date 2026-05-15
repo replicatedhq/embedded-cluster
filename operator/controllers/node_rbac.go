@@ -23,6 +23,11 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 	Spec: batchv1.JobSpec{
 		BackoffLimit: ptr.To(int32(2)),
 		Template: corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"app.kubernetes.io/component": "node-delete-token-delivery",
+				},
+			},
 			Spec: corev1.PodSpec{
 				ServiceAccountName: "embedded-cluster-operator",
 				Volumes: []corev1.Volume{
@@ -50,11 +55,11 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 					{
 						Name:  "node-delete-token-delivery",
 						Image: "busybox:latest",
-					Command: []string{
-						"/bin/sh",
-						"-c",
-						"",
-					},
+						Command: []string{
+							"/bin/sh",
+							"-c",
+							"",
+						},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "KUBECONFIG",

@@ -109,6 +109,13 @@ spec:
       limits:
         maxAge: 720h
   - logs:
+      name: podlogs/node-delete-token-delivery
+      namespace: embedded-cluster
+      selector:
+      - app.kubernetes.io/component=node-delete-token-delivery
+      limits:
+        maxAge: 720h
+  - logs:
       name: podlogs/seaweedfs
       namespace: seaweedfs
       selector:
