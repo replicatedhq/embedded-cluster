@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -21,9 +20,19 @@ const (
 	NodeDeleteTokenFileName        = "node-delete-token"
 )
 
+// NameWithLengthLimit returns a string that is the concatenation of the prefix and suffix strings.
+// If the total length is greater than 63 characters, characters are removed from the middle.
+func NameWithLengthLimit(prefix, suffix string) string {
+	candidate := prefix + suffix
+	if len(candidate) <= 63 {
+		return candidate
+	}
+	return candidate[0:31] + candidate[len(candidate)-32:]
+}
+
 // NodeDeleteTokenJobName returns the Job name for a node's token delivery job.
 func NodeDeleteTokenJobName(nodeName string) string {
-	return util.NameWithLengthLimit(NodeDeleteTokenJobPrefix, nodeName)
+	return NameWithLengthLimit(NodeDeleteTokenJobPrefix, nodeName)
 }
 
 // NodeDeleteServiceAccountName returns the ServiceAccount name for a node.
