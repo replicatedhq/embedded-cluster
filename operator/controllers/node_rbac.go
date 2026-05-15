@@ -50,12 +50,11 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 					{
 						Name:  "node-delete-token-delivery",
 						Image: "busybox:latest",
-						Command: []string{
-							"/bin/sh",
-							"-e",
-							"-c",
-							"",
-						},
+					Command: []string{
+						"/bin/sh",
+						"-c",
+						"",
+					},
 						Env: []corev1.EnvVar{
 							{
 								Name:  "KUBECONFIG",
@@ -165,9 +164,9 @@ func (r *InstallationReconciler) createNodeDeleteTokenDeliveryJob(ctx context.Co
 	secretName := kubeutils.NodeDeleteSecretName(nodeName)
 	tokenFileName := kubeutils.NodeDeleteTokenFileName
 
-	job.Spec.Template.Spec.Containers[0].Command[3] = fmt.Sprintf(
+	job.Spec.Template.Spec.Containers[0].Command[2] = fmt.Sprintf(
 		`for i in $(seq 1 30); do
-  TOKEN_B64=$(/embedded-cluster/bin/kubectl get secret %s -n %s -o jsonpath='{.data.token}')
+  TOKEN_B64=$(/embedded-cluster/bin/kubectl get secret %s -n %s -o jsonpath='{.data.token}' 2>/dev/null || true)
   if [ -n "$TOKEN_B64" ]; then
     printf "%%s" "$TOKEN_B64" | base64 -d > /embedded-cluster/%s
     chmod 600 /embedded-cluster/%s
