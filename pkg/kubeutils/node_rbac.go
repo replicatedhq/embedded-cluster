@@ -137,7 +137,7 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 			Name:      jobName,
 			Namespace: namespace,
 		},
-	}); err != nil {
+	}); err != nil && !k8serrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("delete job: %w", err))
 	}
 
@@ -146,7 +146,7 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 			Name:      secretName,
 			Namespace: namespace,
 		},
-	}); err != nil {
+	}); err != nil && !k8serrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("delete secret: %w", err))
 	}
 
@@ -154,7 +154,7 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 		},
-	}); err != nil {
+	}); err != nil && !k8serrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("delete clusterrolebinding: %w", err))
 	}
 
@@ -162,7 +162,7 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 		},
-	}); err != nil {
+	}); err != nil && !k8serrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("delete clusterrole: %w", err))
 	}
 
@@ -171,7 +171,7 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 			Name:      saName,
 			Namespace: namespace,
 		},
-	}); err != nil {
+	}); err != nil && !k8serrors.IsNotFound(err) {
 		errs = append(errs, fmt.Errorf("delete serviceaccount: %w", err))
 	}
 
