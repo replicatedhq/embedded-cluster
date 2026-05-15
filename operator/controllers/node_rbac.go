@@ -15,8 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const nodeDeleteTokenJobPrefix = "node-delete-token-"
-
 var nodeDeleteTokenJobTemplate = &batchv1.Job{
 	ObjectMeta: metav1.ObjectMeta{
 		Namespace: ecNamespace,
