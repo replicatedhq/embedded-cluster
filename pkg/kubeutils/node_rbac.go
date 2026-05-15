@@ -105,21 +105,6 @@ func EnsureNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 	return nil
 }
 
-// NodeDeleteTokenIsDelivered checks if the node-delete token secret exists and has been populated
-// with a service account token.
-func NodeDeleteTokenIsDelivered(ctx context.Context, cli client.Client, namespace, nodeName string) (bool, error) {
-	secretName := NodeDeleteSecretName(nodeName)
-	secret := &corev1.Secret{}
-	if err := cli.Get(ctx, client.ObjectKey{Name: secretName, Namespace: namespace}, secret); err != nil {
-		if k8serrors.IsNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("get secret: %w", err)
-	}
-	_, ok := secret.Data["token"]
-	return ok, nil
-}
-
 // DeleteNodeDeleteRBAC removes the per-node RBAC resources for a node that has left the cluster.
 func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nodeName string) error {
 	saName := NodeDeleteServiceAccountName(nodeName)
