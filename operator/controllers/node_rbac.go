@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +35,15 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 							},
 						},
 					},
+					{
+						Name: "k0s",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: runtimeconfig.K0sBinaryPath,
+								Type: ptr.To(corev1.HostPathFile),
+							},
+						},
+					},
 				},
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
@@ -57,6 +67,11 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
 								ReadOnly:  false,
+							},
+							{
+								Name:      "k0s",
+								MountPath: runtimeconfig.K0sBinaryPath,
+								ReadOnly:  true,
 							},
 						},
 					},
