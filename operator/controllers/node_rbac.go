@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -95,7 +94,7 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 		if err := kubeutils.EnsureNodeDeleteRBAC(ctx, r.Client, ecNamespace, node.Name); err != nil {
 			return fmt.Errorf("ensure node-delete RBAC for %s: %w", node.Name, err)
 		}
-		jobName := util.NameWithLengthLimit(nodeDeleteTokenJobPrefix, node.Name)
+		jobName := kubeutils.NodeDeleteTokenJobName(node.Name)
 		var existingJob batchv1.Job
 		if err := r.Get(ctx, types.NamespacedName{Name: jobName, Namespace: ecNamespace}, &existingJob); err != nil {
 			if k8serrors.IsNotFound(err) {
@@ -144,7 +143,7 @@ func (r *InstallationReconciler) createNodeDeleteTokenDeliveryJob(ctx context.Co
 	}
 
 	job := nodeDeleteTokenJobTemplate.DeepCopy()
-	job.Name = util.NameWithLengthLimit(nodeDeleteTokenJobPrefix, nodeName)
+	job.Name = kubeutils.NodeDeleteTokenJobName(nodeName)
 	job.Labels = labels
 	job.Spec.Template.Labels = labels
 	job.Spec.Template.Spec.NodeName = nodeName
