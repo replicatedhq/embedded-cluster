@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -69,8 +70,9 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 }
 
 // ReconcileNodeDeleteRBAC ensures per-node RBAC exists for all current worker nodes, creates
-// token delivery jobs only for newly added worker nodes, and cleans up RBAC for nodes that have
-// been removed.
+// token delivery jobs for any worker node that does not yet have one, and cleans up RBAC for nodes
+// that have been removed. Jobs persist after completion (no TTLSecondsAfterFinished) so this check
+// avoids recreating jobs on every reconcile.
 func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, events *NodeEventsBatch) error {
 	log := log.FromContext(ctx)
 
@@ -93,15 +95,17 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 		if err := kubeutils.EnsureNodeDeleteRBAC(ctx, r.Client, ecNamespace, node.Name); err != nil {
 			return fmt.Errorf("ensure node-delete RBAC for %s: %w", node.Name, err)
 		}
-	}
-
-	for _, event := range events.NodesAdded {
-		if event.Role == "controller" {
-			continue
-		}
-		log.Info("Creating node-delete token delivery job for new worker node", "node", event.NodeName)
-		if err := r.createNodeDeleteTokenDeliveryJob(ctx, event.NodeName); err != nil {
-			return fmt.Errorf("create node-delete token delivery job for %s: %w", event.NodeName, err)
+		jobName := util.NameWithLengthLimit(nodeDeleteTokenJobPrefix, node.Name)
+		var existingJob batchv1.Job
+		if err := r.Get(ctx, types.NamespacedName{Name: jobName, Namespace: ecNamespace}, &existingJob); err != nil {
+			if k8serrors.IsNotFound(err) {
+				log.Info("Creating node-delete token delivery job", "node", node.Name)
+				if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
+					return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
+				}
+			} else {
+				return fmt.Errorf("check node-delete token delivery job for %s: %w", node.Name, err)
+			}
 		}
 	}
 
