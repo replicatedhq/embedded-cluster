@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/util"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -10,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -92,14 +94,16 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 		if err := kubeutils.EnsureNodeDeleteRBAC(ctx, r.Client, ecNamespace, node.Name); err != nil {
 			return fmt.Errorf("ensure node-delete RBAC for %s: %w", node.Name, err)
 		}
-		delivered, err := kubeutils.NodeDeleteTokenIsDelivered(ctx, r.Client, ecNamespace, node.Name)
-		if err != nil {
-			return fmt.Errorf("check node-delete token for %s: %w", node.Name, err)
-		}
-		if !delivered {
-			log.Info("Creating node-delete token delivery job", "node", node.Name)
-			if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
-				return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
+		jobName := util.NameWithLengthLimit(nodeDeleteTokenJobPrefix, node.Name)
+		var existingJob batchv1.Job
+		if err := r.Get(ctx, types.NamespacedName{Name: jobName, Namespace: ecNamespace}, &existingJob); err != nil {
+			if k8serrors.IsNotFound(err) {
+				log.Info("Creating node-delete token delivery job", "node", node.Name)
+				if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
+					return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
+				}
+			} else {
+				return fmt.Errorf("check node-delete token delivery job for %s: %w", node.Name, err)
 			}
 		}
 	}
@@ -139,6 +143,11 @@ exit 1`,
 		tokenFileName,
 		tokenFileName,
 	)
+
+	// overrides the job image if the environment says so.
+	if img := os.Getenv("EMBEDDEDCLUSTER_UTILS_IMAGE"); img != "" {
+		job.Spec.Template.Spec.Containers[0].Image = img
+	}
 
 	if err := r.Create(ctx, job); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return fmt.Errorf("create job: %w", err)

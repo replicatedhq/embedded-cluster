@@ -59,7 +59,7 @@ func EnsureNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 				APIGroups:     []string{""},
 				Resources:     []string{"nodes"},
 				ResourceNames: []string{nodeName},
-				Verbs:         []string{"delete"},
+				Verbs:         []string{"get", "delete"},
 			},
 		},
 	}
