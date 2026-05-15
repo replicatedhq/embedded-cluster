@@ -38,17 +38,17 @@ func NodeDeleteTokenJobName(nodeName string) string {
 
 // NodeDeleteServiceAccountName returns the ServiceAccount name for a node.
 func NodeDeleteServiceAccountName(nodeName string) string {
-	return NodeDeleteServiceAccountPrefix + nodeName
+	return NameWithLengthLimit(NodeDeleteServiceAccountPrefix, nodeName)
 }
 
 // NodeDeleteClusterRoleName returns the ClusterRole name for a node.
 func NodeDeleteClusterRoleName(nodeName string) string {
-	return NodeDeleteClusterRolePrefix + nodeName
+	return NameWithLengthLimit(NodeDeleteClusterRolePrefix, nodeName)
 }
 
 // NodeDeleteSecretName returns the Secret name for a node's ServiceAccount token.
 func NodeDeleteSecretName(nodeName string) string {
-	return NodeDeleteSecretPrefix + nodeName
+	return NameWithLengthLimit(NodeDeleteSecretPrefix, nodeName)
 }
 
 // EnsureNodeDeleteRBAC creates the ServiceAccount, ClusterRole, ClusterRoleBinding, and Secret
