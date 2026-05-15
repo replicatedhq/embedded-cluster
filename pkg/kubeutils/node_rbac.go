@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -15,8 +16,24 @@ const (
 	NodeDeleteServiceAccountPrefix = "node-self-delete-"
 	NodeDeleteClusterRolePrefix    = "node-self-delete-"
 	NodeDeleteSecretPrefix         = "node-self-delete-"
+	NodeDeleteTokenJobPrefix       = "node-delete-token-"
 	NodeDeleteTokenFileName        = "node-delete-token"
 )
+
+// NameWithLengthLimit returns a string that is the concatenation of the prefix and suffix strings.
+// If the total length is greater than 63 characters, characters are removed from the middle.
+func NameWithLengthLimit(prefix, suffix string) string {
+	candidate := prefix + suffix
+	if len(candidate) <= 63 {
+		return candidate
+	}
+	return candidate[0:31] + candidate[len(candidate)-32:]
+}
+
+// NodeDeleteTokenJobName returns the Job name for a node's token delivery job.
+func NodeDeleteTokenJobName(nodeName string) string {
+	return NameWithLengthLimit(NodeDeleteTokenJobPrefix, nodeName)
+}
 
 // NodeDeleteServiceAccountName returns the ServiceAccount name for a node.
 func NodeDeleteServiceAccountName(nodeName string) string {
@@ -105,11 +122,20 @@ func EnsureNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 	return nil
 }
 
-// DeleteNodeDeleteRBAC removes the per-node RBAC resources for a node that has left the cluster.
+// DeleteNodeDeleteRBAC removes the per-node RBAC resources and token delivery job for a node
+// that has left the cluster.
 func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nodeName string) error {
 	saName := NodeDeleteServiceAccountName(nodeName)
 	roleName := NodeDeleteClusterRoleName(nodeName)
 	secretName := NodeDeleteSecretName(nodeName)
+	jobName := NodeDeleteTokenJobName(nodeName)
+
+	_ = cli.Delete(ctx, &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      jobName,
+			Namespace: namespace,
+		},
+	})
 
 	_ = cli.Delete(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

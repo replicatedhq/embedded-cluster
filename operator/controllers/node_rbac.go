@@ -103,10 +103,36 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 				if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
 					return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
 				}
-			} else {
-				return fmt.Errorf("check node-delete token delivery job for %s: %w", node.Name, err)
+				continue
+			}
+			return fmt.Errorf("check node-delete token delivery job for %s: %w", node.Name, err)
+		}
+
+		// Job exists — check its terminal status
+		var isComplete, isFailed bool
+		for _, cond := range existingJob.Status.Conditions {
+			if cond.Type == batchv1.JobComplete && cond.Status == corev1.ConditionTrue {
+				isComplete = true
+				break
+			}
+			if cond.Type == batchv1.JobFailed && cond.Status == corev1.ConditionTrue {
+				isFailed = true
+				break
 			}
 		}
+		if isComplete {
+			continue
+		}
+		if isFailed {
+			log.Info("Recreating failed node-delete token delivery job", "node", node.Name)
+			if err := r.Delete(ctx, &existingJob); err != nil {
+				return fmt.Errorf("delete failed node-delete token delivery job for %s: %w", node.Name, err)
+			}
+			if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
+				return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
+			}
+		}
+		// If neither complete nor failed, the job is still active — skip
 	}
 
 	return nil
