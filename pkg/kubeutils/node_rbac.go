@@ -2,6 +2,7 @@ package kubeutils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -130,38 +131,52 @@ func DeleteNodeDeleteRBAC(ctx context.Context, cli client.Client, namespace, nod
 	secretName := NodeDeleteSecretName(nodeName)
 	jobName := NodeDeleteTokenJobName(nodeName)
 
-	_ = cli.Delete(ctx, &batchv1.Job{
+	var errs []error
+	if err := cli.Delete(ctx, &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: namespace,
 		},
-	})
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("delete job: %w", err))
+	}
 
-	_ = cli.Delete(ctx, &corev1.Secret{
+	if err := cli.Delete(ctx, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: namespace,
 		},
-	})
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("delete secret: %w", err))
+	}
 
-	_ = cli.Delete(ctx, &rbacv1.ClusterRoleBinding{
+	if err := cli.Delete(ctx, &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 		},
-	})
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("delete clusterrolebinding: %w", err))
+	}
 
-	_ = cli.Delete(ctx, &rbacv1.ClusterRole{
+	if err := cli.Delete(ctx, &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 		},
-	})
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("delete clusterrole: %w", err))
+	}
 
-	_ = cli.Delete(ctx, &corev1.ServiceAccount{
+	if err := cli.Delete(ctx, &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      saName,
 			Namespace: namespace,
 		},
-	})
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("delete serviceaccount: %w", err))
+	}
 
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
 	return nil
 }

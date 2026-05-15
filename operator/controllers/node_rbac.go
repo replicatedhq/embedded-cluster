@@ -161,8 +161,10 @@ func (r *InstallationReconciler) createNodeDeleteTokenDeliveryJob(ctx context.Co
 
 	job := nodeDeleteTokenJobTemplate.DeepCopy()
 	job.Name = kubeutils.NodeDeleteTokenJobName(nodeName)
-	job.Labels = labels
-	job.Spec.Template.Labels = labels
+	for k, v := range labels {
+		job.Labels[k] = v
+		job.Spec.Template.Labels[k] = v
+	}
 	job.Spec.Template.Spec.NodeName = nodeName
 	job.Spec.Template.Spec.Volumes[0].HostPath.Path = r.RuntimeConfig.EmbeddedClusterHomeDirectory()
 
