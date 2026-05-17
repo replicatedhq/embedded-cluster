@@ -153,9 +153,9 @@ func getK0sVersion() (*semver.Version, error) {
 func getCalicoTag(opts addonComponentOptions) (string, error) {
 	calicoVersion := getCalicoVersion(opts)
 	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-	tag, err := GetGreatestTagFromRegistry(opts.ctx, "proxy.replicated.com/library/calico-cni", constraints)
+	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
 	if err != nil {
-		return "", fmt.Errorf("failed to get calico tag from registry: %w", err)
+		return "", fmt.Errorf("failed to get calico release: %w", err)
 	}
 	return tag, nil
 }

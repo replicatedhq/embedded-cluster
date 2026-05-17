@@ -373,7 +373,10 @@ func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *ecv1be
 
 //+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterroles,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="rbac.authorization.k8s.io",resources=clusterrolebindings,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=embeddedcluster.replicated.com,resources=installations/status,verbs=get;update;patch
@@ -433,6 +436,11 @@ func (r *InstallationReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Copy host preflight results to a configmap for each node
 	if err := r.CopyHostPreflightResultsFromNodes(ctx, in, events); err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to copy host preflight results: %w", err)
+	}
+
+	// Ensure worker nodes have RBAC and tokens to delete themselves during reset.
+	if err := r.ReconcileNodeDeleteRBAC(ctx, events); err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile node delete RBAC: %w", err)
 	}
 
 	// cleanup openebs stateful pods

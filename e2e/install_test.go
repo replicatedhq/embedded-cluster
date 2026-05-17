@@ -119,6 +119,30 @@ func TestMultiNodeInstallation(t *testing.T) {
 		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// verify the worker node was removed from the cluster
+	t.Logf("%s: verifying worker node 3 was removed from the cluster", time.Now().Format(time.RFC3339))
+	line := []string{"/usr/local/bin/check-nodes-removed.sh", "3"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to verify worker node 3 was removed: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// reset a controller node and verify it is removed
+	t.Logf("%s: resetting controller node 1", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = resetInstallationWithError(t, tc, 1, resetInstallationOptions{})
+	if err != nil {
+		t.Fatalf("fail to reset controller node 1: %v: %s: %s", err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "High-availability is enabled and requires at least three controller-test nodes") {
+		t.Errorf("reset output does not contain the ha warning")
+		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
+	}
+
+	t.Logf("%s: verifying controller node 1 was removed from the cluster", time.Now().Format(time.RFC3339))
+	line = []string{"/usr/local/bin/check-nodes-removed.sh", "2"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to verify controller node 1 was removed: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -453,6 +477,20 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 	checkPostUpgradeStateWithOptions(t, tc, postUpgradeStateOptions{
 		withEnv: withEnv,
 	})
+
+	// reset the worker without --force to verify it completes gracefully
+	t.Logf("%s: resetting worker node 1", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := resetInstallationWithError(t, tc, 1, resetInstallationOptions{withEnv: withEnv})
+	if err != nil {
+		t.Fatalf("fail to reset worker node 1: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// verify the worker node was removed from the cluster
+	t.Logf("%s: verifying worker node 1 was removed from the cluster", time.Now().Format(time.RFC3339))
+	line = []string{"/usr/local/bin/check-nodes-removed.sh", "1"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+		t.Fatalf("fail to verify worker node 1 was removed: %v: %s: %s", err, stdout, stderr)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

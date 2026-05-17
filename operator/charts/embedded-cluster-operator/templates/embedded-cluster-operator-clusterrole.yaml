@@ -68,6 +68,28 @@ rules:
   - patch
   - create
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
   - embeddedcluster.replicated.com
   resources:
   - installations
