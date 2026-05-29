@@ -12,6 +12,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/artifacts"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -121,6 +122,7 @@ func getRemoteMetadataOnline(ctx context.Context, in *v1beta1.Installation) ([]b
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
+	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

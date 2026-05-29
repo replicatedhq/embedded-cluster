@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -70,6 +71,7 @@ func sendEvent(ctx context.Context, evname, baseURL string, ev interface{}) erro
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send event: %w", err)

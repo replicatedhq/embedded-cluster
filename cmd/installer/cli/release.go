@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 )
 
@@ -41,6 +42,7 @@ func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.Licen
 
 	auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", license.Spec.LicenseID, license.Spec.LicenseID))))
 	req.Header.Set("Authorization", auth)
+	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
 	// This will use the proxy from the environment if set by the cli command.
 	client := &http.Client{
