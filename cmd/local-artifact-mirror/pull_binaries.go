@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -178,6 +179,7 @@ func doBinaryRequest(url, licenseID string) (io.ReadCloser, error) {
 
 	// Set basic auth with license ID
 	req.SetBasicAuth(licenseID, licenseID)
+	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
 
 	// Make the request
 	resp, err := http.DefaultClient.Do(req)
