@@ -121,7 +121,7 @@ func (c *APIClient) GetCustomDomains() ([]string, error) {
 
 	req.Header.Set("Authorization", c.apiToken)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -208,7 +208,7 @@ func (c *APIClient) getDomainsFromChannelReleases() ([]string, error) {
 
 	req.Header.Set("Authorization", c.apiToken)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -250,7 +250,7 @@ func (c *APIClient) getDomainsFromChannelReleases() ([]string, error) {
 
 		req.Header.Set("Authorization", c.apiToken)
 		req.Header.Set("Accept", "application/json")
-		req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+		req.Header.Set("User-Agent", versions.UserAgent())
 
 		resp, err := c.client.Do(req)
 		if err != nil {
@@ -315,7 +315,7 @@ func (c *APIClient) getDomainsFromApp() ([]string, error) {
 
 	req.Header.Set("Authorization", c.apiToken)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := c.client.Do(req)
 	if err != nil {

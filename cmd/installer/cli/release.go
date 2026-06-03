@@ -42,7 +42,7 @@ func getCurrentAppChannelRelease(ctx context.Context, license *kotsv1beta1.Licen
 
 	auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", license.Spec.LicenseID, license.Spec.LicenseID))))
 	req.Header.Set("Authorization", auth)
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	// This will use the proxy from the environment if set by the cli command.
 	client := &http.Client{

@@ -3,7 +3,6 @@ package metrics
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -27,7 +26,7 @@ func (s *Sender) Send(ctx context.Context, baseURL string, ev types.Event) {
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	request.Header.Set("User-Agent", versions.UserAgent())
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,

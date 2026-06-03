@@ -71,7 +71,7 @@ func sendEvent(ctx context.Context, evname, baseURL string, ev interface{}) erro
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send event: %w", err)

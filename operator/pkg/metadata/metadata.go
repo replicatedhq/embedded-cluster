@@ -122,7 +122,7 @@ func getRemoteMetadataOnline(ctx context.Context, in *v1beta1.Installation) ([]b
 	if err != nil {
 		return nil, fmt.Errorf("new request: %w", err)
 	}
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -104,7 +104,7 @@ func remoteMetadataFor(ctx context.Context, in *v1beta1.Installation) (*ectypes.
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
