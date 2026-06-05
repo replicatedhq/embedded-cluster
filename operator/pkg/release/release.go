@@ -14,6 +14,7 @@ import (
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	ectypes "github.com/replicatedhq/embedded-cluster/kinds/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -103,6 +104,7 @@ func remoteMetadataFor(ctx context.Context, in *v1beta1.Installation) (*ectypes.
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.Header.Set("User-Agent", versions.UserAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
