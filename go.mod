@@ -23,7 +23,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/jedib0t/go-pretty/v6 v6.7.10
+	github.com/jedib0t/go-pretty/v6 v6.8.0
 	github.com/k0sproject/k0s v1.35.5-0.20260508195609-b42a7462a089
 	github.com/mattn/go-isatty v0.0.22
 	github.com/ohler55/ojg v1.28.1
