@@ -30,6 +30,10 @@ var nodeDeleteTokenJobTemplate = &batchv1.Job{
 				},
 			},
 			Spec: corev1.PodSpec{
+				SecurityContext: &corev1.PodSecurityContext{
+					RunAsUser:  ptr.To(int64(0)),
+					RunAsGroup: ptr.To(int64(0)),
+				},
 				ServiceAccountName: "embedded-cluster-operator",
 				Volumes: []corev1.Volume{
 					{
