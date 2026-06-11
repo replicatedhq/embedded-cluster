@@ -122,7 +122,23 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				defer removeCancel()
 				err = currentHost.deleteNode(removeCtx)
 				if err != nil {
-					if !checkErrPrompt(assumeYes, force, err) {
+					if currentHost.Status.Role == "worker" {
+						// A worker that can't remove its own Node object from
+						// the API is non-fatal: the local reset can still
+						// proceed; an operator simply has to clean up the
+						// stale Node object on a controller.
+						logrus.Warnf("Unable to delete this worker node from the API server: %v", err)
+						logrus.Infof("To complete the reset, remove this node from the cluster by running 'kubectl delete node %s' from a surviving controller node.", currentHost.Hostname)
+						if !force && !assumeYes {
+							confirmed, promptErr := prompts.New().Confirm("Do you want to continue with the local reset anyway?", false)
+							if promptErr != nil {
+								return fmt.Errorf("failed to get confirmation: %w", promptErr)
+							}
+							if !confirmed {
+								return fmt.Errorf("reset aborted")
+							}
+						}
+					} else if !checkErrPrompt(assumeYes, force, err) {
 						return err
 					}
 				}
@@ -569,12 +585,7 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 			return nil
 		}
 		if k8serrors.IsForbidden(err) && h.Status.Role == "worker" {
-			if saErr := h.deleteNodeWithSAToken(ctx); saErr != nil {
-				logrus.Warnf("Unable to delete this worker node from the API server due to insufficient permissions.")
-				logrus.Infof("To complete the reset, remove this node from the cluster by running 'kubectl delete node %s' from a surviving controller node.", h.Hostname)
-				return saErr
-			}
-			return nil
+			return h.deleteNodeWithSAToken(ctx)
 		}
 		return fmt.Errorf("unable to delete Node: %w", err)
 	}
