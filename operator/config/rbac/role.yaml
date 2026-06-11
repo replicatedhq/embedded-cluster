@@ -19,6 +19,7 @@ rules:
   resources:
   - nodes
   verbs:
+  - delete
   - get
   - list
   - watch

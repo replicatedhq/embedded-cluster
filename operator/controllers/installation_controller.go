@@ -371,7 +371,7 @@ func constructHostPreflightResultsJob(rc runtimeconfig.RuntimeConfig, in *ecv1be
 	return job
 }
 
-//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;delete
