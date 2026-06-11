@@ -105,10 +105,12 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 		return fmt.Errorf("list nodes: %w", err)
 	}
 
+	var workerCount int
 	for _, node := range nodes.Items {
 		if _, isController := node.Labels["node-role.kubernetes.io/control-plane"]; isController {
 			continue
 		}
+		workerCount++
 		if err := kubeutils.EnsureNodeDeleteRBAC(ctx, r.Client, ecNamespace, node.Name); err != nil {
 			return fmt.Errorf("ensure node-delete RBAC for %s: %w", node.Name, err)
 		}
@@ -116,7 +118,7 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 		var existingJob batchv1.Job
 		if err := r.Get(ctx, types.NamespacedName{Name: jobName, Namespace: ecNamespace}, &existingJob); err != nil {
 			if k8serrors.IsNotFound(err) {
-				log.Info("Creating node-delete token delivery job", "node", node.Name)
+				log.Info("Creating node-delete token delivery job", "node", node.Name, "job", jobName)
 				if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
 					return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
 				}
@@ -138,20 +140,23 @@ func (r *InstallationReconciler) ReconcileNodeDeleteRBAC(ctx context.Context, ev
 			}
 		}
 		if isComplete {
+			log.Info("Node-delete token delivery job already completed", "node", node.Name, "job", jobName)
 			continue
 		}
 		if isFailed {
-			log.Info("Recreating failed node-delete token delivery job", "node", node.Name)
+			log.Info("Recreating failed node-delete token delivery job", "node", node.Name, "job", jobName)
 			if err := r.Delete(ctx, &existingJob); err != nil {
 				return fmt.Errorf("delete failed node-delete token delivery job for %s: %w", node.Name, err)
 			}
 			if err := r.createNodeDeleteTokenDeliveryJob(ctx, node.Name); err != nil {
 				return fmt.Errorf("create node-delete token delivery job for %s: %w", node.Name, err)
 			}
+			continue
 		}
-		// If neither complete nor failed, the job is still active — skip
+		log.Info("Node-delete token delivery job still active", "node", node.Name, "job", jobName)
 	}
 
+	log.Info("Reconciled node-delete RBAC", "workers", workerCount, "removed", len(events.NodesRemoved))
 	return nil
 }
 
