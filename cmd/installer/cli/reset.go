@@ -569,7 +569,12 @@ func (h *hostInfo) deleteNode(ctx context.Context) error {
 			return nil
 		}
 		if k8serrors.IsForbidden(err) && h.Status.Role == "worker" {
-			return h.deleteNodeWithSAToken(ctx)
+			if saErr := h.deleteNodeWithSAToken(ctx); saErr != nil {
+				logrus.Warnf("Unable to delete this worker node from the API server due to insufficient permissions.")
+				logrus.Infof("To complete the reset, remove this node from the cluster by running 'kubectl delete node %s' from a surviving controller node.", h.Hostname)
+				return saErr
+			}
+			return nil
 		}
 		return fmt.Errorf("unable to delete Node: %w", err)
 	}
@@ -594,29 +599,10 @@ func (h *hostInfo) deleteNodeWithSAToken(ctx context.Context) error {
 		return fmt.Errorf("unable to load kubelet config: %w", err)
 	}
 
-	var clusterName string
-	for name := range kubeletConfig.Clusters {
-		clusterName = name
-		break
+	newConfig, err := buildSATokenConfig(kubeletConfig, token)
+	if err != nil {
+		return fmt.Errorf("unable to build SA token kubeconfig: %w", err)
 	}
-	if clusterName == "" {
-		return fmt.Errorf("no cluster found in kubelet config")
-	}
-	cluster := kubeletConfig.Clusters[clusterName]
-
-	newConfig := clientcmdapi.NewConfig()
-	newConfig.Clusters["default"] = &clientcmdapi.Cluster{
-		Server:                   cluster.Server,
-		CertificateAuthorityData: cluster.CertificateAuthorityData,
-	}
-	newConfig.AuthInfos["default"] = &clientcmdapi.AuthInfo{
-		Token: token,
-	}
-	newConfig.Contexts["default"] = &clientcmdapi.Context{
-		Cluster:  "default",
-		AuthInfo: "default",
-	}
-	newConfig.CurrentContext = "default"
 
 	cfg, err := clientcmd.NewNonInteractiveClientConfig(
 		*newConfig,
@@ -649,6 +635,41 @@ func (h *hostInfo) deleteNodeWithSAToken(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// buildSATokenConfig produces a kubeconfig that targets the same API server as
+// the kubelet's kubeconfig but authenticates with the provided ServiceAccount
+// token instead of the kubelet client certificate. The cluster is resolved
+// through the kubelet kubeconfig's CurrentContext so the result is independent
+// of map iteration order.
+func buildSATokenConfig(kubeletConfig *clientcmdapi.Config, token string) (*clientcmdapi.Config, error) {
+	ctxName := kubeletConfig.CurrentContext
+	if ctxName == "" {
+		return nil, fmt.Errorf("kubelet kubeconfig has no current-context")
+	}
+	kctx, ok := kubeletConfig.Contexts[ctxName]
+	if !ok || kctx == nil {
+		return nil, fmt.Errorf("kubelet kubeconfig current-context %q has no matching context entry", ctxName)
+	}
+	cluster, ok := kubeletConfig.Clusters[kctx.Cluster]
+	if !ok || cluster == nil {
+		return nil, fmt.Errorf("kubelet kubeconfig context references missing cluster %q", kctx.Cluster)
+	}
+
+	cfg := clientcmdapi.NewConfig()
+	cfg.Clusters["default"] = &clientcmdapi.Cluster{
+		Server:                   cluster.Server,
+		CertificateAuthorityData: cluster.CertificateAuthorityData,
+	}
+	cfg.AuthInfos["default"] = &clientcmdapi.AuthInfo{
+		Token: token,
+	}
+	cfg.Contexts["default"] = &clientcmdapi.Context{
+		Cluster:  "default",
+		AuthInfo: "default",
+	}
+	cfg.CurrentContext = "default"
+	return cfg, nil
 }
 
 // stopK0s attempts to stop the k0s service

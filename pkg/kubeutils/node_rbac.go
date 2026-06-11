@@ -2,6 +2,8 @@ package kubeutils
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -21,14 +23,26 @@ const (
 	NodeDeleteTokenFileName        = "node-delete-token"
 )
 
-// NameWithLengthLimit returns a string that is the concatenation of the prefix and suffix strings.
-// If the total length is greater than 63 characters, characters are removed from the middle.
+// NameWithLengthLimit returns a DNS-1123-subdomain-safe name no longer than 63
+// characters. When prefix+suffix fits, it is returned unchanged. Otherwise the
+// suffix is truncated from the right and an 8-char content hash of the original
+// suffix is appended so distinct suffixes cannot collide.
 func NameWithLengthLimit(prefix, suffix string) string {
 	candidate := prefix + suffix
 	if len(candidate) <= 63 {
 		return candidate
 	}
-	return candidate[0:31] + candidate[len(candidate)-32:]
+	sum := sha256.Sum256([]byte(suffix))
+	hash := hex.EncodeToString(sum[:])[:8]
+	// 1 for the '-' separator between truncated suffix and hash.
+	room := 63 - len(prefix) - 1 - len(hash)
+	if room < 0 {
+		room = 0
+	}
+	if room > len(suffix) {
+		room = len(suffix)
+	}
+	return prefix + suffix[:room] + "-" + hash
 }
 
 // NodeDeleteTokenJobName returns the Job name for a node's token delivery job.
