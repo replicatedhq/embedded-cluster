@@ -99,8 +99,8 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("node 1 joined, sleeping...")
 	time.Sleep(30 * time.Second)
 
-	// join another controller node
-	joinControllerNode(t, tc, 2)
+	// join another controller node in HA mode
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isHA: true})
 	checkWorkerProfile(t, tc, 2)
 
 	// join a worker node
