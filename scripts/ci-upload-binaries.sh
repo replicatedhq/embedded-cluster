@@ -135,17 +135,23 @@ function kotsbin() {
 
 function metadata() {
     if [ -z "${EC_VERSION}" ]; then
-        echo "EC_VERSION unset, not uploading metadata.json"
+        echo "EC_VERSION unset, not uploading metadata"
         return 0
     fi
 
-    # check if a file 'build/metadata.json' exists in the directory
-    # if it does, upload it as metadata/v${EC_VERSION}.json
-    if [ -f "build/metadata.json" ]; then
-        # append a 'v' prefix to the version if it doesn't already have one
+    # Upload architecture-specific metadata if provided
+    if [ -n "${ARCH}" ] && [ -f "build/metadata-${ARCH}.json" ]; then
+        retry 3 aws s3 cp --no-progress "build/metadata-${ARCH}.json" "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}-${ARCH}.json"
+
+        # For AMD64, also upload as the default metadata.json for backward compatibility
+        if [ "${ARCH}" == "amd64" ]; then
+            retry 3 aws s3 cp --no-progress "build/metadata-${ARCH}.json" "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
+        fi
+    # Fallback to legacy single metadata.json if no ARCH specified
+    elif [ -f "build/metadata.json" ]; then
         retry 3 aws s3 cp --no-progress build/metadata.json "s3://${S3_BUCKET}/metadata/v${EC_VERSION#v}.json"
     else
-        echo "build/metadata.json not found, skipping upload"
+        echo "No metadata file found, skipping upload"
     fi
 }
 
@@ -168,6 +174,11 @@ function embeddedcluster() {
 # there are three files to be uploaded for each release - the k0s binary, the metadata file, and the embedded-cluster release
 # the embedded cluster release does not exist for CI builds
 function main() {
+    # If invoked with "metadata" as the first argument, only upload metadata and exit
+    if [ "${1:-}" == "metadata" ]; then
+        metadata
+        return 0
+    fi
     init_vars
     metadata
     if [ "${UPLOAD_BINARIES}" == "1" ]; then
