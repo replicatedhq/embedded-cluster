@@ -119,6 +119,9 @@ var copyArtifactsJobCommandAirgap = []string{
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		// Migrate the containerd registry drop-in to the k0s 1.36+ schema before
 		// k0s restarts. Runs after pull binaries so the target-release LAM is used.
+		// Autopilot offers no hook to do this while k0s is stopped, so there is a
+		// brief window where the old containerd may restart and ignore the v3
+		// config (losing airgap pull creds) until autopilot swaps in k0s 1.36.
 		"/usr/local/bin/local-artifact-mirror migrate-containerd-config --data-dir /embedded-cluster; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
