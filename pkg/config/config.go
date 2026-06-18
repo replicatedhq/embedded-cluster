@@ -342,4 +342,3 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 
 	return patch
 }
-

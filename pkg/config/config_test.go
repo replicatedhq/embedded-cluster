@@ -147,14 +147,14 @@ func TestInstallFlags(t *testing.T) {
 	rc := runtimeconfig.New(nil)
 
 	tests := []struct {
-		name                string
-		nodeIP              string
-		hostname            string
-		releaseData         map[string][]byte
-		expectedFlags       []string
-		expectedError       bool
-		expectedErrMsg      string
-		k0sConfigPath       string
+		name           string
+		nodeIP         string
+		hostname       string
+		releaseData    map[string][]byte
+		expectedFlags  []string
+		expectedError  bool
+		expectedErrMsg string
+		k0sConfigPath  string
 	}{
 		{
 			name:          "default configuration with hostname",
