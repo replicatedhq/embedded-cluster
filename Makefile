@@ -43,6 +43,15 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION)
 DISABLE_FIO_BUILD ?= 0
 
+# The k0s airgap.GetImageURIs signature changed in k0s 1.35 (see pkg/config/images.go).
+# Builds targeting k0s minors <= 1.34 must select the legacy ListK0sImages
+# implementation via the k0s_legacy_airgap build tag.
+GO_INSTALLER_BUILD_TAGS := osusergo,netgo
+ifeq ($(shell test "$(K0S_MINOR_VERSION)" -lt 35 && echo legacy),legacy)
+GO_BUILD_TAGS := $(GO_BUILD_TAGS),k0s_legacy_airgap
+GO_INSTALLER_BUILD_TAGS := $(GO_INSTALLER_BUILD_TAGS),k0s_legacy_airgap
+endif
+
 export PATH := $(shell pwd)/bin:$(PATH)
 
 .DEFAULT_GOAL := default
@@ -267,7 +276,7 @@ embedded-cluster-darwin-arm64: embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo \
+		-tags $(GO_INSTALLER_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/installer

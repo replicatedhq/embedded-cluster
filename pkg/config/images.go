@@ -3,15 +3,17 @@ package config
 import (
 	"strings"
 
-	"github.com/k0sproject/k0s/pkg/airgap"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	"github.com/k0sproject/k0s/pkg/constant"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 )
 
+// ListK0sImages returns the k0s images that embedded-cluster ships. The
+// version-specific airgap.GetImageURIs call lives in the build-tagged
+// allK0sImageURIs (see images_targetenv.go / images_legacy.go).
 func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	var images []string
-	for _, image := range airgap.GetImageURIs(cfg.Spec, true) {
+	for _, image := range allK0sImageURIs(cfg) {
 		switch image {
 		// skip these images
 		case cfg.Spec.Images.KubeRouter.CNI.URI(),
@@ -19,6 +21,11 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 			cfg.Spec.Images.Konnectivity.URI(),
 			cfg.Spec.Images.PushGateway.URI():
 		default:
+			// Skip k0s 1.36's Traefik NLLB image (EC uses Envoy). Matched by name
+			// since the typed accessor only exists in the k0s >= 1.36 API.
+			if strings.Contains(image, "/traefik:") {
+				continue
+			}
 			if strings.Contains(image, constant.KubePauseContainerImage) {
 				// there's a bug in GetImageURIs where it always returns the original pause image
 				// instead of the one in the config, make sure to use the one in the config.

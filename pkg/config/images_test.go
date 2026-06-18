@@ -5,14 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/k0sproject/k0s/pkg/airgap"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestListK0sImages(t *testing.T) {
-	original := airgap.GetImageURIs(RenderK0sConfig("proxy.replicated.com").Spec, true)
+	original := allK0sImageURIs(RenderK0sConfig("proxy.replicated.com"))
 	if len(original) == 0 {
-		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
+		t.Errorf("allK0sImageURIs() = %v, want not empty", original)
 	}
 	var foundKubeRouter, foundCNINode, foundKonnectivity bool
 	for _, image := range original {

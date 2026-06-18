@@ -222,6 +222,9 @@ spec:
               message: 'Unable to determine system clock status'
     - jsonCompare:
         checkName: Cgroups
+        # Lenient v1-or-v2 check for k8s <= 1.34; 1.35+ uses the strict "Cgroup
+        # Version" check below. TODO(k0s-1.35-oldest): drop this and the gate.
+        exclude: '{{ .RequiresCgroupV2 }}'
         fileName: host-collectors/system/cgroups.json
         path: 'cgroup-enabled'
         value: |
@@ -382,8 +385,23 @@ spec:
           - fail:
               when: "false"
               message: "'umount' command must exist in PATH"
+    # k8s 1.35+ needs kernel >= 4.5 (cgroup v2); older minors keep the 3.10 floor.
+    # TODO(k0s-1.35-oldest): drop the legacy 3.10 check and the gate.
     - hostOS:
         checkName: Kernel Version
+        exclude: '{{ not .RequiresCgroupV2 }}'
+        outcomes:
+          - pass:
+              when: "kernelVersion >= 4.5"
+              message: Kernel version is at least 4.5 (cgroup v2 supported)
+          - fail:
+              message: >-
+                Kernel version must be at least 4.5 — the kernel version that introduced
+                cgroup v2, required by Kubernetes 1.35 and later. See
+                https://kubernetes.io/docs/concepts/architecture/cgroups/.
+    - hostOS:
+        checkName: Kernel Version
+        exclude: '{{ .RequiresCgroupV2 }}'
         outcomes:
           - pass:
               when: "kernelVersion >= 3.10"

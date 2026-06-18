@@ -63,6 +63,17 @@ var copyArtifactsJob = &batchv1.Job{
 							},
 						},
 					},
+					{
+						// Mounted so the airgap upgrade can migrate the containerd
+						// registry drop-in to the k0s 1.36+ schema before k0s restarts.
+						Name: "etc-k0s",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "/etc/k0s",
+								Type: ptr.To[corev1.HostPathType]("DirectoryOrCreate"),
+							},
+						},
+					},
 				},
 				RestartPolicy: corev1.RestartPolicyNever,
 				Containers: []corev1.Container{
@@ -72,6 +83,11 @@ var copyArtifactsJob = &batchv1.Job{
 							{
 								Name:      "host",
 								MountPath: "/embedded-cluster",
+								ReadOnly:  false,
+							},
+							{
+								Name:      "etc-k0s",
+								MountPath: "/etc/k0s",
 								ReadOnly:  false,
 							},
 						},
@@ -100,6 +116,9 @@ var copyArtifactsJobCommandAirgap = []string{
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
+		// Migrate the containerd registry drop-in to the k0s 1.36+ schema before
+		// k0s restarts. Runs after pull binaries so the target-release LAM is used.
+		"/usr/local/bin/local-artifact-mirror migrate-containerd-config --data-dir /embedded-cluster; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
