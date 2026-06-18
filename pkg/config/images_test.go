@@ -5,13 +5,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/k0sproject/k0s/pkg/airgap"
+	imagespecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestListK0sImages(t *testing.T) {
-	original := allK0sImageURIs(RenderK0sConfig("proxy.replicated.com"))
+	env := airgap.TargetEnv{
+		Platform: imagespecv1.Platform{OS: "linux"},
+		Spec:     RenderK0sConfig("proxy.replicated.com").Spec,
+	}
+	original := airgap.GetImageURIs(env, true)
 	if len(original) == 0 {
-		t.Errorf("allK0sImageURIs() = %v, want not empty", original)
+		t.Errorf("airgap.GetImageURIs() = %v, want not empty", original)
 	}
 	var foundKubeRouter, foundCNINode, foundKonnectivity bool
 	for _, image := range original {

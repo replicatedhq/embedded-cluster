@@ -43,19 +43,6 @@ LD_FLAGS = \
 	-X github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole.KotsVersion=$(KOTS_VERSION)
 DISABLE_FIO_BUILD ?= 0
 
-# The k0s airgap.GetImageURIs signature changed in k0s 1.35 (see pkg/config/images.go).
-# Code compiled against a k0s Go module < 1.35 must select the legacy ListK0sImages
-# via the k0s_legacy_airgap build tag. Key this off the module version pinned in
-# go.mod (NOT K0S_MINOR_VERSION, which only selects the embedded k0s binary): the
-# installer always compiles against the committed module, and only the k0s-update
-# scripts re-pin go.mod per minor when regenerating metadata.
-K0S_GOMOD_MINOR := $(shell awk '/^[[:space:]]*github.com\/k0sproject\/k0s v[0-9]/{split($$2,a,"."); print a[2]; exit}' go.mod)
-GO_INSTALLER_BUILD_TAGS := osusergo,netgo
-ifeq ($(shell [ -n "$(K0S_GOMOD_MINOR)" ] && [ "$(K0S_GOMOD_MINOR)" -lt 35 ] && echo legacy),legacy)
-GO_BUILD_TAGS := $(GO_BUILD_TAGS),k0s_legacy_airgap
-GO_INSTALLER_BUILD_TAGS := $(GO_INSTALLER_BUILD_TAGS),k0s_legacy_airgap
-endif
-
 export PATH := $(shell pwd)/bin:$(PATH)
 
 .DEFAULT_GOAL := default
@@ -280,7 +267,7 @@ embedded-cluster-darwin-arm64: embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags $(GO_INSTALLER_BUILD_TAGS) \
+		-tags osusergo,netgo \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/installer
