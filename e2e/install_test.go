@@ -342,10 +342,8 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 
 	checkPostUpgradeState(t, tc)
 
-	// This upgrade crosses the k0s 1.35 -> 1.36 boundary (containerd v1 -> v2).
-	// The airgap registry drop-in written at install time uses the legacy v2
-	// schema, which containerd 2.x rejects; the upgrade must have migrated it to
-	// the v3 schema before k0s 1.36 started (otherwise k0s wouldn't be running).
+	// The 1.35 -> 1.36 upgrade must migrate the airgap registry drop-in to the v3
+	// containerd schema, or k0s 1.36 won't start.
 	t.Logf("%s: verifying containerd registry drop-in migrated to v3 schema", time.Now().Format(time.RFC3339))
 	line = []string{"grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
