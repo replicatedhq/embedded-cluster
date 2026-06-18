@@ -17,6 +17,11 @@ type addonComponent struct {
 	getWolfiPackageVersion       func(opts addonComponentOptions) string
 	upstreamVersionInputOverride string
 	useUpstreamImage             bool
+	// usePlainTag emits the image tag as-is (no "-<arch>@<digest>" suffix). Required for
+	// the sandbox/pause image: containerd 2.x (k0s >= 1.36) pulls it by digest but then
+	// resolves the sandbox image by its full reference, and a synthetic arch-suffixed tag
+	// that does not exist in the registry fails that lookup ("failed to get sandbox image").
+	usePlainTag bool
 }
 
 type addonComponentOptions struct {
@@ -105,12 +110,16 @@ func (c *addonComponent) resolveCustomImageRepoAndTag(ctx context.Context, image
 		return "", "", fmt.Errorf("failed to get image name for %s: %w", c.name, err)
 	}
 
-	digest, err := GetImageDigest(ctx, customImage, arch)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
+	var tag string
+	if c.usePlainTag {
+		tag = TagFromImage(customImage)
+	} else {
+		digest, err := GetImageDigest(ctx, customImage, arch)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to get image %s digest: %w", customImage, err)
+		}
+		tag = fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
 	}
-
-	tag := fmt.Sprintf("%s-%s@%s", TagFromImage(customImage), arch, digest)
 
 	repo := FamiliarImageName(RemoveTagFromImage(customImage))
 	repo = addProxyAnonymousPrefix(repo)
