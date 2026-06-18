@@ -407,3 +407,5 @@ require (
 )
 
 replace github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.5.2
+
+replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.23.3
