@@ -27,7 +27,7 @@ func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 			cfg.Spec.Images.PushGateway.URI():
 		default:
 			// Skip k0s 1.36's Traefik NLLB image (EC uses Envoy).
-			if strings.Contains(image, "/traefik:") {
+			if strings.Contains(image, constant.TraefikImage) {
 				continue
 			}
 			if strings.Contains(image, constant.KubePauseContainerImage) {
