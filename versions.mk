@@ -66,3 +66,17 @@ check-k0s-version:
 			exit 1; \
 		fi; \
 	fi
+
+# The k0s airgap.GetImageURIs signature changed in k0s 1.36 (it takes a TargetEnv).
+# Code compiled against a k0s module < 1.36 uses the old signature and must select
+# the legacy ListK0sImages via the k0s_legacy_airgap build tag (see pkg/config/images.go).
+# Defined here, not just the root Makefile, so the operator and local-artifact-mirror
+# sub-builds (which include this file) pick it up. K0S_MINOR_VERSION is the source of
+# truth: the build re-pins go.mod to K0S_GO_VERSION for the selected minor.
+# Assumes common.mk (which defines GO_BUILD_TAGS) is included before this file.
+# TODO(k0s-1.36-oldest): drop this gate when the oldest supported minor is >= 1.36.
+GO_INSTALLER_BUILD_TAGS := osusergo,netgo
+ifeq ($(shell [ "$(K0S_MINOR_VERSION)" -lt 36 ] && echo legacy),legacy)
+GO_BUILD_TAGS := $(GO_BUILD_TAGS),k0s_legacy_airgap
+GO_INSTALLER_BUILD_TAGS := $(GO_INSTALLER_BUILD_TAGS),k0s_legacy_airgap
+endif
