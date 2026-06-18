@@ -528,9 +528,12 @@ jobs:
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
           previous_k0s_minor_version=$(($k0s_minor_version - 1))
           k0s_majmin_version="1.${previous_k0s_minor_version}"
+          # Pick the release `previous_release_gap` versions back, falling back to the
+          # oldest available when the previous minor has fewer releases than that (e.g.
+          # right after a new minor is added).
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
            --exclude-drafts --exclude-pre-releases --json name --order desc \
-           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | .[${previous_release_gap}] | .name")"
+           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | (.[${previous_release_gap}] // .[-1]) | .name")"
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
