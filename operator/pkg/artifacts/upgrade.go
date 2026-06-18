@@ -66,6 +66,9 @@ var copyArtifactsJob = &batchv1.Job{
 					{
 						// Mounted so the airgap upgrade can migrate the containerd
 						// registry drop-in to the k0s 1.36+ schema before k0s restarts.
+						// TODO(k0s-1.36-oldest): drop this mount and the
+						// migrate-containerd-config step once the oldest supported
+						// minor is >= 1.36 (no v2 drop-ins left to migrate).
 						Name: "etc-k0s",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
