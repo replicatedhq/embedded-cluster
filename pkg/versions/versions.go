@@ -1,6 +1,10 @@
 // Package versions
 package versions
 
+import (
+	"fmt"
+)
+
 var (
 	// Version holds the EmbeddedCluster version.
 	Version = "v0.0.0"
@@ -24,3 +28,7 @@ var (
 	// time using LD_FLAGS in the Makefile
 	OperatorBinaryURLOverride string
 )
+
+func UserAgent() string {
+	return fmt.Sprintf("Embedded-Cluster/%s", Version)
+}

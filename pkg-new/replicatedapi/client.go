@@ -139,7 +139,7 @@ func (c *client) newRetryableRequest(ctx context.Context, method string, url str
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
 func (c *client) injectHeaders(header http.Header) {
 	header.Set("Authorization", "Basic "+basicAuth(c.license.Spec.LicenseID, c.license.Spec.LicenseID))
-	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	header.Set("User-Agent", versions.UserAgent())
 
 	c.injectReportingInfoHeaders(header)
 }

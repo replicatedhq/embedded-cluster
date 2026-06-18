@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +26,7 @@ func (s *Sender) Send(ctx context.Context, baseURL string, ev types.Event) {
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("User-Agent", versions.UserAgent())
 
 	client := &http.Client{
 		Timeout: 5 * time.Second,
