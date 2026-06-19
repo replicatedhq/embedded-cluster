@@ -112,7 +112,9 @@ var copyArtifactsJobCommandOnline = []string{
 		// 1.36 rejects its v1 CRI format and refuses to start, so converting it to the
 		// v3 schema (a no-op if already v3 or absent) unblocks the upgrade.
 		// TODO(k0s-1.36-oldest): drop this migration.
-		"/usr/local/bin/local-artifact-mirror migrate-containerd-config --data-dir /embedded-cluster; \n" +
+		// Use the freshly-pulled target binary from the data dir, not the image's
+		// /usr/local/bin copy: only the target-release binary knows the new schema.
+		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
@@ -125,11 +127,13 @@ var copyArtifactsJobCommandAirgap = []string{
 		"/usr/local/bin/local-artifact-mirror pull images --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		"/usr/local/bin/local-artifact-mirror pull helmcharts --data-dir /embedded-cluster $INSTALLATION_DATA; \n" +
 		// Migrate the containerd registry drop-in to the k0s 1.36+ schema before
-		// k0s restarts. Runs after pull binaries so the target-release LAM is used.
-		// Autopilot offers no hook to do this while k0s is stopped, so there is a
-		// brief window where the old containerd may restart and ignore the v3
-		// config (losing airgap pull creds) until autopilot swaps in k0s 1.36.
-		"/usr/local/bin/local-artifact-mirror migrate-containerd-config --data-dir /embedded-cluster; \n" +
+		// k0s restarts. Autopilot offers no hook to do this while k0s is stopped,
+		// so there is a brief window where the old containerd may restart and
+		// ignore the v3 config (losing airgap pull creds) until autopilot swaps
+		// in k0s 1.36. Use the freshly-pulled target binary from the data dir, not
+		// the image's /usr/local/bin copy: only the target-release binary knows
+		// the new schema.
+		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.

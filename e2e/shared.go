@@ -338,3 +338,17 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
 	}
 }
+
+// checkContainerdRegistryConfigAbsent asserts that the containerd registry drop-in
+// is not present on the node. Online installs don't use the in-cluster registry, so
+// the drop-in must be absent (k0s 1.36+ would otherwise reject its legacy v1 schema).
+// The airgap counterpart (TestSingleNodeAirgapUpgradeSelinux) instead asserts the
+// drop-in exists in the v3 schema.
+// TODO(k0s-1.36-oldest): drop this check along with the migration.
+func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in is absent on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"test", "!", "-f", "/etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in should be absent on online installs on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}

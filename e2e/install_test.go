@@ -42,6 +42,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 
 	checkInstallationState(t, tc)
 	checkNodeJoinCommand(t, tc, 0)
+	checkContainerdRegistryConfigAbsent(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -181,6 +182,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
+	checkContainerdRegistryConfigAbsent(t, tc, 0)
 
 	line = []string{"collect-support-bundle-host-in-cluster.sh"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
