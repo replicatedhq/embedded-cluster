@@ -44,14 +44,24 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
+	// Update only the sandbox (pause) image before the k0s upgrade. k0s 1.36+ feeds
+	// spec.images.pause to containerd as the sandbox image and rejects the legacy
+	// v1-style tag, so it must hold the new value before k0s restarts — otherwise no
+	// pod (including this one) can get a sandbox and the upgrade deadlocks. The full
+	// cluster config is still updated after the upgrade, below.
+	err = updateClusterConfigPauseImage(ctx, cli, in, logger)
+	if err != nil {
+		return fmt.Errorf("update sandbox image: %w", err)
+	}
+
 	err = upgradeK0s(ctx, cli, rc, in, logger)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
-	// We must update the cluster config after we upgrade k0s as it is possible that the schema
-	// between versions has changed. One drawback of this is that the sandbox (pause) image does
-	// not get updated, and possibly others but I cannot confirm this.
+	// Update the full cluster config after the k0s upgrade, in case the config schema
+	// changed between versions. This re-applies the pause image too, but that's a no-op
+	// since we already set it before the upgrade above.
 	err = updateClusterConfig(ctx, cli, in, logger)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
@@ -250,6 +260,45 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return fmt.Errorf("update cluster config: %w", err)
 	}
 	logger.Info("Updated cluster config with new images")
+
+	return nil
+}
+
+// updateClusterConfigPauseImage updates only the sandbox (pause) image in the
+// cluster config. It runs before the k0s upgrade so k0s 1.36+ starts with a
+// pullable sandbox image; the remaining images are updated after the upgrade in
+// updateClusterConfig.
+func updateClusterConfigPauseImage(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
+	var currentCfg k0sv1beta1.ClusterConfig
+	err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg)
+	if err != nil {
+		return fmt.Errorf("get cluster config: %w", err)
+	}
+	if currentCfg.Spec.Images == nil {
+		return nil
+	}
+
+	// TODO: This will not work in a non-production environment.
+	// The domains in the release are used to supply alternative defaults for staging and the dev environment.
+	// The GetDomains function will always fall back to production defaults.
+	domains := domains.GetDomains(in.Spec.Config, nil)
+
+	cfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
+	if reflect.DeepEqual(currentCfg.Spec.Images.Pause, cfg.Spec.Images.Pause) {
+		return nil
+	}
+	currentCfg.Spec.Images.Pause = cfg.Spec.Images.Pause
+
+	unstructured, err := helpers.K0sClusterConfigTo129Compat(&currentCfg)
+	if err != nil {
+		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
+	}
+
+	err = cli.Update(ctx, unstructured)
+	if err != nil {
+		return fmt.Errorf("update cluster config: %w", err)
+	}
+	logger.Info("Updated sandbox (pause) image in cluster config")
 
 	return nil
 }
