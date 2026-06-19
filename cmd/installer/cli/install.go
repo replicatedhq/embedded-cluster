@@ -676,7 +676,7 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 	// Only airgap installs use the in-cluster registry; online installs don't
 	// need the insecure-registry drop-in (and k0s 1.36+ rejects its legacy v1 format).
 	if installCfg.isAirgap {
-		logrus.Debugf("adding insecure registry")
+		logrus.Debugf("setup internal registry config for containerd to pull from the in-cluster registry")
 		registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
 		if err != nil {
 			return fmt.Errorf("failed to get registry cluster IP: %w", err)

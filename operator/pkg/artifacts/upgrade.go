@@ -64,9 +64,10 @@ var copyArtifactsJob = &batchv1.Job{
 						},
 					},
 					{
-						// Lets the upgrade migrate the containerd registry drop-in
-						// to the k0s 1.36+ schema before k0s restarts (both airgap
-						// and online; see the migrate-containerd-config step below).
+						// Gives the migrate-containerd-config step write access to the host
+						// containerd config so it can reconcile the registry drop-in for the
+						// containerd v1 -> v2 (k0s 1.36+) schema change before k0s restarts:
+						// migrate it on airgap, delete it on online.
 						// TODO(k0s-1.36-oldest): drop this mount and the migration.
 						Name: "etc-k0s",
 						VolumeSource: corev1.VolumeSource{
@@ -107,13 +108,10 @@ var copyArtifactsJobCommandOnline = []string{
 	"/usr/local/bin/local-artifact-mirror pull binaries --data-dir /embedded-cluster " +
 		"--app-slug $APP_SLUG --channel-id $CHANNEL_ID --app-version $APP_VERSION " +
 		"$INSTALLATION_DATA; \n" +
-		// Migrate the containerd registry drop-in to the k0s 1.36+ schema before k0s
-		// restarts. Online installs only carry the in-cluster registry drop-in; k0s
-		// 1.36 rejects its v1 CRI format and refuses to start, so converting it to the
-		// v3 schema (a no-op if already v3 or absent) unblocks the upgrade.
+		// Remove the registry drop-in before k0s 1.36 restarts (it rejects the legacy
+		// schema); online doesn't use the in-cluster registry. Run the freshly-pulled
+		// target binary, not the image's /usr/local/bin copy.
 		// TODO(k0s-1.36-oldest): drop this migration.
-		// Use the freshly-pulled target binary from the data dir, not the image's
-		// /usr/local/bin copy: only the target-release binary knows the new schema.
 		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",

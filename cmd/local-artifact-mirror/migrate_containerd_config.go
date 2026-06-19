@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// MigrateContainerdConfigCmd migrates the containerd registry drop-in to the
-// k0s 1.36+ schema (see hostutils.MigrateContainerdConfigToV3). Run per node
-// during an airgap upgrade.
+// MigrateContainerdConfigCmd reconciles the containerd registry drop-in with the
+// k0s 1.36+ schema (see hostutils.MigrateContainerdConfigToV3): airgap migrates it
+// to the containerd 2.x schema, online deletes it if present. Run per node on upgrade.
 func MigrateContainerdConfigCmd(cli *CLI) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate-containerd-config",
@@ -26,7 +26,7 @@ func MigrateContainerdConfigCmd(cli *CLI) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("airgap", false, "Migrate the drop-in to the v3 schema instead of removing it (online installs don't use the in-cluster registry)")
+	cmd.Flags().Bool("airgap", false, "Whether this is an airgap install: airgap migrates the registry drop-in to the containerd 2.x (k0s 1.36+) schema; online deletes it if present (online installs don't use the in-cluster registry)")
 
 	return cmd
 }

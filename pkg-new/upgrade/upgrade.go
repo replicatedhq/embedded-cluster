@@ -44,11 +44,11 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
-	// Update the cluster config before upgrading k0s: containerd 2.x (k0s 1.36+)
-	// rejects a sandbox (pause) image pinned by digest, so spec.images.pause must be
-	// a tag-only ref before k0s 1.36 restarts, otherwise no pod can get a sandbox.
-	// Updating it now doesn't affect the running k0s/containerd; it's only picked up
-	// when k0s restarts into the new version below.
+	// Update the cluster config before upgrading k0s: 1.35 and older pin
+	// spec.images.pause by digest, but containerd 2.x (k0s 1.36+) rejects a
+	// digest-pinned sandbox image, so it must become a tag-only ref before k0s 1.36
+	// restarts, otherwise no pod can get a sandbox. Updating it now doesn't affect
+	// the running k0s/containerd; it's only picked up when k0s restarts below.
 	err = updateClusterConfig(ctx, cli, in, logger)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)

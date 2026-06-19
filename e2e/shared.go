@@ -339,11 +339,8 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 	}
 }
 
-// checkContainerdRegistryConfigAbsent asserts that the containerd registry drop-in
-// is not present on the node. Online installs don't use the in-cluster registry, so
-// the drop-in must be absent (k0s 1.36+ would otherwise reject its legacy v1 schema).
-// The airgap counterpart (TestSingleNodeAirgapUpgradeSelinux) instead asserts the
-// drop-in exists in the v3 schema.
+// checkContainerdRegistryConfigAbsent asserts the containerd registry drop-in is
+// absent: online installs don't use the in-cluster registry.
 // TODO(k0s-1.36-oldest): drop this check along with the migration.
 func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("%s: verifying containerd registry drop-in is absent on node %d", time.Now().Format(time.RFC3339), node)
