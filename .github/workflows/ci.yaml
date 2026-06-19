@@ -25,6 +25,7 @@ jobs:
     outputs:
       git_sha: ${{ steps.git_sha.outputs.git_sha }}
       ec_version: ${{ steps.output_vars.outputs.ec_version }}
+      helm_version: ${{ steps.output_vars.outputs.helm_version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -39,6 +40,10 @@ jobs:
           EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
           echo "EC_VERSION=\"$EC_VERSION\""
           echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
+          # Pin the helm binary used by tests to the same version embedded-cluster ships
+          # (versions.mk), instead of latest.
+          helm_version=$(make print-HELM_VERSION)
+          echo "helm_version=$helm_version" >> $GITHUB_OUTPUT
 
   sanitize:
     name: Sanitize
@@ -155,7 +160,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v5
         with:
-          version: latest
+          version: ${{ needs.output-vars.outputs.helm_version }}
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -231,7 +236,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v5
         with:
-          version: latest
+          version: ${{ needs.output-vars.outputs.helm_version }}
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -261,7 +266,7 @@ jobs:
       - name: Setup Helm
         uses: azure/setup-helm@v5
         with:
-          version: latest
+          version: ${{ needs.output-vars.outputs.helm_version }}
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
