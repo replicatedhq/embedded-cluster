@@ -133,7 +133,7 @@ var copyArtifactsJobCommandAirgap = []string{
 		// in k0s 1.36. Use the freshly-pulled target binary from the data dir, not
 		// the image's /usr/local/bin copy: only the target-release binary knows
 		// the new schema.
-		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
+		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config --airgap; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.

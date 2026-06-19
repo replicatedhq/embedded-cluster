@@ -94,17 +94,31 @@ func (h *HostUtils) addInsecureRegistryV3(registry string) error {
 // matching the configs."<host>".tls line written by registryConfigTemplateV2.
 var v2RegistryHostRegex = regexp.MustCompile(`io\.containerd\.grpc\.v1\.cri"\.registry\.configs\."([^"]+)"\.tls`)
 
-// MigrateContainerdConfigToV3 rewrites a stale v2 embedded-registry.toml to the
-// v3 schema before k0s 1.36 starts (which would otherwise reject it). Run per
-// node during an airgap upgrade. Idempotent; no-op for k0s < 1.36 or if the
-// drop-in is absent or already v3.
-func (h *HostUtils) MigrateContainerdConfigToV3() error {
+// MigrateContainerdConfigToV3 makes the embedded-registry.toml drop-in safe for
+// k0s 1.36+ (which rejects the legacy v1 format): airgap rewrites it to v3,
+// online removes it. No-op for k0s < 1.36.
+func (h *HostUtils) MigrateContainerdConfigToV3(isAirgap bool) error {
 	if !useContainerdV3Schema() {
 		logrus.Infof("skipping containerd registry config migration: k0s version (%s) < 1.36", versions.K0sVersion)
 		return nil
 	}
 
 	path := filepath.Join(runtimeconfig.K0sContainerdConfigPath, "embedded-registry.toml")
+
+	if !isAirgap {
+		// Online installs don't use the in-cluster registry; the drop-in only
+		// blocks k0s 1.36 from starting, so remove it.
+		// Previous EC installers always created this file.
+		if err := os.Remove(path); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to remove embedded-registry.toml: %w", err)
+		}
+		logrus.Infof("removed unused containerd registry drop-in %s", path)
+		return nil
+	}
+
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

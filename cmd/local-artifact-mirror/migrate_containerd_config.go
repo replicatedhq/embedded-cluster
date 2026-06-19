@@ -19,12 +19,14 @@ func MigrateContainerdConfigCmd(cli *CLI) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := hostutils.MigrateContainerdConfigToV3(); err != nil {
+			if err := hostutils.MigrateContainerdConfigToV3(cli.V.GetBool("airgap")); err != nil {
 				return fmt.Errorf("migrate containerd config: %w", err)
 			}
 			return nil
 		},
 	}
+
+	cmd.Flags().Bool("airgap", false, "Migrate the drop-in to the v3 schema instead of removing it (online installs don't use the in-cluster registry)")
 
 	return cmd
 }
