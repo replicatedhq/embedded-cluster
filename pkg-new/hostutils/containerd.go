@@ -45,6 +45,7 @@ const hostsTomlTemplateV3 = `server = "https://%s"
 func useContainerdV3Schema() bool {
 	sv, err := semver.NewVersion(versions.K0sVersion)
 	if err != nil {
+		logrus.Errorf("failed to parse k0s version (%s): %v", versions.K0sVersion, err)
 		return false
 	}
 	return sv.Major() == 1 && sv.Minor() >= 36
@@ -99,6 +100,7 @@ var v2RegistryHostRegex = regexp.MustCompile(`io\.containerd\.grpc\.v1\.cri"\.re
 // drop-in is absent or already v3.
 func (h *HostUtils) MigrateContainerdConfigToV3() error {
 	if !useContainerdV3Schema() {
+		logrus.Infof("skipping containerd registry config migration: k0s version (%s) < 1.36", versions.K0sVersion)
 		return nil
 	}
 
@@ -106,6 +108,8 @@ func (h *HostUtils) MigrateContainerdConfigToV3() error {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			// No legacy v2 drop-in to migrate.
+			logrus.Infof("skipping containerd registry config migration: no legacy v2 drop-in found in %s", path)
 			return nil
 		}
 		return fmt.Errorf("failed to read embedded-registry.toml: %w", err)
@@ -114,6 +118,7 @@ func (h *HostUtils) MigrateContainerdConfigToV3() error {
 	match := v2RegistryHostRegex.FindStringSubmatch(string(contents))
 	if match == nil {
 		// Not a legacy v2 drop-in (already v3 or unrecognized); leave it alone.
+		logrus.Infof("skipping containerd registry config migration: not a legacy v2 drop-in in %s", path)
 		return nil
 	}
 	registry := match[1]
