@@ -7,7 +7,6 @@ import (
 
 	k0shelmv1beta1 "github.com/k0sproject/k0s/pkg/apis/helm/v1beta1"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/sirupsen/logrus"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -109,12 +108,7 @@ func removeClusterConfigHelmExtensions(ctx context.Context, cli client.Client) e
 
 	clusterConfig.Spec.Extensions.Helm = &k0sv1beta1.HelmExtensions{}
 
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&clusterConfig)
-	if err != nil {
-		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
-	}
-
-	err = cli.Update(ctx, unstructured)
+	err = cli.Update(ctx, &clusterConfig)
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}
