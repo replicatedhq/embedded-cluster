@@ -25,7 +25,9 @@ func TestCollectSupportBundle(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli", os.Getenv("SHORT_SHA")}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	// Disable the etcd disk-latency host preflight, which is flaky on CI runners
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line, env)
 	assert.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-host.sh"}

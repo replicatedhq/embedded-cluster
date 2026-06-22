@@ -267,7 +267,7 @@ embedded-cluster-darwin-arm64: embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo \
+		-tags $(GO_INSTALLER_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/installer

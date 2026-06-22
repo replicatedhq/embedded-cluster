@@ -338,3 +338,14 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
 	}
 }
+
+// checkContainerdRegistryConfigAbsent asserts the containerd registry drop-in is
+// absent: online installs don't use the in-cluster registry.
+// TODO(k0s-1.36-oldest): drop this check along with the migration.
+func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in is absent on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"test", "!", "-f", "/etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in should be absent on online installs on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}

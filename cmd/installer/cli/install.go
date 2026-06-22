@@ -673,13 +673,17 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 
 	// TODO (@salah): update installation status to reflect what's happening
 
-	logrus.Debugf("adding insecure registry")
-	registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
-	if err != nil {
-		return fmt.Errorf("failed to get registry cluster IP: %w", err)
-	}
-	if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
-		return fmt.Errorf("failed to add insecure registry: %w", err)
+	// Only airgap installs use the in-cluster registry; online installs don't
+	// need the insecure-registry drop-in (and k0s 1.36+ rejects its legacy v1 format).
+	if installCfg.isAirgap {
+		logrus.Debugf("setup internal registry config for containerd to pull from the in-cluster registry")
+		registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
+		if err != nil {
+			return fmt.Errorf("failed to get registry cluster IP: %w", err)
+		}
+		if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+			return fmt.Errorf("failed to add insecure registry: %w", err)
+		}
 	}
 
 	helmOpts := buildHelmClientOptions(installCfg, rc)

@@ -87,3 +87,9 @@ func (m *MockHostUtils) AddInsecureRegistry(registry string) error {
 	args := m.Called(registry)
 	return args.Error(0)
 }
+
+// MigrateContainerdConfigToV3 mocks the MigrateContainerdConfigToV3 method
+func (m *MockHostUtils) MigrateContainerdConfigToV3(isAirgap bool) error {
+	args := m.Called(isAirgap)
+	return args.Error(0)
+}

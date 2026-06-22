@@ -26,7 +26,10 @@ const (
 	K0sStatusSocketPath     = "/run/k0s/status.sock"
 	K0sConfigPath           = "/etc/k0s/k0s.yaml"
 	K0sContainerdConfigPath = "/etc/k0s/containerd.d/"
-	ECConfigPath            = "/etc/embedded-cluster/ec.yaml"
+	// K0sContainerdCertsDir is the containerd 2.x (k0s 1.36+) certs.d directory
+	// for hosts.toml files; EC's v3 drop-in points registry.config_path here.
+	K0sContainerdCertsDir = "/etc/k0s/containerd/certs.d"
+	ECConfigPath          = "/etc/embedded-cluster/ec.yaml"
 )
 
 // AppSlug returns the intended binary name. This is the app slug when a release is embedded,

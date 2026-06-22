@@ -171,13 +171,11 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig)
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	cfg.TypeMeta = metav1.TypeMeta{
+		APIVersion: k0sv1beta1.ClusterConfigAPIVersion,
+		Kind:       k0sv1beta1.ClusterConfigKind,
 	}
-	data, err := k8syaml.Marshal(unstructured)
+	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %w", err)
 	}
@@ -255,13 +253,11 @@ func (k *K0s) PatchK0sConfig(path string, patch string) error {
 		}
 		finalcfg.Spec.WorkerProfiles = result.Spec.WorkerProfiles
 	}
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	finalcfg.TypeMeta = metav1.TypeMeta{
+		APIVersion: k0sv1beta1.ClusterConfigAPIVersion,
+		Kind:       k0sv1beta1.ClusterConfigKind,
 	}
-	data, err := k8syaml.Marshal(unstructured)
+	data, err := k8syaml.Marshal(&finalcfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}

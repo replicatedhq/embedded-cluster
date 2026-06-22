@@ -44,17 +44,19 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
-	err = upgradeK0s(ctx, cli, rc, in, logger)
-	if err != nil {
-		return fmt.Errorf("k0s upgrade: %w", err)
-	}
-
-	// We must update the cluster config after we upgrade k0s as it is possible that the schema
-	// between versions has changed. One drawback of this is that the sandbox (pause) image does
-	// not get updated, and possibly others but I cannot confirm this.
+	// Update the cluster config before upgrading k0s: 1.35 and older pin
+	// spec.images.pause by digest, but containerd 2.x (k0s 1.36+) rejects a
+	// digest-pinned sandbox image, so it must become a tag-only ref before k0s 1.36
+	// restarts, otherwise no pod can get a sandbox. Updating it now doesn't affect
+	// the running k0s/containerd; it's only picked up when k0s restarts below.
 	err = updateClusterConfig(ctx, cli, in, logger)
 	if err != nil {
 		return fmt.Errorf("cluster config update: %w", err)
+	}
+
+	err = upgradeK0s(ctx, cli, rc, in, logger)
+	if err != nil {
+		return fmt.Errorf("k0s upgrade: %w", err)
 	}
 
 	logger.Info("Upgrading addons")
@@ -240,12 +242,7 @@ func updateClusterConfig(ctx context.Context, cli client.Client, in *ecv1beta1.I
 		return nil
 	}
 
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&currentCfg)
-	if err != nil {
-		return fmt.Errorf("convert cluster config to 1.29 compat: %w", err)
-	}
-
-	err = cli.Update(ctx, unstructured)
+	err = cli.Update(ctx, &currentCfg)
 	if err != nil {
 		return fmt.Errorf("update cluster config: %w", err)
 	}

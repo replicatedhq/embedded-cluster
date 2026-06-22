@@ -88,6 +88,9 @@ var k0sImageComponents = map[string]addonComponent{
 
 var pauseComponent = addonComponent{
 	name: "pause",
+	// Pin the sandbox image by plain tag (no arch suffix / digest) so containerd 2.x can
+	// resolve it; see addonComponent.usePlainTag.
+	usePlainTag: true,
 	getCustomImageName: func(opts addonComponentOptions) (string, error) {
 		k0sConfig := k0sv1beta1.DefaultClusterConfig()
 		pauseVersion := k0sConfig.Spec.Images.Pause.Version

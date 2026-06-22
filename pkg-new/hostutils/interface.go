@@ -29,6 +29,7 @@ type HostUtilsInterface interface {
 	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 	AddInsecureRegistry(registry string) error
+	MigrateContainerdConfigToV3(isAirgap bool) error
 	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
 	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
 }
@@ -74,6 +75,10 @@ func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 
 func AddInsecureRegistry(registry string) error {
 	return h.AddInsecureRegistry(registry)
+}
+
+func MigrateContainerdConfigToV3(isAirgap bool) error {
+	return h.MigrateContainerdConfigToV3(isAirgap)
 }
 
 func ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
