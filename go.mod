@@ -9,8 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.10
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.103.3
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.11
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/canonical/lxd v0.0.0-20260412055050-318087dfdf11
 	github.com/coreos/go-systemd/v22 v22.7.0
@@ -49,14 +49,14 @@ require (
 	golang.org/x/term v0.44.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
-	helm.sh/helm/v3 v3.21.1
+	helm.sh/helm/v3 v3.21.2
 	helm.sh/helm/v4 v4.1.4
-	k8s.io/api v0.36.1
-	k8s.io/apiextensions-apiserver v0.36.1
-	k8s.io/apimachinery v0.36.1
-	k8s.io/client-go v0.36.1
+	k8s.io/api v0.36.2
+	k8s.io/apiextensions-apiserver v0.36.2
+	k8s.io/apimachinery v0.36.2
+	k8s.io/client-go v0.36.2
 	k8s.io/component-helpers v0.36.1
-	k8s.io/kubectl v0.36.1
+	k8s.io/kubectl v0.36.2
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	oras.land/oras-go/v2 v2.6.1
 	sigs.k8s.io/controller-runtime v0.24.1
@@ -381,10 +381,10 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiserver v0.36.1 // indirect
-	k8s.io/cli-runtime v0.36.1 // indirect
+	k8s.io/apiserver v0.36.2 // indirect
+	k8s.io/cli-runtime v0.36.2 // indirect
 	k8s.io/cloud-provider v0.36.1 // indirect
-	k8s.io/component-base v0.36.1 // indirect
+	k8s.io/component-base v0.36.2 // indirect
 	k8s.io/controller-manager v0.36.1 // indirect
 	k8s.io/cri-api v0.36.1 // indirect
 	k8s.io/cri-client v0.36.1 // indirect
