@@ -12,7 +12,7 @@ import (
 // version-specific airgap.GetImageURIs call (its signature changed in k0s 1.36)
 // is isolated in the build-tagged allK0sImageURIs; see images_targetenv.go and
 // images_legacy.go.
-// TODO(k0s-1.36-oldest): once the oldest supported minor is >= 1.36, drop
+// TODO(k0s-1.37-oldest): once the oldest supported minor is >= 1.37, drop
 // images_legacy.go + the build tag and inline the call here.
 func ListK0sImages(cfg *k0sv1beta1.ClusterConfig) []string {
 	var images []string

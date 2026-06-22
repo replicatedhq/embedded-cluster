@@ -223,7 +223,7 @@ spec:
     - jsonCompare:
         checkName: Cgroups
         # Lenient v1-or-v2 check for k8s <= 1.34; 1.35+ uses the strict "Cgroup
-        # Version" check below. TODO(k0s-1.35-oldest): drop this and the gate.
+        # Version" check below. TODO(k0s-1.36-oldest): drop this and the gate.
         exclude: '{{ .RequiresCgroupV2 }}'
         fileName: host-collectors/system/cgroups.json
         path: 'cgroup-enabled'
@@ -386,7 +386,7 @@ spec:
               when: "false"
               message: "'umount' command must exist in PATH"
     # k8s 1.35+ needs kernel >= 4.5 (cgroup v2); older minors keep the 3.10 floor.
-    # TODO(k0s-1.35-oldest): drop the legacy 3.10 check and the gate.
+    # TODO(k0s-1.36-oldest): drop the legacy 3.10 check and the gate.
     - hostOS:
         checkName: Kernel Version
         exclude: '{{ not .RequiresCgroupV2 }}'
