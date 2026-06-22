@@ -27,7 +27,7 @@ jobs:
       ec_version: ${{ steps.output_vars.outputs.ec_version }}
       helm_version: ${{ steps.output_vars.outputs.helm_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # necessary for getting the last tag
       - uses: ./.github/actions/git-sha
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -88,7 +88,7 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
@@ -107,7 +107,7 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
@@ -147,7 +147,7 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -175,7 +175,7 @@ jobs:
     if: needs.should-run-int-tests-preflights.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -198,7 +198,7 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -251,7 +251,7 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -277,7 +277,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Free up runner disk space
         run: *free-disk-space
       - name: Go cache
@@ -300,7 +300,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -325,7 +325,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
         uses: actions/setup-go@v6
         with:
@@ -347,7 +347,7 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
@@ -405,7 +405,7 @@ jobs:
       app_version_3: ${{ steps.export.outputs.app_version_3 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Free up runner disk space
         run: *free-disk-space
@@ -523,7 +523,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Export k0s version
         id: export
         env:
@@ -559,7 +559,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Free up runner disk space
         run: *free-disk-space
@@ -632,7 +632,7 @@ jobs:
       - build-install
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download buildtools artifact
         uses: actions/download-artifact@v8
         with:
@@ -672,7 +672,7 @@ jobs:
       version_specifier: ${{ steps.export-version-specifier.outputs.version_specifier }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Export version specifier
         id: export-version-specifier
         run: |
@@ -691,7 +691,7 @@ jobs:
       - find-previous-stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -866,7 +866,7 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download binary
         uses: actions/download-artifact@v8
         with:
@@ -945,7 +945,7 @@ jobs:
             continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download current binary
         uses: actions/download-artifact@v8
         with:
@@ -984,7 +984,7 @@ jobs:
           - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download current binary
         uses: actions/download-artifact@v8
         with:
