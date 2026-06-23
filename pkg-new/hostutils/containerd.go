@@ -14,7 +14,7 @@ import (
 
 // registryConfigTemplateV2 skips TLS verification for the airgap registry on
 // containerd 1.7.x (k0s 1.34/1.35), using the legacy io.containerd.grpc.v1.cri path.
-// TODO(k0s-1.36-oldest): drop the v2 templates and useContainerdV3Schema.
+// TODO(k0s-1.37-oldest): drop the v2 templates and useContainerdV3Schema.
 const registryConfigTemplateV2 = `
 [plugins."io.containerd.grpc.v1.cri".registry]
   [plugins."io.containerd.grpc.v1.cri".registry.configs]

@@ -74,7 +74,7 @@ check-k0s-version:
 # sub-builds (which include this file) pick it up. K0S_MINOR_VERSION is the source of
 # truth: the build re-pins go.mod to K0S_GO_VERSION for the selected minor.
 # Assumes common.mk (which defines GO_BUILD_TAGS) is included before this file.
-# TODO(k0s-1.36-oldest): drop this gate when the oldest supported minor is >= 1.36.
+# TODO(k0s-1.37-oldest): drop this gate when the oldest supported minor is >= 1.37.
 GO_INSTALLER_BUILD_TAGS := osusergo,netgo
 ifeq ($(shell [ "$(K0S_MINOR_VERSION)" -lt 36 ] && echo legacy),legacy)
 GO_BUILD_TAGS := $(GO_BUILD_TAGS),k0s_legacy_airgap

@@ -68,7 +68,7 @@ var copyArtifactsJob = &batchv1.Job{
 						// containerd config so it can reconcile the registry drop-in for the
 						// containerd v1 -> v2 (k0s 1.36+) schema change before k0s restarts:
 						// migrate it on airgap, delete it on online.
-						// TODO(k0s-1.36-oldest): drop this mount and the migration.
+						// TODO(k0s-1.37-oldest): drop this mount and the migration.
 						Name: "etc-k0s",
 						VolumeSource: corev1.VolumeSource{
 							HostPath: &corev1.HostPathVolumeSource{
@@ -111,7 +111,7 @@ var copyArtifactsJobCommandOnline = []string{
 		// Remove the registry drop-in before k0s 1.36 restarts (it rejects the legacy
 		// schema); online doesn't use the in-cluster registry. Run the freshly-pulled
 		// target binary, not the image's /usr/local/bin copy.
-		// TODO(k0s-1.36-oldest): drop this migration.
+		// TODO(k0s-1.37-oldest): drop this migration.
 		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
