@@ -323,6 +323,14 @@ jobs:
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build across the current and previous supported k0s minors so a
+        # K0S_MINOR_VERSION/go.mod-pin mismatch (e.g. the k0s_legacy_airgap
+        # build tag selecting a code path the pinned k0s module can't compile)
+        # fails the PR instead of only surfacing in a release build.
+        n: [0, 1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -331,13 +339,28 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+      - name: Export k0s minor version
+        run: |
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> "$GITHUB_ENV"
       - name: Compile buildtools
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make buildtools
       - name: Upload buildtools artifact
+        if: ${{ matrix.n == 0 }}
         uses: actions/upload-artifact@v7
         with:
           name: buildtools
+          path: output/bin/buildtools
+      - name: Upload buildtools artifact previous k0s
+        if: ${{ matrix.n != 0 }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: buildtools-previous-k0s-${{ matrix.n }}
           path: output/bin/buildtools
 
   should-run-e2e:
@@ -477,7 +500,7 @@ jobs:
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
+            cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
 
       - name: Upload release
@@ -630,25 +653,49 @@ jobs:
     needs:
       - buildtools
       - build-install
+    strategy:
+      fail-fast: false
+      # Validate images for every k0s minor we build, pairing each minor's
+      # buildtools with the embedded-cluster binary built for the same minor.
+      # n==0 is the current minor (current-release/embedded-cluster-original);
+      # n>0 are the previous-k0s builds.
+      matrix:
+        include:
+          - n: 0
+            buildtools-artifact: buildtools
+            release-artifact: current-release
+            ec-binary: embedded-cluster-original
+          - n: 1
+            buildtools-artifact: buildtools-previous-k0s-1
+            release-artifact: previous-k0s-1-release
+            ec-binary: embedded-cluster-previous-k0s-1
+          - n: 2
+            buildtools-artifact: buildtools-previous-k0s-2
+            release-artifact: previous-k0s-2-release
+            ec-binary: embedded-cluster-previous-k0s-2
+          - n: 3
+            buildtools-artifact: buildtools-previous-k0s-3
+            release-artifact: previous-k0s-3-release
+            ec-binary: embedded-cluster-previous-k0s-3
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Download buildtools artifact
         uses: actions/download-artifact@v8
         with:
-          name: buildtools
+          name: ${{ matrix.buildtools-artifact }}
           path: output/bin
       - name: Download embedded-cluster artifact
         uses: actions/download-artifact@v8
         with:
-          name: current-release
+          name: ${{ matrix.release-artifact }}
           path: output/bin
       - name: Check for missing images
         run: |
           chmod +x ./output/bin/buildtools
-          chmod +x ./output/bin/embedded-cluster-original
-          ./output/bin/embedded-cluster-original version metadata > version-metadata.json
-          ./output/bin/embedded-cluster-original version list-images > expected.txt
+          chmod +x ./output/bin/${{ matrix.ec-binary }}
+          ./output/bin/${{ matrix.ec-binary }} version metadata > version-metadata.json
+          ./output/bin/${{ matrix.ec-binary }} version list-images > expected.txt
           printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
           printf "Found images:\n$(cat images.txt)\n"

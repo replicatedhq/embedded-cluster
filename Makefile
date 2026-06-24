@@ -221,7 +221,7 @@ crds:
 build-deps: go.mod crds
 
 .PHONY: buildtools
-buildtools:
+buildtools: go.mod
 	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: static
