@@ -323,6 +323,14 @@ jobs:
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build across the current and previous supported k0s minors so a
+        # K0S_MINOR_VERSION/go.mod-pin mismatch (e.g. the k0s_legacy_airgap
+        # build tag selecting a code path the pinned k0s module can't compile)
+        # fails the PR instead of only surfacing in a release build.
+        n: [0, 1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -331,10 +339,19 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+      - name: Export k0s minor version
+        run: |
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> "$GITHUB_ENV"
       - name: Compile buildtools
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make buildtools
       - name: Upload buildtools artifact
+        if: ${{ matrix.n == 0 }}
         uses: actions/upload-artifact@v7
         with:
           name: buildtools
