@@ -500,7 +500,7 @@ jobs:
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/bin/embedded-cluster output/bin/embedded-cluster${version_suffix}
+            cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
 
       - name: Upload release
