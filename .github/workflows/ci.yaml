@@ -356,6 +356,12 @@ jobs:
         with:
           name: buildtools
           path: output/bin/buildtools
+      - name: Upload buildtools artifact previous k0s
+        if: ${{ matrix.n != 0 }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: buildtools-previous-k0s-${{ matrix.n }}
+          path: output/bin/buildtools
 
   should-run-e2e:
     name: Should run e2e
@@ -647,25 +653,49 @@ jobs:
     needs:
       - buildtools
       - build-install
+    strategy:
+      fail-fast: false
+      # Validate images for every k0s minor we build, pairing each minor's
+      # buildtools with the embedded-cluster binary built for the same minor.
+      # n==0 is the current minor (current-release/embedded-cluster-original);
+      # n>0 are the previous-k0s builds.
+      matrix:
+        include:
+          - n: 0
+            buildtools-artifact: buildtools
+            release-artifact: current-release
+            ec-binary: embedded-cluster-original
+          - n: 1
+            buildtools-artifact: buildtools-previous-k0s-1
+            release-artifact: previous-k0s-1-release
+            ec-binary: embedded-cluster-previous-k0s-1
+          - n: 2
+            buildtools-artifact: buildtools-previous-k0s-2
+            release-artifact: previous-k0s-2-release
+            ec-binary: embedded-cluster-previous-k0s-2
+          - n: 3
+            buildtools-artifact: buildtools-previous-k0s-3
+            release-artifact: previous-k0s-3-release
+            ec-binary: embedded-cluster-previous-k0s-3
     steps:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Download buildtools artifact
         uses: actions/download-artifact@v8
         with:
-          name: buildtools
+          name: ${{ matrix.buildtools-artifact }}
           path: output/bin
       - name: Download embedded-cluster artifact
         uses: actions/download-artifact@v8
         with:
-          name: current-release
+          name: ${{ matrix.release-artifact }}
           path: output/bin
       - name: Check for missing images
         run: |
           chmod +x ./output/bin/buildtools
-          chmod +x ./output/bin/embedded-cluster-original
-          ./output/bin/embedded-cluster-original version metadata > version-metadata.json
-          ./output/bin/embedded-cluster-original version list-images > expected.txt
+          chmod +x ./output/bin/${{ matrix.ec-binary }}
+          ./output/bin/${{ matrix.ec-binary }} version metadata > version-metadata.json
+          ./output/bin/${{ matrix.ec-binary }} version list-images > expected.txt
           printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
           printf "Found images:\n$(cat images.txt)\n"
