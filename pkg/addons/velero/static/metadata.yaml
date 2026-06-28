@@ -11,10 +11,10 @@ images:
     velero:
         repo: proxy.replicated.com/library/velero
         tag:
-            amd64: v1.18.1-amd64@sha256:963cb8566074c1b408a6bea5f92d4f7ebdab62104b39d933608e729ed8704a9d
-            arm64: v1.18.1-arm64@sha256:8a72b271465ca9f1b84a8a2244cb757f0dffa5def2090e5a07cbe23ec477f0c9
+            amd64: v1.18.2-amd64@sha256:84bef8c8e799b2baa6055f160b68b864166d2012e4ca8887f55c25dd1b727ca5
+            arm64: v1.18.2-arm64@sha256:b9e54c0f171481f34b1b5136f0a3a7655104d0a5e3481d4f96f1694877cfedbd
     velero-plugin-for-aws:
         repo: proxy.replicated.com/library/velero-plugin-for-aws
         tag:
-            amd64: v1.14.1-amd64@sha256:d1c05480b752aed8195015efb2f7a2a32d7fc081a67cf5805d363c09fab03edc
-            arm64: v1.14.1-arm64@sha256:0586b8884d11f87a213ea724953c6aefd8354d055d9dbf47e48a32a4f7ac53d1
+            amd64: v1.14.2-amd64@sha256:ba6298eb079c37dbfaf08c011f88a15c809681c8ecc7c004de3d2bec795135c7
+            arm64: v1.14.2-arm64@sha256:ce72c3e8bf9dd4624b4169a8706069453bc5fcdf8b719e2db8f628592f98e189
