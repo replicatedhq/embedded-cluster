@@ -261,6 +261,7 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 }
 
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
+	t.Skip("almalinux distribution was removed from Compatibility Matrix")
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
