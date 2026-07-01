@@ -4,6 +4,7 @@ package preflights
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -738,6 +739,48 @@ func TestTemplateCgroupV2AnalyzerExcluded(t *testing.T) {
 		}
 	}
 	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer to exist with exclude when RequiresCgroupV2 is false")
+}
+
+func TestTemplateHostnameLengthAnalyzer(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var analyzer *v1beta2.TextAnalyze
+	for _, a := range commonSpec.Analyzers {
+		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Hostname Length" {
+			analyzer = a.TextAnalyze
+			break
+		}
+	}
+	req.NotNil(analyzer, "expected Hostname Length textAnalyze analyzer")
+	req.Equal("host-collectors/system/hostos_info.json", analyzer.FileName)
+
+	// Run the shipped regex against a faithful hostos_info.json to confirm the
+	// 54/55 boundary: k0s caps the node name at 54 chars (63 - len("k0s-ctrl-")).
+	re, err := regexp.Compile(analyzer.RegexPattern)
+	req.NoError(err, "analyzer regex should compile")
+
+	req.False(re.MatchString(hostOSInfoJSON(t, strings.Repeat("a", 54))), "54-char hostname must not match (passes)")
+	req.True(re.MatchString(hostOSInfoJSON(t, strings.Repeat("a", 55))), "55-char hostname must match (fails)")
+}
+
+// hostOSInfoJSON reproduces the hostos_info.json the troubleshoot hostOS
+// collector writes (json.MarshalIndent with a single-space indent).
+func hostOSInfoJSON(t *testing.T, name string) string {
+	t.Helper()
+	info := struct {
+		Name            string `json:"name"`
+		KernelVersion   string `json:"kernelVersion"`
+		PlatformVersion string `json:"platformVersion"`
+		Platform        string `json:"platform"`
+	}{Name: name, KernelVersion: "5.15.0", PlatformVersion: "22.04", Platform: "ubuntu"}
+	b, err := json.MarshalIndent(info, "", " ")
+	require.NoError(t, err)
+	return string(b)
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {

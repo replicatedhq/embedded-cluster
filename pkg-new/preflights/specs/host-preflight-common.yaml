@@ -408,6 +408,22 @@ spec:
               message: Kernel version is at least 3.10
           - fail:
               message: Kernel version must be at least 3.10
+    - textAnalyze:
+        checkName: Hostname Length
+        fileName: host-collectors/system/hostos_info.json
+        # k0s forms the etcd member label "k0s-ctrl-<nodeName>"; the 63-char label limit caps the node name at 54.
+        regex: '"name":\s*"[^"]{55,}"'
+        outcomes:
+          - fail:
+              when: "true"
+              message: >-
+                The hostname is too long. Kubernetes node names must be 54 characters or fewer.
+                k0s prefixes the node name with 'k0s-ctrl-' to form an etcd member label, and a longer
+                name exceeds the 63-character Kubernetes label limit, which stops the cluster from
+                starting. Shorten the hostname before installing.
+          - pass:
+              when: "false"
+              message: Hostname length is within the Kubernetes label limit.
     - http:
         checkName: API Access
         collectorName: http-replicated-app
