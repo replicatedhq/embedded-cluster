@@ -761,11 +761,38 @@ func TestTemplateHostnameLengthAnalyzer(t *testing.T) {
 
 	// Run the shipped regex against a faithful hostos_info.json to confirm the
 	// 54/55 boundary: k0s caps the node name at 54 chars (63 - len("k0s-ctrl-")).
-	re, err := regexp.Compile(analyzer.RegexPattern)
+	re, err := regexp.Compile(analyzer.RegexGroups)
 	req.NoError(err, "analyzer regex should compile")
 
-	req.False(re.MatchString(hostOSInfoJSON(t, strings.Repeat("a", 54))), "54-char hostname must not match (passes)")
-	req.True(re.MatchString(hostOSInfoJSON(t, strings.Repeat("a", 55))), "55-char hostname must match (fails)")
+	req.Empty(namedGroup(re, hostOSInfoJSON(t, strings.Repeat("a", 54)), "Overflow"), "54-char hostname must not overflow")
+
+	name55 := strings.Repeat("a", 55)
+	req.NotEmpty(namedGroup(re, hostOSInfoJSON(t, name55), "Overflow"), "55-char hostname must overflow")
+	req.Equal(name55, namedGroup(re, hostOSInfoJSON(t, name55), "Hostname"), "full hostname must be captured for the message")
+
+	// The fail message must name the captured hostname.
+	var failMsg string
+	for _, o := range analyzer.Outcomes {
+		if o.Fail != nil {
+			failMsg = o.Fail.Message
+		}
+	}
+	req.Contains(failMsg, "{{ .Hostname }}", "fail message must name the hostname")
+}
+
+// namedGroup returns the value of the named capture group in the first match of
+// re against s, or "" if there is no match or no such group.
+func namedGroup(re *regexp.Regexp, s, name string) string {
+	m := re.FindStringSubmatch(s)
+	if m == nil {
+		return ""
+	}
+	for i, n := range re.SubexpNames() {
+		if n == name && i < len(m) {
+			return m[i]
+		}
+	}
+	return ""
 }
 
 // hostOSInfoJSON reproduces the hostos_info.json the troubleshoot hostOS

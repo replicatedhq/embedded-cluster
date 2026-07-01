@@ -411,19 +411,19 @@ spec:
     - textAnalyze:
         checkName: Hostname Length
         fileName: host-collectors/system/hostos_info.json
-        # k0s forms the etcd member label "k0s-ctrl-<nodeName>"; the 63-char label limit caps the node name at 54.
-        regex: '"name":\s*"[^"]{55,}"'
+        # k0s forms the etcd member label "k0s-ctrl-<nodeName>" (63-char limit), so capture the node name and any overflow past 54 chars.
+        regexGroups: '"name":\s*"(?P<Hostname>(?P<Head>[^"]{0,54})(?P<Overflow>[^"]*))"'
         outcomes:
-          - fail:
-              when: "true"
-              message: >-
-                The hostname is too long. Kubernetes node names must be 54 characters or fewer.
-                k0s prefixes the node name with 'k0s-ctrl-' to form an etcd member label, and a longer
-                name exceeds the 63-character Kubernetes label limit, which stops the cluster from
-                starting. Shorten the hostname before installing.
           - pass:
-              when: "false"
+              when: "Overflow == ''"
               message: Hostname length is within the Kubernetes label limit.
+          - fail:
+              message: >-
+                The hostname "{{ "{{" }} .Hostname {{ "}}" }}" is {{ "{{" }} len .Hostname {{ "}}" }} characters,
+                which is too long. Kubernetes node names must be 54 characters or fewer. k0s prefixes the
+                node name with 'k0s-ctrl-' to form an etcd member label, and a longer name exceeds the
+                63-character Kubernetes label limit, which stops the cluster from starting. Shorten the
+                hostname before installing.
     - http:
         checkName: API Access
         collectorName: http-replicated-app
