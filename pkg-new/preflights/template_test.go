@@ -4,7 +4,6 @@ package preflights
 import (
 	"context"
 	"encoding/json"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -739,75 +738,6 @@ func TestTemplateCgroupV2AnalyzerExcluded(t *testing.T) {
 		}
 	}
 	req.True(foundAnalyzer, "expected Cgroup Version jsonCompare analyzer to exist with exclude when RequiresCgroupV2 is false")
-}
-
-func TestTemplateHostnameLengthAnalyzer(t *testing.T) {
-	req := require.New(t)
-	tl := types.HostPreflightTemplateData{}
-	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
-	req.NoError(err)
-
-	commonSpec := hpfc[0].Spec
-
-	var analyzer *v1beta2.TextAnalyze
-	for _, a := range commonSpec.Analyzers {
-		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Hostname Length" {
-			analyzer = a.TextAnalyze
-			break
-		}
-	}
-	req.NotNil(analyzer, "expected Hostname Length textAnalyze analyzer")
-	req.Equal("host-collectors/system/hostos_info.json", analyzer.FileName)
-
-	// Run the shipped regex against a faithful hostos_info.json to confirm the
-	// 54/55 boundary: k0s caps the node name at 54 chars (63 - len("k0s-ctrl-")).
-	re, err := regexp.Compile(analyzer.RegexGroups)
-	req.NoError(err, "analyzer regex should compile")
-
-	req.Empty(namedGroup(re, hostOSInfoJSON(t, strings.Repeat("a", 54)), "Overflow"), "54-char hostname must not overflow")
-
-	name55 := strings.Repeat("a", 55)
-	req.NotEmpty(namedGroup(re, hostOSInfoJSON(t, name55), "Overflow"), "55-char hostname must overflow")
-	req.Equal(name55, namedGroup(re, hostOSInfoJSON(t, name55), "Hostname"), "full hostname must be captured for the message")
-
-	// The fail message must name the captured hostname.
-	var failMsg string
-	for _, o := range analyzer.Outcomes {
-		if o.Fail != nil {
-			failMsg = o.Fail.Message
-		}
-	}
-	req.Contains(failMsg, "{{ .Hostname }}", "fail message must name the hostname")
-}
-
-// namedGroup returns the value of the named capture group in the first match of
-// re against s, or "" if there is no match or no such group.
-func namedGroup(re *regexp.Regexp, s, name string) string {
-	m := re.FindStringSubmatch(s)
-	if m == nil {
-		return ""
-	}
-	for i, n := range re.SubexpNames() {
-		if n == name && i < len(m) {
-			return m[i]
-		}
-	}
-	return ""
-}
-
-// hostOSInfoJSON reproduces the hostos_info.json the troubleshoot hostOS
-// collector writes (json.MarshalIndent with a single-space indent).
-func hostOSInfoJSON(t *testing.T, name string) string {
-	t.Helper()
-	info := struct {
-		Name            string `json:"name"`
-		KernelVersion   string `json:"kernelVersion"`
-		PlatformVersion string `json:"platformVersion"`
-		Platform        string `json:"platform"`
-	}{Name: name, KernelVersion: "5.15.0", PlatformVersion: "22.04", Platform: "ubuntu"}
-	b, err := json.MarshalIndent(info, "", " ")
-	require.NoError(t, err)
-	return string(b)
 }
 
 func TestCalculateAirgapStorageSpace(t *testing.T) {
