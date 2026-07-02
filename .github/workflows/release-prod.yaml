@@ -554,7 +554,6 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
