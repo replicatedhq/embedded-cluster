@@ -975,7 +975,9 @@ jobs:
       matrix:
         test:
           - TestSingleNodeAirgapAppOnlyUpgrade
-          - TestSingleNodeAirgapUpgradeSelinux
+          # TODO: Commenting out as we have not almalinux runners in CMX anymore. Comment back in or remove
+          # once we resolve https://app.shortcut.com/replicated/story/138684/selinux-tests-for-embedded-cluster-v2
+          # - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
