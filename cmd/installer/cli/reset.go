@@ -193,6 +193,16 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
+			// Belt-and-suspenders: explicitly remove the k0s unit files. k0s reset
+			// normally handles this, but if it failed (e.g. due to EBUSY), a stale
+			// unit will prevent the next install from succeeding.
+			if err := helpers.RemoveAll("/etc/systemd/system/k0scontroller.service"); err != nil {
+				return fmt.Errorf("failed to remove k0scontroller service file: %w", err)
+			}
+			if err := helpers.RemoveAll("/etc/systemd/system/k0sworker.service"); err != nil {
+				return fmt.Errorf("failed to remove k0sworker service file: %w", err)
+			}
+
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
@@ -608,7 +618,10 @@ func stopAndResetK0s(dataDir string) error {
 
 	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
-		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)
+		// Log and continue — k0s reset must still run to unmount kubelet pod-volume
+		// mounts. Skipping it causes subsequent RemoveAll calls to hit EBUSY and
+		// leave stale files (binary, systemd unit) that block the next install.
+		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v, %s", err, out)
 	}
 	out, err = helpers.RunCommand(k0sBinPath, "reset", "--data-dir", dataDir)
 	if err != nil {
