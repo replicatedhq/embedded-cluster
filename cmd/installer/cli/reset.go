@@ -193,9 +193,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
-			// Belt-and-suspenders: explicitly remove the k0s unit files. k0s reset
-			// normally handles this, but if it failed (e.g. due to EBUSY), a stale
-			// unit will prevent the next install from succeeding.
+			// Remove k0s unit files explicitly in case k0s reset failed to do so.
 			if err := helpers.RemoveAll("/etc/systemd/system/k0scontroller.service"); err != nil {
 				return fmt.Errorf("failed to remove k0scontroller service file: %w", err)
 			}
@@ -618,9 +616,7 @@ func stopAndResetK0s(dataDir string) error {
 
 	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
-		// Log and continue — k0s reset must still run to unmount kubelet pod-volume
-		// mounts. Skipping it causes subsequent RemoveAll calls to hit EBUSY and
-		// leave stale files (binary, systemd unit) that block the next install.
+		// k0s reset must still run to unmount kubelet pod-volume mounts.
 		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v, %s", err, out)
 	}
 	out, err = helpers.RunCommand(k0sBinPath, "reset", "--data-dir", dataDir)
