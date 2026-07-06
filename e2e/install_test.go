@@ -284,8 +284,18 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
+	// apparmor may not be installed at all so this is best-effort
+	t.Logf("%s: deactivating and uninstalling apparmor", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo systemctl disable --now apparmor 2>/dev/null; sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y apparmor 2>/dev/null; true",
+	}); err != nil {
+		t.Fatalf("fail to uninstall apparmor on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
 	t.Logf("%s: installing selinux packages", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y selinux-basics selinux-policy-default auditd policycoreutils-python-utils"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y selinux-basics selinux-policy-default auditd policycoreutils-python-utils",
+	}); err != nil {
 		t.Fatalf("fail to install selinux packages on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
