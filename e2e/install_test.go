@@ -260,6 +260,30 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// kubeletSubpathPolicy allows the mount command (mount_t) to resolve
+// /proc/<kubelet-pid>/fd/N magic links (labeled with kubelet's domain,
+// initrc_t) which kubelet uses as bind mount sources when preparing subPath
+// volume mounts, as well as tear them down again.
+const kubeletSubpathPolicy = `module ec-kubelet-subpath 1.1;
+
+require {
+	type mount_t;
+	type initrc_t;
+	type initrc_runtime_t;
+	type tmpfs_t;
+	class dir search;
+	class file { read getattr mounton };
+	class lnk_file read;
+	class filesystem unmount;
+}
+
+allow mount_t initrc_t:dir search;
+allow mount_t initrc_t:file read;
+allow mount_t initrc_t:lnk_file read;
+allow mount_t initrc_runtime_t:file { getattr mounton };
+allow mount_t tmpfs_t:filesystem unmount;
+`
+
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	t.Parallel()
 
@@ -313,6 +337,20 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	tc.WaitForReboot()
 
 	waitForSelinuxEnabled(t, tc, 0)
+
+	// kubelet bind mounts subPath volumes through /proc/<pid>/fd/N magic
+	// links, which ubuntu's selinux reference policy does not allow the mount
+	// command (mount_t) to resolve, silently (dontaudit) failing containers
+	// with subPath volume mounts. install a policy module allowing this.
+	t.Logf("%s: installing selinux policy module for kubelet subpath mounts", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"cat > /tmp/ec-kubelet-subpath.te <<'EOF'\n" + kubeletSubpathPolicy + "EOF\n" +
+			"checkmodule -M -m -o /tmp/ec-kubelet-subpath.mod /tmp/ec-kubelet-subpath.te && " +
+			"semodule_package -o /tmp/ec-kubelet-subpath.pp -m /tmp/ec-kubelet-subpath.mod && " +
+			"sudo semodule -i /tmp/ec-kubelet-subpath.pp",
+	}); err != nil {
+		t.Fatalf("fail to install selinux policy module on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
 	if err := tc.Airgap(); err != nil {
