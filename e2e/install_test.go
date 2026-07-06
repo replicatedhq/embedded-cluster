@@ -261,7 +261,6 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 }
 
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
-	t.Skip("almalinux distribution was removed from Compatibility Matrix")
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -269,8 +268,8 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
-		Distribution: "almalinux",
-		Version:      "9",
+		Distribution: "ubuntu",
+		Version:      "24.04",
 	})
 	defer tc.Cleanup()
 
@@ -285,10 +284,25 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
-	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
-		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	t.Logf("%s: installing selinux packages", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y selinux-basics selinux-policy-default auditd policycoreutils-python-utils"}); err != nil {
+		t.Fatalf("fail to install selinux packages on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
+
+	// ubuntu ships with apparmor; selinux-activate configures the bootloader to
+	// boot with selinux enabled in permissive mode and schedules a filesystem
+	// relabel on the next boot
+	t.Logf("%s: activating selinux", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo selinux-activate"}); err != nil {
+		t.Fatalf("fail to activate selinux on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: rebooting node to relabel the filesystem", time.Now().Format(time.RFC3339))
+	// the ssh connection is dropped by the reboot so an error is expected
+	tc.RunCommandOnNode(0, []string{"sudo reboot"})
+	tc.WaitForReboot()
+
+	waitForSelinuxEnabled(t, tc, 0)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
 	if err := tc.Airgap(); err != nil {
@@ -296,7 +310,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1 && getenforce"}); err != nil || !strings.Contains(stdout, "Enforcing") {
 		t.Fatalf("fail to set selinux to Enforcing mode %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
