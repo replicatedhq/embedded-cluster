@@ -124,7 +124,7 @@ $ export KUBECONFIG="/var/lib/embedded-cluster/k0s/pki/admin.conf"
 $ export PATH="$PATH:/var/lib/embedded-cluster/bin"
 $ source <(kubectl completion bash)
 $ source /etc/bash_completion
-$ 
+$
 ```
 
 ### Creating additional nodes
@@ -140,12 +140,6 @@ make create-node1
 ```
 
 These additional nodes can either be joined to your existing Embedded Cluster installation, or used to set up separate, independent Embedded Cluster instances.
-
-By default, a Debian-based node will be created. If you want to use a different distribution, you can set the `DISTRO` environment variable:
-
-```bash
-make create-node0 DISTRO=almalinux-8
-```
 
 To view the list of available distributions:
 

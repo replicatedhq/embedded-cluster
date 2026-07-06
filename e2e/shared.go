@@ -262,6 +262,27 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	}
 }
 
+// waitForSelinuxEnabled waits for selinux to report enabled on the node. The
+// filesystem relabel scheduled by selinux-activate triggers an additional
+// reboot, so ssh may drop while polling.
+func waitForSelinuxEnabled(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: waiting for selinux to be enabled on node %d", time.Now().Format(time.RFC3339), node)
+	timeout := time.After(10 * time.Minute)
+	tick := time.Tick(10 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getenforce"})
+			t.Fatalf("timeout waiting for selinux to be enabled on node %d: %v: %s: %s", node, err, stdout, stderr)
+		case <-tick:
+			stdout, _, err := tc.RunCommandOnNode(node, []string{"getenforce"})
+			if err == nil && strings.Contains(stdout, "Permissive") {
+				return
+			}
+		}
+	}
+}
+
 func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("node join command generation on node %d", node)
 	line := []string{"/usr/local/bin/check-node-join-command.sh"}

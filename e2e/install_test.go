@@ -260,8 +260,42 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// ecSelinuxPolicy covers the operations embedded cluster workloads need that
+// ubuntu's selinux reference policy denies. On RHEL derivatives these are
+// granted by container-selinux, which has no ubuntu equivalent. k0s and all
+// containers run in the generic initrc_t domain.
+//
+// The mount_t rules let the mount command resolve /proc/<kubelet-pid>/fd/N
+// magic links (labeled with kubelet's domain, initrc_t) which kubelet uses as
+// bind mount sources when preparing subPath volume mounts, and tear them down
+// again. The initrc_t rules mirror what container-selinux grants all
+// container domains: runtime code generation (execmem, needed by JIT runtimes
+// such as ingress-nginx's LuaJIT) and anonymous memfd files (self:file).
+const ecSelinuxPolicy = `module ec-selinux 1.2;
+
+require {
+	type mount_t;
+	type initrc_t;
+	type initrc_runtime_t;
+	type tmpfs_t;
+	class dir search;
+	class file { read write create open getattr map mounton };
+	class lnk_file read;
+	class filesystem unmount;
+	class process execmem;
+}
+
+allow mount_t initrc_t:dir search;
+allow mount_t initrc_t:file read;
+allow mount_t initrc_t:lnk_file read;
+allow mount_t initrc_runtime_t:file { getattr mounton };
+allow mount_t tmpfs_t:filesystem unmount;
+
+allow initrc_t self:process execmem;
+allow initrc_t self:file { read write create open getattr map };
+`
+
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
-	t.Skip("almalinux distribution was removed from Compatibility Matrix")
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -269,8 +303,8 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
-		Distribution: "almalinux",
-		Version:      "9",
+		Distribution: "ubuntu",
+		Version:      "24.04",
 	})
 	defer tc.Cleanup()
 
@@ -285,9 +319,46 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
-	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
-		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	// apparmor may not be installed at all so this is best-effort
+	t.Logf("%s: deactivating and uninstalling apparmor", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo systemctl disable --now apparmor 2>/dev/null; sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y apparmor 2>/dev/null; true",
+	}); err != nil {
+		t.Fatalf("fail to uninstall apparmor on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: installing selinux packages", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y selinux-basics selinux-policy-default auditd policycoreutils-python-utils",
+	}); err != nil {
+		t.Fatalf("fail to install selinux packages on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	// ubuntu ships with apparmor; selinux-activate configures the bootloader to
+	// boot with selinux enabled in permissive mode and schedules a filesystem
+	// relabel on the next boot
+	t.Logf("%s: activating selinux", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo selinux-activate"}); err != nil {
+		t.Fatalf("fail to activate selinux on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: rebooting node to relabel the filesystem", time.Now().Format(time.RFC3339))
+	// the ssh connection is dropped by the reboot so an error is expected
+	tc.RunCommandOnNode(0, []string{"sudo reboot"})
+	tc.WaitForReboot()
+
+	waitForSelinuxEnabled(t, tc, 0)
+
+	// install a policy module allowing operations that ubuntu's selinux
+	// reference policy denies; see ecSelinuxPolicy for details.
+	t.Logf("%s: installing selinux policy module for embedded cluster workloads", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"cat > /tmp/ec-selinux.te <<'EOF'\n" + ecSelinuxPolicy + "EOF\n" +
+			"checkmodule -M -m -o /tmp/ec-selinux.mod /tmp/ec-selinux.te && " +
+			"semodule_package -o /tmp/ec-selinux.pp -m /tmp/ec-selinux.mod && " +
+			"sudo semodule -i /tmp/ec-selinux.pp",
+	}); err != nil {
+		t.Fatalf("fail to install selinux policy module on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -296,7 +367,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1 && getenforce"}); err != nil || !strings.Contains(stdout, "Enforcing") {
 		t.Fatalf("fail to set selinux to Enforcing mode %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
