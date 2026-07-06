@@ -260,11 +260,17 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-// kubeletSubpathPolicy allows the mount command (mount_t) to resolve
-// /proc/<kubelet-pid>/fd/N magic links (labeled with kubelet's domain,
-// initrc_t) which kubelet uses as bind mount sources when preparing subPath
-// volume mounts, as well as tear them down again.
-const kubeletSubpathPolicy = `module ec-kubelet-subpath 1.1;
+// ecSelinuxPolicy covers the operations embedded cluster workloads need that
+// ubuntu's selinux reference policy denies. On RHEL derivatives these are
+// granted by container-selinux, which has no ubuntu equivalent. k0s and all
+// containers run in the generic initrc_t domain.
+//
+// The mount_t rules let the mount command resolve /proc/<kubelet-pid>/fd/N
+// magic links (labeled with kubelet's domain, initrc_t) which kubelet uses as
+// bind mount sources when preparing subPath volume mounts, and tear them down
+// again. The initrc_t rules let ingress-nginx's LuaJIT generate code at
+// runtime (execmem) and use anonymous memfd files (self:file).
+const ecSelinuxPolicy = `module ec-selinux 1.2;
 
 require {
 	type mount_t;
@@ -272,9 +278,10 @@ require {
 	type initrc_runtime_t;
 	type tmpfs_t;
 	class dir search;
-	class file { read getattr mounton };
+	class file { read write create open getattr map mounton };
 	class lnk_file read;
 	class filesystem unmount;
+	class process execmem;
 }
 
 allow mount_t initrc_t:dir search;
@@ -282,6 +289,9 @@ allow mount_t initrc_t:file read;
 allow mount_t initrc_t:lnk_file read;
 allow mount_t initrc_runtime_t:file { getattr mounton };
 allow mount_t tmpfs_t:filesystem unmount;
+
+allow initrc_t self:process execmem;
+allow initrc_t self:file { read write create open getattr map };
 `
 
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
@@ -338,16 +348,14 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 
 	waitForSelinuxEnabled(t, tc, 0)
 
-	// kubelet bind mounts subPath volumes through /proc/<pid>/fd/N magic
-	// links, which ubuntu's selinux reference policy does not allow the mount
-	// command (mount_t) to resolve, silently (dontaudit) failing containers
-	// with subPath volume mounts. install a policy module allowing this.
-	t.Logf("%s: installing selinux policy module for kubelet subpath mounts", time.Now().Format(time.RFC3339))
+	// install a policy module allowing operations that ubuntu's selinux
+	// reference policy denies; see ecSelinuxPolicy for details.
+	t.Logf("%s: installing selinux policy module for embedded cluster workloads", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"cat > /tmp/ec-kubelet-subpath.te <<'EOF'\n" + kubeletSubpathPolicy + "EOF\n" +
-			"checkmodule -M -m -o /tmp/ec-kubelet-subpath.mod /tmp/ec-kubelet-subpath.te && " +
-			"semodule_package -o /tmp/ec-kubelet-subpath.pp -m /tmp/ec-kubelet-subpath.mod && " +
-			"sudo semodule -i /tmp/ec-kubelet-subpath.pp",
+		"cat > /tmp/ec-selinux.te <<'EOF'\n" + ecSelinuxPolicy + "EOF\n" +
+			"checkmodule -M -m -o /tmp/ec-selinux.mod /tmp/ec-selinux.te && " +
+			"semodule_package -o /tmp/ec-selinux.pp -m /tmp/ec-selinux.mod && " +
+			"sudo semodule -i /tmp/ec-selinux.pp",
 	}); err != nil {
 		t.Fatalf("fail to install selinux policy module on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
