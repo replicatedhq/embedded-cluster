@@ -268,8 +268,9 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 // The mount_t rules let the mount command resolve /proc/<kubelet-pid>/fd/N
 // magic links (labeled with kubelet's domain, initrc_t) which kubelet uses as
 // bind mount sources when preparing subPath volume mounts, and tear them down
-// again. The initrc_t rules let ingress-nginx's LuaJIT generate code at
-// runtime (execmem) and use anonymous memfd files (self:file).
+// again. The initrc_t rules mirror what container-selinux grants all
+// container domains: runtime code generation (execmem, needed by JIT runtimes
+// such as ingress-nginx's LuaJIT) and anonymous memfd files (self:file).
 const ecSelinuxPolicy = `module ec-selinux 1.2;
 
 require {
