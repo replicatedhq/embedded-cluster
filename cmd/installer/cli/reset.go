@@ -193,6 +193,14 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to remove proxy worker config directory: %w", err)
 			}
 
+			// Remove k0s unit files explicitly in case k0s reset failed to do so.
+			if err := helpers.RemoveAll("/etc/systemd/system/k0scontroller.service"); err != nil {
+				return fmt.Errorf("failed to remove k0scontroller service file: %w", err)
+			}
+			if err := helpers.RemoveAll("/etc/systemd/system/k0sworker.service"); err != nil {
+				return fmt.Errorf("failed to remove k0sworker service file: %w", err)
+			}
+
 			// Now that k0s is nested under the data directory, we see the following error in the
 			// dev environment because k0s is mounted in the docker container:
 			//  "failed to remove embedded cluster directory: remove k0s: unlinkat /var/lib/embedded-cluster/k0s: device or resource busy"
@@ -608,7 +616,8 @@ func stopAndResetK0s(dataDir string) error {
 
 	out, err := helpers.RunCommand(k0sBinPath, "stop")
 	if err != nil {
-		return fmt.Errorf("could not stop k0s service: %w, %s", err, out)
+		// k0s reset must still run to unmount kubelet pod-volume mounts.
+		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v, %s", err, out)
 	}
 	out, err = helpers.RunCommand(k0sBinPath, "reset", "--data-dir", dataDir)
 	if err != nil {
