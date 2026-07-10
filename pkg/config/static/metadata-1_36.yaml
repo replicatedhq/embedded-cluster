@@ -24,8 +24,8 @@ images:
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.4-amd64@sha256:d87904c741c9134298ca7b02d4b57691846a401a381287a6a6b5f17fffaf7ddb
-            arm64: 1.14.4-arm64@sha256:9e4c761caa7051cb11e4f2787b85073f99901fa3015683839ca9c5b834319cb2
+            amd64: 1.14.5-amd64@sha256:4c4ee1c0aa07b4b60dafcd6fcd37ce194beba54f73bd8343c72971f3d56cbca5
+            arm64: 1.14.5-arm64@sha256:43448c478e5ea0ce41c29ad1f49430f5e4b5d7297fed547cb862e53d53f8d276
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
@@ -34,8 +34,8 @@ images:
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.36.2-amd64@sha256:13629509e4ae77567a3b92735eb8161e2eb449b93b79a414c340071ae5ccf537
-            arm64: v1.36.2-arm64@sha256:50fbce8e83ccab8431154e1ceec147f35ea29051f6445f9e0bc506b485bd8943
+            amd64: v1.36.2-amd64@sha256:f870124faafb7e5d4ccd3a745f679749b866c9356baadef6193edadcb82bda42
+            arm64: v1.36.2-arm64@sha256:f7a01e1527d21e943d5276b5609e66a6862b3695eb65c9d845280d40a29fd317
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
