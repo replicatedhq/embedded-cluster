@@ -24,8 +24,8 @@ images:
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.5-amd64@sha256:4c4ee1c0aa07b4b60dafcd6fcd37ce194beba54f73bd8343c72971f3d56cbca5
-            arm64: 1.14.5-arm64@sha256:43448c478e5ea0ce41c29ad1f49430f5e4b5d7297fed547cb862e53d53f8d276
+            amd64: 1.14.6-amd64@sha256:3ff74cb03d7feffecb1b9376131b189b3d1f93bebf09e6a19a23ecd4e78a1299
+            arm64: 1.14.6-arm64@sha256:a3aefe3b56f19e07cb886e3f87aaf500dca4a4e734096ad7f82789d79a16c762
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
