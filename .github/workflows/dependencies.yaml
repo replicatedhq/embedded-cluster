@@ -81,6 +81,8 @@ jobs:
       uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GH_PAT }}
+        author: replicated-ci-ec <replicated-ci-ec@replicated.com>
+        committer: replicated-ci-ec <replicated-ci-ec@replicated.com>
         commit-message: Update Makefile versions
         title: 'Update Makefile versions'
         branch: automation/update-makefile
