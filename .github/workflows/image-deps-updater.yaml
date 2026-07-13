@@ -103,6 +103,8 @@ jobs:
         id: cpr
         with:
           token: ${{ secrets.GH_PAT }}
+          author: replicated-ci-ec <replicated-ci-ec@replicated.com>
+          committer: replicated-ci-ec <replicated-ci-ec@replicated.com>
           commit-message: 'Update image versions'
           title: "chore: update ${{ matrix.addon }} images"
           branch: ${{ steps.determine-target.outputs.target_branch }}
@@ -162,6 +164,8 @@ jobs:
         id: cpr
         with:
           token: ${{ secrets.GH_PAT }}
+          author: replicated-ci-ec <replicated-ci-ec@replicated.com>
+          committer: replicated-ci-ec <replicated-ci-ec@replicated.com>
           commit-message: 'Update image versions'
           title: "chore: update k0s images"
           branch: ${{ steps.determine-target.outputs.target_branch }}
