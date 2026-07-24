@@ -5,24 +5,24 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.130.8
+version: 1.130.9
 location: oci://proxy.replicated.com/library/admin-console
 images:
     kotsadm:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
         tag:
-            amd64: v1.130.8-amd64@sha256:932f22215d2d621031c0388bce245ca984cd9e763e5685201fe656839a8b52b7
-            arm64: v1.130.8-arm64@sha256:7fd5f2266cdad6cc90803992fc3d14c7dc60e4e9d723400ff8bb342054a4027e
+            amd64: v1.130.9-amd64@sha256:11c2209fce878d6cca3a56ebd79dbb51f1da215b2b4d9f9eca0f18fd606ca0e9
+            arm64: v1.130.9-arm64@sha256:661655579c1cf81f8d5d14dd13b734233a56e0de7183d3898e8fd287638af599
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
-            amd64: v1.130.8-amd64@sha256:ab2b363b3f3c4694e85bf948abf0b69e1af3566bfe9e789cc62da65753004c0b
-            arm64: v1.130.8-arm64@sha256:452f9e29ec91b0998db4d4c25a8541c43fa9c49a8e36904f72cf5f4037beb65f
+            amd64: v1.130.9-amd64@sha256:44aa2fcace605d0f7c5a239bc1b22ed96d3f762319b6529122dbce8448f1290d
+            arm64: v1.130.9-arm64@sha256:32c71bca0d94fabe0486ca1eb4211c6e71e6d3721bb6fe0849319acbcd6b46cd
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
         tag:
-            amd64: v1.130.8-amd64@sha256:5c1e91d2341d6e1597ee5a1f5d8370eada5b814fe8b2ca69bff2843f7a78553f
-            arm64: v1.130.8-arm64@sha256:74aab7e2faac9f76c195652481810d185a939f06c99921edd68e8227a8f7d7a1
+            amd64: v1.130.9-amd64@sha256:9afc4623f8ae5595cd235fd6ed9cb1317bcc68f1ee7f092893d420dab55ae169
+            arm64: v1.130.9-arm64@sha256:eb09cb22b627ad99dfd19f3a8db9bef7e36a69d7e003abf7bc9f3e3c9cbc3e77
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
         tag:
