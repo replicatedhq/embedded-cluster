@@ -388,6 +388,10 @@ func GetImageDigest(ctx context.Context, img string, arch string) (string, error
 	sysctx := &types.SystemContext{
 		OSChoice:           "linux",
 		ArchitectureChoice: arch,
+		// go.podman.io/image v5.40.0 errors on v1-format registries.conf files present on
+		// some hosts (e.g. CI runners). We only resolve fully-qualified references, so skip
+		// loading the system registries configuration entirely.
+		SystemRegistriesConfPath: os.DevNull,
 	}
 	src, err := ref.NewImageSource(ctx, sysctx)
 	if err != nil {
