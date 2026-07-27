@@ -185,3 +185,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.36.2
 	k8s.io/sample-controller => k8s.io/sample-controller v0.36.2
 )
+
+replace k8s.io/cri-streaming => k8s.io/cri-streaming v0.36.2
