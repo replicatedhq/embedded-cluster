@@ -59,6 +59,7 @@ stages:
       dependency_updates:
         ecosystems: [go]
         paths: ["."]
+        exclude_paths: ["dagger"]
         output: dependency_updates
         timeout: 30m
         continue_on_error: true
@@ -101,7 +102,8 @@ stages:
           has no open PR, delete it and create a fresh branch/PR.
         Say [DONE] with the PR URL only when the PR is open and the local checks
         above pass, so the workflow can monitor the GitHub CI results.
-        If {{ .Outputs.dependency_updates.files_changed }} is empty and no PR is
+        
+        If {{ .Outputs.dependency_updates.files_changed }} is empty then no PR is
         needed, say [NO_CHANGES] instead of [DONE].
 
   - id: no-changes
@@ -122,19 +124,13 @@ stages:
             set +e
             tmpdir="$(mktemp -d)"
 
-            cd embedded-cluster
+            ( cd embedded-cluster && make embedded-cluster >"$tmpdir/build.log" 2>&1 ) ; build_status=$?
+            ( cd embedded-cluster && make vet >"$tmpdir/vet.log" 2>&1 ) ; vet_status=$?
+            ( cd embedded-cluster && make unit-tests >"$tmpdir/unit_tests.log" 2>&1 ) ; unit_tests_status=$?
 
-            make embedded-cluster >"$tmpdir/build.log" 2>&1
-            build_status=$?
-
-            make vet >"$tmpdir/vet.log" 2>&1
-            vet_status=$?
-
-            make unit-tests >"$tmpdir/unit_tests.log" 2>&1
-            unit_tests_status=$?
-
-            python3 ./scripts/summarize_local_checks.py "$tmpdir" build "$build_status" vet "$vet_status" unit_tests "$unit_tests_status"
+            python3 scripts/summarize_local_checks.py "$tmpdir" build "$build_status" vet "$vet_status" unit_tests "$unit_tests_status"
           '
+
         output: validation
         timeout: 45m
     gate:
@@ -188,7 +184,7 @@ stages:
                 exit 1
             fi
 
-            python3 ./scripts/wait_for_pr_ci.py --repo-dir ./embedded-cluster --branch deps/dependency-update-go
+            python3 scripts/wait_for_pr_ci.py --repo-dir ./embedded-cluster --branch deps/dependency-update-go
           '
         output: ci_status
         timeout: 120m
