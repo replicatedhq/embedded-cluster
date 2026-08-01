@@ -672,8 +672,8 @@ github.com/redis/go-redis/extra/redisotel/v9 v9.5.3 h1:kuvuJL/+MZIEdvtb/kTBRiRgY
 github.com/redis/go-redis/extra/redisotel/v9 v9.5.3/go.mod h1:7f/FMrf5RRRVHXgfk7CzSVzXHiWeuOQUu2bsVqWoa+g=
 github.com/redis/go-redis/v9 v9.10.0 h1:FxwK3eV8p/CQa0Ch276C7u2d0eNC9kCmAYQ7mCXCzVs=
 github.com/redis/go-redis/v9 v9.10.0/go.mod h1:huWgSWd8mW6+m0VPhJjSSQ+d6Nh1VICQ6Q5lHuCH/Iw=
-github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d h1:N8t9W5SYs1MKPsuAp4PA5Haje4cOyCyubAq65qB1wzE=
-github.com/replicatedhq/kotskinds v0.0.0-20251024162531-2174a5b85a4d/go.mod h1:+k4PHo2wukoU9kdiKrqqgi89Wmj+9AiwppYGVK11zig=
+github.com/replicatedhq/kotskinds v0.1.0 h1:FkFAExFH+kfDLXV2fZFVNtdXR02GkpDAGlUcoBcsjdU=
+github.com/replicatedhq/kotskinds v0.1.0/go.mod h1:8sswH8+cIoOVQdFtUfzOri+SEHIKw8YYwJvGOG9yYgI=
 github.com/replicatedhq/troubleshoot v0.131.1 h1:lun2B6y4ELZrqSfvy9o1VDhIRIlHLNgn0TiLiYLdoO0=
 github.com/replicatedhq/troubleshoot v0.131.1/go.mod h1:pblAl2xqE/lpk8IMa7RhNZEOQSLSv9z9WU3AI56o0Ns=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
