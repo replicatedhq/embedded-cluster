@@ -284,6 +284,9 @@ unit-tests: envtest
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
 
+.PHONY: dependency-update-go
+dependency-update-go: embedded-cluster vet unit-tests
+
 .PHONY: vet
 vet:
 	go vet -tags $(GO_BUILD_TAGS) ./...
