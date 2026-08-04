@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -54,11 +55,15 @@ func copyImageToRegistry(t *testing.T, registryAddr string, image string) {
 
 	_, err = copy.Image(t.Context(), policyContext, dstRef, srcRef, &copy.Options{
 		SourceCtx: &imagetypes.SystemContext{
-			ArchitectureChoice: helpers.ClusterArch(),
-			OSChoice:           "linux",
+			ArchitectureChoice:          helpers.ClusterArch(),
+			OSChoice:                    "linux",
+			SystemRegistriesConfPath:    os.DevNull,
+			SystemRegistriesConfDirPath: "",
 		},
 		DestinationCtx: &imagetypes.SystemContext{
 			DockerInsecureSkipTLSVerify: imagetypes.OptionalBoolTrue,
+			SystemRegistriesConfPath:    os.DevNull,
+			SystemRegistriesConfDirPath: "",
 			DockerAuthConfig: &imagetypes.DockerAuthConfig{
 				Username: "embedded-cluster",
 				Password: registry.GetRegistryPassword(),
