@@ -13,6 +13,7 @@ environment:
     keyring:
       - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     packages:
+      - bash
       - busybox
       - git
       - go
