@@ -614,14 +614,32 @@ func stopAndResetK0s(dataDir string) error {
 		return nil
 	}
 
-	out, err := helpers.RunCommand(k0sBinPath, "stop")
+	stopOut := &lineLogWriter{prefix: "k0s stop"}
+	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: stopOut, Stderr: stopOut, SkipLogOutput: true}, k0sBinPath, "stop", "--verbose")
 	if err != nil {
 		// k0s reset must still run to unmount kubelet pod-volume mounts.
-		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v, %s", err, out)
+		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v", err)
 	}
-	out, err = helpers.RunCommand(k0sBinPath, "reset", "--data-dir", dataDir)
+
+	resetOut := &lineLogWriter{prefix: "k0s reset"}
+	err = helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: resetOut, Stderr: resetOut, SkipLogOutput: true}, k0sBinPath, "reset", "--data-dir", dataDir, "--verbose")
 	if err != nil {
-		return fmt.Errorf("could not reset k0s: %w, %s", err, out)
+		return fmt.Errorf("could not reset k0s: %w", err)
 	}
 	return nil
+}
+
+// lineLogWriter streams command output to logrus as it is written, so that
+// partial output is captured in the logs even if the command is interrupted.
+type lineLogWriter struct {
+	prefix string
+}
+
+func (w *lineLogWriter) Write(p []byte) (int, error) {
+	for _, line := range strings.Split(strings.TrimRight(string(p), "\n"), "\n") {
+		if line != "" {
+			logrus.Debugf("%s: %s", w.prefix, line)
+		}
+	}
+	return len(p), nil
 }
