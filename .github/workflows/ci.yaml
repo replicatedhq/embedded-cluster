@@ -237,6 +237,11 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: ${{ needs.output-vars.outputs.helm_version }}
+      - name: Fix registries.conf format # go.podman.io/image/v5 5.40.0+ rejects the runner's v1-format file
+        run: &fix-registries-conf |
+          sudo tee /etc/containers/registries.conf > /dev/null <<'EOF'
+          unqualified-search-registries = ["docker.io"]
+          EOF
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -267,6 +272,8 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: ${{ needs.output-vars.outputs.helm_version }}
+      - name: Fix registries.conf format
+        run: *fix-registries-conf
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
