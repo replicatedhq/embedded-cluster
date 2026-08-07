@@ -46,9 +46,11 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	cmd.Env = cmdEnv
 
 	if err := cmd.Run(); err != nil {
-		logrus.Debugf("failed to run command:")
-		logrus.Debugf("stdout: %s", stdout.String())
-		logrus.Debugf("stderr: %s", stderr.String())
+		if !opts.SkipLogOutput {
+			logrus.Debugf("failed to run command:")
+			logrus.Debugf("stdout: %s", stdout.String())
+			logrus.Debugf("stderr: %s", stderr.String())
+		}
 
 		// Check if it's a context error and return it instead
 		if ctx.Err() != nil {
@@ -60,7 +62,7 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 		return err
 	}
 
-	if !opts.LogOnSuccess {
+	if !opts.LogOnSuccess || opts.SkipLogOutput {
 		return nil
 	}
 

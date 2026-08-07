@@ -615,14 +615,14 @@ func stopAndResetK0s(dataDir string) error {
 	}
 
 	stopOut := &lineLogWriter{prefix: "k0s stop"}
-	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: stopOut, Stderr: stopOut}, k0sBinPath, "stop", "--verbose")
+	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: stopOut, Stderr: stopOut, SkipLogOutput: true}, k0sBinPath, "stop", "--verbose")
 	if err != nil {
 		// k0s reset must still run to unmount kubelet pod-volume mounts.
 		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v", err)
 	}
 
 	resetOut := &lineLogWriter{prefix: "k0s reset"}
-	err = helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: resetOut, Stderr: resetOut}, k0sBinPath, "reset", "--data-dir", dataDir, "--verbose")
+	err = helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: resetOut, Stderr: resetOut, SkipLogOutput: true}, k0sBinPath, "reset", "--data-dir", dataDir, "--verbose")
 	if err != nil {
 		return fmt.Errorf("could not reset k0s: %w", err)
 	}

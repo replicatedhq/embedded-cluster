@@ -39,6 +39,10 @@ type RunCommandOptions struct {
 	Stdin io.Reader
 	// LogOnSuccess makes the command output to be logged even when it succeeds.
 	LogOnSuccess bool
+	// SkipLogOutput skips logging the captured stdout/stderr as a single blob on
+	// completion. Use this when Stdout/Stderr are already being logged as they're
+	// produced, to avoid duplicating the same output a second time.
+	SkipLogOutput bool
 }
 
 // Convenience functions
