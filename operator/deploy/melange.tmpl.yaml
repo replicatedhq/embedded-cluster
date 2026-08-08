@@ -9,20 +9,24 @@ package:
 environment:
   contents:
     repositories:
-      - https://packages.wolfi.dev/os
+      - https://apk.cve0.io
     keyring:
-      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+      - https://apk.cve0.io/key/cve0-signing.rsa.pub
     packages:
       - bash
       - busybox
-      - git
+      - build-base
+      - bash
       - go
-      - make
+      - git
+      - ca-certificates-bundle
   environment:
     GOCACHE: /cache/melange/gocache
     GOMODCACHE: /cache/melange/gomodcache
     VERSION: ${PACKAGE_VERSION}
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
+    GOPROXY: 'https://proxy.golang.org,direct'
+    GOSUMDB: 'sum.golang.org'
 
 pipeline:
   - runs: |
