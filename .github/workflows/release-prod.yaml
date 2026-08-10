@@ -638,7 +638,6 @@ jobs:
 
       - name: Generate EC Release Notes PR
         if: steps.check-main.outputs.is_from_main == 'true'
-        continue-on-error: true
         env:
           GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
           GH_PAT: ${{ secrets.GH_PAT }}
