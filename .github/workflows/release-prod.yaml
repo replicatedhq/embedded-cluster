@@ -638,11 +638,21 @@ jobs:
 
       - name: Generate EC Release Notes PR
         if: steps.check-main.outputs.is_from_main == 'true'
+        continue-on-error: true
         env:
           GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          curl -H "Authorization: token $GH_PAT" \
+          http_code=$(curl -s -o response.txt -w "%{http_code}" \
+            -H "Authorization: token $GH_PAT" \
             -H 'Accept: application/json' \
             -d "{\"event_type\": \"embedded-cluster-release-notes\", \"client_payload\": {\"version\": \"${GIT_TAG}\"}}" \
-            "https://api.github.com/repos/replicatedhq/replicated-docs/dispatches"
+            "https://api.github.com/repos/replicatedhq/replicated-docs/dispatches")
+
+          echo "HTTP status: $http_code"
+          cat response.txt
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Repository dispatch failed with HTTP status $http_code"
+            exit 1
+          fi
