@@ -78,7 +78,7 @@ function operatorbin() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
+    retry 5 docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
