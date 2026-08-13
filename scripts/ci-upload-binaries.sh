@@ -78,7 +78,11 @@ function operatorbin() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    retry 5 docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
+    # ttl.sh can fail to resolve images by digest, so pull by tag instead.
+    local operator_image_tag
+    operator_image_tag=$(echo "$operator_image" | sed 's/@sha256:.*//')
+
+    retry 5 docker run --platform "linux/$ARCH" -d --name operator "$operator_image_tag"
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
