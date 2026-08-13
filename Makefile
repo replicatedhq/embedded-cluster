@@ -156,10 +156,30 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	fi
 	touch $@
 
-output/bins/kubectl-kots-%:
+.PHONY: force-kubectl-kots-extract
+force-kubectl-kots-extract:
+
+# Extract kubectl-kots from the image, resolving its filesystem symlink.
+output/bins/kubectl-kots-%: force-kubectl-kots-extract
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
+	tmpdir=$$(mktemp -d output/tmp/kubectl-kots.XXXXXX); \
+	trap 'rm -rf "$$tmpdir"' EXIT; \
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) "$$tmpdir/image.tar"; \
+	archive_path=kots; \
+	tar -xf "$$tmpdir/image.tar" -C "$$tmpdir" "$$archive_path"; \
+	binary="$$tmpdir/$$archive_path"; \
+	while [ -L "$$binary" ]; do \
+		target=$$(readlink "$$binary"); \
+		case "$$target" in \
+			/*) archive_path=$${target#/} ;; \
+			*) archive_path=$$(dirname "$$archive_path")/$$target ;; \
+		esac; \
+		tar -xf "$$tmpdir/image.tar" -C "$$tmpdir" "$$archive_path"; \
+		binary="$$tmpdir/$$archive_path"; \
+	done; \
+	test -s "$$binary"; \
+	cp "$$binary" $@
 	chmod +x $@
 	touch $@
 

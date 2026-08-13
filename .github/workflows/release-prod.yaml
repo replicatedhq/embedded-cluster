@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag-name: ${{ steps.get-tag.outputs.tag-name }}
+      securebuild-version: ${{ steps.get-tag.outputs.securebuild-version }}
+      is-stable: ${{ steps.get-tag.outputs.is-stable }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
       k0s_minor_version: ${{ steps.export.outputs.k0s_minor_version }}
     steps:
@@ -31,6 +33,12 @@ jobs:
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
+          echo "securebuild-version=${RAW_TAG}" >> "$GITHUB_OUTPUT"
+          if [[ "$V_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\+k8s-1\.[0-9]+$ ]]; then
+            echo "is-stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-stable=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Export k0s version
         id: export
@@ -67,6 +75,15 @@ jobs:
         with:
           name: buildtools
           path: output/bin/buildtools
+
+  # SecureBuild publishing is a non-blocking preview during the transition release.
+  publish-securebuild:
+    needs: [get-tag]
+    if: needs.get-tag.outputs.is-stable == 'true'
+    uses: ./.github/workflows/publish-securebuild.yml
+    with:
+      version: ${{ needs.get-tag.outputs.securebuild-version }}
+    secrets: inherit
 
   publish-operator-image:
     runs-on: ubuntu-latest

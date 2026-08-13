@@ -1,0 +1,67 @@
+package:
+  name: local-artifact-mirror-k8s1.33-head
+  version: "1000.0.0"
+  epoch: 0
+  description: Local Artifact Mirror
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    provides:
+      - local-artifact-mirror-k8s1.33=${{package.full-version}}
+
+var-transforms:
+  - from: ${{package.name}}
+    match: ^.+-k8s1\\.(\\d+)-head$
+    replace: "$1"
+    to: k0s-minor-version
+  - from: ${{package.name}}
+    match: ^.+-(k8s)(1\\.\\d+)-head$
+    replace: "$1-$2"
+    to: k8s-version
+  - from: ${{package.version}}
+    match: ^(\d+\.\d+)\.\d+$
+    replace: "$1"
+    to: major-minor-version
+  - from: ${{package.version}}
+    match: ^(\d+).*
+    replace: $1
+    to: major-version
+
+environment:
+  environment:
+    K0S_MINOR_VERSION: ${{vars.k0s-minor-version}}
+    GOPROXY: https://proxy.golang.org,direct
+    GOSUMDB: sum.golang.org
+  contents:
+    repositories:
+      - https://apk.cve0.io
+    keyring:
+      - https://apk.cve0.io/key/cve0-signing.rsa.pub
+    packages:
+      - busybox
+      - build-base
+      - go
+      - ca-certificates-bundle
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/replicatedhq/embedded-cluster
+      tag: ${{package.version}}+${{vars.k8s-version}}
+  - name: build-go-binary
+    runs: |
+      export GOPROXY=https://proxy.golang.org,direct
+      export GOSUMDB=sum.golang.org
+      mkdir -p bin
+      CGO_ENABLED=0 go build \
+        -tags osusergo,netgo,k0s_legacy_airgap \
+        -ldflags="-s -w -extldflags=-static" \
+        -o bin/local-artifact-mirror ./cmd/local-artifact-mirror
+
+      mkdir -p ${{targets.destdir}}/usr/bin
+      mkdir -p ${{targets.destdir}}/usr/local/bin
+      cp bin/local-artifact-mirror ${{targets.destdir}}/usr/bin/local-artifact-mirror
+      # support for legacy path
+      ln -s /usr/bin/local-artifact-mirror ${{targets.destdir}}/usr/local/bin/local-artifact-mirror
+
+  - uses: strip

@@ -3,11 +3,17 @@ description: Setup steps for local e2e testing environment
 runs:
   using: composite
   steps:
+  - name: Use primary Ubuntu mirror
+    shell: bash
+    run: |
+      if [ -f /etc/apt/apt-mirrors.txt ]; then
+        sudo sed -i '\|azure.archive.ubuntu.com|d' /etc/apt/apt-mirrors.txt
+      fi
   - name: Remove MS repo
     shell: bash
     run: |
       apt-add-repository --list
-      sudo apt-add-repository -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
+      sudo apt-add-repository --no-update -y -r deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/ubuntu/22.04/prod jammy main
       apt-add-repository --list
   - name: Move Docker aside
     shell: bash
@@ -36,6 +42,5 @@ runs:
   - name: Set AppArmor mode to complain
     shell: bash
     run: |
-      sudo apt-get update -y
       sudo apt install apparmor-utils -y
       sudo aa-complain /etc/apparmor.d/* 
