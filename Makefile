@@ -156,7 +156,7 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	fi
 	touch $@
 
-output/bins/kubectl-kots-%:
+output/bins/kubectl-kots-%: Makefile
 	mkdir -p output/bins
 	mkdir -p output/tmp
 	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - usr/local/bin/kots > $@
