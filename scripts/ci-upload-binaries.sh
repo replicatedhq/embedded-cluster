@@ -144,7 +144,7 @@ function kotsbin() {
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C "$(dirname "${kots_file_override}")" "$(basename "${kots_file_override}")"
     else
         echo "extracting kots binary from kotsadm image"
-        crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - kots > build/kots
+        crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - usr/local/bin/kots > build/kots
         chmod +x build/kots
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C build kots
     fi

@@ -159,7 +159,7 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - usr/local/bin/kots > $@
 	chmod +x $@
 	touch $@
 
