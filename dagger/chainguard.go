@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"dagger/embedded-cluster/internal/dagger"
 )
@@ -133,6 +135,33 @@ func (m *chainguard) apkoPublish(
 		)
 
 	return c
+}
+
+// retryPublish retries the publish operation up to maxRetries times with
+// exponential backoff. The *dagger.Container pipeline is reused between
+// attempts, so the expensive build is cached and only the registry push is
+// retried.
+func (m *chainguard) retryPublish(
+	ctx context.Context,
+	publish *dagger.Container,
+	maxRetries int,
+	initialBackoff time.Duration,
+) (string, error) {
+	var lastErr error
+	backoff := initialBackoff
+	for i := 0; i <= maxRetries; i++ {
+		if i > 0 {
+			fmt.Printf("Publish attempt %d/%d failed, retrying in %v: %v\n", i, maxRetries, backoff, lastErr)
+			time.Sleep(backoff)
+			backoff *= 2
+		}
+		out, err := publish.Stdout(ctx)
+		if err == nil {
+			return out, nil
+		}
+		lastErr = err
+	}
+	return "", lastErr
 }
 
 func (m *chainguard) apkoLogin(
