@@ -78,7 +78,15 @@ function operatorbin() {
     operator_image=$(cat "operator/build/image-$EC_VERSION")
     operator_version="${EC_VERSION#v}" # remove the 'v' prefix
 
-    docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
+    # The operator image is pushed to ttl.sh, which can be slow to make the
+    # manifest available for pull-by-digest. Retry briefly so a transient
+    # manifest-unknown error doesn't fail the whole build.
+    function start_operator_container() {
+        docker rm -f operator >/dev/null 2>&1 || true
+        docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
+    }
+    retry 3 start_operator_container
+
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
     docker rm -f operator
