@@ -85,7 +85,19 @@ function operatorbin() {
         docker rm -f operator >/dev/null 2>&1 || true
         docker run --platform "linux/$ARCH" -d --name operator "$operator_image"
     }
-    retry 3 start_operator_container
+    if ! retry 3 start_operator_container; then
+        # If the digest reference is not resolvable, fall back to the tag-only
+        # reference. The image was just published by tag, so the tag should be
+        # available even when ttl.sh's digest index is lagging.
+        local operator_image_tag=""
+        operator_image_tag="${operator_image%%@*}"
+        log "digest reference failed, falling back to tag reference $operator_image_tag"
+        function start_operator_container_tag() {
+            docker rm -f operator >/dev/null 2>&1 || true
+            docker run --platform "linux/$ARCH" -d --name operator "$operator_image_tag"
+        }
+        retry 3 start_operator_container_tag
+    fi
 
     mkdir -p operator/bin
     docker cp operator:/manager operator/bin/operator
