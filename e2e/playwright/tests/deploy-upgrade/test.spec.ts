@@ -2,7 +2,7 @@ import { test, expect, Page, FrameLocator } from '@playwright/test';
 import { login, vaidateAppAndClusterReady } from '../shared';
 
 test('deploy upgrade', async ({ page }) => {
-  test.setTimeout(25 * 60 * 1000); // 25 minutes - airgap + SELinux upgrades can be slow
+  test.setTimeout(35 * 60 * 1000); // 35 minutes - airgap, SELinux, and proxied upgrades can be slow
   await login(page);
   await runDeployUpgradeWithRetry(page);
   await verifyUpgradeSuccess(page);
@@ -80,7 +80,7 @@ async function waitForClusterUpdate(page: Page) {
 
 async function verifyUpgradeSuccess(page: Page) {
   await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 5 * 60 * 1000 });
-  await expect(page.locator('.VersionHistoryRow').filter({ hasText: process.env.APP_UPGRADE_VERSION }).filter({ hasText: 'Currently deployed version' })).toBeVisible({ timeout: 90 * 1000 });
+  await expect(page.locator('.VersionHistoryRow').filter({ hasText: process.env.APP_UPGRADE_VERSION }).filter({ hasText: 'Currently deployed version' })).toBeVisible({ timeout: 5 * 60 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
   await vaidateAppAndClusterReady(page, expect, 10 * 1000);
