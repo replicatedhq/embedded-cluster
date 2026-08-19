@@ -922,6 +922,7 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 	allowedDomains := map[string]struct{}{
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
+		"proxy.staging.replicated.com":          {}, // Configured as replicatedProxyDomain in the test license
 		"*":                                     {}, // Triggered by host preflight wildcard-check
 	}
 
