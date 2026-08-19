@@ -124,12 +124,22 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version:   appVersion,
-		licenseID: SnapshotLicenseID,
-	})
-
-	installSingleNode(t, tc)
+	// Playwright setup (npm ci + browser downloads) only depends on the local runner.
+	// Run it in parallel with the embedded cluster download/install so it does not
+	// consume the entire e2e-test timeout.
+	runInParallel(t,
+		func(t *testing.T) error {
+			downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+				version:   appVersion,
+				licenseID: SnapshotLicenseID,
+			})
+			installSingleNode(t, tc)
+			return nil
+		},
+		func(t *testing.T) error {
+			return tc.NPMInstallPlaywright()
+		},
+	)
 
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)

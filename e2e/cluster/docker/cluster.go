@@ -121,12 +121,7 @@ func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (st
 	return c.RunPlaywrightTest(testName, args...)
 }
 
-func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
-	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
-	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
-	if err != nil {
-		return fmt.Errorf("fail to bypass kurl-proxy: %v: %s", err, string(stderr))
-	}
+func (c *Cluster) NPMInstallPlaywright(envs ...map[string]string) error {
 	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
 	cmd := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps")
 	out, err := cmd.CombinedOutput()
@@ -134,6 +129,15 @@ func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
 		return fmt.Errorf("fail to install playwright: %v: %s", err, string(out))
 	}
 	return nil
+}
+
+func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
+	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
+	_, stderr, err := c.RunCommandOnNode(0, []string{"bypass-kurl-proxy.sh"}, envs...)
+	if err != nil {
+		return fmt.Errorf("fail to bypass kurl-proxy: %v: %s", err, string(stderr))
+	}
+	return c.NPMInstallPlaywright(envs...)
 }
 
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
