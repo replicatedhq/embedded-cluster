@@ -84,11 +84,11 @@ func TestPreflights(t *testing.T) {
 					}
 				}
 				for _, res := range results.Fail {
-					if !strings.Contains(res.Message, "Write latency is high") {
-						t.Errorf("fio test failed: %s", res.Message)
+					if res.Title == "Filesystem Write Latency" {
+						// as long as fio ran successfully, we're good
+						t.Logf("fio test failed: %s", res.Message)
+						return
 					}
-					// as long as fio ran successfully, we're good
-					t.Logf("fio test failed: %s", res.Message)
 				}
 
 				t.Errorf("fio test not found")

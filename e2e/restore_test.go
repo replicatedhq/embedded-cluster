@@ -124,12 +124,22 @@ func TestSingleNodeLegacyDisasterRecovery(t *testing.T) {
 
 	appVersion := fmt.Sprintf("appver-%s-legacydr", os.Getenv("SHORT_SHA"))
 
-	downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
-		version:   appVersion,
-		licenseID: SnapshotLicenseID,
-	})
-
-	installSingleNode(t, tc)
+	// Playwright setup (npm ci + browser downloads) only depends on the local runner.
+	// Run it in parallel with the embedded cluster download/install so it does not
+	// consume the entire e2e-test timeout.
+	runInParallel(t,
+		func(t *testing.T) error {
+			downloadECReleaseWithOptions(t, tc, 0, downloadECReleaseOptions{
+				version:   appVersion,
+				licenseID: SnapshotLicenseID,
+			})
+			installSingleNode(t, tc)
+			return nil
+		},
+		func(t *testing.T) error {
+			return tc.NPMInstallPlaywright()
+		},
+	)
 
 	if err := tc.SetupPlaywright(); err != nil {
 		t.Fatalf("fail to setup playwright: %v", err)
@@ -268,7 +278,7 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		t.Fatalf("failed to deploy minio on node 0: %v", err)
 	}
 
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files and installing playwright", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s-previous-k0s-1", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
@@ -277,6 +287,10 @@ func TestSingleNodeAirgapDisasterRecovery(t *testing.T) {
 		},
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+		}, func(t *testing.T) error {
+			// Playwright setup (npm ci + browser downloads) only depends on the local runner.
+			// Run it in parallel with the airgap downloads so it does not serialize the wall clock.
+			return tc.NPMInstallPlaywright()
 		},
 	)
 
@@ -580,7 +594,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("failed to deploy minio on node 0: %v", err)
 	}
 
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files and installing playwright", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
@@ -589,6 +603,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		},
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+		},
+		func(t *testing.T) error {
+			return tc.NPMInstallPlaywright()
 		},
 	)
 

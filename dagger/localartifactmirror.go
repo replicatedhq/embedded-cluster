@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"dagger/embedded-cluster/internal/dagger"
 )
@@ -90,7 +91,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 		APKOImageVersion,
 	)
 
-	return publish.Stdout(ctx)
+	return m.chainguard.retryPublish(ctx, publish, 3, 5*time.Second)
 }
 
 // Builds the local artifact mirror package with Melange.

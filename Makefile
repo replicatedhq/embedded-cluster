@@ -159,7 +159,7 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 output/bins/kubectl-kots-%:
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - usr/local/bin/kots > $@
 	chmod +x $@
 	touch $@
 
@@ -294,7 +294,7 @@ e2e-tests: embedded-release
 
 .PHONY: e2e-test
 e2e-test:
-	go test -tags $(GO_BUILD_TAGS) -timeout 70m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
+	go test -tags $(GO_BUILD_TAGS) -timeout 120m -ldflags="$(LD_FLAGS)" -v ./e2e -run ^$(TEST_NAME)$$
 
 .PHONY: dryrun-tests
 dryrun-tests: export DRYRUN_MATCH = Test
