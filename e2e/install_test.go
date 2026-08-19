@@ -465,6 +465,10 @@ func TestMultiNodeAirgapUpgradePreviousStable(t *testing.T) {
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgrade2Version, AirgapUpgrade2BundlePath, AirgapLicenseID)
 		},
+		func(t *testing.T) error {
+			// Playwright setup (npm ci + browser downloads) only depends on the local runner.
+			return tc.NPMInstallPlaywright()
+		},
 	)
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -598,7 +602,7 @@ func TestSingleNodeAirgapAppOnlyUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files and installing playwright", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")) // Upgrade to the same version as the initial version
 	runInParallel(t,
@@ -607,6 +611,9 @@ func TestSingleNodeAirgapAppOnlyUpgrade(t *testing.T) {
 		},
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+		func(t *testing.T) error {
+			return tc.NPMInstallPlaywright()
 		},
 	)
 
@@ -683,7 +690,7 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files and installing playwright", time.Now().Format(time.RFC3339))
 	// Previous stable EC version with a -1 minor k0s version
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
@@ -693,6 +700,9 @@ func TestFiveNodesAirgapUpgrade(t *testing.T) {
 		},
 		func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+		func(t *testing.T) error {
+			return tc.NPMInstallPlaywright()
 		},
 	)
 
