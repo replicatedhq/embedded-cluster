@@ -549,6 +549,10 @@ func sshArgs() []string {
 	return []string{
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "BatchMode=yes",
+		// Keep long-running commands (e.g. embedded-cluster install) from being
+		// dropped by network middleboxes or the SSH server when they are idle.
+		"-o", "ServerAliveInterval=60",
+		"-o", "ServerAliveCountMax=3",
 	}
 }
 
