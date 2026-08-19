@@ -308,7 +308,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	})
 	defer tc.Cleanup()
 
-	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
+	t.Logf("%s: downloading airgap files and installing playwright on node 0", time.Now().Format(time.RFC3339))
 	// Previous stable EC version with a -1 minor k0s version
 	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
 	runInParallel(t,
@@ -316,6 +316,11 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
 		}, func(t *testing.T) error {
 			return downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), AirgapUpgradeBundlePath, AirgapLicenseID)
+		}, func(t *testing.T) error {
+			// Playwright setup takes several minutes (npm ci + browser downloads) and only
+			// depends on the local runner. Run it in parallel with the airgap downloads to
+			// avoid serializing it behind the cluster install and reboot.
+			return tc.NPMInstallPlaywright()
 		},
 	)
 

@@ -2,7 +2,7 @@ import { test, expect, Page, FrameLocator } from '@playwright/test';
 import { login, vaidateAppAndClusterReady } from '../shared';
 
 test('deploy upgrade', async ({ page }) => {
-  test.setTimeout(15 * 60 * 1000); // 15 minutes
+  test.setTimeout(25 * 60 * 1000); // 25 minutes - airgap + SELinux upgrades can be slow
   await login(page);
   await runDeployUpgradeWithRetry(page);
   await verifyUpgradeSuccess(page);
