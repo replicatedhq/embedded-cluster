@@ -17,6 +17,11 @@ var operatorImageComponents = map[string]addonComponent{
 	"docker.io/replicated/embedded-cluster-operator-image": {
 		name:             "embedded-cluster-operator",
 		useUpstreamImage: true,
+		// The operator image is a multi-arch image published by tag. Use the tag
+		// as-is instead of a synthetic arch-suffixed digest reference so that
+		// registries (including ttl.sh) that do not reliably resolve
+		// tag@digest references can still pull it.
+		usePlainTag: true,
 	},
 	"proxy.replicated.com/library/embedded-cluster-utils": {
 		name:             "utils",

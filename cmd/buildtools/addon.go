@@ -75,6 +75,12 @@ func (c *addonComponent) getUpstreamVersion(image string) string {
 }
 
 func (c *addonComponent) resolveUpstreamImageRepoAndTag(ctx context.Context, image string, arch string) (string, string, error) {
+	if c.usePlainTag {
+		repo := FamiliarImageName(RemoveTagFromImage(image))
+		repo = addProxyAnonymousPrefix(repo)
+		return repo, TagFromImage(image), nil
+	}
+
 	digest, err := GetImageDigest(ctx, image, arch)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get image %s digest: %w", image, err)
