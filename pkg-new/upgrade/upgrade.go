@@ -44,19 +44,25 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 	// installation data dirs from the previous installation.
 	rc.Set(in.Spec.RuntimeConfig)
 
-	// Update the cluster config before upgrading k0s: 1.35 and older pin
-	// spec.images.pause by digest, but containerd 2.x (k0s 1.36+) rejects a
-	// digest-pinned sandbox image, so it must become a tag-only ref before k0s 1.36
-	// restarts, otherwise no pod can get a sandbox. Updating it now doesn't affect
-	// the running k0s/containerd; it's only picked up when k0s restarts below.
-	err = updateClusterConfig(ctx, cli, in, logger)
+	// Update only the pause image before upgrading k0s: 1.35 and older pin it by
+	// digest, but containerd 2.x (k0s 1.36+) rejects a digest-pinned sandbox image.
+	// Updating all component images here would roll them out using the old k0s
+	// manifests and RBAC, which may not support the newer images.
+	err = updatePauseImage(ctx, cli, in, logger)
 	if err != nil {
-		return fmt.Errorf("cluster config update: %w", err)
+		return fmt.Errorf("pause image update: %w", err)
 	}
 
 	err = upgradeK0s(ctx, cli, rc, in, logger)
 	if err != nil {
 		return fmt.Errorf("k0s upgrade: %w", err)
+	}
+
+	// The new k0s binary is now running on every node, so its manifests and RBAC
+	// are compatible with the target component images.
+	err = updateClusterConfig(ctx, cli, in, logger)
+	if err != nil {
+		return fmt.Errorf("cluster config update: %w", err)
 	}
 
 	logger.Info("Upgrading addons")
@@ -81,6 +87,28 @@ func Upgrade(ctx context.Context, cli client.Client, hcli helm.Client, rc runtim
 		return fmt.Errorf("set installation state: %w", err)
 	}
 
+	return nil
+}
+
+// updatePauseImage updates only the sandbox image needed by the target k0s
+// version without prematurely rolling out the other target component images.
+func updatePauseImage(ctx context.Context, cli client.Client, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
+	var currentCfg k0sv1beta1.ClusterConfig
+	if err := cli.Get(ctx, client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &currentCfg); err != nil {
+		return fmt.Errorf("get cluster config: %w", err)
+	}
+
+	domains := domains.GetDomains(in.Spec.Config, nil)
+	targetCfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
+	if currentCfg.Spec.Images == nil || reflect.DeepEqual(currentCfg.Spec.Images.Pause, targetCfg.Spec.Images.Pause) {
+		return nil
+	}
+
+	currentCfg.Spec.Images.Pause = targetCfg.Spec.Images.Pause.DeepCopy()
+	if err := cli.Update(ctx, &currentCfg); err != nil {
+		return fmt.Errorf("update cluster config: %w", err)
+	}
+	logger.Info("Updated cluster config with new pause image")
 	return nil
 }
 
