@@ -14,7 +14,9 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8snet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/wait"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,6 +75,10 @@ func ensureArtifactsOnNodes(
 	err = wait.PollUntilContextCancel(ctx, 5*time.Second, true, func(ctx context.Context) (bool, error) {
 		jobs, err := operatorartifacts.ListArtifactsJobForNodes(ctx, cli, in)
 		if err != nil {
+			if isRetryableAPIError(err) {
+				log.Error(err, "Unable to check artifact jobs, retrying")
+				return false, nil
+			}
 			return false, fmt.Errorf("list artifacts jobs for nodes: %w", err)
 		}
 
@@ -112,6 +118,16 @@ func ensureArtifactsOnNodes(
 	}
 
 	return nil
+}
+
+func isRetryableAPIError(err error) bool {
+	return k8serrors.IsTimeout(err) ||
+		k8serrors.IsServerTimeout(err) ||
+		k8serrors.IsTooManyRequests(err) ||
+		k8snet.IsTimeout(err) ||
+		k8snet.IsProbableEOF(err) ||
+		k8snet.IsHTTP2ConnectionLost(err) ||
+		k8snet.IsConnectionRefused(err)
 }
 
 func ensureAirgapArtifactsInCluster(ctx context.Context, cli client.Client, rc runtimeconfig.RuntimeConfig, in *ecv1beta1.Installation) error {
