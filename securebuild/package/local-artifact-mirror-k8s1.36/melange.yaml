@@ -11,11 +11,11 @@ package:
 
 var-transforms:
   - from: ${{package.name}}
-    match: ^.+-k8s1\\.(\\d+)-head$
+    match: ^.+-k8s1\.(\d+)(-head)?$
     replace: "$1"
     to: k0s-minor-version
   - from: ${{package.name}}
-    match: ^.+-(k8s)(1\\.\\d+)-head$
+    match: ^.+-(k8s)(1\.\d+)(-head)?$
     replace: "$1-$2"
     to: k8s-version
   - from: ${{package.version}}
@@ -42,6 +42,7 @@ environment:
       - build-base
       - go
       - ca-certificates-bundle
+      - curl
 
 pipeline:
   - uses: git-checkout
@@ -50,17 +51,12 @@ pipeline:
       tag: ${{package.version}}+${{vars.k8s-version}}
   - name: build-go-binary
     runs: |
-      export GOPROXY=https://proxy.golang.org,direct
-      export GOSUMDB=sum.golang.org
-      mkdir -p bin
-      CGO_ENABLED=0 go build \
-        -tags osusergo,netgo \
-        -ldflags="-s -w -extldflags=-static" \
-        -o bin/local-artifact-mirror ./cmd/local-artifact-mirror
+      make -C local-artifact-mirror build-deps build
 
       mkdir -p ${{targets.destdir}}/usr/bin
       mkdir -p ${{targets.destdir}}/usr/local/bin
-      cp bin/local-artifact-mirror ${{targets.destdir}}/usr/bin/local-artifact-mirror
+      cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(go env GOARCH) \
+        ${{targets.destdir}}/usr/bin/local-artifact-mirror
       # support for legacy path
       ln -s /usr/bin/local-artifact-mirror ${{targets.destdir}}/usr/local/bin/local-artifact-mirror
 

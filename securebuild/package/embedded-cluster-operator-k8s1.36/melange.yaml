@@ -11,11 +11,11 @@ package:
 
 var-transforms:
   - from: ${{package.name}}
-    match: ^.+-k8s1\\.(\\d+)-head$
+    match: ^.+-k8s1\.(\d+)(-head)?$
     replace: "$1"
     to: k0s-minor-version
   - from: ${{package.name}}
-    match: ^.+-(k8s)(1\\.\\d+)-head$
+    match: ^.+-(k8s)(1\.\d+)(-head)?$
     replace: "$1-$2"
     to: k8s-version
   - from: ${{package.version}}
@@ -42,6 +42,7 @@ environment:
       - build-base
       - go
       - ca-certificates-bundle
+      - curl
 
 pipeline:
   - uses: git-checkout
@@ -51,15 +52,8 @@ pipeline:
 
   - name: build-go-binary
     runs: |
-      cd operator
-      VERSION="${VERSION:-${{package.version}}+${{vars.k8s-version}}}"
-      export GOPROXY=https://proxy.golang.org,direct
-      export GOSUMDB=sum.golang.org
-      mkdir -p bin
-      CGO_ENABLED=0 go build \
-        -tags osusergo,netgo,containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay \
-        -ldflags="-s -w -X github.com/replicatedhq/embedded-cluster/pkg/versions.Version=$VERSION -extldflags=-static" \
-        -o bin/manager main.go
-      cp bin/manager ${{targets.destdir}}/manager
+      make -C operator build-deps build \
+        VERSION=${{package.version}}+${{vars.k8s-version}}
+      cp operator/bin/manager ${{targets.destdir}}/manager
 
   - uses: strip

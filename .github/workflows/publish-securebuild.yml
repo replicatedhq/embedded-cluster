@@ -19,7 +19,7 @@ on:
 
 jobs:
   validate-version:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       k0s-minor-version: ${{ steps.version.outputs.k0s-minor-version }}
     steps:
@@ -36,7 +36,7 @@ jobs:
 
   build-packages:
     needs: validate-version
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       matrix:
@@ -61,7 +61,7 @@ jobs:
 
   build-images:
     needs: build-packages
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
       matrix:
