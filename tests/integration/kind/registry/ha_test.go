@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/distribution/reference"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -493,7 +494,7 @@ func buildOperatorImage(t *testing.T) string {
 		t.Logf("%s building operator image", formattedTime())
 
 		cmd := exec.CommandContext(
-			t.Context(), "make", "-C", operatorDir, "build-ttl.sh", "USE_CHAINGUARD=0",
+			t.Context(), "make", "-C", operatorDir, "build-ttl.sh",
 		)
 
 		var errBuf bytes.Buffer
@@ -510,20 +511,42 @@ func buildOperatorImage(t *testing.T) string {
 		t.Fatalf("failed to read operator image file: %v", err)
 	}
 
-	parts := strings.Split(strings.TrimSpace(string(image)), ":")
-	if len(parts) != 2 {
-		t.Fatalf("invalid operator image: %s", string(image))
+	repo, tag, err := splitOperatorImageReference(strings.TrimSpace(string(image)))
+	if err != nil {
+		t.Fatalf("invalid operator image %q: %v", strings.TrimSpace(string(image)), err)
 	}
 
 	embeddedclusteroperator.Metadata.Images["embedded-cluster-operator"] = release.AddonImage{
-		Repo: parts[0],
+		Repo: repo,
 		Tag: map[string]string{
-			"amd64": parts[1],
-			"arm64": parts[1],
+			"amd64": tag,
+			"arm64": tag,
 		},
 	}
 
 	return string(image)
+}
+
+func splitOperatorImageReference(image string) (string, string, error) {
+	ref, err := reference.Parse(image)
+	if err != nil {
+		return "", "", err
+	}
+
+	named, ok := ref.(reference.Named)
+	if !ok {
+		return "", "", fmt.Errorf("reference has no repository")
+	}
+	tagged, ok := ref.(reference.Tagged)
+	if !ok {
+		return "", "", fmt.Errorf("reference has no tag")
+	}
+
+	tag := tagged.Tag()
+	if digested, ok := ref.(reference.Digested); ok {
+		tag = fmt.Sprintf("%s@%s", tag, digested.Digest())
+	}
+	return named.Name(), tag, nil
 }
 
 func newTestingSpinner(t *testing.T) *spinner.MessageWriter {

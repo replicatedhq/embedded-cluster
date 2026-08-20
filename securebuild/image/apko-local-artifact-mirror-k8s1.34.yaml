@@ -1,0 +1,35 @@
+contents:
+  repositories:
+    - https://apk.cve0.io
+  keyring:
+    - https://apk.cve0.io/key/cve0-signing.rsa.pub
+  packages:
+    - busybox
+    - ca-certificates-bundle
+    - local-artifact-mirror-k8s1.34
+
+accounts:
+  groups:
+    - groupname: nonroot
+      gid: 65532
+  users:
+    - username: nonroot
+      uid: 65532
+      gid: 65532
+  # many embedded-cluster commands must be run as root
+  run-as: 0
+
+environment:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+entrypoint:
+  command: /usr/bin/local-artifact-mirror
+
+archs:
+  - x86_64
+  - aarch64
+
+annotations:
+  org.opencontainers.image.title: "Local Artifact Mirror"
+  org.opencontainers.image.description: "Local Artifact Mirror for Embedded Cluster"
+  org.opencontainers.image.vendor: "SecureBuild"

@@ -7,6 +7,7 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,6 +16,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
+
+func TestUpdatePauseImage(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, k0sv1beta1.Install(scheme))
+
+	currentConfig := k0sv1beta1.DefaultClusterConfig()
+	currentConfig.Name = "k0s"
+	currentConfig.Namespace = "kube-system"
+	originalImages := currentConfig.Spec.Images.DeepCopy()
+
+	installation := &ecv1beta1.Installation{
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Domains: ecv1beta1.Domains{ProxyRegistryDomain: "registry.com"},
+			},
+		},
+	}
+
+	cli := fake.NewClientBuilder().WithScheme(scheme).WithObjects(currentConfig).Build()
+	require.NoError(t, updatePauseImage(context.Background(), cli, installation, logger))
+
+	var updatedConfig k0sv1beta1.ClusterConfig
+	require.NoError(t, cli.Get(context.Background(), client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &updatedConfig))
+
+	targetConfig := config.RenderK0sConfig("registry.com")
+	assert.Equal(t, targetConfig.Spec.Images.Pause, updatedConfig.Spec.Images.Pause)
+	updatedConfig.Spec.Images.Pause = originalImages.Pause
+	assert.Equal(t, originalImages, updatedConfig.Spec.Images, "non-pause images must not change before the k0s upgrade")
+}
 
 func TestUpdateClusterConfig(t *testing.T) {
 	// Discard log messages

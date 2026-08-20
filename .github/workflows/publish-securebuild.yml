@@ -1,0 +1,85 @@
+name: Publish SecureBuild packages and images
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Stable embedded-cluster version (for example, v2.18.1+k8s-1.33)
+        required: true
+        type: string
+    secrets:
+      SECUREBUILD_API_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable embedded-cluster version (for example, v2.18.1+k8s-1.33)
+        required: true
+        type: string
+
+jobs:
+  validate-version:
+    runs-on: ubuntu-latest
+    outputs:
+      k0s-minor-version: ${{ steps.version.outputs.k0s-minor-version }}
+    steps:
+      - name: Require a stable release version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+\+k8s-1\.([0-9]+)$ ]]; then
+            echo "SecureBuild only supports stable release versions (for example, v2.18.1+k8s-1.33): $VERSION"
+            exit 1
+          fi
+          echo "k0s-minor-version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+  build-packages:
+    needs: validate-version
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        package-family:
+          - embedded-cluster-operator
+          - local-artifact-mirror
+    steps:
+      - name: Install SecureBuild CLI
+        run: |
+          LATEST_TAG=$(curl -fsSL https://api.github.com/repos/securebuildhq/securebuild/releases/latest | jq -r .tag_name)
+          curl -fsSL "https://github.com/securebuildhq/securebuild/releases/download/${LATEST_TAG}/securebuild-cli-linux-amd64" -o securebuild
+          chmod +x securebuild
+
+      - name: Build package
+        env:
+          SECUREBUILD_API_TOKEN: ${{ secrets.SECUREBUILD_API_TOKEN }}
+        run: |
+          ./securebuild build package \
+            --package-family-name "${{ matrix.package-family }}-k8s1.${{ needs.validate-version.outputs.k0s-minor-version }}" \
+            --tag "${{ inputs.version }}" \
+            --api-token "$SECUREBUILD_API_TOKEN"
+
+  build-images:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        image-name:
+          - embedded-cluster-operator
+          - local-artifact-mirror
+    steps:
+      - name: Install SecureBuild CLI
+        run: |
+          LATEST_TAG=$(curl -fsSL https://api.github.com/repos/securebuildhq/securebuild/releases/latest | jq -r .tag_name)
+          curl -fsSL "https://github.com/securebuildhq/securebuild/releases/download/${LATEST_TAG}/securebuild-cli-linux-amd64" -o securebuild
+          chmod +x securebuild
+
+      - name: Build image
+        env:
+          SECUREBUILD_API_TOKEN: ${{ secrets.SECUREBUILD_API_TOKEN }}
+        run: |
+          ./securebuild build image \
+            --image-name "${{ matrix.image-name }}" \
+            --tag "${{ inputs.version }}" \
+            --api-token "$SECUREBUILD_API_TOKEN"
