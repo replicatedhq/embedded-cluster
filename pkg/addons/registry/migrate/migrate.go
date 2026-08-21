@@ -146,8 +146,9 @@ func ensureRegistryBucket(ctx context.Context, s3Client *s3.Client) error {
 		Bucket: ptr.To(s3Bucket),
 	})
 	if err != nil {
-		var bne *s3types.BucketAlreadyExists
-		if !errors.As(err, &bne) {
+		var bucketAlreadyExists *s3types.BucketAlreadyExists
+		var bucketAlreadyOwnedByYou *s3types.BucketAlreadyOwnedByYou
+		if !errors.As(err, &bucketAlreadyExists) && !errors.As(err, &bucketAlreadyOwnedByYou) {
 			return errors.Wrap(err, "create bucket")
 		}
 	}
