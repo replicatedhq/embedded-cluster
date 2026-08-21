@@ -61,6 +61,30 @@ function create_release() {
         metadata_url="https://$S3_BUCKET.s3.amazonaws.com/metadata/v$(url_encode_semver "${EC_VERSION#v}").json"
     fi
 
+    echo "===== App release artifact provenance ====="
+    echo "git_commit=$(git rev-parse HEAD)"
+    echo "APP_VERSION=${APP_VERSION}"
+    echo "APP_CHANNEL=${APP_CHANNEL}"
+    echo "EC_VERSION=${EC_VERSION}"
+    echo "RELEASE_YAML_DIR=${RELEASE_YAML_DIR}"
+    echo "release_url=${release_url:-embedded}"
+    echo "metadata_url=${metadata_url:-embedded}"
+    echo "GITHUB_RUN_ID=${GITHUB_RUN_ID:-local}"
+    echo "GITHUB_RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT:-local}"
+    if [ -n "${metadata_url}" ]; then
+        local metadata_debug_file="output/tmp/metadata-release-debug.json"
+        curl --retry 5 --retry-all-errors -fsSL "${metadata_url}" -o "${metadata_debug_file}"
+        echo "published metadata response:"
+        ls -l "${metadata_debug_file}"
+        if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${metadata_debug_file}"
+        else
+            shasum -a 256 "${metadata_debug_file}"
+        fi
+        jq '{Versions, Artifacts}' "${metadata_debug_file}"
+    fi
+    echo "===== End app release artifact provenance ====="
+
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml

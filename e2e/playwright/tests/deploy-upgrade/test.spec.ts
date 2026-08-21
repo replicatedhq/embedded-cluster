@@ -3,9 +3,24 @@ import { login, vaidateAppAndClusterReady } from '../shared';
 
 test('deploy upgrade', async ({ page }) => {
   test.setTimeout(15 * 60 * 1000); // 15 minutes
+  page.on('console', message => console.log(`[browser console:${message.type()}] ${message.text()}`));
+  page.on('pageerror', error => console.log(`[browser pageerror] ${error.stack || error.message}`));
+  page.on('requestfailed', request => console.log(`[browser requestfailed] ${request.method()} ${request.url()} ${request.failure()?.errorText}`));
+  page.on('response', response => {
+    if (response.status() >= 400) {
+      console.log(`[browser response] ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  });
+
   await login(page);
-  await runDeployUpgradeWithRetry(page);
-  await verifyUpgradeSuccess(page);
+  try {
+    await runDeployUpgradeWithRetry(page);
+    await verifyUpgradeSuccess(page);
+  } catch (error) {
+    console.log(`[upgrade failure] page URL: ${page.url()}`);
+    console.log(`[upgrade failure] visible body text:\n${await page.locator('body').innerText().catch(innerTextError => `unable to read body: ${innerTextError}`)}`);
+    throw error;
+  }
 });
 
 async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
