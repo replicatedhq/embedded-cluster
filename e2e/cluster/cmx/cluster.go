@@ -479,6 +479,7 @@ func (c *Cluster) generateSupportBundle(envs ...map[string]string) {
 		c.t.Logf("stderr: %s", stderr)
 		c.t.Logf("fail to generate cluster support bundle from node %d: %v", c.supportBundleNodeIndex, err)
 	} else {
+		c.t.Logf("cluster diagnostics: %s", stdout)
 		c.t.Logf("%s: copying cluster support bundle from node %d to local machine", time.Now().Format(time.RFC3339), c.supportBundleNodeIndex)
 		src := "cluster.tar.gz"
 		dst := "support-bundle-cluster.tar.gz"

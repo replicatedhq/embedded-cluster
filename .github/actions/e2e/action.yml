@@ -65,6 +65,22 @@ runs:
     id: e2e
     shell: bash
     run: |
+      echo "===== E2E workflow provenance ====="
+      echo "GITHUB_RUN_ID=${GITHUB_RUN_ID}"
+      echo "GITHUB_RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}"
+      echo "GITHUB_JOB=${GITHUB_JOB}"
+      echo "GITHUB_SHA=${GITHUB_SHA}"
+      echo "RUNNER_ARCH=${RUNNER_ARCH}"
+      echo "test-name=${{ inputs.test-name }}"
+      echo "version-specifier=${{ inputs.version-specifier }}"
+      echo "k0s-version=${{ inputs.k0s-version }}"
+      echo "k0s-version-previous-1=${{ inputs.k0s-version-previous-1 }}"
+      echo "k0s-version-previous-2=${{ inputs.k0s-version-previous-2 }}"
+      echo "k0s-version-previous-3=${{ inputs.k0s-version-previous-3 }}"
+      echo "k0s-version-previous-stable=${{ inputs.k0s-version-previous-stable }}"
+      echo "upgrade-target-ec-version=${{ inputs.upgrade-target-ec-version }}"
+      echo "===== End E2E workflow provenance ====="
+
       export SHORT_SHA=${{ inputs.version-specifier }}
       echo "SHORT_SHA=${SHORT_SHA}"
 
