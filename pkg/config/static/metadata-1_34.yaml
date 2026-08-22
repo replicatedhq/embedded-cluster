@@ -9,8 +9,8 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.29.7-amd64@sha256:0d0cfb69955087147c52b87c0f2db534c1c91e9ba741f7166cd2803997953d81
-            arm64: v3.29.7-arm64@sha256:0337bdc43186e336f00f035a23d856c969114722ae4e73c4cb7157e5d6a96a14
+            amd64: v3.29.7-amd64@sha256:eb6b63483f65b5b8499e85910a5486eab1b4445654d2592c265bb6a9a2eb8f70
+            arm64: v3.29.7-arm64@sha256:fed5b2cadbedafa9a1c4da5b758f39e5a4fabdff08295231a604ba624eb9ca4c
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
@@ -24,8 +24,8 @@ images:
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.14.6-amd64@sha256:3ff74cb03d7feffecb1b9376131b189b3d1f93bebf09e6a19a23ecd4e78a1299
-            arm64: 1.14.6-arm64@sha256:a3aefe3b56f19e07cb886e3f87aaf500dca4a4e734096ad7f82789d79a16c762
+            amd64: 1.14.7-amd64@sha256:8f31437fbe223aa178b16b2e5df7f2b7bf87159edcb6ce36359648e6ba574ba2
+            arm64: 1.14.7-arm64@sha256:3cefe9def51deea46a26463d39d5c56cc946c544a151b4cf576cab2c720af87a
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
@@ -34,13 +34,13 @@ images:
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.34.9-amd64@sha256:a164ecd7908842989b90f31b80a8f20a33e54422a8824b957e362ec038f5ee16
-            arm64: v1.34.9-arm64@sha256:90af005781c4f84aa31d8f1fc82d1947437bf7d23ed83a3845631280a993205b
+            amd64: v1.34.10-amd64@sha256:2416de3561709b8c847f573379a537d9bd86e71eef4216bc090eb0aa3dd3c2d1
+            arm64: v1.34.10-arm64@sha256:69d4cbe5588e1e1d242bca4d3b9a3725bd0accb1cbf08e045ee28e2f67bc0d1e
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.9.0-amd64@sha256:912d95a3ed89b5d3257326042392c3eb3323e174f063c349b37af49a006a9476
-            arm64: v0.9.0-arm64@sha256:373909d9022e4f829e37734c19f02de440bd5523d63ee26e6353c4e19f664d74
+            amd64: v0.9.0-amd64@sha256:41dbe41921b0b14041564fc7e28559d43ed3342f79cec85d27fc08d054fe0b46
+            arm64: v0.9.0-arm64@sha256:d2865336297bb3ad79a5a29af33f22b3ffc48123ab30b01c0857fc6abb4075b8
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
