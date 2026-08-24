@@ -11,11 +11,11 @@ package:
 
 var-transforms:
   - from: ${{package.name}}
-    match: ^.+-k8s1\.(\d+)(-head)?$
+    match: ^.+-k8s1\.(\d+)(-head)?(-\d+\.\d+)?$
     replace: "$1"
     to: k0s-minor-version
   - from: ${{package.name}}
-    match: ^.+-(k8s)(1\.\d+)(-head)?$
+    match: ^.+-(k8s)(1\.\d+)(-head)?(-\d+\.\d+)?$
     replace: "$1-$2"
     to: k8s-version
   - from: ${{package.version}}
