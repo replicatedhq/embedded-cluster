@@ -370,3 +370,23 @@ func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node 
 		t.Fatalf("containerd registry drop-in should be absent on online installs on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }
+
+// checkContainerdRegistryConfigV2 asserts the registry drop-in still uses the
+// containerd 1.7 schema required by k0s 1.34 and 1.35.
+func checkContainerdRegistryConfigV2(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in uses the v2 schema on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in does not use the v2 schema on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+// checkContainerdRegistryConfigV3 asserts the registry drop-in was migrated to
+// the containerd 2.x schema required by k0s 1.36 and later.
+func checkContainerdRegistryConfigV3(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in uses the v3 schema on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in does not use the v3 schema on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}

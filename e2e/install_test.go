@@ -182,7 +182,11 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
-	checkContainerdRegistryConfigAbsent(t, tc, 0)
+	if usesContainerdV3Schema() {
+		checkContainerdRegistryConfigAbsent(t, tc, 0)
+	} else {
+		checkContainerdRegistryConfigV2(t, tc, 0)
+	}
 
 	line = []string{"collect-support-bundle-host-in-cluster.sh"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
@@ -416,12 +420,14 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 
 	checkPostUpgradeState(t, tc)
 
-	// The 1.35 -> 1.36 upgrade must migrate the airgap registry drop-in to the v3
-	// containerd schema, or k0s 1.36 won't start.
-	t.Logf("%s: verifying containerd registry drop-in migrated to v3 schema", time.Now().Format(time.RFC3339))
-	line = []string{"grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml"}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("containerd registry drop-in was not migrated to the v3 schema: %v: %s: %s", err, stdout, stderr)
+	if usesContainerdV3Schema() {
+		// A 1.35 -> 1.36 upgrade must migrate the airgap registry drop-in to
+		// the v3 schema, or k0s 1.36 won't start.
+		checkContainerdRegistryConfigV3(t, tc, 0)
+	} else {
+		// A 1.34 -> 1.35 upgrade must leave the registry drop-in on the v2
+		// schema supported by containerd 1.7.
+		checkContainerdRegistryConfigV2(t, tc, 0)
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
