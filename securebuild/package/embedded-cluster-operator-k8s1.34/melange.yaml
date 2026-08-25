@@ -38,6 +38,7 @@ environment:
     keyring:
       - https://apk.cve0.io/key/cve0-signing.rsa.pub
     packages:
+      - bash
       - busybox
       - build-base
       - go
@@ -57,3 +58,19 @@ pipeline:
       cp operator/bin/manager ${{targets.destdir}}/manager
 
   - uses: strip
+
+test:
+  environment:
+    contents:
+      repositories:
+        - https://apk.cve0.io
+      keyring:
+        - https://apk.cve0.io/key/cve0-signing.rsa.pub
+      packages:
+        - ${{package.name}}=${{package.full-version}}
+        - busybox
+  pipeline:
+    - name: Verify operator binary
+      runs: |
+        test -x /manager
+        /manager --help
