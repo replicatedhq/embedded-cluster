@@ -60,7 +60,9 @@ jobs:
             --api-token "$SECUREBUILD_API_TOKEN"
 
   build-images:
-    needs: build-packages
+    needs:
+      - validate-version
+      - build-packages
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -80,6 +82,6 @@ jobs:
           SECUREBUILD_API_TOKEN: ${{ secrets.SECUREBUILD_API_TOKEN }}
         run: |
           ./securebuild build image \
-            --image-name "${{ matrix.image-name }}" \
+            --image-name "${{ matrix.image-name }}-k8s1.${{ needs.validate-version.outputs.k0s-minor-version }}" \
             --tag "${{ inputs.version }}" \
             --api-token "$SECUREBUILD_API_TOKEN"
