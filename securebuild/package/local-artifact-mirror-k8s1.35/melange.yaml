@@ -38,6 +38,7 @@ environment:
     keyring:
       - https://apk.cve0.io/key/cve0-signing.rsa.pub
     packages:
+      - bash
       - busybox
       - build-base
       - go
@@ -54,10 +55,52 @@ pipeline:
       make -C local-artifact-mirror build-deps build
 
       mkdir -p ${{targets.destdir}}/usr/bin
-      mkdir -p ${{targets.destdir}}/usr/local/bin
       cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(go env GOARCH) \
         ${{targets.destdir}}/usr/bin/local-artifact-mirror
-      # support for legacy path
-      ln -s /usr/bin/local-artifact-mirror ${{targets.destdir}}/usr/local/bin/local-artifact-mirror
 
   - uses: strip
+
+subpackages:
+  - name: ${{package.name}}-compat
+    description: Compatibility package for the legacy local artifact mirror path
+    dependencies:
+      runtime:
+        - ${{package.name}}
+      provides:
+        - local-artifact-mirror-compat=${{package.full-version}}
+    pipeline:
+      - runs: |
+          mkdir -p ${{targets.subpkgdir}}/usr/local/bin
+          ln -s /usr/bin/local-artifact-mirror \
+            ${{targets.subpkgdir}}/usr/local/bin/local-artifact-mirror
+    test:
+      environment:
+        contents:
+          repositories:
+            - https://apk.cve0.io
+          keyring:
+            - https://apk.cve0.io/key/cve0-signing.rsa.pub
+          packages:
+            - ${{package.name}}-compat=${{package.full-version}}
+            - busybox
+      pipeline:
+        - name: Verify legacy binary path
+          runs: |
+            test -L /usr/local/bin/local-artifact-mirror
+            /usr/local/bin/local-artifact-mirror --help
+
+test:
+  environment:
+    contents:
+      repositories:
+        - https://apk.cve0.io
+      keyring:
+        - https://apk.cve0.io/key/cve0-signing.rsa.pub
+      packages:
+        - ${{package.name}}=${{package.full-version}}
+        - busybox
+  pipeline:
+    - name: Verify local artifact mirror binary
+      runs: |
+        test -x /usr/bin/local-artifact-mirror
+        /usr/bin/local-artifact-mirror --help
