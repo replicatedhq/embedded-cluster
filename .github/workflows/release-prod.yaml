@@ -14,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag-name: ${{ steps.get-tag.outputs.tag-name }}
-      securebuild-version: ${{ steps.get-tag.outputs.securebuild-version }}
       is-stable: ${{ steps.get-tag.outputs.is-stable }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
       k0s_minor_version: ${{ steps.export.outputs.k0s_minor_version }}
@@ -33,7 +32,6 @@ jobs:
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
-          echo "securebuild-version=${RAW_TAG}" >> "$GITHUB_OUTPUT"
           if [[ "$V_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\+k8s-1\.[0-9]+$ ]]; then
             echo "is-stable=true" >> "$GITHUB_OUTPUT"
           else
@@ -82,7 +80,7 @@ jobs:
     if: needs.get-tag.outputs.is-stable == 'true'
     uses: ./.github/workflows/publish-securebuild.yml
     with:
-      version: ${{ needs.get-tag.outputs.securebuild-version }}
+      version: ${{ github.ref_name }}
     secrets: inherit
 
   publish-operator-image:
@@ -666,7 +664,7 @@ jobs:
         if: steps.check-main.outputs.is_from_main == 'true'
         continue-on-error: true
         env:
-          GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
+          GIT_TAG: ${{ github.ref_name }}
           DEPOT_TOKEN: ${{ secrets.DEPOT_CI_DISPATCH_TOKEN }}
         run: |
           depot ci dispatch \
