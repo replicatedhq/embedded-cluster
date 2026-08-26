@@ -2,12 +2,15 @@ package cli
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	autopilot "github.com/k0sproject/k0s/pkg/apis/autopilot/v1beta2"
@@ -28,9 +31,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// k0sBinPath is the k0s binary this command stops and resets. Overridden by tests.
+var k0sBinPath = "/usr/local/bin/k0s"
+
 const (
-	k0sBinPath = "/usr/local/bin/k0s"
+	// k0sRunDir holds k0s runtime state: the containerd socket, sandbox shm
+	// mounts and task rootfs overlays.
+	k0sRunDir = "/run/k0s"
 )
+
+// k0sResetTimeout bounds the `k0s reset` call. k0s issues its container-runtime
+// calls with no deadline, so a containerd that stops responding hangs reset
+// forever and none of the teardown after it ever runs. Generous enough not to
+// cut short a slow disk. Overridden by tests.
+var k0sResetTimeout = 2 * time.Minute
+
+// k0sResetDumpLead is how long before the deadline k0s is asked for a goroutine
+// dump, leaving it time to print the stacks before the deadline kills it.
+var k0sResetDumpLead = 15 * time.Second
+
+//go:embed assets/unmount.sh
+var unmountScript string
 
 type hostInfo struct {
 	Hostname         string
@@ -156,6 +177,11 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 			err = stopAndResetK0s(rc.EmbeddedClusterK0sSubDir())
 			if err != nil {
 				logrus.Warnf("Failed to stop and reset k0s (continuing with reset anyway): %v", err)
+				// k0s did not finish its own cleanup, so nothing killed the processes
+				// holding the kubelet and containerd mounts or detached them. Without
+				// this the removals below fail with EBUSY and the node is left with an
+				// installation the next install refuses to overwrite.
+				forceK0sTeardown(rc.EmbeddedClusterHomeDirectory(), rc.EmbeddedClusterK0sSubDir())
 			}
 
 			logrus.Debugf("Resetting firewalld...")
@@ -164,8 +190,11 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}
 
-			if err := helpers.RemoveAll(runtimeconfig.K0sConfigPath); err != nil {
-				return fmt.Errorf("failed to remove k0s config: %w", err)
+			// The whole directory, not just k0s.yaml: it also holds containerd
+			// drop-ins and registry certs, and nothing else removes them — k0s's
+			// own cleanup only covers its data and run dirs.
+			if err := helpers.RemoveAll(filepath.Dir(runtimeconfig.K0sConfigPath)); err != nil {
+				return fmt.Errorf("failed to remove k0s config directory: %w", err)
 			}
 
 			lamPath := "/etc/systemd/system/local-artifact-mirror.service"
@@ -621,12 +650,61 @@ func stopAndResetK0s(dataDir string) error {
 		logrus.Warnf("Failed to stop k0s (continuing with reset anyway): %v", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), k0sResetTimeout)
+	defer cancel()
+
+	// Shortly before the deadline, ask k0s for a goroutine dump. SIGQUIT makes it
+	// print every stack and exit, and its output is streamed to the log, so the
+	// stuck call (in practice a CRI RemovePodSandbox) is recorded. Signalling
+	// containerd instead yields nothing: its output is piped to this k0s process,
+	// which the deadline is about to kill.
+	var dumped atomic.Bool
+	dump := time.AfterFunc(k0sResetTimeout-k0sResetDumpLead, func() {
+		dumped.Store(true)
+		logrus.Warnf("k0s reset is taking too long, collecting a stack dump")
+		_, _ = helpers.RunCommand("pkill", "-QUIT", "-f", "k0s reset --data-dir")
+	})
+	defer dump.Stop()
+
 	resetOut := &lineLogWriter{prefix: "k0s reset"}
-	err = helpers.RunCommandWithOptions(helpers.RunCommandOptions{Stdout: resetOut, Stderr: resetOut, SkipLogOutput: true}, k0sBinPath, "reset", "--data-dir", dataDir, "--verbose")
+	err = helpers.RunCommandWithOptions(helpers.RunCommandOptions{Context: ctx, Stdout: resetOut, Stderr: resetOut, SkipLogOutput: true}, k0sBinPath, "reset", "--data-dir", dataDir, "--verbose")
 	if err != nil {
+		if ctx.Err() != nil || dumped.Load() {
+			return fmt.Errorf("k0s reset timed out after %s: %w", k0sResetTimeout, err)
+		}
 		return fmt.Errorf("could not reset k0s: %w", err)
 	}
 	return nil
+}
+
+// forceK0sTeardown does the cleanup `k0s reset` would have done itself: kill the
+// processes still holding the kubelet and containerd mounts, then detach the
+// mounts so the directories can be removed. Every step is best-effort — pkill
+// exits non-zero when nothing matches, which is the normal case.
+func forceK0sTeardown(homeDir, k0sDataDir string) {
+	logrus.Infof("Force killing any stale k0s processes")
+	for _, proc := range []string{"k0s", "kube-apiserver", "kube-controller-manager", "kube-scheduler", "kubelet", "containerd"} {
+		_, _ = helpers.RunCommand("pkill", "-9", "-f", proc)
+	}
+
+	// homeDir is listed as well because reset removes it whole, and it is not
+	// always a parent of k0sDataDir — K0sDataDirOverride moves the latter out.
+	for _, dir := range []string{homeDir, k0sDataDir, k0sRunDir} {
+		if out, err := helpers.RunCommand("sh", "-c", unmountScript, "sh", dir); err != nil {
+			logrus.Debugf("Failed to unmount below %s (ignored): %v, %s", dir, err, out)
+		}
+	}
+
+	// Remove vxlan.calico (holds port 4789/UDP), the Calico veth interfaces and
+	// the blackhole routes so the pod CIDR can be reused. k0s does this in its own
+	// cni cleanup step, which is one of the steps that did not run.
+	for _, cmd := range [][]string{
+		{"ip", "link", "delete", "vxlan.calico"},
+		{"sh", "-c", "ip link show | grep -oE ' cali[0-9a-f]+' | xargs -r -L1 ip link delete"},
+		{"sh", "-c", "ip route show table all | grep blackhole | grep 'proto 80' | awk '{print $1, $2}' | xargs -r -L1 ip route delete"},
+	} {
+		_, _ = helpers.RunCommand(cmd[0], cmd[1:]...)
+	}
 }
 
 // lineLogWriter streams command output to logrus as it is written, so that
