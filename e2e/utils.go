@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 func RequireEnvVars(t *testing.T, envVars []string) {
@@ -67,6 +69,14 @@ func k8sVersion() string {
 		panic(fmt.Sprintf("failed to parse k8s version %q", os.Getenv("EXPECT_K0S_VERSION")))
 	}
 	return verParts[0]
+}
+
+func usesContainerdV3Schema() bool {
+	version, err := semver.NewVersion(k8sVersion())
+	if err != nil {
+		panic(fmt.Sprintf("failed to parse k8s version %q: %v", k8sVersion(), err))
+	}
+	return version.Major() == 1 && version.Minor() >= 36
 }
 
 func k8sVersionPrevious(n int) string {
