@@ -695,16 +695,12 @@ func forceK0sTeardown(homeDir, k0sDataDir string) {
 		}
 	}
 
-	// Remove vxlan.calico (holds port 4789/UDP), the Calico veth interfaces and
-	// the blackhole routes so the pod CIDR can be reused. k0s does this in its own
-	// cni cleanup step, which is one of the steps that did not run.
-	for _, cmd := range [][]string{
-		{"ip", "link", "delete", "vxlan.calico"},
-		{"sh", "-c", "ip link show | grep -oE ' cali[0-9a-f]+' | xargs -r -L1 ip link delete"},
-		{"sh", "-c", "ip route show table all | grep blackhole | grep 'proto 80' | awk '{print $1, $2}' | xargs -r -L1 ip route delete"},
-	} {
-		_, _ = helpers.RunCommand(cmd[0], cmd[1:]...)
-	}
+	// Remove vxlan.calico (holds port 4789/UDP) and Calico veth interfaces.
+	_, _ = helpers.RunCommand("ip", "link", "delete", "vxlan.calico")
+	_, _ = helpers.RunCommand("sh", "-c", "ip link show | grep -oE ' cali[0-9a-f]+' | xargs -r -L1 ip link delete")
+
+	// Remove Calico blackhole routes so the pod CIDR can be reused.
+	_, _ = helpers.RunCommand("sh", "-c", "ip route show table all | grep blackhole | grep 'proto 80' | awk '{print $1, $2}' | xargs -r -L1 ip route delete")
 }
 
 // lineLogWriter streams command output to logrus as it is written, so that
