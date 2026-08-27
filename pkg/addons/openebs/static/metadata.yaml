@@ -5,16 +5,16 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 4.5.1
+version: 4.6.0
 location: oci://proxy.replicated.com/anonymous/registry.replicated.com/ec-charts/openebs
 images:
     openebs-linux-utils:
         repo: proxy.replicated.com/library/openebs-linux-utils
         tag:
-            amd64: 4.5.0-amd64@sha256:d2cba3eadeb813f3afc36ae83033f533adbe3052071d2838682c20ef5e7cc982
-            arm64: 4.5.0-arm64@sha256:20e5acb2b9192b61a7a3caf3927b46650499fa366a5e7869fe00b0f6eba66bd2
+            amd64: 4.6.0-amd64@sha256:bed47afc52b5759e591612459f439609dc48011fa837f52b3dad5c652d203f7d
+            arm64: 4.6.0-arm64@sha256:bcc36ca963d1dafefc1db52dd646bc032dddae1cde63cbd94cf01c225d62747c
     openebs-provisioner-localpv:
         repo: proxy.replicated.com/library/openebs-provisioner-localpv
         tag:
-            amd64: 4.5.1-amd64@sha256:21e392197f52dad50c9c678075c0349c1e0fea1aa471f17729b5f2245a3c14b0
-            arm64: 4.5.1-arm64@sha256:8af4ba497a2b71b25c7a64685a2dcb7ac050a772fd76108ff7a87f0eaec522ad
+            amd64: 4.6.0-amd64@sha256:21117b0ecc50d55dee2c923f946881cb5c89e54a5c6b50911eabc320238f2604
+            arm64: 4.6.0-arm64@sha256:8ce39e45623fb9c6330b5b2b716493c5f22cdb014321ec925c7483ea1c304fc7
