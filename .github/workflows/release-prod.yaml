@@ -662,7 +662,6 @@ jobs:
 
       - name: Generate EC Release Notes PR
         if: steps.check-main.outputs.is_from_main == 'true'
-        continue-on-error: true
         env:
           GIT_TAG: ${{ github.ref_name }}
           DEPOT_TOKEN: ${{ secrets.DEPOT_CI_DISPATCH_TOKEN }}
