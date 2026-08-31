@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCollectSupportBundle(t *testing.T) {
@@ -28,24 +28,24 @@ func TestCollectSupportBundle(t *testing.T) {
 	// Disable the etcd disk-latency host preflight, which is flaky on CI runners
 	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line, env)
-	assert.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
+	require.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-host.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	assert.NoErrorf(t, err, "fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
+	require.NoErrorf(t, err, "fail to collect host support bundle: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-cluster.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	assert.NoErrorf(t, err, "fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
+	require.NoErrorf(t, err, "fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
 
 	t.Logf("%s: collecting support bundle with the embedded-cluster binary", time.Now().Format(time.RFC3339))
 	line = []string{"embedded-cluster", "support-bundle"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	assert.NoErrorf(t, err, "fail to collect support bundle using embedded-cluster binary: %v: %s: %s", err, stdout, stderr)
+	require.NoErrorf(t, err, "fail to collect support bundle using embedded-cluster binary: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"validate-support-bundle.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
-	assert.NoErrorf(t, err, "fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
+	require.NoErrorf(t, err, "fail to validate support bundle: %v: %s: %s", err, stdout, stderr)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
