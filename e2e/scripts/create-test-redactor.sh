@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euox pipefail
 
+DIR=/usr/local/bin
+. $DIR/common.sh
+
 main() {
     # Create a KOTS admin-console redactor spec that masks the known license ID.
     # This secret is read by the embedded-cluster support-bundle command via the
