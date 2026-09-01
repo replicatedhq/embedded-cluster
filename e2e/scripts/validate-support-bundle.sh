@@ -47,6 +47,8 @@ main() {
     fi
     if ! grep -Fq "licenseID: ***HIDDEN***" "$license_file"; then
         echo "Expected redaction marker not found in the CLI-generated support bundle"
+        echo "License file contents:"
+        cat "$license_file"
         return 1
     fi
 }
