@@ -2,14 +2,41 @@ package cli
 
 import (
 	"context"
+	"sync"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+type testLogHook struct {
+	mu       sync.Mutex
+	warnings []string
+	disabled bool
+}
+
+func (h *testLogHook) Levels() []logrus.Level {
+	return []logrus.Level{logrus.WarnLevel}
+}
+
+func (h *testLogHook) Fire(entry *logrus.Entry) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if !h.disabled {
+		h.warnings = append(h.warnings, entry.Message)
+	}
+	return nil
+}
+
+func (h *testLogHook) Disable() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.disabled = true
+}
 
 func TestBuildRedactorURIs(t *testing.T) {
 	ctx := context.Background()
@@ -33,6 +60,7 @@ func TestBuildRedactorURIs(t *testing.T) {
 				"secret/kotsadm/kotsadm-my-app-redact-spec/redact-spec",
 				"secret/kotsadm/kotsadm-redact-default-spec/default-redactor",
 			},
+			expectedWarns: 0,
 		},
 		{
 			name: "only admin console and default redactors exist",
@@ -44,6 +72,7 @@ func TestBuildRedactorURIs(t *testing.T) {
 				"secret/kotsadm/kotsadm-redact-spec/redact-spec",
 				"secret/kotsadm/kotsadm-redact-default-spec/default-redactor",
 			},
+			expectedWarns: 1,
 		},
 		{
 			name: "only app-specific redactor exists",
@@ -53,11 +82,13 @@ func TestBuildRedactorURIs(t *testing.T) {
 			expectedURIs: []string{
 				"secret/kotsadm/kotsadm-my-app-redact-spec/redact-spec",
 			},
+			expectedWarns: 0,
 		},
 		{
-			name:         "no redactor secrets exist",
-			secrets:      []string{},
-			expectedURIs: []string{},
+			name:          "no redactor secrets exist",
+			secrets:       []string{},
+			expectedURIs:  []string{},
+			expectedWarns: 1,
 		},
 	}
 
@@ -74,8 +105,13 @@ func TestBuildRedactorURIs(t *testing.T) {
 			}
 			clientset := fake.NewSimpleClientset(objects...)
 
+			hook := &testLogHook{}
+			logrus.AddHook(hook)
+			t.Cleanup(hook.Disable)
+
 			got := buildRedactorURIs(ctx, appSlug, clientset)
 			assert.Equal(t, tc.expectedURIs, got)
+			assert.Len(t, hook.warnings, tc.expectedWarns)
 		})
 	}
 }

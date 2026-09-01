@@ -25,48 +25,11 @@ import (
 
 const (
 	// kotsadmNamespace is the namespace where the KOTS admin console and its redactor
-	// secrets are deployed. This is currently hardcoded for backwards compatibility; it
-	// should be replaced with runtimeconfig.KotsadmNamespace once custom namespaces are
-	// supported.
+	// secrets are deployed. This is currently hardcoded because
+	// runtimeconfig.KotsadmNamespace requires a controller-runtime client.Client, while
+	// this code uses a typed kubernetes.Interface clientset.
 	kotsadmNamespace = "kotsadm"
 )
-
-// buildRedactorURIs returns the list of KOTS redactor URIs that should be passed to
-// kubectl-support_bundle. It checks for the existence of each redactor secret in the
-// cluster and only includes URIs for secrets that exist. A warning is logged when the
-// app-specific redactor secret is missing because that means vendor-defined redactors
-// will not be applied.
-func buildRedactorURIs(ctx context.Context, appSlug string, clientset kubernetes.Interface) []string {
-	uris := []string{}
-
-	if secretExists(ctx, kotsadmNamespace, "kotsadm-redact-spec", clientset) {
-		uris = append(uris, fmt.Sprintf("secret/%s/kotsadm-redact-spec/redact-spec", kotsadmNamespace))
-	}
-
-	appRedactorSecretName := fmt.Sprintf("kotsadm-%s-redact-spec", appSlug)
-	if secretExists(ctx, kotsadmNamespace, appRedactorSecretName, clientset) {
-		uris = append(uris, fmt.Sprintf("secret/%s/%s/redact-spec", kotsadmNamespace, appRedactorSecretName))
-	} else {
-		logrus.Warnf("App-specific redactor secret %q not found in namespace %q; support bundle may contain unredacted application data", appRedactorSecretName, kotsadmNamespace)
-	}
-
-	if secretExists(ctx, kotsadmNamespace, "kotsadm-redact-default-spec", clientset) {
-		uris = append(uris, fmt.Sprintf("secret/%s/kotsadm-redact-default-spec/default-redactor", kotsadmNamespace))
-	}
-
-	return uris
-}
-
-func secretExists(ctx context.Context, namespace, name string, clientset kubernetes.Interface) bool {
-	_, err := clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
-	if err != nil {
-		if !k8serrors.IsNotFound(err) {
-			logrus.Debugf("Failed to check for secret %s/%s: %v", namespace, name, err)
-		}
-		return false
-	}
-	return true
-}
 
 func SupportBundleCmd(ctx context.Context) *cobra.Command {
 	var rc runtimeconfig.RuntimeConfig
@@ -80,11 +43,7 @@ func SupportBundleCmd(ctx context.Context) *cobra.Command {
 			}
 
 			rc = rcutil.InitBestRuntimeConfig(cmd.Context())
-			if err := rc.SetEnv(); err != nil {
-				return fmt.Errorf("unable to set runtime environment: %w", err)
-			}
-
-			return nil
+			return rc.SetEnv()
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
 			rc.Cleanup()
@@ -159,4 +118,41 @@ func SupportBundleCmd(ctx context.Context) *cobra.Command {
 	}
 
 	return cmd
+}
+
+// buildRedactorURIs returns the list of KOTS redactor URIs that should be passed to
+// kubectl-support_bundle. It checks for the existence of each redactor secret in the
+// cluster and only includes URIs for secrets that exist. A warning is logged when the
+// app-specific redactor secret is missing because that means vendor-defined redactors
+// will not be applied.
+func buildRedactorURIs(ctx context.Context, appSlug string, clientset kubernetes.Interface) []string {
+	uris := []string{}
+
+	if secretExists(ctx, kotsadmNamespace, "kotsadm-redact-spec", clientset) {
+		uris = append(uris, fmt.Sprintf("secret/%s/kotsadm-redact-spec/redact-spec", kotsadmNamespace))
+	}
+
+	appRedactorSecretName := fmt.Sprintf("kotsadm-%s-redact-spec", appSlug)
+	if secretExists(ctx, kotsadmNamespace, appRedactorSecretName, clientset) {
+		uris = append(uris, fmt.Sprintf("secret/%s/%s/redact-spec", kotsadmNamespace, appRedactorSecretName))
+	} else {
+		logrus.Warnf("App-specific redactor secret %q not found in namespace %q; support bundle may contain unredacted application data", appRedactorSecretName, kotsadmNamespace)
+	}
+
+	if secretExists(ctx, kotsadmNamespace, "kotsadm-redact-default-spec", clientset) {
+		uris = append(uris, fmt.Sprintf("secret/%s/kotsadm-redact-default-spec/default-redactor", kotsadmNamespace))
+	}
+
+	return uris
+}
+
+func secretExists(ctx context.Context, namespace, name string, clientset kubernetes.Interface) bool {
+	_, err := clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			logrus.Debugf("Failed to check for secret %s/%s: %v", namespace, name, err)
+		}
+		return false
+	}
+	return true
 }
