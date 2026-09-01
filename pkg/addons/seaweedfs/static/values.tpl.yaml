@@ -66,8 +66,6 @@ volume:
 {{- if .ReplaceImages }}
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
 {{- end }}
-  podAnnotations:
-    backup.velero.io/backup-volumes: data
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:
@@ -106,7 +104,7 @@ filer:
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
 {{- end }}
   podAnnotations:
-    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+    backup.velero.io/backup-volumes: seaweedfs-filer-log-volume
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:

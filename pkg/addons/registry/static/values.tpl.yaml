@@ -28,8 +28,6 @@ persistence:
   enabled: true
   size: 10Gi
   storageClass: openebs-hostpath
-podAnnotations:
-  backup.velero.io/backup-volumes: data
 replicaCount: 1
 storage: filesystem
 service:

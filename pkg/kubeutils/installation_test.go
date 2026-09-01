@@ -12,6 +12,7 @@ import (
 	"github.com/go-logr/logr/testr"
 	"github.com/google/uuid"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/crds"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/stretchr/testify/assert"
@@ -21,10 +22,40 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 )
+
+func TestCreateInstallationRegistryDataSourceAnnotation(t *testing.T) {
+	tests := []struct {
+		name       string
+		isAirgap   bool
+		wantMarker bool
+	}{
+		{name: "online", isAirgap: false, wantMarker: false},
+		{name: "airgap", isAirgap: true, wantMarker: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cli := fake.NewClientBuilder().Build()
+			in := &ecv1beta1.Installation{
+				ObjectMeta: metav1.ObjectMeta{Name: tt.name},
+				Spec:       ecv1beta1.InstallationSpec{AirGap: tt.isAirgap},
+			}
+			require.NoError(t, CreateInstallation(context.Background(), cli, in))
+
+			var got ecv1beta1.Installation
+			require.NoError(t, cli.Get(context.Background(), client.ObjectKey{Name: tt.name}, &got))
+			value, ok := got.Annotations[constants.EmbeddedRegistryDataSourceAnnotation]
+			assert.Equal(t, tt.wantMarker, ok)
+			if tt.wantMarker {
+				assert.Equal(t, constants.EmbeddedRegistryDataSourceAirgapBundle, value)
+			}
+		})
+	}
+}
 
 func Test_lessThanECVersion115(t *testing.T) {
 	type args struct {
@@ -232,6 +263,7 @@ func TestRecordInstallation(t *testing.T) {
 			wantErr: false,
 			validate: func(t *testing.T, installation *ecv1beta1.Installation) {
 				assert.False(t, installation.Spec.AirGap)
+				assert.NotContains(t, installation.Annotations, constants.EmbeddedRegistryDataSourceAnnotation)
 				assert.Equal(t, int64(0), installation.Spec.AirgapUncompressedSize)
 				assert.Equal(t, "1.15.0+k8s-1.30", installation.Spec.Config.Version)
 				assert.Equal(t, "https://replicated.app", installation.Spec.MetricsBaseURL)
@@ -267,6 +299,7 @@ func TestRecordInstallation(t *testing.T) {
 			wantErr: false,
 			validate: func(t *testing.T, installation *ecv1beta1.Installation) {
 				assert.True(t, installation.Spec.AirGap)
+				assert.Equal(t, constants.EmbeddedRegistryDataSourceAirgapBundle, installation.Annotations[constants.EmbeddedRegistryDataSourceAnnotation])
 				assert.Equal(t, int64(1234567890), installation.Spec.AirgapUncompressedSize)
 				assert.Equal(t, "1.16.0+k8s-1.31", installation.Spec.Config.Version)
 				assert.Equal(t, "https://staging.replicated.app", installation.Spec.MetricsBaseURL)
@@ -302,6 +335,7 @@ func TestRecordInstallation(t *testing.T) {
 			wantErr: false,
 			validate: func(t *testing.T, installation *ecv1beta1.Installation) {
 				assert.True(t, installation.Spec.AirGap)
+				assert.Equal(t, constants.EmbeddedRegistryDataSourceAirgapBundle, installation.Annotations[constants.EmbeddedRegistryDataSourceAnnotation])
 				assert.Equal(t, int64(9876543210), installation.Spec.AirgapUncompressedSize)
 				assert.Equal(t, "1.18.0+k8s-1.33", installation.Spec.Config.Version)
 				assert.Equal(t, "https://custom.replicated.app", installation.Spec.MetricsBaseURL)
