@@ -989,7 +989,7 @@ jobs:
         # TEMPORARY(selinux): trimmed to the selinux test while validating the
         # selinux changes. Revert this commit before merging.
         test:
-          - TestSingleNodeAirgapUpgradeSelinux
+          - TestSingleNodeAirgapSelinux
     steps:
       - name: Checkout
         uses: actions/checkout@v7

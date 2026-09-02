@@ -343,13 +343,15 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 // checkContainerdRegistryConfigAbsent asserts the containerd registry drop-in is
 // absent: online installs don't use the in-cluster registry.
 // TODO(k0s-1.37-oldest): drop this check along with the migration.
-// checkSELinuxLabels asserts that embedded cluster labeled its own files during
-// install. The test deliberately pre-labels nothing, so these labels can only
-// come from hostutils.ConfigureSELinuxFcontext and RestoreSELinuxContext.
+// checkSELinuxLabels asserts the selinux labels an install depends on. The test
+// pre-labels nothing, so everything here is applied by the install itself.
 //
-// The bin_t rules cover our own binaries; the container_* rules are the ones
-// k0s documents, without which containerd is not treated as a container
-// runtime and container images are not container content.
+// The bin_t and system_u labels are embedded cluster's own doing
+// (hostutils.ConfigureSELinuxFcontext and RestoreSELinuxContext). The
+// container_* labels come from k0s, which labels its staged containerd and runc
+// container_runtime_exec_t on selinux hosts. We assert them anyway: we depend
+// on that behavior, and if k0s ever stops doing it our containers stop being
+// confined.
 func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("%s: verifying selinux labels on node %d", time.Now().Format(time.RFC3339), node)
 
@@ -370,9 +372,11 @@ func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 		if err != nil {
 			t.Fatalf("fail to read selinux %s label of %s on node %d: %v: %s: %s", tt.field, tt.path, node, err, stdout, stderr)
 		}
-		if got := strings.TrimSpace(stdout); got != tt.want {
+		got := strings.TrimSpace(stdout)
+		if got != tt.want {
 			t.Fatalf("selinux %s label of %s on node %d is %q, want %q", tt.field, tt.path, node, got, tt.want)
 		}
+		t.Logf("  %s %s = %s", tt.path, tt.field, got)
 	}
 }
 

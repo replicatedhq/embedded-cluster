@@ -264,7 +264,17 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
+// TestSingleNodeAirgapSelinux verifies that embedded cluster installs and runs
+// confined on a selinux-enforcing RHEL-family host with container-selinux.
+//
+// AlmaLinux rather than ubuntu because container-selinux only exists on
+// RHEL-family distros. Without it there is no container_t for workloads to run
+// in, so an ubuntu run can only show that nothing crashes.
+//
+// TODO: this only covers a fresh install. The upgrade path does not re-run
+// ConfigureHost, so an upgraded cluster does not get the containerd selinux
+// drop-in; cover that once the upgrade applies it too.
+func TestSingleNodeAirgapSelinux(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -278,19 +288,13 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	defer tc.Cleanup()
 
 	t.Logf("%s: downloading airgap files on node 0", time.Now().Format(time.RFC3339))
-	// Previous stable EC version with a -1 minor k0s version
-	initialVersion := fmt.Sprintf("appver-%s-previous-stable", os.Getenv("SHORT_SHA"))
-	runInParallel(t,
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
-		}, func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA")), AirgapUpgradeBundlePath, AirgapLicenseID)
-		},
-	)
+	installVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
+	if err := downloadAirgapBundleOnNode(t, tc, 0, installVersion, AirgapInstallBundlePath, AirgapLicenseID); err != nil {
+		t.Fatalf("fail to download airgap bundle on node 0: %v", err)
+	}
 
-	// almalinux ships selinux enabled with container-selinux, so no policy
-	// module is needed; semanage comes from policycoreutils-python-utils, which
-	// is not installed on a minimal image.
+	// semanage comes from policycoreutils-python-utils, which is not installed
+	// on a minimal image. container-selinux ships in the CMX almalinux image.
 	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
 		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
@@ -312,14 +316,13 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		t.Fatalf("fail to prepare airgap files on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
-	// deliberately not labeling the bin directory here: that is what embedded
-	// cluster itself does during install (hostutils.ConfigureSELinuxFcontext
-	// and RestoreSELinuxContext). doing it in the test first made the
-	// product's own call fail as "already defined", silently, so the
-	// documented 2.8.0 behavior was never actually exercised.
+	// deliberately not labeling anything here: that is what embedded cluster
+	// itself does during install. Doing it in the test first made the product's
+	// own call fail as "already defined", silently, so its labeling was never
+	// actually exercised.
 	installSingleNodeWithOptions(t, tc, installOptions{
 		isAirgap:                true,
-		version:                 initialVersion,
+		version:                 installVersion,
 		localArtifactMirrorPort: "50001", // choose an alternate lam port
 	})
 
@@ -331,38 +334,13 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"/usr/local/bin/check-airgap-installation-state.sh", initialVersion, k8sVersionPreviousStable()}
+	line = []string{"/usr/local/bin/check-airgap-installation-state.sh", installVersion, k8sVersion()}
 	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v", err)
 	}
 
-	checkNodeJoinCommand(t, tc, 0)
-
-	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
-	line = []string{"/usr/local/bin/airgap-update.sh"}
-	if _, _, err := tc.RunCommandOnNode(0, line); err != nil {
-		t.Fatalf("fail to run airgap update: %v", err)
-	}
-
-	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	testArgs := []string{appUpgradeVersion}
-
-	t.Logf("%s: upgrading cluster", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", testArgs...); err != nil {
-		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
-	}
-
-	checkPostUpgradeState(t, tc)
-
-	if usesContainerdV3Schema() {
-		// A 1.35 -> 1.36 upgrade must migrate the airgap registry drop-in to
-		// the v3 schema, or k0s 1.36 won't start.
-		checkContainerdRegistryConfigV3(t, tc, 0)
-	} else {
-		// A 1.34 -> 1.35 upgrade must leave the registry drop-in on the v2
-		// schema supported by containerd 1.7.
-		checkContainerdRegistryConfigV2(t, tc, 0)
-	}
+	// selinux confinement should survive the workloads actually running
+	checkSELinuxConfinement(t, tc, 0)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

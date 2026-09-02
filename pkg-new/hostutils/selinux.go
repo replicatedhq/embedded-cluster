@@ -3,7 +3,6 @@ package hostutils
 import (
 	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/opencontainers/selinux/go-selinux"
@@ -19,27 +18,18 @@ type fcontextRule struct {
 
 // fcontextRules returns the file context rules embedded cluster needs.
 //
-// The bin_t rule covers our own binaries (the installer, kubectl, the local
-// artifact mirror). They live under the data directory, which the base policy
-// labels var_lib_t, and a var_lib_t file cannot be executed.
+// Only our own binaries: the installer, kubectl, the local artifact mirror.
+// They live under the data directory, which the base policy labels var_lib_t,
+// and a var_lib_t file cannot be executed.
 //
-// The remaining rules are the ones k0s documents for running under selinux (see
-// https://docs.k0sproject.io/stable/selinux/). k0s ships containerd and runc
-// inside its own data directory rather than installing them from a package, so
-// container-selinux's file contexts -- which target /usr/bin/containerd and
-// /var/lib/containers -- never match them. Without these, containerd does not
-// transition into container_runtime_t and container images are not labeled as
-// container content.
+// We deliberately do not label containerd, runc, or the containerd data
+// directories. k0s already labels its own staged executables
+// container_runtime_exec_t (see pkg/component/worker/containerd in k0s), and
+// the containerd directories come out correct without our help. Adding rules
+// for them would be redundant and would fight whatever set them.
 func fcontextRules(rc runtimeconfig.RuntimeConfig) []fcontextRule {
-	k0sDir := rc.EmbeddedClusterK0sSubDir()
-	containerdDir := filepath.Join(k0sDir, "containerd")
-
 	return []fcontextRule{
 		{rc.EmbeddedClusterBinsSubDir() + "(/.*)?", "bin_t"},
-		{filepath.Join(k0sDir, "bin", "containerd.*"), "container_runtime_exec_t"},
-		{filepath.Join(k0sDir, "bin", "runc"), "container_runtime_exec_t"},
-		{containerdDir + "(/.*)?", "container_var_lib_t"},
-		{filepath.Join(containerdDir, "io.containerd.snapshotter.*", "snapshots") + "(/.*)?", "container_ro_file_t"},
 	}
 }
 
@@ -47,9 +37,8 @@ func fcontextRules(rc runtimeconfig.RuntimeConfig) []fcontextRule {
 // with the local policy store. The rules persist across reboots and survive a
 // filesystem relabel; RestoreSELinuxContext applies them.
 //
-// This is best-effort: a host without selinux has no semanage, and a host
-// without container-selinux has no container_* types. Neither should fail an
-// install, but both are surfaced by the selinux host preflights.
+// This is best-effort: a host without selinux has no semanage. That should not
+// fail an install, and the selinux host preflights surface it.
 func (h *HostUtils) ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
 	if !selinux.GetEnabled() {
 		h.logger.Debugln("selinux is not enabled, skipping fcontext configuration")
@@ -65,8 +54,6 @@ func (h *HostUtils) ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) err
 	for _, rule := range fcontextRules(rc) {
 		h.logger.Debugf("setting selinux fcontext for %s to %s", rule.Regex, rule.Type)
 		if err := h.applyFcontextRule(rule); err != nil {
-			// A missing type means container-selinux is not installed. Log it
-			// and keep going so the rules that can apply still do.
 			h.logger.Debugf("unable to set selinux fcontext for %s: %v", rule.Regex, err)
 		}
 	}
