@@ -41,6 +41,9 @@ inputs:
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
+  airgap-bundles-dir:
+    description: 'directory containing verified locally assembled airgap bundles'
+    required: false
 
 runs:
   using: composite
@@ -86,6 +89,7 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS_3=${{ inputs.k0s-version-previous-3 }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export E2E_AIRGAP_BUNDLE_DIR=${{ inputs.airgap-bundles-dir }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}

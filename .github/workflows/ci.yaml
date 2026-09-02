@@ -18,6 +18,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  E2E_AIRGAP_VERSION_SPECIFIER: airgap-e2e
+
 jobs:
   output-vars:
     name: Output variables
@@ -718,6 +721,98 @@ jobs:
             exit 1
           fi
 
+  e2e-airgap-bundles:
+    name: Assemble local airgap bundle (${{ matrix.role }})
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: e2e-application-baseline-${{ matrix.role }}
+      cancel-in-progress: false
+    needs:
+      - build-install
+      - build-upgrade
+      - find-previous-stable
+      - output-vars
+      - release-app
+      - should-run-e2e
+    if: needs.should-run-e2e.outputs.run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { role: install, source: e2e/kots-release-install, artifact: current-release, binary: embedded-cluster-original }
+          - { role: noop, source: e2e/kots-release-install, artifact: current-release, binary: embedded-cluster-original }
+          - { role: previous-k0s-1, source: e2e/kots-release-install, artifact: previous-k0s-1-release, binary: embedded-cluster-previous-k0s-1 }
+          - { role: previous-k0s-2, source: e2e/kots-release-install, artifact: previous-k0s-2-release, binary: embedded-cluster-previous-k0s-2 }
+          - { role: previous-k0s-3, source: e2e/kots-release-install, artifact: previous-k0s-3-release, binary: embedded-cluster-previous-k0s-3 }
+          - { role: upgrade, source: e2e/kots-release-upgrade, artifact: upgrade-release, binary: embedded-cluster-upgrade }
+          - { role: previous-stable, source: e2e/kots-release-install-stable, artifact: stable, binary: embedded-cluster }
+          - { role: legacydr, source: e2e/kots-release-install-legacydr, artifact: current-release, binary: embedded-cluster-original }
+    env:
+      EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin
+      AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+      AWS_REGION: us-east-1
+      REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+      STANDARD_LICENSE_ID: 2eAqdricgviUeki42j02nIn1ayl
+      SNAPSHOT_LICENSE_ID: 2gEzHseTJQ4z2Axwj7KK9RYt4oT
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - uses: azure/setup-helm@v4
+      - uses: imjasonh/setup-crane@v0.7
+      - name: Free up runner disk space
+        run: *free-disk-space
+      - name: Install Replicated CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated
+          sudo mv replicated /usr/local/bin/replicated
+      - name: Download EC binary
+        if: matrix.artifact != 'stable'
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: output/bin
+      - name: Download previous stable EC binary
+        if: matrix.artifact == 'stable'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p output/bin
+          gh release download '${{ needs.find-previous-stable.outputs.ec_version }}' \
+            --repo replicatedhq/embedded-cluster --pattern 'embedded-cluster-linux-amd64.tgz'
+          tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
+      - name: Assemble complete EC v2 bundle
+        env:
+          ROLE: ${{ matrix.role }}
+          RELEASE_YAML_DIR: ${{ matrix.source }}
+          EC_BINARY: output/bin/${{ matrix.binary }}
+        run: |
+          case "$ROLE" in
+            install) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER" ;;
+            noop) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-noop" ;;
+            upgrade) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-upgrade" ;;
+            legacydr) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-legacydr" ;;
+            previous-stable) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-stable" ;;
+            previous-k0s-1) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-1" ;;
+            previous-k0s-2) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-2" ;;
+            previous-k0s-3) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-3" ;;
+          esac
+          export APP_VERSION
+          chmod +x "$EC_BINARY"
+          ./scripts/assemble-e2e-airgap-bundle.sh
+      - name: Upload locally assembled bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-airgap-bundle-${{ matrix.role }}
+          path: output/e2e-airgap-bundles
+          if-no-files-found: error
+
   export-version-specifier:
     name: Export version specifier
     runs-on: ubuntu-latest
@@ -814,58 +909,6 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-upgrade
           ./scripts/ci-release-app.sh
 
-      - name: Create airgap releases
-        env:
-          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
-          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
-          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
-          APP_CHANNEL: CI-airgap
-          S3_BUCKET: tf-staging-embedded-cluster-bin
-        run: |
-          export SHORT_SHA=dev-${{ needs.output-vars.outputs.git_sha }}
-
-          # promote a release containing the previous stable version of embedded-cluster to test upgrades
-          export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}-previous-stable"
-          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
-          ./scripts/ci-release-app.sh
-
-          # for multi-step upgrade test
-          export EC_VERSION="${{ needs.build-install.outputs.ec_version_3 }}"
-          export APP_VERSION="${{ needs.build-install.outputs.app_version_3 }}"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
-          # for multi-step upgrade test
-          export EC_VERSION="${{ needs.build-install.outputs.ec_version_2 }}"
-          export APP_VERSION="${{ needs.build-install.outputs.app_version_2 }}"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
-          # install the previous k0s version to ensure an upgrade occurs
-          export EC_VERSION="${{ needs.build-install.outputs.ec_version_1 }}"
-          export APP_VERSION="${{ needs.build-install.outputs.app_version_1 }}"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
-          # then install the current k0s version
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
-          # then a noop upgrade
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}"
-          export APP_VERSION="appver-${SHORT_SHA}-noop"
-          export RELEASE_YAML_DIR=e2e/kots-release-install
-          ./scripts/ci-release-app.sh
-
-          # and finally an app upgrade
-          export EC_VERSION="${{ needs.output-vars.outputs.ec_version }}-upgrade"
-          export APP_VERSION="appver-${SHORT_SHA}-upgrade"
-          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
-          ./scripts/ci-release-app.sh
-
       - name: Create download link message text
         if: github.event_name == 'pull_request'
         run: |
@@ -879,10 +922,7 @@ jobs:
           echo "\`\`\`" >> download-link.txt
           echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
           echo "\`\`\`" >> download-link.txt
-          echo "Airgap Installer (may take a few minutes before the airgap bundle is built):" >> download-link.txt
-          echo "\`\`\`" >> download-link.txt
-          echo "curl \"https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/${APP_VERSION}?airgap=true\" -H \"Authorization: \$EC_SMOKE_TEST_LICENSE_ID\" -o embedded-cluster-smoke-test-staging-app-ci.tgz" >> download-link.txt
-          echo "\`\`\`" >> download-link.txt
+          echo "Airgap installers are assembled locally and attached to this workflow run." >> download-link.txt
           echo "Happy debugging!" >> download-link.txt
           cat download-link.txt
 
@@ -972,7 +1012,7 @@ jobs:
 
   e2e:
     name: E2E # this name is used by .github/workflows/automated-prs-manager.yaml
-    runs-on: ${{ matrix.runner || 'ubuntu-22.04' }}
+    runs-on: ubuntu-22.04
     continue-on-error: ${{ matrix.continue-on-error || false }}
     needs:
       - build-install
@@ -980,6 +1020,7 @@ jobs:
       - find-previous-stable
       - release-app
       - export-version-specifier
+      - e2e-airgap-bundles
     strategy:
       fail-fast: false
       matrix:
@@ -1008,6 +1049,12 @@ jobs:
         with:
           name: current-release
           path: output/bin
+      - name: Download locally assembled airgap bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-airgap-bundle-*
+          path: output/e2e-airgap-bundles
+          merge-multiple: true
 
       - uses: ./.github/actions/e2e
         with:
@@ -1020,9 +1067,10 @@ jobs:
           k0s-version-previous-2: ${{ needs.build-install.outputs.k0s_version_2 }}
           k0s-version-previous-3: ${{ needs.build-install.outputs.k0s_version_3 }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
-          version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+          version-specifier: ${{ contains(matrix.test, 'Airgap') && env.E2E_AIRGAP_VERSION_SPECIFIER || needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
 
   e2e-main:
     name: E2E (on merge)
@@ -1034,6 +1082,7 @@ jobs:
       - find-previous-stable
       - release-app
       - export-version-specifier
+      - e2e-airgap-bundles
     strategy:
       fail-fast: false
       matrix:
@@ -1047,6 +1096,12 @@ jobs:
         with:
           name: current-release
           path: output/bin
+      - name: Download locally assembled airgap bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-airgap-bundle-*
+          path: output/e2e-airgap-bundles
+          merge-multiple: true
 
       - uses: ./.github/actions/e2e
         with:
@@ -1055,10 +1110,13 @@ jobs:
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-install.outputs.k0s_version }}
           k0s-version-previous-1: ${{ needs.build-install.outputs.k0s_version_1 }}
+          k0s-version-previous-2: ${{ needs.build-install.outputs.k0s_version_2 }}
+          k0s-version-previous-3: ${{ needs.build-install.outputs.k0s_version_3 }}
           k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
-          version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
+          version-specifier: ${{ env.E2E_AIRGAP_VERSION_SPECIFIER }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
 
   # this job will validate that all the tests passed
   # it is used for the github branch protection rule
@@ -1077,6 +1135,7 @@ jobs:
       - dryrun-tests
       - check-images
       - check-operator-crds
+      - e2e-airgap-bundles
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -1112,6 +1171,9 @@ jobs:
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
+        run: exit 1
+      - name: fail if local airgap bundles were not assembled
+        if: needs.e2e-airgap-bundles.result != 'success' && needs.e2e-airgap-bundles.result != 'skipped'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"
