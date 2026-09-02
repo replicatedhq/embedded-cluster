@@ -38,6 +38,11 @@ func TestCollectSupportBundle(t *testing.T) {
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
 	assert.NoErrorf(t, err, "fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
 
+	t.Logf("%s: creating test redactor spec for CLI support bundle", time.Now().Format(time.RFC3339))
+	line = []string{"create-test-redactor.sh"}
+	stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	assert.NoErrorf(t, err, "fail to create test redactor spec: %v: %s: %s", err, stdout, stderr)
+
 	t.Logf("%s: collecting support bundle with the embedded-cluster binary", time.Now().Format(time.RFC3339))
 	line = []string{"embedded-cluster", "support-bundle"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
