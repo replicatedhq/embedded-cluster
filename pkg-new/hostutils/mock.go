@@ -16,6 +16,12 @@ type MockHostUtils struct {
 	mock.Mock
 }
 
+// ConfigureContainerdSELinux implements HostUtilsInterface.
+func (m *MockHostUtils) ConfigureContainerdSELinux() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // ConfigureSELinuxFcontext implements HostUtilsInterface.
 func (m *MockHostUtils) ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(rc)
@@ -24,6 +30,12 @@ func (m *MockHostUtils) ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig)
 
 // RestoreSELinuxContext implements HostUtilsInterface.
 func (m *MockHostUtils) RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
+	args := m.Called(rc)
+	return args.Error(0)
+}
+
+// RemoveSELinuxFcontext implements HostUtilsInterface.
+func (m *MockHostUtils) RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(rc)
 	return args.Error(0)
 }
