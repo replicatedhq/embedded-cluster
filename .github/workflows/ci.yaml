@@ -895,6 +895,9 @@ jobs:
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
+    # TEMPORARY(selinux): skipped while validating the selinux changes. Revert
+    # this commit before merging.
+    if: false
     runs-on: ubuntu-22.04
     needs:
       - output-vars
@@ -983,23 +986,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # TEMPORARY(selinux): trimmed to the selinux test while validating the
+        # selinux changes. Revert this commit before merging.
         test:
-          - TestSingleNodeAirgapAppOnlyUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
-          - TestMultiNodeAirgapUpgradePreviousStable
-          - TestSingleNodeAirgapDisasterRecovery
-          - TestMultiNodeAirgapHADisasterRecovery
-        include:
-          - test: TestVersion
-            is-lxd: true
-          - test: TestCommandsRequireSudo
-            is-lxd: true
-          - test: TestProxiedEnvironment
-            is-lxd: true
-          - test: TestInstallWithMITMProxy
-            is-lxd: true
-          - test: TestSingleNodeNetworkReport
-            continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
