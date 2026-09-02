@@ -655,7 +655,7 @@ func TestSingleNodeAirgapAppOnlyUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion(), "upgraded"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}

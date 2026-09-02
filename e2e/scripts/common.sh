@@ -235,6 +235,14 @@ ensure_app_not_upgraded() {
     fi
 }
 
+ensure_app_upgraded() {
+    if ! retry 5 eval "kubectl get pods -n $APP_NAMESPACE -l app=second | grep Running >/dev/null"; then
+        echo "no running pods found for second app version"
+        kubectl get pods -n "$APP_NAMESPACE"
+        return 1
+    fi
+}
+
 ensure_installation_label() {
     # ensure that the installation has the kots backup label
     if ! kubectl get installations -l "replicated.com/disaster-recovery=ec-install" --no-headers; then

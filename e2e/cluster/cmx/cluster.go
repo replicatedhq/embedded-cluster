@@ -21,6 +21,7 @@ type ClusterInput struct {
 	Version                string
 	InstanceType           string
 	DiskSize               int
+	TTL                    time.Duration
 	SupportBundleNodeIndex int
 }
 
@@ -109,6 +110,9 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 	}
 	if in.DiskSize != 0 {
 		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
+	}
+	if in.TTL != 0 {
+		args = append(args, "--ttl", in.TTL.String())
 	}
 	if key := os.Getenv("CMX_SSH_PUBLIC_KEY"); key != "" {
 		args = append(args, "--ssh-public-key", key)
@@ -533,6 +537,13 @@ func copyFileToNode(node Node, src, dst string) error {
 		return fmt.Errorf("copy file to node: %v: %s", err, string(output))
 	}
 	return nil
+}
+
+func (c *Cluster) CopyFileToNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	return copyFileToNode(c.Nodes[node], src, dst)
 }
 
 func copyFileFromNode(node Node, src, dst string) error {

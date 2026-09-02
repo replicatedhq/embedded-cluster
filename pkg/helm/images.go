@@ -40,7 +40,10 @@ type reducedContainer struct {
 func ExtractImagesFromChart(hcli Client, ref string, version string, values map[string]interface{}) ([]string, error) {
 	parts := strings.Split(ref, "/")
 	name := parts[len(parts)-1]
+	return ExtractImagesFromChartWithReleaseName(hcli, name, ref, version, values)
+}
 
+func ExtractImagesFromChartWithReleaseName(hcli Client, name, ref string, version string, values map[string]interface{}) ([]string, error) {
 	manifests, err := hcli.Render(context.Background(), InstallOptions{
 		ReleaseName:  name,
 		ChartPath:    ref,
