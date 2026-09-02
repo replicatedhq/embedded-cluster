@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -117,7 +118,7 @@ func (k *K0s) IsInstalled() (bool, error) {
 }
 
 // NewK0sConfig creates a new k0sv1beta1.ClusterConfig object from the input parameters.
-func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, podLogsDir string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -143,6 +144,13 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 	if mutate != nil {
 		if err := mutate(cfg); err != nil {
 			return nil, err
+		}
+	}
+
+	// Set before overrides so a vendor- or end user-supplied worker profile still wins.
+	if podLogsDir != "" && config.SupportsPodLogsDir() {
+		if err := setPodLogsDir(cfg, podLogsDir); err != nil {
+			return nil, fmt.Errorf("unable to set pod logs dir: %w", err)
 		}
 	}
 
@@ -183,6 +191,22 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig)
 		return fmt.Errorf("unable to write config file: %w", err)
 	}
 
+	return nil
+}
+
+// setPodLogsDir points kubelet at a pod log directory under the k0s data dir, so pod logs land
+// on the filesystem kubelet measures disk pressure on and eviction can account for them. It uses
+// the "default" worker profile, which is the profile every node reads unless installed with an
+// explicit --profile.
+func setPodLogsDir(cfg *k0sv1beta1.ClusterConfig, podLogsDir string) error {
+	values, err := json.Marshal(map[string]string{"podLogsDir": podLogsDir})
+	if err != nil {
+		return fmt.Errorf("marshal worker profile values: %w", err)
+	}
+	cfg.Spec.WorkerProfiles = append(cfg.Spec.WorkerProfiles, k0sv1beta1.WorkerProfile{
+		Name:   "default",
+		Config: &runtime.RawExtension{Raw: values},
+	})
 	return nil
 }
 

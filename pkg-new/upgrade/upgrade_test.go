@@ -381,6 +381,116 @@ config:
 				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
 			},
 		},
+		{
+			// A cluster installed with the pod log directory keeps it across upgrades: the
+			// upgrade path never rewrites workerProfiles unless an override says so.
+			name: "keeps the pod logs worker profile when no overrides are set",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					WorkerProfiles: []k0sv1beta1.WorkerProfile{
+						{
+							Name:   "default",
+							Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`)},
+						},
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
+				assert.Equal(t, "default", updatedConfig.Spec.WorkerProfiles[0].Name)
+				assert.JSONEq(t, `{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`, string(updatedConfig.Spec.WorkerProfiles[0].Config.Raw))
+			},
+		},
+		{
+			// The pod log directory is set at install time only, so upgrading a cluster that
+			// never had it must not introduce one.
+			name: "does not add a pod logs worker profile to an existing cluster",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				assert.Empty(t, updatedConfig.Spec.WorkerProfiles)
+			},
+		},
+		{
+			// Documents the accepted trade-off: workerProfiles is a list and overrides replace
+			// it wholesale, so a vendor profile takes the pod log directory with it.
+			name: "vendor worker profile override replaces the pod logs profile",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					WorkerProfiles: []k0sv1beta1.WorkerProfile{
+						{
+							Name:   "default",
+							Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`)},
+						},
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+						UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+							K0s: `
+config:
+  spec:
+    workerProfiles:
+    - name: ip-forward
+      values:
+        allowedUnsafeSysctls:
+        - net.ipv4.ip_forward
+`,
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
+				assert.Equal(t, "ip-forward", updatedConfig.Spec.WorkerProfiles[0].Name)
+			},
+		},
 	}
 
 	for _, tt := range tests {

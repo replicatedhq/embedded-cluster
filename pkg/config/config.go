@@ -9,8 +9,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
+	"github.com/k0sproject/k0s/pkg/constant"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v3"
@@ -20,6 +22,19 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
+
+// podLogsDirMinVersion is the first Kubernetes version that honors the kubelet podLogsDir
+// setting. Below it the field is silently dropped, so we don't set it at all.
+var podLogsDirMinVersion = semver.MustParse("1.30")
+
+// SupportsPodLogsDir reports whether the bundled Kubernetes version honors podLogsDir.
+func SupportsPodLogsDir() bool {
+	v, err := semver.NewVersion(constant.KubernetesMajorMinorVersion)
+	if err != nil {
+		return false
+	}
+	return !v.LessThan(podLogsDirMinVersion)
+}
 
 const (
 	DefaultVendorChartOrder = 10

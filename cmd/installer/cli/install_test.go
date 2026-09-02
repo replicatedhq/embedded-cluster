@@ -1444,6 +1444,7 @@ func Test_buildK0sConfig(t *testing.T) {
 		name       string
 		flags      *installFlags
 		installCfg *installConfig
+		podLogsDir string
 		wantErr    bool
 		validate   func(*testing.T, *k0sv1beta1.ClusterConfig)
 	}{
@@ -1515,13 +1516,47 @@ func Test_buildK0sConfig(t *testing.T) {
 				req.Equal("172.17.0.0/20", cfg.Spec.Network.ServiceCIDR)
 			},
 		},
+		{
+			name: "pod logs dir sets the default worker profile",
+			flags: &installFlags{
+				cidrConfig: &newconfig.CIDRConfig{
+					PodCIDR:     "10.0.0.0/24",
+					ServiceCIDR: "10.1.0.0/24",
+				},
+			},
+			installCfg: &installConfig{},
+			podLogsDir: "/var/lib/embedded-cluster/k0s/pod-logs",
+			wantErr:    false,
+			validate: func(t *testing.T, cfg *k0sv1beta1.ClusterConfig) {
+				req := require.New(t)
+				req.Len(cfg.Spec.WorkerProfiles, 1)
+				req.Equal("default", cfg.Spec.WorkerProfiles[0].Name)
+				req.NotNil(cfg.Spec.WorkerProfiles[0].Config)
+				req.JSONEq(`{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`, string(cfg.Spec.WorkerProfiles[0].Config.Raw))
+			},
+		},
+		{
+			name: "no pod logs dir leaves worker profiles unset",
+			flags: &installFlags{
+				cidrConfig: &newconfig.CIDRConfig{
+					PodCIDR:     "10.0.0.0/24",
+					ServiceCIDR: "10.1.0.0/24",
+				},
+			},
+			installCfg: &installConfig{},
+			podLogsDir: "",
+			wantErr:    false,
+			validate: func(t *testing.T, cfg *k0sv1beta1.ClusterConfig) {
+				require.New(t).Empty(cfg.Spec.WorkerProfiles)
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := require.New(t)
 
-			cfg, err := buildK0sConfig(tt.flags, tt.installCfg)
+			cfg, err := buildK0sConfig(tt.flags, tt.installCfg, tt.podLogsDir)
 
 			if tt.wantErr {
 				req.Error(err)
