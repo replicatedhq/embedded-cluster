@@ -75,6 +75,14 @@ expect {
 }
 
 expect {
+    -timeout 900 "Embedded registry populated!" {}
+    timeout {
+      puts "\n\nFailed to populate the embedded registry."
+      exit 1
+    }
+}
+
+expect {
     -timeout 240 "High availability enabled for the Admin Console!" {}
     timeout {
       puts "\n\nFailed to enable high availability for the admin console."

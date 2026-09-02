@@ -17,6 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/kotscli"
@@ -26,6 +27,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
@@ -62,6 +64,7 @@ const (
 	ecRestoreStateWaitForNodes         ecRestoreState = "wait-for-nodes"
 	ecRestoreStateRestoreSeaweedFS     ecRestoreState = "restore-seaweedfs"
 	ecRestoreStateRestoreRegistry      ecRestoreState = "restore-registry"
+	ecRestoreStatePopulateRegistry     ecRestoreState = "populate-registry-from-airgap-bundle"
 	ecRestoreStateAdminConsoleEnableHA ecRestoreState = "admin-console-enable-ha"
 	ecRestoreStateRestoreECO           ecRestoreState = "restore-embedded-cluster-operator"
 	ecRestoreStateRestoreExtensions    ecRestoreState = "restore-extensions"
@@ -76,6 +79,7 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateWaitForNodes,
 	ecRestoreStateRestoreSeaweedFS,
 	ecRestoreStateRestoreRegistry,
+	ecRestoreStatePopulateRegistry,
 	ecRestoreStateAdminConsoleEnableHA,
 	ecRestoreStateRestoreECO,
 	ecRestoreStateRestoreExtensions,
@@ -279,6 +283,20 @@ func runRestore(ctx context.Context, appSlug, appTitle string, flags installFlag
 		}
 
 		err = runRestoreRegistry(ctx, installCfg, backupToRestore)
+		if err != nil {
+			return err
+		}
+
+		fallthrough
+
+	case ecRestoreStatePopulateRegistry:
+		logrus.Debugf("setting restore state to %q", ecRestoreStatePopulateRegistry)
+		err := setECRestoreState(ctx, ecRestoreStatePopulateRegistry, backupToRestore.GetName())
+		if err != nil {
+			return fmt.Errorf("unable to set restore state: %w", err)
+		}
+
+		err = runPopulateRegistry(ctx, appSlug, flags.airgapBundle, backupToRestore)
 		if err != nil {
 			return err
 		}
@@ -707,6 +725,142 @@ func runRestoreRegistry(ctx context.Context, installCfg *installConfig, backupTo
 	}
 
 	return nil
+}
+
+type dockerConfig struct {
+	Auths map[string]dockerConfigEntry `json:"auths"`
+}
+
+type dockerConfigEntry struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func runPopulateRegistry(ctx context.Context, appSlug, airgapBundle string, backupToRestore *disasterrecovery.ReplicatedBackup) error {
+	kcli, err := kubeutils.KubeClient()
+	if err != nil {
+		return fmt.Errorf("unable to create kube client: %w", err)
+	}
+	in, err := kubeutils.GetLatestInstallation(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get latest installation: %w", err)
+	}
+	if in.Annotations[constants.EmbeddedRegistryDataSourceAnnotation] != constants.EmbeddedRegistryDataSourceAirgapBundle {
+		return nil
+	}
+	highAvailability, err := isHighAvailabilityReplicatedBackup(*backupToRestore)
+	if err != nil {
+		return err
+	}
+	if highAvailability {
+		if err := ensureSeaweedFSRegistryBucket(ctx, kcli); err != nil {
+			return fmt.Errorf("ensure SeaweedFS registry bucket: %w", err)
+		}
+	}
+
+	registryAddress, ok := backupToRestore.GetAnnotation("kots.io/embedded-registry")
+	if !ok {
+		return fmt.Errorf("unable to read registry address from backup")
+	}
+	kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get kotsadm namespace: %w", err)
+	}
+	username, password, err := registryCredentialsFromSecrets(ctx, kcli, kotsadmNamespace, registryAddress)
+	if err != nil {
+		return err
+	}
+	loading := spinner.Start()
+	defer loading.Close()
+	loading.Infof("Restoring registry data")
+	if err := kotscli.PushImages(kotscli.PushImagesOptions{
+		AirgapBundle:     airgapBundle,
+		Namespace:        kotsadmNamespace,
+		RegistryAddress:  fmt.Sprintf("%s/%s", strings.TrimSuffix(registryAddress, "/"), appSlug),
+		RegistryUsername: username,
+		RegistryPassword: password,
+		ClusterID:        in.Spec.ClusterID,
+		Stdout:           loading,
+	}); err != nil {
+		return fmt.Errorf("populate embedded registry: %w", err)
+	}
+	loading.Infof("Embedded registry populated!")
+	return nil
+}
+
+// ensureSeaweedFSRegistryBucket recreates the chart-managed registry bucket because restored filer storage is intentionally empty.
+func ensureSeaweedFSRegistryBucket(ctx context.Context, kcli client.Client) error {
+	accessKey, secretKey, err := seaweedfs.GetS3RWCreds(ctx, kcli)
+	if err != nil {
+		return fmt.Errorf("get SeaweedFS S3 credentials: %w", err)
+	}
+
+	var svc corev1.Service
+	if err := kcli.Get(ctx, client.ObjectKey{
+		Namespace: constants.SeaweedFSNamespace,
+		Name:      "ec-seaweedfs-s3",
+	}, &svc); err != nil {
+		return fmt.Errorf("get SeaweedFS S3 service: %w", err)
+	}
+	if svc.Spec.ClusterIP == "" || svc.Spec.ClusterIP == corev1.ClusterIPNone {
+		return fmt.Errorf("SeaweedFS S3 service has no cluster IP")
+	}
+	if len(svc.Spec.Ports) == 0 {
+		return fmt.Errorf("SeaweedFS S3 service has no ports")
+	}
+
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		config.WithRegion("us-east-1"),
+	)
+	if err != nil {
+		return fmt.Errorf("load S3 config: %w", err)
+	}
+	s3Client := s3.NewFromConfig(cfg, func(options *s3.Options) {
+		options.UsePathStyle = true
+		options.BaseEndpoint = aws.String(fmt.Sprintf("http://%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port))
+	})
+
+	_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: ptr.To("registry")})
+	if err != nil {
+		var alreadyExists *s3types.BucketAlreadyExists
+		var alreadyOwned *s3types.BucketAlreadyOwnedByYou
+		if !errors.As(err, &alreadyExists) && !errors.As(err, &alreadyOwned) {
+			return fmt.Errorf("create registry bucket: %w", err)
+		}
+	}
+	return nil
+}
+
+func registryCredentialsFromSecrets(ctx context.Context, kcli client.Client, namespace, registryAddress string) (string, string, error) {
+	var secrets corev1.SecretList
+	if err := kcli.List(ctx, &secrets, client.InNamespace(namespace)); err != nil {
+		return "", "", fmt.Errorf("list registry credential secrets: %w", err)
+	}
+
+	for _, secret := range secrets.Items {
+		data, ok := secret.Data[corev1.DockerConfigJsonKey]
+		if !ok {
+			continue
+		}
+		var cfg dockerConfig
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			continue
+		}
+		for address, credentials := range cfg.Auths {
+			if normalizeRegistryAddress(address) == normalizeRegistryAddress(registryAddress) && credentials.Username != "" && credentials.Password != "" {
+				return credentials.Username, credentials.Password, nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("unable to find restored credentials for registry %q", registryAddress)
+}
+
+func normalizeRegistryAddress(address string) string {
+	address = strings.TrimSpace(address)
+	address = strings.TrimPrefix(address, "https://")
+	address = strings.TrimPrefix(address, "http://")
+	return strings.TrimSuffix(address, "/")
 }
 
 func runRestoreECO(ctx context.Context, backupToRestore *disasterrecovery.ReplicatedBackup) error {

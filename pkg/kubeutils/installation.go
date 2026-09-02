@@ -246,6 +246,12 @@ func CreateInstallation(ctx context.Context, cli client.Client, in *ecv1beta1.In
 		in.Labels = map[string]string{}
 	}
 	in.Labels["replicated.com/disaster-recovery"] = "ec-install"
+	if in.Spec.AirGap {
+		if in.Annotations == nil {
+			in.Annotations = map[string]string{}
+		}
+		in.Annotations[constants.EmbeddedRegistryDataSourceAnnotation] = constants.EmbeddedRegistryDataSourceAirgapBundle
+	}
 
 	backoff := wait.Backoff{Steps: 5, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
 	return wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
