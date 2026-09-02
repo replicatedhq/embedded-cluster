@@ -570,6 +570,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		Distribution:           "ubuntu",
 		Version:                "22.04",
 		InstanceType:           "r1.medium",
+		TTL:                    2 * time.Hour,
 		SupportBundleNodeIndex: 2,
 	})
 	defer tc.Cleanup(withEnv)

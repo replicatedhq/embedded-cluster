@@ -199,7 +199,17 @@ output/bins/kubectl-kots-override:
 .PHONY: output/bin/embedded-cluster-release-builder
 output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
+	rm -f output/bin/embedded-cluster-release-builder
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
+
+.PHONY: output/bin/airgap-bundle
+output/bin/airgap-bundle:
+	mkdir -p output/bin
+	CGO_ENABLED=0 go build -o output/bin/airgap-bundle ./cmd/airgap-bundle
+
+.PHONY: test-ec-runtime-cache
+test-ec-runtime-cache: output/bin/airgap-bundle
+	./scripts/test-resolve-ec-runtime-assets.sh
 
 .PHONY: initial-release
 initial-release: RANDOM_STRING = $(call random-string)
