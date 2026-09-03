@@ -31,10 +31,9 @@ type HostUtilsInterface interface {
 	AddInsecureRegistry(registry string) error
 	MigrateContainerdConfigToV3(isAirgap bool) error
 	ConfigureContainerdSELinux() error
-	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
+	ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error
 	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
-	RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
-	ConfigureSELinuxBooleans() error
+	RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error
 }
 
 // Convenience functions
@@ -88,18 +87,14 @@ func ConfigureContainerdSELinux() error {
 	return h.ConfigureContainerdSELinux()
 }
 
-func ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
-	return h.ConfigureSELinuxFcontext(rc)
+func ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error {
+	return h.ConfigureSELinux(rc)
 }
 
 func RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
 	return h.RestoreSELinuxContext(rc)
 }
 
-func RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
-	return h.RemoveSELinuxFcontext(rc)
-}
-
-func ConfigureSELinuxBooleans() error {
-	return h.ConfigureSELinuxBooleans()
+func RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
+	return h.RemoveSELinuxModule(rc)
 }

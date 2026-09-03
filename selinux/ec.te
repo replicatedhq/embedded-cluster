@@ -1,0 +1,43 @@
+policy_module(ec, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+require {
+	# from container-selinux; this module is useless without it
+	attribute container_domain;
+	type container_var_lib_t;
+	type container_file_t;
+	type container_runtime_exec_t;
+	type cert_t;
+}
+
+# A private executable type for embedded cluster's own binaries: the installer,
+# kubectl, the local artifact mirror. They live under the data directory, which
+# the base policy labels var_lib_t, and a var_lib_t file cannot be executed.
+#
+# Deliberately not bin_t. Labeling our directory bin_t would make it a location
+# any confined domain may execute from, which matters because the admin console
+# mounts the whole data directory. A private type keeps that closed.
+type ec_bin_t;
+files_type(ec_bin_t)
+corecmd_executable_file(ec_bin_t)
+
+########################################
+#
+# Rules
+#
+
+# The admin console and the operator mount the host CA bundle, which is cert_t.
+# container-selinux gates this behind the container_read_certs boolean; granting
+# it here instead keeps the change scoped to this module, so removing the module
+# removes the grant, rather than leaving a host wide boolean flipped on.
+allow container_domain cert_t:file { getattr open read };
+allow container_domain cert_t:lnk_file read;
+allow container_domain cert_t:dir { getattr open read search };
+
+# The operator creates bpf maps. container-selinux grants bpf only to spc_t, and
+# offers no boolean for it.
+allow container_domain self:bpf { map_create map_read map_write };

@@ -192,9 +192,9 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 
 			// Leaves the local policy store clean; the rules outlive the data
 			// directory they point at otherwise.
-			logrus.Debugf("Removing selinux file contexts...")
-			if err := hostutils.RemoveSELinuxFcontext(rc); err != nil {
-				logrus.Warnf("Failed to remove selinux file contexts (continuing with reset anyway): %v", err)
+			logrus.Debugf("Removing selinux policy...")
+			if err := hostutils.RemoveSELinuxModule(rc); err != nil {
+				logrus.Warnf("Failed to remove selinux policy (continuing with reset anyway): %v", err)
 			}
 
 			// The whole directory, not just k0s.yaml: it also holds containerd

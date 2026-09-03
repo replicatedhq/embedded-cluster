@@ -22,8 +22,8 @@ func (m *MockHostUtils) ConfigureContainerdSELinux() error {
 	return args.Error(0)
 }
 
-// ConfigureSELinuxFcontext implements HostUtilsInterface.
-func (m *MockHostUtils) ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
+// ConfigureSELinux implements HostUtilsInterface.
+func (m *MockHostUtils) ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(rc)
 	return args.Error(0)
 }
@@ -34,15 +34,9 @@ func (m *MockHostUtils) RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) er
 	return args.Error(0)
 }
 
-// RemoveSELinuxFcontext implements HostUtilsInterface.
-func (m *MockHostUtils) RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
+// RemoveSELinuxModule implements HostUtilsInterface.
+func (m *MockHostUtils) RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
 	args := m.Called(rc)
-	return args.Error(0)
-}
-
-// ConfigureSELinuxBooleans implements HostUtilsInterface.
-func (m *MockHostUtils) ConfigureSELinuxBooleans() error {
-	args := m.Called()
 	return args.Error(0)
 }
 
