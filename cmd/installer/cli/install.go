@@ -578,7 +578,7 @@ func buildRuntimeConfig(flags *installFlags, installCfg *installConfig, rc runti
 }
 
 func buildNetworkSpec(flags *installFlags, installCfg *installConfig) (ecv1beta1.NetworkSpec, error) {
-	k0sCfg, err := buildK0sConfig(flags, installCfg)
+	k0sCfg, err := buildK0sConfig(flags, installCfg, "")
 	if err != nil {
 		return ecv1beta1.NetworkSpec{}, fmt.Errorf("create k0s config: %w", err)
 	}
@@ -718,8 +718,8 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 }
 
 // Hop: buildK0sConfig builds k0s cluster configuration from install flags and config
-func buildK0sConfig(flags *installFlags, installCfg *installConfig) (*k0sv1beta1.ClusterConfig, error) {
-	return k0s.NewK0sConfig(flags.networkInterface, installCfg.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, installCfg.endUserConfig, nil)
+func buildK0sConfig(flags *installFlags, installCfg *installConfig, podLogsDir string) (*k0sv1beta1.ClusterConfig, error) {
+	return k0s.NewK0sConfig(flags.networkInterface, installCfg.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, podLogsDir, installCfg.endUserConfig, nil)
 }
 
 // Hop: buildHelmClientOptions builds helm client options from install config and runtime config
@@ -1040,7 +1040,7 @@ func installAndStartCluster(ctx context.Context, flags installFlags, installCfg 
 
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := buildK0sConfig(&flags, installCfg)
+	cfg, err := buildK0sConfig(&flags, installCfg, rc.EmbeddedClusterPodLogsSubDir())
 	if err != nil {
 		return nil, fmt.Errorf("unable to build k0s config: %w", err)
 	}

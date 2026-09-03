@@ -330,6 +330,44 @@ func TestCustomDataDir(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// TestPodLogsDir validates that a fresh install points kubelet at a pod log directory under the
+// data dir, so pod logs land on the filesystem kubelet measures disk pressure on.
+func TestPodLogsDir(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigNoWorkerProfilesData,
+		"--data-dir", "/custom/data/dir",
+	)
+
+	// --- validate k0s cluster config --- //
+	k0sConfig := readK0sConfig(t)
+
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "the default worker profile should be set")
+	assert.Equal(t, "default", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"podLogsDir":"/custom/data/dir/k0s/pod-logs"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"pod logs dir should follow --data-dir",
+	)
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --profile=default`),
+		},
+		false,
+	)
+}
+
 func TestCustomPortsInstallation(t *testing.T) {
 	hcli := &helm.MockClient{}
 

@@ -52,6 +52,9 @@ var (
 	//go:embed assets/cluster-config-nodomains.yaml
 	clusterConfigNoDomainsData string
 
+	//go:embed assets/cluster-config-no-worker-profiles.yaml
+	clusterConfigNoWorkerProfilesData string
+
 	//go:embed assets/cluster-config-with-velero-plugins.yaml
 	clusterConfigWithVeleroPluginsData string
 

@@ -74,6 +74,12 @@ func (m *MockRuntimeConfig) EmbeddedClusterK0sSubDir() string {
 	return args.String(0)
 }
 
+// EmbeddedClusterPodLogsSubDir mocks the EmbeddedClusterPodLogsSubDir method
+func (m *MockRuntimeConfig) EmbeddedClusterPodLogsSubDir() string {
+	args := m.Called()
+	return args.String(0)
+}
+
 // EmbeddedClusterSeaweedFSSubDir mocks the EmbeddedClusterSeaweedFSSubDir method
 func (m *MockRuntimeConfig) EmbeddedClusterSeaweedFSSubDir() string {
 	args := m.Called()
