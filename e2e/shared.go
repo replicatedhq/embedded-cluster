@@ -444,7 +444,10 @@ func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
 func checkNoSELinuxDenials(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("%s: checking for selinux denials on node %d", time.Now().Format(time.RFC3339), node)
 
-	line := []string{"journalctl -k --no-pager | grep 'avc: *denied' | grep 'permissive=0' | grep -v module_request | tail -40 || true"}
+	// Both sources: when auditd runs, which it does by default on RHEL, the
+	// kernel hands avc records to it and they never reach the kernel ring
+	// buffer, so journalctl alone silently finds nothing to report.
+	line := []string{"{ ausearch -m avc -ts boot 2>/dev/null; journalctl -k --no-pager 2>/dev/null | grep 'avc: *denied'; } | grep 'permissive=0' | grep -v module_request | tail -40 || true"}
 	stdout, stderr, err := tc.RunCommandOnNode(node, line)
 	if err != nil {
 		t.Logf("unable to read selinux denials on node %d (continuing): %v: %s", node, err, stderr)

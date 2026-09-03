@@ -12,6 +12,9 @@ require {
 	type container_file_t;
 	type container_runtime_exec_t;
 	type cert_t;
+	type init_t;
+	type unconfined_t;
+	type unconfined_service_t;
 }
 
 # A private executable type for embedded cluster's own binaries: the installer,
@@ -21,9 +24,14 @@ require {
 # Deliberately not bin_t. Labeling our directory bin_t would make it a location
 # any confined domain may execute from, which matters because the admin console
 # mounts the whole data directory. A private type keeps that closed.
+#
+# Deliberately not corecmd_executable_file() either, tempting as it looks: that
+# joins the exec_type attribute, and container-selinux allows every container
+# domain to execute all of exec_type. It would hand back exactly the access the
+# private type exists to deny. The cost is that nothing can execute the type
+# until we say so, which is what the transition rules below are for.
 type ec_bin_t;
 files_type(ec_bin_t)
-corecmd_executable_file(ec_bin_t)
 
 ########################################
 #
@@ -41,3 +49,18 @@ allow container_domain cert_t:dir { getattr open read search };
 # The operator creates bpf maps. container-selinux grants bpf only to spc_t, and
 # offers no boolean for it.
 allow container_domain self:bpf { map_create map_read map_write };
+
+# Nothing transitions to a domain for a private type on its own, so systemd
+# would try to run our services in init_t and be denied. Send them to
+# unconfined_service_t, which is where they landed when the directory was
+# labeled bin_t.
+allow init_t ec_bin_t:file { getattr open read execute map };
+allow init_t unconfined_service_t:process transition;
+type_transition init_t ec_bin_t:process unconfined_service_t;
+allow unconfined_service_t ec_bin_t:file entrypoint;
+
+# The installer runs as unconfined_t and execs k0s and kubectl out of the same
+# directory; our services exec each other's binaries too. Dropping exec_type
+# took those away, so grant them back narrowly.
+allow unconfined_t ec_bin_t:file { getattr open read execute execute_no_trans map };
+allow unconfined_service_t ec_bin_t:file { getattr open read execute execute_no_trans map };
