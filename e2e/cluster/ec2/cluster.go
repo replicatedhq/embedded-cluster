@@ -264,7 +264,12 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 			line = append([]string{fmt.Sprintf("%s=%s", k, v)}, line...)
 		}
 	}
-	line = append([]string{"sudo", "PATH=$PATH:/var/lib/embedded-cluster/bin"}, line...)
+	// Via env, not a bare `sudo PATH=...`: sudo resolves the command against
+	// secure_path, which on RHEL is only /sbin:/bin:/usr/sbin:/usr/bin. Both
+	// /usr/local/bin and the data dir fall outside it, so a command-line PATH
+	// assignment sets the variable but the lookup still fails. env does the
+	// lookup itself, using the PATH we give it.
+	line = append([]string{"sudo", "env", "PATH=$PATH:/usr/local/bin:/var/lib/embedded-cluster/bin"}, line...)
 
 	args := []string{
 		"-i", c.keyPath,
