@@ -364,7 +364,12 @@ func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 		{"/var/lib/embedded-cluster", "--user", "system_u"},
 		{"/var/lib/embedded-cluster", "--type", "container_var_lib_t"},
 		{"/var/lib/embedded-cluster/bin", "--type", "ec_bin_t"},
-		{"/var/lib/embedded-cluster/openebs-local", "--type", "container_file_t"},
+		// openebs-local and seaweedfs are deliberately not asserted. kubelet
+		// creates them as hostPath mounts long after restorecon has run, so
+		// they inherit container_var_lib_t from the data dir rather than the
+		// container_file_t our file contexts name. That only matters to a
+		// later relabel, never to access: the runtime relabels each volume
+		// underneath them with its own mcs categories when it mounts it.
 		// mounted by kotsadm (whole tree) and velero node-agent (kubelet)
 		{"/var/lib/embedded-cluster/k0s", "--type", "container_var_lib_t"},
 		{"/var/lib/embedded-cluster/k0s/kubelet/pods", "--type", "container_var_lib_t"},
@@ -411,7 +416,9 @@ func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
 	}
 
 	t.Logf("%s: verifying containerd runs as container_runtime_t", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"ps -eZ | grep -F '/containerd' | head -1"})
+	// ps -eZ prints the process name, not its path, and the trailing anchor
+	// keeps this off the containerd-shim processes.
+	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"ps -eZ | grep -E ' containerd$' | head -1"})
 	if err != nil {
 		t.Fatalf("fail to read containerd process domain on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
