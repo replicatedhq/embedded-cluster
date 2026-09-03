@@ -454,11 +454,16 @@ func checkNoSELinuxDenials(t *testing.T, tc cluster.Cluster, node int) {
 	// Both sources: when auditd runs, which it does by default on RHEL, the
 	// kernel hands avc records to it and they never reach the kernel ring
 	// buffer, so journalctl alone silently finds nothing to report.
-	line := []string{"{ ausearch -m avc -ts boot 2>/dev/null; journalctl -k --no-pager 2>/dev/null | grep 'avc: *denied'; } | grep 'permissive=0' | grep -v module_request | tail -40 || true"}
+	//
+	// Through bash -c because RunCommandOnNode prefixes sudo env, which takes a
+	// command, not a brace group.
+	line := []string{"bash", "-c", `"{ ausearch -m avc -ts boot 2>/dev/null; journalctl -k --no-pager 2>/dev/null | grep 'avc: *denied'; } | grep permissive=0 | grep -v module_request | tail -40 || true"`}
 	stdout, stderr, err := tc.RunCommandOnNode(node, line)
 	if err != nil {
-		t.Logf("unable to read selinux denials on node %d (continuing): %v: %s", node, err, stderr)
-		return
+		// The command ends in `|| true`, so a non-zero exit means it did not
+		// run, not that there were no denials. Skipping here would leave the
+		// sweep silently doing nothing.
+		t.Fatalf("fail to read selinux denials on node %d: %v: %s", node, err, stderr)
 	}
 	if out := strings.TrimSpace(stdout); out != "" {
 		t.Errorf("selinux denials on node %d:\n%s", node, out)
