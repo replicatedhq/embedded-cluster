@@ -34,6 +34,7 @@ type HostUtilsInterface interface {
 	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
 	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
 	RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
+	ConfigureSELinuxBooleans() error
 }
 
 // Convenience functions
@@ -97,4 +98,8 @@ func RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
 
 func RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {
 	return h.RemoveSELinuxFcontext(rc)
+}
+
+func ConfigureSELinuxBooleans() error {
+	return h.ConfigureSELinuxBooleans()
 }

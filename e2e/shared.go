@@ -346,12 +346,12 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 // checkSELinuxLabels asserts the selinux labels an install depends on. The test
 // pre-labels nothing, so everything here is applied by the install itself.
 //
-// The bin_t and system_u labels are embedded cluster's own doing
-// (hostutils.ConfigureSELinuxFcontext and RestoreSELinuxContext). The
-// container_* labels come from k0s, which labels its staged containerd and runc
-// container_runtime_exec_t on selinux hosts. We assert them anyway: we depend
-// on that behavior, and if k0s ever stops doing it our containers stop being
-// confined.
+// container-selinux only labels the standard paths (/var/lib/kubelet,
+// /usr/bin/containerd), so without our fcontext rules this whole tree keeps
+// var_lib_t and confined containers cannot read anything mounted out of it.
+// The container_runtime_exec_t entries are set by k0s and made persistent by
+// our rules; asserting them catches both a k0s change and our blanket rule
+// demoting them.
 func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("%s: verifying selinux labels on node %d", time.Now().Format(time.RFC3339), node)
 
@@ -360,12 +360,16 @@ func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 		field string
 		want  string
 	}{
+		// the host preflight checks the data dir user label, so keep it asserted
 		{"/var/lib/embedded-cluster", "--user", "system_u"},
-		{"/var/lib/embedded-cluster/bin", "--user", "system_u"},
+		{"/var/lib/embedded-cluster", "--type", "container_var_lib_t"},
 		{"/var/lib/embedded-cluster/bin", "--type", "bin_t"},
+		{"/var/lib/embedded-cluster/openebs-local", "--type", "container_file_t"},
+		// mounted by kotsadm (whole tree) and velero node-agent (kubelet)
+		{"/var/lib/embedded-cluster/k0s", "--type", "container_var_lib_t"},
+		{"/var/lib/embedded-cluster/k0s/kubelet/pods", "--type", "container_var_lib_t"},
 		{"/var/lib/embedded-cluster/k0s/bin/containerd", "--type", "container_runtime_exec_t"},
 		{"/var/lib/embedded-cluster/k0s/bin/runc", "--type", "container_runtime_exec_t"},
-		{"/var/lib/embedded-cluster/k0s/containerd", "--type", "container_var_lib_t"},
 	} {
 		line := []string{"secon", tt.field, "--file", tt.path}
 		stdout, stderr, err := tc.RunCommandOnNode(node, line)
@@ -398,8 +402,19 @@ func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
 		t.Fatalf("containerd selinux drop-in is missing or does not enable selinux on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 
+	// the admin console and the operator mount the host CA bundle, which is
+	// cert_t; container-selinux denies that unless this boolean is on
+	t.Logf("%s: verifying container_read_certs boolean", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getsebool container_read_certs"})
+	if err != nil {
+		t.Fatalf("fail to read container_read_certs boolean on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "--> on") {
+		t.Fatalf("container_read_certs is not enabled on node %d: %s", node, stdout)
+	}
+
 	t.Logf("%s: verifying containerd runs as container_runtime_t", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"ps -eZ | grep -F '/containerd' | head -1"})
+	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"ps -eZ | grep -F '/containerd' | head -1"})
 	if err != nil {
 		t.Fatalf("fail to read containerd process domain on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
@@ -422,6 +437,27 @@ func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
 		t.Fatalf("no processes are running as container_t on node %d, so nothing is confined", node)
 	}
 	t.Logf("%s: %d processes running as container_t on node %d", time.Now().Format(time.RFC3339), count, node)
+}
+
+// checkNoSELinuxDenials fails on selinux denials from confined containers.
+// Turning on container labeling confines every bundled workload for the first
+// time, so a denial here means an addon needs a label or a tunable it is not
+// getting. module_request is excluded: it is a kernel module autoload probe
+// that falls back harmlessly and that container-selinux normally dontaudits.
+func checkNoSELinuxDenials(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: checking for selinux denials on node %d", time.Now().Format(time.RFC3339), node)
+
+	line := []string{"journalctl -k --no-pager | grep 'avc: *denied' | grep 'permissive=0' | grep -v module_request | tail -40 || true"}
+	stdout, stderr, err := tc.RunCommandOnNode(node, line)
+	if err != nil {
+		t.Logf("unable to read selinux denials on node %d (continuing): %v: %s", node, err, stderr)
+		return
+	}
+	if out := strings.TrimSpace(stdout); out != "" {
+		t.Errorf("selinux denials on node %d:\n%s", node, out)
+		return
+	}
+	t.Logf("%s: no enforcing selinux denials on node %d", time.Now().Format(time.RFC3339), node)
 }
 
 func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {

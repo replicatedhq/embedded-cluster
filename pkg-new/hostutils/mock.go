@@ -40,6 +40,12 @@ func (m *MockHostUtils) RemoveSELinuxFcontext(rc runtimeconfig.RuntimeConfig) er
 	return args.Error(0)
 }
 
+// ConfigureSELinuxBooleans implements HostUtilsInterface.
+func (m *MockHostUtils) ConfigureSELinuxBooleans() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // ConfigureHost mocks the ConfigureHost method
 func (m *MockHostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, opts InitForInstallOptions) error {
 	args := m.Called(ctx, rc, channelRelease, opts)

@@ -3,6 +3,7 @@ package hostutils
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/opencontainers/selinux/go-selinux"
@@ -16,22 +17,51 @@ type fcontextRule struct {
 	Type  string
 }
 
-// fcontextRules returns the file context rules embedded cluster needs.
+// fcontextRules returns the file context rules embedded cluster needs, in the
+// order they are registered. Selinux matches the most specific rule, so the
+// narrower rules below override the blanket one.
 //
-// Only our own binaries: the installer, kubectl, the local artifact mirror.
-// They live under the data directory, which the base policy labels var_lib_t,
-// and a var_lib_t file cannot be executed.
+// container-selinux's own file contexts target the standard paths --
+// /var/lib/kubelet, /var/lib/containers, /usr/bin/containerd -- and we put
+// everything under our data directory instead. Without these rules the whole
+// tree keeps the base policy's var_lib_t, which confined containers cannot
+// read, so anything mounting a host path out of it fails. k3s and rke2 ship
+// the same shape of policy for the same reason.
 //
-// We deliberately do not label containerd, runc, or the containerd data
-// directories. k0s already labels its own staged executables
-// container_runtime_exec_t (see pkg/component/worker/containerd in k0s), and
-// the containerd directories come out correct without our help. Adding rules
-// for them would be redundant and would fight whatever set them.
+// Blanket container_var_lib_t because kotsadm mounts the entire data directory
+// and the entire k0s directory. Then:
+//
+//   - bin_t on our own binaries (the installer, kubectl, the local artifact
+//     mirror), because a var_lib_t file cannot be executed.
+//   - container_file_t on openebs-local and seaweedfs, which back persistent
+//     volumes that containers read and write.
+//   - container_runtime_exec_t on containerd and runc. k0s already labels
+//     these itself, but with a chcon-style call that does not survive a
+//     filesystem relabel, and the blanket rule above would otherwise demote
+//     them on the next restorecon. k0s cannot register fcontext rules because
+//     it ships no package to register them from.
 func fcontextRules(rc runtimeconfig.RuntimeConfig) []fcontextRule {
+	k0sBinDir := filepath.Join(rc.EmbeddedClusterK0sSubDir(), "bin")
+
 	return []fcontextRule{
+		{rc.EmbeddedClusterHomeDirectory() + "(/.*)?", "container_var_lib_t"},
 		{rc.EmbeddedClusterBinsSubDir() + "(/.*)?", "bin_t"},
+		{rc.EmbeddedClusterOpenEBSLocalSubDir() + "(/.*)?", "container_file_t"},
+		{rc.EmbeddedClusterSeaweedFSSubDir() + "(/.*)?", "container_file_t"},
+		{filepath.Join(k0sBinDir, "containerd.*"), "container_runtime_exec_t"},
+		{filepath.Join(k0sBinDir, "runc"), "container_runtime_exec_t"},
 	}
 }
+
+// selinuxBooleans are the container-selinux tunables embedded cluster needs.
+//
+// container_read_certs lets container domains read cert_t files. We mount the
+// host CA bundle into the admin console and the operator, and container-selinux
+// denies that by default.
+//
+// Deliberately not reverted on reset: booleans are host wide, and another
+// workload may have come to depend on it.
+var selinuxBooleans = []string{"container_read_certs"}
 
 // ConfigureSELinuxFcontext registers the file context rules from fcontextRules
 // with the local policy store. The rules persist across reboots and survive a
@@ -85,6 +115,31 @@ func (h *HostUtils) runSemanageFcontext(action string, rule fcontextRule) (strin
 	args := []string{"fcontext", action, "-s", "system_u", "-t", rule.Type, rule.Regex}
 	out, err := exec.Command("semanage", args...).CombinedOutput()
 	return string(out), err
+}
+
+// ConfigureSELinuxBooleans turns on the container-selinux tunables listed in
+// selinuxBooleans. Best-effort for the same reasons as the fcontext rules.
+func (h *HostUtils) ConfigureSELinuxBooleans() error {
+	if !selinux.GetEnabled() {
+		h.logger.Debugln("selinux is not enabled, skipping boolean configuration")
+		return nil
+	}
+
+	h.logger.Debugln("checking for setsebool binary in $PATH")
+	if _, err := exec.LookPath("setsebool"); err != nil {
+		h.logger.Debugln("setsebool not found in $PATH, skipping boolean configuration")
+		return nil
+	}
+
+	for _, name := range selinuxBooleans {
+		h.logger.Debugf("enabling selinux boolean %s", name)
+		// -P persists the change across reboots.
+		if out, err := exec.Command("setsebool", "-P", name, "on").CombinedOutput(); err != nil {
+			h.logger.Debugf("unable to enable selinux boolean %s: %v: %s", name, err, string(out))
+		}
+	}
+
+	return nil
 }
 
 // RemoveSELinuxFcontext deletes the file context rules registered by

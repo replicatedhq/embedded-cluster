@@ -341,6 +341,7 @@ func TestSingleNodeAirgapSelinux(t *testing.T) {
 
 	// selinux confinement should survive the workloads actually running
 	checkSELinuxConfinement(t, tc, 0)
+	checkNoSELinuxDenials(t, tc, 0)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
