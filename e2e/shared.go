@@ -363,7 +363,7 @@ func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
 		// the host preflight checks the data dir user label, so keep it asserted
 		{"/var/lib/embedded-cluster", "--user", "system_u"},
 		{"/var/lib/embedded-cluster", "--type", "container_var_lib_t"},
-		{"/var/lib/embedded-cluster/bin", "--type", "bin_t"},
+		{"/var/lib/embedded-cluster/bin", "--type", "ec_bin_t"},
 		{"/var/lib/embedded-cluster/openebs-local", "--type", "container_file_t"},
 		// mounted by kotsadm (whole tree) and velero node-agent (kubelet)
 		{"/var/lib/embedded-cluster/k0s", "--type", "container_var_lib_t"},
@@ -402,15 +402,12 @@ func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
 		t.Fatalf("containerd selinux drop-in is missing or does not enable selinux on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 
-	// the admin console and the operator mount the host CA bundle, which is
-	// cert_t; container-selinux denies that unless this boolean is on
-	t.Logf("%s: verifying container_read_certs boolean", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getsebool container_read_certs"})
+	// our policy module carries both the file contexts and the allow rules the
+	// bundled workloads need, so its absence means we fell back to semanage
+	t.Logf("%s: verifying the ec selinux policy module is loaded", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"semodule -l | grep -x ec"})
 	if err != nil {
-		t.Fatalf("fail to read container_read_certs boolean on node %d: %v: %s: %s", node, err, stdout, stderr)
-	}
-	if !strings.Contains(stdout, "--> on") {
-		t.Fatalf("container_read_certs is not enabled on node %d: %s", node, stdout)
+		t.Fatalf("the ec selinux policy module is not loaded on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 
 	t.Logf("%s: verifying containerd runs as container_runtime_t", time.Now().Format(time.RFC3339))

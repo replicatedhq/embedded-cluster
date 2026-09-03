@@ -31,13 +31,19 @@ inputs:
   github-token:
     description: 'the ci github token used to install the replicated cli'
     required: false # this is only needed for cmx-based tests
-  is-lxd:
-    description: 'whether the test runs on lxd'
+  backend:
+    description: 'the cluster backend the test provisions against: cmx, lxd or ec2'
     required: false
-    default: 'false'
+    default: 'cmx'
   cmx-api-token:
     description: 'the token used to access the replicated api for cmx'
     required: false # this is only needed for cmx-based tests
+  selinux-aws-access-key-id:
+    description: 'AWS Access Key ID used to provision the ec2 instance for the selinux test'
+    required: false # this is only needed for the ec2-based selinux test
+  selinux-aws-secret-access-key:
+    description: 'AWS Secret Access Key used to provision the ec2 instance for the selinux test'
+    required: false # this is only needed for the ec2-based selinux test
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
@@ -46,11 +52,11 @@ runs:
   using: composite
   steps:
   - name: Local Setup
-    if: ${{ inputs.is-lxd == 'true' }}
+    if: ${{ inputs.backend == 'lxd' }}
     uses: ./.github/actions/e2e-lxd-setup
 
   - name: CMX Setup
-    if: ${{ inputs.is-lxd == 'false' }}
+    if: ${{ inputs.backend == 'cmx' }}
     uses: ./.github/actions/e2e-cmx-setup
     with:
       github-token: ${{ inputs.github-token }}
@@ -86,6 +92,8 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS_3=${{ inputs.k0s-version-previous-3 }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export AWS_ACCESS_KEY_ID=${{ inputs.selinux-aws-access-key-id }}
+      export AWS_SECRET_ACCESS_KEY=${{ inputs.selinux-aws-secret-access-key }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
@@ -97,7 +105,7 @@ runs:
       test-name: ${{ inputs.test-name }}
 
   - name: Cleanup CMX
-    if: ${{ always() }}
+    if: ${{ always() && inputs.backend == 'cmx' }}
     shell: bash
     env:
       REPLICATED_API_TOKEN: ${{ inputs.cmx-api-token }}
