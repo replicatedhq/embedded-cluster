@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -37,6 +38,21 @@ const hostsTomlTemplateV3 = `server = "https://%s"
 
 [host."https://%s"]
   skip_verify = true
+`
+
+// selinuxConfigTemplateV2 turns on selinux labeling of containers for
+// containerd 1.7.x (k0s 1.34/1.35).
+const selinuxConfigTemplateV2 = `
+[plugins."io.containerd.grpc.v1.cri"]
+  enable_selinux = true
+`
+
+// selinuxConfigTemplateV3 is the containerd 2.x (k0s 1.36+) equivalent. The CRI
+// plugin was split in 2.x and enable_selinux moved to the runtime half.
+const selinuxConfigTemplateV3 = `version = 3
+
+[plugins."io.containerd.cri.v1.runtime"]
+  enable_selinux = true
 `
 
 // useContainerdV3Schema reports whether the embedded k0s ships containerd 2.x
@@ -87,6 +103,39 @@ func (h *HostUtils) addInsecureRegistryV3(registry string) error {
 	if err := os.WriteFile(filepath.Join(hostDir, "hosts.toml"), []byte(hostsToml), 0644); err != nil {
 		return fmt.Errorf("failed to write hosts.toml: %w", err)
 	}
+	return nil
+}
+
+// ConfigureContainerdSELinux tells containerd to label containers, which it
+// does not do by default: enable_selinux defaults to false in the CRI plugin
+// and k0s does not set it either. Without this, containers run in whatever
+// domain containerd is in rather than container_t, so container-selinux
+// confines nothing regardless of how the filesystem is labeled.
+//
+// Only written when selinux is enabled on the host, so this is a no-op
+// everywhere else.
+func (h *HostUtils) ConfigureContainerdSELinux() error {
+	if !selinux.GetEnabled() {
+		h.logger.Debugln("selinux is not enabled, skipping containerd selinux configuration")
+		return nil
+	}
+
+	parentDir := runtimeconfig.K0sContainerdConfigPath
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
+	}
+
+	contents := selinuxConfigTemplateV2
+	if useContainerdV3Schema() {
+		contents = selinuxConfigTemplateV3
+	}
+
+	path := filepath.Join(parentDir, "embedded-selinux.toml")
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		return fmt.Errorf("failed to write embedded-selinux.toml: %w", err)
+	}
+
+	h.logger.Debugf("enabled selinux labeling of containers in %s", path)
 	return nil
 }
 
