@@ -82,14 +82,11 @@ var copyArtifactsJob = &batchv1.Job{
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
-						// This pod exists to mutate the host: it rewrites the
-						// binaries in the data directory and the containerd
-						// drop-in. Once containers are labeled, container_t is
-						// denied both, and no file context satisfies the job and
-						// systemd at once -- systemd has to exec the same
-						// binaries this writes. spc_t is container-selinux's
-						// domain for host management containers, so this pod is
-						// exempt while every other container stays confined.
+						// This pod rewrites binaries in the host data
+						// directory and then runs one of them, which a confined
+						// container cannot do. spc_t is container-selinux's
+						// domain for host management containers, which is what
+						// this has always been.
 						SecurityContext: &corev1.SecurityContext{
 							SELinuxOptions: &corev1.SELinuxOptions{Type: "spc_t"},
 						},

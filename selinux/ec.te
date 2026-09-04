@@ -19,15 +19,12 @@ require {
 # which the base policy labels var_lib_t, and a var_lib_t file cannot be
 # executed.
 #
-# Deliberately not bin_t, and deliberately not corecmd_executable_file(): both
-# put the type within reach of every confined domain. bin_t is a location any
-# domain may execute from, and the macro joins the exec_type attribute, which
-# container-selinux grants all container domains execute on. Either would hand
-# containers the ability to run our host binaries through the data directory
-# kotsadm mounts. A private type with no container rules keeps that closed.
-#
-# The cost is that nothing may execute the type until we say so, which is what
-# the transitions below are for.
+# Deliberately not bin_t, and not corecmd_executable_file() either: bin_t is a
+# location any domain may execute from, and the macro joins the exec_type
+# attribute, which container-selinux lets every container domain execute. Both
+# would let containers run our binaries through the data directory kotsadm
+# mounts. The cost of a private type is that nothing may execute it until we
+# say so, which the transitions below do.
 type ec_bin_t;
 files_type(ec_bin_t)
 

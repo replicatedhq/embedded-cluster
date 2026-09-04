@@ -147,15 +147,13 @@ ifneq ($(DISABLE_FIO_BUILD),1)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
-# Compiles the selinux policy module. checkmodule and the reference policy
-# headers only exist on RHEL-family distros, so this builds in a container
-# rather than on the host; the build already requires docker for dagger.
+# Compiles the selinux policy module in a container: the compiler and reference
+# policy headers only exist on RHEL-family distros, and the build already
+# requires docker for dagger. A .pp is compiled policy data rather than machine
+# code, so unlike the other goods this takes no $(ARCH).
 #
-# The result is arch independent -- a .pp is compiled policy data, not machine
-# code -- so unlike the other goods this target takes no $(ARCH).
-#
-# Rebuilds only when the policy sources change, so it is deliberately not
-# .PHONY: the recipe installs packages over the network.
+# Deliberately not .PHONY -- the recipe installs packages over the network, so
+# it should only run when the policy sources change.
 cmd/installer/goods/selinux/ec.pp: selinux/ec.te selinux/ec.fc
 	mkdir -p cmd/installer/goods/selinux
 	docker run --rm \

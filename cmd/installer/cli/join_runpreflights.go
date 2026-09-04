@@ -70,19 +70,8 @@ func runJoinRunPreflights(ctx context.Context, appSlug string, flags JoinCmdFlag
 		return fmt.Errorf("failed to materialize files: %w", err)
 	}
 
-	logrus.Debugf("configuring containerd selinux")
-	if err := hostutils.ConfigureContainerdSELinux(); err != nil {
-		logrus.Debugf("unable to configure containerd selinux: %v", err)
-	}
-
-	logrus.Debugf("configuring selinux")
 	if err := hostutils.ConfigureSELinux(rc); err != nil {
 		logrus.Debugf("unable to configure selinux: %v", err)
-	}
-
-	logrus.Debugf("restoring selinux context")
-	if err := hostutils.RestoreSELinuxContext(rc); err != nil {
-		logrus.Debugf("unable to restore selinux context: %v", err)
 	}
 
 	logrus.Debugf("configuring sysctl")

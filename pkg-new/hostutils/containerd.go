@@ -7,7 +7,6 @@ import (
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
@@ -106,20 +105,12 @@ func (h *HostUtils) addInsecureRegistryV3(registry string) error {
 	return nil
 }
 
-// ConfigureContainerdSELinux tells containerd to label containers, which it
-// does not do by default: enable_selinux defaults to false in the CRI plugin
-// and k0s does not set it either. Without this, containers run in whatever
-// domain containerd is in rather than container_t, so container-selinux
-// confines nothing regardless of how the filesystem is labeled.
+// configureContainerdForSELinux tells containerd to label containers, which it
+// does not do by default and k0s does not enable either. Without it containers
+// run in containerd's own domain and container-selinux confines nothing.
 //
-// Only written when selinux is enabled on the host, so this is a no-op
-// everywhere else.
-func (h *HostUtils) ConfigureContainerdSELinux() error {
-	if !selinux.GetEnabled() {
-		h.logger.Debugln("selinux is not enabled, skipping containerd selinux configuration")
-		return nil
-	}
-
+// Only called when selinux is enabled; see ConfigureSELinux.
+func (h *HostUtils) configureContainerdForSELinux() error {
 	parentDir := runtimeconfig.K0sContainerdConfigPath
 	if err := os.MkdirAll(parentDir, 0755); err != nil {
 		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
@@ -135,7 +126,6 @@ func (h *HostUtils) ConfigureContainerdSELinux() error {
 		return fmt.Errorf("failed to write embedded-selinux.toml: %w", err)
 	}
 
-	h.logger.Debugf("enabled selinux labeling of containers in %s", path)
 	return nil
 }
 

@@ -30,9 +30,7 @@ type HostUtilsInterface interface {
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 	AddInsecureRegistry(registry string) error
 	MigrateContainerdConfigToV3(isAirgap bool) error
-	ConfigureContainerdSELinux() error
 	ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error
-	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
 	RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error
 }
 
@@ -83,16 +81,8 @@ func MigrateContainerdConfigToV3(isAirgap bool) error {
 	return h.MigrateContainerdConfigToV3(isAirgap)
 }
 
-func ConfigureContainerdSELinux() error {
-	return h.ConfigureContainerdSELinux()
-}
-
 func ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error {
 	return h.ConfigureSELinux(rc)
-}
-
-func RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
-	return h.RestoreSELinuxContext(rc)
 }
 
 func RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error {

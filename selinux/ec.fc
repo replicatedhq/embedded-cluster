@@ -4,17 +4,17 @@
 # the whole tree keeps the base policy's var_lib_t, which confined containers
 # cannot read, so anything mounting a host path out of it fails.
 #
-# Selinux matches the most specific rule, so the narrower entries below override
+# selinux matches the most specific rule, so the narrower entries below override
 # the blanket one.
 #
 # The rules under the k0s directory, plus the two CNI paths, are the ones k0s
 # documents as required for running under selinux (docs/selinux.md). The rest
 # are embedded cluster's own.
 #
-# TODO(configurable-data-dir): these paths are fixed at build time, so a
-# relocated data directory is not covered. The installer declares a path
-# equivalence with semanage in that case, which makes these rules apply there
-# too. The CNI paths are unaffected, being outside the data directory.
+# These paths are fixed at build time. For a relocated data directory the
+# installer declares a path equivalence with semanage, which makes every rule
+# below apply there too. The CNI paths are outside the data directory and are
+# unaffected either way.
 
 /var/lib/embedded-cluster(/.*)?			gen_context(system_u:object_r:container_var_lib_t,s0)
 

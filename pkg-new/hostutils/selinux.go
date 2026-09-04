@@ -17,29 +17,36 @@ import (
 // policy_module() in selinux/ec.te. semodule identifies it by this name.
 const selinuxModuleName = "ec"
 
-// ConfigureSELinux loads our policy module, which labels the data directory and
-// grants the bundled workloads what container-selinux denies them by default.
-// See selinux/ec.te and selinux/ec.fc for what it contains and why.
+// ConfigureSELinux turns on container labeling, loads our policy module, and
+// labels the data directory. Does nothing when selinux is not enabled.
 //
-// The module's file contexts are compiled in and only match the default data
-// directory. A relocated one is handled with a path equivalence rule, so the
-// same module rules apply there too.
-//
-// Best-effort: a host without selinux has none of these tools, and that should
-// not fail an install. The selinux host preflights surface it instead.
+// Failures are logged, not returned: a missing selinux tool should not fail an
+// install. The selinux host preflights report it instead.
 func (h *HostUtils) ConfigureSELinux(rc runtimeconfig.RuntimeConfig) error {
 	if !selinux.GetEnabled() {
 		h.logger.Debugln("selinux is not enabled, skipping selinux configuration")
 		return nil
 	}
 
+	h.logger.Debugln("configuring selinux")
+
+	if err := h.configureContainerdForSELinux(); err != nil {
+		h.logger.Debugf("unable to configure containerd for selinux: %v", err)
+	}
+
 	if err := h.installSELinuxModule(rc); err != nil {
+		// The module defines the labels, so relabeling without it would apply
+		// the base policy's instead, undoing what a previous release set.
 		h.logger.Debugf("unable to install selinux policy module: %v", err)
 		return nil
 	}
 
-	if err := h.equateSELinuxDataDir(rc); err != nil {
-		h.logger.Debugf("unable to equate relocated data directory: %v", err)
+	if err := h.labelCustomDataDir(rc); err != nil {
+		h.logger.Debugf("unable to label custom data directory: %v", err)
+	}
+
+	if err := h.relabelDataDir(rc); err != nil {
+		h.logger.Debugf("unable to relabel the data directory: %v", err)
 	}
 
 	return nil
@@ -62,7 +69,6 @@ func (h *HostUtils) installSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
 	}
 	defer os.Remove(path)
 
-	h.logger.Debugf("installing selinux policy module %s", selinuxModuleName)
 	// Reinstalls in place if already present, so this is safe on upgrade.
 	if out, err := exec.Command("semodule", "-i", path).CombinedOutput(); err != nil {
 		// Usually means container-selinux is absent, so the types the module
@@ -73,49 +79,62 @@ func (h *HostUtils) installSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
 	return nil
 }
 
-// equateSELinuxDataDir tells selinux that a relocated data directory is
-// equivalent to the default one, so the file contexts compiled into our module
-// apply to it. A no-op for the default path.
-//
-// This is what makes a configurable data directory work without generating
-// policy on the host, which would need a compiler we cannot expect to be
-// installed.
-func (h *HostUtils) equateSELinuxDataDir(rc runtimeconfig.RuntimeConfig) error {
+// labelCustomDataDir tells selinux to label a --data-dir directory the same as
+// the default one. Our labels are compiled into the module and name only the
+// default path, and generating policy on the host would need a compiler we
+// cannot expect to be installed. Does nothing for the default path.
+func (h *HostUtils) labelCustomDataDir(rc runtimeconfig.RuntimeConfig) error {
 	dataDir := rc.EmbeddedClusterHomeDirectory()
 	if dataDir == ecv1beta1.DefaultDataDir {
 		return nil
 	}
 
 	if _, err := exec.LookPath("semanage"); err != nil {
-		return fmt.Errorf("semanage not found in $PATH, cannot label a relocated data directory")
+		return fmt.Errorf("semanage not found in $PATH")
 	}
 
-	h.logger.Debugf("equating %s to %s for selinux", dataDir, ecv1beta1.DefaultDataDir)
 	out, err := exec.Command("semanage", "fcontext", "-a", "-e", ecv1beta1.DefaultDataDir, dataDir).CombinedOutput()
 	if err == nil {
 		return nil
 	}
-	// Already equated, from a previous install on this host.
+	// Already set by a previous install on this host.
 	if strings.Contains(string(out), "already defined") || strings.Contains(string(out), "already exists") {
 		return nil
 	}
 	return fmt.Errorf("semanage fcontext -a -e: %w: %s", err, string(out))
 }
 
-// RemoveSELinuxModule unloads the policy module and drops any equivalence rule.
-// Without this, reset leaves both behind, pointing at a data directory that no
-// longer exists.
+// relabelDataDir applies the module's labels to files that already exist.
+func (h *HostUtils) relabelDataDir(rc runtimeconfig.RuntimeConfig) error {
+	if _, err := exec.LookPath("restorecon"); err != nil {
+		return fmt.Errorf("restorecon not found in $PATH")
+	}
+
+	h.logger.Debugf("relabeling %s", rc.EmbeddedClusterHomeDirectory())
+	if out, err := exec.Command("restorecon", "-RF", rc.EmbeddedClusterHomeDirectory()).CombinedOutput(); err != nil {
+		return fmt.Errorf("restorecon: %w: %s", err, string(out))
+	}
+
+	return nil
+}
+
+// RemoveSELinuxModule removes the policy module and any custom data directory
+// labeling, so reset does not leave them behind pointing at a directory that no
+// longer exists. The containerd drop-in goes with /etc/k0s.
 func (h *HostUtils) RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
 	if !selinux.GetEnabled() {
 		h.logger.Debugln("selinux is not enabled, skipping selinux cleanup")
 		return nil
 	}
 
-	if dataDir := rc.EmbeddedClusterHomeDirectory(); dataDir != ecv1beta1.DefaultDataDir {
+	h.logger.Debugln("removing selinux configuration")
+
+	dataDir := rc.EmbeddedClusterHomeDirectory()
+	if dataDir != ecv1beta1.DefaultDataDir {
 		if _, err := exec.LookPath("semanage"); err == nil {
-			h.logger.Debugf("removing selinux equivalence for %s", dataDir)
-			if out, err := exec.Command("semanage", "fcontext", "-d", "-e", ecv1beta1.DefaultDataDir, dataDir).CombinedOutput(); err != nil {
-				h.logger.Debugf("unable to remove selinux equivalence for %s: %v: %s", dataDir, err, string(out))
+			out, err := exec.Command("semanage", "fcontext", "-d", "-e", ecv1beta1.DefaultDataDir, dataDir).CombinedOutput()
+			if err != nil {
+				h.logger.Debugf("unable to remove labeling for %s: %v: %s", dataDir, err, string(out))
 			}
 		}
 	}
@@ -124,35 +143,10 @@ func (h *HostUtils) RemoveSELinuxModule(rc runtimeconfig.RuntimeConfig) error {
 		return nil
 	}
 
-	h.logger.Debugf("removing selinux policy module %s", selinuxModuleName)
 	if out, err := exec.Command("semodule", "-r", selinuxModuleName).CombinedOutput(); err != nil {
 		// Not installed is the common case: selinux was turned on after the
 		// install, or this build shipped no module.
 		h.logger.Debugf("unable to remove selinux policy module: %v: %s", err, string(out))
-	}
-
-	return nil
-}
-
-// RestoreSELinuxContext relabels the data directory according to the file
-// contexts our policy module registered.
-func (h *HostUtils) RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error {
-	if !selinux.GetEnabled() {
-		h.logger.Debugln("selinux is not enabled, skipping context restore")
-		return nil
-	}
-
-	h.logger.Debugln("checking for restorecon binary in $PATH")
-	if _, err := exec.LookPath("restorecon"); err != nil {
-		h.logger.Debugln("restorecon not found in $PATH, skipping context restore")
-		return nil
-	}
-
-	h.logger.Debugf("relabeling embedded-cluster data directory with restorecon")
-	out, err := exec.Command("restorecon", "-RvF", rc.EmbeddedClusterHomeDirectory()).CombinedOutput()
-	if err != nil {
-		h.logger.Debugf("unable to run restorecon: %v", err)
-		h.logger.Debugln(string(out))
 	}
 
 	return nil

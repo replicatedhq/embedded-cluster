@@ -136,8 +136,9 @@ spec:
                 exit 0
               fi
 
-              echo "selinux_mode $(getenforce 2>/dev/null | tr -d '\n')"
-              if [ "$(getenforce 2>/dev/null)" = "Disabled" ]; then
+              mode=$(getenforce 2>/dev/null)
+              echo "selinux_mode $mode"
+              if [ "$mode" = "Disabled" ]; then
                 exit 0
               fi
 
@@ -756,13 +757,13 @@ spec:
               when: "false"
               message: "The filesystem at {{ .DataDir }} is either not XFS or is XFS with ftype=1."
     - textAnalyze:
-        checkName: "SELinux container policy"
+        checkName: SELinux Container Policy
         fileName: host-collectors/run-host/selinux.txt
         regexGroups: '(?s)^(?:.*container_selinux (?P<ContainerSELinux>\S+))?.*$'
         outcomes:
           - pass:
               when: "ContainerSELinux == ''"
-              message: "Not applicable: selinux is not enabled on this host"
+              message: "Not applicable: SELinux is not enabled on this host"
           - pass:
               when: "ContainerSELinux == present"
               message: "The container-selinux policy is installed"
@@ -770,13 +771,13 @@ spec:
               message: >-
                   SELinux is enabled but the container-selinux policy is not installed, so container workloads cannot be confined. Install it with: sudo dnf install -y container-selinux
     - textAnalyze:
-        checkName: "SELinux policy tooling"
+        checkName: SELinux Tools
         fileName: host-collectors/run-host/selinux.txt
         regexGroups: '(?s)^(?:.*semodule (?P<Semodule>\S+))?.*$'
         outcomes:
           - pass:
               when: "Semodule == ''"
-              message: "Not applicable: selinux is not enabled on this host"
+              message: "Not applicable: SELinux is not enabled on this host"
           - pass:
               when: "Semodule == present"
               message: "semodule is available"
@@ -784,44 +785,44 @@ spec:
               message: >-
                   SELinux is enabled but semodule is not available, so the policy required to confine container workloads cannot be loaded. Install it with: sudo dnf install -y policycoreutils
     - textAnalyze:
-        checkName: "Selinux data-dir user label"
+        checkName: SELinux Data Directory User
         fileName: host-collectors/run-host/selinux.txt
         regexGroups: '(?s)^(?:.*data_dir_user (?P<DataDirUser>\S+))?.*$'
         outcomes:
           - pass:
               when: "DataDirUser == ''"
-              message: "Not applicable: selinux is not enabled on this host"
+              message: "Not applicable: SELinux is not enabled on this host"
           - pass:
               when: "DataDirUser == system_u"
-              message: "The selinux user context label for {{ .DataDir }} is system_u"
+              message: "The SELinux user label for {{ .DataDir }} is system_u"
           - fail:
               message: >-
-                  The selinux user context label for {{ .DataDir }} is {{ `{{ .DataDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
+                  The SELinux user label for {{ .DataDir }} is {{ `{{ .DataDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
     - textAnalyze:
-        checkName: "Selinux bin dir user label"
+        checkName: SELinux Binary Directory User
         fileName: host-collectors/run-host/selinux.txt
         regexGroups: '(?s)^(?:.*bin_dir_user (?P<BinDirUser>\S+))?.*$'
         outcomes:
           - pass:
               when: "BinDirUser == ''"
-              message: "Not applicable: selinux is not enabled on this host"
+              message: "Not applicable: SELinux is not enabled on this host"
           - pass:
               when: "BinDirUser == system_u"
-              message: "The selinux user context label for {{ .DataDir }}/bin is system_u"
+              message: "The SELinux user label for {{ .DataDir }}/bin is system_u"
           - fail:
               message: >-
-                  The selinux user context label for {{ .DataDir }}/bin is {{ `{{ .BinDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
+                  The SELinux user label for {{ .DataDir }}/bin is {{ `{{ .BinDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
     - textAnalyze:
-        checkName: "Selinux bin dir type label"
+        checkName: SELinux Binary Directory Type
         fileName: host-collectors/run-host/selinux.txt
         regexGroups: '(?s)^(?:.*bin_dir_type (?P<BinDirType>\S+))?.*$'
         outcomes:
           - pass:
               when: "BinDirType == ''"
-              message: "Not applicable: selinux is not enabled on this host"
+              message: "Not applicable: SELinux is not enabled on this host"
           - pass:
               when: "BinDirType == ec_bin_t"
-              message: "The selinux type context label for {{ .DataDir }}/bin is ec_bin_t"
+              message: "The SELinux type label for {{ .DataDir }}/bin is ec_bin_t"
           - fail:
               message: >-
-                  The selinux type context label for {{ .DataDir }}/bin is {{ `{{ .BinDirType }}` }}, expected ec_bin_t. Try running: sudo restorecon -RvF {{ .DataDir }}
+                  The SELinux type label for {{ .DataDir }}/bin is {{ `{{ .BinDirType }}` }}, expected ec_bin_t. Try running: sudo restorecon -RvF {{ .DataDir }}

@@ -190,9 +190,8 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}
 
-			// Leaves the local policy store clean; the rules outlive the data
-			// directory they point at otherwise.
-			logrus.Debugf("Removing selinux policy...")
+			// Otherwise the policy module and labeling outlive the data
+			// directory they point at.
 			if err := hostutils.RemoveSELinuxModule(rc); err != nil {
 				logrus.Warnf("Failed to remove selinux policy (continuing with reset anyway): %v", err)
 			}
