@@ -3,9 +3,9 @@
 // does not offer -- selinux confinement depends on container-selinux, and
 // container-selinux only ships on RHEL-family distros.
 //
-// Deliberately smaller than the cmx backend: online installs only, and no
-// playwright. Airgap emulation and browser-driven tests are what make a cluster
-// backend expensive, and neither is needed to verify selinux behavior.
+// Deliberately smaller than the cmx backend: online installs only. Airgap
+// emulation is what makes a cluster backend expensive to write, and it has
+// nothing to do with selinux.
 package ec2
 
 import (
@@ -46,6 +46,11 @@ const (
 	instanceTypeDefault = "m6i.xlarge"
 	regionDefault       = "us-east-1"
 	diskSizeGiB         = 100
+
+	// The nodeport bypass-kurl-proxy.sh creates, pointing straight at kotsadm.
+	// Going through kurl-proxy would mean handling its self-signed certificate
+	// in the browser.
+	adminConsoleNodePort = "30003"
 )
 
 type Cluster struct {
@@ -167,14 +172,16 @@ func (c *Cluster) createSecurityGroup(suffix string) error {
 	}
 	c.sgID = strings.TrimSpace(out)
 
-	// SSH only. The test drives everything over ssh; nothing needs to reach the
-	// admin console from outside.
-	if _, err := c.aws(
-		"ec2", "authorize-security-group-ingress",
-		"--group-id", c.sgID,
-		"--protocol", "tcp", "--port", "22", "--cidr", "0.0.0.0/0",
-	); err != nil {
-		return err
+	// ssh for the test itself, and the nodeport bypass-kurl-proxy.sh creates so
+	// playwright can reach the admin console from the runner.
+	for _, port := range []string{"22", adminConsoleNodePort} {
+		if _, err := c.aws(
+			"ec2", "authorize-security-group-ingress",
+			"--group-id", c.sgID,
+			"--protocol", "tcp", "--port", port, "--cidr", "0.0.0.0/0",
+		); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -350,19 +357,62 @@ func (c *Cluster) Cleanup(envs ...map[string]string) {
 	})
 }
 
-// SetupPlaywrightAndRunTest and friends are not implemented. This backend
-// exists to verify selinux behavior on RHEL, which needs no browser: every
-// bundled addon installs whether or not the app is deployed.
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
-	return "", "", fmt.Errorf("playwright is not supported by the ec2 backend")
+	if err := c.SetupPlaywright(); err != nil {
+		return "", "", fmt.Errorf("setup playwright: %w", err)
+	}
+	return c.RunPlaywrightTest(testName, args...)
 }
 
+// SetupPlaywright publishes the admin console on a nodeport and installs
+// playwright on the runner. Playwright itself runs next to the test, not on the
+// node, so all the node needs is a reachable console.
 func (c *Cluster) SetupPlaywright(envs ...map[string]string) error {
-	return fmt.Errorf("playwright is not supported by the ec2 backend")
+	if err := c.bypassKurlProxy(envs...); err != nil {
+		return err
+	}
+	return c.npmInstallPlaywright()
+}
+
+// bypassKurlProxy points a nodeport straight at kotsadm, skipping kurl-proxy
+// and its self-signed certificate. The scripts are not on a RHEL cloud image
+// the way they are baked into cmx images, so copy them over first.
+func (c *Cluster) bypassKurlProxy(envs ...map[string]string) error {
+	c.t.Logf("%s: bypassing kurl-proxy", time.Now().Format(time.RFC3339))
+	for _, script := range []string{"common.sh", "bypass-kurl-proxy.sh"} {
+		if err := c.CopyFileToNode(0, "scripts/"+script, "/usr/local/bin/"+script); err != nil {
+			return fmt.Errorf("copy %s: %w", script, err)
+		}
+	}
+	if stdout, stderr, err := c.RunCommandOnNode(0, []string{"/usr/local/bin/bypass-kurl-proxy.sh"}, envs...); err != nil {
+		return fmt.Errorf("bypass kurl-proxy: %w: %s: %s", err, stdout, stderr)
+	}
+	return nil
+}
+
+func (c *Cluster) npmInstallPlaywright() error {
+	c.t.Logf("%s: installing playwright", time.Now().Format(time.RFC3339))
+	out, err := exec.Command("sh", "-c", "cd playwright && npm ci && npx playwright install --with-deps").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("install playwright: %w: %s", err, string(out))
+	}
+	return nil
 }
 
 func (c *Cluster) RunPlaywrightTest(testName string, args ...string) (string, string, error) {
-	return "", "", fmt.Errorf("playwright is not supported by the ec2 backend")
+	c.t.Logf("%s: running playwright test %s", time.Now().Format(time.RFC3339), testName)
+	cmd := exec.Command("scripts/playwright.sh", append([]string{testName}, args...)...)
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("BASE_URL=http://%s:%s", c.Nodes[0].PublicIP, adminConsoleNodePort),
+		"PLAYWRIGHT_DIR=./playwright",
+	)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return stdout.String(), stderr.String(), err
+	}
+	return stdout.String(), stderr.String(), nil
 }
 
 func (c *Cluster) aws(args ...string) (string, error) {

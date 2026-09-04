@@ -82,6 +82,17 @@ var copyArtifactsJob = &batchv1.Job{
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
+						// This pod exists to mutate the host: it rewrites the
+						// binaries in the data directory and the containerd
+						// drop-in. Once containers are labeled, container_t is
+						// denied both, and no file context satisfies the job and
+						// systemd at once -- systemd has to exec the same
+						// binaries this writes. spc_t is container-selinux's
+						// domain for host management containers, so this pod is
+						// exempt while every other container stays confined.
+						SecurityContext: &corev1.SecurityContext{
+							SELinuxOptions: &corev1.SELinuxOptions{Type: "spc_t"},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
@@ -113,10 +124,6 @@ var copyArtifactsJobCommandOnline = []string{
 		// target binary, not the image's /usr/local/bin copy.
 		// TODO(k0s-1.37-oldest): drop this migration.
 		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config; \n" +
-		// Installs configure selinux in hostutils.ConfigureHost; upgrades never
-		// call it, so do it here. Same reasoning as above: run the freshly
-		// pulled target binary, so the policy applied is the target release's.
-		"/embedded-cluster/bin/local-artifact-mirror configure-selinux; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.
 		"echo 'done'",
 }
@@ -136,10 +143,6 @@ var copyArtifactsJobCommandAirgap = []string{
 		// the image's /usr/local/bin copy: only the target-release binary knows
 		// the new schema.
 		"/embedded-cluster/bin/local-artifact-mirror migrate-containerd-config --airgap; \n" +
-		// Installs configure selinux in hostutils.ConfigureHost; upgrades never
-		// call it, so do it here. Same reasoning as above: run the freshly
-		// pulled target binary, so the policy applied is the target release's.
-		"/embedded-cluster/bin/local-artifact-mirror configure-selinux; \n" +
 		"mv /embedded-cluster/bin/k0s /embedded-cluster/bin/k0s-upgrade; \n" +
 		"rm /embedded-cluster/images/images-amd64-* || true; \n" +
 		"sleep 10; \n" + // wait for LAM to restart so k0s can pull from it. LAM restarts when it detects an EC binary update.

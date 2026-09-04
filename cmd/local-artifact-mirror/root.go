@@ -25,7 +25,6 @@ func RootCmd(cli *CLI) *cobra.Command {
 	cmd.AddCommand(ServeCmd(cli))
 	cmd.AddCommand(PullCmd(cli))
 	cmd.AddCommand(MigrateContainerdConfigCmd(cli))
-	cmd.AddCommand(ConfigureSELinuxCmd(cli))
 
 	cmd.PersistentFlags().String("data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 

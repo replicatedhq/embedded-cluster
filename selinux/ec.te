@@ -8,9 +8,6 @@ policy_module(ec, 1.0.0)
 require {
 	# from container-selinux; this module is useless without it
 	attribute container_domain;
-	type container_var_lib_t;
-	type container_file_t;
-	type container_runtime_exec_t;
 	type cert_t;
 	type init_t;
 	type unconfined_t;
@@ -18,18 +15,19 @@ require {
 }
 
 # A private executable type for embedded cluster's own binaries: the installer,
-# kubectl, the local artifact mirror. They live under the data directory, which
-# the base policy labels var_lib_t, and a var_lib_t file cannot be executed.
+# kubectl, the local artifact mirror, k0s. They live under the data directory,
+# which the base policy labels var_lib_t, and a var_lib_t file cannot be
+# executed.
 #
-# Deliberately not bin_t. Labeling our directory bin_t would make it a location
-# any confined domain may execute from, which matters because the admin console
-# mounts the whole data directory. A private type keeps that closed.
+# Deliberately not bin_t, and deliberately not corecmd_executable_file(): both
+# put the type within reach of every confined domain. bin_t is a location any
+# domain may execute from, and the macro joins the exec_type attribute, which
+# container-selinux grants all container domains execute on. Either would hand
+# containers the ability to run our host binaries through the data directory
+# kotsadm mounts. A private type with no container rules keeps that closed.
 #
-# Deliberately not corecmd_executable_file() either, tempting as it looks: that
-# joins the exec_type attribute, and container-selinux allows every container
-# domain to execute all of exec_type. It would hand back exactly the access the
-# private type exists to deny. The cost is that nothing can execute the type
-# until we say so, which is what the transition rules below are for.
+# The cost is that nothing may execute the type until we say so, which is what
+# the transitions below are for.
 type ec_bin_t;
 files_type(ec_bin_t)
 
@@ -60,7 +58,7 @@ type_transition init_t ec_bin_t:process unconfined_service_t;
 allow unconfined_service_t ec_bin_t:file entrypoint;
 
 # The installer runs as unconfined_t and execs k0s and kubectl out of the same
-# directory; our services exec each other's binaries too. Dropping exec_type
-# took those away, so grant them back narrowly.
+# directory; our services exec each other's binaries too. Without exec_type
+# neither can, so grant it narrowly.
 allow unconfined_t ec_bin_t:file { getattr open read execute execute_no_trans map };
 allow unconfined_service_t ec_bin_t:file { getattr open read execute execute_no_trans map };

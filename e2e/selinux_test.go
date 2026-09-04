@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -20,13 +22,15 @@ import (
 // either way, and those are what we check confinement on. Airgap emulation is
 // unrelated to selinux and is what makes a cluster backend expensive.
 //
-// TODO: only covers a fresh install. Upgrades apply the same configuration
-// through `local-artifact-mirror configure-selinux`, but nothing exercises
-// that path yet.
+// Covers a fresh install and an upgrade. Upgrades do not apply selinux policy
+// -- the policy store is not reachable from the pod that runs the upgrade's
+// host-side steps -- so an upgraded cluster keeps whatever the installing
+// release applied. What the upgrade half checks is that confinement does not
+// break the upgrade itself.
 func TestSingleNodeSelinuxRHEL(t *testing.T) {
 	t.Parallel()
 
-	RequireEnvVars(t, []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"})
+	RequireEnvVars(t, []string{"SHORT_SHA", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"})
 
 	tc := ec2.NewCluster(&ec2.ClusterInput{T: t})
 	defer tc.Cleanup()
@@ -81,6 +85,34 @@ func TestSingleNodeSelinuxRHEL(t *testing.T) {
 		t.Fatalf("pods did not become ready under selinux enforcing: %v: %s: %s", err, stdout, stderr)
 	}
 
+	// The upgrade is where confinement is hardest: the artifacts job is an
+	// ordinary pod that mounts the data directory and rewrites the binaries in
+	// it, which container_t is denied. It runs as spc_t for that reason, and if
+	// that stopped working the operator would wait on a job that never
+	// succeeds, so reaching the end of the upgrade is the assertion.
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	t.Logf("%s: upgrading to %s", time.Now().Format(time.RFC3339), appUpgradeVersion)
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", appUpgradeVersion); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Upgrades do not re-run ConfigureHost, so this checks that the labels and
+	// the drop-in survive an upgrade, not that the upgrade applied them.
+	checkSELinuxLabels(t, tc, 0)
+	checkSELinuxConfinement(t, tc, 0)
+
+	t.Logf("%s: waiting for workloads to settle after upgrade", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"kubectl wait --for=condition=Ready pods --all -A --timeout=10m",
+	}, map[string]string{"KUBECONFIG": "/var/lib/embedded-cluster/k0s/pki/admin.conf"}); err != nil {
+		t.Fatalf("pods did not become ready after upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	// Covers the whole run, install and upgrade both.
 	checkNoSELinuxDenials(t, tc, 0)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
