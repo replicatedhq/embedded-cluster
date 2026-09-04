@@ -6,6 +6,10 @@ include versions.mk
 OS ?= linux
 ARCH ?= $(shell go env GOARCH)
 
+# Image used to compile the selinux policy module. checkmodule and the
+# reference policy headers only exist on RHEL-family distros.
+SELINUX_BUILD_IMAGE ?= almalinux:9
+
 APP_NAME = embedded-cluster
 
 KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/static/metadata.yaml | sed -E 's/([0-9]+\.[0-9]+\.[0-9]+)(-ec\.[0-9]+)?.*/\1\2/')
@@ -143,6 +147,26 @@ ifneq ($(DISABLE_FIO_BUILD),1)
 	cp output/bins/fio-$(FIO_VERSION)-$(ARCH) $@
 endif
 
+# Compiles the selinux policy module. checkmodule and the reference policy
+# headers only exist on RHEL-family distros, so this builds in a container
+# rather than on the host; the build already requires docker for dagger.
+#
+# The result is arch independent -- a .pp is compiled policy data, not machine
+# code -- so unlike the other goods this target takes no $(ARCH).
+#
+# Rebuilds only when the policy sources change, so it is deliberately not
+# .PHONY: the recipe installs packages over the network.
+cmd/installer/goods/selinux/ec.pp: selinux/ec.te selinux/ec.fc
+	mkdir -p cmd/installer/goods/selinux
+	docker run --rm \
+		-v "$(CURDIR)/selinux:/src:ro" \
+		-v "$(CURDIR)/cmd/installer/goods/selinux:/out" \
+		-w /build $(SELINUX_BUILD_IMAGE) sh -euc '\
+			dnf -q -y install selinux-policy-devel >/dev/null; \
+			cp /src/ec.te /src/ec.fc .; \
+			make -f /usr/share/selinux/devel/Makefile ec.pp; \
+			cp ec.pp /out/ec.pp'
+
 .PHONY: cmd/installer/goods/internal/bins/kubectl-kots
 cmd/installer/goods/internal/bins/kubectl-kots:
 	if [ "$(KOTS_BINARY_URL_OVERRIDE)" != "" ]; then \
@@ -251,7 +275,8 @@ static: cmd/installer/goods/bins/k0s \
 	cmd/installer/goods/bins/local-artifact-mirror \
 	cmd/installer/goods/bins/fio \
 	cmd/installer/goods/bins/helm \
-	cmd/installer/goods/internal/bins/kubectl-kots
+	cmd/installer/goods/internal/bins/kubectl-kots \
+	cmd/installer/goods/selinux/ec.pp
 
 .PHONY: static-dryrun
 static-dryrun:

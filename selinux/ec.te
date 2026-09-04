@@ -1,0 +1,64 @@
+policy_module(ec, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+require {
+	# from container-selinux; this module is useless without it
+	attribute container_domain;
+	type cert_t;
+	type init_t;
+	type unconfined_t;
+	type unconfined_service_t;
+}
+
+# A private executable type for embedded cluster's own binaries: the installer,
+# kubectl, the local artifact mirror, k0s. They live under the data directory,
+# which the base policy labels var_lib_t, and a var_lib_t file cannot be
+# executed.
+#
+# Deliberately not bin_t, and deliberately not corecmd_executable_file(): both
+# put the type within reach of every confined domain. bin_t is a location any
+# domain may execute from, and the macro joins the exec_type attribute, which
+# container-selinux grants all container domains execute on. Either would hand
+# containers the ability to run our host binaries through the data directory
+# kotsadm mounts. A private type with no container rules keeps that closed.
+#
+# The cost is that nothing may execute the type until we say so, which is what
+# the transitions below are for.
+type ec_bin_t;
+files_type(ec_bin_t)
+
+########################################
+#
+# Rules
+#
+
+# The admin console and the operator mount the host CA bundle, which is cert_t.
+# container-selinux gates this behind the container_read_certs boolean; granting
+# it here instead keeps the change scoped to this module, so removing the module
+# removes the grant, rather than leaving a host wide boolean flipped on.
+allow container_domain cert_t:file { getattr open read };
+allow container_domain cert_t:lnk_file read;
+allow container_domain cert_t:dir { getattr open read search };
+
+# The operator creates bpf maps. container-selinux grants bpf only to spc_t, and
+# offers no boolean for it.
+allow container_domain self:bpf { map_create map_read map_write };
+
+# Nothing transitions to a domain for a private type on its own, so systemd
+# would try to run our services in init_t and be denied. Send them to
+# unconfined_service_t, which is where they landed when the directory was
+# labeled bin_t.
+allow init_t ec_bin_t:file { getattr open read execute map };
+allow init_t unconfined_service_t:process transition;
+type_transition init_t ec_bin_t:process unconfined_service_t;
+allow unconfined_service_t ec_bin_t:file entrypoint;
+
+# The installer runs as unconfined_t and execs k0s and kubectl out of the same
+# directory; our services exec each other's binaries too. Without exec_type
+# neither can, so grant it narrowly.
+allow unconfined_t ec_bin_t:file { getattr open read execute execute_no_trans map };
+allow unconfined_service_t ec_bin_t:file { getattr open read execute execute_no_trans map };
