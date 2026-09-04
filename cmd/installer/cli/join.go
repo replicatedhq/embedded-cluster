@@ -329,6 +329,10 @@ func initializeJoin(ctx context.Context, appSlug string, rc runtimeconfig.Runtim
 		return nil, fmt.Errorf("failed to materialize files: %w", err)
 	}
 
+	if err := hostutils.ConfigureSELinux(rc); err != nil {
+		logrus.Debugf("unable to configure selinux: %v", err)
+	}
+
 	logrus.Debugf("configuring sysctl")
 	if err := hostutils.ConfigureSysctl(); err != nil {
 		logrus.Debugf("unable to configure sysctl: %v", err)

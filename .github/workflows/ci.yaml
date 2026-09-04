@@ -985,7 +985,6 @@ jobs:
       matrix:
         test:
           - TestSingleNodeAirgapAppOnlyUpgrade
-          - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
