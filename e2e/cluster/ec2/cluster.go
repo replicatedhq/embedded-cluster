@@ -284,6 +284,11 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 		"-o", "UserKnownHostsFile=/dev/null",
 		"-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=10",
+		// An upgrade restarts k0s under us, which is enough to sever a
+		// long-running command's connection. Keepalives make ssh notice and
+		// keep the channel alive across the blip.
+		"-o", "ServerAliveInterval=15",
+		"-o", "ServerAliveCountMax=8",
 		fmt.Sprintf("ec2-user@%s", c.Nodes[node].PublicIP),
 		strings.Join(line, " "),
 	}

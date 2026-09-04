@@ -105,11 +105,23 @@ func TestSingleNodeSelinuxRHEL(t *testing.T) {
 	checkSELinuxLabels(t, tc, 0)
 	checkSELinuxConfinement(t, tc, 0)
 
+	// Retried because the upgrade restarts k0s, which severs the ssh channel
+	// this wait is running over -- the pods are fine, the connection is not.
 	t.Logf("%s: waiting for workloads to settle after upgrade", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"kubectl wait --for=condition=Ready pods --all -A --timeout=10m",
-	}, map[string]string{"KUBECONFIG": "/var/lib/embedded-cluster/k0s/pki/admin.conf"}); err != nil {
-		t.Fatalf("pods did not become ready after upgrade: %v: %s: %s", err, stdout, stderr)
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+			"kubectl wait --for=condition=Ready pods --all -A --timeout=5m",
+		}, map[string]string{"KUBECONFIG": "/var/lib/embedded-cluster/k0s/pki/admin.conf"})
+		if err == nil {
+			lastErr = nil
+			break
+		}
+		lastErr = fmt.Errorf("%w: %s: %s", err, stdout, stderr)
+		t.Logf("%s: wait attempt %d did not finish, retrying: %v", time.Now().Format(time.RFC3339), attempt, err)
+	}
+	if lastErr != nil {
+		t.Fatalf("pods did not become ready after upgrade: %v", lastErr)
 	}
 
 	// Covers the whole run, install and upgrade both.
