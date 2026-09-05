@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -724,6 +725,36 @@ func runRestoreRegistry(ctx context.Context, installCfg *installConfig, backupTo
 		return fmt.Errorf("failed to add insecure registry: %w", err)
 	}
 
+	logrus.Debugf("waiting for registry endpoint %q to be reachable", registryAddress)
+	if err := waitForRegistryEndpoint(ctx, normalizeRegistryAddress(registryAddress)); err != nil {
+		return fmt.Errorf("failed to wait for registry endpoint: %w", err)
+	}
+	logrus.Debugf("registry endpoint is reachable")
+
+	return nil
+}
+
+// waitForRegistryEndpoint waits until the registry TCP endpoint is reachable.
+// Velero may mark the registry deployment as ready before the registry service
+// endpoints are populated and the container is actually accepting connections,
+// so an extra connectivity check is needed before populating the registry.
+func waitForRegistryEndpoint(ctx context.Context, registryAddress string) error {
+	backoff := wait.Backoff{Steps: 30, Duration: 2 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lastErr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		conn, err := net.DialTimeout("tcp", registryAddress, 2*time.Second)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to connect to registry %q: %w", registryAddress, err)
+			return false, nil
+		}
+		_ = conn.Close()
+		return true, nil
+	}); err != nil {
+		if lastErr != nil {
+			return fmt.Errorf("timed out waiting for registry endpoint %s to be reachable: %w", registryAddress, lastErr)
+		}
+		return fmt.Errorf("timed out waiting for registry endpoint %s to be reachable", registryAddress)
+	}
 	return nil
 }
 
