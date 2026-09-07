@@ -131,6 +131,10 @@ func (c *Container) WithPort(port string) *Container {
 }
 
 func (c *Container) Run() {
+	if err := c.pullImageWithRetry(); err != nil {
+		c.t.Fatalf("failed to pull container image: %v", err)
+	}
+
 	execCmd := exec.Command(
 		dockerBinPath(c.t),
 		"run",
@@ -154,6 +158,25 @@ func (c *Container) Run() {
 	if err != nil {
 		c.t.Fatalf("failed to run container: %v: %s", err, string(output))
 	}
+}
+
+func (c *Container) pullImageWithRetry() error {
+	var lastErr error
+	for i := 0; i < 3; i++ {
+		if i > 0 {
+			c.t.Logf("waiting before retrying docker pull for %s", c.Image)
+			time.Sleep(time.Duration(i) * 10 * time.Second)
+		}
+		execCmd := exec.Command(dockerBinPath(c.t), "pull", c.Image)
+		c.t.Logf("pulling container image: %s", c.Image)
+		output, err := execCmd.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		lastErr = fmt.Errorf("%v: %s", err, string(output))
+		c.t.Logf("failed to pull image %s (attempt %d/3): %v", c.Image, i+1, lastErr)
+	}
+	return lastErr
 }
 
 func (c *Container) Destroy() {
