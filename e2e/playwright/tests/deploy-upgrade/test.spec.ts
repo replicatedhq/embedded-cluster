@@ -38,8 +38,25 @@ async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
 }
 
 async function initiateUpgrade(page: Page) {
-  await page.getByRole('link', { name: 'Version history', exact: true }).click();
-  await page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION }).getByRole('button', { name: 'Deploy', exact: true }).click();
+  // The admin console only fetches available updates once, when the Version
+  // history page mounts. That fetch can hang indefinitely (no upstream
+  // timeout), so poll with page reloads instead of waiting for a single fetch.
+  const deployButton = page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION }).getByRole('button', { name: 'Deploy', exact: true });
+  const maxAttempts = 8; // 8 * 90s = 12 min, within the 15 min test timeout
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await page.getByRole('link', { name: 'Version history', exact: true }).click();
+    try {
+      await deployButton.waitFor({ state: 'visible', timeout: 90 * 1000 });
+      await deployButton.click();
+      return;
+    } catch (e) {
+      if (!(e instanceof Error && e.name === 'TimeoutError') || attempt === maxAttempts) {
+        throw e;
+      }
+      console.log(`upgrade version not available after ${attempt} attempt(s), reloading version history page`);
+      await page.reload();
+    }
+  }
 }
 
 async function fillConfigForm(iframe: FrameLocator) {
