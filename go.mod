@@ -9,8 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.46.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.3
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.3
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.3
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.111.0
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.4
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.112.0
 	github.com/bombsimon/logrusr/v4 v4.2.0
 	github.com/canonical/lxd v0.0.0-20260412055050-318087dfdf11
 	github.com/coreos/go-systemd/v22 v22.7.0
@@ -27,7 +27,7 @@ require (
 	github.com/k0sproject/k0s v1.36.3-0.20260626104849-bdf1c22c23a5
 	github.com/mattn/go-isatty v0.0.24
 	github.com/ohler55/ojg v1.28.5
-	github.com/onsi/ginkgo/v2 v2.32.1
+	github.com/onsi/ginkgo/v2 v2.32.2
 	github.com/onsi/gomega v1.43.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/errors v0.9.1
@@ -45,8 +45,8 @@ require (
 	go.podman.io/image/v5 v5.41.1
 	go.uber.org/multierr v1.11.0
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/crypto v0.56.0
-	golang.org/x/term v0.45.0
+	golang.org/x/crypto v0.57.0
+	golang.org/x/term v0.46.0
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.21.4
@@ -393,12 +393,12 @@ require (
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa // indirect
-	golang.org/x/mod v0.40.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
