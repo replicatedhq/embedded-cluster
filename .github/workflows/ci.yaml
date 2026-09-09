@@ -407,7 +407,6 @@ jobs:
             Makefile
             common.mk
             versions.mk
-            dagger/**
             deploy/**
             fio/**
             local-artifact-mirror/**
@@ -455,20 +454,21 @@ jobs:
           restore-keys: |
             bins-cache-
 
+      - uses: oras-project/setup-oras@v2
+
+      - uses: imjasonh/setup-crane@v0.7
+
+      - uses: ./.github/actions/setup-chainguard
+        with:
+          cache-suffix: ${{ github.job }}-${{ matrix.n }}
+
+      # setup-melange installs its own Go toolchain. Restore the version used by
+      # this repository and enable setup-go's module and compiler caches.
       - name: Setup go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - uses: oras-project/setup-oras@v2
-
-      - uses: imjasonh/setup-crane@v0.7
-
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Export versions
         run: |
@@ -609,20 +609,21 @@ jobs:
           restore-keys: |
             bins-cache-
 
+      - uses: oras-project/setup-oras@v2
+
+      - uses: imjasonh/setup-crane@v0.7
+
+      - uses: ./.github/actions/setup-chainguard
+        with:
+          cache-suffix: ${{ github.job }}
+
+      # setup-melange installs its own Go toolchain. Restore the version used by
+      # this repository and enable setup-go's module and compiler caches.
       - name: Setup go
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
-
-      - uses: oras-project/setup-oras@v2
-
-      - uses: imjasonh/setup-crane@v0.7
-
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Build
         env:
