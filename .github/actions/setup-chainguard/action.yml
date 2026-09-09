@@ -1,0 +1,34 @@
+name: Setup Chainguard build tools
+description: Install Melange and APKO and restore their build caches
+
+inputs:
+  cache-suffix:
+    description: Suffix that prevents concurrent jobs from writing the same cache key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: chainguard-dev/actions/setup-melange@v1.6.34
+
+    - name: Install APKO
+      shell: bash
+      env:
+        APKO_VERSION: v1.3.0
+      run: |
+        version_without_v=${APKO_VERSION#v}
+        curl --retry 5 --retry-all-errors -fsSL \
+          "https://github.com/chainguard-dev/apko/releases/download/${APKO_VERSION}/apko_${version_without_v}_linux_amd64.tar.gz" \
+          | sudo tar -xzf - --strip-components=1 -C /usr/local/bin
+        apko version
+
+    - name: Cache Melange and APKO
+      uses: actions/cache@v6
+      with:
+        path: |
+          .cache/melange
+          .cache/melange-apk
+          .cache/apko
+        key: chainguard-v1-${{ runner.os }}-${{ hashFiles('**/go.sum', 'operator/deploy/*.yaml', 'local-artifact-mirror/deploy/*.yaml') }}-${{ github.sha }}-${{ inputs.cache-suffix }}
+        restore-keys: |
+          chainguard-v1-${{ runner.os }}-${{ hashFiles('**/go.sum', 'operator/deploy/*.yaml', 'local-artifact-mirror/deploy/*.yaml') }}-

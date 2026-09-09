@@ -156,11 +156,9 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-operator
 melange-build-operator:
-	dagger call build-operator-package \
-		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
-		--arch $(ARCH) \
-		export --path build
+	$(MAKE) melange-build \
+		MELANGE_CONFIG=deploy/melange.tmpl.yaml \
+		MELANGE_SOURCE_DIR=..
 
 .PHONY: build-operator-image
 build-operator-image:
@@ -172,12 +170,8 @@ build-operator-image:
 
 .PHONY: build-operator-image-chainguard
 build-operator-image-chainguard:
-	dagger call build-operator-image \
-		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
-		--repo $(IMAGE_NAME) \
-		--arch $(ARCH) \
-		export --path build/operator-package
+	$(MAKE) melange-build-operator
+	$(MAKE) apko-build IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-operator-image-dockerfile
 build-operator-image-dockerfile:
@@ -202,27 +196,10 @@ build-and-push-operator-image:
 build-and-push-operator-image-chainguard:
 	mkdir -p build
 ifdef REGISTRY_SERVER
-	dagger call \
-		with-registry-login \
-			--server $(REGISTRY_SERVER) \
-			--username $(REGISTRY_USERNAME) \
-			--password env:REGISTRY_PASSWORD \
-		publish-operator-image \
-			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
-			--repo $(IMAGE_NAME) \
-			--arch $(ARCH) \
-	> build/digest
-else
-	dagger call \
-		publish-operator-image \
-			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
-			--repo $(IMAGE_NAME) \
-			--arch $(ARCH) \
-	> build/digest
+	$(MAKE) apko-login REGISTRY=$(REGISTRY_SERVER) USERNAME=$(REGISTRY_USERNAME) PASSWORD="$(REGISTRY_PASSWORD)"
 endif
-	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
+	$(MAKE) melange-build-operator
+	$(MAKE) apko-build-and-publish IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-operator-image-dockerfile
 build-and-push-operator-image-dockerfile: build-operator-image-dockerfile

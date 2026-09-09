@@ -30,10 +30,9 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history so that we can get the previous tag
 
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
+      - uses: ./.github/actions/setup-chainguard
+        with:
+          cache-suffix: ${{ github.job }}
 
       - name: Build and push local-artifact-mirror image
         id: local-artifact-mirror
@@ -91,10 +90,6 @@ jobs:
 
       - uses: imjasonh/setup-crane@v0.7
 
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Download buildtools artifact
         uses: actions/download-artifact@v8
