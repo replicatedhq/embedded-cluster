@@ -132,7 +132,7 @@ cmd/installer/goods/bins/local-artifact-mirror:
 
 output/bins/fio-%:
 	mkdir -p output/bins
-	dagger call build-fio --version=$(call split-hyphen,$*,1) --arch=$(call split-hyphen,$*,2) export --path=$@
+	./scripts/build-fio.sh $(call split-hyphen,$*,1) $(call split-hyphen,$*,2) $@
 	chmod +x $@
 	touch $@
 

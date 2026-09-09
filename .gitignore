@@ -10,6 +10,7 @@ e2e/kots-release-install/license.yaml
 /bin/
 /build/
 /output/
+/.cache/
 go.work
 go.work.sum
 .gocache
