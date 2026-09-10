@@ -122,7 +122,7 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	arch string,
 ) (*dagger.Directory, error) {
 
-	melangeFile, err := localPackageConfig(ctx, src, "embedded-cluster-operator", kzerosMinorVersion, ecVersion)
+	melangeFile, err := localPackageConfig(ctx, src, "embedded-cluster-operator", kzerosMinorVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +130,7 @@ func (m *EmbeddedCluster) BuildOperatorPackage(
 	build := m.chainguard.melangeBuildGo(
 		src,
 		melangeFile,
+		ecVersion,
 		arch,
 		MelangeImageVersion,
 	)

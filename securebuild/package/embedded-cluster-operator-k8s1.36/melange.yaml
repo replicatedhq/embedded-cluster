@@ -54,7 +54,7 @@ pipeline:
   - name: build-go-binary
     runs: |
       make -C operator build-deps build \
-        VERSION=${{package.version}}+${{vars.k8s-version}}
+        VERSION="${VERSION:-${{package.version}}+${{vars.k8s-version}}}"
       cp operator/bin/manager ${{targets.destdir}}/manager
 
   - uses: strip
