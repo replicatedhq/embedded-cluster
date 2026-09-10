@@ -73,12 +73,15 @@ func exportDRFixture(tc *cmx.Cluster, minio *cmx.Minio, prefix, output string) e
 
 func restoreExportedDRFixture(tc *cmx.Cluster) error {
 	const remoteFixture = "/minio/embedded-cluster-dr-fixture.tar.gz"
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"sh", "-eu", "-c",
-		"rm -rf /minio/data && tar -xzf \"$1\" -C /minio", "--", remoteFixture,
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"rm", "-rf", "/minio/data"})
+	if err != nil {
+		return fmt.Errorf("remove original MinIO data: %w: %s: %s", err, stdout, stderr)
+	}
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{
+		"tar", "-xzf", remoteFixture, "-C", "/minio",
 	})
 	if err != nil {
-		return fmt.Errorf("replace MinIO data with exported fixture: %w: %s: %s", err, stdout, stderr)
+		return fmt.Errorf("extract exported MinIO data: %w: %s: %s", err, stdout, stderr)
 	}
 	return nil
 }
