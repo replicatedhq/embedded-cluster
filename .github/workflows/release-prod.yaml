@@ -102,12 +102,12 @@ jobs:
         env:
           VERSION: ${{ needs.get-tag.outputs.tag-name }}
           REGISTRY_SERVER: docker.io
-          REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           OPERATOR_IMAGE_NAME: replicated/embedded-cluster-operator-image
           LOCAL_ARTIFACT_MIRROR_IMAGE_NAME: replicated/embedded-cluster-local-artifact-mirror
         run: |
-          printf '%s' "$REGISTRY_PASSWORD" | crane auth login "$REGISTRY_SERVER" --username "$REGISTRY_USER" --password-stdin
+          printf '%s' "$REGISTRY_PASSWORD" | crane auth login "$REGISTRY_SERVER" --username "$REGISTRY_USERNAME" --password-stdin
           tag="${VERSION#v}"
           tag="${tag/+k8s-/-k8s}"
           operator="$OPERATOR_IMAGE_NAME:$tag"
