@@ -82,6 +82,14 @@ var copyArtifactsJob = &batchv1.Job{
 				Containers: []corev1.Container{
 					{
 						Name: "embedded-cluster-updater",
+						// This pod rewrites binaries in the host data
+						// directory and then runs one of them, which a confined
+						// container cannot do. spc_t is container-selinux's
+						// domain for host management containers, which is what
+						// this has always been.
+						SecurityContext: &corev1.SecurityContext{
+							SELinuxOptions: &corev1.SELinuxOptions{Type: "spc_t"},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								Name:      "host",
