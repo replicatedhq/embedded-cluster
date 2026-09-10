@@ -101,14 +101,17 @@ jobs:
         id: images
         env:
           VERSION: ${{ needs.get-tag.outputs.tag-name }}
-          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          REGISTRY_SERVER: docker.io
+          REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          OPERATOR_IMAGE_NAME: replicated/embedded-cluster-operator-image
+          LOCAL_ARTIFACT_MIRROR_IMAGE_NAME: replicated/embedded-cluster-local-artifact-mirror
         run: |
-          printf '%s' "$DOCKERHUB_PASSWORD" | crane auth login index.docker.io --username "$DOCKERHUB_USER" --password-stdin
+          printf '%s' "$REGISTRY_PASSWORD" | crane auth login "$REGISTRY_SERVER" --username "$REGISTRY_USER" --password-stdin
           tag="${VERSION#v}"
           tag="${tag/+k8s-/-k8s}"
-          operator="replicated/embedded-cluster-operator-image:$tag"
-          mirror="replicated/embedded-cluster-local-artifact-mirror:$tag"
+          operator="$OPERATOR_IMAGE_NAME:$tag"
+          mirror="$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME:$tag"
           # External registry publishing can finish after the SecureBuild build.
           wait_for_image() {
             local image="$1" digest manifest
