@@ -11,8 +11,8 @@ images:
     velero:
         repo: proxy.replicated.com/library/velero
         tag:
-            amd64: v1.18.2-amd64@sha256:bb1f5d22908691509e1226c1219112e72472ea9bc1a28e7193562b997dd2c2b2
-            arm64: v1.18.2-arm64@sha256:68c735e8cef31c2f4045ec34caf05baf8301df4f24af304c39570ce910493d86
+            amd64: v1.18.2-amd64@sha256:c2ea6cfcfeb2a0cbbcdbdfe5897852a154b64508be0ce6c04a68fa72b22d4747
+            arm64: v1.18.2-arm64@sha256:c1ec5bd3ff417da16fd74ae99f13dfd41ee21a1eacb64afafcaf715ac52e9e93
     velero-plugin-for-aws:
         repo: proxy.replicated.com/library/velero-plugin-for-aws
         tag:
