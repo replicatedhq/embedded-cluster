@@ -166,11 +166,11 @@ require (
 	github.com/cockroachdb/redact v1.1.8 // indirect
 	github.com/containerd/cgroups/v3 v3.1.3 // indirect
 	github.com/containerd/containerd/api v1.11.1 // indirect
-	github.com/containerd/containerd/v2 v2.3.2 // indirect
+	github.com/containerd/containerd/v2 v2.3.5 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
-	github.com/containerd/platforms v1.0.0-rc.4 // indirect
+	github.com/containerd/platforms v1.0.0-rc.5 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
 	github.com/containerd/ttrpc v1.2.8 // indirect
 	github.com/containerd/typeurl/v2 v2.2.3 // indirect
@@ -415,8 +415,8 @@ require (
 	k8s.io/cloud-provider v0.36.2 // indirect
 	k8s.io/component-base v0.36.3 // indirect
 	k8s.io/controller-manager v0.36.2 // indirect
-	k8s.io/cri-api v0.36.2 // indirect
-	k8s.io/cri-client v0.36.2 // indirect
+	k8s.io/cri-api v0.36.3 // indirect
+	k8s.io/cri-client v0.36.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kms v0.36.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
