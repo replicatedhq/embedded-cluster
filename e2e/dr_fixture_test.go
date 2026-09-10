@@ -82,6 +82,7 @@ func validDRFixtureManifest(payload, digest string) drFixtureManifest {
 		ECVersion:     "2.19.8+k8s-1.36",
 		K0sVersion:    "v1.36.2+k0s.0",
 		Application:   "appver-airgap-e2e-previous-stable",
+		BundleSHA256:  "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		S3Region:      "us-east-1",
 		S3Bucket:      "e2e",
 		S3Prefix:      "fixture",

@@ -27,6 +27,9 @@ jobs:
   produce-and-restore:
     if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'divolgin/no-airgap-build' }}
     runs-on: ubuntu-22.04
+    concurrency:
+      group: e2e-dr-fixture-candidate-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
 
@@ -35,7 +38,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ inputs.source_run_id || '34418556337' }}
+          run-id: ${{ inputs.source_run_id || '34513257192' }}
           name: e2e-airgap-bundle-previous-stable
           path: output/e2e-airgap-bundles
 
@@ -44,7 +47,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bundle=output/e2e-airgap-bundles/snapshot/appver-airgap-e2e-previous-stable.tgz
+          mapfile -t bundles < <(find output/e2e-airgap-bundles -type f -name 'appver-*-previous-stable.tgz')
+          if [ "${#bundles[@]}" -ne 1 ]; then
+            printf 'expected exactly one previous-stable bundle, found %d\n' "${#bundles[@]}" >&2
+            printf '%s\n' "${bundles[@]}" >&2
+            exit 1
+          fi
+          bundle=${bundles[0]}
           test -s "$bundle"
           workdir=$(mktemp -d)
           trap 'rm -rf "$workdir"' EXIT
@@ -54,9 +63,13 @@ jobs:
           tar -xOf "$application_bundle" embedded-cluster/version-metadata.json > "$workdir/metadata.json"
           ec_version=$(jq -er .Versions.Installer "$workdir/metadata.json")
           k0s_version=$(jq -er .Versions.Kubernetes "$workdir/metadata.json")
-          echo "Released fixture baseline: EC $ec_version, k0s $k0s_version"
+          app_version=$(basename "$bundle" .tgz)
+          bundle_sha256="sha256:$(sha256sum "$bundle" | awk '{print $1}')"
+          echo "Released fixture baseline: app $app_version, EC $ec_version, k0s $k0s_version"
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
           echo "ec_version=$ec_version" >> "$GITHUB_OUTPUT"
           echo "k0s_version=$k0s_version" >> "$GITHUB_OUTPUT"
+          echo "bundle_sha256=$bundle_sha256" >> "$GITHUB_OUTPUT"
 
       - name: Produce fixture and prove it restores
         uses: ./.github/actions/e2e
@@ -74,5 +87,44 @@ jobs:
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
           dr-fixture-output: ${{ github.workspace }}/output/dr-fixture/minio-data.tar.gz
-          dr-fixture-app-version: appver-airgap-e2e-previous-stable
+          dr-fixture-app-version: ${{ steps.baseline.outputs.app_version }}
           dr-fixture-ec-version: ${{ steps.baseline.outputs.ec_version }}
+          dr-fixture-bundle-sha256: ${{ steps.baseline.outputs.bundle_sha256 }}
+
+      - name: Publish immutable fixture
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: us-east-1
+          BUCKET: dev-embedded-cluster-bin
+          PAYLOAD: ${{ github.workspace }}/output/dr-fixture/minio-data.tar.gz
+        run: |
+          set -euo pipefail
+          manifest="$PAYLOAD.manifest.json"
+          digest=$(jq -er '.payloadSHA256 | select(startswith("sha256:"))' "$manifest")
+          object_prefix="ec-v2-dr-fixtures/v1/${digest#sha256:}"
+          publish() {
+            local file=$1 key=$2 sha
+            sha=$(sha256sum "$file" | awk '{print $1}')
+            if existing=$(aws s3api head-object --bucket "$BUCKET" --key "$key" --query 'Metadata.sha256' --output text 2>/dev/null); then
+              if [ "$existing" != "$sha" ]; then
+                echo "immutable fixture object has unexpected digest: s3://$BUCKET/$key" >&2
+                exit 1
+              fi
+              echo "reusing immutable fixture object s3://$BUCKET/$key"
+              return
+            fi
+            aws s3 cp "$file" "s3://$BUCKET/$key" --metadata "sha256=$sha" --only-show-errors
+          }
+          for file in "$PAYLOAD" "$manifest"; do
+            key="$object_prefix/$(basename "$file")"
+            publish "$file" "$key"
+          done
+          {
+            echo "### Published DR fixture"
+            echo
+            echo "- Digest: \`$digest\`"
+            echo "- Payload: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz\`"
+            echo "- Manifest: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz.manifest.json\`"
+          } >> "$GITHUB_STEP_SUMMARY"

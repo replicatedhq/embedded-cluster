@@ -640,6 +640,16 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-app"); err != nil {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
+	if fixtureOutput != "" {
+		const marker = "embedded-cluster-dr-fixture-v1"
+		line = []string{
+			"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--",
+			"sh", "-c", "printf '%s\\n' \"$1\" > /var/lib/dr-fixture/marker", "--", marker,
+		}
+		if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
+			t.Fatalf("failed to write DR fixture PVC marker: %v: %s: %s", err, stdout, stderr)
+		}
+	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
 	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersion()}
@@ -684,6 +694,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 	if fixtureOutput != "" {
+		if err := tc.StopMinio(0); err != nil {
+			t.Fatalf("failed to quiesce MinIO before fixture export: %v", err)
+		}
 		t.Logf("%s: exporting immutable DR fixture", time.Now().Format(time.RFC3339))
 		if err := exportDRFixture(tc, minio, drArgs[3], fixtureOutput); err != nil {
 			t.Fatalf("failed to export DR fixture: %v", err)
@@ -729,6 +742,11 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// start minio
 	t.Logf("%s: starting minio on node 0 after reboot", time.Now().Format(time.RFC3339))
+	if fixtureOutput != "" {
+		if err := restoreExportedDRFixture(tc); err != nil {
+			t.Fatalf("failed to stage exported DR fixture for validation: %v", err)
+		}
+	}
 	if err := tc.StartMinio(0, minio); err != nil {
 		t.Fatalf("failed to start minio: %v", err)
 	}
@@ -808,6 +826,15 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
 	}
 	if fixtureOutput != "" {
+		const marker = "embedded-cluster-dr-fixture-v1"
+		line = []string{"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker"}
+		stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv)
+		if err != nil {
+			t.Fatalf("failed to read restored DR fixture PVC marker: %v: %s: %s", err, stdout, stderr)
+		}
+		if strings.TrimSpace(stdout) != marker {
+			t.Fatalf("restored DR fixture PVC marker is %q, want %q", strings.TrimSpace(stdout), marker)
+		}
 		t.Logf("%s: fixture restore validation complete", time.Now().Format(time.RFC3339))
 		return
 	}

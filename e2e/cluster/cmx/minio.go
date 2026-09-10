@@ -110,6 +110,23 @@ func (c *Cluster) StartMinio(node int, minio *Minio) error {
 	return nil
 }
 
+// StopMinio stops the fixture server so its object tree can be archived
+// consistently. StartMinio can start the same server and data again later.
+func (c *Cluster) StopMinio(node int) error {
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{"pkill", "-x", "minio"})
+	if err != nil {
+		return fmt.Errorf("stop minio: %w: %s: %s", err, stdout, stderr)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, _, err := c.RunCommandOnNode(node, []string{"pgrep", "-x", "minio"}); err != nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("timeout waiting for minio to stop")
+}
+
 func (c *Cluster) waitForMinio(node int, minio *Minio) error {
 	startTime := time.Now()
 

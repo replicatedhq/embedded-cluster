@@ -53,6 +53,9 @@ inputs:
   dr-fixture-ec-version:
     description: 'exact released EC version used to produce the DR fixture'
     required: false
+  dr-fixture-bundle-sha256:
+    description: 'SHA-256 of the exact released bundle used to produce the DR fixture'
+    required: false
 
 runs:
   using: composite
@@ -102,9 +105,28 @@ runs:
       export E2E_DR_FIXTURE_OUTPUT=${{ inputs.dr-fixture-output }}
       export E2E_DR_FIXTURE_APP_VERSION=${{ inputs.dr-fixture-app-version }}
       export E2E_DR_FIXTURE_EC_VERSION=${{ inputs.dr-fixture-ec-version }}
+      export E2E_DR_FIXTURE_BUNDLE_SHA256=${{ inputs.dr-fixture-bundle-sha256 }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+
+  - name: Verify DR fixture candidate
+    if: ${{ inputs.dr-fixture-output != '' }}
+    shell: bash
+    env:
+      FIXTURE_PAYLOAD: ${{ inputs.dr-fixture-output }}
+      FORBID_DR_ACCESS_KEY: ${{ inputs.dr-aws-access-key-id }}
+      FORBID_DR_SECRET_KEY: ${{ inputs.dr-aws-secret-access-key }}
+      FORBID_CMX_API_TOKEN: ${{ inputs.cmx-api-token }}
+      FORBID_GITHUB_TOKEN: ${{ inputs.github-token }}
+    run: |
+      go run ./cmd/dr-fixture verify \
+        --payload "$FIXTURE_PAYLOAD" \
+        --manifest "$FIXTURE_PAYLOAD.manifest.json" \
+        --forbid-env FORBID_DR_ACCESS_KEY \
+        --forbid-env FORBID_DR_SECRET_KEY \
+        --forbid-env FORBID_CMX_API_TOKEN \
+        --forbid-env FORBID_GITHUB_TOKEN
 
   - name: Upload validated DR fixture candidate
     if: ${{ inputs.dr-fixture-output != '' }}
