@@ -7,6 +7,11 @@ on:
     branches: [main]
     paths:
       - .github/workflows/e2e-dr-fixture-candidate.yaml
+      - .github/actions/e2e/action.yml
+      - e2e/dr_fixture.go
+      - e2e/dr_fixture_test.go
+      - e2e/restore_test.go
+      - e2e/cluster/cmx/cluster.go
   workflow_dispatch:
     inputs:
       source_run_id:
