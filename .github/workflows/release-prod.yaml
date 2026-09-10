@@ -129,13 +129,9 @@ jobs:
             echo "Published image unavailable: $image" >&2
             return 1
           }
-          for output in operator local-artifact-mirror; do
-            image="$operator"
-            if [[ "$output" == local-artifact-mirror ]]; then
-              image="$mirror"
-            fi
-            digest=$(wait_for_image "$image")
-            echo "$output=$image@$digest" >> "$GITHUB_OUTPUT"
+          for output in "operator=$operator" "local-artifact-mirror=$mirror"; do
+            digest=$(wait_for_image "${output#*=}")
+            echo "$output@$digest" >> "$GITHUB_OUTPUT"
           done
 
   publish-operator-chart:
