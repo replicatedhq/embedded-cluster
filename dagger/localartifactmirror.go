@@ -121,7 +121,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 	arch string,
 ) (*dagger.Directory, error) {
 
-	melangeFile, err := localPackageConfig(ctx, src, "local-artifact-mirror", kzerosMinorVersion, ecVersion)
+	melangeFile, err := localPackageConfig(ctx, src, "local-artifact-mirror", kzerosMinorVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -129,6 +129,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 	build := m.chainguard.melangeBuildGo(
 		src,
 		melangeFile,
+		ecVersion,
 		arch,
 		MelangeImageVersion,
 	)
