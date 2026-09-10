@@ -178,6 +178,15 @@ type Domains struct {
 	ReplicatedRegistryDomain string `json:"replicatedRegistryDomain,omitempty"`
 }
 
+// +kubebuilder:validation:Enum=aarch64;x86_64
+// Architecture represents a supported CPU architecture identifier.
+type Architecture string
+
+const (
+	ArchitectureAarch64 Architecture = "aarch64"
+	ArchitectureX8664   Architecture = "x86_64"
+)
+
 // ConfigSpec defines the desired state of Config
 type ConfigSpec struct {
 	Version              string               `json:"version,omitempty"`
@@ -187,6 +196,11 @@ type ConfigSpec struct {
 	UnsupportedOverrides UnsupportedOverrides `json:"unsupportedOverrides,omitempty"`
 	Extensions           Extensions           `json:"extensions,omitempty"`
 	Domains              Domains              `json:"domains,omitempty"`
+	// Architecture holds the list of CPU architectures supported by this release.
+	// If omitted, x86_64 is assumed for backward compatibility.
+	// +kubebuilder:validation:Optional
+	// +listType=set
+	Architecture []Architecture `json:"architecture,omitempty"`
 }
 
 // OverrideForBuiltIn returns the override for the built-in extension with the
