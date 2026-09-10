@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t bundles < <(find output/e2e-airgap-bundles -type f -name 'appver-*-previous-stable.tgz')
+          mapfile -t bundles < <(find output/e2e-airgap-bundles/snapshot -type f -name 'appver-*-previous-stable.tgz')
           if [ "${#bundles[@]}" -ne 1 ]; then
             printf 'expected exactly one previous-stable bundle, found %d\n' "${#bundles[@]}" >&2
             printf '%s\n' "${bundles[@]}" >&2
