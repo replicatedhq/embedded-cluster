@@ -74,7 +74,6 @@ jobs:
           name: buildtools
           path: output/bin/buildtools
 
-  # SecureBuild publishing is a non-blocking preview during the transition release.
   publish-securebuild:
     needs: [get-tag]
     if: needs.get-tag.outputs.is-stable == 'true'
@@ -83,36 +82,63 @@ jobs:
       version: ${{ github.ref_name }}
     secrets: inherit
 
-  publish-operator-image:
+  # Stable releases wait for SecureBuild. Prereleases must already have images
+  # published under the same Docker Hub naming convention before tagging.
+  resolve-images:
     runs-on: ubuntu-latest
-    needs: [get-tag]
-    env:
-      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    needs: [get-tag, publish-securebuild]
+    if: >-
+      always() && !cancelled() && needs.get-tag.result == 'success' &&
+      (needs.publish-securebuild.result == 'success' ||
+       (needs.get-tag.outputs.is-stable == 'false' && needs.publish-securebuild.result == 'skipped'))
     outputs:
-      image: ${{ steps.operator-image.outputs.image }}
+      operator: ${{ steps.images.outputs.operator }}
+      local-artifact-mirror: ${{ steps.images.outputs.local-artifact-mirror }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      - uses: imjasonh/setup-crane@v0.7
 
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
-
-      - name: Build and push operator image
-        id: operator-image
+      - name: Resolve published images
+        id: images
         env:
-          REGISTRY_SERVER: docker.io
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          VERSION: ${{ needs.get-tag.outputs.tag-name }}
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          make -C operator build-deps build-and-push-operator-image \
-            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
-          echo "image=$(cat operator/build/image)" >> $GITHUB_OUTPUT
+          printf '%s' "$DOCKERHUB_PASSWORD" | crane auth login index.docker.io --username "$DOCKERHUB_USER" --password-stdin
+          tag="${VERSION#v}"
+          tag="${tag/+k8s-/-k8s}"
+          operator="replicated/embedded-cluster-operator-image:$tag"
+          mirror="replicated/embedded-cluster-local-artifact-mirror:$tag"
+          # External registry publishing can finish after the SecureBuild build.
+          wait_for_image() {
+            local image="$1" digest manifest
+            for ((attempt=1; attempt<=60; attempt++)); do
+              if digest=$(crane digest "$image") &&
+                manifest=$(crane manifest "$image@$digest") &&
+                jq -e '[.manifests[]?.platform | select(.os == "linux") | .architecture] |
+                  (index("amd64") != null and index("arm64") != null)' <<< "$manifest" >/dev/null; then
+                printf '%s' "$digest"
+                return 0
+              fi
+              echo "Waiting for both architectures of $image ($attempt/60)" >&2
+              sleep 10
+            done
+            echo "Published image unavailable: $image" >&2
+            return 1
+          }
+          for output in operator local-artifact-mirror; do
+            image="$operator"
+            if [[ "$output" == local-artifact-mirror ]]; then
+              image="$mirror"
+            fi
+            digest=$(wait_for_image "$image")
+            echo "$output=$image@$digest" >> "$GITHUB_OUTPUT"
+          done
 
   publish-operator-chart:
     runs-on: ubuntu-latest
-    needs: [get-tag, publish-operator-image]
+    needs: [get-tag, resolve-images]
+    if: always() && !cancelled() && needs.get-tag.result == 'success' && needs.resolve-images.result == 'success'
     env:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     outputs:
@@ -127,41 +153,20 @@ jobs:
           HELM_USER: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
           HELM_PASS: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
           HELM_REGISTRY: registry.replicated.com
+          OPERATOR_IMAGE: ${{ needs.resolve-images.outputs.operator }}
         run: |
           make -C operator build-chart \
-            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
+            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }} \
+            IMAGE_TAG="${OPERATOR_IMAGE#*:}"
           echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
-
-  publish-images:
-    runs-on: ubuntu-latest
-    needs: [get-tag]
-    env:
-      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
-    outputs:
-      local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install dagger
-        run: |
-          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
-          sudo mv ./bin/dagger /usr/local/bin/dagger
-
-      - name: Build and push local-artifact-mirror image
-        id: local-artifact-mirror
-        env:
-          REGISTRY_SERVER: docker.io
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-        run: |
-          make -C local-artifact-mirror build-deps build-and-push-local-artifact-mirror-image \
-            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }}
-          echo "image=$(cat local-artifact-mirror/build/image)" >> $GITHUB_OUTPUT
 
   release:
     runs-on: ubuntu-latest
-    needs: [get-tag, buildtools, publish-images, publish-operator-image, publish-operator-chart]
+    needs: [get-tag, buildtools, resolve-images, publish-operator-chart]
+    if: >-
+      always() && !cancelled() && needs.get-tag.result == 'success' &&
+      needs.buildtools.result == 'success' && needs.resolve-images.result == 'success' &&
+      needs.publish-operator-chart.result == 'success'
     env:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
@@ -204,7 +209,7 @@ jobs:
           IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
           IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
           OPERATOR_CHART: ${{ needs.publish-operator-chart.outputs.chart }}
-          OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
+          OPERATOR_IMAGE: ${{ needs.resolve-images.outputs.operator }}
         run: |
           ./scripts/ci-update-operator-metadata.sh
 
@@ -213,7 +218,7 @@ jobs:
           mkdir -p build
           make embedded-cluster-linux-amd64 \
             VERSION=${{ needs.get-tag.outputs.tag-name }} \
-            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.publish-images.outputs.local-artifact-mirror }}
+            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.resolve-images.outputs.local-artifact-mirror }}
           tar -C output/bin -czvf build/embedded-cluster-linux-amd64.tgz embedded-cluster
 
       - name: Output Metadata
@@ -230,7 +235,7 @@ jobs:
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           mkdir -p operator/build
-          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
+          echo "${{ needs.resolve-images.outputs.operator }}" > "operator/build/image-$EC_VERSION"
 
           ./scripts/ci-upload-binaries.sh
 
@@ -243,7 +248,7 @@ jobs:
         run: |
           export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
           mkdir -p operator/build
-          echo "${{ needs.publish-operator-image.outputs.image }}" > "operator/build/image-$EC_VERSION"
+          echo "${{ needs.resolve-images.outputs.operator }}" > "operator/build/image-$EC_VERSION"
 
           ./scripts/ci-upload-binaries.sh
 

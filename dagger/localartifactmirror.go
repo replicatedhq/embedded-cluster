@@ -10,6 +10,7 @@ import (
 
 // Builds the local artifact mirror image with APKO.
 func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
+	ctx context.Context,
 	// Source directory to use for the build.
 	// +defaultPath="/"
 	src *dagger.Directory,
@@ -24,14 +25,20 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
-) *dagger.File {
+) (*dagger.File, error) {
 
 	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	apkoFile, err := localImageConfig(ctx, src, "local-artifact-mirror", kzerosMinorVersion)
+	if err != nil {
+		return nil, err
+	}
 
-	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild, err := m.BuildLocalArtifactMirrorPackage(ctx, src, ecVersion, kzerosMinorVersion, arch)
+	if err != nil {
+		return nil, err
+	}
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -45,7 +52,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 		APKOImageVersion,
 	)
 
-	return build.File("apko.tar")
+	return build.File("apko.tar"), nil
 }
 
 // Builds and publishes the local artifact mirror image with APKO.
@@ -70,9 +77,15 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
-	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	apkoFile, err := localImageConfig(ctx, src, "local-artifact-mirror", kzerosMinorVersion)
+	if err != nil {
+		return "", err
+	}
 
-	pkgBuild := m.BuildLocalArtifactMirrorPackage(src, ecVersion, kzerosMinorVersion, arch)
+	pkgBuild, err := m.BuildLocalArtifactMirrorPackage(ctx, src, ecVersion, kzerosMinorVersion, arch)
+	if err != nil {
+		return "", err
+	}
 
 	dir := dag.Directory().
 		WithFile("melange.rsa.pub", pkgBuild.File("melange.rsa.pub")).
@@ -95,6 +108,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 
 // Builds the local artifact mirror package with Melange.
 func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
+	ctx context.Context,
 	// Source directory to use for the build.
 	// +defaultPath="/"
 	src *dagger.Directory,
@@ -105,73 +119,19 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 	// Architectures to build for.
 	// +default="amd64,arm64"
 	arch string,
-) *dagger.Directory {
+) (*dagger.Directory, error) {
 
-	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
+	melangeFile, err := localPackageConfig(ctx, src, "local-artifact-mirror", kzerosMinorVersion, ecVersion)
+	if err != nil {
+		return nil, err
+	}
 
 	build := m.chainguard.melangeBuildGo(
-		localArtifactMirrorDirectory(src),
+		src,
 		melangeFile,
 		arch,
 		MelangeImageVersion,
 	)
 
-	return build.Directory("build")
-}
-
-func (m *EmbeddedCluster) apkoTemplateLocalArtifactMirror(
-	src *dagger.Directory,
-	ecVersion string,
-	k0sMinorVersion string,
-) *dagger.File {
-	vars := map[string]string{
-		"PACKAGE_VERSION": ecVersion,
-	}
-	if k0sMinorVersion != "" {
-		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
-	}
-	return m.common.renderTemplate(
-		src.Directory("local-artifact-mirror/deploy"),
-		vars,
-		"apko.tmpl.yaml",
-		"apko.yaml",
-	)
-}
-
-func (m *EmbeddedCluster) melangeTemplateLocalArtifactMirror(
-	src *dagger.Directory,
-	ecVersion string,
-	k0sMinorVersion string,
-) *dagger.File {
-	vars := map[string]string{
-		"PACKAGE_VERSION": ecVersion,
-	}
-	if k0sMinorVersion != "" {
-		vars["K0S_MINOR_VERSION"] = k0sMinorVersion
-	}
-	return m.common.renderTemplate(
-		src.Directory("local-artifact-mirror/deploy"),
-		vars,
-		"melange.tmpl.yaml",
-		"melange.yaml",
-	)
-}
-
-func localArtifactMirrorDirectory(src *dagger.Directory) *dagger.Directory {
-	dir := directoryWithCommonGoFiles(dag.Directory(), src)
-	dir = dir.
-		WithDirectory("local-artifact-mirror",
-			src.Directory("local-artifact-mirror").
-				WithoutDirectory("bin").
-				WithoutDirectory("build").
-				WithoutDirectory("cache"),
-		).
-		WithDirectory("cmd",
-			src.Directory("cmd").
-				WithoutDirectory("installer/goods/bins").
-				WithNewFile("installer/goods/bins/.placeholder", ".placeholder").
-				WithoutDirectory("installer/goods/internal/bins").
-				WithNewFile("installer/goods/internal/bins/.placeholder", ".placeholder"),
-		)
-	return dir
+	return build.Directory("build"), nil
 }

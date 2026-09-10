@@ -2,17 +2,14 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/distribution/reference"
@@ -28,54 +25,6 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 	"oras.land/oras-go/v2/registry/remote"
 )
-
-var (
-	apkoLoginOnce sync.Once
-)
-
-func ApkoLogin() error {
-	var retErr error
-	apkoLoginOnce.Do(func() {
-		cmd := exec.Command("make", "apko")
-		if err := RunCommand(cmd); err != nil {
-			retErr = fmt.Errorf("make apko: %w", err)
-			return
-		}
-		if os.Getenv("IMAGES_REGISTRY_USER") != "" && os.Getenv("IMAGES_REGISTRY_PASS") != "" {
-			cmd := exec.Command(
-				"make",
-				"apko-login",
-				fmt.Sprintf("REGISTRY=%s", os.Getenv("IMAGES_REGISTRY_SERVER")),
-				fmt.Sprintf("USERNAME=%s", os.Getenv("IMAGES_REGISTRY_USER")),
-				fmt.Sprintf("PASSWORD=%s", os.Getenv("IMAGES_REGISTRY_PASS")),
-			)
-			if err := RunCommand(cmd); err != nil {
-				retErr = fmt.Errorf("run make apko-login: %w", err)
-				return
-			}
-		}
-	})
-	return retErr
-}
-
-func ApkoBuildAndPublish(componentName, packageName, packageVersion string, archs string) error {
-	image, err := ComponentImageName(componentName, packageName, packageVersion)
-	if err != nil {
-		return fmt.Errorf("component image name: %w", err)
-	}
-	args := []string{
-		"apko-build-and-publish",
-		fmt.Sprintf("IMAGE=%s", image),
-		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
-		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-		fmt.Sprintf("ARCHS=%s", archs),
-	}
-	cmd := exec.Command("make", args...)
-	if err := RunCommand(cmd); err != nil {
-		return fmt.Errorf("run make apko-build-and-publish: %w", err)
-	}
-	return nil
-}
 
 func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent, metaImages map[string]release.AddonImage, images []string, filteredImages []string) (map[string]release.AddonImage, error) {
 	nextImages := map[string]release.AddonImage{}
@@ -103,11 +52,6 @@ func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent
 
 		archs := GetSupportedArchs()
 
-		_, err := component.buildImage(ctx, image, strings.Join(archs, ","))
-		if err != nil {
-			return nil, fmt.Errorf("build image: %w", err)
-		}
-
 		for _, arch := range archs {
 			repo, tag, err := component.resolveImageRepoAndTag(ctx, image, arch)
 			var tmp *DockerManifestNotFoundError
@@ -124,59 +68,6 @@ func UpdateImages(ctx context.Context, imageComponents map[string]addonComponent
 	}
 
 	return nextImages, nil
-}
-
-func ComponentImageName(componentName, packageName, packageVersion string) (string, error) {
-	registryServer := os.Getenv("IMAGES_REGISTRY_SERVER")
-	if registryServer == "" {
-		return "", fmt.Errorf("IMAGES_REGISTRY_SERVER not set")
-	}
-	tag, err := ComponentImageTag(componentName, packageName, packageVersion)
-	if err != nil {
-		return "", fmt.Errorf("component image tag: %w", err)
-	}
-	return fmt.Sprintf("%s/replicated/ec-%s:%s", registryServer, componentName, tag), nil
-}
-
-func ComponentImageTag(componentName, packageName, packageVersion string) (string, error) {
-	if packageName == "" {
-		return packageVersion, nil
-	}
-	packageVersion, err := ResolveApkoPackageVersion(componentName, packageName, packageVersion)
-	if err != nil {
-		return "", fmt.Errorf("apko output tag: %w", err)
-	}
-	return packageVersion, nil
-}
-
-// ResolveApkoPackageVersion resolves the fuzzy version matching in the apko config file to a specific version.
-func ResolveApkoPackageVersion(componentName, packageName, packageVersion string) (string, error) {
-	args := []string{
-		"--silent",
-		"apko-print-pkg-version",
-		fmt.Sprintf("APKO_CONFIG=%s", filepath.Join("deploy", "images", componentName, "apko.tmpl.yaml")),
-		fmt.Sprintf("PACKAGE_NAME=%s", packageName),
-		fmt.Sprintf("PACKAGE_VERSION=%s", packageVersion),
-	}
-	var errBuf bytes.Buffer
-	cmd := exec.Command("make", args...)
-	cmd.Stderr = &errBuf
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("run command: %w: %s", err, errBuf.String())
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func GetImageNameFromBuildFile(imageBuildFile string) (string, error) {
-	contents, err := os.ReadFile(imageBuildFile)
-	if err != nil {
-		return "", fmt.Errorf("read build file: %w", err)
-	}
-	if len(contents) == 0 {
-		return "", fmt.Errorf("empty build/image file")
-	}
-	return strings.TrimSpace(string(contents)), nil
 }
 
 func FamiliarImageName(imageName string) string {
