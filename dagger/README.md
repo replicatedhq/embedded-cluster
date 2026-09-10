@@ -25,7 +25,8 @@ Build local and CI container images using APKO and Melange. Stable release image
 The release workflow waits for SecureBuild and then resolves Docker Hub images at
 `replicated/embedded-cluster-operator-image:X.Y.Z-k8s1.N` and
 `replicated/embedded-cluster-local-artifact-mirror:X.Y.Z-k8s1.N`. It checks both
-architectures and pins the operator chart and installer to the published digests.
+architectures and preserves digest references in the installer. The operator
+chart continues to reference its image by tag only.
 GitHub Actions no longer builds or publishes release images. SecureBuild's release
 workflow supports stable versions; prerelease tags require images to have been
 published separately under the same naming convention.
@@ -43,5 +44,4 @@ Manage local artifact mirroring for airgap installations.
 Build and publish the embedded-cluster operator.
 
 **Files:** `operator.go`
-
 

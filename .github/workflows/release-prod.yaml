@@ -154,9 +154,10 @@ jobs:
           HELM_REGISTRY: registry.replicated.com
           OPERATOR_IMAGE: ${{ needs.resolve-images.outputs.operator }}
         run: |
+          operator_image="${OPERATOR_IMAGE%%@*}"
           make -C operator build-chart \
             PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }} \
-            IMAGE_TAG="${OPERATOR_IMAGE#*:}"
+            IMAGE_TAG="${operator_image##*:}"
           echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
 
   release:
