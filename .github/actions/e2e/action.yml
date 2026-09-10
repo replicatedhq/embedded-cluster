@@ -44,6 +44,15 @@ inputs:
   airgap-bundles-dir:
     description: 'directory containing verified locally assembled airgap bundles'
     required: false
+  dr-fixture-output:
+    description: 'path where the validated DR fixture should be exported'
+    required: false
+  dr-fixture-app-version:
+    description: 'exact application version used to produce the DR fixture'
+    required: false
+  dr-fixture-ec-version:
+    description: 'exact released EC version used to produce the DR fixture'
+    required: false
 
 runs:
   using: composite
@@ -90,9 +99,22 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
       export E2E_AIRGAP_BUNDLE_DIR=${{ inputs.airgap-bundles-dir }}
+      export E2E_DR_FIXTURE_OUTPUT=${{ inputs.dr-fixture-output }}
+      export E2E_DR_FIXTURE_APP_VERSION=${{ inputs.dr-fixture-app-version }}
+      export E2E_DR_FIXTURE_EC_VERSION=${{ inputs.dr-fixture-ec-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+
+  - name: Upload validated DR fixture candidate
+    if: ${{ inputs.dr-fixture-output != '' }}
+    uses: actions/upload-artifact@v7
+    with:
+      name: embedded-cluster-dr-fixture-candidate
+      path: |
+        ${{ inputs.dr-fixture-output }}
+        ${{ inputs.dr-fixture-output }}.manifest.json
+      if-no-files-found: error
 
   - name: Troubleshoot
     if: ${{ !cancelled() }}

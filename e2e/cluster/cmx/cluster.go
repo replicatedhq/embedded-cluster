@@ -546,6 +546,14 @@ func (c *Cluster) CopyFileToNode(node int, src, dst string) error {
 	return copyFileToNode(c.Nodes[node], src, dst)
 }
 
+// CopyFileFromNode copies a file from a CMX node to the test runner.
+func (c *Cluster) CopyFileFromNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	return copyFileFromNode(c.Nodes[node], src, dst)
+}
+
 func copyFileFromNode(node Node, src, dst string) error {
 	scpEndpoint := strings.Replace(node.sshEndpoint, "ssh://", "scp://", 1)
 

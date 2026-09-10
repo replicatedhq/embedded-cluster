@@ -583,15 +583,25 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
 	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
+	if fixtureVersion := os.Getenv("E2E_DR_FIXTURE_APP_VERSION"); fixtureVersion != "" {
+		initialVersion = fixtureVersion
+	}
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
-	runInParallel(t,
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
-		},
-		func(t *testing.T) error {
-			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
-		},
-	)
+	fixtureOutput := os.Getenv("E2E_DR_FIXTURE_OUTPUT")
+	if fixtureOutput != "" {
+		if err := downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID); err != nil {
+			t.Fatalf("failed to stage fixture baseline bundle: %v", err)
+		}
+	} else {
+		runInParallel(t,
+			func(t *testing.T) error {
+				return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID)
+			},
+			func(t *testing.T) error {
+				return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapSnapshotLicenseID)
+			},
+		)
+	}
 
 	// install "expect" dependency on node 0 as that's where the restore process will be initiated.
 	t.Logf("%s: installing expect package on node 0", time.Now().Format(time.RFC3339))
@@ -671,6 +681,12 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	// create a backup
 	if stdout, stderr, err := tc.RunPlaywrightTest("create-backup", drArgs...); err != nil {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
+	}
+	if fixtureOutput != "" {
+		t.Logf("%s: exporting immutable DR fixture", time.Now().Format(time.RFC3339))
+		if err := exportDRFixture(tc, minio, drArgs[3], fixtureOutput); err != nil {
+			t.Fatalf("failed to export DR fixture: %v", err)
+		}
 	}
 
 	// reset the first controller (node 0) only
@@ -789,6 +805,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 	if stdout, stderr, err := tc.RunPlaywrightTest("validate-restore-app"); err != nil {
 		t.Fatalf("fail to run playwright test validate-restore-app: %v: %s: %s", err, stdout, stderr)
+	}
+	if fixtureOutput != "" {
+		t.Logf("%s: fixture restore validation complete", time.Now().Format(time.RFC3339))
+		return
 	}
 
 	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
