@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+readonly script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=common.sh
+source "$script_dir/common.sh"
+
 readonly marker=embedded-cluster-dr-fixture-v1
 readonly marker_path=/var/lib/dr-fixture/marker
 
