@@ -14,9 +14,10 @@ on:
       - e2e/cluster/cmx/cluster.go
   workflow_dispatch:
     inputs:
-      source_run_id:
-        description: Successful CI run containing the released previous-stable bundle
+      baseline_ec_version:
+        description: Exact released EC version used to produce the fixture
         required: true
+        default: 2.19.8+k8s-1.35
         type: string
 
 permissions:
@@ -30,17 +31,53 @@ jobs:
     concurrency:
       group: e2e-dr-fixture-candidate-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
+    env:
+      BASELINE_EC_VERSION: ${{ inputs.baseline_ec_version || '2.19.8+k8s-1.35' }}
+      EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin
+      AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+      AWS_REGION: us-east-1
+      REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+      STANDARD_LICENSE_ID: 2eAqdricgviUeki42j02nIn1ayl
+      SNAPSHOT_LICENSE_ID: 2gEzHseTJQ4z2Axwj7KK9RYt4oT
     steps:
       - uses: actions/checkout@v7
 
-      - name: Download released baseline bundle
-        uses: actions/download-artifact@v8
+      - uses: actions/setup-go@v7
         with:
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ inputs.source_run_id || '34513257192' }}
-          name: e2e-airgap-bundle-previous-stable
-          path: output/e2e-airgap-bundles
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - uses: azure/setup-helm@v4
+
+      - uses: imjasonh/setup-crane@v0.7
+
+      - name: Install Replicated CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated
+          sudo mv replicated /usr/local/bin/replicated
+
+      - name: Download released baseline binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p output/bin
+          gh release download "$BASELINE_EC_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern embedded-cluster-linux-amd64.tgz
+          tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
+          chmod 0755 output/bin/embedded-cluster
+
+      - name: Assemble released baseline bundle
+        env:
+          ROLE: previous-stable
+          RELEASE_YAML_DIR: e2e/kots-release-install-stable
+          EC_BINARY: output/bin/embedded-cluster
+          APP_VERSION: appver-airgap-e2e-previous-stable
+        run: ./scripts/assemble-e2e-airgap-bundle.sh
 
       - name: Inspect released baseline bundle
         id: baseline
