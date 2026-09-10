@@ -147,16 +147,18 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 		}
 	}
 
-	// Set before overrides so a vendor- or end user-supplied worker profile still wins.
+	cfg, err = applyUnsupportedOverrides(cfg, eucfg)
+	if err != nil {
+		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
+	}
+
+	// Apply this after the merge patches: workerProfiles is an array, so a vendor- or
+	// end user-supplied profile replaces any profile we added beforehand. An explicit
+	// podLogsDir in a profile still takes precedence.
 	if podLogsDir != "" && config.SupportsPodLogsDir() {
 		if err := setPodLogsDir(cfg, podLogsDir); err != nil {
 			return nil, fmt.Errorf("unable to set pod logs dir: %w", err)
 		}
-	}
-
-	cfg, err = applyUnsupportedOverrides(cfg, eucfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
 	}
 
 	if isAirgap {
@@ -195,18 +197,44 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig)
 }
 
 // setPodLogsDir points kubelet at a pod log directory under the k0s data dir, so pod logs land
-// on the filesystem kubelet measures disk pressure on and eviction can account for them. It uses
-// the "default" worker profile, which is the profile every node reads unless installed with an
-// explicit --profile.
+// on the filesystem kubelet measures disk pressure on and eviction can account for them. It adds
+// the setting to every configured profile, since a vendor-selected profile may be used instead of
+// "default". It preserves an explicitly configured podLogsDir and creates the default profile
+// when no profile is configured.
 func setPodLogsDir(cfg *k0sv1beta1.ClusterConfig, podLogsDir string) error {
-	values, err := json.Marshal(map[string]string{"podLogsDir": podLogsDir})
+	podLogsDirValue, err := json.Marshal(podLogsDir)
 	if err != nil {
-		return fmt.Errorf("marshal worker profile values: %w", err)
+		return fmt.Errorf("marshal pod logs dir: %w", err)
 	}
-	cfg.Spec.WorkerProfiles = append(cfg.Spec.WorkerProfiles, k0sv1beta1.WorkerProfile{
-		Name:   "default",
-		Config: &runtime.RawExtension{Raw: values},
-	})
+
+	if len(cfg.Spec.WorkerProfiles) == 0 {
+		cfg.Spec.WorkerProfiles = append(cfg.Spec.WorkerProfiles, k0sv1beta1.WorkerProfile{Name: "default"})
+	}
+
+	for i := range cfg.Spec.WorkerProfiles {
+		profile := &cfg.Spec.WorkerProfiles[i]
+		values := map[string]json.RawMessage{}
+		if profile.Config != nil && len(profile.Config.Raw) > 0 {
+			if err := json.Unmarshal(profile.Config.Raw, &values); err != nil {
+				return fmt.Errorf("unmarshal worker profile %q values: %w", profile.Name, err)
+			}
+		}
+		if values == nil {
+			values = map[string]json.RawMessage{}
+		}
+		if _, ok := values["podLogsDir"]; ok {
+			continue
+		}
+
+		values["podLogsDir"] = podLogsDirValue
+
+		profileValues, err := json.Marshal(values)
+		if err != nil {
+			return fmt.Errorf("marshal worker profile %q values: %w", profile.Name, err)
+		}
+		profile.Config = &runtime.RawExtension{Raw: profileValues}
+	}
+
 	return nil
 }
 

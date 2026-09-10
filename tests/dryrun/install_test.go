@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -230,7 +231,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "test-value", k0sConfig.Spec.API.ExtraArgs["test-key"], "api extraArgs should contain test-key from unsupported-overrides")
 
 	// worker profiles
-	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "workerProfiles should have one profile from unsupported-overrides")
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "workerProfiles should retain the unsupported override")
 	assert.Equal(t, "ip-forward", k0sConfig.Spec.WorkerProfiles[0].Name, "workerProfile name should be set from unsupported-overrides")
 	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config, "workerProfile config should exist")
 
@@ -239,6 +240,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	require.NoError(t, err, "should be able to unmarshal workerProfile config")
 	sysctls := profileConfig["allowedUnsafeSysctls"].([]interface{})
 	assert.Equal(t, "net.ipv4.ip_forward", sysctls[0], "allowedUnsafeSysctls should contain net.ipv4.ip_forward from unsupported-overrides")
+	assert.Equal(t, "/var/lib/embedded-cluster/k0s/pod-logs", profileConfig["podLogsDir"])
 }
 
 func TestCustomDataDir(t *testing.T) {
@@ -365,6 +367,81 @@ func TestPodLogsDir(t *testing.T) {
 			regexp.MustCompile(`k0s install controller .* --profile=default`),
 		},
 		false,
+	)
+}
+
+func TestPodLogsDirWithWorkerProfileOverride(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigWithWorkerProfiles(`
+            - name: vendor-max-pods
+              values:
+                maxPods: 250`),
+		"--data-dir", "/custom/data/dir",
+	)
+
+	k0sConfig := readK0sConfig(t)
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1)
+	assert.Equal(t, "vendor-max-pods", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"maxPods":250,"podLogsDir":"/custom/data/dir/k0s/pod-logs"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"pod logs dir should be added without replacing the vendor's worker profile settings",
+	)
+	assertCommands(t, dr.Commands,
+		[]interface{}{regexp.MustCompile(`k0s install controller .* --profile=vendor-max-pods`)},
+		false,
+	)
+}
+
+func TestPodLogsDirExplicitWorkerProfileOverride(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigWithWorkerProfiles(`
+            - name: vendor-pod-logs
+              values:
+                maxPods: 250
+                podLogsDir: /var/log/pods`),
+		"--data-dir", "/custom/data/dir",
+	)
+
+	k0sConfig := readK0sConfig(t)
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1)
+	assert.Equal(t, "vendor-pod-logs", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"maxPods":250,"podLogsDir":"/var/log/pods"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"an explicit pod logs dir should take precedence over the computed data-dir path",
+	)
+	assertCommands(t, dr.Commands,
+		[]interface{}{regexp.MustCompile(`k0s install controller .* --profile=vendor-pod-logs`)},
+		false,
+	)
+}
+
+func clusterConfigWithWorkerProfiles(workerProfiles string) string {
+	return strings.Replace(clusterConfigNoWorkerProfilesData,
+		"          api:\n",
+		"          workerProfiles:\n"+workerProfiles+"\n          api:\n",
+		1,
 	)
 }
 
