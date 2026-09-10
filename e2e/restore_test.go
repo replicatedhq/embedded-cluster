@@ -641,11 +641,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
 	}
 	if fixtureOutput != "" {
-		const marker = "embedded-cluster-dr-fixture-v1"
-		line = []string{
-			"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--",
-			"sh", "-c", "printf '%s\\n' \"$1\" > /var/lib/dr-fixture/marker", "--", marker,
-		}
+		line = []string{"dr-fixture-marker.sh", "write"}
 		if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 			t.Fatalf("failed to write DR fixture PVC marker: %v: %s: %s", err, stdout, stderr)
 		}
@@ -827,7 +823,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 	if fixtureOutput != "" {
 		const marker = "embedded-cluster-dr-fixture-v1"
-		line = []string{"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker"}
+		line = []string{"dr-fixture-marker.sh", "read"}
 		stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv)
 		if err != nil {
 			t.Fatalf("failed to read restored DR fixture PVC marker: %v: %s: %s", err, stdout, stderr)
