@@ -1,6 +1,12 @@
 name: Produce E2E DR fixture candidate
 
 on:
+  # Bootstrap the first candidate before this workflow exists on the default
+  # branch. Remove this branch-specific trigger after the candidate is audited.
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/e2e-dr-fixture-candidate.yaml
   workflow_dispatch:
     inputs:
       source_run_id:
@@ -14,6 +20,7 @@ permissions:
 
 jobs:
   produce-and-restore:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'divolgin/no-airgap-build' }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -23,7 +30,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ inputs.source_run_id }}
+          run-id: ${{ inputs.source_run_id || '34418556337' }}
           name: e2e-airgap-bundle-previous-stable
           path: output/e2e-airgap-bundles
 
