@@ -587,6 +587,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		initialVersion = fixtureVersion
 	}
 	upgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
+	initialVersionSuffix := strings.TrimPrefix(initialVersion, "appver-")
 	fixtureOutput := os.Getenv("E2E_DR_FIXTURE_OUTPUT")
 	if fixtureOutput != "" {
 		if err := downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID); err != nil {
@@ -641,7 +642,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")), k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -663,7 +664,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	waitForNodes(t, tc, 3, withEnv)
 
 	t.Logf("%s: checking installation state after enabling high availability", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion()}
+	line = []string{"check-airgap-post-ha-state.sh", initialVersionSuffix, k8sVersion()}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
@@ -788,7 +789,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after restoring the high availability backup", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-post-ha-state.sh", os.Getenv("SHORT_SHA"), k8sVersion(), "true"}
+	line = []string{"check-airgap-post-ha-state.sh", initialVersionSuffix, k8sVersion(), "true"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv); err != nil {
 		t.Fatalf("fail to check post ha state: %v: %s: %s", err, stdout, stderr)
 	}
