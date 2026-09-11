@@ -284,10 +284,10 @@ The implementation proceeds in this order. A later item starts only after the
 preceding item is implemented and validated. Status is maintained in this
 document so the remaining work is explicit.
 
-1. **In progress — Produce and validate one immutable backup fixture.** Build
+1. **Completed — Produce and validate one immutable backup fixture.** Build
    a fixture from a released EC/KOTS baseline, inspect it for secrets, and prove
    that it restores into a clean three-node CMX environment.
-2. **Pending — Add a restore-only CMX test using the existing bundle artifact.**
+2. **In progress — Add a restore-only CMX test using the existing bundle artifact.**
    Remove installation, backup creation, reset, Playwright application setup,
    bundle download, and post-restore upgrade from the DR test's critical path.
 3. **Pending — Replace Playwright join-command retrieval with the product CLI.**

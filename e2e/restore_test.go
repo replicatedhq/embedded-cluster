@@ -690,6 +690,18 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 		t.Fatalf("fail to run playwright test create-backup: %v: %s: %s", err, stdout, stderr)
 	}
 	if fixtureOutput != "" {
+		line = []string{
+			"kubectl", "-n", "velero", "get", "podvolumebackups",
+			"-o", `jsonpath={range .items[?(@.spec.volume=="fixture-data")]}{.status.phase}{"\n"}{end}`,
+		}
+		stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv)
+		if err != nil {
+			t.Fatalf("failed to inspect DR fixture volume backup: %v: %s: %s", err, stdout, stderr)
+		}
+		phases := strings.Fields(stdout)
+		if len(phases) != 1 || phases[0] != "Completed" {
+			t.Fatalf("expected one completed fixture-data volume backup, got %q", phases)
+		}
 		if err := tc.StopMinio(0); err != nil {
 			t.Fatalf("failed to quiesce MinIO before fixture export: %v", err)
 		}
