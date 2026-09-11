@@ -290,9 +290,9 @@ document so the remaining work is explicit.
 2. **Completed — Add a restore-only CMX test using the existing bundle artifact.**
    Remove installation, backup creation, reset, Playwright application setup,
    bundle download, and post-restore upgrade from the DR test's critical path.
-3. **In progress — Replace Playwright join-command retrieval with the product CLI.**
+3. **Completed — Replace Playwright join-command retrieval with the product CLI.**
    Use `embedded-cluster join print-command` on the restored first controller.
-4. **Pending — Join both restore controllers concurrently.** Generate two
+4. **In progress — Join both restore controllers concurrently.** Generate two
    independent join commands before starting either join, then execute the two
    joins in parallel.
 5. **Pending — Add direct restore assertions.** Verify three ready controllers,

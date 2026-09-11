@@ -937,8 +937,18 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 		t.Fatalf("failed to restore phase 1: %v: %s: %s", err, stdout, stderr)
 	}
 
-	joinRestoreControllerNode(t, tc, 1, withEnv)
-	joinRestoreControllerNode(t, tc, 2, withEnv)
+	joinCommands := []string{
+		generateRestoreControllerJoinCommand(t, tc, withEnv),
+		generateRestoreControllerJoinCommand(t, tc, withEnv),
+	}
+	runInParallel(t,
+		func(t *testing.T) error {
+			return executeRestoreControllerJoinCommand(t, tc, 1, joinCommands[0], withEnv)
+		},
+		func(t *testing.T) error {
+			return executeRestoreControllerJoinCommand(t, tc, 2, joinCommands[1], withEnv)
+		},
+	)
 	waitForNodes(t, tc, 3, withEnv, "true")
 
 	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
