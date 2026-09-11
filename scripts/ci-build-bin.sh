@@ -62,6 +62,10 @@ function binary() {
     # candidate source and candidate dependencies with that stable version
     # string for the restore compatibility test only.
     if [ -n "${DR_RESTORE_VERSION:-}" ]; then
+        # The linker writes this target in place. Remove the first, very large
+        # installer before linking the compatibility variant so its sections
+        # cannot be retained in the second output file.
+        rm -f "build/embedded-cluster-linux-$ARCH"
         make "embedded-cluster-linux-$ARCH" \
             K0S_VERSION="$K0S_VERSION" \
             K0S_GO_VERSION="$K0S_GO_VERSION" \
