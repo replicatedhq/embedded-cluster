@@ -24,7 +24,7 @@ OUTPUT_DIR=${OUTPUT_DIR:-output/e2e-airgap-bundles}
 BUNDLE_NAME=${BUNDLE_NAME:-$APP_VERSION}
 
 case "$ROLE" in
-    previous-stable) APP_UPDATE_CURSOR=100 ;;
+    previous-stable|dr-restore) APP_UPDATE_CURSOR=100 ;;
     previous-k0s-3) APP_UPDATE_CURSOR=200 ;;
     previous-k0s-2) APP_UPDATE_CURSOR=300 ;;
     previous-k0s-1) APP_UPDATE_CURSOR=400 ;;
