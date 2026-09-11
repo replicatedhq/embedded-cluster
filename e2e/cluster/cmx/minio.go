@@ -2,6 +2,8 @@ package cmx
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -25,13 +27,12 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 		return nil, fmt.Errorf("create minio directories: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// Download Minio binary
-	downloadCmd := []string{
-		"curl", "-L", "https://dl.min.io/server/minio/release/linux-amd64/minio",
-		"-o", "/minio/bin/minio",
+	minioBinary, err := localToolPath("E2E_MINIO_BINARY", "minio")
+	if err != nil {
+		return nil, err
 	}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
-		return nil, fmt.Errorf("download minio: %v: %s: %s", err, stdout, stderr)
+	if err := c.CopyFileToNode(node, minioBinary, "/minio/bin/minio"); err != nil {
+		return nil, fmt.Errorf("copy minio: %w", err)
 	}
 
 	// Make binary executable
@@ -39,13 +40,12 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 		return nil, fmt.Errorf("chmod minio: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// Download mc binary
-	downloadCmd = []string{
-		"curl", "-L", "https://dl.min.io/client/mc/release/linux-amd64/mc",
-		"-o", "/minio/bin/mc",
+	mcBinary, err := localToolPath("E2E_MC_BINARY", "mc")
+	if err != nil {
+		return nil, err
 	}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
-		return nil, fmt.Errorf("download mc: %v: %s: %s", err, stdout, stderr)
+	if err := c.CopyFileToNode(node, mcBinary, "/minio/bin/mc"); err != nil {
+		return nil, fmt.Errorf("copy mc: %w", err)
 	}
 
 	// Make binary executable
@@ -88,6 +88,25 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 	}
 
 	return minio, nil
+}
+
+func localToolPath(envName, binaryName string) (string, error) {
+	path := os.Getenv(envName)
+	if path == "" {
+		var err error
+		path, err = exec.LookPath(binaryName)
+		if err != nil {
+			return "", fmt.Errorf("%s is not set and %s is not installed locally", envName, binaryName)
+		}
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("stat %s: %w", binaryName, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s path %q is not a regular file", binaryName, path)
+	}
+	return path, nil
 }
 
 func (c *Cluster) StartMinio(node int, minio *Minio) error {

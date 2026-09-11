@@ -82,6 +82,45 @@ runs:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
 
+  - name: Cache pinned MinIO tools
+    if: ${{ inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery' }}
+    id: minio-tools-cache
+    uses: actions/cache@v5
+    with:
+      path: ${{ runner.temp }}/e2e-minio-tools
+      key: e2e-minio-tools-linux-amd64-v1
+
+  - name: Install crane for pinned MinIO tools
+    if: ${{ (inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery') && steps.minio-tools-cache.outputs.cache-hit != 'true' }}
+    uses: imjasonh/setup-crane@v0.7
+
+  - name: Extract pinned MinIO tools
+    if: ${{ (inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery') && steps.minio-tools-cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    env:
+      TOOLS_DIR: ${{ runner.temp }}/e2e-minio-tools
+    run: |
+      set -euo pipefail
+      mkdir -p "$TOOLS_DIR"
+      crane export quay.io/minio/minio@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2 - |
+        tar -xOf - usr/bin/minio > "$TOOLS_DIR/minio"
+      crane export quay.io/minio/mc@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780 - |
+        tar -xOf - usr/bin/mc > "$TOOLS_DIR/mc"
+      chmod 0755 "$TOOLS_DIR/minio" "$TOOLS_DIR/mc"
+
+  - name: Verify pinned MinIO tools
+    if: ${{ inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery' }}
+    shell: bash
+    env:
+      TOOLS_DIR: ${{ runner.temp }}/e2e-minio-tools
+    run: |
+      set -euo pipefail
+      echo '7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  minio' > "$TOOLS_DIR/SHA256SUMS"
+      echo '01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891  mc' >> "$TOOLS_DIR/SHA256SUMS"
+      (cd "$TOOLS_DIR" && sha256sum --check SHA256SUMS)
+      echo "E2E_MINIO_BINARY=$TOOLS_DIR/minio" >> "$GITHUB_ENV"
+      echo "E2E_MC_BINARY=$TOOLS_DIR/mc" >> "$GITHUB_ENV"
+
   - name: E2E
     id: e2e
     shell: bash
