@@ -31,26 +31,16 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := c.CopyFileToNode(node, minioBinary, "/minio/bin/minio"); err != nil {
-		return nil, fmt.Errorf("copy minio: %w", err)
-	}
-
-	// Make binary executable
-	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/minio"}); err != nil {
-		return nil, fmt.Errorf("chmod minio: %v: %s: %s", err, stdout, stderr)
+	if err := c.installLocalTool(node, minioBinary, "minio"); err != nil {
+		return nil, err
 	}
 
 	mcBinary, err := localToolPath("E2E_MC_BINARY", "mc")
 	if err != nil {
 		return nil, err
 	}
-	if err := c.CopyFileToNode(node, mcBinary, "/minio/bin/mc"); err != nil {
-		return nil, fmt.Errorf("copy mc: %w", err)
-	}
-
-	// Make binary executable
-	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/mc"}); err != nil {
-		return nil, fmt.Errorf("chmod mc: %v: %s: %s", err, stdout, stderr)
+	if err := c.installLocalTool(node, mcBinary, "mc"); err != nil {
+		return nil, err
 	}
 
 	// Generate credentials
@@ -88,6 +78,20 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 	}
 
 	return minio, nil
+}
+
+func (c *Cluster) installLocalTool(node int, source, name string) error {
+	staged := "/tmp/e2e-" + name
+	if err := c.CopyFileToNode(node, source, staged); err != nil {
+		return fmt.Errorf("copy %s to staging path: %w", name, err)
+	}
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{
+		"install", "-m", "0755", staged, "/minio/bin/" + name, "&&", "rm", "-f", staged,
+	})
+	if err != nil {
+		return fmt.Errorf("install %s: %v: %s: %s", name, err, stdout, stderr)
+	}
+	return nil
 }
 
 func localToolPath(envName, binaryName string) (string, error) {
