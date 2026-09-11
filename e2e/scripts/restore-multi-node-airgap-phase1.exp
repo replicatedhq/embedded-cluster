@@ -121,8 +121,11 @@ expect {
     }
 }
 
+# The restore readiness loop alone can run for roughly five minutes, after the
+# Velero restore completes. Keep this deadline outside the product deadline so
+# failures are reported by the restore command.
 expect {
-    -timeout 150 "Admin Console restored!" {}
+    -timeout 600 "Admin Console restored!" {}
     timeout {
       puts "\n\nFailed to restore admin console."
       exit 1
