@@ -105,7 +105,7 @@ func stageDRFixture(tc *cmx.Cluster, payloadPath string, manifest *drFixtureMani
 		return nil, fmt.Errorf("copy DR fixture to CMX node: %w", err)
 	}
 	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"rm", "-rf", "/minio/data", "&&", "tar", "-xzf", remoteFixture, "-C", "/minio",
+		"rm", "-rf", "/minio/data", "&&", "sudo", "tar", "-xzf", remoteFixture, "-C", "/minio",
 	})
 	if err != nil {
 		return nil, fmt.Errorf("extract DR fixture: %w: %s: %s", err, stdout, stderr)

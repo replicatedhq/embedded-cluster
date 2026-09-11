@@ -1062,11 +1062,19 @@ jobs:
           name: current-release
           path: output/bin
       - name: Download locally assembled airgap bundles
+        if: matrix.test != 'TestMultiNodeAirgapHADisasterRecovery'
         uses: actions/download-artifact@v8
         with:
           pattern: e2e-airgap-bundle-*
           path: output/e2e-airgap-bundles
           merge-multiple: true
+
+      - name: Download restore-only airgap bundle
+        if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-airgap-bundle-dr-restore
+          path: output/e2e-airgap-bundles
 
       - name: Download immutable DR fixture
         if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
