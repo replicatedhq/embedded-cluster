@@ -424,7 +424,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [0, 1, 2, 3]
+        include:
+          - { n: 0, k0s-offset: 0, version-suffix: "", dr-restore: false }
+          - { n: 1, k0s-offset: 1, version-suffix: "-previous-k0s-1", dr-restore: false }
+          - { n: 2, k0s-offset: 2, version-suffix: "-previous-k0s-2", dr-restore: false }
+          - { n: 3, k0s-offset: 3, version-suffix: "-previous-k0s-3", dr-restore: false }
+          - { n: 4, k0s-offset: 0, version-suffix: "", dr-restore: true }
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version_0 }}
       k0s_version_1: ${{ steps.export.outputs.k0s_version_1 }}
@@ -472,13 +477,10 @@ jobs:
 
       - name: Export versions
         run: |
-          version_suffix=
-          if [ ${{ matrix.n }} -gt 0 ]; then
-            version_suffix="-previous-k0s-${{ matrix.n }}"
-          fi
+          version_suffix="${{ matrix.version-suffix }}"
 
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
-          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.k0s-offset }}))
           echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
           echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> $GITHUB_ENV
 
@@ -506,16 +508,14 @@ jobs:
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ ${{ matrix.n }} -eq 0 ]; then
+          if ${{ matrix.dr-restore }}; then
             export DR_RESTORE_VERSION
             DR_RESTORE_VERSION=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
+            export SKIP_UPLOAD=1
           fi
           ./scripts/build-and-release.sh
 
-          version_suffix=
-          if [ ${{ matrix.n }} -gt 0 ]; then
-            version_suffix="-previous-k0s-${{ matrix.n }}"
-          fi
+          version_suffix="${{ matrix.version-suffix }}"
           if [ -n "$version_suffix" ]; then
             cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
@@ -528,12 +528,18 @@ jobs:
           path: |
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
-            output/bin/embedded-cluster-dr-restore
             output/bin/embedded-cluster-release-builder
+
+      - name: Upload DR restore release
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.dr-restore }}
+        with:
+          name: dr-restore-release
+          path: output/bin/embedded-cluster-dr-restore
 
       - name: Upload release previous k0s
         uses: actions/upload-artifact@v7
-        if: ${{ matrix.n != 0 }}
+        if: ${{ matrix.n > 0 && !matrix.dr-restore }}
         with:
           name: previous-k0s-${{ matrix.n }}-release
           path: |
@@ -753,7 +759,7 @@ jobs:
           - { role: app-only-upgrade, source: e2e/kots-release-upgrade, artifact: current-release, binary: embedded-cluster-original }
           - { role: upgrade, source: e2e/kots-release-upgrade, artifact: upgrade-release, binary: embedded-cluster-upgrade }
           - { role: previous-stable, source: e2e/kots-release-install-stable, artifact: stable, binary: embedded-cluster }
-          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: current-release, binary: embedded-cluster-dr-restore }
+          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: dr-restore-release, binary: embedded-cluster-dr-restore }
           - { role: legacydr, source: e2e/kots-release-install-legacydr, artifact: current-release, binary: embedded-cluster-original }
     env:
       EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin

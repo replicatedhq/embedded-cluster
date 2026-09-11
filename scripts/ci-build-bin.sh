@@ -34,7 +34,7 @@ function deps() {
 }
 
 function binary() {
-    local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
+    local binary_version local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
     if [ ! -f "local-artifact-mirror/build/image-$EC_VERSION" ]; then
         fail "file local-artifact-mirror/build/image-$EC_VERSION not found"
@@ -46,36 +46,21 @@ function binary() {
         operator_binary_url="https://$S3_BUCKET.s3.amazonaws.com/operator-binaries/$(url_encode_semver "$EC_VERSION")-$ARCH.tar.gz"
     fi
     local_artifact_mirror_image="proxy.replicated.com/anonymous/$(cat local-artifact-mirror/build/image)"
+    binary_version="${DR_RESTORE_VERSION:-$EC_VERSION}"
 
     make "embedded-cluster-linux-$ARCH" \
         K0S_VERSION="$K0S_VERSION" \
         K0S_GO_VERSION="$K0S_GO_VERSION" \
-        VERSION="$EC_VERSION" \
+        VERSION="$binary_version" \
         METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
         METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
-    cp output/bin/embedded-cluster output/bin/embedded-cluster-original
 
-    # The immutable DR fixture was produced by this released version and the
-    # product intentionally requires an exact version match. Build the same
-    # candidate source and candidate dependencies with that stable version
-    # string for the restore compatibility test only.
     if [ -n "${DR_RESTORE_VERSION:-}" ]; then
-        # The linker writes this target in place. Remove the first, very large
-        # installer before linking the compatibility variant so its sections
-        # cannot be retained in the second output file.
-        rm -f "build/embedded-cluster-linux-$ARCH"
-        make "embedded-cluster-linux-$ARCH" \
-            K0S_VERSION="$K0S_VERSION" \
-            K0S_GO_VERSION="$K0S_GO_VERSION" \
-            VERSION="$DR_RESTORE_VERSION" \
-            METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
-            METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
-            METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
-            LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
         cp output/bin/embedded-cluster output/bin/embedded-cluster-dr-restore
-        cp output/bin/embedded-cluster-original output/bin/embedded-cluster
+    else
+        cp output/bin/embedded-cluster output/bin/embedded-cluster-original
     fi
 }
 

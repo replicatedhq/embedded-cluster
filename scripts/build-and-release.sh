@@ -15,6 +15,7 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 UPLOAD_BINARIES=${UPLOAD_BINARIES:-1}
+SKIP_UPLOAD=${SKIP_UPLOAD:-0}
 ARCH=${ARCH:-$(go env GOARCH)}
 USE_CHAINGUARD=${USE_CHAINGUARD:-0}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
@@ -54,7 +55,9 @@ function build() {
     ./scripts/ci-build-deps.sh
     ./scripts/ci-build-bin.sh
     ./scripts/ci-embed-release.sh
-    ./scripts/ci-upload-binaries.sh
+    if [ "$SKIP_UPLOAD" != "1" ]; then
+        ./scripts/ci-upload-binaries.sh
+    fi
     if [ "$SKIP_RELEASE" != "1" ]; then
         ./scripts/ci-release-app.sh
     fi
