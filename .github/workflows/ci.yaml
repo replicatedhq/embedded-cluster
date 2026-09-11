@@ -429,7 +429,7 @@ jobs:
           - { n: 1, k0s-offset: 1, version-suffix: "-previous-k0s-1", dr-restore: false }
           - { n: 2, k0s-offset: 2, version-suffix: "-previous-k0s-2", dr-restore: false }
           - { n: 3, k0s-offset: 3, version-suffix: "-previous-k0s-3", dr-restore: false }
-          - { n: 4, k0s-offset: 0, version-suffix: "", dr-restore: true }
+          - { n: 4, k0s-offset: 0, version-suffix: "-dr-restore", dr-restore: true }
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version_0 }}
       k0s_version_1: ${{ steps.export.outputs.k0s_version_1 }}
@@ -511,12 +511,11 @@ jobs:
           if ${{ matrix.dr-restore }}; then
             export DR_RESTORE_VERSION
             DR_RESTORE_VERSION=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
-            export SKIP_UPLOAD=1
           fi
           ./scripts/build-and-release.sh
 
           version_suffix="${{ matrix.version-suffix }}"
-          if [ -n "$version_suffix" ]; then
+          if [ -n "$version_suffix" ] && ! ${{ matrix.dr-restore }}; then
             cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
 
