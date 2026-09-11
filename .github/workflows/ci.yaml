@@ -748,6 +748,7 @@ jobs:
           - { role: app-only-upgrade, source: e2e/kots-release-upgrade, artifact: current-release, binary: embedded-cluster-original }
           - { role: upgrade, source: e2e/kots-release-upgrade, artifact: upgrade-release, binary: embedded-cluster-upgrade }
           - { role: previous-stable, source: e2e/kots-release-install-stable, artifact: stable, binary: embedded-cluster }
+          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: current-release, binary: embedded-cluster-original }
           - { role: legacydr, source: e2e/kots-release-install-legacydr, artifact: current-release, binary: embedded-cluster-original }
     env:
       EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin
@@ -801,6 +802,10 @@ jobs:
             upgrade) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-upgrade" ;;
             legacydr) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-legacydr" ;;
             previous-stable) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-stable" ;;
+            dr-restore)
+              APP_VERSION="appver-airgap-e2e-previous-stable"
+              BUNDLE_NAME="appver-airgap-e2e-previous-stable-dr-restore"
+              ;;
             previous-k0s-1) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-1" ;;
             previous-k0s-2) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-2" ;;
             previous-k0s-3) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-3" ;;
@@ -1063,6 +1068,28 @@ jobs:
           path: output/e2e-airgap-bundles
           merge-multiple: true
 
+      - name: Download immutable DR fixture
+        if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
+        id: dr-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          reference=e2e/dr-fixtures/default.json
+          test "$(jq -er .schema "$reference")" = embedded-cluster-dr-fixture-reference/v1
+          mkdir -p output/dr-fixture
+          payload=output/dr-fixture/minio-data.tar.gz
+          curl --fail --location --retry 3 \
+            "$(jq -er .payloadURL "$reference")" --output "$payload"
+          curl --fail --location --retry 3 \
+            "$(jq -er .manifestURL "$reference")" --output "$payload.manifest.json"
+          expected=$(jq -er '.payloadSHA256 | sub("^sha256:"; "")' "$reference")
+          actual=$(sha256sum "$payload" | awk '{print $1}')
+          test "$actual" = "$expected"
+          go run ./cmd/dr-fixture verify --payload "$payload" --manifest "$payload.manifest.json"
+          test "$(jq -er .applicationVersion "$payload.manifest.json")" = \
+            "$(jq -er .applicationVersion "$reference")"
+          echo "payload=$GITHUB_WORKSPACE/$payload" >> "$GITHUB_OUTPUT"
+
       - uses: ./.github/actions/e2e
         with:
           test-name: "${{ matrix.test }}"
@@ -1078,6 +1105,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
+          dr-fixture-input: ${{ steps.dr-fixture.outputs.payload }}
+          dr-restore-bundle-version: ${{ matrix.test == 'TestMultiNodeAirgapHADisasterRecovery' && 'appver-airgap-e2e-previous-stable-dr-restore' || '' }}
 
   e2e-main:
     name: E2E (on merge)

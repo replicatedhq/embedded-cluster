@@ -558,6 +558,10 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
+	if fixtureInput := os.Getenv("E2E_DR_FIXTURE_INPUT"); fixtureInput != "" {
+		testMultiNodeAirgapHADisasterRecoveryFromFixture(t, fixtureInput)
+		return
+	}
 
 	// Use an alternate data directory
 	withEnv := map[string]string{
@@ -866,4 +870,92 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	})
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// testMultiNodeAirgapHADisasterRecoveryFromFixture is intentionally a restore
+// consumer, not a backup producer. Installation, application deployment,
+// backup creation, reset, and upgrade coverage belong to their dedicated
+// tests and the fixture producer workflow.
+func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput string) {
+	manifest, err := verifyDRFixture(fixtureInput, fixtureInput+".manifest.json")
+	if err != nil {
+		t.Fatalf("invalid DR fixture: %v", err)
+	}
+	bundleVersion := os.Getenv("E2E_DR_RESTORE_BUNDLE_VERSION")
+	if bundleVersion == "" {
+		t.Fatal("E2E_DR_RESTORE_BUNDLE_VERSION is required with E2E_DR_FIXTURE_INPUT")
+	}
+
+	withEnv := map[string]string{"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec"}
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:                      t,
+		Nodes:                  3,
+		Distribution:           "ubuntu",
+		Version:                "22.04",
+		InstanceType:           "r1.medium",
+		TTL:                    2 * time.Hour,
+		SupportBundleNodeIndex: 2,
+	})
+	defer tc.Cleanup(withEnv)
+
+	t.Logf("%s: staging immutable DR fixture", time.Now().Format(time.RFC3339))
+	minio, err := stageDRFixture(tc, fixtureInput, manifest)
+	if err != nil {
+		t.Fatalf("failed to stage DR fixture: %v", err)
+	}
+	if err := downloadAirgapBundleOnNode(t, tc, 0, bundleVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID); err != nil {
+		t.Fatalf("failed to stage restore bundle: %v", err)
+	}
+	for _, node := range []int{0, 1, 2} {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+			t.Fatalf("failed to install expect on node %d: %v: %s: %s", node, err, stdout, stderr)
+		}
+	}
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"airgap-prepare.sh"}, withEnv); err != nil {
+		t.Fatalf("failed to prepare restore bundle: %v: %s: %s", err, stdout, stderr)
+	}
+
+	drArgs := []string{
+		minio.Endpoint,
+		minio.Region,
+		minio.DefaultBucket,
+		manifest.S3Prefix,
+		minio.AccessKey,
+		minio.SecretKey,
+	}
+	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, append([]string{"restore-multi-node-airgap-phase1.exp"}, drArgs...), withEnv); err != nil {
+		t.Fatalf("failed to restore phase 1: %v: %s: %s", err, stdout, stderr)
+	}
+
+	joinControllerNodeWithOptions(t, tc, 1, joinOptions{isRestore: true, withEnv: withEnv})
+	joinControllerNodeWithOptions(t, tc, 2, joinOptions{isRestore: true, withEnv: withEnv})
+	waitForNodes(t, tc, 3, withEnv, "true")
+
+	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"restore-multi-node-airgap-phase2.exp"}, withEnv); err != nil {
+		t.Fatalf("failed to restore phase 2: %v: %s: %s", err, stdout, stderr)
+	}
+
+	initialVersionSuffix := strings.TrimPrefix(manifest.Application, "appver-")
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"check-airgap-post-ha-state.sh", initialVersionSuffix, k8sVersion(), "true",
+	}, withEnv); err != nil {
+		t.Fatalf("failed to check restored HA state: %v: %s: %s", err, stdout, stderr)
+	}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-post-restore.sh"}, withEnv); err != nil {
+		t.Fatalf("failed to check post-restore state: %v: %s: %s", err, stdout, stderr)
+	}
+	const marker = "embedded-cluster-dr-fixture-v1"
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"dr-fixture-marker.sh", "read"}, withEnv)
+	if err != nil {
+		t.Fatalf("failed to read restored fixture marker: %v: %s: %s", err, stdout, stderr)
+	}
+	if strings.TrimSpace(stdout) != marker {
+		t.Fatalf("restored fixture marker is %q, want %q", strings.TrimSpace(stdout), marker)
+	}
+	t.Logf("%s: restore-only DR test complete", time.Now().Format(time.RFC3339))
 }

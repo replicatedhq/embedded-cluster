@@ -65,6 +65,13 @@ type NetworkEvent struct {
 	Command       string    `json:"comm"`
 }
 
+// NodePrivateIP returns the private address used for traffic within the CMX
+// network. Test services staged on a node must advertise this address rather
+// than the out-of-band SSH endpoint.
+func (c *Cluster) NodePrivateIP(node int) string {
+	return c.Nodes[node].privateIP
+}
+
 func NewCluster(in *ClusterInput) *Cluster {
 	c := &Cluster{
 		t:                      in.T,

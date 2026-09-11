@@ -1,0 +1,9 @@
+{
+  "schema": "embedded-cluster-dr-fixture-reference/v1",
+  "payloadURL": "https://dev-embedded-cluster-bin.s3.amazonaws.com/ec-v2-dr-fixtures/v1/25538164ac14b02fdc30a097ee8432cae92360f2d3d8a679c6e1cdbac592f7d8/minio-data.tar.gz",
+  "manifestURL": "https://dev-embedded-cluster-bin.s3.amazonaws.com/ec-v2-dr-fixtures/v1/25538164ac14b02fdc30a097ee8432cae92360f2d3d8a679c6e1cdbac592f7d8/minio-data.tar.gz.manifest.json",
+  "payloadSHA256": "sha256:25538164ac14b02fdc30a097ee8432cae92360f2d3d8a679c6e1cdbac592f7d8",
+  "applicationVersion": "appver-airgap-e2e-previous-stable",
+  "ecVersion": "v2.19.8+k8s-1.35",
+  "k0sVersion": "v1.35.6"
+}

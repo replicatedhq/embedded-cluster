@@ -85,3 +85,41 @@ func restoreExportedDRFixture(tc *cmx.Cluster) error {
 	}
 	return nil
 }
+
+func stageDRFixture(tc *cmx.Cluster, payloadPath string, manifest *drFixtureManifest) (*cmx.Minio, error) {
+	if _, err := os.Stat(payloadPath); err != nil {
+		return nil, fmt.Errorf("stat DR fixture payload: %w", err)
+	}
+
+	// DeployMinio installs the server and client binaries before the nodes are
+	// isolated. Replace its empty object tree with the immutable fixture and
+	// restart it using the credentials recorded with that tree.
+	if _, err := tc.DeployMinio(0); err != nil {
+		return nil, fmt.Errorf("install fixture MinIO: %w", err)
+	}
+	if err := tc.StopMinio(0); err != nil {
+		return nil, err
+	}
+	const remoteFixture = "/tmp/embedded-cluster-dr-fixture.tar.gz"
+	if err := tc.CopyFileToNode(0, payloadPath, remoteFixture); err != nil {
+		return nil, fmt.Errorf("copy DR fixture to CMX node: %w", err)
+	}
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"rm", "-rf", "/minio/data", "&&", "tar", "-xzf", remoteFixture, "-C", "/minio",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("extract DR fixture: %w: %s: %s", err, stdout, stderr)
+	}
+
+	minio := &cmx.Minio{
+		Endpoint:      fmt.Sprintf("http://%s:9000", tc.NodePrivateIP(0)),
+		Region:        manifest.S3Region,
+		AccessKey:     manifest.S3AccessKey,
+		SecretKey:     manifest.S3SecretKey,
+		DefaultBucket: manifest.S3Bucket,
+	}
+	if err := tc.StartMinio(0, minio); err != nil {
+		return nil, fmt.Errorf("start fixture MinIO: %w", err)
+	}
+	return minio, nil
+}

@@ -56,6 +56,12 @@ inputs:
   dr-fixture-bundle-sha256:
     description: 'SHA-256 of the exact released bundle used to produce the DR fixture'
     required: false
+  dr-fixture-input:
+    description: 'path to an immutable DR fixture payload consumed by a restore-only test'
+    required: false
+  dr-restore-bundle-version:
+    description: 'local bundle artifact name used by a restore-only DR test'
+    required: false
 
 runs:
   using: composite
@@ -106,6 +112,8 @@ runs:
       export E2E_DR_FIXTURE_APP_VERSION=${{ inputs.dr-fixture-app-version }}
       export E2E_DR_FIXTURE_EC_VERSION=${{ inputs.dr-fixture-ec-version }}
       export E2E_DR_FIXTURE_BUNDLE_SHA256=${{ inputs.dr-fixture-bundle-sha256 }}
+      export E2E_DR_FIXTURE_INPUT=${{ inputs.dr-fixture-input }}
+      export E2E_DR_RESTORE_BUNDLE_VERSION=${{ inputs.dr-restore-bundle-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
