@@ -162,6 +162,32 @@ func joinControllerNode(t *testing.T, tc cluster.Cluster, node int) {
 	joinControllerNodeWithOptions(t, tc, node, joinOptions{})
 }
 
+// joinRestoreControllerNode retrieves the restore join command through the
+// product CLI and executes it unchanged on the target node. The command can
+// contain shell operators, so it must remain a single remote shell argument
+// to preserve the exact command emitted by KOTS.
+func joinRestoreControllerNode(t *testing.T, tc cluster.Cluster, node int, withEnv map[string]string) {
+	t.Helper()
+	t.Logf("%s: generating a restore controller join command with the product CLI", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"embedded-cluster", "join", "print-command"}, withEnv)
+	if err != nil {
+		t.Fatalf("failed to generate restore controller join command: %v: %s: %s", err, stdout, stderr)
+	}
+	command := strings.TrimSpace(stdout)
+	if command == "" {
+		t.Fatal("product CLI returned an empty restore controller join command")
+	}
+
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range withEnv {
+		env[k] = v
+	}
+	t.Logf("%s: joining node %d to the restored cluster as a controller", time.Now().Format(time.RFC3339), node)
+	if stdout, stderr, err := tc.RunCommandOnNode(node, []string{command}, env); err != nil {
+		t.Fatalf("failed to join node %d to the restored cluster as a controller: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
 func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts joinOptions) {
 	t.Logf("%s: generating a new controller token command", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.RunPlaywrightTest("get-join-controller-commands")
