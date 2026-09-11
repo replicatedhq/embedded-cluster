@@ -69,7 +69,6 @@ jobs:
           gh release download "$BASELINE_EC_VERSION" --repo "$GITHUB_REPOSITORY" \
             --pattern embedded-cluster-linux-amd64.tgz
           tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
-          chmod 0755 output/bin/embedded-cluster
 
       - name: Assemble released baseline bundle
         env:
