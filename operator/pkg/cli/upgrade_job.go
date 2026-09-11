@@ -64,8 +64,11 @@ func UpgradeJobCmd() *cobra.Command {
 			}
 
 			hcli, err := helm.NewClient(helm.HelmOptions{
+				HelmPath:   "helm", // use the helm binary bundled in the container image
 				K8sVersion: versions.K0sVersion,
 				AirgapPath: airgapChartsPath,
+				// KubernetesEnvSettings is intentionally nil - the upgrade job pod
+				// uses in-cluster config via its service account, not the host kubeconfig.
 			})
 			if err != nil {
 				return fmt.Errorf("failed to create helm client: %w", err)

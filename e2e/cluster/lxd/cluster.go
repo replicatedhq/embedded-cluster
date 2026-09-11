@@ -130,12 +130,16 @@ func (c *Cluster) Destroy() {
 		}
 	}
 	netname := fmt.Sprintf("internal-%s", c.id)
-	if err := client.DeleteNetwork(netname); err != nil {
+	if op, err := client.DeleteNetwork(netname); err != nil {
 		c.T.Logf("Failed to delete network %s: %v", netname, err)
+	} else if err := op.Wait(); err != nil {
+		c.T.Logf("Failed to wait for network %s deletion: %v", netname, err)
 	}
 	netname = fmt.Sprintf("external-%s", c.id)
-	if err := client.DeleteNetwork(netname); err != nil {
+	if op, err := client.DeleteNetwork(netname); err != nil {
 		c.T.Logf("Failed to delete external network: %v", err)
+	} else if err := op.Wait(); err != nil {
+		c.T.Logf("Failed to wait for external network deletion: %v", err)
 	}
 	profilename := fmt.Sprintf("profile-%s", c.id)
 	if err := client.DeleteProfile(profilename); err != nil {
@@ -921,8 +925,10 @@ func CreateNetworks(in *ClusterInput) {
 			},
 		},
 	}
-	if err := client.CreateNetwork(request); err != nil {
+	if op, err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create external network: %v", err)
+	} else if err := op.Wait(); err != nil {
+		in.T.Fatalf("Failed to wait for external network creation: %v", err)
 	}
 	open := "true"
 	if in.WithProxy {
@@ -940,8 +946,10 @@ func CreateNetworks(in *ClusterInput) {
 			},
 		},
 	}
-	if err := client.CreateNetwork(request); err != nil {
+	if op, err := client.CreateNetwork(request); err != nil {
 		in.T.Fatalf("Failed to create internal network: %v", err)
+	} else if err := op.Wait(); err != nil {
+		in.T.Fatalf("Failed to wait for internal network creation: %v", err)
 	}
 }
 

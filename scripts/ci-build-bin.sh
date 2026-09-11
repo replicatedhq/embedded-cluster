@@ -33,18 +33,6 @@ function deps() {
     make buildtools
 }
 
-function web() {
-    local install_cmd="npm i"
-    local build_cmd="npm run build:dev"
-    if [ "${CI:-}" = "true" ]; then
-        install_cmd="npm ci"
-        build_cmd="npm run build"
-    fi
-    (set -x; cd web && \
-        $install_cmd && \
-        $build_cmd)
-}
-
 function binary() {
     local local_artifact_mirror_image k0s_binary_url="" kots_binary_url="" operator_binary_url=""
 
@@ -119,7 +107,6 @@ function main() {
     init_vars
     deps
     update_operator_metadata
-    web
     binary
     archive
     metadata

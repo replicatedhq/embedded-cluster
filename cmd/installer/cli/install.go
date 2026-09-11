@@ -25,10 +25,8 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg-new/hostutils"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/k0s"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/kubernetesinstallation"
-	licensepkg "github.com/replicatedhq/embedded-cluster/pkg-new/license"
 	ecmetadata "github.com/replicatedhq/embedded-cluster/pkg-new/metadata"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
-	"github.com/replicatedhq/embedded-cluster/pkg-new/tlsutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/registry"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
@@ -38,7 +36,6 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
-	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
 	"github.com/replicatedhq/embedded-cluster/pkg/netutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -46,12 +43,10 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/spinner"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 	"github.com/replicatedhq/embedded-cluster/pkg/versions"
-	"github.com/replicatedhq/embedded-cluster/web"
 	kotsv1beta1 "github.com/replicatedhq/kotskinds/apis/kots/v1beta1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"golang.org/x/crypto/bcrypt"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/metadata"
@@ -67,17 +62,16 @@ type installFlags struct {
 	assumeYes            bool
 	overrides            string
 	configValues         string
-	headless             bool
-
 	// linux flags
-	dataDir                 string
-	localArtifactMirrorPort int
-	skipHostPreflights      bool
-	ignoreHostPreflights    bool
-	ignoreAppPreflights     bool
-	networkInterface        string
-	cidrConfig              *newconfig.CIDRConfig
-	proxySpec               *ecv1beta1.ProxySpec
+	dataDir                           string
+	localArtifactMirrorPort           int
+	skipHostPreflights                bool
+	ignoreHostPreflights              bool
+	ignoreAppPreflights               bool
+	disableFilesystemPerformanceCheck bool
+	networkInterface                  string
+	cidrConfig                        *newconfig.CIDRConfig
+	proxySpec                         *ecv1beta1.ProxySpec
 
 	// kubernetes flags
 	kubernetesEnvSettings *helmcli.EnvSettings
@@ -92,18 +86,17 @@ type installFlags struct {
 
 // installConfig holds computed/derived values from install flags
 type installConfig struct {
-	clusterID               string
-	isAirgap                bool
-	enableManagerExperience bool
-	licenseBytes            []byte
-	license                 *kotsv1beta1.License
-	airgapMetadata          *airgap.AirgapMetadata
-	embeddedAssetsSize      int64
-	endUserConfig           *ecv1beta1.Config
-	tlsCert                 tls.Certificate
-	tlsCertBytes            []byte
-	tlsKeyBytes             []byte
-	configValues            *kotsv1beta1.ConfigValues
+	clusterID          string
+	isAirgap           bool
+	licenseBytes       []byte
+	license            *kotsv1beta1.License
+	airgapMetadata     *airgap.AirgapMetadata
+	embeddedAssetsSize int64
+	endUserConfig      *ecv1beta1.Config
+	tlsCert            tls.Certificate
+	tlsCertBytes       []byte
+	tlsKeyBytes        []byte
+	configValues       *kotsv1beta1.ConfigValues
 }
 
 // webAssetsFS is the filesystem to be used by the web component. Defaults to nil allowing the web server to use the default assets embedded in the binary. Useful for testing.
@@ -118,14 +111,9 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	rc := runtimeconfig.New(nil)
 	ki := kubernetesinstallation.New(nil)
 
-	short := fmt.Sprintf("Install %s", appTitle)
-	if isV3Enabled() {
-		short = fmt.Sprintf("Install %s onto Linux or Kubernetes", appTitle)
-	}
-
 	cmd := &cobra.Command{
 		Use:     "install",
-		Short:   short,
+		Short:   fmt.Sprintf("Install %s", appTitle),
 		Example: installCmdExample(appSlug),
 		PostRun: func(cmd *cobra.Command, args []string) {
 			rc.Cleanup()
@@ -143,14 +131,6 @@ func InstallCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 
 			metricsReporter := buildMetricsReporter(cmd, installCfg)
 			metricsReporter.ReportInstallationStarted(ctx)
-
-			if installCfg.enableManagerExperience {
-				apiOptions, err := buildAPIOptions(flags, installCfg, rc, ki, metricsReporter.reporter)
-				if err != nil {
-					return fmt.Errorf("build api options: %w", err)
-				}
-				return runManagerExperienceInstall(ctx, flags, installCfg, apiOptions, metricsReporter.reporter, appTitle)
-			}
 
 			_ = rc.SetEnv()
 
@@ -212,31 +192,25 @@ const (
 )
 
 func installCmdExample(appSlug string) string {
-	if !isV3Enabled() {
-		return ""
-	}
-
-	return fmt.Sprintf(installCmdExampleText, appSlug, appSlug)
+	return ""
 }
 
 func mustAddInstallFlags(cmd *cobra.Command, flags *installFlags) {
-	enableV3 := isV3Enabled()
-
 	normalizeFuncs := []func(f *pflag.FlagSet, name string) pflag.NormalizedName{}
 
-	commonFlagSet := newCommonInstallFlags(flags, enableV3)
+	commonFlagSet := newCommonInstallFlags(flags)
 	cmd.Flags().AddFlagSet(commonFlagSet)
 	if fn := commonFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
 	}
 
-	linuxFlagSet := newLinuxInstallFlags(flags, enableV3)
+	linuxFlagSet := newLinuxInstallFlags(flags)
 	cmd.Flags().AddFlagSet(linuxFlagSet)
 	if fn := linuxFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
 	}
 
-	kubernetesFlagSet := newKubernetesInstallFlags(flags, enableV3)
+	kubernetesFlagSet := newKubernetesInstallFlags(flags)
 	cmd.Flags().AddFlagSet(kubernetesFlagSet)
 	if fn := kubernetesFlagSet.GetNormalizeFunc(); fn != nil {
 		normalizeFuncs = append(normalizeFuncs, fn)
@@ -253,15 +227,11 @@ func mustAddInstallFlags(cmd *cobra.Command, flags *installFlags) {
 	})
 }
 
-func newCommonInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
+func newCommonInstallFlags(flags *installFlags) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("common", pflag.ContinueOnError)
 
 	flagSet.StringVar(&flags.target, "target", "", "The target platform to install to. Valid options are 'linux' or 'kubernetes'.")
-	if enableV3 {
-		mustMarkFlagRequired(flagSet, "target")
-	} else {
-		mustMarkFlagHidden(flagSet, "target")
-	}
+	mustMarkFlagHidden(flagSet, "target")
 
 	flagSet.StringVar(&flags.airgapBundle, "airgap-bundle", "", "Path to the air gap bundle. If set, the installation will complete without internet access.")
 
@@ -276,16 +246,10 @@ func newCommonInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	return flagSet
 }
 
-func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
+func newLinuxInstallFlags(flags *installFlags) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("linux", pflag.ContinueOnError)
 
-	// Use the app slug as default data directory only when ENABLE_V3 is set
-	defaultDataDir := ecv1beta1.DefaultDataDir
-	if enableV3 {
-		defaultDataDir = filepath.Join("/var/lib", runtimeconfig.AppSlug())
-	}
-
-	flagSet.StringVar(&flags.dataDir, "data-dir", defaultDataDir, "Path to the data directory")
+	flagSet.StringVar(&flags.dataDir, "data-dir", ecv1beta1.DefaultDataDir, "Path to the data directory")
 	flagSet.IntVar(&flags.localArtifactMirrorPort, "local-artifact-mirror-port", ecv1beta1.DefaultLocalArtifactMirrorPort, "Port on which the Local Artifact Mirror will be served")
 	flagSet.StringVar(&flags.networkInterface, "network-interface", "", "The network interface to use for the cluster")
 
@@ -299,6 +263,8 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 
 	flagSet.BoolVar(&flags.ignoreHostPreflights, "ignore-host-preflights", false, "Allow bypassing host preflight failures")
 	flagSet.BoolVar(&flags.ignoreAppPreflights, "ignore-app-preflights", false, "Allow bypassing app preflight failures")
+	flagSet.BoolVar(&flags.disableFilesystemPerformanceCheck, "disable-filesystem-performance-check", false, "Disable the filesystem write latency performance check")
+	mustMarkFlagHidden(flagSet, "disable-filesystem-performance-check")
 
 	mustAddCIDRFlags(flagSet)
 
@@ -309,15 +275,13 @@ func newLinuxInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
 	return flagSet
 }
 
-func newKubernetesInstallFlags(flags *installFlags, enableV3 bool) *pflag.FlagSet {
+func newKubernetesInstallFlags(flags *installFlags) *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("kubernetes", pflag.ContinueOnError)
 
 	addKubernetesCLIFlags(flagSet, flags)
 
 	flagSet.VisitAll(func(flag *pflag.Flag) {
-		if !enableV3 {
-			mustMarkFlagHidden(flagSet, flag.Name)
-		}
+		mustMarkFlagHidden(flagSet, flag.Name)
 		mustSetFlagTargetKubernetes(flagSet, flag.Name)
 	})
 
@@ -335,40 +299,24 @@ func addInstallAdminConsoleFlags(cmd *cobra.Command, flags *installFlags) error 
 	cmd.Flags().StringVarP(&flags.licenseFile, "license", "l", "", "Path to the license file")
 	mustMarkFlagRequired(cmd.Flags(), "license")
 	cmd.Flags().StringVar(&flags.configValues, "config-values", "", "Path to the config values to use when installing")
-
-	if !isV3Enabled() {
-		cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
-	}
+	cmd.Flags().IntVar(&flags.adminConsolePort, "admin-console-port", ecv1beta1.DefaultAdminConsolePort, "Port on which the Admin Console will be served")
 
 	return nil
 }
 
 func addTLSFlags(cmd *cobra.Command, flags *installFlags) error {
-	managerName := "Admin Console"
-	if isV3Enabled() {
-		managerName = "Manager"
-	}
-
-	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", fmt.Sprintf("Path to the TLS certificate file for the %s", managerName))
-	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", fmt.Sprintf("Path to the TLS key file for the %s", managerName))
-	cmd.Flags().StringVar(&flags.hostname, "hostname", "", fmt.Sprintf("Hostname to use for accessing the %s", managerName))
+	cmd.Flags().StringVar(&flags.tlsCertFile, "tls-cert", "", fmt.Sprintf("Path to the TLS certificate file for the Admin Console"))
+	cmd.Flags().StringVar(&flags.tlsKeyFile, "tls-key", "", fmt.Sprintf("Path to the TLS key file for the Admin Console"))
+	cmd.Flags().StringVar(&flags.hostname, "hostname", "", fmt.Sprintf("Hostname to use for accessing the Admin Console"))
 
 	return nil
 }
 
 func addManagementConsoleFlags(cmd *cobra.Command, flags *installFlags) error {
 	cmd.Flags().IntVar(&flags.managerPort, "manager-port", ecv1beta1.DefaultManagerPort, "Port on which the Manager will be served")
-	cmd.Flags().BoolVar(&flags.headless, "headless", false, "Run installation in headless mode without UI interaction.")
 
-	// If the ENABLE_V3 environment variable is set, default to the new manager experience and do
-	// not hide the manager-port flag.
-	if !isV3Enabled() {
-		if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
-			return err
-		}
-		if err := cmd.Flags().MarkHidden("headless"); err != nil {
-			return err
-		}
+	if err := cmd.Flags().MarkHidden("manager-port"); err != nil {
+		return err
 	}
 
 	return nil
@@ -394,38 +342,12 @@ func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.Run
 		return nil, err
 	}
 
-	// sync the license if we are in the manager experience and a license is provided and we are
-	// not in airgap mode
-	if installCfg.enableManagerExperience && installCfg.license != nil && !installCfg.isAirgap {
-		replicatedAPI, err := newReplicatedAPIClient(installCfg.license, installCfg.clusterID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create replicated API client: %w", err)
-		}
-
-		updatedLicense, licenseBytes, err := syncLicense(cmd.Context(), replicatedAPI, installCfg.license)
-		if err != nil {
-			return nil, fmt.Errorf("failed to sync license: %w", err)
-		}
-		installCfg.license = updatedLicense
-		installCfg.licenseBytes = licenseBytes
-	}
-
 	// Target-specific configuration
-	switch flags.target {
-	case "linux":
-		if err := buildRuntimeConfig(flags, installCfg, rc); err != nil {
-			return nil, fmt.Errorf("build runtime config: %w", err)
-		}
-		if err := preRunInstallLinux(); err != nil {
-			return nil, fmt.Errorf("pre run install linux: %w", err)
-		}
-	case "kubernetes":
-		if err := buildKubernetesInstallation(flags, ki); err != nil {
-			return nil, fmt.Errorf("build kubernetes installation: %w", err)
-		}
-		if err := preRunInstallKubernetes(flags); err != nil {
-			return nil, fmt.Errorf("pre run install kubernetes: %w", err)
-		}
+	if err := buildRuntimeConfig(flags, installCfg, rc); err != nil {
+		return nil, fmt.Errorf("build runtime config: %w", err)
+	}
+	if err := preRunInstallLinux(); err != nil {
+		return nil, fmt.Errorf("pre run install linux: %w", err)
 	}
 
 	return installCfg, nil
@@ -433,10 +355,8 @@ func preRunInstall(cmd *cobra.Command, flags *installFlags, rc runtimeconfig.Run
 
 // Hop: buildInstallFlags maps cobra command flags to install flags
 func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
-	// Target defaulting (if not V3)
-	if !isV3Enabled() {
-		flags.target = "linux"
-	}
+	// Target defaulting
+	flags.target = "linux"
 
 	// Target validation
 	if flags.target != "linux" && flags.target != "kubernetes" {
@@ -452,6 +372,13 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	if !cmd.Flags().Changed("skip-host-preflights") {
 		if os.Getenv("SKIP_HOST_PREFLIGHTS") == "1" || os.Getenv("SKIP_HOST_PREFLIGHTS") == "true" {
 			flags.skipHostPreflights = true
+		}
+	}
+
+	// Disable filesystem performance check from env var (if flag not explicitly set)
+	if !cmd.Flags().Changed("disable-filesystem-performance-check") {
+		if os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "1" || os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "true" {
+			flags.disableFilesystemPerformanceCheck = true
 		}
 	}
 
@@ -491,37 +418,13 @@ func buildInstallFlags(cmd *cobra.Command, flags *installFlags) error {
 	}
 	flags.proxySpec = proxy
 
-	// Headless installation validation
-	if isV3Enabled() && flags.headless {
-		if err := validateHeadlessInstallFlags(flags); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func validateHeadlessInstallFlags(flags *installFlags) error {
-	if flags.configValues == "" {
-		return fmt.Errorf("--config-values flag is required for headless installation")
-	}
-
-	if flags.adminConsolePassword == "" {
-		return fmt.Errorf("--admin-console-password flag is required for headless installation")
-	}
-
-	if flags.target != string(apitypes.InstallTargetLinux) {
-		return fmt.Errorf("headless installation only supports --target=linux (got: %s)", flags.target)
-	}
-
 	return nil
 }
 
 // Hop: buildInstallConfig builds the install config from install flags
 func buildInstallConfig(flags *installFlags) (*installConfig, error) {
 	installCfg := &installConfig{
-		clusterID:               uuid.New().String(),
-		enableManagerExperience: isV3Enabled(),
+		clusterID: uuid.New().String(),
 	}
 
 	// License file reading
@@ -626,45 +529,6 @@ func processTLSConfig(flags *installFlags, installCfg *installConfig) error {
 		installCfg.tlsCert = cert
 		installCfg.tlsCertBytes = certBytes
 		installCfg.tlsKeyBytes = keyBytes
-	} else if installCfg.enableManagerExperience {
-		// For manager experience, generate self-signed cert if none provided, with user confirmation
-		logrus.Warn("\nNo certificate files provided. A self-signed certificate will be used, and your browser will show a security warning.")
-		logrus.Info("To use your own certificate, provide both --tls-key and --tls-cert flags.")
-
-		if !flags.assumeYes {
-			logrus.Info("") // newline so the prompt is separated from the warning
-			confirmed, err := prompts.New().Confirm("Do you want to continue with a self-signed certificate?", false)
-			if err != nil {
-				return fmt.Errorf("failed to get confirmation: %w", err)
-			}
-			if !confirmed {
-				logrus.Info("Installation cancelled. Please run the command again with the --tls-key and --tls-cert flags or use the --yes flag to continue with a self-signed certificate.\n")
-				return fmt.Errorf("installation cancelled by user")
-			}
-		} else {
-			logrus.Info("\nContinuing with a self-signed certificate...\n")
-		}
-
-		// Get all IP addresses for the certificate
-		ipAddresses, err := netutils.ListAllValidIPAddresses()
-		if err != nil {
-			return fmt.Errorf("failed to list all valid IP addresses: %w", err)
-		}
-
-		// Determine the namespace for the certificate
-		kotsadmNamespace, err := runtimeconfig.KotsadmNamespace(context.Background(), nil)
-		if err != nil {
-			return fmt.Errorf("get kotsadm namespace: %w", err)
-		}
-
-		// Generate self-signed certificate
-		cert, certData, keyData, err := tlsutils.GenerateCertificate(flags.hostname, ipAddresses, kotsadmNamespace)
-		if err != nil {
-			return fmt.Errorf("generate tls certificate: %w", err)
-		}
-		installCfg.tlsCert = cert
-		installCfg.tlsCertBytes = certData
-		installCfg.tlsKeyBytes = keyData
 	}
 
 	return nil
@@ -714,7 +578,7 @@ func buildRuntimeConfig(flags *installFlags, installCfg *installConfig, rc runti
 }
 
 func buildNetworkSpec(flags *installFlags, installCfg *installConfig) (ecv1beta1.NetworkSpec, error) {
-	k0sCfg, err := buildK0sConfig(flags, installCfg)
+	k0sCfg, err := buildK0sConfig(flags, installCfg, "")
 	if err != nil {
 		return ecv1beta1.NetworkSpec{}, fmt.Errorf("create k0s config: %w", err)
 	}
@@ -767,94 +631,7 @@ func buildKubernetesInstallation(flags *installFlags, ki kubernetesinstallation.
 	return nil
 }
 
-func runManagerExperienceInstall(
-	ctx context.Context, flags installFlags, installCfg *installConfig, apiOpts apiOptions,
-	metricsReporter metrics.ReporterInterface, appTitle string,
-) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	apiExitCh, err := startAPI(ctx, installCfg.tlsCert, apiOpts)
-	if err != nil {
-		return fmt.Errorf("failed to start api: %w", err)
-	}
-
-	if flags.headless {
-		return runV3InstallHeadless(ctx, cancel, flags, apiOpts, metricsReporter)
-	}
-
-	logrus.Infof("\nVisit the %s manager to continue: %s\n",
-		appTitle,
-		getManagerURL(flags.hostname, flags.managerPort))
-
-	// Wait for either user cancellation or API unexpected exit
-	select {
-	case <-ctx.Done():
-		// Normal exit (user interrupted)
-		return nil
-	case err := <-apiExitCh:
-		// API exited unexpectedly
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("api server exited unexpectedly")
-	}
-}
-
-// Hop: buildAPIOptions builds API server options from install flags, config, and other dependencies
-func buildAPIOptions(flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig, ki kubernetesinstallation.Installation, metricsReporter metrics.ReporterInterface) (apiOptions, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(flags.adminConsolePassword), 10)
-	if err != nil {
-		return apiOptions{}, fmt.Errorf("generate password hash: %w", err)
-	}
-
-	var configValues apitypes.AppConfigValues
-	if installCfg.configValues != nil {
-		configValues = apitypes.ConvertToAppConfigValues(installCfg.configValues)
-	}
-
-	return apiOptions{
-		APIConfig: apitypes.APIConfig{
-			InstallTarget: apitypes.InstallTarget(flags.target),
-			Password:      flags.adminConsolePassword,
-			PasswordHash:  passwordHash,
-			TLSConfig: apitypes.TLSConfig{
-				CertBytes: installCfg.tlsCertBytes,
-				KeyBytes:  installCfg.tlsKeyBytes,
-				Hostname:  flags.hostname,
-			},
-			License:              installCfg.licenseBytes,
-			AirgapBundle:         flags.airgapBundle,
-			AirgapMetadata:       installCfg.airgapMetadata,
-			EmbeddedAssetsSize:   installCfg.embeddedAssetsSize,
-			ConfigValues:         configValues,
-			ReleaseData:          release.GetReleaseData(),
-			EndUserConfig:        installCfg.endUserConfig,
-			ClusterID:            installCfg.clusterID,
-			Mode:                 apitypes.ModeInstall,
-			RequiresInfraUpgrade: false, // Always false for install
-
-			LinuxConfig: apitypes.LinuxConfig{
-				RuntimeConfig:             rc,
-				AllowIgnoreHostPreflights: flags.ignoreHostPreflights,
-			},
-			KubernetesConfig: apitypes.KubernetesConfig{
-				Installation: ki,
-			},
-		},
-
-		ManagerPort:     flags.managerPort,
-		Headless:        flags.headless,
-		WebMode:         web.ModeInstall,
-		MetricsReporter: metricsReporter,
-	}, nil
-}
-
 func runInstall(ctx context.Context, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig, metricsReporter *installReporter) (finalErr error) {
-	if installCfg.enableManagerExperience {
-		return nil
-	}
-
 	logrus.Debug("initializing install")
 	if err := initializeInstall(ctx, flags, installCfg, rc); err != nil {
 		return fmt.Errorf("failed to initialize install: %w", err)
@@ -896,13 +673,17 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 
 	// TODO (@salah): update installation status to reflect what's happening
 
-	logrus.Debugf("adding insecure registry")
-	registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
-	if err != nil {
-		return fmt.Errorf("failed to get registry cluster IP: %w", err)
-	}
-	if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
-		return fmt.Errorf("failed to add insecure registry: %w", err)
+	// Only airgap installs use the in-cluster registry; online installs don't
+	// need the insecure-registry drop-in (and k0s 1.36+ rejects its legacy v1 format).
+	if installCfg.isAirgap {
+		logrus.Debugf("setup internal registry config for containerd to pull from the in-cluster registry")
+		registryIP, err := registry.GetRegistryClusterIP(rc.ServiceCIDR())
+		if err != nil {
+			return fmt.Errorf("failed to get registry cluster IP: %w", err)
+		}
+		if err := hostutils.AddInsecureRegistry(fmt.Sprintf("%s:5000", registryIP)); err != nil {
+			return fmt.Errorf("failed to add insecure registry: %w", err)
+		}
 	}
 
 	helmOpts := buildHelmClientOptions(installCfg, rc)
@@ -919,7 +700,7 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 	}
 
 	logrus.Debugf("installing extensions")
-	if err := installExtensions(ctx, hcli); err != nil {
+	if err := installExtensions(ctx, hcli, installCfg.isAirgap); err != nil {
 		return fmt.Errorf("failed to install extensions: %w", err)
 	}
 
@@ -931,16 +712,14 @@ func runInstall(ctx context.Context, flags installFlags, installCfg *installConf
 		logrus.Warnf("failed to create host support bundle: %v", err)
 	}
 
-	isHeadlessInstall := flags.configValues != "" && flags.adminConsolePassword != ""
-
-	printSuccessMessage(installCfg.license, flags.hostname, flags.networkInterface, rc, isHeadlessInstall)
+	printSuccessMessage(installCfg.license, flags.hostname, flags.networkInterface, rc)
 
 	return nil
 }
 
 // Hop: buildK0sConfig builds k0s cluster configuration from install flags and config
-func buildK0sConfig(flags *installFlags, installCfg *installConfig) (*k0sv1beta1.ClusterConfig, error) {
-	return k0s.NewK0sConfig(flags.networkInterface, installCfg.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, installCfg.endUserConfig, nil)
+func buildK0sConfig(flags *installFlags, installCfg *installConfig, podLogsDir string) (*k0sv1beta1.ClusterConfig, error) {
+	return k0s.NewK0sConfig(flags.networkInterface, installCfg.isAirgap, flags.cidrConfig.PodCIDR, flags.cidrConfig.ServiceCIDR, podLogsDir, installCfg.endUserConfig, nil)
 }
 
 // Hop: buildHelmClientOptions builds helm client options from install config and runtime config
@@ -1111,14 +890,6 @@ func verifyLicense(license *kotsv1beta1.License) (*kotsv1beta1.License, error) {
 		return nil, err
 	}
 
-	if isV3Enabled() {
-		verifiedLicense, err := licensepkg.VerifySignature(license)
-		if err != nil {
-			return nil, fmt.Errorf("license signature verification failed: %w", err)
-		}
-		license = verifiedLicense
-	}
-
 	if err := verifyLicenseFields(license, channelRelease); err != nil {
 		return nil, err
 	}
@@ -1244,7 +1015,7 @@ func initializeInstall(ctx context.Context, flags installFlags, installCfg *inst
 	spinner := spinner.Start()
 	spinner.Infof("Initializing")
 
-	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, release.GetChannelRelease(), hostutils.InitForInstallOptions{
 		License:      installCfg.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
@@ -1269,7 +1040,7 @@ func installAndStartCluster(ctx context.Context, flags installFlags, installCfg 
 
 	logrus.Debugf("creating k0s configuration file")
 
-	cfg, err := buildK0sConfig(&flags, installCfg)
+	cfg, err := buildK0sConfig(&flags, installCfg, rc.EmbeddedClusterPodLogsSubDir())
 	if err != nil {
 		return nil, fmt.Errorf("unable to build k0s config: %w", err)
 	}
@@ -1360,7 +1131,7 @@ func getDomains() ecv1beta1.Domains {
 	return domains.GetDomains(embCfgSpec, release.GetChannelRelease())
 }
 
-func installExtensions(ctx context.Context, hcli helm.Client) error {
+func installExtensions(ctx context.Context, hcli helm.Client, isAirgap bool) error {
 	progressChan := make(chan extensions.ExtensionsProgress)
 
 	loading := spinner.Start()
@@ -1375,7 +1146,7 @@ func installExtensions(ctx context.Context, hcli helm.Client) error {
 		}
 	}()
 
-	err := extensions.Install(ctx, hcli, progressChan)
+	err := extensions.Install(ctx, hcli, progressChan, isAirgap)
 	<-done // Wait for the goroutine to finish processing all progress updates
 
 	if err != nil {
@@ -1561,16 +1332,10 @@ func normalizeNoPromptToYes(f *pflag.FlagSet, name string) pflag.NormalizedName 
 	return pflag.NormalizedName(name)
 }
 
-func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig, isHeadlessInstall bool) {
+func printSuccessMessage(license *kotsv1beta1.License, hostname string, networkInterface string, rc runtimeconfig.RuntimeConfig) {
 	adminConsoleURL := getAdminConsoleURL(hostname, networkInterface, rc.AdminConsolePort())
 
-	// Create the message content
-	var message string
-	if isHeadlessInstall {
-		message = fmt.Sprintf("The Admin Console for %s is available at:", license.Spec.AppSlug)
-	} else {
-		message = fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
-	}
+	message := fmt.Sprintf("Visit the Admin Console to configure and install %s:", license.Spec.AppSlug)
 
 	// Determine the length of the longest line
 	longestLine := len(message)

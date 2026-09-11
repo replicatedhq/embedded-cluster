@@ -39,6 +39,7 @@ replicaCount: 2
 s3:
   bucket: registry
   encrypt: false
+  forcepathstyle: true
   region: us-east-1
   regionEndpoint: DYNAMIC
   rootdirectory: /registry

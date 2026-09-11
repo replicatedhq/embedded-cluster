@@ -1,9 +1,6 @@
 global:
   enableReplication: true
   replicationPlacment: "001"
-{{- if .ReplaceImages }}
-  registry: "proxy.replicated.com/anonymous/"
-{{- end }}
 
 master:
 {{- if .ReplaceImages }}
@@ -57,16 +54,18 @@ master:
       fs.meta.load filer-backup.meta
     """
     sleep_minutes = 17          # sleep minutes between each script execution
+  resources:
+    requests:
+      cpu: "500m" # reserved cpu to prevent raft timeouts due to resource contention
 
 volume:
   # replicas must be at least replication (2) + 1 = 3
   replicas: 3
   nodeSelector: ~
+  minFreeSpacePercent: 1
 {{- if .ReplaceImages }}
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
 {{- end }}
-  podAnnotations:
-    backup.velero.io/backup-volumes: data
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:
@@ -105,7 +104,7 @@ filer:
   imageOverride: '{{ ImageString (index .Images "seaweedfs") }}'
 {{- end }}
   podAnnotations:
-    backup.velero.io/backup-volumes: data-filer,seaweedfs-filer-log-volume
+    backup.velero.io/backup-volumes: seaweedfs-filer-log-volume
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:

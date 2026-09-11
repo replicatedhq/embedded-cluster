@@ -28,7 +28,6 @@ updates:
 
   - package-ecosystem: "npm"
     directories:
-      - "/web/"
       - "/e2e/playwright/"
     open-pull-requests-limit: 10
     schedule:

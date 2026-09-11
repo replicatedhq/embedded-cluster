@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
 
@@ -14,7 +15,7 @@ type InitForInstallOptions struct {
 	AirgapBundle string
 }
 
-func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
+func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, opts InitForInstallOptions) error {
 	h.logger.Debugf("writing runtime config to disk")
 	if err := rc.WriteToDisk(); err != nil {
 		return fmt.Errorf("write runtime config to disk: %w", err)
@@ -28,7 +29,7 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 	}
 
 	h.logger.Debugf("materializing files")
-	if err := h.MaterializeFiles(rc, opts.AirgapBundle); err != nil {
+	if err := h.MaterializeFiles(rc, channelRelease, opts.AirgapBundle); err != nil {
 		return fmt.Errorf("materialize files: %w", err)
 	}
 

@@ -40,13 +40,11 @@ func EnsureRegistrySecretInECNamespace(ctx context.Context, cli client.Client, i
 	}
 
 	op, err = ctrl.CreateOrUpdate(ctx, cli, obj, func() error {
-		if in.GetUID() != "" {
-			err := ctrl.SetControllerReference(in, obj, cli.Scheme())
-			if err != nil {
-				return fmt.Errorf("set controller reference: %w", err)
-			}
-		}
-
+		// Note: this secret is intentionally not owned by the Installation. It is shared
+		// across installations and its lifecycle is not tied to any single one of them. Old
+		// Installations are never deleted (only marked obsolete), so a controller reference set
+		// here would eventually point at a stale/obsolete Installation and cause every
+		// subsequent update to fail with an AlreadyOwnedError.
 		obj.Labels = applyECOperatorLabels(obj.Labels, "upgrader")
 
 		obj.Type = corev1.SecretTypeDockerConfigJson

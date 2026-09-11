@@ -20,7 +20,6 @@ import (
 const (
 	// BackupIsECAnnotation is the annotation used to store if the backup is from an EC install.
 	BackupIsECAnnotation = "kots.io/embedded-cluster"
-
 	// InstanceBackupAnnotation is the annotation used to indicate that a backup is a legacy
 	// instance backup.
 	InstanceBackupAnnotation = "kots.io/instance"

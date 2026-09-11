@@ -16,9 +16,9 @@ spec:
           mountPath: /replicatedhq/embedded-cluster # parent of workdir in the container
         env:
         - name: GOCACHE
-          value: /replicatedhq/embedded-cluster/dev/.gocache # from dev volume mount
+          value: /replicatedhq/embedded-cluster/dev/build/.gocache # from dev volume mount
         - name: GOMODCACHE
-          value: /replicatedhq/embedded-cluster/dev/.gomodcache # from dev volume mount
+          value: /replicatedhq/embedded-cluster/dev/build/.gomodcache # from dev volume mount
         livenessProbe: ~
         readinessProbe: ~
         resources: ~

@@ -78,6 +78,86 @@ func TestPatchK0sConfig(t *testing.T) {
 	}
 }
 
+func TestSetPodLogsDir(t *testing.T) {
+	tests := []struct {
+		name     string
+		profiles k0sv1beta1.WorkerProfiles
+		want     k0sv1beta1.WorkerProfiles
+	}{
+		{
+			name: "adds the default profile when no profile exists",
+			want: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "default",
+					Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/custom/k0s/pod-logs"}`)},
+				},
+			},
+		},
+		{
+			name: "adds pod logs dir to a vendor profile",
+			profiles: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "vendor-profile",
+					Config: &runtime.RawExtension{Raw: []byte(`{"maxPods":250}`)},
+				},
+			},
+			want: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "vendor-profile",
+					Config: &runtime.RawExtension{Raw: []byte(`{"maxPods":250,"podLogsDir":"/custom/k0s/pod-logs"}`)},
+				},
+			},
+		},
+		{
+			name: "preserves an explicitly overridden pod logs dir",
+			profiles: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "vendor-profile",
+					Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/log/pods"}`)},
+				},
+			},
+			want: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "vendor-profile",
+					Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/log/pods"}`)},
+				},
+			},
+		},
+		{
+			name: "adds pod logs dir to every profile without an explicit value",
+			profiles: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "ip-forward",
+					Config: &runtime.RawExtension{Raw: []byte(`{"allowedUnsafeSysctls":["net.ipv4.ip_forward"]}`)},
+				},
+				{
+					Name:   "custom-pod-logs",
+					Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/vendor/pod-logs"}`)},
+				},
+			},
+			want: k0sv1beta1.WorkerProfiles{
+				{
+					Name:   "ip-forward",
+					Config: &runtime.RawExtension{Raw: []byte(`{"allowedUnsafeSysctls":["net.ipv4.ip_forward"],"podLogsDir":"/custom/k0s/pod-logs"}`)},
+				},
+				{
+					Name:   "custom-pod-logs",
+					Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/vendor/pod-logs"}`)},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{WorkerProfiles: tt.profiles}}
+
+			require.NoError(t, setPodLogsDir(cfg, "/custom/k0s/pod-logs"))
+			require.Equal(t, tt.want, cfg.Spec.WorkerProfiles)
+		})
+	}
+}
+
 func parseTestsYAML[T any](t *testing.T, prefix string) map[string]T {
 	entries, err := testData.ReadDir("testdata")
 	require.NoError(t, err)

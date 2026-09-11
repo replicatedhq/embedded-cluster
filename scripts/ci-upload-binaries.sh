@@ -124,7 +124,14 @@ function kotsbin() {
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C "$(dirname "${kots_file_override}")" "$(basename "${kots_file_override}")"
     else
         echo "extracting kots binary from kotsadm image"
-        crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - kots > build/kots
+        # Securebuild images keep /kots as a backwards-compatible symlink. Extract
+        # the symlink target because tar -O does not follow symlinks and would
+        # otherwise produce an empty, non-executable artifact.
+        crane export "kotsadm/kotsadm:${kots_version}" --platform "linux/${ARCH}" - | tar -Oxf - usr/local/bin/kots > build/kots
+        if [ ! -s build/kots ]; then
+            echo "failed to extract kots binary from kotsadm image"
+            return 1
+        fi
         chmod +x build/kots
         tar -czvf "build/kots_linux_${ARCH}.tar.gz" -C build kots
     fi

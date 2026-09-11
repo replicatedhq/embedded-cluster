@@ -25,8 +25,9 @@ jobs:
     outputs:
       git_sha: ${{ steps.git_sha.outputs.git_sha }}
       ec_version: ${{ steps.output_vars.outputs.ec_version }}
+      helm_version: ${{ steps.output_vars.outputs.helm_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # necessary for getting the last tag
       - uses: ./.github/actions/git-sha
@@ -39,15 +40,19 @@ jobs:
           EC_VERSION=$(./scripts/print-ec-version.sh "$ec_version" "$k0s_minor_version")
           echo "EC_VERSION=\"$EC_VERSION\""
           echo "ec_version=$EC_VERSION" >> $GITHUB_OUTPUT
+          # Pin the helm binary used by tests to the same version embedded-cluster ships
+          # (versions.mk), instead of latest.
+          helm_version=$(make print-HELM_VERSION)
+          echo "helm_version=$helm_version" >> $GITHUB_OUTPUT
 
   sanitize:
     name: Sanitize
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -59,37 +64,14 @@ jobs:
         with:
           args: --build-tags containers_image_openpgp,exclude_graphdriver_btrfs,exclude_graphdriver_devicemapper,exclude_graphdriver_overlay
 
-  web-tests:
-    name: Web unit tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
-      - name: Install dependencies
-        run: |
-          npm install
-      - name: Run web tests (types check, lint, and unit tests)
-        run: |
-          npm run test
-      - name: Build web
-        run: |
-          npm run build
-
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -106,11 +88,11 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.0
+        uses: tj-actions/changed-files@v47.0.6
         with:
           files: |
             kinds/**
@@ -125,11 +107,11 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.0
+        uses: tj-actions/changed-files@v47.0.6
         with:
           files: |
             pkg-new/preflights/**
@@ -165,16 +147,20 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ needs.output-vars.outputs.helm_version }}
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -189,9 +175,9 @@ jobs:
     if: needs.should-run-int-tests-preflights.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -212,9 +198,9 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -244,9 +230,21 @@ jobs:
             /usr/local/bin/oc
           df -h
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ needs.output-vars.outputs.helm_version }}
+      # go.podman.io/image/v5 5.40.0+ rejects the runner's v1-format registries.conf.
+      # Fixed upstream but not yet rolled out to ubuntu-latest as of 2026-08-07; remove
+      # once it is: https://github.com/actions/runner-images/issues/14406
+      - name: Fix registries.conf format
+        run: &fix-registries-conf |
+          sudo tee /etc/containers/registries.conf > /dev/null <<'EOF'
+          unqualified-search-registries = ["docker.io"]
+          EOF
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -261,18 +259,24 @@ jobs:
     if: needs.should-run-int-tests-kind.outputs.run == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Free up runner disk space
         run: *free-disk-space
       - name: Install kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2
         with:
           install_only: true
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ needs.output-vars.outputs.helm_version }}
+      - name: Fix registries.conf format
+        run: *fix-registries-conf
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -283,15 +287,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Free up runner disk space
         run: *free-disk-space
       - name: Go cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
-            ./dev/.gocache
-            ./dev/.gomodcache
+            ./dev/build/.gocache
+            ./dev/build/.gomodcache
           key: dryrun-tests-go-cache-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             dryrun-tests-go-cache-
@@ -306,9 +310,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -326,46 +330,47 @@ jobs:
             exit 1
           fi
 
-  check-swagger-docs:
-    name: Check swagger docs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-      - name: Setup go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: "**/*.sum"
-      - name: Check swagger docs
-        run: |
-          make -C api swagger
-          git diff --exit-code --name-only
-          if [ $? -eq 0 ]; then
-            echo "Swagger docs are up to date"
-          else
-            echo "Swagger docs are out of date"
-            exit 1
-          fi
-
   buildtools:
     name: Build buildtools
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Build across the current and previous supported k0s minors so a
+        # K0S_MINOR_VERSION/go.mod-pin mismatch (e.g. the k0s_legacy_airgap
+        # build tag selecting a code path the pinned k0s module can't compile)
+        # fails the PR instead of only surfacing in a release build.
+        n: [0, 1, 2, 3]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
+      - name: Export k0s minor version
+        run: |
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> "$GITHUB_ENV"
       - name: Compile buildtools
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           make buildtools
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        if: ${{ matrix.n == 0 }}
+        uses: actions/upload-artifact@v7
         with:
           name: buildtools
+          path: output/bin/buildtools
+      - name: Upload buildtools artifact previous k0s
+        if: ${{ matrix.n != 0 }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: buildtools-previous-k0s-${{ matrix.n }}
           path: output/bin/buildtools
 
   should-run-e2e:
@@ -375,11 +380,11 @@ jobs:
       run: ${{ steps.changed-files.outputs.any_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get changed files
         id: changed-files
-        uses: tj-actions/changed-files@v47.0.0
+        uses: tj-actions/changed-files@v47.0.6
         with:
           files: |
             e2e/**
@@ -433,13 +438,13 @@ jobs:
       app_version_3: ${{ steps.export.outputs.app_version_3 }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Free up runner disk space
         run: *free-disk-space
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             output/bins
@@ -448,19 +453,14 @@ jobs:
             bins-cache-
 
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
+      - uses: oras-project/setup-oras@v2
 
-      - uses: oras-project/setup-oras@v1
-
-      - uses: imjasonh/setup-crane@v0.4
+      - uses: imjasonh/setup-crane@v0.7
 
       - name: Install dagger
         run: |
@@ -510,11 +510,11 @@ jobs:
             version_suffix="-previous-k0s-${{ matrix.n }}"
           fi
           if [ -n "$version_suffix" ]; then
-            cp output/bin/embedded-cluster output/bin/embedded-cluster-${version_suffix}
+            cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: ${{ matrix.n == 0 }}
         with:
           name: current-release
@@ -524,7 +524,7 @@ jobs:
             output/bin/embedded-cluster-release-builder
 
       - name: Upload release previous k0s
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: ${{ matrix.n != 0 }}
         with:
           name: previous-k0s-${{ matrix.n }}-release
@@ -556,7 +556,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Export k0s version
         id: export
         env:
@@ -566,9 +566,12 @@ jobs:
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
           previous_k0s_minor_version=$(($k0s_minor_version - 1))
           k0s_majmin_version="1.${previous_k0s_minor_version}"
+          # Pick the release `previous_release_gap` versions back, falling back to the
+          # oldest available when the previous minor has fewer releases than that (e.g.
+          # right after a new minor is added).
           EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
            --exclude-drafts --exclude-pre-releases --json name --order desc \
-           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | .[${previous_release_gap}] | .name")"
+           --jq "[.[] | select(.name | contains(\"k8s-${k0s_majmin_version}\"))] | (.[${previous_release_gap}] // .[-1]) | .name")"
 
           gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
           K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
@@ -589,13 +592,13 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Free up runner disk space
         run: *free-disk-space
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             output/bins
@@ -604,19 +607,14 @@ jobs:
             bins-cache-
 
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
+      - uses: oras-project/setup-oras@v2
 
-      - uses: oras-project/setup-oras@v1
-
-      - uses: imjasonh/setup-crane@v0.4
+      - uses: imjasonh/setup-crane@v0.7
 
       - name: Install dagger
         run: |
@@ -646,7 +644,7 @@ jobs:
           cp output/bin/embedded-cluster output/bin/embedded-cluster-upgrade
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: upgrade-release
           path: |
@@ -665,25 +663,49 @@ jobs:
     needs:
       - buildtools
       - build-install
+    strategy:
+      fail-fast: false
+      # Validate images for every k0s minor we build, pairing each minor's
+      # buildtools with the embedded-cluster binary built for the same minor.
+      # n==0 is the current minor (current-release/embedded-cluster-original);
+      # n>0 are the previous-k0s builds.
+      matrix:
+        include:
+          - n: 0
+            buildtools-artifact: buildtools
+            release-artifact: current-release
+            ec-binary: embedded-cluster-original
+          - n: 1
+            buildtools-artifact: buildtools-previous-k0s-1
+            release-artifact: previous-k0s-1-release
+            ec-binary: embedded-cluster-previous-k0s-1
+          - n: 2
+            buildtools-artifact: buildtools-previous-k0s-2
+            release-artifact: previous-k0s-2-release
+            ec-binary: embedded-cluster-previous-k0s-2
+          - n: 3
+            buildtools-artifact: buildtools-previous-k0s-3
+            release-artifact: previous-k0s-3-release
+            ec-binary: embedded-cluster-previous-k0s-3
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
-          name: buildtools
+          name: ${{ matrix.buildtools-artifact }}
           path: output/bin
       - name: Download embedded-cluster artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
-          name: current-release
+          name: ${{ matrix.release-artifact }}
           path: output/bin
       - name: Check for missing images
         run: |
           chmod +x ./output/bin/buildtools
-          chmod +x ./output/bin/embedded-cluster-original
-          ./output/bin/embedded-cluster-original version metadata > version-metadata.json
-          ./output/bin/embedded-cluster-original version list-images > expected.txt
+          chmod +x ./output/bin/${{ matrix.ec-binary }}
+          ./output/bin/${{ matrix.ec-binary }} version metadata > version-metadata.json
+          ./output/bin/${{ matrix.ec-binary }} version list-images > expected.txt
           printf "Expected images:\n$(cat expected.txt)\n"
           ./output/bin/buildtools metadata extract-helm-chart-images --metadata-path version-metadata.json > images.txt
           printf "Found images:\n$(cat images.txt)\n"
@@ -707,7 +729,7 @@ jobs:
       version_specifier: ${{ steps.export-version-specifier.outputs.version_specifier }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Export version specifier
         id: export-version-specifier
         run: |
@@ -726,7 +748,7 @@ jobs:
       - find-previous-stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install replicated CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -866,7 +888,7 @@ jobs:
 
       - name: Comment download link
         if: github.event_name == 'pull_request'
-        uses: mshick/add-pr-comment@v2
+        uses: mshick/add-pr-comment@v3
         with:
           message-path: download-link.txt
 
@@ -901,19 +923,19 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: current-release
           path: output/bin
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Login to DockerHub to avoid rate limiting
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
@@ -962,6 +984,7 @@ jobs:
       fail-fast: false
       matrix:
         test:
+          - TestSingleNodeAirgapAppOnlyUpgrade
           - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
@@ -979,9 +1002,9 @@ jobs:
             continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: current-release
           path: output/bin
@@ -1018,9 +1041,9 @@ jobs:
           - TestFiveNodesAirgapUpgrade
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: current-release
           path: output/bin
@@ -1051,11 +1074,9 @@ jobs:
       - sanitize
       - unit-tests
       - int-tests
-      - web-tests
       - dryrun-tests
       - check-images
       - check-operator-crds
-      - check-swagger-docs
     if: ${{ !cancelled() }}
     steps:
       # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
@@ -1083,9 +1104,6 @@ jobs:
       - name: fail if int-tests job was not successful
         if: needs.int-tests.result != 'success'
         run: exit 1
-      - name: fail if web-tests job was not successful
-        if: needs.web-tests.result != 'success'
-        run: exit 1
       - name: fail if dryrun-tests job was not successful
         if: needs.dryrun-tests.result != 'success'
         run: exit 1
@@ -1094,9 +1112,6 @@ jobs:
         run: exit 1
       - name: fail if check-operator-crds job was not successful
         if: needs.check-operator-crds.result != 'success'
-        run: exit 1
-      - name: fail if check-swagger-docs job was not successful
-        if: needs.check-swagger-docs.result != 'success'
         run: exit 1
       - name: succeed if everything else passed
         run: echo "Validation succeeded"

@@ -25,9 +25,9 @@ func TestGetDomains(t *testing.T) {
 				rel:     nil,
 			},
 			want: ecv1beta1.Domains{
-				ReplicatedAppDomain:      DefaultReplicatedAppDomain,
-				ProxyRegistryDomain:      DefaultProxyRegistryDomain,
-				ReplicatedRegistryDomain: DefaultReplicatedRegistryDomain,
+				ReplicatedAppDomain:      defaultReplicatedAppDomain,
+				ProxyRegistryDomain:      defaultProxyRegistryDomain,
+				ReplicatedRegistryDomain: defaultReplicatedRegistryDomain,
 			},
 		},
 		{
@@ -37,9 +37,9 @@ func TestGetDomains(t *testing.T) {
 				rel:     &release.ChannelRelease{},
 			},
 			want: ecv1beta1.Domains{
-				ReplicatedAppDomain:      DefaultReplicatedAppDomain,
-				ProxyRegistryDomain:      DefaultProxyRegistryDomain,
-				ReplicatedRegistryDomain: DefaultReplicatedRegistryDomain,
+				ReplicatedAppDomain:      defaultReplicatedAppDomain,
+				ProxyRegistryDomain:      defaultProxyRegistryDomain,
+				ReplicatedRegistryDomain: defaultReplicatedRegistryDomain,
 			},
 		},
 		{
@@ -101,7 +101,7 @@ func TestGetDomains(t *testing.T) {
 			want: ecv1beta1.Domains{
 				ReplicatedAppDomain:      "config.replicated.app",
 				ProxyRegistryDomain:      "release.proxy.replicated.com",
-				ReplicatedRegistryDomain: DefaultReplicatedRegistryDomain,
+				ReplicatedRegistryDomain: defaultReplicatedRegistryDomain,
 			},
 		},
 	}

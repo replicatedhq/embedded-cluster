@@ -32,10 +32,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -45,7 +45,7 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: buildtools
           path: output/bin/buildtools
@@ -63,10 +63,10 @@ jobs:
           - seaweedfs
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: buildtools
           path: output/bin
@@ -99,10 +99,12 @@ jobs:
           echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request # creates a PR if there are differences
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         id: cpr
         with:
           token: ${{ secrets.GH_PAT }}
+          author: replicated-ci-ec <replicated-ci-ec@replicated.com>
+          committer: replicated-ci-ec <replicated-ci-ec@replicated.com>
           commit-message: 'Update image versions'
           title: "chore: update ${{ matrix.addon }} images"
           branch: ${{ steps.determine-target.outputs.target_branch }}
@@ -125,10 +127,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -158,10 +160,12 @@ jobs:
           echo "target_branch=${target_branch}" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request # creates a PR if there are differences
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         id: cpr
         with:
           token: ${{ secrets.GH_PAT }}
+          author: replicated-ci-ec <replicated-ci-ec@replicated.com>
+          committer: replicated-ci-ec <replicated-ci-ec@replicated.com>
           commit-message: 'Update image versions'
           title: "chore: update k0s images"
           branch: ${{ steps.determine-target.outputs.target_branch }}

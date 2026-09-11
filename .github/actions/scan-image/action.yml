@@ -1,41 +1,46 @@
 name: Scan Container Image Grype SARIF
-description: 'Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning'
+description: "Scan a container image for vulnerabilities and optionally upload the results for GitHub code scanning"
 inputs:
   image-ref:
-    description: 'The image to scan'
+    description: "The image to scan"
     required: true
   upload-sarif:
-    description: 'Whether to upload the scan results as a SARIF file'
+    description: "Whether to upload the scan results as a SARIF file"
     required: false
-    default: 'true'
+    default: "true"
   severity-cutoff:
-    description: 'Minimum severity to report (critical, high, medium, low, negligible)'
+    description: "Minimum severity to report (critical, high, medium, low, negligible)"
     required: false
-    default: 'medium'
+    default: "medium"
   fail-build:
-    description: 'Fail the workflow if vulnerabilities are found'
+    description: "Fail the workflow if vulnerabilities are found"
     required: false
-    default: 'true'
+    default: "true"
   output-file:
-    description: 'Output file name for SARIF results'
+    description: "Output file name for SARIF results"
     required: false
-    default: 'results.sarif'
+    default: "results.sarif"
   timeout-minutes:
-    description: 'Maximum time in minutes to wait for the scan to complete'
+    description: "Maximum time in minutes to wait for the scan to complete"
     required: false
-    default: '30'
+    default: "30"
   retention-days:
-    description: 'Number of days to retain the scan results artifact'
+    description: "Number of days to retain the scan results artifact"
     required: false
-    default: '90'
+    default: "90"
   category-prefix:
-    description: 'Prefix to use for the SARIF category name'
+    description: "Prefix to use for the SARIF category name"
     required: false
-    default: 'image-scan-'
+    default: "image-scan-"
   only-fixed:
-    description: 'Only report vulnerabilities that have a fix available'
+    description: "Only report vulnerabilities that have a fix available"
     required: false
-    default: 'true'
+    default: "true"
+
+outputs:
+  safe-name:
+    description: "URL-safe name derived from the image ref, suitable for artifact names"
+    value: ${{ steps.image_details.outputs.safe_name }}
 
 runs:
   using: composite
@@ -46,7 +51,7 @@ runs:
       run: |
         image_id=$(${{github.action_path}}/image_id.sh '${{ inputs.image-ref }}')
         echo "image_id=$image_id" >> $GITHUB_OUTPUT
-    
+
     - name: Extract image details
       id: image_details
       shell: bash
@@ -79,7 +84,7 @@ runs:
             echo "safe_image_name=${SAFE_IMAGE_NAME}"
         } >> "$GITHUB_OUTPUT"
 
-    - name: Scan image with Grype
+    - name: Scan image with Grype (SARIF output)
       uses: anchore/scan-action@v7
       id: scan
       continue-on-error: ${{ inputs.fail-build != 'true' }}
@@ -92,13 +97,32 @@ runs:
         by-cve: true
         only-fixed: "${{ inputs.only-fixed }}"
 
-    - name: Check scan status
-      if: steps.scan.outcome == 'failure' && inputs.fail-build == 'true'
+    - name: Scan image with Grype (Table output)
+      if: ${{ !cancelled() }}
+      uses: anchore/scan-action@v7
+      continue-on-error: true
+      with:
+        image: "${{ inputs.image-ref }}"
+        fail-build: "false"
+        severity-cutoff: "${{ inputs.severity-cutoff }}"
+        output-format: table
+        output-file: scan-output.txt
+        by-cve: true
+        only-fixed: "${{ inputs.only-fixed }}"
+
+    - name: Add image label to scan output file
+      if: ${{ !cancelled() }}
       shell: bash
       run: |
-        echo "::error::Scan failed for image ${{ inputs.image-ref }}"
-        echo "Please check the scan logs above for details"
-        exit 1
+        {
+          echo "========================================"
+          echo "Image: ${{ inputs.image-ref }}"
+          echo "========================================"
+          echo ""
+          cat scan-output.txt
+          echo ""
+        } > scan-output-labeled.txt
+        mv scan-output-labeled.txt scan-output.txt
 
     - name: Enrich or generate SARIF
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
@@ -131,21 +155,46 @@ runs:
                   "toolVersion": "latest"
                 }
               }
-            }' ${{ inputs.output-file }} > enriched-results.sarif
+            } |
+            .runs[0].results = [
+              .runs[0].results[] |
+              if .ruleId != null and .ruleId != "" and
+                 (.locations | length) > 0 and
+                 .locations[0].physicalLocation.artifactLocation.uri != null and
+                 .locations[0].physicalLocation.artifactLocation.uri != "" then
+                (.locations[0].physicalLocation.artifactLocation.uri | split("//")) as $parts |
+                if ($parts | length) >= 2 and $parts[0] != "" and $parts[1] != "" then
+                  . + {
+                    "fingerprints": {
+                      "0": (.ruleId + ":" + $parts[0] + ":" + ($parts[1:] | join("//")))
+                    }
+                  }
+                elif ($parts | length) == 1 and $parts[0] != "" then
+                  . + {
+                    "fingerprints": {
+                      "0": (.ruleId + ":" + $parts[0] + ":unknown")
+                    }
+                  }
+                else
+                  .
+                end
+              else
+                .
+              end
+            ]' ${{ inputs.output-file }} > enriched-results.sarif
 
         mv enriched-results.sarif ${{ inputs.output-file }}
 
     - name: Upload SARIF file
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@v4.37.9
       with:
         sarif_file: ${{ inputs.output-file }}
-        category: '${{ inputs.category-prefix }}${{ steps.image_details.outputs.safe_image_name }}'
-
+        category: "${{ inputs.category-prefix }}${{ steps.image_details.outputs.safe_image_name }}"
 
     - name: Archive scan results
       if: ${{ !cancelled() && inputs.upload-sarif == 'true' }}
-      uses: actions/upload-artifact@v5
+      uses: actions/upload-artifact@v7
       with:
         name: "sarif-${{ steps.image_details.outputs.safe_name }}"
         path: ${{ inputs.output-file }}

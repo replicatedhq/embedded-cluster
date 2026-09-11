@@ -16,11 +16,20 @@ If no, just write "NONE" below.
 #### Does this PR require a release note?
 <!--
 If no, just write "NONE" in the release-note block below.
-If yes, a release note is required:
+If yes, a release note is required. One release note per line. Blank lines will be ignored.
 -->
-```release-note
-
-```
+New features:
+ ```release-notes-features
+ 
+ ```
+ Bug fixes:
+ ```release-notes-fixes
+ 
+ ```
+ Improvements:
+ ```release-notes-improvements
+ 
+ ```
 
 #### Does this PR require documentation?
 <!--

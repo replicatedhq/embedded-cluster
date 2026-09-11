@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,7 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 	tests := []struct {
 		name           string
 		isAirgap       bool
+		channelRelease *release.ChannelRelease
 		proxySpec      *ecv1beta1.ProxySpec
 		expectedInFile []string
 		notInFile      []string
@@ -24,6 +26,14 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 		{
 			name:     "airgap installation - HTTP collectors excluded",
 			isAirgap: true,
+			channelRelease: &release.ChannelRelease{
+				VersionLabel: "v1.0.0",
+				AppSlug:      "test-app",
+				DefaultDomains: release.Domains{
+					ReplicatedAppDomain: "replicated.app",
+					ProxyRegistryDomain: "proxy.replicated.com",
+				},
+			},
 			proxySpec: &ecv1beta1.ProxySpec{
 				HTTPSProxy: "https://proxy:8080",
 				HTTPProxy:  "http://proxy:8080",
@@ -83,6 +93,14 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 		{
 			name:     "online installation with proxy - HTTP collectors included",
 			isAirgap: false,
+			channelRelease: &release.ChannelRelease{
+				VersionLabel: "v1.0.0",
+				AppSlug:      "test-app",
+				DefaultDomains: release.Domains{
+					ReplicatedAppDomain: "replicated.app",
+					ProxyRegistryDomain: "proxy.replicated.com",
+				},
+			},
 			proxySpec: &ecv1beta1.ProxySpec{
 				HTTPSProxy: "https://proxy:8080",
 				HTTPProxy:  "http://proxy:8080",
@@ -128,9 +146,10 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 			},
 		},
 		{
-			name:      "online installation without proxy - HTTP collectors included, no proxy config",
-			isAirgap:  false,
-			proxySpec: nil,
+			name:           "online installation without proxy - HTTP collectors included, no proxy config",
+			isAirgap:       false,
+			channelRelease: nil, // Test with nil channel release to verify default domains are used
+			proxySpec:      nil,
 			expectedInFile: []string{
 				// Core collectors
 				"k8s-api-healthz-6443",
@@ -171,6 +190,67 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 					"proxy should be empty when no proxy is configured")
 			},
 		},
+		{
+			name:     "online installation with custom domains from channel release",
+			isAirgap: false,
+			channelRelease: &release.ChannelRelease{
+				VersionLabel: "v1.0.0",
+				AppSlug:      "test-app",
+				DefaultDomains: release.Domains{
+					ReplicatedAppDomain: "custom.replicated.app",
+					ProxyRegistryDomain: "custom-proxy.replicated.com",
+				},
+			},
+			proxySpec: nil,
+			expectedInFile: []string{
+				// Core collectors
+				"k8s-api-healthz-6443",
+				"embedded-cluster-path-usage",
+				// HTTP collectors included with custom domains
+				"http-replicated-app",
+				"curl-replicated-app",
+				// Custom URLs from channel release
+				"https://custom.replicated.app/healthz",
+				"https://custom-proxy.replicated.com/v2/",
+			},
+			notInFile: []string{
+				// No proxy settings when proxy not configured
+				"proxy: 'https://proxy:8080'",
+				"proxy: 'http://proxy:8080'",
+				// Template variables should be substituted
+				"{{ .HTTPSProxy }}",
+				"{{ .HTTPProxy }}",
+				// Default domains should not appear
+				"https://replicated.app/healthz",
+				"https://proxy.replicated.com/v2/",
+			},
+			validateFunc: func(t *testing.T, content string) {
+				// Validate that HTTP collectors have exclude: 'false' for online
+				httpCollectorStart := strings.Index(content, "collectorName: http-replicated-app")
+				require.Greater(t, httpCollectorStart, -1, "http-replicated-app collector should be present")
+
+				nextCollectorStart := strings.Index(content[httpCollectorStart+1:], "collectorName:")
+				var httpCollectorBlock string
+				if nextCollectorStart > -1 {
+					httpCollectorBlock = content[httpCollectorStart : httpCollectorStart+1+nextCollectorStart]
+				} else {
+					httpCollectorBlock = content[httpCollectorStart:]
+				}
+
+				assert.Contains(t, httpCollectorBlock, "exclude: 'false'",
+					"http-replicated-app collector should not be excluded in online mode")
+
+				// Verify custom domains are used
+				assert.Contains(t, content, "https://custom.replicated.app/healthz",
+					"custom replicated app domain should be used")
+				assert.Contains(t, content, "https://custom-proxy.replicated.com/v2/",
+					"custom proxy registry domain should be used")
+
+				// Verify proxy is empty/not set in the collector block
+				assert.Contains(t, httpCollectorBlock, "proxy: ''",
+					"proxy should be empty when no proxy is configured")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -204,7 +284,7 @@ func TestMaterializeSupportBundleSpec(t *testing.T) {
 			mockRC.On("ProxySpec").Return(tt.proxySpec)
 
 			// Call the function under test
-			err = MaterializeSupportBundleSpec(mockRC, tt.isAirgap)
+			err = MaterializeSupportBundleSpec(mockRC, tt.channelRelease, tt.isAirgap)
 			require.NoError(t, err)
 
 			// Verify the file was created

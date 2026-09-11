@@ -1,0 +1,601 @@
+apiVersion: troubleshoot.sh/v1beta2
+kind: HostPreflight
+metadata:
+  name: embedded-cluster-install
+spec:
+  collectors:
+    - diskUsage:
+        collectorName: root-disk-usage
+        path: /
+    - diskUsage:
+        collectorName: embedded-cluster-path-usage
+        path: {{ .DataDir }}
+    - tcpPortStatus:
+        collectorName: ETCD Internal Port
+        port: 2379
+        interface: lo
+    - tcpPortStatus:
+        collectorName: ETCD External Port
+        port: 2380
+    - tcpPortStatus:
+        collectorName: Local Artifact Mirror Port
+        port: {{ .LocalArtifactMirrorPort }}
+        interface: lo
+    - tcpPortStatus:
+        collectorName: Calico External TCP Port
+        port: 9091
+    - tcpPortStatus:
+        collectorName: Kube API Server Port
+        port: 6443
+    - tcpPortStatus:
+        collectorName: Envoy Internal Port
+        port: 7443
+        interface: lo
+    - tcpPortStatus:
+        collectorName: Kotsadm Node Port
+        port: {{ .AdminConsolePort }}
+        exclude: '{{ .IsV3 }}'
+    - tcpPortStatus:
+        collectorName: Kubelet Port
+        port: 10250
+    - tcpPortStatus:
+        collectorName: K0s API Port
+        port: 9443
+    - tcpPortStatus:
+        collectorName: Calico Node Internal Port
+        port: 9099
+        interface: lo
+    - tcpPortStatus:
+        collectorName: Kube Proxy Health Port
+        port: 10256
+    - tcpPortStatus:
+        collectorName: Kube Proxy Metrics Port
+        port: 10249
+    - tcpPortStatus:
+        collectorName: Kube Scheduler Secure Port
+        port: 10259
+        interface: lo
+    - tcpPortStatus:
+        collectorName: Kube Controller Secure Port
+        port: 10257
+        interface: lo
+    - tcpPortStatus:
+        collectorName: Kubelet Health Port
+        port: 10248
+        interface: lo
+    - udpPortStatus:
+        collectorName: Calico Communication Port
+        port: 4789
+    - subnetAvailable:
+        collectorName: Pod CIDR
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .PodCIDR.CIDR }}'
+        desiredCIDR: {{.PodCIDR.Size}}
+    - subnetAvailable:
+        collectorName: Service CIDR
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .ServiceCIDR.CIDR }}'
+        desiredCIDR: {{.ServiceCIDR.Size}}
+    - subnetAvailable:
+        collectorName: CIDR
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        CIDRRangeAlloc: '{{ .GlobalCIDR.CIDR }}'
+        desiredCIDR: {{.GlobalCIDR.Size}}
+    - networkNamespaceConnectivity:
+        collectorName: check-network-namespace-connectivity
+        fromCIDR: '{{ .FromCIDR }}'
+        toCIDR: '{{ .ToCIDR }}'
+  analyzers:
+    - diskUsage:
+        checkName: Embedded Cluster Disk Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'total < 40Gi'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than 40 Gi of total space. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - fail:
+              when: 'used/total > 80%'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} is more than 80% full. Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient space
+{{- if ne .ControllerAirgapStorageSpace "" }}
+    - diskUsage:
+        checkName: Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'available < {{ .ControllerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .ControllerAirgapStorageSpace }} of available storage space needed to process the air gap bundle.
+                Controller nodes require 2x the extracted bundle size for processing.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for airgap bundle processing
+{{- end }}
+{{- if ne .WorkerAirgapStorageSpace "" }}
+    - diskUsage:
+        checkName: Worker Airgap Storage Space
+        collectorName: embedded-cluster-path-usage
+        outcomes:
+          - fail:
+              when: 'available < {{ .WorkerAirgapStorageSpace }}'
+              message: >-
+                {{ if .IsUI -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or go back to the Setup page and choose a different data directory.
+                {{- else -}}
+                The filesystem at {{ .DataDir }} has less than {{ .WorkerAirgapStorageSpace }} of available storage space needed to store infrastructure images.
+                Ensure sufficient space is available, or use --data-dir to specify an alternative data directory.
+                {{- end }}
+          - pass:
+              message: The filesystem at {{ .DataDir }} has sufficient available space for worker airgap storage
+{{- end }}
+    - tcpPortStatus:
+        checkName: ETCD Internal Port Availability
+        collectorName: ETCD Internal Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 2379/TCP is required, but the connection to it was refused. Ensure port 2379/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 2379/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: Port 2379/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2379/TCP.
+          - fail:
+              when: "error"
+              message: Port 2379/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2379/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 2379/TCP is available.
+          - error:
+              message: Port 2379/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2379/TCP is available.
+    - tcpPortStatus:
+        checkName: ETCD External Port Availability
+        collectorName: ETCD External Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 2380/TCP is required, but the connection to it was refused. Ensure port 2380/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 2380/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 2380/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 2380/TCP."
+          - fail:
+              when: "error"
+              message: Port 2380/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2380/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 2380/TCP is available.
+          - error:
+              message: Port 2380/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 2380/TCP is available.
+    - tcpPortStatus:
+        checkName: Local Artifact Mirror Port Availability
+        collectorName: Local Artifact Mirror Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection to it was refused. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: >-
+                {{ if .IsUI -}}
+                Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
+                {{- else -}}
+                Port {{ .LocalArtifactMirrorPort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --local-artifact-mirror-port to select a different port.
+                {{- end }}
+          - fail:
+              when: "connection-timeout"
+              message: "Port {{ .LocalArtifactMirrorPort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .LocalArtifactMirrorPort }}/TCP."
+          - fail:
+              when: "error"
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is available.
+          - error:
+              message: Port {{ .LocalArtifactMirrorPort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .LocalArtifactMirrorPort }}/TCP is available.
+    - tcpPortStatus:
+        checkName: Calico External TCP Port Availability
+        collectorName: Calico External TCP Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 9091/TCP is required, but the connection to it was refused. Ensure port 9091/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 9091/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 9091/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9091/TCP."
+          - fail:
+              when: "error"
+              message: Port 9091/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9091/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 9091/TCP is available.
+          - error:
+              message: Port 9091/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9091/TCP is available.
+    - tcpPortStatus:
+        checkName: Kube API Server Port Availability
+        collectorName: Kube API Server Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 6443/TCP is required, but the connection to it was refused. Ensure port 6443/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 6443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 6443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 6443/TCP."
+          - fail:
+              when: "error"
+              message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 6443/TCP is available.
+          - error:
+              message: Port 6443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 6443/TCP is available.
+    - tcpPortStatus:
+        checkName: Envoy Internal Port Availability
+        collectorName: Envoy Internal Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 7443/TCP is required, but the connection to it was refused. Ensure port 7443/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 7443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 7443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 7443/TCP."
+          - fail:
+              when: "error"
+              message: Port 7443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 7443/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 7443/TCP is available.
+          - error:
+              message: Port 7443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 7443/TCP is available.
+    - tcpPortStatus:
+        checkName: Kotsadm Node Port Availability
+        collectorName: Kotsadm Node Port
+        exclude: '{{ .IsV3 }}'
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port {{ .AdminConsolePort }}/TCP is required, but the connection to it was refused. Ensure port {{ .AdminConsolePort }}/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: >-
+                {{ if .IsUI -}}
+                Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or go back to the Setup page and choose a different port.
+                {{- else -}}
+                Port {{ .AdminConsolePort }}/TCP is required, but another process is already using it. Relocate the conflicting process or use --admin-console-port to select a different port.
+                {{- end }}
+          - fail:
+              when: "connection-timeout"
+              message: "Port {{ .AdminConsolePort }}/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port {{ .AdminConsolePort }}/TCP."
+          - fail:
+              when: "error"
+              message: Port {{ .AdminConsolePort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .AdminConsolePort }}/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port {{ .AdminConsolePort }}/TCP is available.
+          - error:
+              message: Port {{ .AdminConsolePort }}/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port {{ .AdminConsolePort }}/TCP is available.
+    - tcpPortStatus:
+        checkName: Kubelet Port Availability
+        collectorName: Kubelet Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10250/TCP is required, but the connection to it was refused. Ensure port 10250/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10250/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10250/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10250/TCP."
+          - fail:
+              when: "error"
+              message: Port 10250/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10250/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10250/TCP is available.
+          - error:
+              message: Port 10250/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10250/TCP is available.
+    - tcpPortStatus:
+        checkName: K0s API Port Availability
+        collectorName: K0s API Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 9443/TCP is required, but the connection to it was refused. Ensure port 9443/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 9443/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 9443/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9443/TCP."
+          - fail:
+              when: "error"
+              message: Port 9443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9443/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 9443/TCP is available.
+          - error:
+              message: Port 9443/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9443/TCP is available.
+    - tcpPortStatus:
+        checkName: Calico Node Internal Port Availability
+        collectorName: Calico Node Internal Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 9099/TCP is required, but the connection to it was refused. Ensure port 9099/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 9099/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 9099/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 9099/TCP."
+          - fail:
+              when: "error"
+              message: Port 9099/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9099/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 9099/TCP is available.
+          - error:
+              message: Port 9099/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 9099/TCP is available.
+    - tcpPortStatus:
+        checkName: Kube Proxy Health Port Availability
+        collectorName: Kube Proxy Health Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10256/TCP is required, but the connection to it was refused. Ensure port 10256/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10256/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10256/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10256/TCP."
+          - fail:
+              when: "error"
+              message: Port 10256/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10256/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10256/TCP is available.
+          - error:
+              message: Port 10256/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10256/TCP is available.
+    - tcpPortStatus:
+        checkName: Kube Proxy Metrics Port Availability
+        collectorName: Kube Proxy Metrics Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10249/TCP is required, but the connection to it was refused. Ensure port 10249/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10249/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10249/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10249/TCP."
+          - fail:
+              when: "error"
+              message: Port 10249/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10249/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10249/TCP is available.
+          - error:
+              message: Port 10249/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10249/TCP is available.
+    - tcpPortStatus:
+        checkName: Kube Scheduler Secure Port Availability
+        collectorName: Kube Scheduler Secure Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10259/TCP is required, but the connection to it was refused. Ensure port 10259/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10259/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10259/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10259/TCP."
+          - fail:
+              when: "error"
+              message: Port 10259/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10259/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10259/TCP is available.
+          - error:
+              message: Port 10259/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10259/TCP is available.
+    - tcpPortStatus:
+        checkName: Kube Controller Secure Port Availability
+        collectorName: Kube Controller Secure Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10257/TCP is required, but the connection to it was refused. Ensure port 10257/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10257/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10257/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10257/TCP."
+          - fail:
+              when: "error"
+              message: Port 10257/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10257/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10257/TCP is available.
+          - error:
+              message: Port 10257/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10257/TCP is available.
+    - tcpPortStatus:
+        checkName: Kubelet Health Port Availability
+        collectorName: Kubelet Health Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 10248/TCP is required, but the connection to it was refused. Ensure port 10248/TCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 10248/TCP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: "Port 10248/TCP is required, but the connection timed out. Ensure that your firewall doesn't block port 10248/TCP."
+          - fail:
+              when: "error"
+              message: Port 10248/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10248/TCP is available.
+          - pass:
+              when: "connected"
+              message: Port 10248/TCP is available.
+          - error:
+              message: Port 10248/TCP is required, but an unexpected error occurred when trying to connect to it. Ensure port 10248/TCP is available.
+    - udpPortStatus:
+        checkName: Calico Communication Port Availability
+        collectorName: Calico Communication Port
+        outcomes:
+          - fail:
+              when: "connection-refused"
+              message: Port 4789/UDP is required, but the connection to it was refused. Ensure port 4789/UDPTCP is available.
+          - fail:
+              when: "address-in-use"
+              message: Port 4789/UDP is required, but another process is already using it. Relocate the conflicting process to continue.
+          - fail:
+              when: "connection-timeout"
+              message: Port 4789/UDP is required, but the connection timed out. Ensure that your firewall doesn't block port 4789/UDP.
+          - fail:
+              when: "error"
+              message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
+          - pass:
+              when: "connected"
+              message: Port 4789/UDP is available.
+          - error:
+              message: Port 4789/UDP is required, but an unexpected error occurred when trying to connect to it. Ensure port 4789/UDP is available.
+    - subnetAvailable:
+        checkName: Pod CIDR Availability
+        collectorName: Pod CIDR
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message: >-
+                The network range {{ .PodCIDR.CIDR }} is not available. Use --pod-cidr to specify an available CIDR block.
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified Pod CIDR is available.
+    - subnetAvailable:
+        checkName: Service CIDR Availability
+        collectorName: Service CIDR
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message: >-
+                The network range {{ .ServiceCIDR.CIDR }} is not available. Use --service-cidr to specify an available CIDR block.
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified Service CIDR is available.
+    - subnetAvailable:
+        checkName: CIDR Availability
+        collectorName: CIDR
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "no-subnet-available"
+              message: >-
+                {{ if .IsUI -}}
+                The network range {{ .GlobalCIDR.CIDR }} is not available. Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger).
+                {{- else -}}
+                The network range {{ .GlobalCIDR.CIDR }} is not available. Use --cidr to specify a CIDR block of available private IP addresses (/16 or larger).
+                {{- end }}
+          - pass:
+              when: "a-subnet-is-available"
+              message: Specified CIDR is available.
+    - subnetContainsIP:
+        checkName: Node IP in Pod CIDR Check
+        cidr: '{{ .PodCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .PodCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: >-
+                {{ if .IsJoin -}}
+                The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the Pod CIDR range {{ .PodCIDR.CIDR }}. Use --pod-cidr to specify a different Pod CIDR, or use --network-interface to specify a different network interface.
+                {{- end }}
+          - pass:
+              when: "false"
+              message: The node IP {{ .NodeIP }} is not within the Pod CIDR range {{ .PodCIDR.CIDR }}.
+    - subnetContainsIP:
+        checkName: Node IP in Service CIDR Check
+        cidr: '{{ .ServiceCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .ServiceCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: >-
+                {{ if .IsJoin -}}
+                The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --network-interface to specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the Service CIDR range {{ .ServiceCIDR.CIDR }}. Use --service-cidr to specify a different Service CIDR, or use --network-interface to specify a different network interface.
+                {{- end }}
+          - pass:
+              when: "false"
+              message: The node IP {{ .NodeIP }} is not within the Service CIDR range {{ .ServiceCIDR.CIDR }}.
+    - subnetContainsIP:
+        checkName: Node IP in Global CIDR Check
+        cidr: '{{ .GlobalCIDR.CIDR }}'
+        ip: '{{ .NodeIP }}'
+        exclude: '{{ eq .GlobalCIDR.CIDR "" }}'
+        outcomes:
+          - fail:
+              when: "true"
+              message: >-
+                {{ if .IsJoin -}}
+                {{ if .IsUI -}}
+                The node IP {{ .NodeIP }} cannot be within the reserved network range ({{ .GlobalCIDR.CIDR }}). Go back to the Setup page and choose a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the CIDR block ({{ .GlobalCIDR.CIDR }}). Use --network-interface to specify a different network interface.
+                {{- end }}
+                {{- else -}}
+                {{ if .IsUI -}}
+                The node IP {{ .NodeIP }} cannot be within the reserved network range ({{ .GlobalCIDR.CIDR }}). Go back to the Setup page and choose a different reserved network range of available private IP addresses (/16 or larger) or specify a different network interface.
+                {{- else -}}
+                The node IP {{ .NodeIP }} cannot be within the CIDR block ({{ .GlobalCIDR.CIDR }}). Use --cidr to specify a different CIDR block of available private IP addresses (/16 or larger), or use --network-interface to specify a different network interface.
+                {{- end }}
+                {{- end }}
+          - pass:
+              when: "false"
+              message: The node IP {{ .NodeIP }} is not within the Global CIDR range {{ .GlobalCIDR.CIDR }}.
+    - networkNamespaceConnectivity:
+        collectorName: check-network-namespace-connectivity
+        outcomes:
+        - pass:
+            message: Communication between {{ "{{ .FromCIDR }}" }} and {{ "{{ .ToCIDR }}" }} is working
+        - fail:
+            message: Network communication between the pods network CIDR {{ "{{ .FromCIDR }}" }} and the services network CIDR {{ "{{ .ToCIDR }}" }} is currently disrupted on this node. This issue may prevent pods from properly interacting with services. To resolve this, please review and adjust the firewall configuration on this node to ensure it allows traffic between these network CIDRs.

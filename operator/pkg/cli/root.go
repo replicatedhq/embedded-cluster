@@ -72,7 +72,7 @@ func RootCmd() *cobra.Command {
 				MetadataClient: metadataClient,
 				Scheme:         mgr.GetScheme(),
 				Discovery:      discovery.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()),
-				Recorder:       mgr.GetEventRecorderFor("installation-controller"),
+				Recorder:       mgr.GetEventRecorderFor("installation-controller"), //nolint:staticcheck // SA1019 will migrate to GetEventRecorder in a follow-up
 				RuntimeConfig:  runtimeconfig.New(nil),
 			}).SetupWithManager(mgr); err != nil {
 				setupLog.Error(err, "unable to create controller", "controller", "Installation")
@@ -127,6 +127,7 @@ func addSubcommands(cmd *cobra.Command) {
 	cmd.AddCommand(
 		UpgradeCmd(),
 		UpgradeJobCmd(),
+		DistributeArtifactsCmd(),
 		MigrateCmd(),
 		MigrateV2Cmd(),
 		VersionCmd(),

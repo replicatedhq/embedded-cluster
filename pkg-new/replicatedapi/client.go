@@ -50,12 +50,6 @@ func WithClusterID(clusterID string) ClientOption {
 	}
 }
 
-func WithHTTPClient(httpClient *retryablehttp.Client) ClientOption {
-	return func(c *client) {
-		c.httpClient = httpClient
-	}
-}
-
 // NewClient creates a new replicatedapi client using the configured factory
 func NewClient(replicatedAppURL string, license *kotsv1beta1.License, releaseData *release.ReleaseData, opts ...ClientOption) (Client, error) {
 	return clientFactory(replicatedAppURL, license, releaseData, opts...)
@@ -145,7 +139,7 @@ func (c *client) newRetryableRequest(ctx context.Context, method string, url str
 // injectHeaders injects the basic auth header, user agent header, and reporting info headers into the http.Header.
 func (c *client) injectHeaders(header http.Header) {
 	header.Set("Authorization", "Basic "+basicAuth(c.license.Spec.LicenseID, c.license.Spec.LicenseID))
-	header.Set("User-Agent", fmt.Sprintf("Embedded-Cluster/%s", versions.Version))
+	header.Set("User-Agent", versions.UserAgent())
 
 	c.injectReportingInfoHeaders(header)
 }

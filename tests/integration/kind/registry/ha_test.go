@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/distribution/reference"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
@@ -54,17 +55,18 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 	})
 
 	// data and k0s directories are required for the admin console addon
-	ecDataDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster",
+	// Each node needs its own separate data directory to avoid conflicts with local persistent volumes
+	for i := range kindConfig.Nodes {
+		ecDataDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster",
+		}
+		k0sDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster/k0s",
+		}
+		kindConfig.Nodes[i].ExtraMounts = append(kindConfig.Nodes[i].ExtraMounts, ecDataDirMount, k0sDirMount)
 	}
-	k0sDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster/k0s",
-	}
-	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
@@ -152,15 +154,15 @@ func TestRegistry_EnableHAAirgap(t *testing.T) {
 		addons.WithDomains(domains),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -215,17 +217,18 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	})
 
 	// data and k0s directories are required for the admin console addon
-	ecDataDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster",
+	// Each node needs its own separate data directory to avoid conflicts with local persistent volumes
+	for i := range kindConfig.Nodes {
+		ecDataDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "data-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster",
+		}
+		k0sDirMount := kind.Mount{
+			HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
+			ContainerPath: "/var/lib/embedded-cluster/k0s",
+		}
+		kindConfig.Nodes[i].ExtraMounts = append(kindConfig.Nodes[i].ExtraMounts, ecDataDirMount, k0sDirMount)
 	}
-	k0sDirMount := kind.Mount{
-		HostPath:      util.TempDirForHostMount(t, "k0s-dir-*"),
-		ContainerPath: "/var/lib/embedded-cluster/k0s",
-	}
-	kindConfig.Nodes[0].ExtraMounts = append(kindConfig.Nodes[0].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[1].ExtraMounts = append(kindConfig.Nodes[1].ExtraMounts, ecDataDirMount, k0sDirMount)
-	kindConfig.Nodes[2].ExtraMounts = append(kindConfig.Nodes[2].ExtraMounts, ecDataDirMount, k0sDirMount)
 
 	kubeconfig := util.SetupKindClusterFromConfig(t, kindConfig)
 
@@ -321,15 +324,15 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 		addons.WithDomains(domains),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`StatefulSet is ready: seaweedfs`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Migrating data for high availability \(`),
 	)
 
-	enableHAAndCancelContextOnMessage(t, addOns, inSpec,
+	enableHAAndCancelContextOnMessage(t, kubeconfig, addOns, inSpec,
 		regexp.MustCompile(`Updating the Admin Console for high availability`),
 	)
 
@@ -388,7 +391,13 @@ func TestRegistry_DisableHashiRaft(t *testing.T) {
 	runPodAndValidateImagePull(t, kubeconfig, kotsadmNamespace, "pod-3", "pod3.yaml")
 }
 
-func enableHAAndCancelContextOnMessage(t *testing.T, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
+func enableHAAndCancelContextOnMessage(t *testing.T, kubeconfig string, addOns *addons.AddOns, inSpec ecv1beta1.InstallationSpec, re *regexp.Regexp) {
+	t.Cleanup(func() {
+		if t.Failed() {
+			printSeaweedFSDebugInfo(t, kubeconfig)
+		}
+	})
+
 	canEnable, reason, err := addOns.CanEnableHA(t.Context())
 	require.NoError(t, err)
 	require.True(t, canEnable, "should be able to enable HA: %s", reason)
@@ -485,7 +494,7 @@ func buildOperatorImage(t *testing.T) string {
 		t.Logf("%s building operator image", formattedTime())
 
 		cmd := exec.CommandContext(
-			t.Context(), "make", "-C", operatorDir, "build-ttl.sh", "USE_CHAINGUARD=0",
+			t.Context(), "make", "-C", operatorDir, "build-ttl.sh",
 		)
 
 		var errBuf bytes.Buffer
@@ -502,20 +511,42 @@ func buildOperatorImage(t *testing.T) string {
 		t.Fatalf("failed to read operator image file: %v", err)
 	}
 
-	parts := strings.Split(strings.TrimSpace(string(image)), ":")
-	if len(parts) != 2 {
-		t.Fatalf("invalid operator image: %s", string(image))
+	repo, tag, err := splitOperatorImageReference(strings.TrimSpace(string(image)))
+	if err != nil {
+		t.Fatalf("invalid operator image %q: %v", strings.TrimSpace(string(image)), err)
 	}
 
 	embeddedclusteroperator.Metadata.Images["embedded-cluster-operator"] = release.AddonImage{
-		Repo: parts[0],
+		Repo: repo,
 		Tag: map[string]string{
-			"amd64": parts[1],
-			"arm64": parts[1],
+			"amd64": tag,
+			"arm64": tag,
 		},
 	}
 
 	return string(image)
+}
+
+func splitOperatorImageReference(image string) (string, string, error) {
+	ref, err := reference.Parse(image)
+	if err != nil {
+		return "", "", err
+	}
+
+	named, ok := ref.(reference.Named)
+	if !ok {
+		return "", "", fmt.Errorf("reference has no repository")
+	}
+	tagged, ok := ref.(reference.Tagged)
+	if !ok {
+		return "", "", fmt.Errorf("reference has no tag")
+	}
+
+	tag := tagged.Tag()
+	if digested, ok := ref.(reference.Digested); ok {
+		tag = fmt.Sprintf("%s@%s", tag, digested.Digest())
+	}
+	return named.Name(), tag, nil
 }
 
 func newTestingSpinner(t *testing.T) *spinner.MessageWriter {
@@ -541,6 +572,81 @@ func (h *logrusHook) Levels() []logrus.Level {
 func (h *logrusHook) Fire(entry *logrus.Entry) error {
 	h.writer.Write([]byte(entry.Message + "\n"))
 	return nil
+}
+
+func printSeaweedFSDebugInfo(t *testing.T, kubeconfig string) {
+	t.Logf("%s ===== SEAWEEDFS DEBUG INFO =====", formattedTime())
+
+	// Get StatefulSet status
+	t.Logf("%s --- SeaweedFS Master StatefulSet Status ---", formattedTime())
+	cmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "statefulset", "seaweedfs-master", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get statefulset: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Describe StatefulSet
+	t.Logf("%s --- SeaweedFS Master StatefulSet Describe ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "describe", "statefulset", "seaweedfs-master", "-n", "seaweedfs")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to describe statefulset: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Get Pods status
+	t.Logf("%s --- SeaweedFS Pods ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pods", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get pods: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Describe each pod
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pods", "-n", "seaweedfs", "-o", "jsonpath={.items[*].metadata.name}")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		podNames := strings.Fields(string(out))
+		for _, podName := range podNames {
+			t.Logf("%s --- Pod %s Describe ---", formattedTime(), podName)
+			descCmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "describe", "pod", podName, "-n", "seaweedfs")
+			if descOut, descErr := descCmd.CombinedOutput(); descErr == nil {
+				t.Logf("%s\n%s", formattedTime(), string(descOut))
+			} else {
+				t.Logf("%s Failed to describe pod %s: %v", formattedTime(), podName, descErr)
+			}
+
+			// Get pod logs
+			t.Logf("%s --- Pod %s Logs ---", formattedTime(), podName)
+			logCmd := exec.Command("kubectl", "--kubeconfig", kubeconfig, "logs", podName, "-n", "seaweedfs", "--tail=100")
+			if logOut, logErr := logCmd.CombinedOutput(); logErr == nil {
+				t.Logf("%s\n%s", formattedTime(), string(logOut))
+			} else {
+				t.Logf("%s Failed to get logs for pod %s: %v\n%s", formattedTime(), podName, logErr, string(logOut))
+			}
+		}
+	}
+
+	// Get events
+	t.Logf("%s --- SeaweedFS Namespace Events ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "events", "-n", "seaweedfs", "--sort-by=.lastTimestamp")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get events: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	// Get PVCs
+	t.Logf("%s --- SeaweedFS PVCs ---", formattedTime())
+	cmd = exec.Command("kubectl", "--kubeconfig", kubeconfig, "get", "pvc", "-n", "seaweedfs", "-o", "wide")
+	if out, err := cmd.CombinedOutput(); err == nil {
+		t.Logf("%s\n%s", formattedTime(), string(out))
+	} else {
+		t.Logf("%s Failed to get PVCs: %v\n%s", formattedTime(), err, string(out))
+	}
+
+	t.Logf("%s ===== END SEAWEEDFS DEBUG INFO =====", formattedTime())
 }
 
 func formattedTime() string {

@@ -8,12 +8,6 @@ type CloudUtils struct {
 
 type CloudUtilsOption func(*CloudUtils)
 
-func WithLogger(logger logrus.FieldLogger) CloudUtilsOption {
-	return func(c *CloudUtils) {
-		c.logger = logger
-	}
-}
-
 func New(opts ...CloudUtilsOption) *CloudUtils {
 	c := &CloudUtils{}
 	for _, opt := range opts {

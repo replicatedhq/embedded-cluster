@@ -79,8 +79,7 @@ func (a *AddOns) EnableHA(ctx context.Context, opts EnableHAOptions, spinner *sp
 			if err != nil {
 				return errors.Wrap(err, "ensure seaweedfs")
 			}
-			logrus.Debugf("Seaweedfs installed!")
-
+			logrus.Debugf("StatefulSet is ready: seaweedfs")
 			logrus.Debugf("Scaling registry to 0 replicas")
 			// if the migration fails, we need to scale the registry back to 1
 			defer a.maybeScaleRegistryBackOnFailure()

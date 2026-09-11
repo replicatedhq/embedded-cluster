@@ -55,7 +55,7 @@ const (
 // @Description Request body for starting a migration from kURL to Embedded Cluster
 type StartKURLMigrationRequest struct {
 	// TransferMode specifies whether to copy or move data during kURL migration
-	TransferMode TransferMode `json:"transferMode" enums:"copy,move" example:"copy"`
+	TransferMode TransferMode `json:"transferMode" example:"copy"`
 	// Config contains optional installation configuration that will be merged with defaults
 	Config *LinuxInstallationConfig `json:"config,omitempty" validate:"optional"`
 }
@@ -73,9 +73,9 @@ type StartKURLMigrationResponse struct {
 // @Description Current status and progress of a kURL migration
 type KURLMigrationStatusResponse struct {
 	// State is the current state of the kURL migration
-	State KURLMigrationState `json:"state" enums:"NotStarted,InProgress,Completed,Failed" example:"InProgress"`
+	State KURLMigrationState `json:"state" example:"InProgress"`
 	// Phase is the current phase of the kURL migration process
-	Phase KURLMigrationPhase `json:"phase" enums:"Discovery,Preparation,ECInstall,DataTransfer,Completed" example:"Discovery"`
+	Phase KURLMigrationPhase `json:"phase" example:"Discovery"`
 	// Message is a user-facing message describing the current status
 	Message string `json:"message" example:"Discovering kURL cluster configuration"`
 	// Progress is the completion percentage (0-100)

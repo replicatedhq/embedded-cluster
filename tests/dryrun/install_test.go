@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -103,6 +104,14 @@ func testDefaultInstallationImpl(t *testing.T) {
 		"embeddedClusterID":      in.Spec.ClusterID,
 		"embeddedClusterDataDir": "/var/lib/embedded-cluster",
 		"embeddedClusterK0sDir":  "/var/lib/embedded-cluster/k0s",
+		// kotsadm resources overrides
+		"kotsadm.resources.limits.memory":   "4Gi",
+		"kotsadm.resources.requests.cpu":    "200m",
+		"kotsadm.resources.requests.memory": "300Mi",
+		// rqlite resources overrides
+		"rqlite.resources.limits.memory":   "3Gi",
+		"rqlite.resources.requests.cpu":    "150m",
+		"rqlite.resources.requests.memory": "512Mi",
 	})
 	assertHelmValuePrefixes(t, adminConsoleOpts.Values, map[string]string{
 		"images.kotsadm":    "fake-replicated-proxy.test.net/anonymous",
@@ -222,7 +231,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	assert.Equal(t, "test-value", k0sConfig.Spec.API.ExtraArgs["test-key"], "api extraArgs should contain test-key from unsupported-overrides")
 
 	// worker profiles
-	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "workerProfiles should have one profile from unsupported-overrides")
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "workerProfiles should retain the unsupported override")
 	assert.Equal(t, "ip-forward", k0sConfig.Spec.WorkerProfiles[0].Name, "workerProfile name should be set from unsupported-overrides")
 	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config, "workerProfile config should exist")
 
@@ -231,6 +240,7 @@ func testDefaultInstallationImpl(t *testing.T) {
 	require.NoError(t, err, "should be able to unmarshal workerProfile config")
 	sysctls := profileConfig["allowedUnsafeSysctls"].([]interface{})
 	assert.Equal(t, "net.ipv4.ip_forward", sysctls[0], "allowedUnsafeSysctls should contain net.ipv4.ip_forward from unsupported-overrides")
+	assert.Equal(t, "/var/lib/embedded-cluster/k0s/pod-logs", profileConfig["podLogsDir"])
 }
 
 func TestCustomDataDir(t *testing.T) {
@@ -320,6 +330,119 @@ func TestCustomDataDir(t *testing.T) {
 	assert.Equal(t, "/custom/data/dir", in.Spec.RuntimeConfig.DataDir)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestPodLogsDir validates that a fresh install points kubelet at a pod log directory under the
+// data dir, so pod logs land on the filesystem kubelet measures disk pressure on.
+func TestPodLogsDir(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigNoWorkerProfilesData,
+		"--data-dir", "/custom/data/dir",
+	)
+
+	// --- validate k0s cluster config --- //
+	k0sConfig := readK0sConfig(t)
+
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1, "the default worker profile should be set")
+	assert.Equal(t, "default", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"podLogsDir":"/custom/data/dir/k0s/pod-logs"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"pod logs dir should follow --data-dir",
+	)
+
+	// --- validate commands --- //
+	assertCommands(t, dr.Commands,
+		[]interface{}{
+			regexp.MustCompile(`k0s install controller .* --profile=default`),
+		},
+		false,
+	)
+}
+
+func TestPodLogsDirWithWorkerProfileOverride(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigWithWorkerProfiles(`
+            - name: vendor-max-pods
+              values:
+                maxPods: 250`),
+		"--data-dir", "/custom/data/dir",
+	)
+
+	k0sConfig := readK0sConfig(t)
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1)
+	assert.Equal(t, "vendor-max-pods", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"maxPods":250,"podLogsDir":"/custom/data/dir/k0s/pod-logs"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"pod logs dir should be added without replacing the vendor's worker profile settings",
+	)
+	assertCommands(t, dr.Commands,
+		[]interface{}{regexp.MustCompile(`k0s install controller .* --profile=vendor-max-pods`)},
+		false,
+	)
+}
+
+func TestPodLogsDirExplicitWorkerProfileOverride(t *testing.T) {
+	hcli := &helm.MockClient{}
+
+	mock.InOrder(
+		// 4 addons + Goldpinger extension
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dr := dryrunInstallWithClusterConfig(t,
+		&dryrun.Client{HelmClient: hcli},
+		clusterConfigWithWorkerProfiles(`
+            - name: vendor-pod-logs
+              values:
+                maxPods: 250
+                podLogsDir: /var/log/pods`),
+		"--data-dir", "/custom/data/dir",
+	)
+
+	k0sConfig := readK0sConfig(t)
+	require.Len(t, k0sConfig.Spec.WorkerProfiles, 1)
+	assert.Equal(t, "vendor-pod-logs", k0sConfig.Spec.WorkerProfiles[0].Name)
+	require.NotNil(t, k0sConfig.Spec.WorkerProfiles[0].Config)
+	assert.JSONEq(t,
+		`{"maxPods":250,"podLogsDir":"/var/log/pods"}`,
+		string(k0sConfig.Spec.WorkerProfiles[0].Config.Raw),
+		"an explicit pod logs dir should take precedence over the computed data-dir path",
+	)
+	assertCommands(t, dr.Commands,
+		[]interface{}{regexp.MustCompile(`k0s install controller .* --profile=vendor-pod-logs`)},
+		false,
+	)
+}
+
+func clusterConfigWithWorkerProfiles(workerProfiles string) string {
+	return strings.Replace(clusterConfigNoWorkerProfilesData,
+		"          api:\n",
+		"          workerProfiles:\n"+workerProfiles+"\n          api:\n",
+		1,
+	)
 }
 
 func TestCustomPortsInstallation(t *testing.T) {
@@ -425,6 +548,9 @@ func TestCustomPortsInstallation(t *testing.T) {
 var (
 	//go:embed assets/values.yaml
 	valuesYaml []byte
+
+	//go:embed assets/cluster-config-with-helm-repo.yaml
+	clusterConfigWithHelmRepoData string
 )
 
 func valuesFile(t *testing.T) string {
@@ -827,8 +953,46 @@ func TestVeleroPluginsInstallation(t *testing.T) {
 		"nodeAgent.podVolumePath": "/var/lib/embedded-cluster/k0s/kubelet/pods",
 	})
 
-	// Validate plugin configuration
-	validateVeleroPlugin(t, hcli)
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestHelmExtensionRepoAddOnline verifies that helm repo add is called for extension
+// repositories during online installs so the chart repository index is available.
+func TestHelmExtensionRepoAddOnline(t *testing.T) {
+	hcli := &helm.MockClient{}
+	mock.InOrder(
+		// 4 built-in addons + 1 extension chart = 5 Install calls
+		hcli.On("Install", mock.Anything, mock.Anything).Times(5).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+	// AddRepo is registered outside InOrder so it doesn't compete with Install slots
+	hcli.On("AddRepo", mock.Anything, mock.Anything).Once().Return(nil)
+
+	dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData)
+
+	hcli.AssertNumberOfCalls(t, "AddRepo", 1)
+	hcli.AssertExpectations(t)
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestHelmExtensionRepoAddAirgap verifies that helm repo add is never called during
+// airgap installs — charts are resolved from the local bundle and no outbound calls
+// should be made to external chart repository domains.
+func TestHelmExtensionRepoAddAirgap(t *testing.T) {
+	hcli := &helm.MockClient{}
+	mock.InOrder(
+		// 5 built-in addons (registry added in airgap) + 1 extension chart = 6 Install calls
+		hcli.On("Install", mock.Anything, mock.Anything).Times(6).Return(nil, nil),
+		hcli.On("Close").Once().Return(nil),
+	)
+
+	dryrunInstallWithClusterConfig(t, &dryrun.Client{HelmClient: hcli}, clusterConfigWithHelmRepoData,
+		"--airgap-bundle", airgapBundleFile(t),
+	)
+
+	hcli.AssertNotCalled(t, "AddRepo", mock.Anything, mock.Anything)
+	hcli.AssertExpectations(t)
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

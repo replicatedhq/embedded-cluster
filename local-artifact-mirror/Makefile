@@ -18,7 +18,7 @@ build:
 	mkdir -p bin
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
 		-tags osusergo,netgo \
-		-ldflags="-s -w -extldflags=-static" \
+		-ldflags="-s -w -X github.com/replicatedhq/embedded-cluster/pkg/versions.K0sVersion=$(K0S_VERSION) -extldflags=-static" \
 		-o bin/local-artifact-mirror-$(OS)-$(ARCH) ../cmd/local-artifact-mirror
 
 .PHONY: build-deps

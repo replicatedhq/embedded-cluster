@@ -14,11 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag-name: ${{ steps.get-tag.outputs.tag-name }}
+      is-stable: ${{ steps.get-tag.outputs.is-stable }}
       k0s_version: ${{ steps.export.outputs.k0s_version }}
       k0s_minor_version: ${{ steps.export.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -31,6 +32,11 @@ jobs:
           export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
           # store the tag name in an output for later steps
           echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
+          if [[ "$V_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\+k8s-1\.[0-9]+$ ]]; then
+            echo "is-stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-stable=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Export k0s version
         id: export
@@ -50,10 +56,10 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -63,10 +69,19 @@ jobs:
           make buildtools
 
       - name: Upload buildtools artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: buildtools
           path: output/bin/buildtools
+
+  # SecureBuild publishing is a non-blocking preview during the transition release.
+  publish-securebuild:
+    needs: [get-tag]
+    if: needs.get-tag.outputs.is-stable == 'true'
+    uses: ./.github/workflows/publish-securebuild.yml
+    with:
+      version: ${{ github.ref_name }}
+    secrets: inherit
 
   publish-operator-image:
     runs-on: ubuntu-latest
@@ -77,7 +92,7 @@ jobs:
       image: ${{ steps.operator-image.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install dagger
         run: |
@@ -104,7 +119,7 @@ jobs:
       chart: ${{ steps.operator-chart.outputs.chart }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build and push operator chart
         id: operator-chart
@@ -126,7 +141,7 @@ jobs:
       local-artifact-mirror: ${{ steps.local-artifact-mirror.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install dagger
         run: |
@@ -151,10 +166,10 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Cache embedded bins
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             output/bins
@@ -163,22 +178,22 @@ jobs:
             bins-cache-
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
 
-      - name: Setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: ./web/.nvmrc
+      - uses: oras-project/setup-oras@v2
 
-      - uses: oras-project/setup-oras@v1
+      - uses: imjasonh/setup-crane@v0.7
 
-      - uses: imjasonh/setup-crane@v0.4
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
 
       - name: Download buildtools artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: buildtools
           path: output/bin
@@ -192,12 +207,6 @@ jobs:
           OPERATOR_IMAGE: ${{ needs.publish-operator-image.outputs.image }}
         run: |
           ./scripts/ci-update-operator-metadata.sh
-
-      - name: Build web
-        working-directory: ./web
-        run: |
-          npm ci
-          npm run build
 
       - name: Build linux-amd64
         run: |
@@ -259,7 +268,7 @@ jobs:
       k0s_version: ${{ steps.export.outputs.k0s_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Export k0s version
         id: export
         env:
@@ -296,7 +305,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -319,7 +328,7 @@ jobs:
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${{ github.ref_name }}-pre-minio-removal"
           replicated release promote 807 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
-          
+
           # re-promote a release containing an old version of embedded-cluster to test upgrades
           export APP_VERSION="appver-${{ github.ref_name }}-1.8.0-k8s-1.28"
           replicated release promote 11615 2cHXb1RCttzpR0xvnNWyaZCgDBP --version "${APP_VERSION}"
@@ -338,10 +347,10 @@ jobs:
           export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
-          # install the current k0s version	
+          # install the current k0s version
           export EC_VERSION="${{ github.ref_name }}"
           export APP_VERSION="appver-${{ github.ref_name }}"
-          export RELEASE_YAML_DIR=e2e/kots-release-install	
+          export RELEASE_YAML_DIR=e2e/kots-release-install
           ./scripts/ci-release-app.sh
 
           # then a noop upgrade
@@ -417,9 +426,9 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
@@ -427,7 +436,7 @@ jobs:
         run: |
           make output/bin/embedded-cluster-release-builder
       - name: Upload embedded-cluster-release-builder artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: embedded-cluster-release-builder
           path: |
@@ -444,7 +453,7 @@ jobs:
       K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
     steps:
       - name: Download embedded-cluster-release-builder
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: embedded-cluster-release-builder
           path: output/bin
@@ -459,14 +468,14 @@ jobs:
           mv embedded-cluster-smoke-test-staging-app embedded-cluster
           mkdir -p output/bin
           mv embedded-cluster output/bin
-          
+
           # download the embedded-cluster binary from the github release
           curl --retry 5 --retry-all-errors -fL -o embedded-cluster-github.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${{ github.ref_name }}/embedded-cluster-linux-amd64.tgz"
           tar -xzf embedded-cluster-github.tgz
           mv embedded-cluster output/bin/embedded-cluster-original
 
       - name: Upload release
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: current-release
           path: |
@@ -504,19 +513,19 @@ jobs:
           - TestInstallWithConfigValues
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: current-release
           path: output/bin
       - name: Setup go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: "**/*.sum"
       - name: Login to DockerHub to avoid rate limiting
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
@@ -565,10 +574,11 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestSingleNodeAirgapAppOnlyUpgrade
+          - TestSingleNodeAirgapUpgradeSelinux
         include:
           - test: TestVersion
             is-lxd: true
@@ -580,9 +590,9 @@ jobs:
             is-lxd: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Download current binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: current-release
           path: output/bin
@@ -627,16 +637,16 @@ jobs:
     needs: [release, release-app, get-tag]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          
+
       - name: Check if tag is from main branch
         id: check-main
         run: |
           # Get the commit that the tag points to
           TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
-          
+
           # Check if this commit is an ancestor of the main branch (or the same commit)
           if git merge-base --is-ancestor $TAG_COMMIT origin/main; then
             echo "Tag was created from main branch"
@@ -645,14 +655,21 @@ jobs:
             echo "Tag was NOT created from main branch"
             echo "is_from_main=false" >> $GITHUB_OUTPUT
           fi
-        
+
+      - name: Setup Depot CLI
+        if: steps.check-main.outputs.is_from_main == 'true'
+        uses: depot/setup-action@v1
+
       - name: Generate EC Release Notes PR
         if: steps.check-main.outputs.is_from_main == 'true'
         env:
-          GIT_TAG: ${{ needs.get-tag.outputs.tag-name }}
-          GH_PAT: ${{ secrets.GH_PAT }}
+          GIT_TAG: ${{ github.ref_name }}
+          DEPOT_TOKEN: ${{ secrets.DEPOT_CI_DISPATCH_TOKEN }}
         run: |
-          curl -H "Authorization: token $GH_PAT" \
-            -H 'Accept: application/json' \
-            -d "{\"event_type\": \"embedded-cluster-release-notes\", \"client_payload\": {\"version\": \"${GIT_TAG}\"}}" \
-            "https://api.github.com/repos/replicatedhq/replicated-docs/dispatches"
+          depot ci dispatch \
+            --repo replicatedhq/replicated-docs \
+            --workflow release-notes.yml \
+            --ref main \
+            --input event_type=embedded-cluster-release-notes \
+            --input version="${GIT_TAG}" \
+            --input dry_run=false

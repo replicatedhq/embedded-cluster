@@ -133,7 +133,9 @@ func GatherVersionMetadata(channelRelease *release.ChannelRelease) (*types.Relea
 		Repositories:     append(repconfig, additionalRepos...),
 	}
 
-	k0sCfg := config.RenderK0sConfig(domains.DefaultProxyRegistryDomain)
+	domains := domains.GetDomains(nil, channelRelease)
+
+	k0sCfg := config.RenderK0sConfig(domains.ProxyRegistryDomain)
 	meta.K0sImages = config.ListK0sImages(k0sCfg)
 	meta.K0sImages = append(meta.K0sImages, addons.GetAdditionalImages()...)
 	meta.K0sImages = helpers.UniqueStringSlice(meta.K0sImages)

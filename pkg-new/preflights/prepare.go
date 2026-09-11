@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Masterminds/semver/v3"
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
@@ -17,26 +19,42 @@ var ErrPreflightsHaveFail = metrics.NewErrorNoFail(fmt.Errorf("host preflight fa
 
 // PrepareOptions contains options for preparing preflights (shared across CLI and API)
 type PrepareHostPreflightOptions struct {
-	HostPreflightSpec            *v1beta2.HostPreflightSpec
-	ReplicatedAppURL             string
-	ProxyRegistryURL             string
-	AdminConsolePort             int
-	LocalArtifactMirrorPort      int
-	DataDir                      string
-	K0sDataDir                   string
-	OpenEBSDataDir               string
-	Proxy                        *ecv1beta1.ProxySpec
-	PodCIDR                      string
-	ServiceCIDR                  string
-	GlobalCIDR                   *string
-	NodeIP                       string
-	IsAirgap                     bool
-	TCPConnectionsRequired       []string
-	IsJoin                       bool
-	IsUI                         bool
-	IsV3                         bool
-	ControllerAirgapStorageSpace string
-	WorkerAirgapStorageSpace     string
+	HostPreflightSpec                 *v1beta2.HostPreflightSpec
+	ReplicatedAppURL                  string
+	ProxyRegistryURL                  string
+	AdminConsolePort                  int
+	LocalArtifactMirrorPort           int
+	DataDir                           string
+	K0sDataDir                        string
+	OpenEBSDataDir                    string
+	Proxy                             *ecv1beta1.ProxySpec
+	PodCIDR                           string
+	ServiceCIDR                       string
+	GlobalCIDR                        *string
+	NodeIP                            string
+	IsAirgap                          bool
+	TCPConnectionsRequired            []string
+	IsJoin                            bool
+	IsUI                              bool
+	IsV3                              bool
+	Mode                              apitypes.Mode
+	ControllerAirgapStorageSpace      string
+	WorkerAirgapStorageSpace          string
+	DisableFilesystemPerformanceCheck bool
+	K8sVersion                        string
+}
+
+// k8sVersionRequiresCgroupV2 checks if a given k0s version requires cgroup v2.
+// The version string is expected to be in k0s format (e.g. v1.35.0+k0s.0).
+func k8sVersionRequiresCgroupV2(version string) (bool, error) {
+	if version == "" {
+		return false, nil
+	}
+	sv, err := semver.NewVersion(version)
+	if err != nil {
+		return false, fmt.Errorf("parse k8s version %s: %w", version, err)
+	}
+	return sv.Major() == 1 && sv.Minor() >= 35, nil
 }
 
 // PrepareHostPreflights prepares the host preflights spec by merging provided spec with cluster preflights
@@ -46,25 +64,32 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		hpf = &v1beta2.HostPreflightSpec{}
 	}
 
+	requiresCgroupV2, err := k8sVersionRequiresCgroupV2(opts.K8sVersion)
+	if err != nil {
+		return nil, fmt.Errorf("check cgroup v2 requirement: %w", err)
+	}
+
 	data, err := types.HostPreflightTemplateData{
-		ReplicatedAppURL:             opts.ReplicatedAppURL,
-		ProxyRegistryURL:             opts.ProxyRegistryURL,
-		IsAirgap:                     opts.IsAirgap,
-		AdminConsolePort:             opts.AdminConsolePort,
-		LocalArtifactMirrorPort:      opts.LocalArtifactMirrorPort,
-		DataDir:                      opts.DataDir,
-		K0sDataDir:                   opts.K0sDataDir,
-		OpenEBSDataDir:               opts.OpenEBSDataDir,
-		SystemArchitecture:           helpers.ClusterArch(),
-		FromCIDR:                     opts.PodCIDR,
-		ToCIDR:                       opts.ServiceCIDR,
-		TCPConnectionsRequired:       opts.TCPConnectionsRequired,
-		NodeIP:                       opts.NodeIP,
-		IsJoin:                       opts.IsJoin,
-		IsUI:                         opts.IsUI,
-		IsV3:                         opts.IsV3,
-		ControllerAirgapStorageSpace: opts.ControllerAirgapStorageSpace,
-		WorkerAirgapStorageSpace:     opts.WorkerAirgapStorageSpace,
+		ReplicatedAppURL:                  opts.ReplicatedAppURL,
+		ProxyRegistryURL:                  opts.ProxyRegistryURL,
+		IsAirgap:                          opts.IsAirgap,
+		AdminConsolePort:                  opts.AdminConsolePort,
+		LocalArtifactMirrorPort:           opts.LocalArtifactMirrorPort,
+		DataDir:                           opts.DataDir,
+		K0sDataDir:                        opts.K0sDataDir,
+		OpenEBSDataDir:                    opts.OpenEBSDataDir,
+		SystemArchitecture:                helpers.ClusterArch(),
+		FromCIDR:                          opts.PodCIDR,
+		ToCIDR:                            opts.ServiceCIDR,
+		TCPConnectionsRequired:            opts.TCPConnectionsRequired,
+		NodeIP:                            opts.NodeIP,
+		IsJoin:                            opts.IsJoin,
+		IsUI:                              opts.IsUI,
+		IsV3:                              opts.IsV3,
+		ControllerAirgapStorageSpace:      opts.ControllerAirgapStorageSpace,
+		WorkerAirgapStorageSpace:          opts.WorkerAirgapStorageSpace,
+		DisableFilesystemPerformanceCheck: opts.DisableFilesystemPerformanceCheck,
+		RequiresCgroupV2:                  requiresCgroupV2,
 	}.WithCIDRData(opts.PodCIDR, opts.ServiceCIDR, opts.GlobalCIDR)
 
 	if err != nil {
@@ -78,7 +103,7 @@ func PrepareHostPreflights(ctx context.Context, opts PrepareHostPreflightOptions
 		data.NoProxy = opts.Proxy.NoProxy
 	}
 
-	chpfs, err := GetClusterHostPreflights(ctx, data)
+	chpfs, err := GetClusterHostPreflights(ctx, opts.Mode, data)
 	if err != nil {
 		return nil, fmt.Errorf("get cluster host preflights: %w", err)
 	}

@@ -4,12 +4,14 @@ import (
 	"context"
 	"testing"
 
+	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"helm.sh/helm/v3/pkg/repo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -32,6 +34,61 @@ func TestUpgrade(t *testing.T) {
 		validateIn       func(t *testing.T, in *ecv1beta1.Installation)
 		wantErr          bool
 	}{
+		{
+			name: "calls AddRepo for each repository in spec",
+			prev: nil,
+			in: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Extensions: ecv1beta1.Extensions{
+							Helm: &ecv1beta1.Helm{
+								Repositories: []k0sv1beta1.Repository{
+									{Name: "myrepo", URL: "https://charts.example.com"},
+								},
+								Charts: []ecv1beta1.Chart{
+									{
+										Name:      "test-chart",
+										ChartName: "myrepo/chart",
+										Version:   "1.0.0",
+										TargetNS:  "test-ns",
+										Order:     1,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			setupMockHelmCli: func(t *testing.T) *helm.MockClient {
+				helmCli := &helm.MockClient{}
+				mock.InOrder(
+					helmCli.
+						On("AddRepo", mock.Anything, &repo.Entry{Name: "myrepo", URL: "https://charts.example.com"}).
+						Once().
+						Return(nil),
+					helmCli.
+						On("ReleaseExists", mock.Anything, "test-ns", "test-chart").
+						Once().
+						Return(false, nil),
+					helmCli.
+						On("Install", mock.Anything, helm.InstallOptions{
+							ReleaseName:  "test-chart",
+							ChartPath:    "myrepo/chart",
+							ChartVersion: "1.0.0",
+							Values:       map[string]interface{}{},
+							Namespace:    "test-ns",
+						}).
+						Once().
+						Return(nil, nil),
+				)
+				return helmCli
+			},
+			validateIn: func(t *testing.T, in *ecv1beta1.Installation) {
+				assert.Len(t, in.Status.Conditions, 1)
+				assert.Equal(t, metav1.ConditionTrue, in.Status.Conditions[0].Status)
+			},
+			wantErr: false,
+		},
 		{
 			name: "install if release does not exist",
 			prev: nil,

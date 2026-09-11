@@ -7,7 +7,7 @@ import (
 )
 
 type Status struct {
-	State       State     `json:"state" enums:"Pending,Running,Succeeded,Failed" example:"Succeeded"`
+	State       State     `json:"state" example:"Succeeded"`
 	Description string    `json:"description"`
 	LastUpdated time.Time `json:"lastUpdated"`
 }

@@ -44,7 +44,10 @@ func (r *Registry) Install(
 		Values:       values,
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
-		LogFn:        helm.LogFn(logf),
+		// Field ownership changes when scaling registry replicas up and down
+		// when enabling HA which will lead to conflicts in SSA mode. Disable SSA
+		DisableSSA: true,
+		LogFn:      helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm install")
@@ -64,6 +67,12 @@ func (r *Registry) createPreRequisites(ctx context.Context, kcli client.Client, 
 
 	if err := r.createTLSSecret(ctx, kcli, registryIP); err != nil {
 		return errors.Wrap(err, "create registry tls secret")
+	}
+
+	if r.IsHA {
+		if err := r.ensureHTTPSecret(ctx, kcli); err != nil {
+			return errors.Wrap(err, "create http secret")
+		}
 	}
 
 	return nil

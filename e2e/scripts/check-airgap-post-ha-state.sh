@@ -7,7 +7,7 @@ DIR=/usr/local/bin
 main() {
     local version="appver-$1"
     local k8s_version="$2"
-    local from_restore="${2:-}"
+    local from_restore="${3:-}"
 
     sleep 10 # wait for kubectl to become available
 
@@ -68,31 +68,33 @@ main() {
 
     if [ "$from_restore" == "true" ]; then
         # ensure volumes were restored
+        pod_volume_restores="$(kubectl get podvolumerestore -n velero -o json)"
+
         echo "checking kotsadm volume restore"
-        if ! kubectl get podvolumerestore -n velero | grep kotsadm | grep -c backup | grep -q 1; then
+        if ! jq -e '[.items[] | select(.spec.pod.namespace == "kotsadm" and .spec.volume == "backup" and .status.phase == "Completed")] | length == 1' <<<"$pod_volume_restores" >/dev/null; then
             echo "kotsadm volumes were not properly restored"
-            kubectl get podvolumerestore -n velero | grep kotsadm || true
+            kubectl get podvolumerestore -n velero
             exit 1
         fi
         
-        echo "checking seaweedfs-filer data volume restores"
-        if ! kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep -c data-filer | grep -q 3; then
-            echo "seaweedfs-filer data volumes were not properly restored (expected 3)"
-            kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep data-filer || true
+        echo "checking seaweedfs-filer data volumes were not restored"
+        if ! jq -e '[.items[] | select((.spec.pod.name | startswith("seaweedfs-filer-")) and .spec.volume == "data-filer")] | length == 0' <<<"$pod_volume_restores" >/dev/null; then
+            echo "seaweedfs-filer data volumes were restored unexpectedly"
+            kubectl get podvolumerestore -n velero
             exit 1
         fi
         
         echo "checking seaweedfs-filer log volume restores"
-        if ! kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep -c seaweedfs-filer-log-volume | grep -q 3; then
+        if ! jq -e '[.items[] | select((.spec.pod.name | startswith("seaweedfs-filer-")) and .spec.volume == "seaweedfs-filer-log-volume" and .status.phase == "Completed")] | length == 3' <<<"$pod_volume_restores" >/dev/null; then
             echo "seaweedfs-filer log volumes were not properly restored (expected 3)"
-            kubectl get podvolumerestore -n velero | grep seaweedfs-filer | grep seaweedfs-filer-log-volume || true
+            kubectl get podvolumerestore -n velero
             exit 1
         fi
         
-        echo "checking seaweedfs-volume data restores"
-        if ! kubectl get podvolumerestore -n velero | grep seaweedfs-volume | grep -c data | grep -q 3; then
-            echo "seaweedfs-volume data volumes were not properly restored (expected 3)"
-            kubectl get podvolumerestore -n velero | grep seaweedfs-volume | grep data || true
+        echo "checking seaweedfs-volume data volumes were not restored"
+        if ! jq -e '[.items[] | select((.spec.pod.name | startswith("seaweedfs-volume-")) and .spec.volume == "data")] | length == 0' <<<"$pod_volume_restores" >/dev/null; then
+            echo "seaweedfs-volume data volumes were restored unexpectedly"
+            kubectl get podvolumerestore -n velero
             exit 1
         fi
     fi

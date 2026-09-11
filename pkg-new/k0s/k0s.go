@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -117,7 +118,7 @@ func (k *K0s) IsInstalled() (bool, error) {
 }
 
 // NewK0sConfig creates a new k0sv1beta1.ClusterConfig object from the input parameters.
-func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
+func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR string, serviceCIDR string, podLogsDir string, eucfg *ecv1beta1.Config, mutate func(*k0sv1beta1.ClusterConfig) error) (*k0sv1beta1.ClusterConfig, error) {
 	var embCfgSpec *ecv1beta1.ConfigSpec
 	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
@@ -136,6 +137,10 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 
+	if err := config.ApplyHostK0sConfigOverrides(context.TODO(), cfg); err != nil {
+		return nil, fmt.Errorf("apply host k0s config overrides: %w", err)
+	}
+
 	if mutate != nil {
 		if err := mutate(cfg); err != nil {
 			return nil, err
@@ -145,6 +150,15 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 	cfg, err = applyUnsupportedOverrides(cfg, eucfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply unsupported overrides: %w", err)
+	}
+
+	// Apply this after the merge patches: workerProfiles is an array, so a vendor- or
+	// end user-supplied profile replaces any profile we added beforehand. An explicit
+	// podLogsDir in a profile still takes precedence.
+	if podLogsDir != "" && config.SupportsPodLogsDir() {
+		if err := setPodLogsDir(cfg, podLogsDir); err != nil {
+			return nil, fmt.Errorf("unable to set pod logs dir: %w", err)
+		}
 	}
 
 	if isAirgap {
@@ -167,18 +181,58 @@ func (k *K0s) WriteK0sConfig(ctx context.Context, cfg *k0sv1beta1.ClusterConfig)
 		return fmt.Errorf("unable to create directory: %w", err)
 	}
 
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(cfg)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	cfg.TypeMeta = metav1.TypeMeta{
+		APIVersion: k0sv1beta1.ClusterConfigAPIVersion,
+		Kind:       k0sv1beta1.ClusterConfigKind,
 	}
-	data, err := k8syaml.Marshal(unstructured)
+	data, err := k8syaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal config: %w", err)
 	}
 	if err := os.WriteFile(cfgpath, data, 0600); err != nil {
 		return fmt.Errorf("unable to write config file: %w", err)
+	}
+
+	return nil
+}
+
+// setPodLogsDir points kubelet at a pod log directory under the k0s data dir, so pod logs land
+// on the filesystem kubelet measures disk pressure on and eviction can account for them. It adds
+// the setting to every configured profile, since a vendor-selected profile may be used instead of
+// "default". It preserves an explicitly configured podLogsDir and creates the default profile
+// when no profile is configured.
+func setPodLogsDir(cfg *k0sv1beta1.ClusterConfig, podLogsDir string) error {
+	podLogsDirValue, err := json.Marshal(podLogsDir)
+	if err != nil {
+		return fmt.Errorf("marshal pod logs dir: %w", err)
+	}
+
+	if len(cfg.Spec.WorkerProfiles) == 0 {
+		cfg.Spec.WorkerProfiles = append(cfg.Spec.WorkerProfiles, k0sv1beta1.WorkerProfile{Name: "default"})
+	}
+
+	for i := range cfg.Spec.WorkerProfiles {
+		profile := &cfg.Spec.WorkerProfiles[i]
+		values := map[string]json.RawMessage{}
+		if profile.Config != nil && len(profile.Config.Raw) > 0 {
+			if err := json.Unmarshal(profile.Config.Raw, &values); err != nil {
+				return fmt.Errorf("unmarshal worker profile %q values: %w", profile.Name, err)
+			}
+		}
+		if values == nil {
+			values = map[string]json.RawMessage{}
+		}
+		if _, ok := values["podLogsDir"]; ok {
+			continue
+		}
+
+		values["podLogsDir"] = podLogsDirValue
+
+		profileValues, err := json.Marshal(values)
+		if err != nil {
+			return fmt.Errorf("marshal worker profile %q values: %w", profile.Name, err)
+		}
+		profile.Config = &runtime.RawExtension{Raw: profileValues}
 	}
 
 	return nil
@@ -251,13 +305,11 @@ func (k *K0s) PatchK0sConfig(path string, patch string) error {
 		}
 		finalcfg.Spec.WorkerProfiles = result.Spec.WorkerProfiles
 	}
-	// This is necessary to install the previous version of k0s in e2e tests
-	// TODO: remove this once the previous version is > 1.29
-	unstructured, err := helpers.K0sClusterConfigTo129Compat(&finalcfg)
-	if err != nil {
-		return fmt.Errorf("unable to convert cluster config to 1.29 compat: %w", err)
+	finalcfg.TypeMeta = metav1.TypeMeta{
+		APIVersion: k0sv1beta1.ClusterConfigAPIVersion,
+		Kind:       k0sv1beta1.ClusterConfigKind,
 	}
-	data, err := k8syaml.Marshal(unstructured)
+	data, err := k8syaml.Marshal(&finalcfg)
 	if err != nil {
 		return fmt.Errorf("unable to marshal node config: %w", err)
 	}

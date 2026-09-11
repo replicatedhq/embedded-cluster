@@ -7,9 +7,16 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
+
+// commandWaitDelay bounds how long a command may hold its output pipes open
+// after the process itself is gone. cmd.Run only returns once the pipes close,
+// and a grandchild that inherited them keeps them open after the process we
+// spawned is killed.
+var commandWaitDelay = 10 * time.Second
 
 // RunCommandWithOptions runs a the provided command with the options specified.
 func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args ...string) error {
@@ -24,6 +31,7 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	stderr := bytes.NewBuffer(nil)
 	stdout := bytes.NewBuffer(nil)
 	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.WaitDelay = commandWaitDelay
 
 	cmd.Stdout = stdout
 	if opts.Stdout != nil {
@@ -46,9 +54,11 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 	cmd.Env = cmdEnv
 
 	if err := cmd.Run(); err != nil {
-		logrus.Debugf("failed to run command:")
-		logrus.Debugf("stdout: %s", stdout.String())
-		logrus.Debugf("stderr: %s", stderr.String())
+		if !opts.SkipLogOutput {
+			logrus.Debugf("failed to run command:")
+			logrus.Debugf("stdout: %s", stdout.String())
+			logrus.Debugf("stderr: %s", stderr.String())
+		}
 
 		// Check if it's a context error and return it instead
 		if ctx.Err() != nil {
@@ -60,7 +70,7 @@ func (h *Helpers) RunCommandWithOptions(opts RunCommandOptions, bin string, args
 		return err
 	}
 
-	if !opts.LogOnSuccess {
+	if !opts.LogOnSuccess || opts.SkipLogOutput {
 		return nil
 	}
 

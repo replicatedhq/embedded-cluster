@@ -33,7 +33,7 @@ func TestVersion(t *testing.T) {
 	line := []string{"embedded-cluster", "version"}
 	stdout, stderr, err := tc.RunRegularUserCommandOnNode(t, 0, line)
 	if err != nil {
-		t.Fatalf("fail to install ssh on node %s: %v", tc.Nodes[0], err)
+		t.Fatalf("fail to run version command on node %s: %v", tc.Nodes[0], err)
 	}
 	var failed bool
 	output := fmt.Sprintf("%s\n%s", stdout, stderr)

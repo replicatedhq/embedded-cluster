@@ -11,16 +11,14 @@ import (
 )
 
 var msgs = map[v1beta2.PlanStateType]string{
-	"":                           "Upgrade not yet scheduled",
-	core.PlanSchedulable:         "Upgrade in being prepared",
-	core.PlanSchedulableWait:     "Upgrade is being prepared",
-	core.PlanCompleted:           "Upgrade has been completed",
-	core.PlanWarning:             "Upgrade has failed with warnings",
-	core.PlanInconsistentTargets: "Upgrade has failed (malformed request)",
-	core.PlanIncompleteTargets:   "Upgrade has failed (malformed request)",
-	core.PlanRestricted:          "Upgrade has failed (malformed request)",
-	core.PlanMissingSignalNode:   "Upgrade has failed (missing signal node)",
-	core.PlanApplyFailed:         "Upgrade apply has failed",
+	"":                         "Upgrade not yet scheduled",
+	core.PlanSchedulable:       "Upgrade in being prepared",
+	core.PlanSchedulableWait:   "Upgrade is being prepared",
+	core.PlanCompleted:         "Upgrade has been completed",
+	core.PlanWarning:           "Upgrade has failed with warnings",
+	core.PlanIncompleteTargets: "Upgrade has failed (malformed request)",
+	core.PlanRestricted:        "Upgrade has failed (malformed request)",
+	core.PlanApplyFailed:       "Upgrade apply has failed",
 }
 
 // ReasonForState returns a descriptive string for the given plan state.
@@ -58,13 +56,9 @@ func HasPlanFailed(plan v1beta2.Plan) bool {
 	switch plan.Status.State {
 	case core.PlanIncompleteTargets:
 		return true
-	case core.PlanInconsistentTargets:
-		return true
 	case core.PlanRestricted:
 		return true
 	case core.PlanWarning:
-		return true
-	case core.PlanMissingSignalNode:
 		return true
 	case core.PlanApplyFailed:
 		return true

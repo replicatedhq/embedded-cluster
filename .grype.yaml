@@ -9,28 +9,27 @@ ignore:
   # This vulnerability is not in the code path and has been fixed upstream
   - vulnerability: CVE-2023-47108
 
-# Match Trivy's configuration
-fail-on-severity: medium  # Equivalent to Trivy's CRITICAL,HIGH,MEDIUM setting
+fail-on-severity: medium
 output: table  # Default output format (will be overridden by action for SARIF)
 
 # Database configuration
 db:
-  auto-update: true  # Ensure vulnerability database is up to date, like Trivy
+  auto-update: true  # Ensure vulnerability database is up to date
 
-# Search configuration to match Trivy's behavior
+# Search configuration
 search:
-  scope: "squashed"  # Similar to Trivy's default behavior
+  scope: "squashed"
   indexed-archives: true
-  unindexed-archives: true  # Ensure we don't miss vulnerabilities in archives
+  unindexed-archives: true # Ensure we don't miss vulnerabilities in archives
 
-# Registry configuration (similar to Trivy's behavior)
+# Registry configuration
 registry:
   insecure-skip-tls-verify: false
   insecure-use-http: false
 
 # Logging configuration
 log:
-  level: "warn"  # Similar to Trivy's default
+  level: "warn"
 
 # Default configuration options below
 # Uncomment and modify as needed

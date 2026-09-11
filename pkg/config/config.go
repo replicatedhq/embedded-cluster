@@ -2,22 +2,39 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	jsonpatch "github.com/evanphx/json-patch"
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
-	k0sconfig "github.com/k0sproject/k0s/pkg/config"
+	"github.com/k0sproject/k0s/pkg/constant"
 	embeddedclusterv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v3"
 	k8syaml "sigs.k8s.io/yaml"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/helpers/kernel"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 )
+
+// podLogsDirMinVersion is the first Kubernetes version that honors the kubelet podLogsDir
+// setting. Below it the field is silently dropped, so we don't set it at all.
+var podLogsDirMinVersion = semver.MustParse("1.30")
+
+// SupportsPodLogsDir reports whether the bundled Kubernetes version honors podLogsDir.
+func SupportsPodLogsDir() bool {
+	v, err := semver.NewVersion(constant.KubernetesMajorMinorVersion)
+	if err != nil {
+		return false
+	}
+	return !v.LessThan(podLogsDirMinVersion)
+}
 
 const (
 	DefaultVendorChartOrder = 10
@@ -25,11 +42,11 @@ const (
 	UpdateProberComponent = "update-prober"
 )
 
-// disableUpdateProber indicates whether we can disable the update prober component in k0s install command. This variable is used during tests.
-var disableUpdateProber = canDisableUpdateProber()
-
 // k0sConfigPathOverride is used during tests to override the path to the k0s config file.
 var k0sConfigPathOverride string
+
+// detectIPTablesBackend is used during tests to mock kernel.DetectIPTablesBackend.
+var detectIPTablesBackend = kernel.DetectIPTablesBackend
 
 // RenderK0sConfig renders a k0s cluster configuration.
 func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
@@ -37,8 +54,9 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	// Customize the default k0s configuration to our taste.
 	cfg.Name = "k0s"
 	cfg.Spec.Konnectivity = nil
-	cfg.Spec.Network.KubeRouter = nil
-	cfg.Spec.Network.Provider = "calico"
+
+	enableCalicoNetworkProvider(cfg)
+
 	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
 	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
 	// We can drop the json.Unmarshal once we drop support for 1.30
@@ -55,6 +73,50 @@ func RenderK0sConfig(proxyRegistryDomain string) *k0sv1beta1.ClusterConfig {
 	cfg.Spec.Network.NodeLocalLoadBalancing.Type = k0sv1beta1.NllbTypeEnvoyProxy
 	overrideK0sImages(cfg, proxyRegistryDomain)
 	return cfg
+}
+
+// enableCalicoNetworkProvider enables the calico network provider and disables the kube-router
+// network provider.
+func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
+	if cfg.Spec.Network == nil {
+		cfg.Spec.Network = &k0sv1beta1.Network{}
+	}
+	cfg.Spec.Network.KubeRouter = nil
+	cfg.Spec.Network.Provider = "calico"
+	if cfg.Spec.Network.Calico == nil {
+		cfg.Spec.Network.Calico = k0sv1beta1.DefaultCalico()
+	}
+	if cfg.Spec.Network.Calico.EnvVars == nil {
+		cfg.Spec.Network.Calico.EnvVars = make(map[string]string)
+	}
+	cfg.Spec.Network.Calico.EnvVars["FELIX_USAGEREPORTINGENABLED"] = "false"
+}
+
+// ApplyHostK0sConfigOverrides detects the host's netfilter backend capability
+// and applies any host-specific overrides to the k0s config.
+func ApplyHostK0sConfigOverrides(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {
+	if cfg == nil {
+		return fmt.Errorf("cluster config is nil")
+	}
+	if cfg.Spec == nil {
+		cfg.Spec = &k0sv1beta1.ClusterSpec{}
+	}
+	backend, err := detectIPTablesBackend(ctx)
+	if err != nil {
+		logrus.WithError(err).Debug("Failed to detect iptables backend, leaving kube-proxy mode unchanged")
+		return nil
+	}
+	if backend == kernel.BackendNFT {
+		logrus.Debug("Host lacks legacy iptables, configuring kube-proxy for nftables mode")
+		if cfg.Spec.Network == nil {
+			cfg.Spec.Network = &k0sv1beta1.Network{}
+		}
+		if cfg.Spec.Network.KubeProxy == nil {
+			cfg.Spec.Network.KubeProxy = &k0sv1beta1.KubeProxy{}
+		}
+		cfg.Spec.Network.KubeProxy.Mode = "nftables"
+	}
+	return nil
 }
 
 // extractK0sConfigPatch extracts the k0s config portion of the provided patch.
@@ -158,12 +220,10 @@ func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostn
 }
 
 func AdditionalInstallFlagsController() []string {
-	disableComponents := "konnectivity-server"
-
-	// Disable the update prober component responsible for unintended outbound connections to an update service we don't need
-	if disableUpdateProber {
-		disableComponents = fmt.Sprintf("%s,%s", disableComponents, UpdateProberComponent)
-	}
+	// Disable konnectivity-server (unused) and the update prober (avoids unintended
+	// outbound connections to an update service we don't need). The update prober can
+	// be disabled on all supported k0s versions (>= 1.33); see k0sproject/k0s#6326.
+	disableComponents := "konnectivity-server," + UpdateProberComponent
 	return []string{
 		"--disable-components", disableComponents,
 		"--enable-dynamic-config",
@@ -296,14 +356,4 @@ func removeImmutableFields(patch map[string]interface{}) map[string]interface{} 
 	}
 
 	return patch
-}
-
-// canDisableUpdateProber is a way to determine if the k0s release we're using allows disabling the update prober component
-// see relevant PR: https://github.com/k0sproject/k0s/pull/6326
-// We should be able to remove this check once we drop support for k0s < 1.33
-func canDisableUpdateProber() bool {
-	opts := k0sconfig.ControllerOptions{DisableComponents: []string{UpdateProberComponent}}
-	// Normalize validates the DisableComponents list contains valid known component names to k0s and will return an error otherwise
-	err := opts.Normalize()
-	return err == nil
 }

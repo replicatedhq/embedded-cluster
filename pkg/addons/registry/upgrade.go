@@ -2,6 +2,8 @@ package registry
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 
 	"github.com/pkg/errors"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
@@ -57,7 +59,10 @@ func (r *Registry) Upgrade(
 		Namespace:    r.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
-		LogFn:        helm.LogFn(logf),
+		// Field ownership changes when scaling registry replicas up and down
+		// when enabling HA which will lead to conflicts in SSA mode. Disable SSA
+		DisableSSA: true,
+		LogFn:      helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")
@@ -71,8 +76,37 @@ func (r *Registry) createUpgradePreRequisites(ctx context.Context, kcli client.C
 		if err := r.ensureS3Secret(ctx, kcli); err != nil {
 			return errors.Wrap(err, "create s3 secret")
 		}
+
+		if err := r.ensureHTTPSecret(ctx, kcli); err != nil {
+			return errors.Wrap(err, "create http secret")
+		}
 	}
 
+	return nil
+}
+
+func (r *Registry) ensureHTTPSecret(ctx context.Context, kcli client.Client) error {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return errors.Wrap(err, "generate http secret")
+	}
+
+	obj := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      _httpSecretName,
+			Namespace: r.Namespace(),
+			Labels: map[string]string{
+				"app": "docker-registry",
+			},
+		},
+		Data: map[string][]byte{
+			"secret": []byte(hex.EncodeToString(b)),
+		},
+	}
+
+	if err := kcli.Create(ctx, obj); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "create http secret")
+	}
 	return nil
 }
 

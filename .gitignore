@@ -40,5 +40,8 @@ e2e/support-bundle*.tar.gz
 # Local Netlify folder
 .netlify
 
-# Test web assets created during dryrun tests
-tests/dryrun/web/
+# Claude worktrees
+.claude/worktrees/
+
+# Superpowers worktrees
+.worktrees/

@@ -57,7 +57,7 @@ func HelmInstall(t *testing.T, kubeconfig string, namespace string, name string,
 		name, chart,
 		"--version", version, "--values", values,
 		"--create-namespace",
-		"--atomic", "--wait", "--wait-for-jobs",
+		"--wait", "--wait-for-jobs",
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

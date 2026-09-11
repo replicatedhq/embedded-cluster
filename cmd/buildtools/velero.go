@@ -15,10 +15,11 @@ import (
 	"helm.sh/helm/v3/pkg/repo"
 )
 
-// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/v1.13.0/README.md#compatibility
+// From: https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/v1.14.0/README.md#compatibility
 var veleroPluginForAWSCompatibility = map[string]*semver.Constraints{
 	"1.16": mustParseSemverConstraints(">=1.12,<1.13"),
 	"1.17": mustParseSemverConstraints(">=1.13,<1.14"),
+	"1.18": mustParseSemverConstraints(">=1.14,<1.15"),
 }
 
 var veleroImageComponents = map[string]addonComponent{
@@ -39,14 +40,6 @@ var veleroImageComponents = map[string]addonComponent{
 			return getLatestImageNameAndTag(opts.ctx, ref, constraints)
 		},
 		upstreamVersionInputOverride: "INPUT_VELERO_AWS_PLUGIN_VERSION",
-	},
-	"docker.io/bitnamilegacy/kubectl": {
-		name: "kubectl",
-		getCustomImageName: func(opts addonComponentOptions) (string, error) {
-			ref := "proxy.replicated.com/library/kubectl"
-			return getLatestImageNameAndTag(opts.ctx, ref, nil)
-		},
-		upstreamVersionInputOverride: "INPUT_KUBECTL_VERSION",
 	},
 }
 
@@ -209,7 +202,7 @@ func updateVeleroAddonImages(ctx context.Context, hcli helm.Client, chartURL str
 		return fmt.Errorf("failed to get images from velero chart: %w", err)
 	}
 
-	// make sure we include additional images
+	// make sure we include additional images not present in default chart templates
 	images = append(images, fmt.Sprintf("docker.io/velero/velero-plugin-for-aws:%s", awsPluginVersion))
 
 	metaImages, err := UpdateImages(ctx, veleroImageComponents, velero.Metadata.Images, images, filteredImages)

@@ -1,7 +1,8 @@
 SHELL := /bin/bash
+MAKEFLAGS += --no-print-directory
 
 ARCH ?= $(shell go env GOARCH)
-CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(shell id -u -n))
+CURRENT_USER := $(if $(GITHUB_USER),$(GITHUB_USER),$(if $(GITHUB_RUN_ID),$(shell id -u -n)-$(GITHUB_RUN_ID)-$(GITHUB_JOB)-$(GITHUB_RUN_ATTEMPT),$(shell id -u -n)))
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin

@@ -2,15 +2,12 @@ package runtimeconfig
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/gosimple/slug"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,7 +26,10 @@ const (
 	K0sStatusSocketPath     = "/run/k0s/status.sock"
 	K0sConfigPath           = "/etc/k0s/k0s.yaml"
 	K0sContainerdConfigPath = "/etc/k0s/containerd.d/"
-	ECConfigPath            = "/etc/embedded-cluster/ec.yaml"
+	// K0sContainerdCertsDir is the containerd 2.x (k0s 1.36+) certs.d directory
+	// for hosts.toml files; EC's v3 drop-in points registry.config_path here.
+	K0sContainerdCertsDir = "/etc/k0s/containerd/certs.d"
+	ECConfigPath          = "/etc/embedded-cluster/ec.yaml"
 )
 
 // AppSlug returns the intended binary name. This is the app slug when a release is embedded,
@@ -51,50 +51,19 @@ func AppSlug() string {
 }
 
 // KotsadmNamespace returns the namespace where the kots app and admin console should be deployed.
-// If ENABLE_V3 is not set or the "kotsadm" namespace exists, it returns "kotsadm" for V2 backwards compatibility.
-// Otherwise, it returns the app slug.
+// It returns "kotsadm" for backwards compatibility.
 func KotsadmNamespace(ctx context.Context, kcli client.Client) (string, error) {
-	namespace := "kotsadm"
-
-	// Use the "kotsadm" namespace for V2 backwards compatibility
-	if os.Getenv("ENABLE_V3") != "1" {
-		return namespace, nil
-	}
-
-	// Install scenario - no cluster exists yet, use app slug
-	if kcli == nil {
-		return AppSlug(), nil
-	}
-
-	// Upgrade scenario - check if kotsadm namespace exists and use it for backwards compatibility
-	err := kcli.Get(ctx, client.ObjectKey{Name: namespace}, &corev1.Namespace{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return AppSlug(), nil
-		}
-		return "", fmt.Errorf("failed to get namespace %s: %w", namespace, err)
-	}
-
-	return namespace, nil
+	return "kotsadm", nil
 }
 
 // EmbeddedClusterLogsPath returns the path to the directory where embedded-cluster logs
 // are stored.
-// For V2 compatibility, returns "/var/log/embedded-cluster".
-// For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
 func EmbeddedClusterLogsPath() string {
-	// Use the app slug for V3 installations
-	if os.Getenv("ENABLE_V3") == "1" {
-		return filepath.Join("/var/log", AppSlug())
-	}
-	// V2 backwards compatibility
 	return "/var/log/embedded-cluster"
 }
 
 // EmbeddedClusterLogsSubDir returns the path to the directory where embedded-cluster logs
 // are stored and ensures the directory exists.
-// For V2 compatibility, returns "/var/log/embedded-cluster".
-// For V3 (ENABLE_V3=1), returns "/var/log/{appslug}".
 func EmbeddedClusterLogsSubDir() string {
 	path := EmbeddedClusterLogsPath()
 	if err := os.MkdirAll(path, 0755); err != nil {

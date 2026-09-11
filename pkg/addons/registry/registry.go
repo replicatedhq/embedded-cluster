@@ -26,6 +26,7 @@ const (
 	_namespace   = constants.RegistryNamespace
 
 	_tlsSecretName    = "registry-tls"
+	_httpSecretName   = "registry-http-secret"
 	_lowerBandIPIndex = 10
 )
 

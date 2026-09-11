@@ -6,19 +6,26 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ohler55/ojg/jp"
-	"helm.sh/helm/v3/pkg/chartutil"
-	"helm.sh/helm/v3/pkg/strvals"
+	"helm.sh/helm/v4/pkg/strvals"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
 // UnmarshalValues unmarshals the given JSON compatible YAML string into a map[string]interface{}.
 func UnmarshalValues(valuesYaml string) (map[string]interface{}, error) {
-	return chartutil.ReadValues([]byte(valuesYaml))
+	result := map[string]interface{}{}
+	if err := k8syaml.Unmarshal([]byte(valuesYaml), &result); err != nil {
+		return nil, fmt.Errorf("unmarshal values: %w", err)
+	}
+	return result, nil
 }
 
 // MarshalValues marshals the given map[string]interface{} into a JSON compatible YAML string.
 func MarshalValues(values map[string]interface{}) (string, error) {
-	return chartutil.Values(values).YAML()
+	out, err := k8syaml.Marshal(values)
+	if err != nil {
+		return "", fmt.Errorf("marshal values: %w", err)
+	}
+	return string(out), nil
 }
 
 // SetValue sets the value at the given path in the values map. It uses the notation defined by

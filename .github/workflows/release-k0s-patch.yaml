@@ -27,10 +27,10 @@ jobs:
     runs-on: ${{ matrix.runner.name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Checkout Upstream
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: k0sproject/k0s
           ref: refs/tags/${{ github.event.inputs.tag }}
@@ -52,7 +52,7 @@ jobs:
           cd k0s && git tag ${{ github.event.inputs.tag }}-${{ github.event.inputs.versionSuffix }}
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: k0s/go.mod
           cache-dependency-path: k0s/go.sum

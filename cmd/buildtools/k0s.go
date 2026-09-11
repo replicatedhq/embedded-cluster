@@ -88,6 +88,9 @@ var k0sImageComponents = map[string]addonComponent{
 
 var pauseComponent = addonComponent{
 	name: "pause",
+	// Pin the sandbox image by plain tag (no arch suffix / digest) so containerd 2.x can
+	// resolve it; see addonComponent.usePlainTag.
+	usePlainTag: true,
 	getCustomImageName: func(opts addonComponentOptions) (string, error) {
 		k0sConfig := k0sv1beta1.DefaultClusterConfig()
 		pauseVersion := k0sConfig.Spec.Images.Pause.Version
@@ -153,9 +156,9 @@ func getK0sVersion() (*semver.Version, error) {
 func getCalicoTag(opts addonComponentOptions) (string, error) {
 	calicoVersion := getCalicoVersion(opts)
 	constraints := mustParseSemverConstraints(latestPatchConstraint(calicoVersion))
-	tag, err := GetGreatestGitHubTag(opts.ctx, "projectcalico", "calico", constraints)
+	tag, err := GetGreatestTagFromRegistry(opts.ctx, "proxy.replicated.com/library/calico-cni", constraints)
 	if err != nil {
-		return "", fmt.Errorf("failed to get calico release: %w", err)
+		return "", fmt.Errorf("failed to get calico tag from registry: %w", err)
 	}
 	return tag, nil
 }

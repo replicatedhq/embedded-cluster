@@ -42,7 +42,12 @@ func (e *EmbeddedClusterOperator) Upgrade(
 		Namespace:    e.Namespace(),
 		Labels:       getBackupLabels(),
 		Force:        false,
-		LogFn:        helm.LogFn(logf),
+		// CRDs are bootstrapped by kubeutils.EnsureInstallationCRD before this runs, which claims SSA
+		// field ownership under "embedded-cluster". Server-side apply on the chart's bundled CRDs
+		// then conflicts on .metadata.annotations.controller-gen.kubebuilder.io/version. Disabling
+		// SSA falls back to client-side apply, matching the Helm 3 behavior this chart was designed against.
+		DisableSSA: true,
+		LogFn:      helm.LogFn(logf),
 	})
 	if err != nil {
 		return errors.Wrap(err, "helm upgrade")

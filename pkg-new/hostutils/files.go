@@ -6,18 +6,19 @@ import (
 
 	"github.com/replicatedhq/embedded-cluster/cmd/installer/goods"
 	"github.com/replicatedhq/embedded-cluster/pkg/airgap"
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/replicatedhq/embedded-cluster/pkg/support"
 )
 
-func (h *HostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
+func (h *HostUtils) MaterializeFiles(rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, airgapBundle string) error {
 	materializer := goods.NewMaterializer(rc)
 	if err := materializer.Materialize(); err != nil {
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
 
 	isAirgap := airgapBundle != ""
-	if err := support.MaterializeSupportBundleSpec(rc, isAirgap); err != nil {
+	if err := support.MaterializeSupportBundleSpec(rc, channelRelease, isAirgap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 

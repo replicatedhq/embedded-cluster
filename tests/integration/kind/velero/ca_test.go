@@ -28,6 +28,11 @@ func TestVelero_HostCABundle(t *testing.T) {
 
 	addon := &velero.Velero{
 		HostCABundlePath: "/etc/ssl/certs/ca-certificates.crt",
+		// /var/lib is the root directory for kind nodes. /var/lib/embedded-cluster/k0s will not exist
+		// causing velero node-agent pods to fail to start.
+		// In Helm 4, --wait (thanks to kstatus) will wait for node-agent Daemonset to be ready.
+		// It fails if the hostPath volumes do not exist.
+		K0sDataDir: "/var/lib",
 	}
 
 	if err := addon.Install(t.Context(), t.Logf, kcli, mcli, hcli, domains, nil); err != nil {

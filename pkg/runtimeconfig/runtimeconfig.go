@@ -150,6 +150,12 @@ func (rc *runtimeConfig) EmbeddedClusterK0sSubDir() string {
 	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "k0s")
 }
 
+// EmbeddedClusterPodLogsSubDir returns the path to the directory where kubelet writes pod logs.
+// It sits under the k0s data dir so pod logs share the filesystem kubelet measures disk pressure on.
+func (rc *runtimeConfig) EmbeddedClusterPodLogsSubDir() string {
+	return filepath.Join(rc.EmbeddedClusterK0sSubDir(), "pod-logs")
+}
+
 // EmbeddedClusterSeaweedFSSubDir returns the path to the directory where seaweedfs data is stored.
 func (rc *runtimeConfig) EmbeddedClusterSeaweedFSSubDir() string {
 	return filepath.Join(rc.EmbeddedClusterHomeDirectory(), "seaweedfs")

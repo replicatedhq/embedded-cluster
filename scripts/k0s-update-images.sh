@@ -4,6 +4,8 @@ set -euo pipefail
 
 UPDATE_ALL_IMAGES=${UPDATE_ALL_IMAGES:-false}
 
+source "$(dirname "$0")/k0s-update-common.sh"
+
 function update_go_dependencies() {
     make go.mod
 }
@@ -30,6 +32,7 @@ function main() {
     local minor_version=$1
     local minor_version_minus_1=$((minor_version - 1))
     local minor_version_minus_2=$((minor_version - 2))
+    local k0s_version
 
     # substitute images for the major.minor version minus 2
     export K0S_MINOR_VERSION="$minor_version_minus_2"
@@ -49,6 +52,8 @@ function main() {
 
     # substitute images for the current major.minor version
     export K0S_MINOR_VERSION="$minor_version"
+    k0s_version=$(get_k0s_version "$minor_version")
+    sync_k8s_replace_directives "$k0s_version"
     update_go_dependencies
     update_k0s_metadata
 

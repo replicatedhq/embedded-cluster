@@ -3,6 +3,7 @@ package hostutils
 import (
 	"context"
 
+	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
 	"github.com/sirupsen/logrus"
 )
@@ -18,16 +19,17 @@ func Set(_h HostUtilsInterface) {
 }
 
 type HostUtilsInterface interface {
-	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error
+	ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, opts InitForInstallOptions) error
 	ConfigureSysctl() error
 	ConfigureKernelModules() error
 	ConfigureNetworkManager(ctx context.Context, rc runtimeconfig.RuntimeConfig) error
 	ConfigureFirewalld(ctx context.Context, podNetwork, serviceNetwork string) error
 	ResetFirewalld(ctx context.Context) error
-	MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error
+	MaterializeFiles(rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, airgapBundle string) error
 	CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error
 	WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error
 	AddInsecureRegistry(registry string) error
+	MigrateContainerdConfigToV3(isAirgap bool) error
 	ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error
 	RestoreSELinuxContext(rc runtimeconfig.RuntimeConfig) error
 }
@@ -35,8 +37,8 @@ type HostUtilsInterface interface {
 // Convenience functions
 // TODO (@salah): can be removed once CLI uses API for host operations)
 
-func ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, opts InitForInstallOptions) error {
-	return h.ConfigureHost(ctx, rc, opts)
+func ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, opts InitForInstallOptions) error {
+	return h.ConfigureHost(ctx, rc, channelRelease, opts)
 }
 
 func ConfigureSysctl() error {
@@ -59,8 +61,8 @@ func ResetFirewalld(ctx context.Context) error {
 	return h.ResetFirewalld(ctx)
 }
 
-func MaterializeFiles(rc runtimeconfig.RuntimeConfig, airgapBundle string) error {
-	return h.MaterializeFiles(rc, airgapBundle)
+func MaterializeFiles(rc runtimeconfig.RuntimeConfig, channelRelease *release.ChannelRelease, airgapBundle string) error {
+	return h.MaterializeFiles(rc, channelRelease, airgapBundle)
 }
 
 func CreateSystemdUnitFiles(ctx context.Context, logger logrus.FieldLogger, rc runtimeconfig.RuntimeConfig, hostname string, isWorker bool) error {
@@ -73,6 +75,10 @@ func WriteLocalArtifactMirrorDropInFile(rc runtimeconfig.RuntimeConfig) error {
 
 func AddInsecureRegistry(registry string) error {
 	return h.AddInsecureRegistry(registry)
+}
+
+func MigrateContainerdConfigToV3(isAirgap bool) error {
+	return h.MigrateContainerdConfigToV3(isAirgap)
 }
 
 func ConfigureSELinuxFcontext(rc runtimeconfig.RuntimeConfig) error {

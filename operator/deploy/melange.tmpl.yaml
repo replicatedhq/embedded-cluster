@@ -13,11 +13,14 @@ environment:
     keyring:
       - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     packages:
+      - bash
       - busybox
       - git
       - go
+      - make
   environment:
-    GOMODCACHE: /var/cache/melange
+    GOCACHE: /cache/melange/gocache
+    GOMODCACHE: /cache/melange/gomodcache
     VERSION: ${PACKAGE_VERSION}
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 

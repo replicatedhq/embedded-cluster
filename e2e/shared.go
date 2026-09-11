@@ -125,8 +125,13 @@ func installSingleNodeWithOptions(t *testing.T, tc cluster.Cluster, opts install
 		line = append(line, "--data-dir", opts.dataDir)
 	}
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, line, opts.withEnv); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line, env); err != nil {
 		t.Fatalf("fail to install embedded-cluster on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 }
@@ -199,8 +204,13 @@ func joinControllerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, o
 		lines = append(lines, joinCommand)
 	}
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	for _, line := range lines {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, line, opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, line, env); err != nil {
 			t.Fatalf("fail to join node %d as a controller%s: %v: %s: %s",
 				node, map[bool]string{true: " in ha mode", false: ""}[opts.isHA], err, stdout, stderr)
 		}
@@ -223,9 +233,14 @@ func joinWorkerNodeWithOptions(t *testing.T, tc cluster.Cluster, node int, opts 
 	}
 	t.Log("worker join commands:", commands)
 
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	for k, v := range opts.withEnv {
+		env[k] = v
+	}
+
 	t.Logf("%s: joining node %d to the cluster as a worker", time.Now().Format(time.RFC3339), node)
 	for _, command := range commands {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), opts.withEnv); err != nil {
+		if stdout, stderr, err := tc.RunCommandOnNode(node, strings.Fields(command), env); err != nil {
 			t.Fatalf("fail to join node %d to the cluster as a worker: %v: %s: %s", node, err, stdout, stderr)
 		}
 	}
@@ -244,6 +259,27 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	line := []string{"/usr/local/bin/check-worker-profile.sh"}
 	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
 		t.Fatalf("fail to check worker profile on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+// waitForSelinuxEnabled waits for selinux to report enabled on the node. The
+// filesystem relabel scheduled by selinux-activate triggers an additional
+// reboot, so ssh may drop while polling.
+func waitForSelinuxEnabled(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: waiting for selinux to be enabled on node %d", time.Now().Format(time.RFC3339), node)
+	timeout := time.After(10 * time.Minute)
+	tick := time.Tick(10 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getenforce"})
+			t.Fatalf("timeout waiting for selinux to be enabled on node %d: %v: %s: %s", node, err, stdout, stderr)
+		case <-tick:
+			stdout, _, err := tc.RunCommandOnNode(node, []string{"getenforce"})
+			if err == nil && strings.Contains(stdout, "Permissive") {
+				return
+			}
+		}
 	}
 }
 
@@ -321,5 +357,36 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 	t.Logf("%s: checking installation state after upgrade on node %d", time.Now().Format(time.RFC3339), opts.node)
 	if stdout, stderr, err := tc.RunCommandOnNode(opts.node, line, opts.withEnv); err != nil {
 		t.Fatalf("fail to check postupgrade state on node %d: %v: %s: %s", opts.node, err, stdout, stderr)
+	}
+}
+
+// checkContainerdRegistryConfigAbsent asserts the containerd registry drop-in is
+// absent: online installs don't use the in-cluster registry.
+// TODO(k0s-1.37-oldest): drop this check along with the migration.
+func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in is absent on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"test", "!", "-f", "/etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in should be absent on online installs on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+// checkContainerdRegistryConfigV2 asserts the registry drop-in still uses the
+// containerd 1.7 schema required by k0s 1.34 and 1.35.
+func checkContainerdRegistryConfigV2(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in uses the v2 schema on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in does not use the v2 schema on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+}
+
+// checkContainerdRegistryConfigV3 asserts the registry drop-in was migrated to
+// the containerd 2.x schema required by k0s 1.36 and later.
+func checkContainerdRegistryConfigV3(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying containerd registry drop-in uses the v3 schema on node %d", time.Now().Format(time.RFC3339), node)
+	line := []string{"grep -q 'io.containerd.cri.v1.images' /etc/k0s/containerd.d/embedded-registry.toml && ! grep -q 'io.containerd.grpc.v1.cri' /etc/k0s/containerd.d/embedded-registry.toml"}
+	if stdout, stderr, err := tc.RunCommandOnNode(node, line); err != nil {
+		t.Fatalf("containerd registry drop-in does not use the v3 schema on node %d: %v: %s: %s", node, err, stdout, stderr)
 	}
 }

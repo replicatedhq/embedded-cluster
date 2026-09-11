@@ -13,6 +13,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/prompts"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
+	"github.com/replicatedhq/embedded-cluster/pkg/versions"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -64,7 +65,7 @@ func InstallRunPreflightsCmd(ctx context.Context, appSlug string) *cobra.Command
 
 func runInstallRunPreflights(ctx context.Context, flags installFlags, installCfg *installConfig, rc runtimeconfig.RuntimeConfig) error {
 	logrus.Debugf("configuring host")
-	if err := hostutils.ConfigureHost(ctx, rc, hostutils.InitForInstallOptions{
+	if err := hostutils.ConfigureHost(ctx, rc, release.GetChannelRelease(), hostutils.InitForInstallOptions{
 		License:      installCfg.licenseBytes,
 		AirgapBundle: flags.airgapBundle,
 	}); err != nil {
@@ -105,20 +106,22 @@ func runInstallPreflights(ctx context.Context, flags installFlags, installCfg *i
 	}
 
 	opts := preflights.PrepareHostPreflightOptions{
-		HostPreflightSpec:            release.GetHostPreflights(),
-		ReplicatedAppURL:             replicatedAppURL,
-		ProxyRegistryURL:             proxyRegistryURL,
-		AdminConsolePort:             rc.AdminConsolePort(),
-		LocalArtifactMirrorPort:      rc.LocalArtifactMirrorPort(),
-		DataDir:                      rc.EmbeddedClusterHomeDirectory(),
-		K0sDataDir:                   rc.EmbeddedClusterK0sSubDir(),
-		OpenEBSDataDir:               rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		Proxy:                        rc.ProxySpec(),
-		PodCIDR:                      rc.PodCIDR(),
-		ServiceCIDR:                  rc.ServiceCIDR(),
-		NodeIP:                       nodeIP,
-		IsAirgap:                     installCfg.isAirgap,
-		ControllerAirgapStorageSpace: controllerAirgapStorageSpace,
+		HostPreflightSpec:                 release.GetHostPreflights(),
+		ReplicatedAppURL:                  replicatedAppURL,
+		ProxyRegistryURL:                  proxyRegistryURL,
+		AdminConsolePort:                  rc.AdminConsolePort(),
+		LocalArtifactMirrorPort:           rc.LocalArtifactMirrorPort(),
+		DataDir:                           rc.EmbeddedClusterHomeDirectory(),
+		K0sDataDir:                        rc.EmbeddedClusterK0sSubDir(),
+		OpenEBSDataDir:                    rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		Proxy:                             rc.ProxySpec(),
+		PodCIDR:                           rc.PodCIDR(),
+		ServiceCIDR:                       rc.ServiceCIDR(),
+		NodeIP:                            nodeIP,
+		IsAirgap:                          installCfg.isAirgap,
+		ControllerAirgapStorageSpace:      controllerAirgapStorageSpace,
+		DisableFilesystemPerformanceCheck: flags.disableFilesystemPerformanceCheck,
+		K8sVersion:                        versions.K0sVersion,
 	}
 	if globalCIDR := rc.GlobalCIDR(); globalCIDR != "" {
 		opts.GlobalCIDR = &globalCIDR

@@ -15,15 +15,15 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/containers/image/v5/docker"
-	"github.com/containers/image/v5/image"
-	"github.com/containers/image/v5/manifest"
-	"github.com/containers/image/v5/types"
 	"github.com/distribution/reference"
 	"github.com/google/go-github/v62/github"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
 	"github.com/sirupsen/logrus"
+	"go.podman.io/image/v5/docker"
+	"go.podman.io/image/v5/image"
+	"go.podman.io/image/v5/manifest"
+	"go.podman.io/image/v5/types"
 	helmcli "helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/repo"
 	"oras.land/oras-go/v2/registry/remote"
@@ -191,6 +191,10 @@ func latestPatchConstraint(s *semver.Version) string {
 	return fmt.Sprintf(">=%d.%d,<%d.%d", s.Major(), s.Minor(), s.Major(), s.Minor()+1)
 }
 
+func latestMinorConstraint(s *semver.Version) string {
+	return fmt.Sprintf(">=%d.0.0,<%d.0.0", s.Major(), s.Major()+1)
+}
+
 type filterFn func(string) bool
 
 func GetGitHubRelease(ctx context.Context, owner, repo string, filter filterFn) (string, error) {
@@ -355,7 +359,7 @@ func GetGreatestTagFromRegistry(ctx context.Context, ref string, constraints *se
 
 func LatestChartVersion(ctx context.Context, hcli helm.Client, repo *repo.Entry, name string) (string, error) {
 	logrus.Infof("adding helm repo %s", repo.Name)
-	err := hcli.AddRepoBin(ctx, repo)
+	err := hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return "", fmt.Errorf("add helm repo: %w", err)
 	}
@@ -384,6 +388,10 @@ func GetImageDigest(ctx context.Context, img string, arch string) (string, error
 	sysctx := &types.SystemContext{
 		OSChoice:           "linux",
 		ArchitectureChoice: arch,
+		// go.podman.io/image v5.40.0 errors on v1-format registries.conf files present on
+		// some hosts (e.g. CI runners). We only resolve fully-qualified references, so skip
+		// loading the system registries configuration entirely.
+		SystemRegistriesConfPath: os.DevNull,
 	}
 	src, err := ref.NewImageSource(ctx, sysctx)
 	if err != nil {
@@ -479,7 +487,7 @@ func MirrorChart(ctx context.Context, hcli helm.Client, repo *repo.Entry, name, 
 	logrus.Infof("downloaded %s chart: %s", name, chpath)
 	defer os.Remove(chpath)
 
-	err = hcli.AddRepoBin(ctx, repo)
+	err = hcli.AddRepo(ctx, repo)
 	if err != nil {
 		return fmt.Errorf("add helm repo: %w", err)
 	}
@@ -539,7 +547,6 @@ func NewHelm() (helm.Client, error) {
 		HelmPath:              "helm",        // use the helm binary in PATH
 		KubernetesEnvSettings: helmcli.New(), // use the default env settings from helm
 		K8sVersion:            sv.Original(),
-		Writer:                logrus.New().Writer(),
 	})
 }
 

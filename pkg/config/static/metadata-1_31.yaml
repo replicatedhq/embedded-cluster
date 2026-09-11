@@ -9,40 +9,40 @@ images:
     calico-cni:
         repo: proxy.replicated.com/library/calico-cni
         tag:
-            amd64: v3.28.5-amd64@sha256:6eb0a9cc61e7afb90967ae717f022580e8415e6e1ea1bdf3b37b4a1ee42dfa49
-            arm64: v3.28.5-arm64@sha256:94bf366c2e068febe7da3682ac3538eaaefbaee777acddc57f54ea6ae50d19b1
+            amd64: v3.28.5-amd64@sha256:5882a07b78ac340eaf2fe9fd9a69e46b66108fb8f80ef6750cd479286f391151
+            arm64: v3.28.5-arm64@sha256:024be095cad3d82c9d33d8bfd6d44b7e9547a352ed395692fd45681bd946f619
     calico-kube-controllers:
         repo: proxy.replicated.com/library/calico-kube-controllers
         tag:
-            amd64: v3.28.5-amd64@sha256:c63ad3986d9b196bbaf9674743a2938263a5c9650c29522fedc5e88fc213d84a
-            arm64: v3.28.5-arm64@sha256:0a8341a16d98e945b2a703e0bc6b5f571c87b512bba917d9a787ce780d7f75d6
+            amd64: v3.28.5-amd64@sha256:83cf58d1ee142578269f50f825172364546ccc1a745dd3293f6ee2a53d701d9b
+            arm64: v3.28.5-arm64@sha256:9fc0c4342e0e4e8b083f5f7511de11c9daba6182ce5d13ded30af80b1001b5ee
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.28.5-amd64@sha256:b2344af7864e386631164cc12ae3c9624b9836d894a1dff9c549a178e1346d4d
-            arm64: v3.28.5-arm64@sha256:72c328a2f2884f6f4660b7f4f6dde95bfff565bafc9190233c4edf24b7284ebd
+            amd64: v3.28.5-amd64@sha256:b34ccfc18970f664d8fd70b50f519bb75683c0c515e501d343e1a1e309d15a49
+            arm64: v3.28.5-arm64@sha256:46520835089ebcb2bea78d556c77b2ff2a1fe706519cfe5677850bc15b1349a5
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
-            amd64: 1.13.1-amd64@sha256:309d688713873b4d135308331d4bd60cb27cf56f90d61d8618e18e17980b772b
-            arm64: 1.13.1-arm64@sha256:a164fc954a7fb543b2ec0109cf84a48ddf22aa56759b9099f84c0b99a4092ea2
+            amd64: 1.14.1-amd64@sha256:75f1817830ae5065531acf42a49e77a4949bef9541260f7296024a041ff267cb
+            arm64: 1.14.1-arm64@sha256:d40f695e9932af731b2022c32a270ca7a9fff66fd79d7b51ea8eb31041e025cf
     envoy-distroless:
         repo: proxy.replicated.com/library/envoy
         tag:
-            amd64: v1.31.2-amd64@sha256:5838ff882b83f7a5b5e798684873937abdc60a55ff21f46975b674b84b06b1e8
-            arm64: v1.31.2-arm64@sha256:5707bd783fd68afe7539afd2d04bceea6c0ae5cdff05376fecb580ebde8ec246
+            amd64: v1.31.10-amd64@sha256:48f362d6139529356f533c20b50e811e409a6a67fa930f94d42632481cacf82e
+            arm64: v1.31.10-arm64@sha256:9099f0a6bd01c31df1fa55d01abf10d59a249b5422472b52842b5cbfb9542386
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.31.13-amd64@sha256:fdb314e828788b961eb7746a03e49277f4703256200cd6956106a4ca15ce61a7
-            arm64: v1.31.13-arm64@sha256:8a7c9def5f3c381089cb848652da8fde2fe9fc67c5dad2ba0e17f6de803801f9
+            amd64: v1.31.14-amd64@sha256:d8874c065d173dd70889415c47fae8c7da91f322574dc103090df4f657d8f46c
+            arm64: v1.31.14-arm64@sha256:a4e12080f50572329bc30a31c33f6473b905a4d8148f595980eca003d2ed3b30
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
-            amd64: v0.8.0-amd64@sha256:f0a44c9f544557332a32bdc84e3b7c980b5ed0c4a60ac4d03ade9e970d16b8e5
-            arm64: v0.8.0-arm64@sha256:ff4e5cf660f494305fd551c2272f7ee09bd1129225f66284adc10805b84529a3
+            amd64: v0.8.1-amd64@sha256:427c92ee1b91891b7afaa19da15f792d0b1a79c1c6a18a47e7495ded66fba560
+            arm64: v0.8.1-arm64@sha256:c11f9cf95c89bf453c36d2f0798bf5d24b25c3d48621c9c3b94002f09945cfb3
     pause:
         repo: proxy.replicated.com/library/pause
         tag:
-            amd64: 3.9-amd64@sha256:0e70ddcd79ce98ae5c8c7454e460320324a5884cacdf13c2fb776678b24e20ab
-            arm64: 3.9-arm64@sha256:17817b12aa3cb3b4a60295dacdf9d1ac7647fa9931f1ba10cf3e4ae1fe2e1faf
+            amd64: 3.9-amd64@sha256:9728b33743cd71be459b8a7e4f59b0feed64a1b440253e382b1708f1b3485cb2
+            arm64: 3.9-arm64@sha256:c37090eb97dbbbc1423dfb883f3c5a7d981f1ee560137013bc498cc4806191d4

@@ -7,6 +7,7 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/config"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,14 +17,45 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+func TestUpdatePauseImage(t *testing.T) {
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, k0sv1beta1.Install(scheme))
+
+	currentConfig := k0sv1beta1.DefaultClusterConfig()
+	currentConfig.Name = "k0s"
+	currentConfig.Namespace = "kube-system"
+	originalImages := currentConfig.Spec.Images.DeepCopy()
+
+	installation := &ecv1beta1.Installation{
+		Spec: ecv1beta1.InstallationSpec{
+			Config: &ecv1beta1.ConfigSpec{
+				Domains: ecv1beta1.Domains{ProxyRegistryDomain: "registry.com"},
+			},
+		},
+	}
+
+	cli := fake.NewClientBuilder().WithScheme(scheme).WithObjects(currentConfig).Build()
+	require.NoError(t, updatePauseImage(context.Background(), cli, installation, logger))
+
+	var updatedConfig k0sv1beta1.ClusterConfig
+	require.NoError(t, cli.Get(context.Background(), client.ObjectKey{Name: "k0s", Namespace: "kube-system"}, &updatedConfig))
+
+	targetConfig := config.RenderK0sConfig("registry.com")
+	assert.Equal(t, targetConfig.Spec.Images.Pause, updatedConfig.Spec.Images.Pause)
+	updatedConfig.Spec.Images.Pause = originalImages.Pause
+	assert.Equal(t, originalImages, updatedConfig.Spec.Images, "non-pause images must not change before the k0s upgrade")
+}
+
 func TestUpdateClusterConfig(t *testing.T) {
 	// Discard log messages
 	logger := logrus.New()
 	logger.SetLevel(logrus.ErrorLevel)
 
 	scheme := runtime.NewScheme()
-	//nolint:staticcheck // SA1019 we are using the deprecated scheme for backwards compatibility, we can remove this once we stop supporting k0s v1.30
-	require.NoError(t, k0sv1beta1.AddToScheme(scheme))
+	require.NoError(t, k0sv1beta1.Install(scheme))
 
 	// We need to disable telemetry in a backwards compatible way with k0s v1.30 and v1.29
 	// See - https://github.com/k0sproject/k0s/pull/4674/files#diff-eea4a0c68e41d694c3fd23b4865a7b28bcbba61dc9c642e33c2e2f5f7f9ee05d
@@ -347,6 +379,116 @@ config:
 
 				// Verify that image registries are still updated
 				assert.Contains(t, updatedConfig.Spec.Images.CoreDNS.Image, "registry.com/")
+			},
+		},
+		{
+			// A cluster installed with the pod log directory keeps it across upgrades: the
+			// upgrade path never rewrites workerProfiles unless an override says so.
+			name: "keeps the pod logs worker profile when no overrides are set",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					WorkerProfiles: []k0sv1beta1.WorkerProfile{
+						{
+							Name:   "default",
+							Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`)},
+						},
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
+				assert.Equal(t, "default", updatedConfig.Spec.WorkerProfiles[0].Name)
+				assert.JSONEq(t, `{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`, string(updatedConfig.Spec.WorkerProfiles[0].Config.Raw))
+			},
+		},
+		{
+			// The pod log directory is set at install time only, so upgrading a cluster that
+			// never had it must not introduce one.
+			name: "does not add a pod logs worker profile to an existing cluster",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				assert.Empty(t, updatedConfig.Spec.WorkerProfiles)
+			},
+		},
+		{
+			// Documents the accepted trade-off: workerProfiles is a list and overrides replace
+			// it wholesale, so a vendor profile takes the pod log directory with it.
+			name: "vendor worker profile override replaces the pod logs profile",
+			currentConfig: &k0sv1beta1.ClusterConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "k0s",
+					Namespace: "kube-system",
+				},
+				Spec: &k0sv1beta1.ClusterSpec{
+					Network: &k0sv1beta1.Network{
+						ServiceCIDR: "10.96.0.0/12",
+					},
+					WorkerProfiles: []k0sv1beta1.WorkerProfile{
+						{
+							Name:   "default",
+							Config: &runtime.RawExtension{Raw: []byte(`{"podLogsDir":"/var/lib/embedded-cluster/k0s/pod-logs"}`)},
+						},
+					},
+				},
+			},
+			installation: &ecv1beta1.Installation{
+				Spec: ecv1beta1.InstallationSpec{
+					Config: &ecv1beta1.ConfigSpec{
+						Domains: ecv1beta1.Domains{
+							ProxyRegistryDomain: "registry.com",
+						},
+						UnsupportedOverrides: ecv1beta1.UnsupportedOverrides{
+							K0s: `
+config:
+  spec:
+    workerProfiles:
+    - name: ip-forward
+      values:
+        allowedUnsafeSysctls:
+        - net.ipv4.ip_forward
+`,
+						},
+					},
+				},
+			},
+			validate: func(t *testing.T, updatedConfig *k0sv1beta1.ClusterConfig) {
+				require.Len(t, updatedConfig.Spec.WorkerProfiles, 1)
+				assert.Equal(t, "ip-forward", updatedConfig.Spec.WorkerProfiles[0].Name)
 			},
 		},
 	}

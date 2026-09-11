@@ -25,7 +25,9 @@ func TestCollectSupportBundle(t *testing.T) {
 
 	t.Logf("%s: installing embedded-cluster on node 0", time.Now().Format(time.RFC3339))
 	line := []string{"single-node-install.sh", "cli", os.Getenv("SHORT_SHA")}
-	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	// Disable the etcd disk-latency host preflight, which is flaky on CI runners
+	env := map[string]string{"DISABLE_FILESYSTEM_PERFORMANCE_CHECK": "1"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line, env)
 	assert.NoErrorf(t, err, "fail to install embedded-cluster: %v: %s: %s", err, stdout, stderr)
 
 	line = []string{"collect-support-bundle-host.sh"}
@@ -35,6 +37,11 @@ func TestCollectSupportBundle(t *testing.T) {
 	line = []string{"collect-support-bundle-cluster.sh"}
 	stdout, stderr, err = tc.RunCommandOnNode(0, line)
 	assert.NoErrorf(t, err, "fail to collect cluster support bundle: %v: %s: %s", err, stdout, stderr)
+
+	t.Logf("%s: creating test redactor spec for CLI support bundle", time.Now().Format(time.RFC3339))
+	line = []string{"create-test-redactor.sh"}
+	stdout, stderr, err = tc.RunCommandOnNode(0, line)
+	assert.NoErrorf(t, err, "fail to create test redactor spec: %v: %s: %s", err, stdout, stderr)
 
 	t.Logf("%s: collecting support bundle with the embedded-cluster binary", time.Now().Format(time.RFC3339))
 	line = []string{"embedded-cluster", "support-bundle"}

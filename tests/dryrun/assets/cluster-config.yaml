@@ -34,6 +34,20 @@ spec:
         values: |
           labels:
             release-custom-label: release-clustom-value
+          kotsadm:
+            resources:
+              limits:
+                memory: 4Gi
+              requests:
+                cpu: 200m
+                memory: 300Mi
+          rqlite:
+            resources:
+              limits:
+                memory: 3Gi
+              requests:
+                cpu: 150m
+                memory: 512Mi
   extensions:
     helm:
       charts:

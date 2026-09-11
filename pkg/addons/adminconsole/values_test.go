@@ -87,8 +87,6 @@ func TestGenerateHelmValues_HostCABundlePath(t *testing.T) {
 
 func TestGenerateHelmValues_Target(t *testing.T) {
 	t.Run("Linux (with cluster ID)", func(t *testing.T) {
-		t.Setenv("ENABLE_V3", "1")
-
 		dataDir := t.TempDir()
 
 		adminConsole := &AdminConsole{
@@ -112,8 +110,6 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 		assert.Equal(t, "123", values["embeddedClusterID"])
 		assert.Equal(t, dataDir, values["embeddedClusterDataDir"])
 		assert.Equal(t, filepath.Join(dataDir, "k0s"), values["embeddedClusterK0sDir"])
-		// TODO: enable this once we stop relying on KOTS to deploy the app
-		// assert.Equal(t, true, values["isEmbeddedClusterV3"])
 
 		assert.Contains(t, values["extraEnv"], map[string]interface{}{
 			"name":  "SSL_CERT_CONFIGMAP",
@@ -126,8 +122,6 @@ func TestGenerateHelmValues_Target(t *testing.T) {
 	})
 
 	t.Run("Kubernetes (without cluster ID)", func(t *testing.T) {
-		t.Setenv("ENABLE_V3", "1")
-
 		adminConsole := &AdminConsole{
 			IsAirgap:           false,
 			IsHA:               false,

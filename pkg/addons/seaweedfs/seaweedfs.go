@@ -6,6 +6,9 @@ import (
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/types"
+	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
+	"k8s.io/apimachinery/pkg/runtime"
+	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
 const (
@@ -25,11 +28,29 @@ const (
 	_s3SecretName = "secret-seaweedfs-s3"
 )
 
+var (
+	serializer runtime.Serializer
+)
+
+func init() {
+	scheme := kubeutils.Scheme
+	serializer = jsonserializer.NewSerializerWithOptions(jsonserializer.DefaultMetaFactory, scheme, scheme, jsonserializer.SerializerOptions{
+		Yaml: true,
+	})
+}
+
 var _ types.AddOn = (*SeaweedFS)(nil)
 
 type SeaweedFS struct {
 	ServiceCIDR      string
 	SeaweedFSDataDir string
+
+	// DryRun is a flag to enable dry-run mode for SeaweedFS.
+	// If true, SeaweedFS will only render the helm template and additional manifests, but not install
+	// the release.
+	DryRun bool
+
+	dryRunManifests [][]byte
 }
 
 func (s *SeaweedFS) Name() string {
@@ -59,4 +80,8 @@ func (s *SeaweedFS) ChartLocation(domains ecv1beta1.Domains) string {
 		return Metadata.Location
 	}
 	return strings.Replace(Metadata.Location, "proxy.replicated.com", domains.ProxyRegistryDomain, 1)
+}
+
+func (s *SeaweedFS) DryRunManifests() [][]byte {
+	return s.dryRunManifests
 }

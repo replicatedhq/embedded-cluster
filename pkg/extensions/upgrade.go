@@ -23,8 +23,9 @@ const (
 type helmAction string
 
 func Upgrade(ctx context.Context, kcli client.Client, hcli helm.Client, prev *ecv1beta1.Installation, in *ecv1beta1.Installation, logger logrus.FieldLogger) error {
-	// add new helm repos
-	if in.Spec.Config.Extensions.Helm != nil {
+	// In airgap mode charts are resolved from the local bundle, so repo add would
+	// attempt outbound network calls to external chart repository domains needlessly.
+	if !in.Spec.AirGap && in.Spec.Config.Extensions.Helm != nil {
 		if err := addRepos(ctx, hcli, in.Spec.Config.Extensions.Helm.Repositories); err != nil {
 			return errors.Wrap(err, "add repos")
 		}

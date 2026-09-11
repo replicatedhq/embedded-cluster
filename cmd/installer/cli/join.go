@@ -42,12 +42,13 @@ import (
 )
 
 type JoinCmdFlags struct {
-	noHA                 bool
-	networkInterface     string
-	assumeYes            bool
-	skipHostPreflights   bool
-	ignoreHostPreflights bool
-	embeddedAssetsSize   int64
+	noHA                              bool
+	networkInterface                  string
+	assumeYes                         bool
+	skipHostPreflights                bool
+	ignoreHostPreflights              bool
+	disableFilesystemPerformanceCheck bool
+	embeddedAssetsSize                int64
 }
 
 // JoinCmd returns a cobra command for joining a node to the cluster.
@@ -62,7 +63,7 @@ func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 		Short: fmt.Sprintf("Join a node to the %s cluster", appTitle),
 		Args:  cobra.ExactArgs(2),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if err := preRunJoin(&flags); err != nil {
+			if err := preRunJoin(cmd, &flags); err != nil {
 				return err
 			}
 
@@ -113,7 +114,7 @@ func JoinCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	return cmd
 }
 
-func preRunJoin(flags *JoinCmdFlags) error {
+func preRunJoin(cmd *cobra.Command, flags *JoinCmdFlags) error {
 	// Skip root check if dryrun mode is enabled
 	if !dryrun.Enabled() && os.Getuid() != 0 {
 		return fmt.Errorf("join command must be run as root")
@@ -131,6 +132,12 @@ func preRunJoin(flags *JoinCmdFlags) error {
 	flags.embeddedAssetsSize, err = goods.SizeOfEmbeddedAssets()
 	if err != nil {
 		return fmt.Errorf("failed to get size of embedded files: %w", err)
+	}
+
+	if !cmd.Flags().Changed("disable-filesystem-performance-check") {
+		if os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "1" || os.Getenv("DISABLE_FILESYSTEM_PERFORMANCE_CHECK") == "true" {
+			flags.disableFilesystemPerformanceCheck = true
+		}
 	}
 
 	return nil
@@ -151,6 +158,11 @@ func addJoinFlags(cmd *cobra.Command, flags *JoinCmdFlags) error {
 		return err
 	}
 	if err := cmd.Flags().MarkDeprecated("skip-host-preflights", "This flag is deprecated and will be removed in a future version. Use --ignore-host-preflights instead."); err != nil {
+		return err
+	}
+
+	cmd.Flags().BoolVar(&flags.disableFilesystemPerformanceCheck, "disable-filesystem-performance-check", false, "Disable the filesystem write latency performance check")
+	if err := cmd.Flags().MarkHidden("disable-filesystem-performance-check"); err != nil {
 		return err
 	}
 
@@ -351,7 +363,7 @@ func materializeFilesForJoin(ctx context.Context, rc runtimeconfig.RuntimeConfig
 		return fmt.Errorf("materialize binaries: %w", err)
 	}
 
-	if err := support.MaterializeSupportBundleSpec(rc, jcmd.InstallationSpec.AirGap); err != nil {
+	if err := support.MaterializeSupportBundleSpec(rc, release.GetChannelRelease(), jcmd.InstallationSpec.AirGap); err != nil {
 		return fmt.Errorf("materialize support bundle spec: %w", err)
 	}
 
@@ -491,6 +503,10 @@ func applyNetworkConfiguration(networkInterface string, rc runtimeconfig.Runtime
 			clusterSpec.Spec.API.ExtraArgs = map[string]string{}
 		}
 		clusterSpec.Spec.API.ExtraArgs["service-node-port-range"] = rc.NodePortRange()
+	}
+
+	if err := config.ApplyHostK0sConfigOverrides(context.TODO(), clusterSpec); err != nil {
+		return fmt.Errorf("apply host k0s config overrides: %w", err)
 	}
 
 	clusterSpecYaml, err := k8syaml.Marshal(clusterSpec)

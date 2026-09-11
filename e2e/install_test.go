@@ -42,6 +42,7 @@ func TestSingleNodeInstallation(t *testing.T) {
 
 	checkInstallationState(t, tc)
 	checkNodeJoinCommand(t, tc, 0)
+	checkContainerdRegistryConfigAbsent(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -112,6 +113,13 @@ func TestMultiNodeInstallation(t *testing.T) {
 
 	checkInstallationState(t, tc)
 
+	// reset the worker without --force to verify it completes gracefully
+	t.Logf("%s: resetting worker node 3", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := resetInstallationWithError(t, tc, 3, resetInstallationOptions{})
+	if err != nil {
+		t.Fatalf("fail to reset worker node 3: %v: %s: %s", err, stdout, stderr)
+	}
+
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
@@ -174,6 +182,11 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
+	if usesContainerdV3Schema() {
+		checkContainerdRegistryConfigAbsent(t, tc, 0)
+	} else {
+		checkContainerdRegistryConfigV2(t, tc, 0)
+	}
 
 	line = []string{"collect-support-bundle-host-in-cluster.sh"}
 	stdout, stderr, err := tc.RunCommandOnNode(0, line)
@@ -251,6 +264,41 @@ func TestUpgradeFromReplicatedAppPreviousK0s(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
+// ecSelinuxPolicy covers the operations embedded cluster workloads need that
+// ubuntu's selinux reference policy denies. On RHEL derivatives these are
+// granted by container-selinux, which has no ubuntu equivalent. k0s and all
+// containers run in the generic initrc_t domain.
+//
+// The mount_t rules let the mount command resolve /proc/<kubelet-pid>/fd/N
+// magic links (labeled with kubelet's domain, initrc_t) which kubelet uses as
+// bind mount sources when preparing subPath volume mounts, and tear them down
+// again. The initrc_t rules mirror what container-selinux grants all
+// container domains: runtime code generation (execmem, needed by JIT runtimes
+// such as ingress-nginx's LuaJIT) and anonymous memfd files (self:file).
+const ecSelinuxPolicy = `module ec-selinux 1.2;
+
+require {
+	type mount_t;
+	type initrc_t;
+	type initrc_runtime_t;
+	type tmpfs_t;
+	class dir search;
+	class file { read write create open getattr map mounton };
+	class lnk_file read;
+	class filesystem unmount;
+	class process execmem;
+}
+
+allow mount_t initrc_t:dir search;
+allow mount_t initrc_t:file read;
+allow mount_t initrc_t:lnk_file read;
+allow mount_t initrc_runtime_t:file { getattr mounton };
+allow mount_t tmpfs_t:filesystem unmount;
+
+allow initrc_t self:process execmem;
+allow initrc_t self:file { read write create open getattr map };
+`
+
 func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	t.Parallel()
 
@@ -259,8 +307,8 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	tc := cmx.NewCluster(&cmx.ClusterInput{
 		T:            t,
 		Nodes:        1,
-		Distribution: "almalinux",
-		Version:      "8",
+		Distribution: "ubuntu",
+		Version:      "24.04",
 	})
 	defer tc.Cleanup()
 
@@ -275,9 +323,46 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 		},
 	)
 
-	t.Logf("%s: installing policycoreutils-python-utils", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo dnf makecache --refresh && sudo dnf install -y policycoreutils-python-utils"}); err != nil {
-		t.Fatalf("fail to install policycoreutils-python-utils on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	// apparmor may not be installed at all so this is best-effort
+	t.Logf("%s: deactivating and uninstalling apparmor", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo systemctl disable --now apparmor 2>/dev/null; sudo DEBIAN_FRONTEND=noninteractive apt-get purge -y apparmor 2>/dev/null; true",
+	}); err != nil {
+		t.Fatalf("fail to uninstall apparmor on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: installing selinux packages", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y selinux-basics selinux-policy-default auditd policycoreutils-python-utils",
+	}); err != nil {
+		t.Fatalf("fail to install selinux packages on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	// ubuntu ships with apparmor; selinux-activate configures the bootloader to
+	// boot with selinux enabled in permissive mode and schedules a filesystem
+	// relabel on the next boot
+	t.Logf("%s: activating selinux", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"sudo selinux-activate"}); err != nil {
+		t.Fatalf("fail to activate selinux on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
+	}
+
+	t.Logf("%s: rebooting node to relabel the filesystem", time.Now().Format(time.RFC3339))
+	// the ssh connection is dropped by the reboot so an error is expected
+	tc.RunCommandOnNode(0, []string{"sudo reboot"})
+	tc.WaitForReboot()
+
+	waitForSelinuxEnabled(t, tc, 0)
+
+	// install a policy module allowing operations that ubuntu's selinux
+	// reference policy denies; see ecSelinuxPolicy for details.
+	t.Logf("%s: installing selinux policy module for embedded cluster workloads", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"cat > /tmp/ec-selinux.te <<'EOF'\n" + ecSelinuxPolicy + "EOF\n" +
+			"checkmodule -M -m -o /tmp/ec-selinux.mod /tmp/ec-selinux.te && " +
+			"semodule_package -o /tmp/ec-selinux.pp -m /tmp/ec-selinux.mod && " +
+			"sudo semodule -i /tmp/ec-selinux.pp",
+	}); err != nil {
+		t.Fatalf("fail to install selinux policy module on node %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
 	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
@@ -286,7 +371,7 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	t.Logf("%s: setting selinux to Enforcing mode", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1"}); err != nil {
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"setenforce 1 && getenforce"}); err != nil || !strings.Contains(stdout, "Enforcing") {
 		t.Fatalf("fail to set selinux to Enforcing mode %s: %v: %s: %s", tc.Nodes[0], err, stdout, stderr)
 	}
 
@@ -334,6 +419,16 @@ func TestSingleNodeAirgapUpgradeSelinux(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
+
+	if usesContainerdV3Schema() {
+		// A 1.35 -> 1.36 upgrade must migrate the airgap registry drop-in to
+		// the v3 schema, or k0s 1.36 won't start.
+		checkContainerdRegistryConfigV3(t, tc, 0)
+	} else {
+		// A 1.34 -> 1.35 upgrade must leave the registry drop-in on the v2
+		// schema supported by containerd 1.7.
+		checkContainerdRegistryConfigV2(t, tc, 0)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
@@ -484,6 +579,93 @@ func TestSingleNodeInstallationNoopUpgrade(t *testing.T) {
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version: appUpgradeVersion,
 	})
+
+	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+// TestSingleNodeAirgapAppOnlyUpgrade tests an app-only upgrade (no EC or k0s version change) in a
+// single-node airgap environment. Regression test for sc-134817.
+func TestSingleNodeAirgapAppOnlyUpgrade(t *testing.T) {
+	t.Parallel()
+
+	RequireEnvVars(t, []string{"SHORT_SHA"})
+
+	tc := cmx.NewCluster(&cmx.ClusterInput{
+		T:            t,
+		Nodes:        1,
+		Distribution: "ubuntu",
+		Version:      "22.04",
+		InstanceType: "r1.medium",
+	})
+	defer tc.Cleanup()
+
+	t.Logf("%s: downloading airgap files", time.Now().Format(time.RFC3339))
+	initialVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
+	upgradeVersion := fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA")) // Upgrade to the same version as the initial version
+	runInParallel(t,
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, initialVersion, AirgapInstallBundlePath, AirgapLicenseID)
+		},
+		func(t *testing.T) error {
+			return downloadAirgapBundleOnNode(t, tc, 0, upgradeVersion, AirgapUpgradeBundlePath, AirgapLicenseID)
+		},
+	)
+
+	t.Logf("%s: airgapping cluster", time.Now().Format(time.RFC3339))
+	if err := tc.Airgap(); err != nil {
+		t.Fatalf("failed to airgap cluster: %v", err)
+	}
+
+	t.Logf("%s: preparing embedded cluster airgap files on node 0", time.Now().Format(time.RFC3339))
+	line := []string{"airgap-prepare.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to prepare airgap files on node 0: %v: %s: %s", err, stdout, stderr)
+	}
+
+	installSingleNodeWithOptions(t, tc, installOptions{
+		isAirgap: true,
+		version:  initialVersion,
+	})
+
+	if stdout, stderr, err := tc.SetupPlaywrightAndRunTest("deploy-app"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-app: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after app deployment", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", initialVersion, k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: expecting 1 release", time.Now().Format(time.RFC3339))
+	line = []string{"expect-releases.sh", "1"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to expect 1 release: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: running airgap update", time.Now().Format(time.RFC3339))
+	line = []string{"airgap-update.sh"}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to run airgap update: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: upgrading app", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunPlaywrightTest("deploy-upgrade", upgradeVersion, "true"); err != nil {
+		t.Fatalf("fail to run playwright test deploy-upgrade: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: checking installation state after app upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion()}
+	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
+		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
+	}
+
+	t.Logf("%s: expecting 2 releases after app upgrade", time.Now().Format(time.RFC3339))
+	line = []string{"expect-releases.sh", "2"}
+	stdout, stderr, err := tc.RunCommandOnNode(0, line)
+	if err != nil {
+		t.Fatalf("fail to expect 2 releases: %v: %s: %s", err, stdout, stderr)
+	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }

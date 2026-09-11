@@ -12,7 +12,6 @@ RELEASE_YAML_DIR=${RELEASE_YAML_DIR:-e2e/kots-release-install}
 REPLICATED_APP=${REPLICATED_APP:-embedded-cluster-smoke-test-staging-app}
 REPLICATED_API_ORIGIN=${REPLICATED_API_ORIGIN:-https://api.staging.replicated.com/vendor}
 S3_BUCKET="${S3_BUCKET:-dev-embedded-cluster-bin}"
-V2_ENABLED=${V2_ENABLED:-0}
 
 require S3_BUCKET "${S3_BUCKET:-}"
 require REPLICATED_APP "${REPLICATED_APP:-}"
@@ -38,11 +37,11 @@ function init_vars() {
     require APP_VERSION "${APP_VERSION:-}"
     require APP_CHANNEL "${APP_CHANNEL:-}"
     require RELEASE_YAML_DIR "${RELEASE_YAML_DIR:-}"
-    
+
     # Install Helm if not already installed
     if ! command -v helm &> /dev/null; then
         echo "Installing Helm..."
-        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
     fi
 }
 
@@ -63,29 +62,36 @@ function create_release() {
     fi
 
     sed -i.bak "s|__version_string__|${EC_VERSION}|g" output/tmp/release/cluster-config.yaml
-    if [ "$V2_ENABLED" == "1" ]; then
-        sed -i.bak "s|__v2_enabled__|true|g" output/tmp/release/cluster-config.yaml
-    else
-        sed -i.bak "s|__v2_enabled__|false|g" output/tmp/release/cluster-config.yaml
-    fi
     sed -i.bak "s|__release_url__|$release_url|g" output/tmp/release/cluster-config.yaml
     sed -i.bak "s|__metadata_url__|$metadata_url|g" output/tmp/release/cluster-config.yaml
-    
+
     # Clean up backup files
     find output/tmp/release -name "*.bak" -type f -delete
-    
-    # Package the Helm charts
+
+    # Package the Helm charts that have a corresponding HelmChart CR in the release directory
     for CHART in nginx-app redis-app; do
         if [ -d "e2e/helm-charts/$CHART" ]; then
-            echo "Packaging Helm chart: $CHART..."
-            helm package -u e2e/helm-charts/$CHART -d output/tmp/release
-            
-            # Get the packaged chart filename
-            CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
-            if [ -n "$CHART_FILENAME" ]; then
-                echo "Created Helm chart package: $CHART_FILENAME"
+            # Only package the chart if a HelmChart CR referencing it exists in the release YAMLs
+            has_cr=false
+            for f in "$RELEASE_YAML_DIR"/*.yaml; do
+                if [ -f "$f" ] && grep -q "kind: HelmChart" "$f" && grep -q "name: $CHART" "$f"; then
+                    has_cr=true
+                    break
+                fi
+            done
+            if [ "$has_cr" = true ]; then
+                echo "Packaging Helm chart: $CHART..."
+                helm package -u e2e/helm-charts/$CHART -d output/tmp/release
+
+                # Get the packaged chart filename
+                CHART_FILENAME=$(find output/tmp/release -name "$CHART-*.tgz" -type f | head -1)
+                if [ -n "$CHART_FILENAME" ]; then
+                    echo "Created Helm chart package: $CHART_FILENAME"
+                else
+                    echo "Warning: Failed to create Helm chart package for $CHART"
+                fi
             else
-                echo "Warning: Failed to create Helm chart package for $CHART"
+                echo "Skipping Helm chart '$CHART': no matching HelmChart CR found in $RELEASE_YAML_DIR"
             fi
         else
             echo "Helm chart directory not found at e2e/helm-charts/$CHART"

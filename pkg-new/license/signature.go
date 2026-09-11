@@ -186,7 +186,7 @@ func verifyLicenseData(outerLicense *kotsv1beta1.License, innerLicense *kotsv1be
 		return fmt.Errorf("\"channelName\" field has changed to %q (license) from %q (within signature)", outerLicense.Spec.ChannelName, innerLicense.Spec.ChannelName)
 	}
 	if outerLicense.Spec.LicenseSequence != innerLicense.Spec.LicenseSequence {
-		return fmt.Errorf("\"licenseSequence\" field has changed to %q (license) from %q (within signature)", outerLicense.Spec.LicenseSequence, innerLicense.Spec.LicenseSequence)
+		return fmt.Errorf("\"licenseSequence\" field has changed to %d (license) from %d (within signature)", outerLicense.Spec.LicenseSequence, innerLicense.Spec.LicenseSequence)
 	}
 	if outerLicense.Spec.LicenseID != innerLicense.Spec.LicenseID {
 		return fmt.Errorf("\"licenseID\" field has changed to %q (license) from %q (within signature)", outerLicense.Spec.LicenseID, innerLicense.Spec.LicenseID)

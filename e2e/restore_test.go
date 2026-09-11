@@ -674,12 +674,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 
 	// reset the first controller (node 0) only
 	t.Logf("%s: resetting controller node 0", time.Now().Format(time.RFC3339))
-	stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{force: true, withEnv: withEnv})
+	stdout, stderr, err := resetInstallationWithError(t, tc, 0, resetInstallationOptions{withEnv: withEnv})
 	if err != nil {
 		t.Fatalf("fail to reset the installation on node 0: %v: %s: %s", err, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "High-availability is enabled and requires at least three controller-test nodes") {
-		t.Logf("reset output does not contain the ha warning: stdout: %s\nstderr: %s", stdout, stderr)
+		t.Errorf("reset output does not contain the ha warning")
+		t.Logf("stdout: %s\nstderr: %s", stdout, stderr)
 	}
 
 	stdout, stderr, err = tc.RunCommandOnNode(2, []string{"check-nodes-removed.sh", "2"}, withEnv)

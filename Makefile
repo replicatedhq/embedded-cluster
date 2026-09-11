@@ -12,7 +12,7 @@ KOTS_VERSION = v$(shell awk '/^version/{print $$2}' pkg/addons/adminconsole/stat
 
 ifeq ($(findstring ttl.sh,$(KOTS_BINARY_URL_OVERRIDE)),ttl.sh)
 KOTS_VERSION = kots-dev-$(shell oras manifest fetch $(KOTS_BINARY_URL_OVERRIDE) | jq '.layers[0].digest' | cut -c9-15)
-else ifdef KOTS_BINARY_FILE_OVERRIDE 
+else ifdef KOTS_BINARY_FILE_OVERRIDE
 KOTS_VERSION = kots-dev-$(shell shasum -a 256 $(KOTS_BINARY_FILE_OVERRIDE) | cut -c1-8)
 endif
 
@@ -132,10 +132,8 @@ cmd/installer/goods/bins/local-artifact-mirror:
 
 output/bins/fio-%:
 	mkdir -p output/bins
-	docker build -t fio --build-arg FIO_VERSION=$(call split-hyphen,$*,1) --build-arg PLATFORM=$(OS)/$(call split-hyphen,$*,2) fio
-	docker rm -f fio && docker run --name fio fio
-	docker cp fio:/output/fio $@
-	docker rm -f fio
+	dagger call build-fio --version=$(call split-hyphen,$*,1) --arch=$(call split-hyphen,$*,2) export --path=$@
+	chmod +x $@
 	touch $@
 
 .PHONY: cmd/installer/goods/bins/fio
@@ -158,10 +156,30 @@ cmd/installer/goods/internal/bins/kubectl-kots:
 	fi
 	touch $@
 
-output/bins/kubectl-kots-%:
+.PHONY: force-kubectl-kots-extract
+force-kubectl-kots-extract:
+
+# Extract kubectl-kots from the image, resolving its filesystem symlink.
+output/bins/kubectl-kots-%: force-kubectl-kots-extract
 	mkdir -p output/bins
 	mkdir -p output/tmp
-	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) - | tar -Oxf - kots > $@
+	tmpdir=$$(mktemp -d output/tmp/kubectl-kots.XXXXXX); \
+	trap 'rm -rf "$$tmpdir"' EXIT; \
+	crane export kotsadm/kotsadm:$(call split-underscore,$*,1) --platform linux/$(call split-underscore,$*,2) "$$tmpdir/image.tar"; \
+	archive_path=kots; \
+	tar -xf "$$tmpdir/image.tar" -C "$$tmpdir" "$$archive_path"; \
+	binary="$$tmpdir/$$archive_path"; \
+	while [ -L "$$binary" ]; do \
+		target=$$(readlink "$$binary"); \
+		case "$$target" in \
+			/*) archive_path=$${target#/} ;; \
+			*) archive_path=$$(dirname "$$archive_path")/$$target ;; \
+		esac; \
+		tar -xf "$$tmpdir/image.tar" -C "$$tmpdir" "$$archive_path"; \
+		binary="$$tmpdir/$$archive_path"; \
+	done; \
+	test -s "$$binary"; \
+	cp "$$binary" $@
 	chmod +x $@
 	touch $@
 
@@ -183,24 +201,17 @@ output/bin/embedded-cluster-release-builder:
 	mkdir -p output/bin
 	CGO_ENABLED=0 go build -o output/bin/embedded-cluster-release-builder e2e/embedded-cluster-release-builder/main.go
 
-.PHONY: e2e-v3-initial-release
-e2e-v3-initial-release: export ARCH = amd64
-e2e-v3-initial-release: export UPLOAD_BINARIES = 1
-e2e-v3-initial-release: export ENABLE_V3 = 1
-e2e-v3-initial-release: initial-release
-
 .PHONY: initial-release
-initial-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-initial-release: export APP_VERSION = appver-dev-$(call random-string)
-initial-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
-initial-release: export V2_ENABLED = 0
+initial-release: RANDOM_STRING = $(call random-string)
+initial-release: export EC_VERSION ?= $(VERSION)-$(RANDOM_STRING)
+initial-release: export APP_VERSION ?= appver-dev-$(RANDOM_STRING)
+initial-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 initial-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
 		./scripts/build-and-release.sh
 
 .PHONY: rebuild-release
-rebuild-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)
-rebuild-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-install-v3,e2e/kots-release-install)
+rebuild-release: export RELEASE_YAML_DIR = e2e/kots-release-install
 rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),0) \
 	SKIP_RELEASE=1 \
@@ -208,10 +219,9 @@ rebuild-release: check-env-EC_VERSION check-env-APP_VERSION
 
 .PHONY: upgrade-release
 upgrade-release: RANDOM_STRING = $(call random-string)
-upgrade-release: export EC_VERSION = $(VERSION)-$(CURRENT_USER)-upgrade-$(RANDOM_STRING)
-upgrade-release: export APP_VERSION = appver-dev-$(call random-string)-upgrade-$(RANDOM_STRING)
-upgrade-release: export RELEASE_YAML_DIR = $(if $(filter 1,$(ENABLE_V3)),e2e/kots-release-upgrade-v3,e2e/kots-release-upgrade)
-upgrade-release: export V2_ENABLED = 0
+upgrade-release: export EC_VERSION ?= $(VERSION)-upgrade-$(RANDOM_STRING)
+upgrade-release: export APP_VERSION ?= appver-dev-upgrade-$(RANDOM_STRING)
+upgrade-release: export RELEASE_YAML_DIR = e2e/kots-release-upgrade
 upgrade-release: check-env-EC_VERSION check-env-APP_VERSION
 	UPLOAD_BINARIES=$(if $(UPLOAD_BINARIES),$(UPLOAD_BINARIES),1) \
 		./scripts/build-and-release.sh
@@ -231,7 +241,7 @@ crds:
 build-deps: go.mod crds
 
 .PHONY: buildtools
-buildtools:
+buildtools: go.mod
 	go build -tags $(GO_BUILD_TAGS) -o ./output/bin/buildtools ./cmd/buildtools
 
 .PHONY: static
@@ -277,7 +287,7 @@ embedded-cluster-darwin-arm64: embedded-cluster
 .PHONY: embedded-cluster
 embedded-cluster: build-deps
 	CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) go build \
-		-tags osusergo,netgo \
+		-tags $(GO_INSTALLER_BUILD_TAGS) \
 		-ldflags="-s -w $(LD_FLAGS) -extldflags=-static" \
 		-o ./build/embedded-cluster-$(OS)-$(ARCH) \
 		./cmd/installer
@@ -290,8 +300,7 @@ envtest: crds
 unit-tests: ENVTEST_K8S_VERSION = $(shell echo $(K0S_VERSION) | sed 's/v\([0-9]*\.[0-9]*\)\.[0-9]*.*/\1/')
 unit-tests: envtest
 	KUBEBUILDER_ASSETS="$(shell ./operator/bin/setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/operator/bin -p path)" \
-		go test -race -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./web/... ./pkg-new/...
-	$(MAKE) -C api unit-tests
+		go test -race -tags $(GO_BUILD_TAGS) -v ./pkg/... ./cmd/... ./pkg-new/...
 	$(MAKE) -C operator test
 	$(MAKE) -C utils unit-tests
 
@@ -326,6 +335,7 @@ clean:
 	rm -rf cmd/installer/goods/internal/bins/*
 	rm -rf build
 	rm -rf bin
+	@$(MAKE) -C tests/integration clean
 
 .PHONY: lint
 lint:
@@ -335,23 +345,6 @@ lint:
 lint-and-fix:
 	golangci-lint run --fix -c .golangci.yml ./... --build-tags $(GO_BUILD_TAGS)
 
-.PHONY: scan
-scan:
-	trivy fs \
-		--scanners vuln \
-		--exit-code=1 \
-		--severity="HIGH,CRITICAL" \
-		--ignore-unfixed \
-		./
-
-.PHONY: api-types
-api-types:
-	@echo "Generating OpenAPI documentation..."
-	$(MAKE) -C api swagger
-	@echo "Generating TypeScript types from OpenAPI spec..."
-	cd web && npm run types:api:generate
-	@echo "API types generated successfully!"
-
 .PHONY: list-distros
 list-distros:
 	@$(MAKE) -C dev/distros list
@@ -359,33 +352,20 @@ list-distros:
 .PHONY: create-node%
 create-node%: DISTRO = debian-bookworm
 create-node%: NODE_PORT = 30000
-create-node%: MANAGER_NODE_PORT = 30080
 create-node%: K0S_DATA_DIR = /var/lib/embedded-cluster/k0s
-create-node%: K0S_DATA_DIR_V3 = $(shell \
-	if [ -n "$(REPLICATED_APP)" ]; then \
-		echo "/var/lib/$(shell echo '$(REPLICATED_APP)' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g')/k0s"; \
-	else \
-		echo "/var/lib/embedded-cluster-smoke-test-staging-app/k0s"; \
-	fi)
-create-node%: ENABLE_V3 = 0
 create-node%:
-	@echo "Mounting data directories:"
-	@echo "  v2: $(K0S_DATA_DIR)"
-	@echo "  v3: $(K0S_DATA_DIR_V3)"
+	@echo "Mounting data directory: $(K0S_DATA_DIR)"
 	@docker run -d \
 		--name node$* \
 		--hostname node$* \
 		--privileged \
 		--restart=unless-stopped \
 		-v $(K0S_DATA_DIR) \
-		-v $(K0S_DATA_DIR_V3) \
 		-v $(shell pwd):/replicatedhq/embedded-cluster \
 		-v $(shell dirname $(shell pwd))/kots:/replicatedhq/kots \
 		$(if $(filter node0,node$*),-p $(NODE_PORT):$(NODE_PORT)) \
-		$(if $(filter node0,node$*),-p $(MANAGER_NODE_PORT):$(MANAGER_NODE_PORT)) \
 		$(if $(filter node0,node$*),-p 30003:30003) \
 		-e EC_PUBLIC_ADDRESS=localhost \
-		-e ENABLE_V3=$(ENABLE_V3) \
 		replicated/ec-distro:$(DISTRO)
 
 	@$(MAKE) ssh-node$*

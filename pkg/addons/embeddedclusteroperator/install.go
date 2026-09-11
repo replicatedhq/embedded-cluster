@@ -28,7 +28,11 @@ func (e *EmbeddedClusterOperator) Install(
 		Values:       values,
 		Namespace:    e.Namespace(),
 		Labels:       getBackupLabels(),
-		LogFn:        helm.LogFn(logf),
+		// CRDs are bootstrapped by kubeutils.EnsureInstallationCRD before this runs, which claims SSA
+		// field ownership under "embedded-cluster" and conflicts with Helm 4's default server-side apply
+		// on .metadata.annotations.controller-gen.kubebuilder.io/version. Mirrors the upgrade path.
+		DisableSSA: true,
+		LogFn:      helm.LogFn(logf),
 	}
 
 	if e.DryRun {

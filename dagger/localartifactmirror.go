@@ -26,7 +26,7 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorImage(
 	arch string,
 ) *dagger.File {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
@@ -67,7 +67,7 @@ func (m *EmbeddedCluster) PublishLocalArtifactMirrorImage(
 	arch string,
 ) (string, error) {
 
-	tag := strings.Replace(ecVersion, "+", "-", -1)
+	tag := strings.ReplaceAll(ecVersion, "+", "-")
 	image := fmt.Sprintf("%s:%s", repo, tag)
 
 	apkoFile := m.apkoTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
@@ -109,12 +109,8 @@ func (m *EmbeddedCluster) BuildLocalArtifactMirrorPackage(
 
 	melangeFile := m.melangeTemplateLocalArtifactMirror(src, ecVersion, kzerosMinorVersion)
 
-	dir := dag.Directory().
-		WithDirectory("local-artifact-mirror", src.Directory("local-artifact-mirror")).
-		WithDirectory("cmd", src.Directory("cmd"))
-
 	build := m.chainguard.melangeBuildGo(
-		directoryWithCommonGoFiles(dir, src),
+		localArtifactMirrorDirectory(src),
 		melangeFile,
 		arch,
 		MelangeImageVersion,
@@ -159,4 +155,23 @@ func (m *EmbeddedCluster) melangeTemplateLocalArtifactMirror(
 		"melange.tmpl.yaml",
 		"melange.yaml",
 	)
+}
+
+func localArtifactMirrorDirectory(src *dagger.Directory) *dagger.Directory {
+	dir := directoryWithCommonGoFiles(dag.Directory(), src)
+	dir = dir.
+		WithDirectory("local-artifact-mirror",
+			src.Directory("local-artifact-mirror").
+				WithoutDirectory("bin").
+				WithoutDirectory("build").
+				WithoutDirectory("cache"),
+		).
+		WithDirectory("cmd",
+			src.Directory("cmd").
+				WithoutDirectory("installer/goods/bins").
+				WithNewFile("installer/goods/bins/.placeholder", ".placeholder").
+				WithoutDirectory("installer/goods/internal/bins").
+				WithNewFile("installer/goods/internal/bins/.placeholder", ".placeholder"),
+		)
+	return dir
 }

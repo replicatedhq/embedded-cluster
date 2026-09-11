@@ -9,6 +9,7 @@ spec:
   # uri: https://raw.githubusercontent.com/replicatedhq/embedded-cluster/main/operator/charts/embedded-cluster-operator/troubleshoot/cluster-support-bundle.yaml
   collectors:
   - clusterInfo: {}
+  # NOTE: We collect individual namespaces so that vendors can opt-out of collecting all namespaces if they want to.
   - clusterResources:
       namespaces:
       - kube-system

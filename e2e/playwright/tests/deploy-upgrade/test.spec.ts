@@ -4,18 +4,59 @@ import { login, vaidateAppAndClusterReady } from '../shared';
 test('deploy upgrade', async ({ page }) => {
   test.setTimeout(15 * 60 * 1000); // 15 minutes
   await login(page);
-  await initiateUpgrade(page);
-  const iframe = page.frameLocator('#upgrade-service-iframe');
-  await fillConfigForm(iframe);
-  await handlePreflightChecks(iframe);
-  await deployUpgrade(iframe);
-  await waitForClusterUpdate(page);
+  await runDeployUpgradeWithRetry(page);
   await verifyUpgradeSuccess(page);
 });
 
+async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    await initiateUpgrade(page);
+    const iframe = page.frameLocator('#upgrade-service-iframe');
+    await fillConfigForm(iframe);
+    await handlePreflightChecks(iframe);
+    await deployUpgrade(iframe);
+    await waitForClusterUpdate(page);
+
+    // Check for the transient "Upgrade failed" modal (e.g. 404 on binary download)
+    const failedModal = page.locator('dialog, .Modal-body').filter({ hasText: 'Upgrade failed' });
+    try {
+      await failedModal.waitFor({ timeout: 5_000 });
+    } catch (e) {
+      // Only a timeout means the modal did not appear — upgrade succeeded
+      if (e instanceof Error && e.name === 'TimeoutError') {
+        return;
+      }
+      throw e;
+    }
+
+    // Modal was found — dismiss it and retry the full deploy flow
+    await page.getByRole('button', { name: 'Ok, got it!' }).click();
+    await expect(failedModal).not.toBeVisible({ timeout: 5_000 });
+    continue;
+  }
+  throw new Error(`Deploy upgrade failed after ${maxRetries} retries due to transient errors`);
+}
+
 async function initiateUpgrade(page: Page) {
-  await page.getByRole('link', { name: 'Version history', exact: true }).click();
-  await page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION }).getByRole('button', { name: 'Deploy', exact: true }).click();
+  // The admin console only fetches available updates once, when the Version
+  // history page mounts. That fetch can hang indefinitely (no upstream
+  // timeout), so poll with page reloads instead of waiting for a single fetch.
+  const deployButton = page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION }).getByRole('button', { name: 'Deploy', exact: true });
+  const maxAttempts = 8; // 8 * 90s = 12 min, within the 15 min test timeout
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await page.getByRole('link', { name: 'Version history', exact: true }).click();
+    try {
+      await deployButton.waitFor({ state: 'visible', timeout: 90 * 1000 });
+      await deployButton.click();
+      return;
+    } catch (e) {
+      if (!(e instanceof Error && e.name === 'TimeoutError') || attempt === maxAttempts) {
+        throw e;
+      }
+      console.log(`upgrade version not available after ${attempt} attempt(s), reloading version history page`);
+      await page.reload();
+    }
+  }
 }
 
 async function fillConfigForm(iframe: FrameLocator) {
@@ -56,7 +97,7 @@ async function waitForClusterUpdate(page: Page) {
 
 async function verifyUpgradeSuccess(page: Page) {
   await expect(page.locator('.available-update-row', { hasText: process.env.APP_UPGRADE_VERSION })).not.toBeVisible({ timeout: 5 * 60 * 1000 });
-  await expect(page.locator('.VersionHistoryRow', { hasText: process.env.APP_UPGRADE_VERSION })).toContainText('Currently deployed version', { timeout: 90 * 1000 });
+  await expect(page.locator('.VersionHistoryRow').filter({ hasText: process.env.APP_UPGRADE_VERSION }).filter({ hasText: 'Currently deployed version' })).toBeVisible({ timeout: 90 * 1000 });
   await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
   await expect(page.locator('.VersionCard-content--wrapper')).toContainText(process.env.APP_UPGRADE_VERSION);
   await vaidateAppAndClusterReady(page, expect, 10 * 1000);

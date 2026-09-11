@@ -5,6 +5,7 @@ import (
 
 	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
 	"github.com/replicatedhq/embedded-cluster/operator/pkg/metadata"
+	pkgartifacts "github.com/replicatedhq/embedded-cluster/pkg-new/artifacts"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/runtimeconfig"
@@ -126,5 +127,5 @@ func (u *infraUpgrader) CopyVersionMetadataToCluster(ctx context.Context, in *ec
 
 // DistributeArtifacts distributes artifacts to nodes and cluster
 func (u *infraUpgrader) DistributeArtifacts(ctx context.Context, in *ecv1beta1.Installation, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion string) error {
-	return distributeArtifacts(ctx, u.kubeClient, u.runtimeConfig, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
+	return pkgartifacts.DistributeArtifacts(ctx, u.kubeClient, u.runtimeConfig, in, localArtifactMirrorImage, licenseID, appSlug, channelID, appVersion)
 }
