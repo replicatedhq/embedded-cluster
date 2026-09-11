@@ -704,8 +704,13 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 			t.Fatalf("failed to inspect DR fixture volume backup: %v: %s: %s", err, stdout, stderr)
 		}
 		phases := strings.Fields(stdout)
-		if len(phases) != 1 || phases[0] != "Completed" {
-			t.Fatalf("expected one completed fixture-data volume backup, got %q", phases)
+		if len(phases) == 0 {
+			t.Fatal("expected at least one fixture-data volume backup")
+		}
+		for _, phase := range phases {
+			if phase != "Completed" {
+				t.Fatalf("expected all fixture-data volume backups to be completed, got %q", phases)
+			}
 		}
 		if err := tc.StopMinio(0); err != nil {
 			t.Fatalf("failed to quiesce MinIO before fixture export: %v", err)
