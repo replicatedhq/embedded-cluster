@@ -149,10 +149,9 @@ USE_CHAINGUARD ?= 1
 
 export PACKAGE_VERSION ?= $(VERSION)
 export IMAGE_NAME ?= replicated/embedded-cluster-operator-image
+export IMAGE_TAG ?= $(call image-tag,$(PACKAGE_VERSION))
 export CHART_REMOTE ?= oci://registry.replicated.com/library
 export CHART_VERSION ?= $(shell echo "$(PACKAGE_VERSION)" | sed 's/^v//')
-
-export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-operator
 melange-build-operator:
@@ -222,7 +221,7 @@ else
 			--arch $(ARCH) \
 	> build/digest
 endif
-	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
+	@$(MAKE) image-output-digest IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-operator-image-dockerfile
 build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
@@ -230,7 +229,7 @@ build-and-push-operator-image-dockerfile: build-operator-image-dockerfile
 
 .PHONY: build-chart
 build-chart:
-	cd charts/embedded-cluster-operator && IMAGE_TAG=$(call image-tag,$(PACKAGE_VERSION)) ../../scripts/publish-helm-chart.sh
+	cd charts/embedded-cluster-operator && IMAGE_TAG="$(IMAGE_TAG)" ../../scripts/publish-helm-chart.sh
 	mkdir -p build
 	echo "$(CHART_REMOTE)/embedded-cluster-operator:$(CHART_VERSION)" > build/chart
 

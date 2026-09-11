@@ -26,7 +26,7 @@ jobs:
     permissions:
       contents: read    # Needed to read releases
     outputs:
-      tag_name: ${{ steps.get_release.outputs.tag_name }}
+      image_tag: ${{ steps.get_release.outputs.image_tag }}
     steps:
       - name: Get latest release
         id: get_release
@@ -37,7 +37,8 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            core.setOutput('tag_name', release.data.tag_name);
+            const imageTag = release.data.tag_name.replace(/^v/, '').replace('+k8s-', '-k8s');
+            core.setOutput('image_tag', imageTag);
   
   # Scan operator image using latest release tag
   scan-operator:
@@ -50,7 +51,7 @@ jobs:
       security-events: write # Needed to upload SARIF results
     with:
       # Use the latest release tag from the previous job
-      image: replicated/embedded-cluster-operator-image:${{ needs.get-latest-tag.outputs.tag_name }}
+      image: replicated/embedded-cluster-operator-image:${{ needs.get-latest-tag.outputs.image_tag }}
       # Report findings of medium severity or higher
       severity-cutoff: medium
       # Continue even if vulnerabilities are found
@@ -69,7 +70,7 @@ jobs:
       security-events: write # Needed to upload SARIF results
     with:
       # Use the latest release tag from the previous job
-      image: replicated/embedded-cluster-local-artifact-mirror:${{ needs.get-latest-tag.outputs.tag_name }}
+      image: replicated/embedded-cluster-local-artifact-mirror:${{ needs.get-latest-tag.outputs.image_tag }}
       # Report findings of medium severity or higher
       severity-cutoff: medium
       # Continue even if vulnerabilities are found

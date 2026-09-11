@@ -20,9 +20,18 @@ dagger develop
 
 ### Chainguard
 
-Build Chainguard-based container images using APKO and Melange.
+Build local and CI container images using APKO and Melange. Stable release images are built and published by SecureBuild. Local builds use the recipes in `securebuild/package` and `securebuild/image` without rewriting their contents. Melange uses `--source-dir` for the working source, `--pipeline-dir` for a local `git-checkout` override, and `--env-file` to supply the requested binary version and Go cache paths. APKO uses `--repository-append` and `--keyring-append` to consume locally signed head packages through their versioned aliases (the checked-in head version is `1000.0.0`).
 
-**Files:** `chainguard.go`, `common.go`
+The release workflow waits for SecureBuild and then resolves Docker Hub images at
+`replicated/embedded-cluster-operator-image:X.Y.Z-k8s1.N` and
+`replicated/embedded-cluster-local-artifact-mirror:X.Y.Z-k8s1.N`. It checks both
+architectures and preserves digest references in the installer. The operator
+chart continues to reference its image by tag only.
+GitHub Actions no longer builds or publishes release images. SecureBuild's release
+workflow supports stable versions; prerelease tags require images to have been
+published separately under the same naming convention.
+
+**Files:** `chainguard.go`, `securebuild.go`, `pipelines/git-checkout.yaml`
 
 ### Local Artifact Mirror
 
@@ -35,5 +44,4 @@ Manage local artifact mirroring for airgap installations.
 Build and publish the embedded-cluster operator.
 
 **Files:** `operator.go`
-
 
