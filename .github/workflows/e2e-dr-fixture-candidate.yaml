@@ -96,6 +96,18 @@ jobs:
           tar -xzf "$bundle" -C "$workdir"
           application_bundle=$(find "$workdir" -maxdepth 1 -name '*.airgap' -type f -print -quit)
           test -n "$application_bundle"
+          installer=$(find "$workdir" -maxdepth 1 -type f -perm -u+x -print -quit)
+          test -n "$installer"
+          ./output/bin/airgap-bundle extract-release \
+            --binary "$installer" \
+            --output "$workdir/release.tgz"
+          tar -tzf "$workdir/release.tgz" > "$workdir/release-entries.txt"
+          for required in backup.yaml restore.yaml; do
+            if ! grep -Fxq "$required" "$workdir/release-entries.txt"; then
+              echo "embedded release is missing $required" >&2
+              exit 1
+            fi
+          done
           tar -xOf "$application_bundle" embedded-cluster/version-metadata.json > "$workdir/metadata.json"
           ec_version=$(jq -er .Versions.Installer "$workdir/metadata.json")
           k0s_version=$(jq -er .Versions.Kubernetes "$workdir/metadata.json")

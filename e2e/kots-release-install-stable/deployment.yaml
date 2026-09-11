@@ -14,6 +14,8 @@ spec:
       component: nginx
   template:
     metadata:
+      annotations:
+        backup.velero.io/backup-volumes: fixture-data
       labels:
         app: example
         component: nginx
