@@ -506,6 +506,10 @@ jobs:
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ ${{ matrix.n }} -eq 0 ]; then
+            export DR_RESTORE_VERSION
+            DR_RESTORE_VERSION=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
+          fi
           ./scripts/build-and-release.sh
 
           version_suffix=
@@ -524,6 +528,7 @@ jobs:
           path: |
             output/bin/embedded-cluster
             output/bin/embedded-cluster-original
+            output/bin/embedded-cluster-dr-restore
             output/bin/embedded-cluster-release-builder
 
       - name: Upload release previous k0s
@@ -748,7 +753,7 @@ jobs:
           - { role: app-only-upgrade, source: e2e/kots-release-upgrade, artifact: current-release, binary: embedded-cluster-original }
           - { role: upgrade, source: e2e/kots-release-upgrade, artifact: upgrade-release, binary: embedded-cluster-upgrade }
           - { role: previous-stable, source: e2e/kots-release-install-stable, artifact: stable, binary: embedded-cluster }
-          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: current-release, binary: embedded-cluster-original }
+          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: current-release, binary: embedded-cluster-dr-restore }
           - { role: legacydr, source: e2e/kots-release-install-legacydr, artifact: current-release, binary: embedded-cluster-original }
     env:
       EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin

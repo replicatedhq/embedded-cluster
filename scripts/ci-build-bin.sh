@@ -56,6 +56,23 @@ function binary() {
         METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
         LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
     cp output/bin/embedded-cluster output/bin/embedded-cluster-original
+
+    # The immutable DR fixture was produced by this released version and the
+    # product intentionally requires an exact version match. Build the same
+    # candidate source and candidate dependencies with that stable version
+    # string for the restore compatibility test only.
+    if [ -n "${DR_RESTORE_VERSION:-}" ]; then
+        make "embedded-cluster-linux-$ARCH" \
+            K0S_VERSION="$K0S_VERSION" \
+            K0S_GO_VERSION="$K0S_GO_VERSION" \
+            VERSION="$DR_RESTORE_VERSION" \
+            METADATA_K0S_BINARY_URL_OVERRIDE="$k0s_binary_url" \
+            METADATA_KOTS_BINARY_URL_OVERRIDE="$kots_binary_url" \
+            METADATA_OPERATOR_BINARY_URL_OVERRIDE="$operator_binary_url" \
+            LOCAL_ARTIFACT_MIRROR_IMAGE="$local_artifact_mirror_image"
+        cp output/bin/embedded-cluster output/bin/embedded-cluster-dr-restore
+        cp output/bin/embedded-cluster-original output/bin/embedded-cluster
+    fi
 }
 
 function update_operator_metadata() {
