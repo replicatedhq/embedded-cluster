@@ -696,7 +696,7 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 	if fixtureOutput != "" {
 		line = []string{
 			"kubectl", "-n", "velero", "get", "podvolumebackups",
-			"-o", `jsonpath={range .items[?(@.spec.volume=="fixture-data")]}{.status.phase}{"\n"}{end}`,
+			"-o", `'jsonpath={range .items[?(@.spec.volume=="fixture-data")]}{.status.phase}{"\n"}{end}'`,
 		}
 		stdout, stderr, err := tc.RunCommandOnNode(0, line, withEnv)
 		if err != nil {
