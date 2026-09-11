@@ -75,7 +75,10 @@ expect {
 }
 
 expect {
-    -timeout 240 "High availability enabled for the Admin Console!" {}
+    # Enabling HA also pushes the airgap artifacts into the restored registry.
+    # The images archive alone can take more than four minutes on CMX, so use
+    # the same budget as the other airgap registry-population restore path.
+    -timeout 900 "High availability enabled for the Admin Console!" {}
     timeout {
       puts "\n\nFailed to enable high availability for the admin console."
       exit 1
