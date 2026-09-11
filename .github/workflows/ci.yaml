@@ -800,6 +800,19 @@ jobs:
           gh release download '${{ needs.find-previous-stable.outputs.ec_version }}' \
             --repo replicatedhq/embedded-cluster --pattern 'embedded-cluster-linux-amd64.tgz'
           tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
+      - name: Download DR fixture baseline EC binary
+        if: matrix.role == 'dr-restore'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          fixture_version=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
+          mkdir -p output/dr-fixture-baseline
+          gh release download "$fixture_version" --repo replicatedhq/embedded-cluster \
+            --pattern 'embedded-cluster-linux-amd64.tgz' --dir output/dr-fixture-baseline
+          tar -xzf output/dr-fixture-baseline/embedded-cluster-linux-amd64.tgz \
+            -C output/dr-fixture-baseline embedded-cluster
+          test -x output/dr-fixture-baseline/embedded-cluster
       - name: Assemble complete EC v2 bundle
         env:
           ROLE: ${{ matrix.role }}
@@ -815,6 +828,7 @@ jobs:
             dr-restore)
               APP_VERSION="appver-airgap-e2e-previous-stable"
               BUNDLE_NAME="appver-airgap-e2e-previous-stable-dr-restore"
+              ADDITIONAL_EC_BINARY=output/dr-fixture-baseline/embedded-cluster
               ;;
             previous-k0s-1) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-1" ;;
             previous-k0s-2) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-2" ;;
@@ -825,7 +839,7 @@ jobs:
               EC_CONFIG_SOURCE=e2e/kots-release-install/cluster-config.yaml
               ;;
           esac
-          export APP_VERSION BUNDLE_NAME EC_CONFIG_SOURCE
+          export APP_VERSION BUNDLE_NAME EC_CONFIG_SOURCE ADDITIONAL_EC_BINARY
           chmod +x "$EC_BINARY"
           ./scripts/assemble-e2e-airgap-bundle.sh
       - name: Upload locally assembled bundle

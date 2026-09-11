@@ -11,6 +11,7 @@ RUNTIME_PLAN=${RUNTIME_PLAN:-output/ec-runtime-plan.json}
 PLATFORM=${PLATFORM:-linux/amd64}
 CHART_FILES=${CHART_FILES:-}
 metadata_file=${VERSION_METADATA:-output/ec-version-metadata.json}
+additional_ec_binary=${ADDITIONAL_EC_BINARY:-}
 
 make output/bin/airgap-bundle
 
@@ -63,6 +64,13 @@ fi
 # metadata: application Config extensions and their images are runtime inputs.
 base_images_file=$(mktemp "${TMPDIR:-/tmp}/ec-runtime-base-images.XXXXXX")
 "$EC_BINARY" version list-images > "$base_images_file"
+if [ -n "$additional_ec_binary" ]; then
+    if [ ! -x "$additional_ec_binary" ]; then
+        echo "additional EC binary is not executable: $additional_ec_binary" >&2
+        exit 1
+    fi
+    "$additional_ec_binary" version list-images >> "$base_images_file"
+fi
 mapfile -t requested_images < <(sed '/^[[:space:]]*$/d' "$base_images_file" | sort -u)
 rm -f "$base_images_file"
 if [ -n "${chart_dir:-}" ]; then
