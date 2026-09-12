@@ -12,27 +12,59 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 )
 
 const maxInspectionDepth = 6
 
-const Schema = "embedded-cluster-dr-fixture/v1"
+const (
+	Schema       = "embedded-cluster-dr-fixture/v2"
+	LegacySchema = "embedded-cluster-dr-fixture/v1"
+)
 
 type Manifest struct {
-	Schema        string `json:"schema"`
-	CreatedAt     string `json:"createdAt"`
-	ECVersion     string `json:"ecVersion"`
-	K0sVersion    string `json:"k0sVersion"`
-	Application   string `json:"applicationVersion"`
-	BundleSHA256  string `json:"bundleSHA256"`
-	S3Region      string `json:"s3Region"`
-	S3Bucket      string `json:"s3Bucket"`
-	S3Prefix      string `json:"s3Prefix"`
-	S3AccessKey   string `json:"s3AccessKey"`
-	S3SecretKey   string `json:"s3SecretKey"`
-	Payload       string `json:"payload"`
-	PayloadSHA256 string `json:"payloadSHA256"`
+	Schema        string   `json:"schema"`
+	CreatedAt     string   `json:"createdAt"`
+	ECVersion     string   `json:"ecVersion"`
+	K0sVersion    string   `json:"k0sVersion"`
+	Application   string   `json:"applicationVersion"`
+	BundleSHA256  string   `json:"bundleSHA256"`
+	S3Region      string   `json:"s3Region"`
+	S3Bucket      string   `json:"s3Bucket"`
+	S3Prefix      string   `json:"s3Prefix"`
+	S3AccessKey   string   `json:"s3AccessKey"`
+	S3SecretKey   string   `json:"s3SecretKey"`
+	Payload       string   `json:"payload"`
+	PayloadSHA256 string   `json:"payloadSHA256"`
+	ECCommit      string   `json:"ecCommit,omitempty"`
+	KOTSCommit    string   `json:"kotsCommit,omitempty"`
+	VeleroVersion string   `json:"veleroVersion,omitempty"`
+	Generation    string   `json:"generationCommand,omitempty"`
+	KOTSDigests   []string `json:"kotsArtifactDigests,omitempty"`
+}
+
+// Build validates an exported MinIO tree and fills the fields derived from the
+// payload. Callers supply provenance and backup-store metadata explicitly.
+func Build(payloadPath string, manifest Manifest) (*Manifest, error) {
+	manifest.Schema = Schema
+	if manifest.CreatedAt == "" {
+		return nil, fmt.Errorf("fixture creation time is required")
+	}
+	manifest.Payload = filepath.Base(payloadPath)
+	digest, err := FileSHA256(payloadPath)
+	if err != nil {
+		return nil, err
+	}
+	manifest.PayloadSHA256 = digest
+	if err := verifyArchive(payloadPath); err != nil {
+		return nil, err
+	}
+	if err := validateManifest(manifest); err != nil {
+		return nil, err
+	}
+	return &manifest, nil
 }
 
 func WriteManifest(path string, manifest Manifest) error {
@@ -55,11 +87,11 @@ func Verify(payloadPath, manifestPath string) (*Manifest, error) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("decode fixture manifest: %w", err)
 	}
-	if manifest.Schema != Schema || manifest.CreatedAt == "" || manifest.ECVersion == "" ||
-		manifest.K0sVersion == "" || manifest.Application == "" || manifest.BundleSHA256 == "" || manifest.S3Region == "" ||
-		manifest.S3Bucket == "" || manifest.S3Prefix == "" || manifest.S3AccessKey == "" ||
-		manifest.S3SecretKey == "" || manifest.PayloadSHA256 == "" {
-		return nil, fmt.Errorf("fixture manifest is incomplete or has unsupported schema %q", manifest.Schema)
+	if manifest.Schema != Schema && manifest.Schema != LegacySchema {
+		return nil, fmt.Errorf("unsupported fixture schema %q", manifest.Schema)
+	}
+	if err := validateManifest(manifest); err != nil {
+		return nil, err
 	}
 	if manifest.Payload != filepath.Base(payloadPath) {
 		return nil, fmt.Errorf("fixture manifest payload %q does not match %q", manifest.Payload, filepath.Base(payloadPath))
@@ -75,6 +107,37 @@ func Verify(payloadPath, manifestPath string) (*Manifest, error) {
 		return nil, err
 	}
 	return &manifest, nil
+}
+
+func validateManifest(manifest Manifest) error {
+	if manifest.CreatedAt == "" || manifest.ECVersion == "" || manifest.K0sVersion == "" || manifest.Application == "" ||
+		manifest.BundleSHA256 == "" || manifest.S3Region == "" || manifest.S3Bucket == "" || manifest.S3Prefix == "" ||
+		manifest.S3AccessKey == "" || manifest.S3SecretKey == "" || manifest.Payload == "" || manifest.PayloadSHA256 == "" {
+		return fmt.Errorf("fixture manifest is incomplete for schema %q", manifest.Schema)
+	}
+	if _, err := time.Parse(time.RFC3339, manifest.CreatedAt); err != nil {
+		return fmt.Errorf("fixture creation time is invalid: %w", err)
+	}
+	if !isSHA256(manifest.BundleSHA256) || !isSHA256(manifest.PayloadSHA256) {
+		return fmt.Errorf("fixture manifest contains a non-canonical SHA-256 digest")
+	}
+	if manifest.Schema == Schema {
+		commit := regexp.MustCompile(`^[0-9a-f]{40}$`)
+		if !commit.MatchString(manifest.ECCommit) || !commit.MatchString(manifest.KOTSCommit) || manifest.VeleroVersion == "" ||
+			manifest.Generation == "" || len(manifest.KOTSDigests) == 0 {
+			return fmt.Errorf("fixture manifest is missing v2 provenance")
+		}
+		for _, digest := range manifest.KOTSDigests {
+			if !isSHA256(digest) {
+				return fmt.Errorf("fixture manifest contains invalid KOTS artifact digest %q", digest)
+			}
+		}
+	}
+	return nil
+}
+
+func isSHA256(value string) bool {
+	return regexp.MustCompile(`^sha256:[0-9a-f]{64}$`).MatchString(value)
 }
 
 func verifyArchive(path string) error {

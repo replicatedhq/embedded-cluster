@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
@@ -45,30 +46,31 @@ func exportDRFixture(tc *cmx.Cluster, minio *cmx.Minio, prefix, output string) e
 		return fmt.Errorf("copy fixture from CMX node: %w", err)
 	}
 
-	digest, err := drfixture.FileSHA256(output)
-	if err != nil {
-		return err
-	}
 	applicationVersion := os.Getenv("E2E_DR_FIXTURE_APP_VERSION")
 	if applicationVersion == "" {
 		applicationVersion = fmt.Sprintf("appver-%s", os.Getenv("SHORT_SHA"))
 	}
-	manifest := drfixture.Manifest{
-		Schema:        drfixture.Schema,
+	manifest, err := drfixture.Build(output, drfixture.Manifest{
 		CreatedAt:     time.Now().UTC().Format(time.RFC3339),
 		ECVersion:     os.Getenv("E2E_DR_FIXTURE_EC_VERSION"),
+		ECCommit:      os.Getenv("E2E_DR_FIXTURE_EC_COMMIT"),
 		K0sVersion:    k8sVersion(),
+		KOTSCommit:    os.Getenv("E2E_DR_FIXTURE_KOTS_COMMIT"),
+		VeleroVersion: os.Getenv("E2E_DR_FIXTURE_VELERO_VERSION"),
 		Application:   applicationVersion,
 		BundleSHA256:  os.Getenv("E2E_DR_FIXTURE_BUNDLE_SHA256"),
+		Generation:    os.Getenv("E2E_DR_FIXTURE_GENERATION_COMMAND"),
+		KOTSDigests:   strings.Fields(os.Getenv("E2E_DR_FIXTURE_KOTS_DIGESTS")),
 		S3Region:      minio.Region,
 		S3Bucket:      minio.DefaultBucket,
 		S3Prefix:      prefix,
 		S3AccessKey:   minio.AccessKey,
 		S3SecretKey:   minio.SecretKey,
-		Payload:       filepath.Base(output),
-		PayloadSHA256: digest,
+	})
+	if err != nil {
+		return err
 	}
-	return drfixture.WriteManifest(output+".manifest.json", manifest)
+	return drfixture.WriteManifest(output+".manifest.json", *manifest)
 }
 
 func restoreExportedDRFixture(tc *cmx.Cluster) error {

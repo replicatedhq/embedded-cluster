@@ -90,6 +90,11 @@ func validDRFixtureManifest(payload, digest string) drFixtureManifest {
 		S3SecretKey:   "fixture-secret",
 		Payload:       payload,
 		PayloadSHA256: digest,
+		ECCommit:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		KOTSCommit:    "cccccccccccccccccccccccccccccccccccccccc",
+		VeleroVersion: "v1.18.2",
+		Generation:    "gh workflow run e2e-dr-fixture-candidate.yaml",
+		KOTSDigests:   []string{"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
 	}
 }
 

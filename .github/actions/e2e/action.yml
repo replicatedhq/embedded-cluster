@@ -56,6 +56,21 @@ inputs:
   dr-fixture-bundle-sha256:
     description: 'SHA-256 of the exact released bundle used to produce the DR fixture'
     required: false
+  dr-fixture-ec-commit:
+    description: 'source commit for the released EC fixture baseline'
+    required: false
+  dr-fixture-kots-commit:
+    description: 'source commit for the KOTS fixture artifacts'
+    required: false
+  dr-fixture-velero-version:
+    description: 'Velero version used by the fixture baseline'
+    required: false
+  dr-fixture-kots-digests:
+    description: 'space-separated immutable KOTS artifact digests'
+    required: false
+  dr-fixture-generation-command:
+    description: 'command that reproduces fixture production'
+    required: false
   dr-fixture-input:
     description: 'path to an immutable DR fixture payload consumed by a restore-only test'
     required: false
@@ -151,6 +166,11 @@ runs:
       export E2E_DR_FIXTURE_APP_VERSION=${{ inputs.dr-fixture-app-version }}
       export E2E_DR_FIXTURE_EC_VERSION=${{ inputs.dr-fixture-ec-version }}
       export E2E_DR_FIXTURE_BUNDLE_SHA256=${{ inputs.dr-fixture-bundle-sha256 }}
+      export E2E_DR_FIXTURE_EC_COMMIT="${{ inputs.dr-fixture-ec-commit }}"
+      export E2E_DR_FIXTURE_KOTS_COMMIT="${{ inputs.dr-fixture-kots-commit }}"
+      export E2E_DR_FIXTURE_VELERO_VERSION="${{ inputs.dr-fixture-velero-version }}"
+      export E2E_DR_FIXTURE_KOTS_DIGESTS="${{ inputs.dr-fixture-kots-digests }}"
+      export E2E_DR_FIXTURE_GENERATION_COMMAND="${{ inputs.dr-fixture-generation-command }}"
       export E2E_DR_FIXTURE_INPUT=${{ inputs.dr-fixture-input }}
       export E2E_DR_RESTORE_BUNDLE_VERSION=${{ inputs.dr-restore-bundle-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"

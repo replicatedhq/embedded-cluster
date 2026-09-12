@@ -120,11 +120,31 @@ jobs:
           k0s_version=$(jq -er .Versions.Kubernetes "$workdir/metadata.json")
           app_version=$(basename "$bundle" .tgz)
           bundle_sha256="sha256:$(sha256sum "$bundle" | awk '{print $1}')"
+          ec_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BASELINE_EC_VERSION" --jq .sha)
+          mkdir -p "$workdir/source-metadata"
+          for path in pkg/addons/adminconsole/static/metadata.yaml pkg/addons/velero/static/metadata.yaml; do
+            gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$ec_commit" --jq .content |
+              base64 --decode > "$workdir/source-metadata/$(basename "$(dirname "$(dirname "$path")")").yaml"
+          done
+          adminconsole_metadata="$workdir/source-metadata/adminconsole.yaml"
+          velero_metadata="$workdir/source-metadata/velero.yaml"
+          kots_version=$(awk '/^version:/{print $2; exit}' "$adminconsole_metadata")
+          kots_commit=$(gh api "repos/replicatedhq/kots/commits/v$kots_version" --jq .sha)
+          velero_version=$(awk '/^[[:space:]]+amd64: v/{sub(/.*amd64: /, ""); sub(/-amd64@.*/, ""); print; exit}' "$velero_metadata")
+          kots_digests=$(grep -oE 'sha256:[0-9a-f]{64}' "$adminconsole_metadata" | sort -u | tr '\n' ' ' | sed 's/ $//')
+          test -n "$ec_commit"
+          test -n "$kots_commit"
+          test -n "$velero_version"
+          test -n "$kots_digests"
           echo "Released fixture baseline: app $app_version, EC $ec_version, k0s $k0s_version"
           echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
           echo "ec_version=$ec_version" >> "$GITHUB_OUTPUT"
           echo "k0s_version=$k0s_version" >> "$GITHUB_OUTPUT"
           echo "bundle_sha256=$bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "ec_commit=$ec_commit" >> "$GITHUB_OUTPUT"
+          echo "kots_commit=$kots_commit" >> "$GITHUB_OUTPUT"
+          echo "velero_version=$velero_version" >> "$GITHUB_OUTPUT"
+          echo "kots_digests=$kots_digests" >> "$GITHUB_OUTPUT"
 
       - name: Produce fixture and prove it restores
         uses: ./.github/actions/e2e
@@ -145,6 +165,11 @@ jobs:
           dr-fixture-app-version: ${{ steps.baseline.outputs.app_version }}
           dr-fixture-ec-version: ${{ steps.baseline.outputs.ec_version }}
           dr-fixture-bundle-sha256: ${{ steps.baseline.outputs.bundle_sha256 }}
+          dr-fixture-ec-commit: ${{ steps.baseline.outputs.ec_commit }}
+          dr-fixture-kots-commit: ${{ steps.baseline.outputs.kots_commit }}
+          dr-fixture-velero-version: ${{ steps.baseline.outputs.velero_version }}
+          dr-fixture-kots-digests: ${{ steps.baseline.outputs.kots_digests }}
+          dr-fixture-generation-command: gh workflow run e2e-dr-fixture-candidate.yaml --ref ${{ github.ref_name }} -f baseline_ec_version=${{ env.BASELINE_EC_VERSION }}
 
       - name: Publish immutable fixture
         shell: bash

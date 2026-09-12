@@ -6,7 +6,43 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
+
+func TestBuildAddsPayloadIdentityAndRequiresProvenance(t *testing.T) {
+	payload := filepath.Join(t.TempDir(), "fixture.tar.gz")
+	writeTarGzip(t, payload, "data/e2e/prefix/object", []byte("fixture contents"))
+	manifest := Manifest{
+		CreatedAt: time.Date(2026, 9, 12, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+		ECVersion: "v2.19.8+k8s-1.35", K0sVersion: "v1.35.6",
+		Application:  "appver-airgap-e2e-previous-stable",
+		BundleSHA256: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		S3Region:     "us-east-1", S3Bucket: "e2e", S3Prefix: "fixture",
+		S3AccessKey: "fixture-access", S3SecretKey: "fixture-secret",
+		ECCommit:      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		KOTSCommit:    "cccccccccccccccccccccccccccccccccccccccc",
+		VeleroVersion: "v1.18.2",
+		Generation:    "gh workflow run e2e-dr-fixture-candidate.yaml",
+		KOTSDigests:   []string{"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"},
+	}
+	built, err := Build(payload, manifest)
+	if err != nil {
+		t.Fatalf("build fixture manifest: %v", err)
+	}
+	if built.Schema != Schema || built.Payload != filepath.Base(payload) || built.PayloadSHA256 == "" {
+		t.Fatalf("unexpected derived manifest fields: %#v", built)
+	}
+	if err := WriteManifest(payload+".manifest.json", *built); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Verify(payload, payload+".manifest.json"); err != nil {
+		t.Fatalf("verify built manifest: %v", err)
+	}
+	manifest.ECCommit = ""
+	if _, err := Build(payload, manifest); err == nil {
+		t.Fatal("expected missing provenance to be rejected")
+	}
+}
 
 func TestRejectValuesFindsValueAcrossReadBoundary(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "payload")
