@@ -1,17 +1,6 @@
 name: Produce E2E DR fixture candidate
 
 on:
-  # Bootstrap the first candidate before this workflow exists on the default
-  # branch. Remove this branch-specific trigger after the candidate is audited.
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/e2e-dr-fixture-candidate.yaml
-      - .github/actions/e2e/action.yml
-      - e2e/dr_fixture.go
-      - e2e/dr_fixture_test.go
-      - e2e/restore_test.go
-      - e2e/cluster/cmx/cluster.go
   workflow_dispatch:
     inputs:
       baseline_ec_version:
@@ -19,6 +8,25 @@ on:
         required: true
         default: 2.19.8+k8s-1.35
         type: string
+  workflow_call:
+    inputs:
+      baseline_ec_version:
+        description: Exact released EC version used to produce the fixture
+        required: true
+        type: string
+    secrets:
+      DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID:
+        required: true
+      DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET:
+        required: true
+      STAGING_REPLICATED_API_TOKEN:
+        required: true
+      TESTIM_AWS_ACCESS_KEY_ID:
+        required: true
+      TESTIM_AWS_SECRET_ACCESS_KEY:
+        required: true
+      CMX_REPLICATED_API_TOKEN:
+        required: true
 
 permissions:
   actions: read
@@ -26,7 +34,6 @@ permissions:
 
 jobs:
   produce-and-restore:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.head_ref == 'divolgin/no-airgap-build' }}
     runs-on: ubuntu-22.04
     concurrency:
       group: e2e-dr-fixture-candidate-${{ github.event.pull_request.number || github.ref }}
