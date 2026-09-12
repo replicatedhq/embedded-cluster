@@ -300,10 +300,16 @@ document so the remaining work is explicit.
    application health probe without Playwright.
 6. **Completed — Add explicit airgap-boundary probes.** Verify that public HTTPS
    and public DNS fail while node-to-node and fixture-S3 traffic succeed.
-7. **In progress — Collect and analyze phase timings.** Emit structured timings for
+7. **Completed — Collect and analyze phase timings.** Emit structured timings for
    provisioning, staging, isolation, both restore phases, controller joins,
-   assertions, and cleanup; establish a measured p95 before further tuning.
-8. **Pending — Formalize fixture production and move removed coverage.** Add the
+   assertions, and cleanup; establish a measured p95 before further tuning. The
+   first instrumented success measured 2:14.7 provisioning, 11:36.6 staging,
+   1:25.3 isolation, 4:45.2 restore phase 1, 2:29.9 controller joins, 10:01.1
+   restore phase 2, 0:16.0 assertions, and 0:34.1 cleanup (33:22.9 total).
+   The nearest-rank p95 of the first three successful restore-only runs
+   (32:43.9, 30:45.9, and 33:22.9) is 33:22.9; staging and restore phase 2 are
+   the dominant measured phases.
+8. **In progress — Formalize fixture production and move removed coverage.** Add the
    generator/validation workflow, immutable digest-addressed storage, fixture
    metadata checks, and the blocking unit/integration tests that own behavior
    removed from this E2E.
