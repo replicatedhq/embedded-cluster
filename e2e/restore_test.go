@@ -962,7 +962,7 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 	t.Logf("%s: verifying restored PVC marker", time.Now().Format(time.RFC3339))
 	const marker = "embedded-cluster-dr-fixture-v1"
 	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker",
+		"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker",
 	}, withEnv)
 	if err != nil {
 		t.Fatalf("failed to read restored fixture marker: %v: %s: %s", err, stdout, stderr)
@@ -973,7 +973,7 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 
 	t.Logf("%s: probing the restored application", time.Now().Format(time.RFC3339))
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "wget", "-qO-", "http://127.0.0.1/",
+		"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "wget", "-qO-", "http://127.0.0.1/",
 	}, withEnv); err != nil || strings.TrimSpace(stdout) == "" {
 		t.Fatalf("restored application health probe failed: %v: %s: %s", err, stdout, stderr)
 	}
@@ -984,7 +984,7 @@ func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]
 	t.Helper()
 	t.Logf("%s: verifying three ready restore controllers", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"kubectl", "get", "nodes", "-l", "node-role.kubernetes.io/control-plane", "-o", "json",
+		"/var/lib/ec/bin/kubectl", "get", "nodes", "-l", "node-role.kubernetes.io/control-plane", "-o", "json",
 	}, withEnv)
 	if err != nil {
 		t.Fatalf("failed to list restored controllers: %v: %s: %s", err, stdout, stderr)
@@ -1044,7 +1044,7 @@ func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]
 	}
 
 	t.Logf("%s: verifying restored installation HA state", time.Now().Format(time.RFC3339))
-	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"kubectl", "get", "installations", "-o", "json"}, withEnv)
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"/var/lib/ec/bin/kubectl", "get", "installations", "-o", "json"}, withEnv)
 	if err != nil {
 		t.Fatalf("failed to list restored installations: %v: %s: %s", err, stdout, stderr)
 	}
@@ -1072,7 +1072,7 @@ func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]
 	}
 
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"kubectl", "rollout", "status", "-n", "kotsadm", "deployment/nginx", "--timeout=5m",
+		"/var/lib/ec/bin/kubectl", "rollout", "status", "-n", "kotsadm", "deployment/nginx", "--timeout=5m",
 	}, withEnv); err != nil {
 		t.Fatalf("restored application did not become ready: %v: %s: %s", err, stdout, stderr)
 	}
