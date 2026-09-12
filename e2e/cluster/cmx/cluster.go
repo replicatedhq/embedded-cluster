@@ -295,8 +295,25 @@ func (c *Cluster) Airgap() error {
 		if err := c.waitUntilAirgapped(node); err != nil {
 			return fmt.Errorf("wait until node %d is airgapped: %v", node, err)
 		}
+		if err := c.disablePublicDNS(node); err != nil {
+			return fmt.Errorf("disable public DNS on node %d: %v", node, err)
+		}
 	}
 
+	return nil
+}
+
+func (c *Cluster) disablePublicDNS(node int) error {
+	// CMX's airgap policy blocks public egress but deliberately leaves its DNS
+	// resolver reachable. Replace the host resolver only after the policy has
+	// taken effect so an airgapped test cannot resolve public names through the
+	// out-of-band management network.
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{
+		"sh", "-c", `'rm -f /etc/resolv.conf && printf "nameserver 127.0.0.1\\noptions timeout:1 attempts:1\\n" > /etc/resolv.conf'`,
+	})
+	if err != nil {
+		return fmt.Errorf("replace resolver configuration: %w: %s: %s", err, stdout, stderr)
+	}
 	return nil
 }
 
