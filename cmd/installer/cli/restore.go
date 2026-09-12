@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -766,6 +767,9 @@ func runPopulateRegistry(ctx context.Context, appSlug, airgapBundle string, back
 	if err != nil {
 		return err
 	}
+	if err := waitForRegistryReady(ctx, registryAddress); err != nil {
+		return fmt.Errorf("wait for embedded registry endpoint: %w", err)
+	}
 	loading := spinner.Start()
 	defer loading.Close()
 	loading.Infof("Restoring registry data")
@@ -782,6 +786,49 @@ func runPopulateRegistry(ctx context.Context, appSlug, airgapBundle string, back
 	}
 	loading.Infof("Embedded registry populated!")
 	return nil
+}
+
+func waitForRegistryReady(ctx context.Context, registryAddress string) error {
+	client := &http.Client{
+		Transport: &http.Transport{},
+		Timeout:   5 * time.Second,
+	}
+	backoff := wait.Backoff{Steps: 60, Duration: time.Second, Factor: 1.0, Jitter: 0.1}
+	return waitForRegistryReadyWithBackoff(ctx, client, registryAddress, backoff)
+}
+
+func waitForRegistryReadyWithBackoff(ctx context.Context, client *http.Client, registryAddress string, backoff wait.Backoff) error {
+	endpoint := registryAddress
+	if !strings.Contains(endpoint, "://") {
+		endpoint = "http://" + endpoint
+	}
+	endpoint = strings.TrimSuffix(endpoint, "/") + "/v2/"
+
+	var lastErr error
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return false, err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			return false, nil
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
+			return true, nil
+		}
+		lastErr = fmt.Errorf("unexpected HTTP status %s", resp.Status)
+		return false, nil
+	})
+	if err == nil {
+		return nil
+	}
+	if lastErr != nil {
+		return fmt.Errorf("registry %s is not ready: %w", registryAddress, lastErr)
+	}
+	return fmt.Errorf("registry %s is not ready: %w", registryAddress, err)
 }
 
 // ensureSeaweedFSRegistryBucket recreates the chart-managed registry bucket because restored filer storage is intentionally empty.
