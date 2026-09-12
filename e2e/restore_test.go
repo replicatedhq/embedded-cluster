@@ -921,6 +921,7 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 	if err := tc.Airgap(); err != nil {
 		t.Fatalf("failed to airgap cluster: %v", err)
 	}
+	assertAirgapBoundary(t, tc, minio)
 	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"airgap-prepare.sh"}, withEnv); err != nil {
 		t.Fatalf("failed to prepare restore bundle: %v: %s: %s", err, stdout, stderr)
 	}
@@ -978,6 +979,46 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 		t.Fatalf("restored application health probe failed: %v: %s: %s", err, stdout, stderr)
 	}
 	t.Logf("%s: restore-only DR test complete", time.Now().Format(time.RFC3339))
+}
+
+func assertAirgapBoundary(t *testing.T, tc *cmx.Cluster, minio *cmx.Minio) {
+	t.Helper()
+	t.Logf("%s: verifying airgap network boundary", time.Now().Format(time.RFC3339))
+
+	checks := make([]func(*testing.T) error, 0, len(tc.Nodes))
+	for node := range tc.Nodes {
+		node := node
+		checks = append(checks, func(t *testing.T) error {
+			if stdout, stderr, err := tc.RunCommandOnNode(node, []string{
+				"curl", "--silent", "--show-error", "--connect-timeout", "5", "--max-time", "10", "https://example.com/",
+			}); err == nil {
+				return fmt.Errorf("node %d reached public HTTPS unexpectedly: %s: %s", node, stdout, stderr)
+			}
+
+			if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getent", "hosts", "example.com"}); err == nil {
+				return fmt.Errorf("node %d resolved public DNS unexpectedly: %s: %s", node, stdout, stderr)
+			}
+
+			peer := (node + 1) % len(tc.Nodes)
+			if stdout, stderr, err := tc.RunCommandOnNode(node, []string{
+				"ping", "-c", "1", "-W", "5", tc.NodePrivateIP(peer),
+			}); err != nil {
+				return fmt.Errorf("node %d cannot reach node %d at %s: %w: %s: %s", node, peer, tc.NodePrivateIP(peer), err, stdout, stderr)
+			}
+
+			stdout, stderr, err := tc.RunCommandOnNode(node, []string{
+				"curl", "--silent", "--show-error", "--connect-timeout", "5", "--max-time", "10", minio.Endpoint,
+			})
+			if err != nil {
+				return fmt.Errorf("node %d cannot reach fixture S3 at %s: %w: %s: %s", node, minio.Endpoint, err, stdout, stderr)
+			}
+			if !strings.Contains(stdout, "AccessDenied") {
+				return fmt.Errorf("node %d received unexpected fixture S3 response: %s: %s", node, stdout, stderr)
+			}
+			return nil
+		})
+	}
+	runInParallel(t, checks...)
 }
 
 func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, expectedVersion string, withEnv map[string]string) {

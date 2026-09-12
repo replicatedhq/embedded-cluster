@@ -295,10 +295,10 @@ document so the remaining work is explicit.
 4. **Completed — Join both restore controllers concurrently.** Generate two
    independent join commands before starting either join, then execute the two
    joins in parallel.
-5. **In progress — Add direct restore assertions.** Verify three ready controllers,
+5. **Completed — Add direct restore assertions.** Verify three ready controllers,
    the expected EC version and HA state, the restored PVC marker, and one
    application health probe without Playwright.
-6. **Pending — Add explicit airgap-boundary probes.** Verify that public HTTPS
+6. **In progress — Add explicit airgap-boundary probes.** Verify that public HTTPS
    and public DNS fail while node-to-node and fixture-S3 traffic succeed.
 7. **Pending — Collect and analyze phase timings.** Emit structured timings for
    provisioning, staging, isolation, both restore phases, controller joins,
