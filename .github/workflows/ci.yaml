@@ -439,7 +439,6 @@ jobs:
       ec_version_1: ${{ steps.export.outputs.ec_version_1 }}
       ec_version_2: ${{ steps.export.outputs.ec_version_2 }}
       ec_version_3: ${{ steps.export.outputs.ec_version_3 }}
-      ec_version_dr_restore: ${{ steps.export.outputs.ec_version_4 }}
       app_version: ${{ steps.export.outputs.app_version_0 }}
       app_version_1: ${{ steps.export.outputs.app_version_1 }}
       app_version_2: ${{ steps.export.outputs.app_version_2 }}
@@ -1140,7 +1139,6 @@ jobs:
           airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
           dr-fixture-input: ${{ steps.dr-fixture.outputs.payload }}
           dr-restore-bundle-version: ${{ matrix.test == 'TestMultiNodeAirgapHADisasterRecovery' && 'appver-airgap-e2e-previous-stable-dr-restore' || '' }}
-          dr-expected-ec-version: ${{ matrix.test == 'TestMultiNodeAirgapHADisasterRecovery' && needs.build-install.outputs.ec_version_dr_restore || '' }}
 
   e2e-main:
     name: E2E (on merge)

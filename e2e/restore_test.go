@@ -957,7 +957,7 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 		t.Fatalf("failed to restore phase 2: %v: %s: %s", err, stdout, stderr)
 	}
 
-	assertRestoreOnlyDRState(t, tc, withEnv)
+	assertRestoreOnlyDRState(t, tc, manifest.ECVersion, withEnv)
 
 	t.Logf("%s: verifying restored PVC marker", time.Now().Format(time.RFC3339))
 	const marker = "embedded-cluster-dr-fixture-v1"
@@ -980,7 +980,7 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 	t.Logf("%s: restore-only DR test complete", time.Now().Format(time.RFC3339))
 }
 
-func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]string) {
+func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, expectedVersion string, withEnv map[string]string) {
 	t.Helper()
 	t.Logf("%s: verifying three ready restore controllers", time.Now().Format(time.RFC3339))
 	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
@@ -1022,10 +1022,6 @@ func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]
 	}
 
 	t.Logf("%s: verifying restored EC version", time.Now().Format(time.RFC3339))
-	expectedVersion := os.Getenv("E2E_DR_EXPECTED_EC_VERSION")
-	if expectedVersion == "" {
-		t.Fatal("E2E_DR_EXPECTED_EC_VERSION is required with E2E_DR_FIXTURE_INPUT")
-	}
 	stdout, stderr, err = tc.RunCommandOnNode(0, []string{
 		"embedded-cluster", "version", "metadata", "--omit-release-metadata",
 	}, withEnv)
