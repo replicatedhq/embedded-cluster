@@ -117,10 +117,35 @@ runs:
     run: |
       set -euo pipefail
       mkdir -p "$TOOLS_DIR"
-      crane export quay.io/minio/minio@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2 - |
-        tar -xOf - usr/bin/minio > "$TOOLS_DIR/minio"
-      crane export quay.io/minio/mc@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780 - |
-        tar -xOf - usr/bin/mc > "$TOOLS_DIR/mc"
+      extract_tool() {
+        local image=$1 member=$2 output=$3 expected=$4 archive candidate
+        archive=$(mktemp "$RUNNER_TEMP/minio-image.XXXXXX")
+        candidate=$(mktemp "$RUNNER_TEMP/minio-tool.XXXXXX")
+        for attempt in 1 2 3; do
+          if crane export "$image" "$archive" &&
+             tar -xOf "$archive" "$member" > "$candidate" &&
+             echo "$expected  $candidate" | sha256sum --check --status; then
+            mv "$candidate" "$output"
+            rm -f "$archive"
+            return 0
+          fi
+          echo "failed to extract verified $(basename "$output") (attempt $attempt/3)" >&2
+          rm -f "$archive" "$candidate"
+          archive=$(mktemp "$RUNNER_TEMP/minio-image.XXXXXX")
+          candidate=$(mktemp "$RUNNER_TEMP/minio-tool.XXXXXX")
+          sleep $((attempt * 2))
+        done
+        rm -f "$archive" "$candidate"
+        return 1
+      }
+      extract_tool \
+        quay.io/minio/minio@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2 \
+        usr/bin/minio "$TOOLS_DIR/minio" \
+        7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f
+      extract_tool \
+        quay.io/minio/mc@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780 \
+        usr/bin/mc "$TOOLS_DIR/mc" \
+        01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891
       chmod 0755 "$TOOLS_DIR/minio" "$TOOLS_DIR/mc"
 
   - name: Verify pinned MinIO tools
