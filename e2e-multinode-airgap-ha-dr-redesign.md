@@ -298,9 +298,9 @@ document so the remaining work is explicit.
 5. **Completed — Add direct restore assertions.** Verify three ready controllers,
    the expected EC version and HA state, the restored PVC marker, and one
    application health probe without Playwright.
-6. **In progress — Add explicit airgap-boundary probes.** Verify that public HTTPS
+6. **Completed — Add explicit airgap-boundary probes.** Verify that public HTTPS
    and public DNS fail while node-to-node and fixture-S3 traffic succeed.
-7. **Pending — Collect and analyze phase timings.** Emit structured timings for
+7. **In progress — Collect and analyze phase timings.** Emit structured timings for
    provisioning, staging, isolation, both restore phases, controller joins,
    assertions, and cleanup; establish a measured p95 before further tuning.
 8. **Pending — Formalize fixture production and move removed coverage.** Add the

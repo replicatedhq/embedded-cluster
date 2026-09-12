@@ -884,6 +884,9 @@ func TestMultiNodeAirgapHADisasterRecovery(t *testing.T) {
 // backup creation, reset, and upgrade coverage belong to their dedicated
 // tests and the fixture producer workflow.
 func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput string) {
+	testStarted := time.Now()
+	defer logDRPhase(t, "total", testStarted)
+
 	manifest, err := verifyDRFixture(fixtureInput, fixtureInput+".manifest.json")
 	if err != nil {
 		t.Fatalf("invalid DR fixture: %v", err)
@@ -894,37 +897,49 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 	}
 
 	withEnv := map[string]string{"EMBEDDED_CLUSTER_BASE_DIR": "/var/lib/ec"}
-	tc := cmx.NewCluster(&cmx.ClusterInput{
-		T:                      t,
-		Nodes:                  3,
-		Distribution:           "ubuntu",
-		Version:                "22.04",
-		InstanceType:           "r1.medium",
-		TTL:                    2 * time.Hour,
-		SupportBundleNodeIndex: 2,
+	var tc *cmx.Cluster
+	measureDRPhase(t, "provisioning", func() {
+		tc = cmx.NewCluster(&cmx.ClusterInput{
+			T:                      t,
+			Nodes:                  3,
+			Distribution:           "ubuntu",
+			Version:                "22.04",
+			InstanceType:           "r1.medium",
+			TTL:                    2 * time.Hour,
+			SupportBundleNodeIndex: 2,
+		})
 	})
-	defer tc.Cleanup(withEnv)
+	defer func() {
+		started := time.Now()
+		tc.Cleanup(withEnv)
+		logDRPhase(t, "cleanup", started)
+	}()
 
-	t.Logf("%s: staging immutable DR fixture", time.Now().Format(time.RFC3339))
-	minio, err := stageDRFixture(tc, fixtureInput, manifest)
-	if err != nil {
-		t.Fatalf("failed to stage DR fixture: %v", err)
-	}
-	if err := downloadAirgapBundleOnNode(t, tc, 0, bundleVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID); err != nil {
-		t.Fatalf("failed to stage restore bundle: %v", err)
-	}
-	for _, node := range []int{0, 1, 2} {
-		if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"apt-get", "install", "-y", "expect"}); err != nil {
-			t.Fatalf("failed to install expect on node %d: %v: %s: %s", node, err, stdout, stderr)
+	var minio *cmx.Minio
+	measureDRPhase(t, "staging", func() {
+		t.Logf("%s: staging immutable DR fixture", time.Now().Format(time.RFC3339))
+		minio, err = stageDRFixture(tc, fixtureInput, manifest)
+		if err != nil {
+			t.Fatalf("failed to stage DR fixture: %v", err)
 		}
-	}
-	if err := tc.Airgap(); err != nil {
-		t.Fatalf("failed to airgap cluster: %v", err)
-	}
-	assertAirgapBoundary(t, tc, minio)
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"airgap-prepare.sh"}, withEnv); err != nil {
-		t.Fatalf("failed to prepare restore bundle: %v: %s: %s", err, stdout, stderr)
-	}
+		if err := downloadAirgapBundleOnNode(t, tc, 0, bundleVersion, AirgapInstallBundlePath, AirgapSnapshotLicenseID); err != nil {
+			t.Fatalf("failed to stage restore bundle: %v", err)
+		}
+		for _, node := range []int{0, 1, 2} {
+			if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"apt-get", "install", "-y", "expect"}); err != nil {
+				t.Fatalf("failed to install expect on node %d: %v: %s: %s", node, err, stdout, stderr)
+			}
+		}
+	})
+	measureDRPhase(t, "isolation", func() {
+		if err := tc.Airgap(); err != nil {
+			t.Fatalf("failed to airgap cluster: %v", err)
+		}
+		assertAirgapBoundary(t, tc, minio)
+		if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"airgap-prepare.sh"}, withEnv); err != nil {
+			t.Fatalf("failed to prepare restore bundle: %v: %s: %s", err, stdout, stderr)
+		}
+	})
 
 	drArgs := []string{
 		minio.Endpoint,
@@ -934,51 +949,73 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 		minio.AccessKey,
 		minio.SecretKey,
 	}
-	t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, append([]string{"restore-multi-node-airgap-phase1.exp"}, drArgs...), withEnv); err != nil {
-		t.Fatalf("failed to restore phase 1: %v: %s: %s", err, stdout, stderr)
-	}
+	measureDRPhase(t, "restore_phase_1", func() {
+		t.Logf("%s: restoring the installation: phase 1", time.Now().Format(time.RFC3339))
+		if stdout, stderr, err := tc.RunCommandOnNode(0, append([]string{"restore-multi-node-airgap-phase1.exp"}, drArgs...), withEnv); err != nil {
+			t.Fatalf("failed to restore phase 1: %v: %s: %s", err, stdout, stderr)
+		}
+	})
 
-	joinCommands := []string{
-		generateRestoreControllerJoinCommand(t, tc, withEnv),
-		generateRestoreControllerJoinCommand(t, tc, withEnv),
-	}
-	runInParallel(t,
-		func(t *testing.T) error {
-			return executeRestoreControllerJoinCommand(t, tc, 1, joinCommands[0], withEnv)
-		},
-		func(t *testing.T) error {
-			return executeRestoreControllerJoinCommand(t, tc, 2, joinCommands[1], withEnv)
-		},
-	)
-	waitForNodes(t, tc, 3, withEnv, "true")
+	measureDRPhase(t, "controller_joins", func() {
+		joinCommands := []string{
+			generateRestoreControllerJoinCommand(t, tc, withEnv),
+			generateRestoreControllerJoinCommand(t, tc, withEnv),
+		}
+		runInParallel(t,
+			func(t *testing.T) error {
+				return executeRestoreControllerJoinCommand(t, tc, 1, joinCommands[0], withEnv)
+			},
+			func(t *testing.T) error {
+				return executeRestoreControllerJoinCommand(t, tc, 2, joinCommands[1], withEnv)
+			},
+		)
+		waitForNodes(t, tc, 3, withEnv, "true")
+	})
 
-	t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"restore-multi-node-airgap-phase2.exp"}, withEnv); err != nil {
-		t.Fatalf("failed to restore phase 2: %v: %s: %s", err, stdout, stderr)
-	}
+	measureDRPhase(t, "restore_phase_2", func() {
+		t.Logf("%s: restoring the installation: phase 2", time.Now().Format(time.RFC3339))
+		if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"restore-multi-node-airgap-phase2.exp"}, withEnv); err != nil {
+			t.Fatalf("failed to restore phase 2: %v: %s: %s", err, stdout, stderr)
+		}
+	})
 
-	assertRestoreOnlyDRState(t, tc, manifest.ECVersion, withEnv)
+	measureDRPhase(t, "assertions", func() {
+		assertRestoreOnlyDRState(t, tc, manifest.ECVersion, withEnv)
 
-	t.Logf("%s: verifying restored PVC marker", time.Now().Format(time.RFC3339))
-	const marker = "embedded-cluster-dr-fixture-v1"
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker",
-	}, withEnv)
-	if err != nil {
-		t.Fatalf("failed to read restored fixture marker: %v: %s: %s", err, stdout, stderr)
-	}
-	if strings.TrimSpace(stdout) != marker {
-		t.Fatalf("restored fixture marker is %q, want %q", strings.TrimSpace(stdout), marker)
-	}
+		t.Logf("%s: verifying restored PVC marker", time.Now().Format(time.RFC3339))
+		const marker = "embedded-cluster-dr-fixture-v1"
+		stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+			"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker",
+		}, withEnv)
+		if err != nil {
+			t.Fatalf("failed to read restored fixture marker: %v: %s: %s", err, stdout, stderr)
+		}
+		if strings.TrimSpace(stdout) != marker {
+			t.Fatalf("restored fixture marker is %q, want %q", strings.TrimSpace(stdout), marker)
+		}
 
-	t.Logf("%s: probing the restored application", time.Now().Format(time.RFC3339))
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "wget", "-qO-", "http://127.0.0.1/",
-	}, withEnv); err != nil || strings.TrimSpace(stdout) == "" {
-		t.Fatalf("restored application health probe failed: %v: %s: %s", err, stdout, stderr)
-	}
+		t.Logf("%s: probing the restored application", time.Now().Format(time.RFC3339))
+		if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+			"/var/lib/ec/bin/kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "wget", "-qO-", "http://127.0.0.1/",
+		}, withEnv); err != nil || strings.TrimSpace(stdout) == "" {
+			t.Fatalf("restored application health probe failed: %v: %s: %s", err, stdout, stderr)
+		}
+	})
 	t.Logf("%s: restore-only DR test complete", time.Now().Format(time.RFC3339))
+}
+
+func measureDRPhase(t *testing.T, name string, run func()) {
+	t.Helper()
+	started := time.Now()
+	t.Logf("DR_PHASE name=%s event=start at=%s", name, started.UTC().Format(time.RFC3339Nano))
+	defer logDRPhase(t, name, started)
+	run()
+}
+
+func logDRPhase(t *testing.T, name string, started time.Time) {
+	t.Helper()
+	finished := time.Now()
+	t.Logf("DR_PHASE name=%s event=end duration_ms=%d at=%s", name, finished.Sub(started).Milliseconds(), finished.UTC().Format(time.RFC3339Nano))
 }
 
 func assertAirgapBoundary(t *testing.T, tc *cmx.Cluster, minio *cmx.Minio) {
