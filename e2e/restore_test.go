@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -956,22 +957,123 @@ func testMultiNodeAirgapHADisasterRecoveryFromFixture(t *testing.T, fixtureInput
 		t.Fatalf("failed to restore phase 2: %v: %s: %s", err, stdout, stderr)
 	}
 
-	initialVersionSuffix := strings.TrimPrefix(manifest.Application, "appver-")
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
-		"check-airgap-post-ha-state.sh", initialVersionSuffix, k8sVersion(), "true",
-	}, withEnv); err != nil {
-		t.Fatalf("failed to check restored HA state: %v: %s: %s", err, stdout, stderr)
-	}
-	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{"check-post-restore.sh"}, withEnv); err != nil {
-		t.Fatalf("failed to check post-restore state: %v: %s: %s", err, stdout, stderr)
-	}
+	assertRestoreOnlyDRState(t, tc, withEnv)
+
+	t.Logf("%s: verifying restored PVC marker", time.Now().Format(time.RFC3339))
 	const marker = "embedded-cluster-dr-fixture-v1"
-	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"dr-fixture-marker.sh", "read"}, withEnv)
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "cat", "/var/lib/dr-fixture/marker",
+	}, withEnv)
 	if err != nil {
 		t.Fatalf("failed to read restored fixture marker: %v: %s: %s", err, stdout, stderr)
 	}
 	if strings.TrimSpace(stdout) != marker {
 		t.Fatalf("restored fixture marker is %q, want %q", strings.TrimSpace(stdout), marker)
 	}
+
+	t.Logf("%s: probing the restored application", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"kubectl", "exec", "-n", "kotsadm", "deployment/nginx", "--", "wget", "-qO-", "http://127.0.0.1/",
+	}, withEnv); err != nil || strings.TrimSpace(stdout) == "" {
+		t.Fatalf("restored application health probe failed: %v: %s: %s", err, stdout, stderr)
+	}
 	t.Logf("%s: restore-only DR test complete", time.Now().Format(time.RFC3339))
+}
+
+func assertRestoreOnlyDRState(t *testing.T, tc *cmx.Cluster, withEnv map[string]string) {
+	t.Helper()
+	t.Logf("%s: verifying three ready restore controllers", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"kubectl", "get", "nodes", "-l", "node-role.kubernetes.io/control-plane", "-o", "json",
+	}, withEnv)
+	if err != nil {
+		t.Fatalf("failed to list restored controllers: %v: %s: %s", err, stdout, stderr)
+	}
+	var nodes struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Status struct {
+				Conditions []struct {
+					Type   string `json:"type"`
+					Status string `json:"status"`
+				} `json:"conditions"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &nodes); err != nil {
+		t.Fatalf("failed to decode restored controllers: %v: %s", err, stdout)
+	}
+	if len(nodes.Items) != 3 {
+		t.Fatalf("found %d restored controllers, want 3", len(nodes.Items))
+	}
+	for _, node := range nodes.Items {
+		ready := false
+		for _, condition := range node.Status.Conditions {
+			if condition.Type == "Ready" && condition.Status == "True" {
+				ready = true
+				break
+			}
+		}
+		if !ready {
+			t.Fatalf("restored controller %q is not Ready", node.Metadata.Name)
+		}
+	}
+
+	t.Logf("%s: verifying restored EC version", time.Now().Format(time.RFC3339))
+	expectedVersion := os.Getenv("E2E_DR_EXPECTED_EC_VERSION")
+	if expectedVersion == "" {
+		t.Fatal("E2E_DR_EXPECTED_EC_VERSION is required with E2E_DR_FIXTURE_INPUT")
+	}
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{
+		"embedded-cluster", "version", "metadata", "--omit-release-metadata",
+	}, withEnv)
+	if err != nil {
+		t.Fatalf("failed to read restored EC version: %v: %s: %s", err, stdout, stderr)
+	}
+	var metadata struct {
+		Versions map[string]string `json:"Versions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &metadata); err != nil {
+		t.Fatalf("failed to decode restored EC version metadata: %v: %s", err, stdout)
+	}
+	actualVersion := metadata.Versions["Installer"]
+	if strings.TrimPrefix(actualVersion, "v") != strings.TrimPrefix(expectedVersion, "v") {
+		t.Fatalf("restored EC version is %q, want %q", actualVersion, expectedVersion)
+	}
+
+	t.Logf("%s: verifying restored installation HA state", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(0, []string{"kubectl", "get", "installations", "-o", "json"}, withEnv)
+	if err != nil {
+		t.Fatalf("failed to list restored installations: %v: %s: %s", err, stdout, stderr)
+	}
+	var installations struct {
+		Items []struct {
+			Spec struct {
+				HighAvailability bool `json:"highAvailability"`
+			} `json:"spec"`
+			Status struct {
+				State string `json:"state"`
+			} `json:"status"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &installations); err != nil {
+		t.Fatalf("failed to decode restored installations: %v: %s", err, stdout)
+	}
+	installedHA := 0
+	for _, installation := range installations.Items {
+		if installation.Status.State == "Installed" && installation.Spec.HighAvailability {
+			installedHA++
+		}
+	}
+	if installedHA != 1 {
+		t.Fatalf("found %d installed HA installation records, want 1", installedHA)
+	}
+
+	if stdout, stderr, err := tc.RunCommandOnNode(0, []string{
+		"kubectl", "rollout", "status", "-n", "kotsadm", "deployment/nginx", "--timeout=5m",
+	}, withEnv); err != nil {
+		t.Fatalf("restored application did not become ready: %v: %s: %s", err, stdout, stderr)
+	}
 }
