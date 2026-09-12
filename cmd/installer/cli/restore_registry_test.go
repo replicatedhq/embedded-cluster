@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,9 +46,9 @@ func TestWaitForRegistryReadyRetriesUntilV2EndpointIsReady(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		assert.Equal(t, "/v2/", r.URL.Path)
 		if requests.Add(1) < 3 {
-			return httpResponse(http.StatusServiceUnavailable), nil
+			return nil, errors.New("connection refused")
 		}
-		return httpResponse(http.StatusUnauthorized), nil
+		return httpResponse(http.StatusBadRequest), nil
 	})}
 
 	err := waitForRegistryReadyWithBackoff(context.Background(), client, "registry.test:5000", wait.Backoff{
@@ -59,13 +60,13 @@ func TestWaitForRegistryReadyRetriesUntilV2EndpointIsReady(t *testing.T) {
 	assert.Equal(t, int32(3), requests.Load())
 }
 
-func TestWaitForRegistryReadyReportsLastResponse(t *testing.T) {
+func TestWaitForRegistryReadyReportsLastTransportError(t *testing.T) {
 	client := &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
-		return httpResponse(http.StatusServiceUnavailable), nil
+		return nil, errors.New("connection refused")
 	})}
 
 	err := waitForRegistryReadyWithBackoff(context.Background(), client, "registry.test:5000", wait.Backoff{Steps: 1})
-	require.ErrorContains(t, err, "unexpected HTTP status 503 Service Unavailable")
+	require.ErrorContains(t, err, "connection refused")
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

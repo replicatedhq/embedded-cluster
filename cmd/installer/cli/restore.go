@@ -816,11 +816,7 @@ func waitForRegistryReadyWithBackoff(ctx context.Context, client *http.Client, r
 			return false, nil
 		}
 		_ = resp.Body.Close()
-		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
-			return true, nil
-		}
-		lastErr = fmt.Errorf("unexpected HTTP status %s", resp.Status)
-		return false, nil
+		return true, nil
 	})
 	if err == nil {
 		return nil
