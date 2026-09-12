@@ -309,7 +309,7 @@ func (c *Cluster) disablePublicDNS(node int) error {
 	// taken effect so an airgapped test cannot resolve public names through the
 	// out-of-band management network.
 	stdout, stderr, err := c.RunCommandOnNode(node, []string{
-		"sh", "-c", `'rm -f /etc/resolv.conf && printf "nameserver 127.0.0.1\\noptions timeout:1 attempts:1\\n" > /etc/resolv.conf'`,
+		"sh", "-c", `'grep -qw "$(hostname)" /etc/hosts || printf "127.0.1.1 %s\\n" "$(hostname)" >> /etc/hosts; rm -f /etc/resolv.conf && printf "nameserver 192.0.2.1\\noptions timeout:1 attempts:1\\n" > /etc/resolv.conf'`,
 	})
 	if err != nil {
 		return fmt.Errorf("replace resolver configuration: %w: %s: %s", err, stdout, stderr)
