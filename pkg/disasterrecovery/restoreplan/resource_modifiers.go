@@ -1,11 +1,17 @@
 package restoreplan
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"strings"
 
+	"github.com/replicatedhq/embedded-cluster/pkg-new/constants"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -14,6 +20,8 @@ const (
 	registryAnnotation         = "kots.io/embedded-registry"
 	seaweedFSAnnotation        = "kots.io/embedded-cluster-seaweedfs-s3-ip"
 )
+
+const ResourceModifiersConfigMapName = "restore-resource-modifiers"
 
 //go:embed resource-modifiers.yaml
 var resourceModifiersYAML string
@@ -33,6 +41,27 @@ func ResourceModifiers(backup *velerov1.Backup) (string, error) {
 	rendered := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryIP, 1)
 	rendered = strings.Replace(rendered, "__SEAWEEDFS_S3_SERVICE_IP__", seaweedFSIP, 1)
 	return rendered, nil
+}
+
+// EnsureResourceModifiers creates the ConfigMap referenced by production
+// Velero Restore objects. Existing restore plans are retained so a resumed
+// restore uses the same immutable inputs as its original attempt.
+func EnsureResourceModifiers(ctx context.Context, kcli client.Client, backup *velerov1.Backup) error {
+	rendered, err := ResourceModifiers(backup)
+	if err != nil {
+		return err
+	}
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: constants.VeleroNamespace,
+			Name:      ResourceModifiersConfigMapName,
+		},
+		Data: map[string]string{"resource-modifiers.yaml": rendered},
+	}
+	if err := kcli.Create(ctx, configMap); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return fmt.Errorf("create resource-modifier ConfigMap: %w", err)
+	}
+	return nil
 }
 
 // RegistryServiceIP returns no IP for an online backup and requires the

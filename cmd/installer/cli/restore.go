@@ -86,10 +86,6 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateRestoreApp,
 }
 
-const (
-	resourceModifiersCMName = "restore-resource-modifiers"
-)
-
 func RestoreCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags installFlags
 
@@ -1469,29 +1465,13 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 // The json patches are applied to the resources before they are restored.
 // The json patches are specified in a configmap and the configmap is referenced in the restore object.
 func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
-	modifiersYAML, err := restoreplan.ResourceModifiers(backup)
-	if err != nil {
-		return fmt.Errorf("render restore resource modifiers: %w", err)
-	}
-
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: constants.VeleroNamespace,
-			Name:      resourceModifiersCMName,
-		},
-		Data: map[string]string{
-			"resource-modifiers.yaml": modifiersYAML,
-		},
-	}
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
-
-	if err := kcli.Create(ctx, cm); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return fmt.Errorf("unable to create config map: %w", err)
+	if err := restoreplan.EnsureResourceModifiers(ctx, kcli, backup); err != nil {
+		return fmt.Errorf("ensure restore resource modifiers: %w", err)
 	}
-
 	return nil
 }
 
@@ -1730,7 +1710,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				IncludeClusterResources: ptr.To(true),
 				ResourceModifier: &corev1.TypedLocalObjectReference{
 					Kind: "ConfigMap",
-					Name: resourceModifiersCMName,
+					Name: restoreplan.ResourceModifiersConfigMapName,
 				},
 			},
 		}

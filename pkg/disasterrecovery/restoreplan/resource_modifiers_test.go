@@ -7,7 +7,10 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/require"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 )
 
@@ -85,6 +88,30 @@ func TestResourceModifiersRequireBackupMetadata(t *testing.T) {
 			require.ErrorContains(t, err, tt.wantError)
 		})
 	}
+}
+
+func TestEnsureResourceModifiersPersistsProductionPlan(t *testing.T) {
+	backup := &velerov1.Backup{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+		airgapAnnotation: "true", highAvailabilityAnnotation: "true",
+		registryAnnotation: "10.96.0.10:5000", seaweedFSAnnotation: "10.96.0.11",
+	}}}
+	kcli := fake.NewClientBuilder().Build()
+	require.NoError(t, EnsureResourceModifiers(t.Context(), kcli, backup))
+
+	var configMap corev1.ConfigMap
+	require.NoError(t, kcli.Get(t.Context(), types.NamespacedName{
+		Namespace: "velero", Name: ResourceModifiersConfigMapName,
+	}, &configMap))
+	require.Contains(t, configMap.Data["resource-modifiers.yaml"], "10.96.0.10")
+	require.Contains(t, configMap.Data["resource-modifiers.yaml"], "10.96.0.11")
+
+	// Resume is idempotent and does not silently mutate its original plan.
+	backup.Annotations[registryAnnotation] = "10.96.0.99:5000"
+	require.NoError(t, EnsureResourceModifiers(t.Context(), kcli, backup))
+	require.NoError(t, kcli.Get(t.Context(), types.NamespacedName{
+		Namespace: "velero", Name: ResourceModifiersConfigMapName,
+	}, &configMap))
+	require.NotContains(t, configMap.Data["resource-modifiers.yaml"], "10.96.0.99")
 }
 
 func applyJSONPatches(t *testing.T, document []byte, rule modifierRule) []byte {
