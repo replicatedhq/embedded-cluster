@@ -309,11 +309,18 @@ document so the remaining work is explicit.
    The nearest-rank p95 of the first three successful restore-only runs
    (32:43.9, 30:45.9, and 33:22.9) is 33:22.9; staging and restore phase 2 are
    the dominant measured phases.
-8. **In progress — Formalize fixture production and move removed coverage.** Add the
-   generator/validation workflow, immutable digest-addressed storage, fixture
-   metadata checks, and the blocking unit/integration tests that own behavior
-   removed from this E2E.
-9. **Pending — Add a separate EC/KOTS boundary upgrade canary.** Keep application
-   and post-restore upgrade coverage, optional candidate-KOTS builds, and
-   commit-addressed KOTS artifact caching outside this DR test. This item is
-   independent of, and does not block, the restore-focused redesign.
+8. **Completed — Formalize fixture production and move removed coverage.** The
+   manually dispatched/reusable producer creates and restore-validates a v2
+   fixture before publishing immutable digest-addressed S3 objects. The checked-in
+   reference pins both payload and manifest digests plus EC, k0s, KOTS and Velero
+   provenance. Blocking tests cover backup grouping and restore state, and the
+   production restore-plan package is shared by the CLI and API-level contract
+   tests for rqlite conversion, PVC node decoupling, service-IP preservation and
+   idempotent resume. Producer run 34701364449 proved the published fixture could
+   restore its application and PVC marker before it became the default.
+9. **Completed — Add a separate EC/KOTS boundary upgrade canary.**
+   `TestECKOTSBoundaryUpgrade` installs a supported released EC/KOTS pair,
+   deploys the application, upgrades through the candidate EC/KOTS boundary,
+   asserts that the Admin Console image changed to the candidate version, and
+   then validates the application release upgrade. Candidate KOTS selection and
+   its artifact cache remain build inputs outside the restore-focused DR test.

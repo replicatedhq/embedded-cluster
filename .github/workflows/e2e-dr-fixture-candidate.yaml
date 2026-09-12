@@ -185,6 +185,7 @@ jobs:
           set -euo pipefail
           manifest="$PAYLOAD.manifest.json"
           digest=$(jq -er '.payloadSHA256 | select(startswith("sha256:"))' "$manifest")
+          manifest_digest="sha256:$(sha256sum "$manifest" | awk '{print $1}')"
           object_prefix="ec-v2-dr-fixtures/v1/${digest#sha256:}"
           publish() {
             local file=$1 key=$2 sha
@@ -206,7 +207,8 @@ jobs:
           {
             echo "### Published DR fixture"
             echo
-            echo "- Digest: \`$digest\`"
+            echo "- Payload digest: \`$digest\`"
+            echo "- Manifest digest: \`$manifest_digest\`"
             echo "- Payload: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz\`"
             echo "- Manifest: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz.manifest.json\`"
           } >> "$GITHUB_STEP_SUMMARY"

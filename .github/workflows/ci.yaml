@@ -986,7 +986,7 @@ jobs:
           - TestPreflights
           - TestPreflightsNoexec
           - TestSingleNodeInstallation
-          - TestSingleNodeUpgradePreviousStable
+          - TestECKOTSBoundaryUpgrade
           - TestUpgradeFromReplicatedAppPreviousK0s
           - TestMultiNodeInstallation
           - TestSingleNodeDisasterRecovery
@@ -1107,7 +1107,7 @@ jobs:
         run: |
           set -euo pipefail
           reference=e2e/dr-fixtures/default.json
-          test "$(jq -er .schema "$reference")" = embedded-cluster-dr-fixture-reference/v1
+          test "$(jq -er .schema "$reference")" = embedded-cluster-dr-fixture-reference/v2
           mkdir -p output/dr-fixture
           payload=output/dr-fixture/minio-data.tar.gz
           curl --fail --location --retry 3 \
@@ -1115,8 +1115,11 @@ jobs:
           curl --fail --location --retry 3 \
             "$(jq -er .manifestURL "$reference")" --output "$payload.manifest.json"
           expected=$(jq -er '.payloadSHA256 | sub("^sha256:"; "")' "$reference")
+          expected_manifest=$(jq -er '.manifestSHA256 | sub("^sha256:"; "")' "$reference")
           actual=$(sha256sum "$payload" | awk '{print $1}')
+          actual_manifest=$(sha256sum "$payload.manifest.json" | awk '{print $1}')
           test "$actual" = "$expected"
+          test "$actual_manifest" = "$expected_manifest"
           go run ./cmd/dr-fixture verify --payload "$payload" --manifest "$payload.manifest.json"
           test "$(jq -er .applicationVersion "$payload.manifest.json")" = \
             "$(jq -er .applicationVersion "$reference")"
