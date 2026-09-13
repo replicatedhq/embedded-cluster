@@ -19,8 +19,8 @@ environment:
       - go
       - make
   environment:
-    GOCACHE: /cache/melange/gocache
-    GOMODCACHE: /cache/melange/gomodcache
+    GOCACHE: /var/cache/melange/go-build
+    GOMODCACHE: /var/cache/melange/go-mod
     K0S_MINOR_VERSION: ${K0S_MINOR_VERSION}
 
 pipeline:

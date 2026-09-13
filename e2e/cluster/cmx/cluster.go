@@ -21,6 +21,7 @@ type ClusterInput struct {
 	Version                string
 	InstanceType           string
 	DiskSize               int
+	TTL                    time.Duration
 	SupportBundleNodeIndex int
 }
 
@@ -62,6 +63,13 @@ type NetworkEvent struct {
 	DNSQueryName  string    `json:"dnsQueryName"`
 	LikelyService string    `json:"likelyService"`
 	Command       string    `json:"comm"`
+}
+
+// NodePrivateIP returns the private address used for traffic within the CMX
+// network. Test services staged on a node must advertise this address rather
+// than the out-of-band SSH endpoint.
+func (c *Cluster) NodePrivateIP(node int) string {
+	return c.Nodes[node].privateIP
 }
 
 func NewCluster(in *ClusterInput) *Cluster {
@@ -109,6 +117,9 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 	}
 	if in.DiskSize != 0 {
 		args = append(args, "--disk", strconv.Itoa(in.DiskSize))
+	}
+	if in.TTL != 0 {
+		args = append(args, "--ttl", in.TTL.String())
 	}
 	if key := os.Getenv("CMX_SSH_PUBLIC_KEY"); key != "" {
 		args = append(args, "--ssh-public-key", key)
@@ -284,8 +295,25 @@ func (c *Cluster) Airgap() error {
 		if err := c.waitUntilAirgapped(node); err != nil {
 			return fmt.Errorf("wait until node %d is airgapped: %v", node, err)
 		}
+		if err := c.disablePublicDNS(node); err != nil {
+			return fmt.Errorf("disable public DNS on node %d: %v", node, err)
+		}
 	}
 
+	return nil
+}
+
+func (c *Cluster) disablePublicDNS(node int) error {
+	// CMX's airgap policy blocks public egress but deliberately leaves its DNS
+	// resolver reachable. Replace the host resolver only after the policy has
+	// taken effect so an airgapped test cannot resolve public names through the
+	// out-of-band management network.
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{
+		"sh", "-c", `'grep -qw "$(hostname)" /etc/hosts || printf "127.0.1.1 %s\\n" "$(hostname)" >> /etc/hosts; rm -f /etc/resolv.conf && printf "nameserver 192.0.2.1\\noptions timeout:1 attempts:1\\n" > /etc/resolv.conf'`,
+	})
+	if err != nil {
+		return fmt.Errorf("replace resolver configuration: %w: %s: %s", err, stdout, stderr)
+	}
 	return nil
 }
 
@@ -533,6 +561,21 @@ func copyFileToNode(node Node, src, dst string) error {
 		return fmt.Errorf("copy file to node: %v: %s", err, string(output))
 	}
 	return nil
+}
+
+func (c *Cluster) CopyFileToNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	return copyFileToNode(c.Nodes[node], src, dst)
+}
+
+// CopyFileFromNode copies a file from a CMX node to the test runner.
+func (c *Cluster) CopyFileFromNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	return copyFileFromNode(c.Nodes[node], src, dst)
 }
 
 func copyFileFromNode(node Node, src, dst string) error {

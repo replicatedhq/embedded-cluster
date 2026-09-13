@@ -10,8 +10,16 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Tool Binaries
-MELANGE ?= $(LOCALBIN)/melange
-APKO ?= $(LOCALBIN)/apko
+MELANGE ?= melange
+APKO ?= apko
+MELANGE_RUN ?= sudo $(MELANGE)
+
+# melange mounts this host directory read-write at /var/cache/melange when
+# using bubblewrap. Keep it in the repository so GitHub Actions can persist it.
+PROJECT_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+MELANGE_CACHE_DIR ?= $(PROJECT_ROOT)/.cache/melange
+MELANGE_APK_CACHE_DIR ?= $(PROJECT_ROOT)/.cache/melange-apk
+APKO_CACHE_DIR ?= $(PROJECT_ROOT)/.cache/apko
 
 ## Version to use for building
 VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
@@ -42,50 +50,34 @@ check-env-%:
 		exit 1; \
 	fi
 
-melange: $(MELANGE)
-$(MELANGE): $(LOCALBIN)
-	go install chainguard.dev/melange@latest && \
-		test -s $(GOBIN)/melange && \
-		ln -sf $(GOBIN)/melange $(LOCALBIN)/melange
+melange:
+	@command -v $(MELANGE) >/dev/null || { echo "melange is required" >&2; exit 1; }
 
-apko: $(APKO)
-$(APKO): $(LOCALBIN)
-	go install chainguard.dev/apko@latest && \
-		test -s $(GOBIN)/apko && \
-		ln -sf $(GOBIN)/apko $(LOCALBIN)/apko
+apko:
+	@command -v $(APKO) >/dev/null || { echo "apko is required" >&2; exit 1; }
 
-CHAINGUARD_TOOLS_USE_DOCKER = 0
-ifeq ($(CHAINGUARD_TOOLS_USE_DOCKER),"1")
-MELANGE_CACHE_DIR ?= /go/pkg/mod
-APKO_CMD = docker run -v $(shell pwd):/work -w /work -v $(shell pwd)/build/.docker:/root/.docker cgr.dev/chainguard/apko
-MELANGE_CMD = docker run --privileged --rm -v $(shell pwd):/work -w /work -v "$(shell go env GOMODCACHE)":${MELANGE_CACHE_DIR} cgr.dev/chainguard/melange
-else
-MELANGE_CACHE_DIR ?= cache/.melange-cache
-APKO_CMD = apko
-MELANGE_CMD = melange
-endif
-
-$(MELANGE_CACHE_DIR):
-	mkdir -p $(MELANGE_CACHE_DIR)
+$(MELANGE_CACHE_DIR) $(MELANGE_APK_CACHE_DIR) $(APKO_CACHE_DIR):
+	mkdir -p $@
 
 .PHONY: apko-build
 apko-build: ARCHS ?= $(ARCH)
-apko-build: check-env-IMAGE apko-template
-	cd build && ${APKO_CMD} \
+apko-build: $(APKO_CACHE_DIR) check-env-IMAGE apko apko-template
+	cd build && ${APKO} \
 		build apko.yaml ${IMAGE} apko.tar \
-		--arch ${ARCHS}
+		--arch ${ARCHS} \
+		--cache-dir $(APKO_CACHE_DIR)
 
 .PHONY: apko-build-and-publish
 apko-build-and-publish: ARCHS ?= $(ARCH)
-apko-build-and-publish: check-env-IMAGE apko-template
-	@bash -c 'set -o pipefail && cd build && ${APKO_CMD} publish apko.yaml ${IMAGE} --arch ${ARCHS} | tee digest'
+apko-build-and-publish: $(APKO_CACHE_DIR) check-env-IMAGE apko apko-template
+	@bash -c 'set -o pipefail && cd build && ${APKO} publish apko.yaml ${IMAGE} --arch ${ARCHS} --cache-dir $(APKO_CACHE_DIR) | tee digest'
 	$(MAKE) apko-output-image
 
 .PHONY: apko-login
 apko-login:
 	rm -f build/.docker/config.json
 	@ { [ "${PASSWORD}" = "" ] || [ "${USERNAME}" = "" ] ; } || \
-	${APKO_CMD} \
+	${APKO} \
 		login -u "${USERNAME}" \
 		--password "${PASSWORD}" "${REGISTRY}"
 
@@ -110,24 +102,29 @@ apko-output-image: check-env-IMAGE
 .PHONY: melange-build
 melange-build: ARCHS ?= $(ARCH)
 melange-build: MELANGE_SOURCE_DIR ?= .
-melange-build: $(MELANGE_CACHE_DIR) melange-template
+melange-build: $(MELANGE_CACHE_DIR) $(MELANGE_APK_CACHE_DIR) melange melange-template
 	mkdir -p build
-	${MELANGE_CMD} \
+	${MELANGE_RUN} \
 		keygen build/melange.rsa
-	${MELANGE_CMD} \
+	${MELANGE_RUN} \
 		build build/melange.yaml \
 		--arch ${ARCHS} \
+		--runner bubblewrap \
 		--signing-key build/melange.rsa \
 		--cache-dir=$(MELANGE_CACHE_DIR) \
+		--apk-cache-dir=$(MELANGE_APK_CACHE_DIR) \
 		--source-dir $(MELANGE_SOURCE_DIR) \
 		--out-dir build/packages/
+	sudo chown -R $$(id -u):$$(id -g) build $(MELANGE_CACHE_DIR) $(MELANGE_APK_CACHE_DIR)
 
 .PHONY: melange-template
-melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION
+melange-template: check-env-MELANGE_CONFIG check-env-PACKAGE_VERSION check-env-K0S_MINOR_VERSION
 	mkdir -p build
-	envsubst '$${PACKAGE_VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
+	PACKAGE_VERSION='$(PACKAGE_VERSION)' K0S_MINOR_VERSION='$(K0S_MINOR_VERSION)' \
+		envsubst '$${PACKAGE_VERSION} $${K0S_MINOR_VERSION}' < ${MELANGE_CONFIG} > build/melange.yaml
 
 .PHONY: apko-template
 apko-template: check-env-APKO_CONFIG check-env-PACKAGE_VERSION
 	mkdir -p build
-	envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml
+	PACKAGE_VERSION='$(PACKAGE_VERSION)' \
+		envsubst '$${PACKAGE_VERSION}' < ${APKO_CONFIG} > build/apko.yaml

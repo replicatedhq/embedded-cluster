@@ -1,0 +1,214 @@
+name: Produce E2E DR fixture candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ec_version:
+        description: Exact released EC version used to produce the fixture
+        required: true
+        default: 2.19.8+k8s-1.35
+        type: string
+  workflow_call:
+    inputs:
+      baseline_ec_version:
+        description: Exact released EC version used to produce the fixture
+        required: true
+        type: string
+    secrets:
+      DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID:
+        required: true
+      DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET:
+        required: true
+      STAGING_REPLICATED_API_TOKEN:
+        required: true
+      TESTIM_AWS_ACCESS_KEY_ID:
+        required: true
+      TESTIM_AWS_SECRET_ACCESS_KEY:
+        required: true
+      CMX_REPLICATED_API_TOKEN:
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  produce-and-restore:
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: e2e-dr-fixture-candidate-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    env:
+      BASELINE_EC_VERSION: ${{ inputs.baseline_ec_version || '2.19.8+k8s-1.35' }}
+      EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin
+      AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+      AWS_REGION: us-east-1
+      REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+      STANDARD_LICENSE_ID: 2eAqdricgviUeki42j02nIn1ayl
+      SNAPSHOT_LICENSE_ID: 2gEzHseTJQ4z2Axwj7KK9RYt4oT
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - uses: azure/setup-helm@v4
+
+      - uses: imjasonh/setup-crane@v0.7
+
+      - name: Install Replicated CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated
+          sudo mv replicated /usr/local/bin/replicated
+
+      - name: Download released baseline binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p output/bin
+          gh release download "$BASELINE_EC_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern embedded-cluster-linux-amd64.tgz
+          tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
+
+      - name: Assemble released baseline bundle
+        env:
+          ROLE: previous-stable
+          RELEASE_YAML_DIR: e2e/kots-release-install-stable
+          EC_BINARY: output/bin/embedded-cluster
+          APP_VERSION: appver-airgap-e2e-previous-stable
+        run: ./scripts/assemble-e2e-airgap-bundle.sh
+
+      - name: Inspect released baseline bundle
+        id: baseline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t bundles < <(find output/e2e-airgap-bundles/snapshot -type f -name 'appver-*-previous-stable.tgz')
+          if [ "${#bundles[@]}" -ne 1 ]; then
+            printf 'expected exactly one previous-stable bundle, found %d\n' "${#bundles[@]}" >&2
+            printf '%s\n' "${bundles[@]}" >&2
+            exit 1
+          fi
+          bundle=${bundles[0]}
+          test -s "$bundle"
+          workdir=$(mktemp -d)
+          trap 'rm -rf "$workdir"' EXIT
+          tar -xzf "$bundle" -C "$workdir"
+          application_bundle=$(find "$workdir" -maxdepth 1 -name '*.airgap' -type f -print -quit)
+          test -n "$application_bundle"
+          installer=$(find "$workdir" -maxdepth 1 -type f -perm -u+x -print -quit)
+          test -n "$installer"
+          ./output/bin/airgap-bundle extract-release \
+            --binary "$installer" \
+            --output "$workdir/release.tgz"
+          tar -tzf "$workdir/release.tgz" > "$workdir/release-entries.txt"
+          for required in backup.yaml restore.yaml; do
+            if ! grep -Fxq "$required" "$workdir/release-entries.txt"; then
+              echo "embedded release is missing $required" >&2
+              exit 1
+            fi
+          done
+          tar -xOf "$application_bundle" embedded-cluster/version-metadata.json > "$workdir/metadata.json"
+          ec_version=$(jq -er .Versions.Installer "$workdir/metadata.json")
+          k0s_version=$(jq -er .Versions.Kubernetes "$workdir/metadata.json")
+          app_version=$(basename "$bundle" .tgz)
+          bundle_sha256="sha256:$(sha256sum "$bundle" | awk '{print $1}')"
+          ec_commit=$(gh api "repos/$GITHUB_REPOSITORY/commits/$BASELINE_EC_VERSION" --jq .sha)
+          mkdir -p "$workdir/source-metadata"
+          for path in pkg/addons/adminconsole/static/metadata.yaml pkg/addons/velero/static/metadata.yaml; do
+            gh api "repos/$GITHUB_REPOSITORY/contents/$path?ref=$ec_commit" --jq .content |
+              base64 --decode > "$workdir/source-metadata/$(basename "$(dirname "$(dirname "$path")")").yaml"
+          done
+          adminconsole_metadata="$workdir/source-metadata/adminconsole.yaml"
+          velero_metadata="$workdir/source-metadata/velero.yaml"
+          kots_version=$(awk '/^version:/{print $2; exit}' "$adminconsole_metadata")
+          kots_commit=$(gh api "repos/replicatedhq/kots/commits/v$kots_version" --jq .sha)
+          velero_version=$(awk '/^[[:space:]]+amd64: v/{sub(/.*amd64: /, ""); sub(/-amd64@.*/, ""); print; exit}' "$velero_metadata")
+          kots_digests=$(grep -oE 'sha256:[0-9a-f]{64}' "$adminconsole_metadata" | sort -u | tr '\n' ' ' | sed 's/ $//')
+          test -n "$ec_commit"
+          test -n "$kots_commit"
+          test -n "$velero_version"
+          test -n "$kots_digests"
+          echo "Released fixture baseline: app $app_version, EC $ec_version, k0s $k0s_version"
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "ec_version=$ec_version" >> "$GITHUB_OUTPUT"
+          echo "k0s_version=$k0s_version" >> "$GITHUB_OUTPUT"
+          echo "bundle_sha256=$bundle_sha256" >> "$GITHUB_OUTPUT"
+          echo "ec_commit=$ec_commit" >> "$GITHUB_OUTPUT"
+          echo "kots_commit=$kots_commit" >> "$GITHUB_OUTPUT"
+          echo "velero_version=$velero_version" >> "$GITHUB_OUTPUT"
+          echo "kots_digests=$kots_digests" >> "$GITHUB_OUTPUT"
+
+      - name: Produce fixture and prove it restores
+        uses: ./.github/actions/e2e
+        with:
+          test-name: TestMultiNodeAirgapHADisasterRecovery
+          dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          k0s-version: ${{ steps.baseline.outputs.k0s_version }}
+          k0s-version-previous-1: ${{ steps.baseline.outputs.k0s_version }}
+          k0s-version-previous-2: ${{ steps.baseline.outputs.k0s_version }}
+          k0s-version-previous-3: ${{ steps.baseline.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ steps.baseline.outputs.k0s_version }}
+          version-specifier: airgap-e2e
+          github-token: ${{ github.token }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
+          dr-fixture-output: ${{ github.workspace }}/output/dr-fixture/minio-data.tar.gz
+          dr-fixture-app-version: ${{ steps.baseline.outputs.app_version }}
+          dr-fixture-ec-version: ${{ steps.baseline.outputs.ec_version }}
+          dr-fixture-bundle-sha256: ${{ steps.baseline.outputs.bundle_sha256 }}
+          dr-fixture-ec-commit: ${{ steps.baseline.outputs.ec_commit }}
+          dr-fixture-kots-commit: ${{ steps.baseline.outputs.kots_commit }}
+          dr-fixture-velero-version: ${{ steps.baseline.outputs.velero_version }}
+          dr-fixture-kots-digests: ${{ steps.baseline.outputs.kots_digests }}
+          dr-fixture-generation-command: gh workflow run e2e-dr-fixture-candidate.yaml --ref ${{ github.ref_name }} -f baseline_ec_version=${{ env.BASELINE_EC_VERSION }}
+
+      - name: Publish immutable fixture
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DEV_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: us-east-1
+          BUCKET: dev-embedded-cluster-bin
+          PAYLOAD: ${{ github.workspace }}/output/dr-fixture/minio-data.tar.gz
+        run: |
+          set -euo pipefail
+          manifest="$PAYLOAD.manifest.json"
+          digest=$(jq -er '.payloadSHA256 | select(startswith("sha256:"))' "$manifest")
+          manifest_digest="sha256:$(sha256sum "$manifest" | awk '{print $1}')"
+          object_prefix="ec-v2-dr-fixtures/v1/${digest#sha256:}"
+          publish() {
+            local file=$1 key=$2 sha
+            sha=$(sha256sum "$file" | awk '{print $1}')
+            if existing=$(aws s3api head-object --bucket "$BUCKET" --key "$key" --query 'Metadata.sha256' --output text 2>/dev/null); then
+              if [ "$existing" != "$sha" ]; then
+                echo "immutable fixture object has unexpected digest: s3://$BUCKET/$key" >&2
+                exit 1
+              fi
+              echo "reusing immutable fixture object s3://$BUCKET/$key"
+              return
+            fi
+            aws s3 cp "$file" "s3://$BUCKET/$key" --metadata "sha256=$sha" --only-show-errors
+          }
+          for file in "$PAYLOAD" "$manifest"; do
+            key="$object_prefix/$(basename "$file")"
+            publish "$file" "$key"
+          done
+          {
+            echo "### Published DR fixture"
+            echo
+            echo "- Payload digest: \`$digest\`"
+            echo "- Manifest digest: \`$manifest_digest\`"
+            echo "- Payload: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz\`"
+            echo "- Manifest: \`https://$BUCKET.s3.amazonaws.com/$object_prefix/minio-data.tar.gz.manifest.json\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -29,11 +29,9 @@ export APKO_CONFIG := deploy/apko.tmpl.yaml
 
 .PHONY: melange-build-local-artifact-mirror
 melange-build-local-artifact-mirror:
-	dagger call build-local-artifact-mirror-package \
-		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
-		--arch $(ARCH) \
-		export --path build
+	$(MAKE) melange-build \
+		MELANGE_CONFIG=deploy/melange.tmpl.yaml \
+		MELANGE_SOURCE_DIR=..
 
 .PHONY: build-local-artifact-mirror-image
 build-local-artifact-mirror-image:
@@ -45,12 +43,8 @@ build-local-artifact-mirror-image:
 
 .PHONY: build-local-artifact-mirror-image-chainguard
 build-local-artifact-mirror-image-chainguard:
-	dagger call build-local-artifact-mirror-image \
-		--ec-version $(PACKAGE_VERSION) \
-		--kzeros-minor-version $(K0S_MINOR_VERSION) \
-		--repo $(IMAGE_NAME) \
-		--arch $(ARCH) \
-		export --path build
+	$(MAKE) melange-build-local-artifact-mirror
+	$(MAKE) apko-build IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-local-artifact-mirror-image-dockerfile
 build-local-artifact-mirror-image-dockerfile:
@@ -70,27 +64,10 @@ build-and-push-local-artifact-mirror-image:
 build-and-push-local-artifact-mirror-image-chainguard:
 	mkdir -p build
 ifdef REGISTRY_SERVER
-	dagger call \
-		with-registry-login \
-			--server $(REGISTRY_SERVER) \
-			--username $(REGISTRY_USERNAME) \
-			--password env:REGISTRY_PASSWORD \
-		publish-local-artifact-mirror-image \
-			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
-			--repo $(IMAGE_NAME) \
-			--arch $(ARCH) \
-	> build/digest
-else
-	dagger call \
-		publish-local-artifact-mirror-image \
-			--ec-version $(PACKAGE_VERSION) \
-			--kzeros-minor-version $(K0S_MINOR_VERSION) \
-			--repo $(IMAGE_NAME) \
-			--arch $(ARCH) \
-	> build/digest
+	$(MAKE) apko-login REGISTRY=$(REGISTRY_SERVER) USERNAME=$(REGISTRY_USERNAME) PASSWORD="$(REGISTRY_PASSWORD)"
 endif
-	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
+	$(MAKE) melange-build-local-artifact-mirror
+	$(MAKE) apko-build-and-publish IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-local-artifact-mirror-image-dockerfile
 build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirror-image-dockerfile

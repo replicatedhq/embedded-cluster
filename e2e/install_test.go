@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/cmx"
 	"github.com/replicatedhq/embedded-cluster/e2e/cluster/docker"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons/adminconsole"
 	"github.com/stretchr/testify/require"
 )
 
@@ -123,7 +124,11 @@ func TestMultiNodeInstallation(t *testing.T) {
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
 }
 
-func TestSingleNodeUpgradePreviousStable(t *testing.T) {
+// TestECKOTSBoundaryUpgrade owns the application deployment and EC/KOTS
+// transition intentionally removed from the restore-focused DR test. It starts
+// from a supported released EC/KOTS pair and upgrades through the candidate EC
+// build before applying the candidate application release.
+func TestECKOTSBoundaryUpgrade(t *testing.T) {
 	t.Parallel()
 
 	RequireEnvVars(t, []string{"SHORT_SHA"})
@@ -154,6 +159,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version:    initialVersion,
 		k8sVersion: k8sVersionPreviousStable(),
 	})
+	initialKOTSImage := kotsadmImage(t, tc)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -172,6 +178,13 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	checkInstallationStateWithOptions(t, tc, installationStateOptions{
 		version: appUpgradeVersion,
 	})
+	upgradedKOTSImage := kotsadmImage(t, tc)
+	if upgradedKOTSImage == initialKOTSImage {
+		t.Fatalf("EC upgrade did not cross the KOTS boundary: image remained %q", upgradedKOTSImage)
+	}
+	if !strings.Contains(upgradedKOTSImage, adminconsole.Metadata.Version) {
+		t.Fatalf("upgraded KOTS image %q does not contain candidate version %q", upgradedKOTSImage, adminconsole.Metadata.Version)
+	}
 
 	appUpgradeVersion = fmt.Sprintf("appver-%s-upgrade", os.Getenv("SHORT_SHA"))
 	testArgs = []string{appUpgradeVersion}
@@ -195,6 +208,19 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	t.Logf("%s: test complete", time.Now().Format(time.RFC3339))
+}
+
+func kotsadmImage(t *testing.T, tc *docker.Cluster) string {
+	t.Helper()
+	stdout, stderr, err := tc.RunCommandOnNode(0, []string{"kotsadm-image.sh"})
+	if err != nil {
+		t.Fatalf("failed to read kotsadm image: %v: %s: %s", err, stdout, stderr)
+	}
+	image := strings.TrimSpace(stdout)
+	if image == "" {
+		t.Fatal("kotsadm deployment has an empty image")
+	}
+	return image
 }
 
 // TestUpgradeFromReplicatedAppPreviousK0s step upgrades from k0s minor-3 to minor-2 to minor-1
@@ -655,7 +681,7 @@ func TestSingleNodeAirgapAppOnlyUpgrade(t *testing.T) {
 	}
 
 	t.Logf("%s: checking installation state after app upgrade", time.Now().Format(time.RFC3339))
-	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion()}
+	line = []string{"check-airgap-installation-state.sh", upgradeVersion, k8sVersion(), "upgraded"}
 	if stdout, stderr, err := tc.RunCommandOnNode(0, line); err != nil {
 		t.Fatalf("fail to check installation state: %v: %s: %s", err, stdout, stderr)
 	}
