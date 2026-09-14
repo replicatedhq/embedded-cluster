@@ -16,6 +16,12 @@ master:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/ssd"
   logs:
     hostPathPrefix: "/var/lib/embedded-cluster/seaweedfs/storage"
+  podAnnotations:
+    # masters read [master.maintenance] scripts once at boot and the chart has no config
+    # checksum on the master pod template, so a scripts change alone does not restart
+    # running masters. bump this value whenever the maintenance scripts below change to
+    # force a master rollout on upgrade.
+    embedded-cluster.replicated.com/maintenance-scripts-revision: "1"
   affinity: |
     # schedule on control-plane nodes
     nodeAffinity:
@@ -43,6 +49,9 @@ master:
     # periodically run these scripts are the same as running them from 'weed shell'
     # note: running 'fs.meta.save' then 'fs.meta.load' will ensure metadata of all filers
     # are in sync in case of data loss from 1 or more filers
+    # note: each 'fs.meta.load' journals a full metadata snapshot to the filer change log
+    # under /topics/.system/log; 'fs.log.purge' caps that log at 7 days so it does not
+    # grow unbounded. nothing in embedded-cluster consumes the change log.
     scripts = """
       ec.encode -fullPercent=95 -quietFor=1h
       ec.rebuild -force
@@ -52,6 +61,7 @@ master:
       volume.fix.replication
       fs.meta.save -o filer-backup.meta
       fs.meta.load filer-backup.meta
+      fs.log.purge -daysAgo 7
     """
     sleep_minutes = 17          # sleep minutes between each script execution
   resources:
