@@ -52,6 +52,9 @@ master:
     # note: each 'fs.meta.load' journals a full metadata snapshot to the filer change log
     # under /topics/.system/log; 'fs.log.purge' caps that log at 7 days so it does not
     # grow unbounded. nothing in embedded-cluster consumes the change log.
+    # note: 's3.clean.uploads' aborts registry multipart uploads older than 24h; interrupted
+    # image pushes otherwise leave fragments under /buckets/registry/.uploads forever.
+    # registry pushes are node-local, so any upload older than 24h is abandoned.
     scripts = """
       ec.encode -fullPercent=95 -quietFor=1h
       ec.rebuild -force
@@ -62,6 +65,7 @@ master:
       fs.meta.save -o filer-backup.meta
       fs.meta.load filer-backup.meta
       fs.log.purge -daysAgo 7
+      s3.clean.uploads -timeAgo=24h
     """
     sleep_minutes = 17          # sleep minutes between each script execution
   resources:
