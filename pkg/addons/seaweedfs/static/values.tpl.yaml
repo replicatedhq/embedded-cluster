@@ -21,6 +21,7 @@ master:
     # checksum on the master pod template, so a scripts change alone does not restart
     # running masters. bump this value whenever the maintenance scripts below change to
     # force a master rollout on upgrade.
+    # To be removed once https://github.com/seaweedfs/seaweedfs/pull/11331 is released
     embedded-cluster.replicated.com/maintenance-scripts-revision: "1"
   affinity: |
     # schedule on control-plane nodes
