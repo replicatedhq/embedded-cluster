@@ -25,8 +25,6 @@ build:
 build-deps:
 	$(MAKE) -C .. go.mod crds
 
-export APKO_CONFIG := deploy/apko.tmpl.yaml
-
 .PHONY: melange-build-local-artifact-mirror
 melange-build-local-artifact-mirror:
 	dagger call build-local-artifact-mirror-package \
@@ -90,7 +88,7 @@ else
 			--arch $(ARCH) \
 	> build/digest
 endif
-	@$(MAKE) apko-output-image IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
+	@$(MAKE) image-output-digest IMAGE="$(IMAGE_NAME):$(call image-tag,$(PACKAGE_VERSION))"
 
 .PHONY: build-and-push-local-artifact-mirror-image-dockerfile
 build-and-push-local-artifact-mirror-image-dockerfile: build-local-artifact-mirror-image-dockerfile

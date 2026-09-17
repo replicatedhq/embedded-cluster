@@ -25,32 +25,42 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 		return nil, fmt.Errorf("create minio directories: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// Download Minio binary
-	downloadCmd := []string{
-		"curl", "-L", "https://dl.min.io/server/minio/release/linux-amd64/minio",
-		"-o", "/minio/bin/minio",
+	// dl.min.io no longer serves community binaries. Pin the GitHub release
+	// assets and their SHA-256 checksums for reproducible test fixtures.
+	binaries := []struct {
+		name    string
+		version string
+		sha256  string
+	}{
+		{
+			name:    "minio",
+			version: "RELEASE.2025-09-07T16-13-09Z",
+			sha256:  "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f",
+		},
+		{
+			name:    "mc",
+			version: "RELEASE.2025-08-13T08-35-41Z",
+			sha256:  "01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891",
+		},
 	}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
-		return nil, fmt.Errorf("download minio: %v: %s: %s", err, stdout, stderr)
-	}
+	for _, binary := range binaries {
+		url := fmt.Sprintf("https://github.com/minio/%s/releases/download/%s/%s.linux-amd64.%s", binary.name, binary.version, binary.name, binary.version)
+		path := "/minio/bin/" + binary.name
+		if stdout, stderr, err := c.RunCommandOnNode(node, []string{"curl", "-fSL", url, "-o", path}); err != nil {
+			return nil, fmt.Errorf("download %s: %v: %s: %s", binary.name, err, stdout, stderr)
+		}
 
-	// Make binary executable
-	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/minio"}); err != nil {
-		return nil, fmt.Errorf("chmod minio: %v: %s: %s", err, stdout, stderr)
-	}
+		stdout, stderr, err := c.RunCommandOnNode(node, []string{"sha256sum", path})
+		if err != nil {
+			return nil, fmt.Errorf("checksum %s: %v: %s: %s", binary.name, err, stdout, stderr)
+		}
+		if fields := strings.Fields(stdout); len(fields) == 0 || fields[0] != binary.sha256 {
+			return nil, fmt.Errorf("checksum %s: expected %s, got %q", binary.name, binary.sha256, stdout)
+		}
 
-	// Download mc binary
-	downloadCmd = []string{
-		"curl", "-L", "https://dl.min.io/client/mc/release/linux-amd64/mc",
-		"-o", "/minio/bin/mc",
-	}
-	if stdout, stderr, err := c.RunCommandOnNode(node, downloadCmd); err != nil {
-		return nil, fmt.Errorf("download mc: %v: %s: %s", err, stdout, stderr)
-	}
-
-	// Make binary executable
-	if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", "/minio/bin/mc"}); err != nil {
-		return nil, fmt.Errorf("chmod mc: %v: %s: %s", err, stdout, stderr)
+		if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", path}); err != nil {
+			return nil, fmt.Errorf("chmod %s: %v: %s: %s", binary.name, err, stdout, stderr)
+		}
 	}
 
 	// Generate credentials

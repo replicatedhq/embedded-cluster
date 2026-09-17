@@ -11,6 +11,7 @@ type chainguard struct{}
 func (m *chainguard) melangeBuildGo(
 	src *dagger.Directory,
 	melangeFile *dagger.File,
+	ecVersion string,
 	// +default="amd64,arm64"
 	arch string,
 	// +default="latest"
@@ -27,6 +28,7 @@ func (m *chainguard) melangeBuildGo(
 		From(fmt.Sprintf("cgr.dev/chainguard/melange:%s", imageTag)).
 		WithDirectory("/workspace", src).
 		WithFile("/workspace/melange.yaml", melangeFile).
+		WithNewFile("/workspace/melange.env", fmt.Sprintf("VERSION=%q\nGOCACHE=/cache/melange/gocache\nGOMODCACHE=/cache/melange/gomodcache\n", ecVersion)).
 		WithFile("/workspace/melange.rsa", keygen.File("/workspace/melange.rsa")).
 		WithEnvVariable("MELANGE_CACHE_DIR", "/cache/melange").
 		WithEnvVariable("MELANGE_APK_CACHE_DIR", "/cache/apk").
@@ -40,6 +42,10 @@ func (m *chainguard) melangeBuildGo(
 		WithExec(
 			[]string{
 				"melange", "build", "melange.yaml",
+				"--source-dir", "/workspace",
+				"--pipeline-dir", "/workspace/dagger/pipelines",
+				"--env-file", "/workspace/melange.env",
+				"--package-append", "bash,git",
 				"--signing-key", "melange.rsa",
 				"--cache-dir", "/cache/melange",
 				"--apk-cache-dir", "/cache/apk",
@@ -94,6 +100,8 @@ func (m *chainguard) apkoBuild(
 		WithExec(
 			[]string{
 				"apko", "build", "apko.yaml", image, "apko.tar",
+				"--repository-append", "./packages",
+				"--keyring-append", "./melange.rsa.pub",
 				"--cache-dir", "/cache/apko",
 				"--arch", arch,
 			},
@@ -127,6 +135,8 @@ func (m *chainguard) apkoPublish(
 		WithExec(
 			[]string{
 				"apko", "publish", "apko.yaml", image,
+				"--repository-append", "./packages",
+				"--keyring-append", "./melange.rsa.pub",
 				"--cache-dir", "/cache/apko",
 				"--arch", arch,
 			},
