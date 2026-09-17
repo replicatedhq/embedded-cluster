@@ -190,6 +190,13 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 				return fmt.Errorf("failed to reset firewalld: %w", err)
 			}
 
+			// Leaves the local policy store clean; the rules outlive the data
+			// directory they point at otherwise.
+			logrus.Debugf("Removing selinux policy...")
+			if err := hostutils.RemoveSELinuxModule(rc); err != nil {
+				logrus.Warnf("Failed to remove selinux policy (continuing with reset anyway): %v", err)
+			}
+
 			// The whole directory, not just k0s.yaml: it also holds containerd
 			// drop-ins and registry certs, and nothing else removes them — k0s's
 			// own cleanup only covers its data and run dirs.
