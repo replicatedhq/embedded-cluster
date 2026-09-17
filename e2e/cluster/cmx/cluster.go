@@ -586,13 +586,9 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 		case <-timeout:
 			return fmt.Errorf("timed out after waiting %s for node to be in running state", timeoutDuration)
 		case <-tick:
-			output, err := exec.Command("replicated", "vm", "ls", "-ojson").CombinedOutput()
+			output, err := exec.Command("replicated", "vm", "ls", "-ojson").Output()
 			if err != nil {
-				// Transient failures of `replicated vm ls` can occur while CMX is
-				// reconfiguring the network/VM after an update. Log and retry rather
-				// than failing the test immediately.
-				c.t.Logf("node %v: failed to check node status, retrying: %v: %s", nodeNum, err, string(output))
-				continue
+				return fmt.Errorf("check node status: %v", err)
 			}
 
 			nodes := []Node{}
