@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	apitypes "github.com/replicatedhq/embedded-cluster/api/types"
 	"github.com/replicatedhq/embedded-cluster/pkg-new/preflights"
 	"github.com/replicatedhq/embedded-cluster/pkg/dryrun"
 	"github.com/replicatedhq/embedded-cluster/pkg/metrics"
@@ -13,6 +14,13 @@ import (
 	troubleshootv1beta2 "github.com/replicatedhq/troubleshoot/pkg/apis/troubleshoot/v1beta2"
 	"github.com/sirupsen/logrus"
 )
+
+// canBypassHostPreflights reports whether a failed host preflight run may be bypassed.
+// Checks that the spec author marked strict are required, so they cannot be bypassed
+// even when the user passes --ignore-host-preflights.
+func canBypassHostPreflights(output *apitypes.PreflightsOutput, ignoreHostPreflights bool) bool {
+	return ignoreHostPreflights && !output.HasStrictFailures()
+}
 
 func runHostPreflights(
 	ctx context.Context,
@@ -80,7 +88,11 @@ func runHostPreflights(
 
 		preflights.PrintTableWithoutInfo(output)
 
-		if ignoreHostPreflights {
+		if ignoreHostPreflights && output.HasStrictFailures() {
+			logrus.Info("\n\033[1mOne or more failed host preflight checks are marked as required and cannot be bypassed.\033[0m\n")
+		}
+
+		if canBypassHostPreflights(output, ignoreHostPreflights) {
 			if assumeYes {
 				if metricsReporter != nil {
 					metricsReporter.ReportHostPreflightsBypassed(ctx, output)
