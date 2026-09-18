@@ -43,7 +43,8 @@ func (o PreflightsOutput) HasWarn() bool {
 	return len(o.Warn) > 0
 }
 
-// HasStrictFailures returns true if any of the failed app preflight checks are marked as strict.
+// HasStrictFailures returns true if any of the failed preflight checks are marked as strict.
+// Strict checks are declared required by the spec author and cannot be bypassed.
 func (o PreflightsOutput) HasStrictFailures() bool {
 	for _, fail := range o.Fail {
 		if fail.Strict {
