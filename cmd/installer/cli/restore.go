@@ -440,7 +440,7 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags inst
 	// TODO (@salah): update installation status to reflect what's happening
 
 	logrus.Debugf("installing addons")
-	if err := installAddonsForRestore(ctx, kcli, mcli, hcli, rc); err != nil {
+	if err := installAddonsForRestore(ctx, kcli, mcli, hcli, installCfg, rc); err != nil {
 		return err
 	}
 
@@ -470,13 +470,30 @@ func runRestoreStepNew(ctx context.Context, appSlug, appTitle string, flags inst
 	return nil
 }
 
-func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, rc runtimeconfig.RuntimeConfig) error {
-	embCfg := release.GetEmbeddedClusterConfig()
+// Hop: buildAddonRestoreOpts builds addon restore options from config and runtime config
+func buildAddonRestoreOpts(installCfg *installConfig, rc runtimeconfig.RuntimeConfig) *addons.RestoreOptions {
 	var embCfgSpec *ecv1beta1.ConfigSpec
-	if embCfg != nil {
+	if embCfg := release.GetEmbeddedClusterConfig(); embCfg != nil {
 		embCfgSpec = &embCfg.Spec
 	}
 
+	var euCfgSpec *ecv1beta1.ConfigSpec
+	if installCfg.endUserConfig != nil {
+		euCfgSpec = &installCfg.endUserConfig.Spec
+	}
+
+	return &addons.RestoreOptions{
+		EmbeddedConfigSpec: embCfgSpec,
+		EndUserConfigSpec:  euCfgSpec,
+		ProxySpec:          rc.ProxySpec(),
+		HostCABundlePath:   rc.HostCABundlePath(),
+		DataDir:            rc.EmbeddedClusterHomeDirectory(),
+		OpenEBSDataDir:     rc.EmbeddedClusterOpenEBSLocalSubDir(),
+		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
+	}
+}
+
+func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metadata.Interface, hcli helm.Client, installCfg *installConfig, rc runtimeconfig.RuntimeConfig) error {
 	progressChan := make(chan addontypes.AddOnProgress)
 	defer close(progressChan)
 
@@ -504,15 +521,9 @@ func installAddonsForRestore(ctx context.Context, kcli client.Client, mcli metad
 		addons.WithProgressChannel(progressChan),
 	)
 
-	if err := addOns.Restore(ctx, addons.RestoreOptions{
-		EmbeddedConfigSpec: embCfgSpec,
-		EndUserConfigSpec:  nil, // TODO: support for end user config overrides
-		ProxySpec:          rc.ProxySpec(),
-		HostCABundlePath:   rc.HostCABundlePath(),
-		DataDir:            rc.EmbeddedClusterHomeDirectory(),
-		OpenEBSDataDir:     rc.EmbeddedClusterOpenEBSLocalSubDir(),
-		K0sDataDir:         rc.EmbeddedClusterK0sSubDir(),
-	}); err != nil {
+	opts := buildAddonRestoreOpts(installCfg, rc)
+
+	if err := addOns.Restore(ctx, *opts); err != nil {
 		return fmt.Errorf("install addons: %w", err)
 	}
 
