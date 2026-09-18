@@ -1,6 +1,6 @@
 module dagger/embedded-cluster
 
-go 1.26.0
+go 1.26.7
 
 require (
 	github.com/Khan/genqlient v0.8.1
