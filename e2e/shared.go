@@ -371,6 +371,29 @@ func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node 
 	}
 }
 
+// hasContainerdRegistryConfig reports whether the installation created an
+// embedded-registry drop-in. Older online installers created one even though
+// they did not use the in-cluster registry; newer online installers do not.
+// See https://github.com/replicatedhq/embedded-cluster/commit/2d574e26.
+func hasContainerdRegistryConfig(t *testing.T, tc cluster.Cluster, node int) bool {
+	t.Helper()
+	line := []string{"if test -f /etc/k0s/containerd.d/embedded-registry.toml; then echo true; else echo false; fi"}
+	stdout, stderr, err := tc.RunCommandOnNode(node, line)
+	if err != nil {
+		t.Fatalf("failed to check for containerd registry drop-in on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+
+	switch strings.TrimSpace(stdout) {
+	case "true":
+		return true
+	case "false":
+		return false
+	default:
+		t.Fatalf("unexpected result checking for containerd registry drop-in on node %d: %q", node, stdout)
+		return false
+	}
+}
+
 // checkContainerdRegistryConfigV2 asserts the registry drop-in still uses the
 // containerd 1.7 schema required by k0s 1.34 and 1.35.
 func checkContainerdRegistryConfigV2(t *testing.T, tc cluster.Cluster, node int) {
