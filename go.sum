@@ -690,8 +690,8 @@ github.com/redis/go-redis/v9 v9.10.0 h1:FxwK3eV8p/CQa0Ch276C7u2d0eNC9kCmAYQ7mCXC
 github.com/redis/go-redis/v9 v9.10.0/go.mod h1:huWgSWd8mW6+m0VPhJjSSQ+d6Nh1VICQ6Q5lHuCH/Iw=
 github.com/replicatedhq/kotskinds v0.1.0 h1:FkFAExFH+kfDLXV2fZFVNtdXR02GkpDAGlUcoBcsjdU=
 github.com/replicatedhq/kotskinds v0.1.0/go.mod h1:8sswH8+cIoOVQdFtUfzOri+SEHIKw8YYwJvGOG9yYgI=
-github.com/replicatedhq/troubleshoot v0.134.0 h1:VmWkEli2y9ugaE3yq6UYHfnGN/teenac2ehhB8zyuvw=
-github.com/replicatedhq/troubleshoot v0.134.0/go.mod h1:vjiYUnuGrQjXLsYMjkqoDqQ1lgvTMetoM7LLdraXPtk=
+github.com/replicatedhq/troubleshoot v0.134.1 h1:1hrm+4OUtxtIpgG/heo8Y3haXEquC6ExI4ahIu8jgF0=
+github.com/replicatedhq/troubleshoot v0.134.1/go.mod h1:+gt95FQuHkWzTflqTblHrPYbglWUzJw2wbIZWY0127A=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
