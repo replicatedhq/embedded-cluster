@@ -154,6 +154,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 		version:    initialVersion,
 		k8sVersion: k8sVersionPreviousStable(),
 	})
+	hadContainerdRegistryConfig := hasContainerdRegistryConfig(t, tc, 0)
 
 	appUpgradeVersion := fmt.Sprintf("appver-%s-noop", os.Getenv("SHORT_SHA"))
 	testArgs := []string{appUpgradeVersion}
@@ -182,7 +183,7 @@ func TestSingleNodeUpgradePreviousStable(t *testing.T) {
 	}
 
 	checkPostUpgradeState(t, tc)
-	if usesContainerdV3Schema() {
+	if usesContainerdV3Schema() || !hadContainerdRegistryConfig {
 		checkContainerdRegistryConfigAbsent(t, tc, 0)
 	} else {
 		checkContainerdRegistryConfigV2(t, tc, 0)
