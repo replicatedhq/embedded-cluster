@@ -10,6 +10,8 @@ import (
 
 	k0sv1beta1 "github.com/k0sproject/k0s/pkg/apis/k0s/v1beta1"
 	clitesting "github.com/replicatedhq/embedded-cluster/cmd/installer/cli/testing"
+	ecv1beta1 "github.com/replicatedhq/embedded-cluster/kinds/apis/v1beta1"
+	"github.com/replicatedhq/embedded-cluster/pkg/addons"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
 	"github.com/replicatedhq/embedded-cluster/pkg/release"
@@ -582,6 +584,99 @@ func Test_listBackupsWithTimeout(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, got, tt.wantBackups)
 				assert.Len(t, got[0], tt.wantSubBackups)
+			}
+		})
+	}
+}
+
+func Test_buildAddonRestoreOpts(t *testing.T) {
+	// Set up release data with embedded cluster config for testing
+	err := release.SetReleaseDataForTests(map[string][]byte{
+		"embedded-cluster-config.yaml": []byte(`
+apiVersion: embeddedcluster.replicated.com/v1beta1
+kind: Config
+metadata:
+  name: "testconfig"
+spec:
+  roles:
+    controller:
+      name: controller-test
+`),
+	})
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		release.SetReleaseDataForTests(nil)
+	})
+
+	tests := []struct {
+		name       string
+		installCfg *installConfig
+		rc         runtimeconfig.RuntimeConfig
+		validate   func(*testing.T, *addons.RestoreOptions, runtimeconfig.RuntimeConfig, *installConfig)
+	}{
+		{
+			name: "end user config overrides present",
+			installCfg: &installConfig{
+				endUserConfig: &ecv1beta1.Config{
+					Spec: ecv1beta1.ConfigSpec{},
+				},
+			},
+			rc: func(t *testing.T) runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				tmpDir := t.TempDir()
+				rc.SetDataDir(tmpDir)
+				rc.SetProxySpec(&ecv1beta1.ProxySpec{
+					HTTPProxy:  "http://proxy.example.com:8080",
+					HTTPSProxy: "https://proxy.example.com:8080",
+				})
+				rc.SetHostCABundlePath("/etc/ssl/certs/ca-bundle.crt")
+				return rc
+			}(t),
+			validate: func(t *testing.T, opts *addons.RestoreOptions, rc runtimeconfig.RuntimeConfig, installCfg *installConfig) {
+				req := require.New(t)
+				req.Equal(&installCfg.endUserConfig.Spec, opts.EndUserConfigSpec)
+				expectedEmbeddedCfg := release.GetEmbeddedClusterConfig()
+				req.NotNil(expectedEmbeddedCfg)
+				req.Equal(&expectedEmbeddedCfg.Spec, opts.EmbeddedConfigSpec)
+				req.Equal(rc.ProxySpec(), opts.ProxySpec)
+				req.Equal("/etc/ssl/certs/ca-bundle.crt", opts.HostCABundlePath)
+				req.Equal(rc.EmbeddedClusterHomeDirectory(), opts.DataDir)
+				req.Equal(rc.EmbeddedClusterOpenEBSLocalSubDir(), opts.OpenEBSDataDir)
+				req.Equal(rc.EmbeddedClusterK0sSubDir(), opts.K0sDataDir)
+			},
+		},
+		{
+			name:       "no end user config overrides",
+			installCfg: &installConfig{},
+			rc: func(t *testing.T) runtimeconfig.RuntimeConfig {
+				rc := runtimeconfig.New(nil)
+				tmpDir := t.TempDir()
+				rc.SetDataDir(tmpDir)
+				rc.SetHostCABundlePath("/etc/ssl/certs/ca-bundle.crt")
+				return rc
+			}(t),
+			validate: func(t *testing.T, opts *addons.RestoreOptions, rc runtimeconfig.RuntimeConfig, installCfg *installConfig) {
+				req := require.New(t)
+				req.Nil(opts.EndUserConfigSpec)
+				expectedEmbeddedCfg := release.GetEmbeddedClusterConfig()
+				req.NotNil(expectedEmbeddedCfg)
+				req.Equal(&expectedEmbeddedCfg.Spec, opts.EmbeddedConfigSpec)
+				req.Nil(opts.ProxySpec)
+				req.Equal("/etc/ssl/certs/ca-bundle.crt", opts.HostCABundlePath)
+				req.Equal(rc.EmbeddedClusterHomeDirectory(), opts.DataDir)
+				req.Equal(rc.EmbeddedClusterOpenEBSLocalSubDir(), opts.OpenEBSDataDir)
+				req.Equal(rc.EmbeddedClusterK0sSubDir(), opts.K0sDataDir)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := buildAddonRestoreOpts(tt.installCfg, tt.rc)
+
+			if tt.validate != nil {
+				tt.validate(t, opts, tt.rc, tt.installCfg)
 			}
 		})
 	}
