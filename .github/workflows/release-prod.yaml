@@ -485,7 +485,7 @@ jobs:
           - TestPreflights
           - TestPreflightsNoexec
           - TestSingleNodeInstallation
-          - TestSingleNodeUpgradePreviousStable
+          - TestECKOTSBoundaryUpgrade
           - TestMultiNodeInstallation
           - TestSingleNodeDisasterRecovery
           - TestSingleNodeResumeDisasterRecovery

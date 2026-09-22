@@ -24,7 +24,7 @@ OUTPUT_DIR=${OUTPUT_DIR:-output/e2e-airgap-bundles}
 BUNDLE_NAME=${BUNDLE_NAME:-$APP_VERSION}
 
 case "$ROLE" in
-    previous-stable) APP_UPDATE_CURSOR=100 ;;
+    previous-stable|dr-restore) APP_UPDATE_CURSOR=100 ;;
     previous-k0s-3) APP_UPDATE_CURSOR=200 ;;
     previous-k0s-2) APP_UPDATE_CURSOR=300 ;;
     previous-k0s-1) APP_UPDATE_CURSOR=400 ;;
@@ -125,6 +125,24 @@ download_url() {
     return 1
 }
 
+copy_to_local_registry() {
+    local source=$1 destination=$2
+    local attempt error_log
+    error_log="$workdir/crane-copy.err"
+    for attempt in $(seq 1 3); do
+        : > "$error_log"
+        if crane copy "$source" "$destination" --insecure \
+            2> >(tee "$error_log" >&2); then
+            return
+        fi
+        if ! grep -q 'stream error.*INTERNAL_ERROR' "$error_log" || [ "$attempt" -eq 3 ]; then
+            return 1
+        fi
+        echo "copy $source: transient registry stream failure; retrying ($attempt/3)" >&2
+        sleep 5
+    done
+}
+
 # Resolve the application-only airgap bundle by its exact channel sequence.
 # This is the non-Embedded-Cluster Market API; its response is JSON containing
 # a short-lived object URL.
@@ -221,7 +239,7 @@ if [ -n "$lam_image" ]; then
         -v "$workdir/registry:/var/lib/registry" registry:2)
     # KOTS's temporary registry resolves EC images by basename.
     lam_dest=${lam_image##*/}
-    crane copy "$lam_image" "localhost:5000/$lam_dest" --insecure
+    copy_to_local_registry "$lam_image" "localhost:5000/$lam_dest"
     docker stop "$registry_id" >/dev/null
     registry_id=
     registry_dir="$workdir/registry"

@@ -424,7 +424,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [0, 1, 2, 3]
+        include:
+          - { n: 0, k0s-offset: 0, version-suffix: "", dr-restore: false }
+          - { n: 1, k0s-offset: 1, version-suffix: "-previous-k0s-1", dr-restore: false }
+          - { n: 2, k0s-offset: 2, version-suffix: "-previous-k0s-2", dr-restore: false }
+          - { n: 3, k0s-offset: 3, version-suffix: "-previous-k0s-3", dr-restore: false }
+          - { n: 4, k0s-offset: 0, version-suffix: "-dr-restore", dr-restore: true }
     outputs:
       k0s_version: ${{ steps.export.outputs.k0s_version_0 }}
       k0s_version_1: ${{ steps.export.outputs.k0s_version_1 }}
@@ -472,13 +477,10 @@ jobs:
 
       - name: Export versions
         run: |
-          version_suffix=
-          if [ ${{ matrix.n }} -gt 0 ]; then
-            version_suffix="-previous-k0s-${{ matrix.n }}"
-          fi
+          version_suffix="${{ matrix.version-suffix }}"
 
           k0s_minor_version=$(make print-K0S_MINOR_VERSION)
-          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.n }}))
+          export K0S_MINOR_VERSION=$(($k0s_minor_version - ${{ matrix.k0s-offset }}))
           echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
           echo "K0S_MINOR_VERSION=$K0S_MINOR_VERSION" >> $GITHUB_ENV
 
@@ -506,13 +508,14 @@ jobs:
           SKIP_RELEASE: "1"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if ${{ matrix.dr-restore }}; then
+            export DR_RESTORE_VERSION
+            DR_RESTORE_VERSION=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
+          fi
           ./scripts/build-and-release.sh
 
-          version_suffix=
-          if [ ${{ matrix.n }} -gt 0 ]; then
-            version_suffix="-previous-k0s-${{ matrix.n }}"
-          fi
-          if [ -n "$version_suffix" ]; then
+          version_suffix="${{ matrix.version-suffix }}"
+          if [ -n "$version_suffix" ] && ! ${{ matrix.dr-restore }}; then
             cp output/bin/embedded-cluster-original output/bin/embedded-cluster${version_suffix}
           fi
 
@@ -526,9 +529,16 @@ jobs:
             output/bin/embedded-cluster-original
             output/bin/embedded-cluster-release-builder
 
+      - name: Upload DR restore release
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.dr-restore }}
+        with:
+          name: dr-restore-release
+          path: output/bin/embedded-cluster-dr-restore
+
       - name: Upload release previous k0s
         uses: actions/upload-artifact@v7
-        if: ${{ matrix.n != 0 }}
+        if: ${{ matrix.n > 0 && !matrix.dr-restore }}
         with:
           name: previous-k0s-${{ matrix.n }}-release
           path: |
@@ -748,6 +758,7 @@ jobs:
           - { role: app-only-upgrade, source: e2e/kots-release-upgrade, artifact: current-release, binary: embedded-cluster-original }
           - { role: upgrade, source: e2e/kots-release-upgrade, artifact: upgrade-release, binary: embedded-cluster-upgrade }
           - { role: previous-stable, source: e2e/kots-release-install-stable, artifact: stable, binary: embedded-cluster }
+          - { role: dr-restore, source: e2e/kots-release-install-stable, artifact: dr-restore-release, binary: embedded-cluster-dr-restore }
           - { role: legacydr, source: e2e/kots-release-install-legacydr, artifact: current-release, binary: embedded-cluster-original }
     env:
       EC_RUNTIME_CACHE_BUCKET: dev-embedded-cluster-bin
@@ -789,6 +800,19 @@ jobs:
           gh release download '${{ needs.find-previous-stable.outputs.ec_version }}' \
             --repo replicatedhq/embedded-cluster --pattern 'embedded-cluster-linux-amd64.tgz'
           tar -xzf embedded-cluster-linux-amd64.tgz -C output/bin embedded-cluster
+      - name: Download DR fixture baseline EC binary
+        if: matrix.role == 'dr-restore'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          fixture_version=$(jq -er '.ecVersion | sub("^v"; "")' e2e/dr-fixtures/default.json)
+          mkdir -p output/dr-fixture-baseline
+          gh release download "$fixture_version" --repo replicatedhq/embedded-cluster \
+            --pattern 'embedded-cluster-linux-amd64.tgz' --dir output/dr-fixture-baseline
+          tar -xzf output/dr-fixture-baseline/embedded-cluster-linux-amd64.tgz \
+            -C output/dr-fixture-baseline embedded-cluster
+          test -x output/dr-fixture-baseline/embedded-cluster
       - name: Assemble complete EC v2 bundle
         env:
           ROLE: ${{ matrix.role }}
@@ -801,6 +825,11 @@ jobs:
             upgrade) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-upgrade" ;;
             legacydr) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-legacydr" ;;
             previous-stable) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-stable" ;;
+            dr-restore)
+              APP_VERSION="appver-airgap-e2e-previous-stable"
+              BUNDLE_NAME="appver-airgap-e2e-previous-stable-dr-restore"
+              ADDITIONAL_EC_BINARY=output/dr-fixture-baseline/embedded-cluster
+              ;;
             previous-k0s-1) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-1" ;;
             previous-k0s-2) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-2" ;;
             previous-k0s-3) APP_VERSION="appver-$E2E_AIRGAP_VERSION_SPECIFIER-previous-k0s-3" ;;
@@ -810,7 +839,7 @@ jobs:
               EC_CONFIG_SOURCE=e2e/kots-release-install/cluster-config.yaml
               ;;
           esac
-          export APP_VERSION BUNDLE_NAME EC_CONFIG_SOURCE
+          export APP_VERSION BUNDLE_NAME EC_CONFIG_SOURCE ADDITIONAL_EC_BINARY
           chmod +x "$EC_BINARY"
           ./scripts/assemble-e2e-airgap-bundle.sh
       - name: Upload locally assembled bundle
@@ -957,7 +986,7 @@ jobs:
           - TestPreflights
           - TestPreflightsNoexec
           - TestSingleNodeInstallation
-          - TestSingleNodeUpgradePreviousStable
+          - TestECKOTSBoundaryUpgrade
           - TestUpgradeFromReplicatedAppPreviousK0s
           - TestMultiNodeInstallation
           - TestSingleNodeDisasterRecovery
@@ -1057,11 +1086,44 @@ jobs:
           name: current-release
           path: output/bin
       - name: Download locally assembled airgap bundles
+        if: matrix.test != 'TestMultiNodeAirgapHADisasterRecovery'
         uses: actions/download-artifact@v8
         with:
           pattern: e2e-airgap-bundle-*
           path: output/e2e-airgap-bundles
           merge-multiple: true
+
+      - name: Download restore-only airgap bundle
+        if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-airgap-bundle-dr-restore
+          path: output/e2e-airgap-bundles
+
+      - name: Download immutable DR fixture
+        if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
+        id: dr-fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          reference=e2e/dr-fixtures/default.json
+          test "$(jq -er .schema "$reference")" = embedded-cluster-dr-fixture-reference/v2
+          mkdir -p output/dr-fixture
+          payload=output/dr-fixture/minio-data.tar.gz
+          curl --fail --location --retry 3 \
+            "$(jq -er .payloadURL "$reference")" --output "$payload"
+          curl --fail --location --retry 3 \
+            "$(jq -er .manifestURL "$reference")" --output "$payload.manifest.json"
+          expected=$(jq -er '.payloadSHA256 | sub("^sha256:"; "")' "$reference")
+          expected_manifest=$(jq -er '.manifestSHA256 | sub("^sha256:"; "")' "$reference")
+          actual=$(sha256sum "$payload" | awk '{print $1}')
+          actual_manifest=$(sha256sum "$payload.manifest.json" | awk '{print $1}')
+          test "$actual" = "$expected"
+          test "$actual_manifest" = "$expected_manifest"
+          go run ./cmd/dr-fixture verify --payload "$payload" --manifest "$payload.manifest.json"
+          test "$(jq -er .applicationVersion "$payload.manifest.json")" = \
+            "$(jq -er .applicationVersion "$reference")"
+          echo "payload=$GITHUB_WORKSPACE/$payload" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/e2e
         with:
@@ -1078,6 +1140,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
           airgap-bundles-dir: ${{ github.workspace }}/output/e2e-airgap-bundles
+          dr-fixture-input: ${{ steps.dr-fixture.outputs.payload }}
+          dr-restore-bundle-version: ${{ matrix.test == 'TestMultiNodeAirgapHADisasterRecovery' && 'appver-airgap-e2e-previous-stable-dr-restore' || '' }}
 
   e2e-main:
     name: E2E (on merge)

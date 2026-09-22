@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -50,21 +52,32 @@ func BuildRuntimeAssets(ctx context.Context, plan *RuntimeManifest, chartFiles [
 		if desc.Digest.String() != requested.Digest {
 			return fmt.Errorf("resolved digest changed for %s", requested.Reference)
 		}
-		img, err := remote.Image(ref, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithPlatform(*platform))
-		if err != nil {
-			return fmt.Errorf("copy %s: %w", requested.Reference, err)
-		}
-		actual, err := img.Digest()
-		if err != nil {
-			return err
-		}
-		size, err := img.Size()
-		if err != nil {
-			return err
-		}
 		annotations := map[string]string{ocispec.AnnotationRefName: RuntimeArchiveImageName(requested.Reference)}
-		if err := p.AppendImage(img, layout.WithAnnotations(annotations)); err != nil {
-			return err
+		var actual v1.Hash
+		var size int64
+		for attempt := 1; attempt <= 3; attempt++ {
+			img, err := remote.Image(ref, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithPlatform(*platform))
+			if err == nil {
+				actual, err = img.Digest()
+			}
+			if err == nil {
+				size, err = img.Size()
+			}
+			if err == nil {
+				err = p.AppendImage(img, layout.WithAnnotations(annotations))
+			}
+			if err == nil {
+				break
+			}
+			if !isRetryableRegistryStreamError(err) || attempt == 3 {
+				return fmt.Errorf("copy %s: %w", requested.Reference, err)
+			}
+			fmt.Fprintf(os.Stderr, "copy %s: transient registry stream failure; retrying (%d/3): %v\n", requested.Reference, attempt, err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(5 * time.Second):
+			}
 		}
 		plan.SavedImages = append(plan.SavedImages, SavedImage{Name: requested.Reference, Digest: actual.String(), Size: size, Platforms: []string{platform.String()}})
 	}
@@ -82,4 +95,12 @@ func BuildRuntimeAssets(ctx context.Context, plan *RuntimeManifest, chartFiles [
 		}
 	}
 	return WriteDeterministicTarGz(chartsDir, filepath.Join(outputDir, "charts.tar.gz"))
+}
+
+func isRetryableRegistryStreamError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "stream error") && strings.Contains(message, "INTERNAL_ERROR")
 }
