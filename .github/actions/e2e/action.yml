@@ -41,6 +41,42 @@ inputs:
   upgrade-target-ec-version:
     description: 'the embedded cluster version to expect after upgrades complete'
     required: false # this is only set by post-release testing
+  airgap-bundles-dir:
+    description: 'directory containing verified locally assembled airgap bundles'
+    required: false
+  dr-fixture-output:
+    description: 'path where the validated DR fixture should be exported'
+    required: false
+  dr-fixture-app-version:
+    description: 'exact application version used to produce the DR fixture'
+    required: false
+  dr-fixture-ec-version:
+    description: 'exact released EC version used to produce the DR fixture'
+    required: false
+  dr-fixture-bundle-sha256:
+    description: 'SHA-256 of the exact released bundle used to produce the DR fixture'
+    required: false
+  dr-fixture-ec-commit:
+    description: 'source commit for the released EC fixture baseline'
+    required: false
+  dr-fixture-kots-commit:
+    description: 'source commit for the KOTS fixture artifacts'
+    required: false
+  dr-fixture-velero-version:
+    description: 'Velero version used by the fixture baseline'
+    required: false
+  dr-fixture-kots-digests:
+    description: 'space-separated immutable KOTS artifact digests'
+    required: false
+  dr-fixture-generation-command:
+    description: 'command that reproduces fixture production'
+    required: false
+  dr-fixture-input:
+    description: 'path to an immutable DR fixture payload consumed by a restore-only test'
+    required: false
+  dr-restore-bundle-version:
+    description: 'local bundle artifact name used by a restore-only DR test'
+    required: false
 
 runs:
   using: composite
@@ -60,6 +96,70 @@ runs:
     with:
       go-version-file: go.mod
       cache-dependency-path: "**/*.sum"
+
+  - name: Cache pinned MinIO tools
+    if: ${{ inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery' }}
+    id: minio-tools-cache
+    uses: actions/cache@v5
+    with:
+      path: ${{ runner.temp }}/e2e-minio-tools
+      key: e2e-minio-tools-linux-amd64-v1
+
+  - name: Install crane for pinned MinIO tools
+    if: ${{ (inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery') && steps.minio-tools-cache.outputs.cache-hit != 'true' }}
+    uses: imjasonh/setup-crane@v0.7
+
+  - name: Extract pinned MinIO tools
+    if: ${{ (inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery') && steps.minio-tools-cache.outputs.cache-hit != 'true' }}
+    shell: bash
+    env:
+      TOOLS_DIR: ${{ runner.temp }}/e2e-minio-tools
+    run: |
+      set -euo pipefail
+      mkdir -p "$TOOLS_DIR"
+      extract_tool() {
+        local image=$1 member=$2 output=$3 expected=$4 archive candidate
+        archive=$(mktemp "$RUNNER_TEMP/minio-image.XXXXXX")
+        candidate=$(mktemp "$RUNNER_TEMP/minio-tool.XXXXXX")
+        for attempt in 1 2 3; do
+          if crane export "$image" "$archive" &&
+             tar -xOf "$archive" "$member" > "$candidate" &&
+             echo "$expected  $candidate" | sha256sum --check --status; then
+            mv "$candidate" "$output"
+            rm -f "$archive"
+            return 0
+          fi
+          echo "failed to extract verified $(basename "$output") (attempt $attempt/3)" >&2
+          rm -f "$archive" "$candidate"
+          archive=$(mktemp "$RUNNER_TEMP/minio-image.XXXXXX")
+          candidate=$(mktemp "$RUNNER_TEMP/minio-tool.XXXXXX")
+          sleep $((attempt * 2))
+        done
+        rm -f "$archive" "$candidate"
+        return 1
+      }
+      extract_tool \
+        quay.io/minio/minio@sha256:a1a8bd4ac40ad7881a245bab97323e18f971e4d4cba2c2007ec1bedd21cbaba2 \
+        usr/bin/minio "$TOOLS_DIR/minio" \
+        7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f
+      extract_tool \
+        quay.io/minio/mc@sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780 \
+        usr/bin/mc "$TOOLS_DIR/mc" \
+        01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891
+      chmod 0755 "$TOOLS_DIR/minio" "$TOOLS_DIR/mc"
+
+  - name: Verify pinned MinIO tools
+    if: ${{ inputs.test-name == 'TestSingleNodeAirgapDisasterRecovery' || inputs.test-name == 'TestMultiNodeAirgapHADisasterRecovery' }}
+    shell: bash
+    env:
+      TOOLS_DIR: ${{ runner.temp }}/e2e-minio-tools
+    run: |
+      set -euo pipefail
+      echo '7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f  minio' > "$TOOLS_DIR/SHA256SUMS"
+      echo '01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891  mc' >> "$TOOLS_DIR/SHA256SUMS"
+      (cd "$TOOLS_DIR" && sha256sum --check SHA256SUMS)
+      echo "E2E_MINIO_BINARY=$TOOLS_DIR/minio" >> "$GITHUB_ENV"
+      echo "E2E_MC_BINARY=$TOOLS_DIR/mc" >> "$GITHUB_ENV"
 
   - name: E2E
     id: e2e
@@ -86,9 +186,49 @@ runs:
       export EXPECT_K0S_VERSION_PREVIOUS_3=${{ inputs.k0s-version-previous-3 }}
       export EXPECT_K0S_VERSION_PREVIOUS_STABLE=${{ inputs.k0s-version-previous-stable }}
       export EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION=${{ inputs.upgrade-target-ec-version }}
+      export E2E_AIRGAP_BUNDLE_DIR=${{ inputs.airgap-bundles-dir }}
+      export E2E_DR_FIXTURE_OUTPUT=${{ inputs.dr-fixture-output }}
+      export E2E_DR_FIXTURE_APP_VERSION=${{ inputs.dr-fixture-app-version }}
+      export E2E_DR_FIXTURE_EC_VERSION=${{ inputs.dr-fixture-ec-version }}
+      export E2E_DR_FIXTURE_BUNDLE_SHA256=${{ inputs.dr-fixture-bundle-sha256 }}
+      export E2E_DR_FIXTURE_EC_COMMIT="${{ inputs.dr-fixture-ec-commit }}"
+      export E2E_DR_FIXTURE_KOTS_COMMIT="${{ inputs.dr-fixture-kots-commit }}"
+      export E2E_DR_FIXTURE_VELERO_VERSION="${{ inputs.dr-fixture-velero-version }}"
+      export E2E_DR_FIXTURE_KOTS_DIGESTS="${{ inputs.dr-fixture-kots-digests }}"
+      export E2E_DR_FIXTURE_GENERATION_COMMAND="${{ inputs.dr-fixture-generation-command }}"
+      export E2E_DR_FIXTURE_INPUT=${{ inputs.dr-fixture-input }}
+      export E2E_DR_RESTORE_BUNDLE_VERSION=${{ inputs.dr-restore-bundle-version }}
       export CMX_SSH_PUBLIC_KEY="$HOME/.ssh/id_rsa.pub"
       export SKIP_LXD_CLEANUP=true
       make e2e-test TEST_NAME=${{ inputs.test-name }}
+
+  - name: Verify DR fixture candidate
+    if: ${{ inputs.dr-fixture-output != '' }}
+    shell: bash
+    env:
+      FIXTURE_PAYLOAD: ${{ inputs.dr-fixture-output }}
+      FORBID_DR_ACCESS_KEY: ${{ inputs.dr-aws-access-key-id }}
+      FORBID_DR_SECRET_KEY: ${{ inputs.dr-aws-secret-access-key }}
+      FORBID_CMX_API_TOKEN: ${{ inputs.cmx-api-token }}
+      FORBID_GITHUB_TOKEN: ${{ inputs.github-token }}
+    run: |
+      go run ./cmd/dr-fixture verify \
+        --payload "$FIXTURE_PAYLOAD" \
+        --manifest "$FIXTURE_PAYLOAD.manifest.json" \
+        --forbid-env FORBID_DR_ACCESS_KEY \
+        --forbid-env FORBID_DR_SECRET_KEY \
+        --forbid-env FORBID_CMX_API_TOKEN \
+        --forbid-env FORBID_GITHUB_TOKEN
+
+  - name: Upload validated DR fixture candidate
+    if: ${{ inputs.dr-fixture-output != '' }}
+    uses: actions/upload-artifact@v7
+    with:
+      name: embedded-cluster-dr-fixture-candidate
+      path: |
+        ${{ inputs.dr-fixture-output }}
+        ${{ inputs.dr-fixture-output }}.manifest.json
+      if-no-files-found: error
 
   - name: Troubleshoot
     if: ${{ !cancelled() }}

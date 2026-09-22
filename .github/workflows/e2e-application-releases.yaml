@@ -1,0 +1,112 @@
+name: E2E application baselines
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - e2e/kots-release-install/**
+      - e2e/kots-release-upgrade/**
+      - e2e/kots-release-install-stable/**
+      - e2e/kots-release-install-legacydr/**
+      - e2e/helm-charts/nginx-app/**
+      - e2e/helm-charts/redis-app/**
+      - scripts/prepare-e2e-application-release.sh
+      - pkg/airgapbundle/**
+      - cmd/airgap-bundle/**
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: e2e-application-baseline-${{ matrix.role }}
+      cancel-in-progress: false
+    strategy:
+      matrix:
+        include:
+          - { role: install, source: e2e/kots-release-install }
+          - { role: noop, source: e2e/kots-release-install }
+          - { role: previous-k0s-1, source: e2e/kots-release-install }
+          - { role: previous-k0s-2, source: e2e/kots-release-install }
+          - { role: previous-k0s-3, source: e2e/kots-release-install }
+          - { role: upgrade, source: e2e/kots-release-upgrade }
+          - { role: previous-stable, source: e2e/kots-release-install-stable }
+          - { role: legacydr, source: e2e/kots-release-install-legacydr }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: azure/setup-helm@v4
+      - name: Prepare immutable application specification
+        env:
+          ROLE: ${{ matrix.role }}
+          RELEASE_YAML_DIR: ${{ matrix.source }}
+          OUTPUT_DIR: output/e2e-application-release
+        run: ./scripts/prepare-e2e-application-release.sh
+      - name: Install Replicated CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated
+          sudo mv replicated /usr/local/bin/replicated
+      - name: Reuse or publish exact application baseline
+        env:
+          REPLICATED_APP: embedded-cluster-smoke-test-staging-app
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: https://api.staging.replicated.com/vendor
+          APP_ID: 2bViecGO8EZpChcGPeW5jbWKw2B
+          APP_CHANNEL: CI-airgap
+        run: |
+          version=$(jq -r .version output/e2e-application-release/identity.json)
+          channel_id=$(replicated channel ls -o json | jq -r --arg channel "$APP_CHANNEL" '.[] | select(.name == $channel) | .id')
+          test -n "$channel_id"
+          encoded_version=$(jq -rn --arg version "$version" '$version | @uri')
+          release_path="/v3/app/${APP_ID}/channel/${channel_id}/releases?versionLabel=${encoded_version}"
+          release=$(replicated api get "$release_path" | jq -c --arg version "$version" '
+            [.releases[]? | select(.semver == $version)] |
+            if length == 0 then empty
+            elif length == 1 then .[0]
+            else error("multiple releases have the requested exact version label")
+            end
+          ')
+          if [ -n "$release" ]; then
+            echo "Reusing $version"
+            exit 0
+          fi
+          if replicated release create \
+            --yaml-dir output/e2e-application-release/application \
+            --promote "$channel_id" \
+            --version "$version"; then
+            exit 0
+          fi
+          # A matching concurrent workflow is success; anything else remains a failure.
+          replicated api get "$release_path" | jq -e --arg version "$version" \
+            '[.releases[]? | select(.semver == $version)] | length == 1'
+      - name: Wait for and verify the application-only airgap bundle
+        env:
+          LICENSE_ID: 2eAqdricgviUeki42j02nIn1ayl
+        run: |
+          version=$(jq -er .version output/e2e-application-release/identity.json)
+          url="https://staging.replicated.app/embedded/embedded-cluster-smoke-test-staging-app/ci-airgap/${version}?airgap=true&include=app-airgap-bundle"
+          for attempt in $(seq 1 30); do
+            if curl --fail --location --header "Authorization: $LICENSE_ID" "$url" --output application-bundle.tgz; then
+              mkdir application-bundle
+              tar -xzf application-bundle.tgz -C application-bundle
+              test -s application-bundle/embedded-cluster-smoke-test-staging-app.airgap
+              shasum -a 256 application-bundle/embedded-cluster-smoke-test-staging-app.airgap > \
+                output/e2e-application-release/application-airgap.sha256
+              exit 0
+            fi
+            echo "waiting for $version application bundle ($attempt/30)"
+            sleep 20
+          done
+          exit 1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: application-baseline-${{ matrix.role }}
+          path: output/e2e-application-release

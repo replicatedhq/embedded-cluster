@@ -114,6 +114,17 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 	return stdout, stderr, err
 }
 
+func (c *Cluster) CopyFileToNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	stdout, stderr, err := c.Nodes[node].CopyFile(src, fmt.Sprintf("%s:%s", c.Nodes[node].GetName(), dst))
+	if err != nil {
+		return fmt.Errorf("copy file to node: %w: stdout: %s: stderr: %s", err, stdout, stderr)
+	}
+	return nil
+}
+
 func (c *Cluster) SetupPlaywrightAndRunTest(testName string, args ...string) (string, string, error) {
 	if err := c.SetupPlaywright(); err != nil {
 		return "", "", fmt.Errorf("failed to setup playwright: %w", err)
