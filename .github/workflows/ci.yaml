@@ -1067,6 +1067,21 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
         include:
+          - test: TestSingleNodeAirgapAppOnlyUpgrade
+            airgap_bundle_1: install
+            airgap_bundle_2: app-only-upgrade
+          - test: TestSingleNodeAirgapUpgradeSelinux
+            airgap_bundle_1: previous-stable
+            airgap_bundle_2: upgrade
+          - test: TestMultiNodeAirgapUpgradePreviousStable
+            airgap_bundle_1: previous-stable
+            airgap_bundle_2: noop
+            airgap_bundle_3: upgrade
+          - test: TestSingleNodeAirgapDisasterRecovery
+            airgap_bundle_1: previous-k0s-1
+            airgap_bundle_2: upgrade
+          - test: TestMultiNodeAirgapHADisasterRecovery
+            airgap_bundle_1: dr-restore
           - test: TestVersion
             is-lxd: true
           - test: TestCommandsRequireSudo
@@ -1085,19 +1100,25 @@ jobs:
         with:
           name: current-release
           path: output/bin
-      - name: Download locally assembled airgap bundles
-        if: matrix.test != 'TestMultiNodeAirgapHADisasterRecovery'
+      - name: Download first locally assembled airgap bundle
+        if: matrix.airgap_bundle_1 != ''
         uses: actions/download-artifact@v8
         with:
-          pattern: e2e-airgap-bundle-*
+          name: e2e-airgap-bundle-${{ matrix.airgap_bundle_1 }}
           path: output/e2e-airgap-bundles
-          merge-multiple: true
 
-      - name: Download restore-only airgap bundle
-        if: matrix.test == 'TestMultiNodeAirgapHADisasterRecovery'
+      - name: Download second locally assembled airgap bundle
+        if: matrix.airgap_bundle_2 != ''
         uses: actions/download-artifact@v8
         with:
-          name: e2e-airgap-bundle-dr-restore
+          name: e2e-airgap-bundle-${{ matrix.airgap_bundle_2 }}
+          path: output/e2e-airgap-bundles
+
+      - name: Download third locally assembled airgap bundle
+        if: matrix.airgap_bundle_3 != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-airgap-bundle-${{ matrix.airgap_bundle_3 }}
           path: output/e2e-airgap-bundles
 
       - name: Download immutable DR fixture
@@ -1167,12 +1188,16 @@ jobs:
         with:
           name: current-release
           path: output/bin
-      - name: Download locally assembled airgap bundles
+      - name: Download previous-stable airgap bundle
         uses: actions/download-artifact@v8
         with:
-          pattern: e2e-airgap-bundle-*
+          name: e2e-airgap-bundle-previous-stable
           path: output/e2e-airgap-bundles
-          merge-multiple: true
+      - name: Download upgrade airgap bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-airgap-bundle-upgrade
+          path: output/e2e-airgap-bundles
 
       - uses: ./.github/actions/e2e
         with:
