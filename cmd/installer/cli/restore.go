@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"crypto/tls"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -783,6 +785,19 @@ func runPopulateRegistry(ctx context.Context, appSlug, airgapBundle string, back
 	}
 	loading := spinner.Start()
 	defer loading.Close()
+	loading.Infof("Waiting for embedded registry to become reachable")
+	registryClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // The embedded registry uses a certificate that is not valid for its service IP.
+		},
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	if err := waitForRegistry(ctx, registryClient, registryAddress, 2*time.Second, 2*time.Minute); err != nil {
+		return fmt.Errorf("wait for embedded registry: %w", err)
+	}
 	loading.Infof("Restoring registry data")
 	if err := kotscli.PushImages(kotscli.PushImagesOptions{
 		AirgapBundle:     airgapBundle,
@@ -796,6 +811,45 @@ func runPopulateRegistry(ctx context.Context, appSlug, airgapBundle string, back
 		return fmt.Errorf("populate embedded registry: %w", err)
 	}
 	loading.Infof("Embedded registry populated!")
+	return nil
+}
+
+func waitForRegistry(ctx context.Context, httpClient *http.Client, registryAddress string, interval, timeout time.Duration) error {
+	registryURL := registryAddress
+	if !strings.HasPrefix(registryURL, "http://") && !strings.HasPrefix(registryURL, "https://") {
+		registryURL = "https://" + registryURL
+	}
+	registryURL = strings.TrimSuffix(registryURL, "/") + "/v2/"
+
+	var lastErr error
+	err := wait.PollUntilContextTimeout(ctx, interval, timeout, true, func(ctx context.Context) (bool, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, registryURL, nil)
+		if err != nil {
+			return false, err
+		}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			lastErr = err
+			return false, nil
+		}
+		defer resp.Body.Close()
+		if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+			lastErr = err
+			return false, nil
+		}
+		isAuthRedirect := resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusUnauthorized && !isAuthRedirect {
+			lastErr = fmt.Errorf("unexpected status %s", resp.Status)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		if lastErr != nil {
+			return fmt.Errorf("%s did not become ready: %w", registryURL, lastErr)
+		}
+		return fmt.Errorf("%s did not become ready: %w", registryURL, err)
+	}
 	return nil
 }
 
