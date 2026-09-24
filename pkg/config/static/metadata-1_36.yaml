@@ -19,8 +19,8 @@ images:
     calico-node:
         repo: proxy.replicated.com/library/calico-node
         tag:
-            amd64: v3.32.2-amd64@sha256:bd1d6041d21b4ad3a9f9defcf7ba22236a9b4b021ff2a6e9f16b752e6d50bd09
-            arm64: v3.32.2-arm64@sha256:b9ae7a48c2a2901490daca0e0cc0aaa465d1f24ba8138f2daf4a049d47519779
+            amd64: v3.32.2-amd64@sha256:96301196ae4a13a4e4ba7ec7e99d41026850e15c5024632cd2320dd3237b5766
+            arm64: v3.32.2-arm64@sha256:7be662a9c93fae26de73e3dbb4d3fa93da2fa0572517c3b73b2a29675dbd8ee5
     coredns:
         repo: proxy.replicated.com/library/coredns
         tag:
@@ -34,8 +34,8 @@ images:
     kube-proxy:
         repo: proxy.replicated.com/library/kube-proxy
         tag:
-            amd64: v1.36.4-amd64@sha256:fdd2d3d70d810dff2dc47c1a6e59a46ebc9fbc17687786163cae34bd40c5187e
-            arm64: v1.36.4-arm64@sha256:465af79fd197942649776a384bbfb00eed68344add4b01be4f48f8b71765e399
+            amd64: v1.36.5-amd64@sha256:3abe5dd1f57c1b54ac9ff307f19ac32aa4e317a34410eb293394ffe53d3df96f
+            arm64: v1.36.5-arm64@sha256:d6d2e4b40149c248b7e220c712245a63aad80d26fa1e5d10bc0895079ad7f0d7
     metrics-server:
         repo: proxy.replicated.com/library/metrics-server
         tag:
