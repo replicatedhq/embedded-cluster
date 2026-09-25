@@ -140,7 +140,7 @@ require (
 	k8s.io/client-go v0.37.0 // indirect
 	k8s.io/cloud-provider v0.36.4 // indirect
 	k8s.io/component-base v0.37.0 // indirect
-	k8s.io/component-helpers v0.36.4 // indirect
+	k8s.io/component-helpers v0.36.2 // indirect
 	k8s.io/controller-manager v0.36.4 // indirect
 	k8s.io/cri-api v0.36.4 // indirect
 	k8s.io/cri-client v0.36.4 // indirect
