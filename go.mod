@@ -438,4 +438,5 @@ require (
 
 replace github.com/cyphar/filepath-securejoin => github.com/cyphar/filepath-securejoin v0.5.2
 
+// Keep legacy build targets on controller-runtime v0.24.1; remove this pin when legacy build support is dropped.
 replace sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.24.1
