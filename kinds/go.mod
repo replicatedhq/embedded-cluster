@@ -147,7 +147,7 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kms v0.36.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // indirect
-	k8s.io/kubelet v0.36.4 // indirect
+	k8s.io/kubelet v0.36.2 // indirect
 	k8s.io/kubernetes v1.36.4 // indirect
 	k8s.io/mount-utils v0.36.4 // indirect
 	k8s.io/streaming v0.37.0 // indirect
