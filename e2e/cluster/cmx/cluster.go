@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+// defaultNodeTTL is how long CMX keeps the nodes alive before reclaiming them.
+// CMX allows a maximum of 48h.
+const defaultNodeTTL = "2h"
+
 type ClusterInput struct {
 	T                      *testing.T
 	Nodes                  int
@@ -91,11 +95,19 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		name = n
 	}
 
+	// CMX defaults to a 1h TTL, which some long-running tests (e.g. the airgap HA
+	// disaster recovery suite) exceed, causing the VMs to be reclaimed mid-test.
+	ttl := defaultNodeTTL
+	if t := os.Getenv("CMX_NODE_TTL"); t != "" {
+		ttl = t
+	}
+
 	args := []string{
 		"vm", "create",
 		"--name", name,
 		"--count", strconv.Itoa(in.Nodes),
 		"--wait", "10m",
+		"--ttl", ttl,
 		"-ojson",
 	}
 	if in.Distribution != "" {
