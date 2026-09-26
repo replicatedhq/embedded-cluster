@@ -14,6 +14,10 @@ import (
 	"time"
 )
 
+// defaultNodeTTL is how long CMX keeps the nodes alive before reclaiming them.
+// CMX allows a maximum of 48h.
+const defaultNodeTTL = "2h"
+
 type ClusterInput struct {
 	T                      *testing.T
 	Nodes                  int
@@ -91,11 +95,19 @@ func NewNodes(in *ClusterInput) ([]Node, error) {
 		name = n
 	}
 
+	// CMX defaults to a 1h TTL, which some long-running tests (e.g. the airgap HA
+	// disaster recovery suite) exceed, causing the VMs to be reclaimed mid-test.
+	ttl := defaultNodeTTL
+	if t := os.Getenv("CMX_NODE_TTL"); t != "" {
+		ttl = t
+	}
+
 	args := []string{
 		"vm", "create",
 		"--name", name,
 		"--count", strconv.Itoa(in.Nodes),
 		"--wait", "10m",
+		"--ttl", ttl,
 		"-ojson",
 	}
 	if in.Distribution != "" {
@@ -353,11 +365,56 @@ func (c *Cluster) Destroy() {
 		}
 
 		c.t.Logf("Destroying cluster with %d nodes", len(c.Nodes))
+
+		// Nodes may already be gone, e.g. reclaimed by CMX once their TTL expired.
+		// Only remove the ones that still exist. If we cannot tell, remove nothing and
+		// let the TTL reclaim them.
+		existing, err := existingNodeIDs()
+		if err != nil {
+			c.t.Logf("failed to list nodes, skipping cleanup, they will be reclaimed on TTL expiry: %v", err)
+			return
+		}
+
 		for _, node := range c.Nodes {
+			if !existing[node.ID] {
+				c.t.Logf("node %s no longer exists, skipping", node.ID)
+				continue
+			}
 			c.removeNode(node)
 		}
 		c.t.Logf("Cluster cleanup completed")
 	})
+}
+
+func listNodes() ([]Node, error) {
+	output, err := exec.Command("replicated", "vm", "ls", "-ojson").Output() // stderr can break json parsing
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("list nodes: %w: stderr: %s", err, string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("list nodes: %w", err)
+	}
+
+	var nodes []Node
+	if err := json.Unmarshal(output, &nodes); err != nil {
+		return nil, fmt.Errorf("unmarshal nodes: %w", err)
+	}
+	return nodes, nil
+}
+
+// existingNodeIDs returns the IDs of the nodes that are still live. Terminated
+// nodes are not reported by the CLI and are therefore absent from the result.
+func existingNodeIDs() (map[string]bool, error) {
+	nodes, err := listNodes()
+	if err != nil {
+		return nil, fmt.Errorf("list nodes: %w", err)
+	}
+
+	ids := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		ids[node.ID] = true
+	}
+	return ids, nil
 }
 
 func (c *Cluster) removeNode(node Node) {
@@ -586,14 +643,9 @@ func (c *Cluster) waitUntilRunning(node Node, nodeNum int, timeoutDuration time.
 		case <-timeout:
 			return fmt.Errorf("timed out after waiting %s for node to be in running state", timeoutDuration)
 		case <-tick:
-			output, err := exec.Command("replicated", "vm", "ls", "-ojson").Output()
+			nodes, err := listNodes()
 			if err != nil {
-				return fmt.Errorf("check node status: %v", err)
-			}
-
-			nodes := []Node{}
-			if err := json.Unmarshal(output, &nodes); err != nil {
-				return fmt.Errorf("unmarshal node info: %v", err)
+				return fmt.Errorf("list nodes to check if %s is running: %v", node.ID, err)
 			}
 
 			for _, checkNode := range nodes {
