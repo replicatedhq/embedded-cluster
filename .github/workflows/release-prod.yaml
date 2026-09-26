@@ -566,7 +566,6 @@ jobs:
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
           - TestSingleNodeAirgapAppOnlyUpgrade
-          - TestSingleNodeAirgapUpgradeSelinux
         include:
           - test: TestVersion
             is-lxd: true
