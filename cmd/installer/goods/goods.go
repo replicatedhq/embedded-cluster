@@ -19,7 +19,19 @@ var (
 	systemdfs embed.FS
 	//go:embed internal/bins/*
 	internalBinfs embed.FS
+	//go:embed selinux/*
+	selinuxfs embed.FS
 )
+
+// SELinuxPolicy returns the compiled selinux policy module. Reports false for
+// builds that skipped `make static` and carry only the placeholder.
+func SELinuxPolicy() ([]byte, bool) {
+	b, err := selinuxfs.ReadFile("selinux/ec.pp")
+	if err != nil || len(b) == 0 {
+		return nil, false
+	}
+	return b, true
+}
 
 // K0sBinarySHA256 returns the SHA256 checksum of the embedded k0s binary.
 func K0sBinarySHA256() (string, error) {

@@ -985,19 +985,21 @@ jobs:
       matrix:
         test:
           - TestSingleNodeAirgapAppOnlyUpgrade
-          - TestSingleNodeAirgapUpgradeSelinux
           - TestMultiNodeAirgapUpgradePreviousStable
           - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
+          - TestSingleNodeSelinuxRHEL
         include:
+          - test: TestSingleNodeSelinuxRHEL
+            backend: ec2
           - test: TestVersion
-            is-lxd: true
+            backend: lxd
           - test: TestCommandsRequireSudo
-            is-lxd: true
+            backend: lxd
           - test: TestProxiedEnvironment
-            is-lxd: true
+            backend: lxd
           - test: TestInstallWithMITMProxy
-            is-lxd: true
+            backend: lxd
           - test: TestSingleNodeNetworkReport
             continue-on-error: true
     steps:
@@ -1012,7 +1014,7 @@ jobs:
       - uses: ./.github/actions/e2e
         with:
           test-name: "${{ matrix.test }}"
-          is-lxd: "${{ matrix.is-lxd || false }}"
+          backend: "${{ matrix.backend || 'cmx' }}"
           dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
           dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
           k0s-version: ${{ needs.build-install.outputs.k0s_version }}
@@ -1023,6 +1025,8 @@ jobs:
           version-specifier: ${{ needs.export-version-specifier.outputs.version_specifier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          selinux-aws-access-key-id: ${{ secrets.E2E_SELINUX_AWS_ACCESS_KEY_ID }}
+          selinux-aws-secret-access-key: ${{ secrets.E2E_SELINUX_AWS_SECRET_ACCESS_KEY }}
 
   e2e-main:
     name: E2E (on merge)
