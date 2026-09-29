@@ -1,0 +1,19 @@
+cmd/installer/cli/restore.go
+  s_e593dde17bb3ce::t_75297fdad4823c 34,1537-1538,1778
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "446bd94f9639159ecf5c4cca62b7e8e15af6db86",
+  "prompts": {},
+  "sessions": {
+    "s_e593dde17bb3ce": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0641a-abfa-71c3-b141-3651bfb0f607",
+        "model": "unknown"
+      },
+      "human_author": "divolgin <dmitriy@replicated.com>"
+    }
+  }
+}
