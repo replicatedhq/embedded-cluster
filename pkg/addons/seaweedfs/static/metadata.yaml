@@ -11,5 +11,5 @@ images:
     seaweedfs:
         repo: proxy.replicated.com/library/seaweedfs
         tag:
-            amd64: 4.48-amd64@sha256:9ca19038fe57905336a66ca47f08529e2a5644145bc3ea30edd158ae072d28c8
-            arm64: 4.48-arm64@sha256:aaca692932790347decd431005a8b05726290dc8c7994fa2d87dac5b924dca86
+            amd64: 4.48-amd64@sha256:66a92fecb3420e19e17a07c29bedb9e8f2c241a7565c82f1a42e81faca68be23
+            arm64: 4.48-arm64@sha256:c6b8b2f82c02bac5e7b15296887a29680ee0e7aecf7cd4abbe75d44acd722f74
