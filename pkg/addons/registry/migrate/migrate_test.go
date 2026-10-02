@@ -1,10 +1,9 @@
 package migrate
 
 import (
+	"bytes"
 	"context"
 	"io"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
@@ -40,17 +39,13 @@ func Test_uploadObject(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "data")
-			require.NoError(t, os.WriteFile(path, content, 0644))
-			f, err := os.Open(path)
-			require.NoError(t, err)
-			defer f.Close()
+			body := bytes.NewReader(content)
 
 			// first attempt consumes the body like a failed multipart upload would
-			require.NoError(t, uploadObject(context.Background(), &fakeUploader{n: tt.firstAttemptN}, f, "key"))
+			require.NoError(t, uploadObject(context.Background(), &fakeUploader{n: tt.firstAttemptN}, body, "key"))
 
 			retry := &fakeUploader{n: -1}
-			require.NoError(t, uploadObject(context.Background(), retry, f, "key"))
+			require.NoError(t, uploadObject(context.Background(), retry, body, "key"))
 			assert.Equal(t, [][]byte{content}, retry.bodies)
 		})
 	}

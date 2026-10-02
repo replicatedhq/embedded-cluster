@@ -124,16 +124,16 @@ type objectUploader interface {
 	UploadObject(ctx context.Context, input *transfermanager.UploadObjectInput, opts ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error)
 }
 
-// uploadObject uploads the whole file, rewinding first because a failed attempt may have
+// uploadObject uploads the whole body, rewinding first because a failed attempt may have
 // consumed part or all of it.
-func uploadObject(ctx context.Context, uploader objectUploader, f *os.File, key string) error {
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("rewind file: %w", err)
+func uploadObject(ctx context.Context, uploader objectUploader, body io.ReadSeeker, key string) error {
+	if _, err := body.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind body: %w", err)
 	}
 	_, err := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: ptr.To(s3Bucket),
 		Key:    &key,
-		Body:   f,
+		Body:   body,
 	})
 	return err
 }
