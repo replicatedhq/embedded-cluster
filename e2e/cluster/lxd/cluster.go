@@ -1098,6 +1098,25 @@ func (c *Cluster) RunCommandOnNode(node int, line []string, envs ...map[string]s
 	return stdout.String(), stderr.String(), nil
 }
 
+func (c *Cluster) CopyFileToNode(node int, src, dst string) error {
+	if node < 0 || node >= len(c.Nodes) {
+		return fmt.Errorf("node index %d out of range", node)
+	}
+	if _, _, err := c.RunCommandOnNode(node, []string{"mkdir", "-p", filepath.Dir(dst)}); err != nil {
+		return err
+	}
+	client, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		return fmt.Errorf("connect to LXD: %w", err)
+	}
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return client.CreateInstanceFile(c.Nodes[node], dst, lxd.InstanceFileArgs{Content: f, Mode: 0o644, Type: "file"})
+}
+
 // RunCommandOnProxyNode runs a command on the proxy node with a timeout.
 func (c *Cluster) RunCommandOnProxyNode(t *testing.T, line []string, envs ...map[string]string) (string, string, error) {
 	if c.Proxy == "" {

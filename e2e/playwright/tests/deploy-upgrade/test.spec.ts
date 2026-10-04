@@ -18,9 +18,9 @@ async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
     await waitForClusterUpdate(page);
 
     // Check for the transient "Upgrade failed" modal (e.g. 404 on binary download)
-    const failedModal = page.locator('dialog, .Modal-body').filter({ hasText: 'Upgrade failed' });
+    const failedMessage = page.getByText('Upgrade failed', { exact: true });
     try {
-      await failedModal.waitFor({ timeout: 5_000 });
+      await failedMessage.waitFor({ timeout: 5_000 });
     } catch (e) {
       // Only a timeout means the modal did not appear — upgrade succeeded
       if (e instanceof Error && e.name === 'TimeoutError') {
@@ -31,7 +31,7 @@ async function runDeployUpgradeWithRetry(page: Page, maxRetries = 3) {
 
     // Modal was found — dismiss it and retry the full deploy flow
     await page.getByRole('button', { name: 'Ok, got it!' }).click();
-    await expect(failedModal).not.toBeVisible({ timeout: 5_000 });
+    await expect(failedMessage).not.toBeVisible({ timeout: 5_000 });
     continue;
   }
   throw new Error(`Deploy upgrade failed after ${maxRetries} retries due to transient errors`);
