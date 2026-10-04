@@ -40,9 +40,14 @@ func (h *HostUtils) ConfigureHost(ctx context.Context, rc runtimeconfig.RuntimeC
 		}
 	}
 
-	h.logger.Debugf("configuring selinux fcontext")
-	if err := h.ConfigureSELinuxFcontext(rc); err != nil {
-		h.logger.Debugf("unable to configure selinux fcontext: %v", err)
+	h.logger.Debugf("configuring containerd selinux")
+	if err := h.ConfigureContainerdSELinux(); err != nil {
+		h.logger.Debugf("unable to configure containerd selinux: %v", err)
+	}
+
+	h.logger.Debugf("configuring selinux")
+	if err := h.ConfigureSELinux(rc); err != nil {
+		h.logger.Debugf("unable to configure selinux: %v", err)
 	}
 
 	h.logger.Debugf("restoring selinux context")
