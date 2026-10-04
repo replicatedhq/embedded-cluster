@@ -1,0 +1,42 @@
+# container-selinux's file contexts target the standard paths --
+# /var/lib/kubelet, /var/lib/containers, /usr/bin/containerd -- and embedded
+# cluster puts everything under its own data directory instead. Without these
+# the whole tree keeps the base policy's var_lib_t, which confined containers
+# cannot read, so anything mounting a host path out of it fails.
+#
+# selinux matches the most specific rule, so the narrower entries below override
+# the blanket one.
+#
+# The rules under the k0s directory, plus the two CNI paths, are the ones k0s
+# documents as required for running under selinux (docs/selinux.md). The rest
+# are embedded cluster's own.
+#
+# These paths are fixed at build time. For a relocated data directory the
+# installer declares a path equivalence with semanage, which makes every rule
+# below apply there too. The CNI paths are outside the data directory and are
+# unaffected either way.
+
+/var/lib/embedded-cluster(/.*)?			gen_context(system_u:object_r:container_var_lib_t,s0)
+
+# our own binaries, so they can be executed
+/var/lib/embedded-cluster/bin(/.*)?		gen_context(system_u:object_r:ec_bin_t,s0)
+
+# persistent volume roots, read and written by containers
+/var/lib/embedded-cluster/openebs-local(/.*)?	gen_context(system_u:object_r:container_file_t,s0)
+/var/lib/embedded-cluster/seaweedfs(/.*)?	gen_context(system_u:object_r:container_file_t,s0)
+
+# k0s labels these itself with a chcon style call that does not survive a
+# filesystem relabel, and the blanket rule above would otherwise demote them on
+# the next restorecon
+/var/lib/embedded-cluster/k0s/bin/containerd.*	gen_context(system_u:object_r:container_runtime_exec_t,s0)
+/var/lib/embedded-cluster/k0s/bin/runc		gen_context(system_u:object_r:container_runtime_exec_t,s0)
+
+# containerd's image layers. Required by k0s (docs/selinux.md); the blanket
+# rule above would otherwise leave them container_var_lib_t.
+/var/lib/embedded-cluster/k0s/containerd/io\.containerd\.snapshotter\.[^/]*/snapshots(/.*)?	gen_context(system_u:object_r:container_ro_file_t,s0)
+
+# CNI configuration and plugins, also required by k0s. These sit outside our
+# data directory, and k0s does not relocate them with it -- containerd is
+# configured with binDirs /opt/cni/bin and confDir /etc/cni/net.d regardless.
+/etc/cni(/.*)?					gen_context(system_u:object_r:container_file_t,s0)
+/opt/cni(/.*)?					gen_context(system_u:object_r:container_file_t,s0)

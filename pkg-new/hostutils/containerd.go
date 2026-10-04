@@ -39,6 +39,21 @@ const hostsTomlTemplateV3 = `server = "https://%s"
   skip_verify = true
 `
 
+// selinuxConfigTemplateV2 turns on selinux labeling of containers for
+// containerd 1.7.x (k0s 1.34/1.35).
+const selinuxConfigTemplateV2 = `
+[plugins."io.containerd.grpc.v1.cri"]
+  enable_selinux = true
+`
+
+// selinuxConfigTemplateV3 is the containerd 2.x (k0s 1.36+) equivalent. The CRI
+// plugin was split in 2.x and enable_selinux moved to the runtime half.
+const selinuxConfigTemplateV3 = `version = 3
+
+[plugins."io.containerd.cri.v1.runtime"]
+  enable_selinux = true
+`
+
 // useContainerdV3Schema reports whether the embedded k0s ships containerd 2.x
 // (k0s 1.36+), which needs the v3 drop-in schema. Falls back to v2 if the
 // version is unset (e.g. "0.0.0" in tests) or malformed.
@@ -87,6 +102,30 @@ func (h *HostUtils) addInsecureRegistryV3(registry string) error {
 	if err := os.WriteFile(filepath.Join(hostDir, "hosts.toml"), []byte(hostsToml), 0644); err != nil {
 		return fmt.Errorf("failed to write hosts.toml: %w", err)
 	}
+	return nil
+}
+
+// configureContainerdForSELinux tells containerd to label containers, which it
+// does not do by default and k0s does not enable either. Without it containers
+// run in containerd's own domain and container-selinux confines nothing.
+//
+// Only called when selinux is enabled; see ConfigureSELinux.
+func (h *HostUtils) configureContainerdForSELinux() error {
+	parentDir := runtimeconfig.K0sContainerdConfigPath
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return fmt.Errorf("failed to ensure containerd directory exists: %w", err)
+	}
+
+	contents := selinuxConfigTemplateV2
+	if useContainerdV3Schema() {
+		contents = selinuxConfigTemplateV3
+	}
+
+	path := filepath.Join(parentDir, "embedded-selinux.toml")
+	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
+		return fmt.Errorf("failed to write embedded-selinux.toml: %w", err)
+	}
+
 	return nil
 }
 
