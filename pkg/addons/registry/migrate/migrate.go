@@ -3,6 +3,7 @@ package migrate
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -81,11 +82,7 @@ func RegistryData(ctx context.Context) error {
 		}, func(ctx context.Context) (bool, error) {
 			slog.Info("Uploading object", "path", relPath, "size", info.Size())
 
-			_, err = s3Uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
-				Bucket: ptr.To(s3Bucket),
-				Key:    &relPath,
-				Body:   f,
-			})
+			err = uploadObject(ctx, s3Uploader, f, relPath)
 			if err != nil {
 				slog.Error("Failed to upload object", "path", relPath, "error", err)
 			} else {
@@ -121,6 +118,24 @@ func RegistryData(ctx context.Context) error {
 	slog.Info("Registry data migration complete")
 
 	return nil
+}
+
+type objectUploader interface {
+	UploadObject(ctx context.Context, input *transfermanager.UploadObjectInput, opts ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error)
+}
+
+// uploadObject uploads the whole body, rewinding first because a failed attempt may have
+// consumed part or all of it.
+func uploadObject(ctx context.Context, uploader objectUploader, body io.ReadSeeker, key string) error {
+	if _, err := body.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind body: %w", err)
+	}
+	_, err := uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+		Bucket: ptr.To(s3Bucket),
+		Key:    &key,
+		Body:   body,
+	})
+	return err
 }
 
 func getS3Client(ctx context.Context) (*s3.Client, error) {
