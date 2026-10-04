@@ -174,6 +174,32 @@ func (v *Validator) ValidateFile(path string) (*ValidationResult, error) {
 		}
 	}
 
+	// Validate architecture values if provided
+	for i, arch := range config.Spec.Architecture {
+		val := string(arch)
+		switch val {
+		case "aarch64", "x86_64":
+			// ok
+		default:
+			lower := strings.ToLower(val)
+			var suggestion string
+			switch lower {
+			case "arm64":
+				suggestion = "did you mean aarch64?"
+			case "amd64":
+				suggestion = "did you mean x86_64?"
+			}
+			msg := fmt.Sprintf("invalid value %q; allowed values are aarch64 and x86_64", string(arch))
+			if suggestion != "" {
+				msg = fmt.Sprintf("%s (%s)", msg, suggestion)
+			}
+			result.Errors = append(result.Errors, ValidationError{
+				Field:   fmt.Sprintf("architecture[%d]", i),
+				Message: msg,
+			})
+		}
+	}
+
 	return result, nil
 }
 
