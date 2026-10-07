@@ -9,10 +9,10 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.13
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3
 	github.com/bombsimon/logrusr/v4 v4.2.0
-	github.com/canonical/lxd v0.0.0-20261005100710-72af555ec813
+	github.com/canonical/lxd v0.0.0-20261007080223-44384ab5c1c2
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
@@ -370,7 +370,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	github.com/zitadel/oidc/v3 v3.51.3 // indirect
+	github.com/zitadel/oidc/v3 v3.51.7 // indirect
 	github.com/zitadel/schema v1.3.2 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.14 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.6.14 // indirect
