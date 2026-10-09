@@ -202,6 +202,35 @@ func TestLeaveEtcdCluster_Success(t *testing.T) {
 	assert.Empty(t, warning)
 }
 
+// TestLeaveEtcdCluster_AlreadyRemoved covers re-running reset on a node whose
+// etcd membership was already removed by an earlier attempt (or a manual
+// `k0s etcd leave`): member-list succeeds but no longer lists this
+// hostname, so there is nothing to leave and no stale-member warning should
+// be produced. The leave call is wired to fail if it is ever attempted, so a
+// regression that falls through to the leave loop fails this test instead of
+// passing by coincidence.
+func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("should not be called: membership already removed")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+}
+
 // TestLeaveEtcdCluster_MemberListFails is the bug from sc-139620: when
 // membership cannot be determined, reset must not silently assume the node
 // is already gone. It must report that a stale member may remain and how to
