@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,10 @@ type fakeHelpers struct {
 	mu      sync.Mutex
 	calls   []string
 	blockOn string
+
+	// runCommandFn, when set, overrides the default RunCommand behavior so a
+	// test can simulate specific binaries/args failing or returning output.
+	runCommandFn func(bin string, args ...string) (string, error)
 }
 
 func (f *fakeHelpers) record(bin string, args ...string) {
@@ -42,6 +47,9 @@ func (f *fakeHelpers) ran(prefix string) bool {
 
 func (f *fakeHelpers) RunCommand(bin string, args ...string) (string, error) {
 	f.record(bin, args...)
+	if f.runCommandFn != nil {
+		return f.runCommandFn(bin, args...)
+	}
 	if bin == "systemctl" {
 		// Make stopAndResetK0s believe the controller unit exists.
 		return "k0scontroller.service enabled", nil
@@ -140,4 +148,132 @@ func TestForceK0sTeardown(t *testing.T) {
 		"should remove the calico veth interfaces")
 	assert.True(t, f.ran("sh -c ip route show table all"),
 		"should remove the calico blackhole routes")
+}
+
+// speedUpEtcdLeaveRetries removes the retry sleeps from leaveEtcdCluster for
+// the duration of the test.
+func speedUpEtcdLeaveRetries(t *testing.T) {
+	t.Helper()
+	orig := etcdLeaveRetryDelay
+	etcdLeaveRetryDelay = time.Millisecond
+	t.Cleanup(func() { etcdLeaveRetryDelay = orig })
+}
+
+// TestLeaveEtcdCluster_SoleMember covers the legitimate no-op case: this node
+// is the only etcd member, so there is nothing to leave.
+func TestLeaveEtcdCluster_SoleMember(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380"}}`, nil
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave when already the sole member")
+}
+
+// TestLeaveEtcdCluster_Success covers the happy path: member-list succeeds,
+// there is more than one member, and the leave call succeeds.
+func TestLeaveEtcdCluster_Success(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+}
+
+// TestLeaveEtcdCluster_MemberListFails is the bug from sc-139620: when
+// membership cannot be determined, reset must not silently assume the node
+// is already gone. It must report that a stale member may remain and how to
+// remove it.
+func TestLeaveEtcdCluster_MemberListFails(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return "", errors.New("context deadline exceeded")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave without a confirmed member list")
+}
+
+// TestLeaveEtcdCluster_EtcdStopped covers the previously-mishandled case:
+// local etcd being stopped was treated as proof the membership was already
+// removed, when it is unrelated information.
+func TestLeaveEtcdCluster_EtcdStopped(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("etcdserver: server stopped")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+}
+
+// TestLeaveEtcdCluster_LeaveFailsAfterRetries covers exhausting the leave
+// retries on a persistent error: it must warn, not claim this is normal.
+func TestLeaveEtcdCluster_LeaveFailsAfterRetries(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("connection refused")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
 }

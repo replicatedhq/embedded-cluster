@@ -168,7 +168,9 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					currentHost.leaveEtcdCluster()
+					if removed, warning := currentHost.leaveEtcdCluster(); !removed {
+						logrus.Warn(warning)
+					}
 				}
 			}
 
@@ -388,12 +390,32 @@ type etcdMembers struct {
 	Members map[string]string `json:"members"`
 }
 
-// leaveEtcdCluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdCluster() {
+// etcdLeaveRetryDelay is how long leaveEtcdCluster waits between retries of
+// the member-list and leave k0s calls. Overridden by tests.
+var etcdLeaveRetryDelay = 2 * time.Second
+
+// staleEtcdMemberWarning explains that this node's etcd membership could not
+// be confirmed removed, and gives the exact command a surviving controller
+// can run to remove it. Membership that is never explicitly removed stays
+// listed as a voting member forever (sc-139620): a reset that cannot confirm
+// removal must say so instead of assuming the node is already gone.
+func staleEtcdMemberWarning(hostname string, cause error) string {
+	return fmt.Sprintf(
+		"Unable to confirm this node's etcd membership was removed: %v\n"+
+			"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
+			"Run 'k0s etcd leave --peer-address %s' from a surviving controller to remove it.",
+		cause, hostname, hostname,
+	)
+}
+
+// leaveEtcdCluster uses k0s to attempt to leave the etcd cluster. It returns
+// whether removal was confirmed and, when it was not, a warning describing
+// the stale membership and how to clean it up from a surviving controller.
+func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
-		return
+		return true, ""
 	}
 
 	// Try to list members with retries
@@ -411,40 +433,41 @@ func (h *hostInfo) leaveEtcdCluster() {
 			}
 		}
 		if i < 2 { // Don't sleep on last attempt
-			time.Sleep(2 * time.Second)
+			time.Sleep(etcdLeaveRetryDelay)
 		}
 	}
 
 	if err != nil {
-		logrus.Warnf("Unable to list etcd members, continuing with reset: %v", err)
-		return
+		return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("unable to list etcd members: %w", err))
 	}
 
 	// If we're the only member, no need to leave
 	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
-		return
+		return true, ""
 	}
 
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
 		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
 		if err == nil {
-			return
+			return true, ""
 		}
 
-		// Check if the error is due to etcd being stopped
+		// A local etcd that is already stopped cannot be asked to leave, but
+		// that is not evidence it already left the surviving members' member
+		// list — the two are unrelated facts. Treat it the same as any other
+		// inconclusive failure below rather than assuming success.
 		if strings.Contains(err.Error(), "etcdserver: server stopped") {
-			logrus.Warnf("Etcd server is stopped, continuing with reset")
-			return
+			return false, staleEtcdMemberWarning(h.Hostname, errors.New("local etcd server is stopped"))
 		}
 
 		if i < 2 { // Don't sleep on last attempt
-			time.Sleep(2 * time.Second)
+			time.Sleep(etcdLeaveRetryDelay)
 		}
 	}
 
 	// If we get here, we failed to leave after retries
-	logrus.Warnf("Unable to leave etcd cluster after retries (this is often normal during reset): %v, %s", err, out)
+	return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("failed after retries: %w (%s)", err, out))
 }
 
 var (
