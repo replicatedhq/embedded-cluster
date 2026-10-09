@@ -446,6 +446,14 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 		return true, ""
 	}
 
+	// If a successfully-fetched member list no longer contains us, our
+	// membership was already removed by an earlier attempt (or a manual
+	// `k0s etcd leave`). There is nothing left to clean up, and retrying
+	// the leave call would only produce a misleading stale-member warning.
+	if _, ok := memberlist.Members[h.Hostname]; !ok {
+		return true, ""
+	}
+
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
 		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
