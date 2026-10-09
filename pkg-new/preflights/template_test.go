@@ -4,6 +4,7 @@ package preflights
 import (
 	"context"
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -698,6 +699,53 @@ func TestTemplateNetfilterBackendCollector(t *testing.T) {
 		}
 	}
 	req.True(foundAnalyzer, "expected Netfilter backend textAnalyze analyzer")
+}
+
+func TestTemplateHostnameLengthAnalyzer(t *testing.T) {
+	req := require.New(t)
+	tl := types.HostPreflightTemplateData{}
+	hpfc, err := GetClusterHostPreflights(context.Background(), apitypes.ModeInstall, tl)
+	req.NoError(err)
+
+	commonSpec := hpfc[0].Spec
+
+	var analyzer *v1beta2.TextAnalyze
+	for _, a := range commonSpec.Analyzers {
+		if a.TextAnalyze != nil && a.TextAnalyze.CheckName == "Hostname Length" {
+			analyzer = a.TextAnalyze
+			break
+		}
+	}
+	req.NotNil(analyzer, "expected Hostname Length textAnalyze analyzer")
+	req.Equal("host-collectors/system/hostos_info.json", analyzer.FileName)
+
+	// k0s forms the etcd member label "k0s-ctrl-<nodeName>", which Kubernetes
+	// caps at 63 chars, so the node name must be 54 chars or fewer.
+	re, err := regexp.Compile(analyzer.RegexGroups)
+	req.NoError(err, "shipped regexGroups must compile")
+
+	// The hostOS collector writes hostos_info.json with json.MarshalIndent,
+	// so "name" renders with a colon-space, not compact JSON.
+	overflowFor := func(nodeName string) string {
+		raw, err := json.MarshalIndent(struct {
+			Name string `json:"name"`
+		}{Name: nodeName}, "", "  ")
+		req.NoError(err)
+
+		match := re.FindStringSubmatch(string(raw))
+		req.NotNil(match, "regex did not match collector output: %s", raw)
+
+		for i, group := range re.SubexpNames() {
+			if group == "Overflow" {
+				return match[i]
+			}
+		}
+		req.Fail("regex has no Overflow capture group")
+		return ""
+	}
+
+	req.Empty(overflowFor(strings.Repeat("a", 54)), "a 54-character node name must pass")
+	req.NotEmpty(overflowFor(strings.Repeat("a", 55)), "a 55-character node name must fail")
 }
 
 func TestTemplateCgroupV2Analyzer(t *testing.T) {
