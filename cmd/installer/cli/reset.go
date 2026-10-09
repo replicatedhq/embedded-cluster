@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
@@ -394,6 +395,25 @@ type etcdMembers struct {
 // the member-list and leave k0s calls. Overridden by tests.
 var etcdLeaveRetryDelay = 2 * time.Second
 
+// etcdCmdTimeout bounds each `k0s etcd member-list`/`k0s etcd leave` call.
+// k0s issues these with no deadline of its own, so on a cluster with only two
+// voting controllers, resetting both at once can leave neither request able
+// to reach quorum — the call then blocks forever instead of returning an
+// error, hanging the whole reset (observed as an E2E test timing out after
+// over an hour, stuck at this exact call). Bound it the same way `k0s reset`
+// itself is bounded above. Overridden by tests.
+var etcdCmdTimeout = 30 * time.Second
+
+// runEtcdCommand runs `k0s etcd <args...>` bounded by etcdCmdTimeout, so a
+// call that never gets a quorum response cannot hang the reset.
+func runEtcdCommand(args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), etcdCmdTimeout)
+	defer cancel()
+	stdout := &bytes.Buffer{}
+	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Context: ctx, Stdout: stdout}, k0sBinPath, append([]string{"etcd"}, args...)...)
+	return stdout.String(), err
+}
+
 // staleEtcdMemberWarning explains that this node's etcd membership could not
 // be confirmed removed, and gives the exact command a surviving controller
 // can run to remove it. Membership that is never explicitly removed stays
@@ -425,7 +445,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 
 	// Retry member list up to 3 times
 	for i := 0; i < 3; i++ {
-		out, err = helpers.RunCommand(k0sBinPath, "etcd", "member-list")
+		out, err = runEtcdCommand("member-list")
 		if err == nil {
 			err = json.Unmarshal([]byte(out), &memberlist)
 			if err == nil {
@@ -456,7 +476,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
-		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
+		out, err = runEtcdCommand("leave")
 		if err == nil {
 			return true, ""
 		}

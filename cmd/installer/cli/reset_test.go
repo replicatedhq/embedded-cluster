@@ -67,6 +67,13 @@ func (f *fakeHelpers) RunCommandWithOptions(opts helpers.RunCommandOptions, bin 
 		<-ctx.Done()
 		return ctx.Err()
 	}
+	if f.runCommandFn != nil {
+		out, err := f.runCommandFn(bin, args...)
+		if opts.Stdout != nil && out != "" {
+			_, _ = opts.Stdout.Write([]byte(out))
+		}
+		return err
+	}
 	return nil
 }
 
@@ -280,6 +287,85 @@ func TestLeaveEtcdCluster_EtcdStopped(t *testing.T) {
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
 	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+}
+
+// speedUpEtcdCmdTimeout shortens the k0s etcd command timeout for the
+// duration of the test.
+func speedUpEtcdCmdTimeout(t *testing.T) {
+	t.Helper()
+	orig := etcdCmdTimeout
+	etcdCmdTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { etcdCmdTimeout = orig })
+}
+
+// TestLeaveEtcdCluster_MemberListBlocks reproduces the hang seen in CI: on a
+// cluster with only two voting controllers, resetting both at once can leave
+// neither etcd request able to reach quorum, so `k0s etcd member-list` never
+// returns. It must give up instead of hanging the whole reset (observed as
+// an E2E test timing out after over an hour, stuck at this exact call).
+func TestLeaveEtcdCluster_MemberListBlocks(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	speedUpEtcdCmdTimeout(t)
+
+	f := &fakeHelpers{blockOn: "member-list"}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+
+	done := make(chan struct{})
+	var removed bool
+	var warning string
+	go func() {
+		removed, warning = h.leaveEtcdCluster()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("leaveEtcdCluster did not return: the k0s etcd member-list call is still unbounded")
+	}
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave without a confirmed member list")
+}
+
+// TestLeaveEtcdCluster_LeaveBlocks covers the same unbounded-call hang on the
+// leave call itself, once membership is confirmed.
+func TestLeaveEtcdCluster_LeaveBlocks(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	speedUpEtcdCmdTimeout(t)
+
+	f := &fakeHelpers{
+		blockOn: "etcd leave",
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+
+	done := make(chan struct{})
+	var removed bool
+	var warning string
+	go func() {
+		removed, warning = h.leaveEtcdCluster()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("leaveEtcdCluster did not return: the k0s etcd leave call is still unbounded")
+	}
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
 }
 
 // TestLeaveEtcdCluster_LeaveFailsAfterRetries covers exhausting the leave
