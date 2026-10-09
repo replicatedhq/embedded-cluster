@@ -285,6 +285,37 @@ func TestLeaveEtcdCluster_AlreadyRemovedButActuallyStillAMember(t *testing.T) {
 	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 }
 
+// TestLeaveEtcdCluster_AlreadyRemovedButLeaveFailsForUnrelatedReason covers
+// the bug flagged on review of emc-r1lp: the defensive leave attempt in
+// TestLeaveEtcdCluster_AlreadyRemoved can fail for a reason other than "this
+// member doesn't exist" (e.g. the etcd endpoint being unreachable), and that
+// failure must not be swallowed into removed=true — doing so would silently
+// reintroduce sc-139620 for exactly the node the defensive attempt exists to
+// protect.
+func TestLeaveEtcdCluster_AlreadyRemovedButLeaveFailsForUnrelatedReason(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("context deadline exceeded")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
+}
+
 // TestLeaveEtcdCluster_MemberListFails is the bug from sc-139620: when
 // membership cannot be determined, reset must not silently assume the node
 // is already gone. It must report that a stale member may remain and how to

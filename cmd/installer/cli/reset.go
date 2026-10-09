@@ -473,12 +473,17 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	// exactly h.Hostname. If that assumption is ever wrong (key format
 	// drift, case mismatch), trusting the absence alone would silently
 	// leave a real voting member stale. So this is treated as inconclusive
-	// rather than confirmed: make one defensive leave attempt — a harmless
-	// no-op if we are truly already gone, but the actual removal if the key
-	// assumption was wrong — without retrying it or blocking reset on its
-	// result.
+	// rather than confirmed: make one defensive leave attempt (no retry) — a
+	// harmless no-op if we are truly already gone, but the actual removal if
+	// the key assumption was wrong. A "member not found" error confirms the
+	// no-op case; any other error means the attempt itself is inconclusive,
+	// so it is reported the same as any other failed leave rather than
+	// assumed successful.
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
-		_, _ = runEtcdCommand("leave")
+		_, leaveErr := runEtcdCommand("leave")
+		if leaveErr != nil && !strings.Contains(leaveErr.Error(), "member not found") {
+			return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("defensive leave attempt failed: %w", leaveErr))
+		}
 		return true, ""
 	}
 
