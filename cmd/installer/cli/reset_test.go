@@ -45,6 +45,22 @@ func (f *fakeHelpers) ran(prefix string) bool {
 	return false
 }
 
+// ranCount returns how many recorded calls contain substr. Calls to the fake
+// k0s binary are recorded with its full temp-file path, so unlike ran (which
+// matches binaries invoked by their literal name, e.g. "pkill"), this must
+// match on a substring rather than a prefix.
+func (f *fakeHelpers) ranCount(substr string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	count := 0
+	for _, c := range f.calls {
+		if strings.Contains(c, substr) {
+			count++
+		}
+	}
+	return count
+}
+
 func (f *fakeHelpers) RunCommand(bin string, args ...string) (string, error) {
 	f.record(bin, args...)
 	if f.runCommandFn != nil {
@@ -207,15 +223,17 @@ func TestLeaveEtcdCluster_Success(t *testing.T) {
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "should actually attempt to leave the cluster")
 }
 
 // TestLeaveEtcdCluster_AlreadyRemoved covers re-running reset on a node whose
 // etcd membership was already removed by an earlier attempt (or a manual
-// `k0s etcd leave`): member-list succeeds but no longer lists this
-// hostname, so there is nothing to leave and no stale-member warning should
-// be produced. The leave call is wired to fail if it is ever attempted, so a
-// regression that falls through to the leave loop fails this test instead of
-// passing by coincidence.
+// `k0s etcd leave`): member-list succeeds but no longer lists this hostname.
+// The member-list key is assumed to equal h.Hostname exactly; that assumption
+// is unverified, so rather than trusting the absence alone, leaveEtcdCluster
+// still makes one defensive leave attempt (a harmless no-op if we are truly
+// already gone, but the actual removal if the key assumption was wrong). It
+// must not block reset on whatever that defensive attempt returns.
 func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
 	speedUpEtcdLeaveRetries(t)
 	f := &fakeHelpers{
@@ -224,7 +242,7 @@ func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
 				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
 			}
 			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
-				return "", errors.New("should not be called: membership already removed")
+				return "", errors.New("etcdserver: member not found")
 			}
 			return "", nil
 		},
@@ -236,6 +254,35 @@ func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
+}
+
+// TestLeaveEtcdCluster_AlreadyRemovedButActuallyStillAMember covers the case
+// the defensive leave attempt in TestLeaveEtcdCluster_AlreadyRemoved guards
+// against: the member-list key for this node didn't match h.Hostname even
+// though it is still a voting member, and the leave call that follows
+// actually performs the removal. That single attempt must not be retried.
+func TestLeaveEtcdCluster_AlreadyRemovedButActuallyStillAMember(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", nil
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 }
 
 // TestLeaveEtcdCluster_MemberListFails is the bug from sc-139620: when

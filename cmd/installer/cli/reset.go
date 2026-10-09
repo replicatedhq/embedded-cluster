@@ -466,11 +466,19 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 		return true, ""
 	}
 
-	// If a successfully-fetched member list no longer contains us, our
-	// membership was already removed by an earlier attempt (or a manual
-	// `k0s etcd leave`). There is nothing left to clean up, and retrying
-	// the leave call would only produce a misleading stale-member warning.
+	// A successfully-fetched member list that no longer contains h.Hostname
+	// usually means our membership was already removed by an earlier
+	// attempt (or a manual `k0s etcd leave`). That conclusion rests on an
+	// unverified assumption: that etcd's member-list key for this node is
+	// exactly h.Hostname. If that assumption is ever wrong (key format
+	// drift, case mismatch), trusting the absence alone would silently
+	// leave a real voting member stale. So this is treated as inconclusive
+	// rather than confirmed: make one defensive leave attempt — a harmless
+	// no-op if we are truly already gone, but the actual removal if the key
+	// assumption was wrong — without retrying it or blocking reset on its
+	// result.
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
+		_, _ = runEtcdCommand("leave")
 		return true, ""
 	}
 
