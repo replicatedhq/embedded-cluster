@@ -9,10 +9,10 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.3
 	github.com/aws/aws-sdk-go-v2/config v1.33.9
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.9
-	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.14
+	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.4.15
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.3
 	github.com/bombsimon/logrusr/v4 v4.2.0
-	github.com/canonical/lxd v0.0.0-20261007080223-44384ab5c1c2
+	github.com/canonical/lxd v0.0.0-20261008164752-516fb4509307
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
