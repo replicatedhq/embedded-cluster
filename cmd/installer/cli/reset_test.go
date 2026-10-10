@@ -201,7 +201,7 @@ func TestLeaveEtcdCluster_SoleMember(t *testing.T) {
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
-	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave when already the sole member")
+	assert.Equal(t, 0, f.ranCount("etcd leave"), "should not attempt to leave when already the sole member")
 }
 
 // TestLeaveEtcdCluster_Success covers the happy path: member-list succeeds,
@@ -338,7 +338,7 @@ func TestLeaveEtcdCluster_MemberListFails(t *testing.T) {
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
 	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
-	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave without a confirmed member list")
+	assert.Equal(t, 0, f.ranCount("etcd leave"), "should not attempt to leave without a confirmed member list")
 }
 
 // TestLeaveEtcdCluster_EtcdStopped covers the previously-mishandled case:
@@ -406,7 +406,7 @@ func TestLeaveEtcdCluster_MemberListBlocks(t *testing.T) {
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
-	assert.False(t, f.ran("k0s etcd leave"), "should not attempt to leave without a confirmed member list")
+	assert.Equal(t, 0, f.ranCount("etcd leave"), "should not attempt to leave without a confirmed member list")
 }
 
 // TestLeaveEtcdCluster_LeaveBlocks covers the same unbounded-call hang on the
