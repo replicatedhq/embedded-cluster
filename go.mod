@@ -28,7 +28,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/ohler55/ojg v1.28.7
 	github.com/onsi/ginkgo/v2 v2.32.2
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/errors v0.9.1
 	github.com/replicatedhq/embedded-cluster/kinds v0.0.0
