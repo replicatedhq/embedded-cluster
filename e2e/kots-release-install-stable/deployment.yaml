@@ -14,6 +14,8 @@ spec:
       component: nginx
   template:
     metadata:
+      annotations:
+        backup.velero.io/backup-volumes: fixture-data
       labels:
         app: example
         component: nginx
@@ -36,3 +38,10 @@ spec:
               value: '{{repl ConfigOption "hostname" }}'
             - name: CONFIG_PASSWORD
               value: '{{repl ConfigOption "pw" }}'
+          volumeMounts:
+            - name: fixture-data
+              mountPath: /var/lib/dr-fixture
+      volumes:
+        - name: fixture-data
+          persistentVolumeClaim:
+            claimName: dr-fixture-data

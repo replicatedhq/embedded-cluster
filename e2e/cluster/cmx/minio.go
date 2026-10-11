@@ -1,7 +1,11 @@
 package cmx
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -25,42 +29,26 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 		return nil, fmt.Errorf("create minio directories: %v: %s: %s", err, stdout, stderr)
 	}
 
-	// dl.min.io no longer serves community binaries. Pin the GitHub release
-	// assets and their SHA-256 checksums for reproducible test fixtures.
-	binaries := []struct {
-		name    string
-		version string
-		sha256  string
-	}{
-		{
-			name:    "minio",
-			version: "RELEASE.2025-09-07T16-13-09Z",
-			sha256:  "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f",
-		},
-		{
-			name:    "mc",
-			version: "RELEASE.2025-08-13T08-35-41Z",
-			sha256:  "01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891",
-		},
+	minioBinary, err := localToolPath("E2E_MINIO_BINARY", "minio")
+	if err != nil {
+		return nil, err
 	}
-	for _, binary := range binaries {
-		url := fmt.Sprintf("https://github.com/minio/%s/releases/download/%s/%s.linux-amd64.%s", binary.name, binary.version, binary.name, binary.version)
-		path := "/minio/bin/" + binary.name
-		if stdout, stderr, err := c.RunCommandOnNode(node, []string{"curl", "-fSL", url, "-o", path}); err != nil {
-			return nil, fmt.Errorf("download %s: %v: %s: %s", binary.name, err, stdout, stderr)
-		}
+	if err := verifyToolSHA256(minioBinary, "7c5bd8512c6e966455b1d198209358b2d191c77a83ab377c4073281065fb855f"); err != nil {
+		return nil, fmt.Errorf("verify minio: %w", err)
+	}
+	if err := c.installLocalTool(node, minioBinary, "minio"); err != nil {
+		return nil, err
+	}
 
-		stdout, stderr, err := c.RunCommandOnNode(node, []string{"sha256sum", path})
-		if err != nil {
-			return nil, fmt.Errorf("checksum %s: %v: %s: %s", binary.name, err, stdout, stderr)
-		}
-		if fields := strings.Fields(stdout); len(fields) == 0 || fields[0] != binary.sha256 {
-			return nil, fmt.Errorf("checksum %s: expected %s, got %q", binary.name, binary.sha256, stdout)
-		}
-
-		if stdout, stderr, err := c.RunCommandOnNode(node, []string{"chmod", "+x", path}); err != nil {
-			return nil, fmt.Errorf("chmod %s: %v: %s: %s", binary.name, err, stdout, stderr)
-		}
+	mcBinary, err := localToolPath("E2E_MC_BINARY", "mc")
+	if err != nil {
+		return nil, err
+	}
+	if err := verifyToolSHA256(mcBinary, "01f866e9c5f9b87c2b09116fa5d7c06695b106242d829a8bb32990c00312e891"); err != nil {
+		return nil, fmt.Errorf("verify mc: %w", err)
+	}
+	if err := c.installLocalTool(node, mcBinary, "mc"); err != nil {
+		return nil, err
 	}
 
 	// Generate credentials
@@ -100,6 +88,57 @@ func (c *Cluster) DeployMinio(node int) (*Minio, error) {
 	return minio, nil
 }
 
+func (c *Cluster) installLocalTool(node int, source, name string) error {
+	staged := "/tmp/e2e-" + name
+	if err := c.CopyFileToNode(node, source, staged); err != nil {
+		return fmt.Errorf("copy %s to staging path: %w", name, err)
+	}
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{
+		"install", "-m", "0755", staged, "/minio/bin/" + name, "&&", "rm", "-f", staged,
+	})
+	if err != nil {
+		return fmt.Errorf("install %s: %v: %s: %s", name, err, stdout, stderr)
+	}
+	return nil
+}
+
+func localToolPath(envName, binaryName string) (string, error) {
+	path := os.Getenv(envName)
+	if path == "" {
+		var err error
+		path, err = exec.LookPath(binaryName)
+		if err != nil {
+			return "", fmt.Errorf("%s is not set and %s is not installed locally", envName, binaryName)
+		}
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("stat %s: %w", binaryName, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("%s path %q is not a regular file", binaryName, path)
+	}
+	return path, nil
+}
+
+func verifyToolSHA256(path, expected string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open %q: %w", path, err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("hash %q: %w", path, err)
+	}
+	actual := fmt.Sprintf("%x", h.Sum(nil))
+	if actual != expected {
+		return fmt.Errorf("checksum %q: expected %s, got %s", path, expected, actual)
+	}
+	return nil
+}
+
 func (c *Cluster) StartMinio(node int, minio *Minio) error {
 	go func() {
 		envs := map[string]string{
@@ -118,6 +157,23 @@ func (c *Cluster) StartMinio(node int, minio *Minio) error {
 	}
 
 	return nil
+}
+
+// StopMinio stops the fixture server so its object tree can be archived
+// consistently. StartMinio can start the same server and data again later.
+func (c *Cluster) StopMinio(node int) error {
+	stdout, stderr, err := c.RunCommandOnNode(node, []string{"pkill", "-x", "minio"})
+	if err != nil {
+		return fmt.Errorf("stop minio: %w: %s: %s", err, stdout, stderr)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, _, err := c.RunCommandOnNode(node, []string{"pgrep", "-x", "minio"}); err != nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("timeout waiting for minio to stop")
 }
 
 func (c *Cluster) waitForMinio(node int, minio *Minio) error {

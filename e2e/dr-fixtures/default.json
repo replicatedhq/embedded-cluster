@@ -1,0 +1,23 @@
+{
+  "schema": "embedded-cluster-dr-fixture-reference/v2",
+  "payloadURL": "https://dev-embedded-cluster-bin.s3.amazonaws.com/ec-v2-dr-fixtures/v1/fb5f40875e47e39be5c9abd1d608b060d317c7b65de8dafee99cc50c0ba1ed86/minio-data.tar.gz",
+  "manifestURL": "https://dev-embedded-cluster-bin.s3.amazonaws.com/ec-v2-dr-fixtures/v1/fb5f40875e47e39be5c9abd1d608b060d317c7b65de8dafee99cc50c0ba1ed86/minio-data.tar.gz.manifest.json",
+  "payloadSHA256": "sha256:fb5f40875e47e39be5c9abd1d608b060d317c7b65de8dafee99cc50c0ba1ed86",
+  "manifestSHA256": "sha256:9a8bddc1dac0b54746c82fee9fdd6fe02cb6c945bf1393131381de23b0d355f9",
+  "applicationVersion": "appver-airgap-e2e-previous-stable",
+  "ecVersion": "v2.19.8+k8s-1.35",
+  "ecCommit": "12ee2e2f7790ef619c12c6f18e8933c52d1e8405",
+  "k0sVersion": "v1.35.6",
+  "kotsCommit": "5207c785e043a1596f872e37c2d32d60188e0e7a",
+  "veleroVersion": "v1.18.2",
+  "kotsArtifactDigests": [
+    "sha256:3c07a599523dc9f4dc4be823072460513db73def645f7214f88b3333e2cc6654",
+    "sha256:50eea5c419098fbee2853cc5a03734f05a643f66685bffa75df1957e85d14d98",
+    "sha256:93e0c25fb0966e01e69264ad38b565e9898086cf63216b61f6cc8c711d102485",
+    "sha256:9dd44b603d641893d2b77fa92c187aa2898b2062ddeb4b2acb400da6ebc72954",
+    "sha256:a667a8f67140fdb7e4e4e60253eaeac21f34dbd079693be844d511a1d611e0fc",
+    "sha256:ad3b5d87532be8325c92db6b4c3b841a9e0a61e8a427189b6f4ec23d62e0ff03",
+    "sha256:bb6901a8505957b8f549b101310d96f41076dce7c6e2376c38d3209bb5a085ab",
+    "sha256:f787d8dc8cef93f0db204212d1776c3da547fdd071d1923544a9d51acef48837"
+  ]
+}

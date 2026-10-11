@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"crypto/tls"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +31,7 @@ import (
 	"github.com/replicatedhq/embedded-cluster/pkg/addons/seaweedfs"
 	addontypes "github.com/replicatedhq/embedded-cluster/pkg/addons/types"
 	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery"
+	"github.com/replicatedhq/embedded-cluster/pkg/disasterrecovery/restoreplan"
 	"github.com/replicatedhq/embedded-cluster/pkg/helm"
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
 	"github.com/replicatedhq/embedded-cluster/pkg/kubeutils"
@@ -87,10 +87,6 @@ var ecRestoreStates = []ecRestoreState{
 	ecRestoreStateRestoreExtensions,
 	ecRestoreStateRestoreApp,
 }
-
-const (
-	resourceModifiersCMName = "restore-resource-modifiers"
-)
 
 func RestoreCmd(ctx context.Context, appSlug, appTitle string) *cobra.Command {
 	var flags installFlags
@@ -1520,55 +1516,6 @@ func waitForVeleroRestoreCompleted(ctx context.Context, restoreName string) (*ve
 	}
 }
 
-// getRegistryIPFromBackup gets the registry service IP from a backup.
-// It returns an empty string if the backup is not airgapped.
-func getRegistryIPFromBackup(backup *velerov1.Backup) (string, error) {
-	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
-	if !ok {
-		return "", fmt.Errorf("unable to get airgap status from backup")
-	}
-
-	if isAirgap != "true" {
-		return "", nil
-	}
-
-	registryServiceHost, ok := backup.Annotations["kots.io/embedded-registry"]
-	if !ok {
-		return "", fmt.Errorf("embedded registry service IP annotation not found in backup")
-	}
-
-	return strings.Split(registryServiceHost, ":")[0], nil
-}
-
-// getSeaweedFSS3ServiceIPFromBackup gets the seaweedfs s3 service IP from a backup.
-// It returns an empty string if the backup is not airgapped or not high availability.
-func getSeaweedFSS3ServiceIPFromBackup(backup *velerov1.Backup) (string, error) {
-	isAirgap, ok := backup.Annotations["kots.io/is-airgap"]
-	if !ok {
-		return "", fmt.Errorf("unable to get airgap status from backup")
-	}
-
-	if isAirgap != "true" {
-		return "", nil
-	}
-
-	highAvailability, err := isHighAvailabilityBackup(backup)
-	if err != nil {
-		return "", fmt.Errorf("unable to check high availability status: %w", err)
-	}
-
-	if !highAvailability {
-		return "", nil
-	}
-
-	swIP, ok := backup.Annotations["kots.io/embedded-cluster-seaweedfs-s3-ip"]
-	if !ok {
-		return "", fmt.Errorf("unable to get seaweedfs s3 service IP from backup")
-	}
-
-	return swIP, nil
-}
-
 func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 	ha, ok := backup.Annotations["kots.io/embedded-cluster-is-ha"]
 	if !ok {
@@ -1583,37 +1530,13 @@ func isHighAvailabilityBackup(backup *velerov1.Backup) (bool, error) {
 // The json patches are applied to the resources before they are restored.
 // The json patches are specified in a configmap and the configmap is referenced in the restore object.
 func ensureRestoreResourceModifiers(ctx context.Context, backup *velerov1.Backup) error {
-	registryServiceIP, err := getRegistryIPFromBackup(backup)
-	if err != nil {
-		return fmt.Errorf("unable to get registry service IP from backup: %w", err)
-	}
-
-	seaweedFSS3ServiceIP, err := getSeaweedFSS3ServiceIPFromBackup(backup)
-	if err != nil {
-		return fmt.Errorf("unable to get seaweedfs s3 service IP from backup: %w", err)
-	}
-
-	modifiersYAML := strings.Replace(resourceModifiersYAML, "__REGISTRY_SERVICE_IP__", registryServiceIP, 1)
-	modifiersYAML = strings.Replace(modifiersYAML, "__SEAWEEDFS_S3_SERVICE_IP__", seaweedFSS3ServiceIP, 1)
-
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: constants.VeleroNamespace,
-			Name:      resourceModifiersCMName,
-		},
-		Data: map[string]string{
-			"resource-modifiers.yaml": modifiersYAML,
-		},
-	}
 	kcli, err := kubeutils.KubeClient()
 	if err != nil {
 		return fmt.Errorf("unable to create kube client: %w", err)
 	}
-
-	if err := kcli.Create(ctx, cm); err != nil && !k8serrors.IsAlreadyExists(err) {
-		return fmt.Errorf("unable to create config map: %w", err)
+	if err := restoreplan.EnsureResourceModifiers(ctx, kcli, backup); err != nil {
+		return fmt.Errorf("ensure restore resource modifiers: %w", err)
 	}
-
 	return nil
 }
 
@@ -1852,7 +1775,7 @@ func restoreFromBackup(ctx context.Context, backup *velerov1.Backup, drComponent
 				IncludeClusterResources: ptr.To(true),
 				ResourceModifier: &corev1.TypedLocalObjectReference{
 					Kind: "ConfigMap",
-					Name: resourceModifiersCMName,
+					Name: restoreplan.ResourceModifiersConfigMapName,
 				},
 			},
 		}
@@ -2009,9 +1932,6 @@ func getRuntimeConfigFromInstallation(ctx context.Context) (*ecv1beta1.RuntimeCo
 
 	return in.Spec.RuntimeConfig, nil
 }
-
-//go:embed assets/resource-modifiers.yaml
-var resourceModifiersYAML string
 
 type s3BackupStore struct {
 	endpoint        string
