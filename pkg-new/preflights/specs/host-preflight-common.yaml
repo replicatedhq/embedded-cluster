@@ -94,10 +94,6 @@ spec:
         timeout: 30s
 {{- end}}
     - run:
-        collectorName: 'selinux-mode'
-        command: 'sh'
-        args: ['-c', 'getenforce || echo "Missing"']
-    - run:
         # check execute permissions on the data directory, its parents, and root.
         # this is necessary for executing binaries in the data directory by other users (e.g. etcd).
         collectorName: 'check-data-dir-permissions'
@@ -123,38 +119,50 @@ spec:
             echo "Filesystem is not XFS (detected: $fstype). Skipping xfs_info."
           fi
     - run:
-        collectorName: "selinux-labels"
+        # Emits facts only -- one "key value" per line -- and leaves every
+        # judgement to the analyzers. Always exits 0: a host without selinux is
+        # not a failure. Lines are omitted rather than faked when selinux is
+        # off, and the analyzers treat an absent value as nothing to check.
+        collectorName: "selinux"
         command: "sh"
         args:
             - -c
             - |
               data_dir="{{ .DataDir }}"
               bin_dir=$data_dir/bin
-              # only run our checks if getenforce is available
-              if ! $(command -v getenforce); then
-                echo "no selinux"
+
+              if ! command -v getenforce > /dev/null 2>&1; then
+                echo "selinux_mode absent"
                 exit 0
               fi
-              # check if selinux is in enforcing mode
-              selinux_status=$(getenforce | tr -d '\n')
-              if [ "$selinux_status" != "Enforcing" ]; then
-                echo "selinux not enforcing"
+
+              echo "selinux_mode $(getenforce 2>/dev/null | tr -d '\n')"
+              if [ "$(getenforce 2>/dev/null)" = "Disabled" ]; then
                 exit 0
               fi
-              # check user label of data-dir
-              data_dir_user_label=$(secon --file $data_dir --user)
-              if [ ! "$data_dir_user_label" = "system_u" ]; then
-                echo "data_dir_user_label $data_dir_user_label"
+
+              if command -v semodule > /dev/null 2>&1; then
+                echo "semodule present"
+                # The container-selinux package ships a module named
+                # "container", which is what semodule lists it as.
+                if semodule -l 2>/dev/null | grep -qx container; then
+                  echo "container_selinux present"
+                else
+                  echo "container_selinux absent"
+                fi
+              else
+                echo "semodule absent"
+                echo "container_selinux unknown"
               fi
-              # check user label of bin dir
-              bin_dir_user_label=$(secon --file $bin_dir --user)
-              if [ ! "$bin_dir_user_label" = "system_u" ]; then
-                echo "bin_dir_user_label $bin_dir_user_label"
-              fi
-              # check type label of bin dir
-              bin_dir_type_label=$(secon --file $bin_dir --type)
-              if [ ! "$bin_dir_type_label" = "bin_t" ]; then
-                echo "bin_dir_type_label $bin_dir_type_label"
+
+              if command -v secon > /dev/null 2>&1; then
+                echo "data_dir_user $(secon --file $data_dir --user 2>/dev/null)"
+                echo "bin_dir_user $(secon --file $bin_dir --user 2>/dev/null)"
+                echo "bin_dir_type $(secon --file $bin_dir --type 2>/dev/null)"
+              else
+                echo "data_dir_user unknown"
+                echo "bin_dir_user unknown"
+                echo "bin_dir_type unknown"
               fi
   analyzers:
     - cpu:
@@ -748,35 +756,72 @@ spec:
               when: "false"
               message: "The filesystem at {{ .DataDir }} is either not XFS or is XFS with ftype=1."
     - textAnalyze:
-        checkName: "Selinux data-dir user label"
-        fileName: host-collectors/run-host/selinux-labels.txt
-        regex: "data_dir_user_label"
+        checkName: "SELinux container policy"
+        fileName: host-collectors/run-host/selinux.txt
+        regexGroups: '(?s)^(?:.*container_selinux (?P<ContainerSELinux>\S+))?.*$'
         outcomes:
-          - fail:
-              when: "true"
-              message: >-
-                  The selinux user context label for {{ .DataDir }} is incorrect. try running: sudo restorecon -RvF {{ .DataDir }}
           - pass:
-              when: "false"
+              when: "ContainerSELinux == ''"
+              message: "Not applicable: selinux is not enabled on this host"
+          - pass:
+              when: "ContainerSELinux == present"
+              message: "The container-selinux policy is installed"
+          - fail:
+              message: >-
+                  SELinux is enabled but the container-selinux policy is not installed, so container workloads cannot be confined. Install it with: sudo dnf install -y container-selinux
+    - textAnalyze:
+        checkName: "SELinux policy tooling"
+        fileName: host-collectors/run-host/selinux.txt
+        regexGroups: '(?s)^(?:.*semodule (?P<Semodule>\S+))?.*$'
+        outcomes:
+          - pass:
+              when: "Semodule == ''"
+              message: "Not applicable: selinux is not enabled on this host"
+          - pass:
+              when: "Semodule == present"
+              message: "semodule is available"
+          - fail:
+              message: >-
+                  SELinux is enabled but semodule is not available, so the policy required to confine container workloads cannot be loaded. Install it with: sudo dnf install -y policycoreutils
+    - textAnalyze:
+        checkName: "Selinux data-dir user label"
+        fileName: host-collectors/run-host/selinux.txt
+        regexGroups: '(?s)^(?:.*data_dir_user (?P<DataDirUser>\S+))?.*$'
+        outcomes:
+          - pass:
+              when: "DataDirUser == ''"
+              message: "Not applicable: selinux is not enabled on this host"
+          - pass:
+              when: "DataDirUser == system_u"
+              message: "The selinux user context label for {{ .DataDir }} is system_u"
+          - fail:
+              message: >-
+                  The selinux user context label for {{ .DataDir }} is {{ `{{ .DataDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
     - textAnalyze:
         checkName: "Selinux bin dir user label"
-        fileName: host-collectors/run-host/selinux-labels.txt
-        regex: "bin_dir_user_label"
+        fileName: host-collectors/run-host/selinux.txt
+        regexGroups: '(?s)^(?:.*bin_dir_user (?P<BinDirUser>\S+))?.*$'
         outcomes:
-          - fail:
-              when: "true"
-              message: >-
-                  The selinux user context label for {{ .DataDir }}/bin is incorrect. Try running: sudo restorecon -RvF {{ .DataDir }}
           - pass:
-              when: "false"
+              when: "BinDirUser == ''"
+              message: "Not applicable: selinux is not enabled on this host"
+          - pass:
+              when: "BinDirUser == system_u"
+              message: "The selinux user context label for {{ .DataDir }}/bin is system_u"
+          - fail:
+              message: >-
+                  The selinux user context label for {{ .DataDir }}/bin is {{ `{{ .BinDirUser }}` }}, expected system_u. Try running: sudo restorecon -RvF {{ .DataDir }}
     - textAnalyze:
         checkName: "Selinux bin dir type label"
-        fileName: host-collectors/run-host/selinux-labels.txt
-        regex: "bin_dir_type_label"
+        fileName: host-collectors/run-host/selinux.txt
+        regexGroups: '(?s)^(?:.*bin_dir_type (?P<BinDirType>\S+))?.*$'
         outcomes:
-          - fail:
-              when: "true"
-              message: >-
-                  The selinux type context label for the embedded cluster binary directory are incorrect. Try running: sudo semanage fcontext -a -t bin_t "{{ .DataDir }}/bin(/.*)?" && sudo restorecon -RvF {{ .DataDir }}
           - pass:
-              when: "false"
+              when: "BinDirType == ''"
+              message: "Not applicable: selinux is not enabled on this host"
+          - pass:
+              when: "BinDirType == ec_bin_t"
+              message: "The selinux type context label for {{ .DataDir }}/bin is ec_bin_t"
+          - fail:
+              message: >-
+                  The selinux type context label for {{ .DataDir }}/bin is {{ `{{ .BinDirType }}` }}, expected ec_bin_t. Try running: sudo restorecon -RvF {{ .DataDir }}
