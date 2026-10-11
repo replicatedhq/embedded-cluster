@@ -30,7 +30,7 @@ FIO_VERSION = 3.43
 
 # Kubernetes Development Tool Versions
 CONTROLLER_TOOLS_VERSION = v0.22.0
-KUSTOMIZE_VERSION = v5.8.2
+KUSTOMIZE_VERSION = v5.8.3
 
 ### Overrides ###
 
