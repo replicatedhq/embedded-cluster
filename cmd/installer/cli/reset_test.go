@@ -462,6 +462,44 @@ func TestLeaveEtcdCluster_EtcdStopped(t *testing.T) {
 	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
 }
 
+// TestLeaveEtcdCluster_RemediationUsesEtcdPeerAddressNotHostname covers the
+// review finding on emc-r1lp (PR #4019): leaveEtcdCluster's remediation
+// command told a human to run `k0s etcd leave --peer-address <hostname>`, but
+// `k0s etcd leave --peer-address` ultimately resolves the peer by its etcd
+// peer address (k0sproject/k0s cmd/etcd/leave.go:40-56), not by the
+// member-list key (which is always the node's os.Hostname()). On a node that
+// peers over an address other than its DNS hostname (e.g. a private IP),
+// those two values differ -- and the member list's own peer address, which
+// this function already has in scope when it builds the remediation message,
+// must be used instead of guessing from h.Hostname.
+func TestLeaveEtcdCluster_RemediationUsesEtcdPeerAddressNotHostname(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	const hostname = "ip-10-0-12-34.us-west-2.compute.internal"
+	const peerAddress = "10.0.12.34"
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"` + hostname + `":"https://` + peerAddress + `:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("context deadline exceeded")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: hostname}
+	removed, warning := h.leaveEtcdCluster()
+
+	require.False(t, removed)
+	assert.Contains(t, warning, hostname, "the warning should still identify the node by its hostname")
+	assert.Contains(t, warning, "k0s etcd leave --peer-address "+peerAddress,
+		"the remediation command must use the etcd peer address from the member list, not the node's hostname")
+	assert.NotContains(t, warning, "--peer-address "+hostname,
+		"the remediation command must not fall back to the hostname when the real peer address is known")
+}
+
 // speedUpEtcdCmdTimeout shortens the k0s etcd command timeout for the
 // duration of the test.
 func speedUpEtcdCmdTimeout(t *testing.T) {

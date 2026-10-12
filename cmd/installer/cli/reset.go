@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -419,13 +420,31 @@ func runEtcdCommand(args ...string) (string, error) {
 // can run to remove it. Membership that is never explicitly removed stays
 // listed as a voting member forever (sc-139620): a reset that cannot confirm
 // removal must say so instead of assuming the node is already gone.
-func staleEtcdMemberWarning(hostname string, cause error) string {
+func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
+	if peerAddress == "" {
+		peerAddress = hostname
+	}
 	return fmt.Sprintf(
 		"Unable to confirm this node's etcd membership was removed: %v\n"+
 			"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
 			"Run 'k0s etcd leave --peer-address %s' from a surviving controller to remove it.",
-		cause, hostname, hostname,
+		cause, hostname, peerAddress,
 	)
+}
+
+// etcdPeerHost extracts the host portion from an etcd member-list entry's
+// peer URL (e.g. "https://10.0.12.34:2380" -> "10.0.12.34"), which is what
+// `k0s etcd leave --peer-address` expects (k0sproject/k0s cmd/etcd/leave.go)
+// -- not a full URL, and not necessarily this node's hostname (the member
+// list's key is always os.Hostname(), but the peer address a node etcds over
+// can differ, e.g. a private IP). Falls back to the raw value if it cannot be
+// parsed as a URL, so a remediation command is still produced.
+func etcdPeerHost(peerURL string) string {
+	u, err := url.Parse(peerURL)
+	if err != nil || u.Hostname() == "" {
+		return peerURL
+	}
+	return u.Hostname()
 }
 
 // leaveEtcdCluster uses k0s to attempt to leave the etcd cluster. It returns
@@ -435,7 +454,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
-		return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("k0s binary not found at %s, unable to attempt etcd leave", k0sBinPath))
+		return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("k0s binary not found at %s, unable to attempt etcd leave", k0sBinPath))
 	}
 
 	// Try to list members with retries
@@ -458,7 +477,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	}
 
 	if err != nil {
-		return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("unable to list etcd members: %w", err))
+		return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("unable to list etcd members: %w", err))
 	}
 
 	// If we're the only member, no need to leave
@@ -482,10 +501,15 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
 		_, leaveErr := runEtcdCommand("leave")
 		if leaveErr != nil && !strings.Contains(leaveErr.Error(), "member not found") {
-			return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("defensive leave attempt failed: %w", leaveErr))
+			return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("defensive leave attempt failed: %w", leaveErr))
 		}
 		return true, ""
 	}
+
+	// The member list confirms this node's own entry, so its peer address
+	// (the map value, e.g. "https://10.0.12.34:2380") is known here -- use it
+	// in any remediation command below instead of guessing from h.Hostname.
+	peerAddress := etcdPeerHost(memberlist.Members[h.Hostname])
 
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
@@ -507,7 +531,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 		// list — the two are unrelated facts. Treat it the same as any other
 		// inconclusive failure below rather than assuming success.
 		if strings.Contains(err.Error(), "etcdserver: server stopped") {
-			return false, staleEtcdMemberWarning(h.Hostname, errors.New("local etcd server is stopped"))
+			return false, staleEtcdMemberWarning(h.Hostname, peerAddress, errors.New("local etcd server is stopped"))
 		}
 
 		if i < 2 { // Don't sleep on last attempt
@@ -516,7 +540,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	}
 
 	// If we get here, we failed to leave after retries
-	return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("failed after retries: %w (%s)", err, out))
+	return false, staleEtcdMemberWarning(h.Hostname, peerAddress, fmt.Errorf("failed after retries: %w (%s)", err, out))
 }
 
 var (
