@@ -316,6 +316,101 @@ func TestLeaveEtcdCluster_AlreadyRemovedButLeaveFailsForUnrelatedReason(t *testi
 	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 }
 
+// TestLeaveEtcdCluster_MemberListKeyIsHostname proves the assumption
+// leaveEtcdCluster's member-list lookup rests on: that `k0s etcd
+// member-list`'s JSON response is keyed by this node's hostname. Verified
+// against k0sproject/k0s v1.36.5-0.20260918181138-c37fe960bdee, the version
+// pinned in go.mod:
+//   - pkg/component/controller/etcd.go:160-166 sets etcd's --name flag to
+//     os.Hostname() unless overridden by the "name" extraArg in the k0s
+//     config.
+//   - pkg/etcd/client.go:122-127 copies that member's raw Name field
+//     unchanged into etcd.Member.Name.
+//   - cmd/etcd/list.go:53-61 builds the `member-list` JSON response by
+//     keying its "members" map with member.Name.
+//
+// So for a node that has not overridden the etcd name extraArg, its own
+// member-list entry is keyed by exactly its hostname -- including a
+// realistic FQDN-style hostname, not just a short placeholder name.
+func TestLeaveEtcdCluster_MemberListKeyIsHostname(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	const hostname = "ip-10-0-12-34.us-west-2.compute.internal"
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"` + hostname + `":"https://` + hostname + `:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: hostname}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"),
+		"a member-list keyed by this node's real hostname must be recognized as present, taking the confirmed leave path rather than the defensive one")
+}
+
+// TestLeaveEtcdCluster_NeverPassesPeerAddress pins the quorum-safety
+// invariant sc-139620 requires: leaveEtcdCluster must never be able to
+// remove any etcd member but its own. k0sproject/k0s cmd/etcd/leave.go:40-49
+// shows that `k0s etcd leave` defaults to removing the LOCAL node's own
+// configured peer address; only an explicit --peer-address flag can target a
+// different member. leaveEtcdCluster only ever calls runEtcdCommand("leave")
+// with no extra arguments, so every `etcd leave` invocation it makes -- on
+// both the direct and the defensive path -- must omit --peer-address,
+// making it structurally impossible for this code to tear down another
+// controller's membership and break quorum.
+func TestLeaveEtcdCluster_NeverPassesPeerAddress(t *testing.T) {
+	scenarios := []struct {
+		name       string
+		memberList string
+		leaveErr   error
+	}{
+		{
+			name:       "direct leave",
+			memberList: `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`,
+		},
+		{
+			name:       "defensive leave",
+			memberList: `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`,
+			leaveErr:   errors.New("etcdserver: member not found"),
+		},
+	}
+
+	for _, sc := range scenarios {
+		t.Run(sc.name, func(t *testing.T) {
+			speedUpEtcdLeaveRetries(t)
+			var leaveArgs [][]string
+			f := &fakeHelpers{
+				runCommandFn: func(bin string, args ...string) (string, error) {
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+						return sc.memberList, nil
+					}
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+						leaveArgs = append(leaveArgs, append([]string(nil), args...))
+						return "", sc.leaveErr
+					}
+					return "", nil
+				},
+			}
+			installFakeHelpers(t, f)
+
+			h := &hostInfo{Hostname: "node-a"}
+			h.leaveEtcdCluster()
+
+			require.NotEmpty(t, leaveArgs, "expected at least one etcd leave call")
+			for _, args := range leaveArgs {
+				assert.NotContains(t, args, "--peer-address",
+					"leaveEtcdCluster must never pass --peer-address, or it could target a member other than itself")
+			}
+		})
+	}
+}
+
 // TestLeaveEtcdCluster_MemberListFails is the bug from sc-139620: when
 // membership cannot be determined, reset must not silently assume the node
 // is already gone. It must report that a stale member may remain and how to
