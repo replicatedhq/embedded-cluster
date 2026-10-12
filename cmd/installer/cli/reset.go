@@ -421,6 +421,13 @@ func runEtcdCommand(args ...string) (string, error) {
 // listed as a voting member forever (sc-139620): a reset that cannot confirm
 // removal must say so instead of assuming the node is already gone.
 func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
+	// peerAddress is "" only when the caller never had a member-list entry to
+	// read one from (k0s binary missing, member-list unreadable, or this
+	// node's own key already absent from the list) -- there is no real peer
+	// address to fall back to, unlike the callers a few lines below that
+	// already resolved one from the member list and must use it, not the
+	// hostname. Showing the hostname here is a best-effort hint for the
+	// remediation command, not a claim that it equals the real peer address.
 	if peerAddress == "" {
 		peerAddress = hostname
 	}
