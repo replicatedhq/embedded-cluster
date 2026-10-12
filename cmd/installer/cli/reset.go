@@ -435,7 +435,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
-		return true, ""
+		return false, staleEtcdMemberWarning(h.Hostname, fmt.Errorf("k0s binary not found at %s, unable to attempt etcd leave", k0sBinPath))
 	}
 
 	// Try to list members with retries
@@ -491,6 +491,14 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	for i := 0; i < 3; i++ {
 		out, err = runEtcdCommand("leave")
 		if err == nil {
+			return true, ""
+		}
+
+		// Same definitive confirmation the defensive leave attempt above
+		// trusts: a "member not found" error means this node's removal
+		// already completed (e.g. a concurrent leave from elsewhere), not
+		// that this attempt failed.
+		if strings.Contains(err.Error(), "member not found") {
 			return true, ""
 		}
 

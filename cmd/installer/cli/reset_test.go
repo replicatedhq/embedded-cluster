@@ -565,3 +565,49 @@ func TestLeaveEtcdCluster_LeaveFailsAfterRetries(t *testing.T) {
 	assert.Contains(t, warning, "node-a")
 	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
 }
+
+// TestLeaveEtcdCluster_DirectLeaveMemberNotFound covers the direct leave path
+// (this node is still listed in member-list) racing a removal that already
+// completed by the time the leave call reaches etcd. A "member not found"
+// error here is the same definitive confirmation the defensive leave path
+// already trusts (TestLeaveEtcdCluster_AlreadyRemoved) — it must not be
+// treated as just another failed attempt to retry and eventually warn about.
+func TestLeaveEtcdCluster_DirectLeaveMemberNotFound(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errors.New("etcdserver: member not found")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.True(t, removed, "a definitive 'member not found' confirms removal, it is not a failure")
+	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "should not retry once 'member not found' confirms removal")
+}
+
+// TestLeaveEtcdCluster_BinaryMissing covers resetting a node where the k0s
+// binary is already gone (e.g. a partially-completed install). leaveEtcdCluster
+// cannot run `k0s etcd leave` at all here, so it has no evidence either way
+// about this node's etcd membership — it must report that as unknown rather
+// than claiming removal was confirmed.
+func TestLeaveEtcdCluster_BinaryMissing(t *testing.T) {
+	f := &fakeHelpers{}
+	installFakeHelpers(t, f)
+	k0sBinPath = filepath.Join(t.TempDir(), "k0s-does-not-exist")
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster()
+
+	assert.False(t, removed, "missing binary means removal was never confirmed")
+	assert.Contains(t, warning, "node-a")
+}
