@@ -19,8 +19,6 @@ var seaweedfsRepo = &repo.Entry{
 	URL:  "https://seaweedfs.github.io/seaweedfs/helm",
 }
 
-const seaweedfsPinnedChartVersion = "4.46.0"
-
 var seaweedfsImageComponents = map[string]addonComponent{
 	"docker.io/chrislusf/seaweedfs": {
 		name: "seaweedfs",
@@ -50,10 +48,13 @@ var updateSeaweedFSAddonCommand = &cli.Command{
 		if nextChartVersion != "" {
 			logrus.Infof("using input override from INPUT_SEAWEEDFS_CHART_VERSION: %s", nextChartVersion)
 		} else {
-			// TODO: unpin this. seaweedfs 4.48 fails registry pushes with s3 500s on
-			// UploadPartCopy and multipart uploads with NoSuchUpload across filers.
-			nextChartVersion = seaweedfsPinnedChartVersion
-			logrus.Infof("using pinned seaweedfs chart version: %s", nextChartVersion)
+			logrus.Infof("fetching the latest seaweedfs chart version")
+			latest, err := LatestChartVersion(c.Context, hcli, seaweedfsRepo, "seaweedfs")
+			if err != nil {
+				return fmt.Errorf("failed to get the latest seaweedfs chart version: %v", err)
+			}
+			nextChartVersion = latest
+			logrus.Printf("latest seaweedfs chart version: %s", latest)
 		}
 		nextChartVersion = strings.TrimPrefix(nextChartVersion, "v")
 
