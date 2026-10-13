@@ -424,12 +424,21 @@ func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
 	// peerAddress is "" only when the caller never had a member-list entry to
 	// read one from (k0s binary missing, member-list unreadable, or this
 	// node's own key already absent from the list) -- there is no real peer
-	// address to fall back to, unlike the callers a few lines below that
-	// already resolved one from the member list and must use it, not the
-	// hostname. Showing the hostname here is a best-effort hint for the
-	// remediation command, not a claim that it equals the real peer address.
+	// address to fall back to here, unlike the callers a few lines below
+	// that already resolved one from the member list and must use it.
+	// `k0s etcd leave --peer-address` resolves the target by its etcd peer
+	// address, not by hostname (k0sproject/k0s cmd/etcd/leave.go:40-56), and
+	// the two can differ -- printing the hostname as if it were a confirmed
+	// peer address would hand the operator a command that may not work, so
+	// point them at how to find the real one instead.
 	if peerAddress == "" {
-		peerAddress = hostname
+		return fmt.Sprintf(
+			"Unable to confirm this node's etcd membership was removed: %v\n"+
+				"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
+				"From a surviving controller, run 'k0s etcd member-list' to find %q's peer address, "+
+				"then run 'k0s etcd leave --peer-address <that address>' to remove it.",
+			cause, hostname, hostname,
+		)
 	}
 	return fmt.Sprintf(
 		"Unable to confirm this node's etcd membership was removed: %v\n"+

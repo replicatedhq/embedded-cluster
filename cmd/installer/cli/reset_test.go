@@ -312,7 +312,8 @@ func TestLeaveEtcdCluster_AlreadyRemovedButLeaveFailsForUnrelatedReason(t *testi
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
-	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+	assert.Contains(t, warning, "member-list",
+		"no peer address was ever resolved, so the warning must point at how to find the real one")
 	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 }
 
@@ -432,7 +433,8 @@ func TestLeaveEtcdCluster_MemberListFails(t *testing.T) {
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
-	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
+	assert.Contains(t, warning, "member-list",
+		"no peer address was ever resolved, so the warning must point at how to find the real one")
 	assert.Equal(t, 0, f.ranCount("etcd leave"), "should not attempt to leave without a confirmed member list")
 }
 
@@ -498,6 +500,36 @@ func TestLeaveEtcdCluster_RemediationUsesEtcdPeerAddressNotHostname(t *testing.T
 		"the remediation command must use the etcd peer address from the member list, not the node's hostname")
 	assert.NotContains(t, warning, "--peer-address "+hostname,
 		"the remediation command must not fall back to the hostname when the real peer address is known")
+}
+
+// TestStaleEtcdMemberWarning_UnknownPeerAddressDoesNotFabricateRemediationCommand
+// covers the review finding on emc-r1lp (PR #4019): when no real peer
+// address was ever obtained (k0s binary missing, member-list call failed, or
+// this node's own key was already absent), falling back to the hostname and
+// printing it as `--peer-address <hostname>` hands the operator a command
+// that may not work -- `k0s etcd leave --peer-address` resolves peers by
+// their etcd peer address, not by hostname, and the two can differ. The
+// warning must tell the operator to look up the real peer address instead of
+// asserting a fabricated one.
+func TestStaleEtcdMemberWarning_UnknownPeerAddressDoesNotFabricateRemediationCommand(t *testing.T) {
+	const hostname = "node-a"
+	warning := staleEtcdMemberWarning(hostname, "", errors.New("k0s binary not found"))
+
+	assert.Contains(t, warning, hostname, "the warning should still identify the node by its hostname")
+	assert.NotContains(t, warning, "--peer-address "+hostname,
+		"must not print a remediation command asserting the hostname is the etcd peer address when it was never confirmed")
+	assert.Contains(t, warning, "member-list",
+		"should tell the operator how to find the real peer address instead")
+}
+
+// TestStaleEtcdMemberWarning_KnownPeerAddressStillUsesIt pins the unchanged
+// behavior for the case this fix must not touch: when a real peer address
+// was resolved from the member list, the remediation command must keep using
+// it directly.
+func TestStaleEtcdMemberWarning_KnownPeerAddressStillUsesIt(t *testing.T) {
+	warning := staleEtcdMemberWarning("node-a", "10.0.12.34", errors.New("etcdserver: server stopped"))
+
+	assert.Contains(t, warning, "k0s etcd leave --peer-address 10.0.12.34")
 }
 
 // speedUpEtcdCmdTimeout shortens the k0s etcd command timeout for the
