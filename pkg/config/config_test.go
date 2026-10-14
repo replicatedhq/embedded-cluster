@@ -401,6 +401,24 @@ func TestSetCalicoMTU(t *testing.T) {
 			hostMTU:  0,
 			wantMTU:  1450,
 		},
+		{
+			name:     "host mtu at the vxlan overhead keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  50,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu giving an overlay mtu below the minimum keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  625,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu giving exactly the minimum overlay mtu is used",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  626,
+			wantMTU:  576,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
