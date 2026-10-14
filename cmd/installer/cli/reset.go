@@ -436,6 +436,10 @@ func stripLogLineBreaks(s string) string {
 func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
 	hostname = stripLogLineBreaks(hostname)
 	peerAddress = stripLogLineBreaks(peerAddress)
+	// cause can wrap raw k0s command output (see the "failed after retries"
+	// call site below), which is just as capable of carrying an embedded
+	// newline into this warning as hostname or peerAddress above.
+	causeText := stripLogLineBreaks(cause.Error())
 	// peerAddress is "" only when the caller never had a member-list entry to
 	// read one from (k0s binary missing, member-list unreadable, or this
 	// node's own key already absent from the list) -- there is no real peer
@@ -448,18 +452,18 @@ func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
 	// point them at how to find the real one instead.
 	if peerAddress == "" {
 		return fmt.Sprintf(
-			"Unable to confirm this node's etcd membership was removed: %v\n"+
+			"Unable to confirm this node's etcd membership was removed: %s\n"+
 				"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
 				"From a surviving controller, run 'k0s etcd member-list' to find %q's peer address, "+
 				"then run 'k0s etcd leave --peer-address <that address>' to remove it.",
-			cause, hostname, hostname,
+			causeText, hostname, hostname,
 		)
 	}
 	return fmt.Sprintf(
-		"Unable to confirm this node's etcd membership was removed: %v\n"+
+		"Unable to confirm this node's etcd membership was removed: %s\n"+
 			"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
 			"Run 'k0s etcd leave --peer-address %s' from a surviving controller to remove it.",
-		cause, hostname, peerAddress,
+		causeText, hostname, peerAddress,
 	)
 }
 

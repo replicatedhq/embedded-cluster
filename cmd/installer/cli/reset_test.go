@@ -576,6 +576,27 @@ func TestStaleEtcdMemberWarning_SanitizesEmbeddedNewlines(t *testing.T) {
 		"no attacker-controlled line break should survive into the logged warning")
 }
 
+// TestStaleEtcdMemberWarning_SanitizesEmbeddedNewlinesInCause covers the
+// review finding on emc-r1lp (PR #4019): hostname and peerAddress are
+// stripped of embedded line breaks before being formatted into the warning,
+// but cause is interpolated with %v unsanitized. leaveEtcdCluster builds
+// cause from command output (e.g. "failed after retries: %w (%s)" with the
+// raw k0s command output), so a line break reaching the operator's console
+// through cause can forge a line just as easily as one through hostname or
+// peerAddress could.
+func TestStaleEtcdMemberWarning_SanitizesEmbeddedNewlinesInCause(t *testing.T) {
+	baseline := staleEtcdMemberWarning("node-a", "10.0.12.34", errors.New("etcdserver: server stopped"))
+	baselineLines := strings.Count(baseline, "\n")
+
+	injectedCause := errors.New("etcdserver: server stopped\nFAKE: reset already completed successfully")
+	injected := staleEtcdMemberWarning("node-a", "10.0.12.34", injectedCause)
+
+	assert.Equal(t, baselineLines, strings.Count(injected, "\n"),
+		"a newline embedded in cause must not add a forged line to the warning")
+	assert.NotContains(t, injected, "\nFAKE",
+		"no attacker-controlled line break in cause should survive into the logged warning")
+}
+
 // speedUpEtcdCmdTimeout shortens the k0s etcd command timeout for the
 // duration of the test.
 func speedUpEtcdCmdTimeout(t *testing.T) {
