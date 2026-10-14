@@ -1673,6 +1673,10 @@ func waitForDRComponent(ctx context.Context, drComponent disasterRecoveryCompone
 		if err := restoreWaitForSeaweedfsReady(ctx, kcli, constants.SeaweedFSNamespace, nil); err != nil {
 			return fmt.Errorf("unable to wait for seaweedfs to be ready: %w", err)
 		}
+
+		if err := restoreWaitForSeaweedfsClusterCheck(ctx, kcli); err != nil {
+			return fmt.Errorf("unable to verify seaweedfs cluster: %w", err)
+		}
 	case disasterRecoveryComponentRegistry:
 		// wait for registry to be ready
 		kcli, err := kubeutils.KubeClient()
@@ -2101,6 +2105,28 @@ func restoreWaitForSeaweedfsReady(ctx context.Context, cli client.Client, ns str
 			writer.Infof("Waiting for SeaweedFS to deploy: %d/3 ready", count)
 		}
 		return count == 3, nil
+	}); err != nil {
+		if lasterr == nil {
+			lasterr = err
+		}
+		return lasterr
+	}
+	return nil
+}
+
+// restoreWaitForSeaweedfsClusterCheck retries the seaweedfs cluster check a few times to ride out
+// startup. Pod readiness does not cover it: a filer that started without its peers stays ready
+// and never recovers, so retrying longer would not help.
+func restoreWaitForSeaweedfsClusterCheck(ctx context.Context, cli client.Client) error {
+	backoff := wait.Backoff{Steps: 6, Duration: 10 * time.Second, Factor: 1.0, Jitter: 0.1}
+	var lasterr error
+	if err := wait.ExponentialBackoffWithContext(ctx, backoff, func(ctx context.Context) (bool, error) {
+		if err := seaweedfs.ClusterCheck(ctx, cli); err != nil {
+			logrus.Debugf("SeaweedFS cluster check failed: %v", err)
+			lasterr = err
+			return false, nil
+		}
+		return true, nil
 	}); err != nil {
 		if lasterr == nil {
 			lasterr = err
