@@ -416,12 +416,26 @@ func runEtcdCommand(parent context.Context, args ...string) (string, error) {
 	return stdout.String(), err
 }
 
+// stripLogLineBreaks removes CR/LF from a value before it is formatted into
+// a log message. hostname and peerAddress below ultimately come from this
+// node's own os.Hostname() and the local trusted etcd's own member-list
+// output, never across a trust boundary, but a value containing a newline
+// could still inject a forged line into the reset log, so neither is trusted
+// to be line-break-free.
+func stripLogLineBreaks(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
+}
+
 // staleEtcdMemberWarning explains that this node's etcd membership could not
 // be confirmed removed, and gives the exact command a surviving controller
 // can run to remove it. Membership that is never explicitly removed stays
 // listed as a voting member forever (sc-139620): a reset that cannot confirm
 // removal must say so instead of assuming the node is already gone.
 func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
+	hostname = stripLogLineBreaks(hostname)
+	peerAddress = stripLogLineBreaks(peerAddress)
 	// peerAddress is "" only when the caller never had a member-list entry to
 	// read one from (k0s binary missing, member-list unreadable, or this
 	// node's own key already absent from the list) -- there is no real peer
@@ -488,8 +502,16 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 	var out string
 	var err error
 
-	// Retry member list up to 3 times
+	// Retry member list up to 3 times. Each attempt is bounded by
+	// etcdCmdTimeout and retried up to 3 times with etcdLeaveRetryDelay
+	// between them, so a fully inconclusive call here can take a while --
+	// log progress so an operator watching `reset` run doesn't mistake the
+	// wait for a hang (sc-139620 LOW-5).
+	logrus.Infof("Confirming this node's etcd membership was removed (listing etcd members)...")
 	for i := 0; i < 3; i++ {
+		if i > 0 {
+			logrus.Infof("Retrying etcd member-list (attempt %d/3)...", i+1)
+		}
 		out, err = runEtcdCommand(ctx, "member-list")
 		if err == nil {
 			err = json.Unmarshal([]byte(out), &memberlist)
@@ -537,8 +559,13 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 	// in any remediation command below instead of guessing from h.Hostname.
 	peerAddress := etcdPeerHost(memberlist.Members[h.Hostname])
 
-	// Attempt to leave the cluster with retries
+	// Attempt to leave the cluster with retries. Same rationale as the
+	// member-list retries above: log progress so the wait isn't silent.
+	logrus.Infof("Leaving the etcd cluster...")
 	for i := 0; i < 3; i++ {
+		if i > 0 {
+			logrus.Infof("Retrying etcd leave (attempt %d/3)...", i+1)
+		}
 		out, err = runEtcdCommand(ctx, "leave")
 		if err == nil {
 			return true, ""

@@ -534,6 +534,48 @@ func TestStaleEtcdMemberWarning_KnownPeerAddressStillUsesIt(t *testing.T) {
 	assert.Contains(t, warning, "k0s etcd leave --peer-address 10.0.12.34")
 }
 
+// TestEtcdPeerHost covers the review finding on emc-r1lp (PR #4019, round 3,
+// LOW-2): the fallback branch (an unparseable peer URL, or one that parses
+// but has no hostname) was never exercised by any existing test, since every
+// caller fed it a well-formed "https://host:port" value.
+func TestEtcdPeerHost(t *testing.T) {
+	tests := []struct {
+		name     string
+		peerURL  string
+		expected string
+	}{
+		{name: "well-formed URL", peerURL: "https://10.0.12.34:2380", expected: "10.0.12.34"},
+		{name: "unparseable string falls back to the raw value", peerURL: "://not a url", expected: "://not a url"},
+		{name: "empty string falls back to the raw value", peerURL: "", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, etcdPeerHost(tt.peerURL))
+		})
+	}
+}
+
+// TestStaleEtcdMemberWarning_SanitizesEmbeddedNewlines covers the review
+// finding on emc-r1lp (PR #4019, round 3, LOW-3): hostname and peerAddress
+// are never validated before being formatted into the warning that
+// warnIfEtcdLeaveNotConfirmed passes to logrus.Warn. A value containing a
+// newline could inject a forged line into the reset log. Neither value must
+// be able to add a line break to the logged warning.
+func TestStaleEtcdMemberWarning_SanitizesEmbeddedNewlines(t *testing.T) {
+	baseline := staleEtcdMemberWarning("node-a", "10.0.12.34", errors.New("etcdserver: server stopped"))
+	baselineLines := strings.Count(baseline, "\n")
+
+	injectedHostname := "node-a\nFAKE: reset already completed successfully"
+	injectedPeer := "10.0.12.34\nFAKE: reset already completed successfully"
+	injected := staleEtcdMemberWarning(injectedHostname, injectedPeer, errors.New("etcdserver: server stopped"))
+
+	assert.Equal(t, baselineLines, strings.Count(injected, "\n"),
+		"a newline embedded in hostname/peerAddress must not add a forged line to the warning")
+	assert.NotContains(t, injected, "\nFAKE",
+		"no attacker-controlled line break should survive into the logged warning")
+}
+
 // speedUpEtcdCmdTimeout shortens the k0s etcd command timeout for the
 // duration of the test.
 func speedUpEtcdCmdTimeout(t *testing.T) {
@@ -728,6 +770,46 @@ func TestLeaveEtcdCluster_RespectsParentContext(t *testing.T) {
 // leaveEtcdCluster's warning when removal was not confirmed, pulled out into
 // warnIfEtcdLeaveNotConfirmed so that exact call-site behavior is testable
 // directly.
+// TestLeaveEtcdCluster_LogsProgressDuringRetries covers the review finding
+// on emc-r1lp (PR #4019, round 3, LOW-5): a fully inconclusive
+// leaveEtcdCluster call can take up to ~3 minutes (2 retry loops of 3
+// attempts each) before it returns and the stale-member warning prints. An
+// operator running `reset` interactively sees no output during that window
+// and can mistake it for a hang. Progress must be logged at the start of the
+// wait and on each retry, not just once the whole call finally gives up.
+func TestLeaveEtcdCluster_LogsProgressDuringRetries(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return "", errors.New("connection refused")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	var buf bytes.Buffer
+	origOut := logrus.StandardLogger().Out
+	origLevel := logrus.GetLevel()
+	logrus.SetOutput(&buf)
+	logrus.SetLevel(logrus.InfoLevel)
+	t.Cleanup(func() {
+		logrus.SetOutput(origOut)
+		logrus.SetLevel(origLevel)
+	})
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, _ := h.leaveEtcdCluster(context.Background())
+
+	require.False(t, removed)
+	logged := buf.String()
+	assert.NotEmpty(t, logged, "should log progress while retrying etcd member-list instead of staying silent")
+	assert.GreaterOrEqual(t, strings.Count(logged, "member-list"), 2,
+		"should log at least once per member-list retry attempt, not just once at the end")
+}
+
 func TestWarnIfEtcdLeaveNotConfirmed(t *testing.T) {
 	tests := []struct {
 		name    string
