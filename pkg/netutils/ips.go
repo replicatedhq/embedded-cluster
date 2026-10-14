@@ -18,6 +18,26 @@ func FirstValidAddress(networkInterface string) (string, error) {
 }
 
 func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
+	i, err := findValidInterface(networkInterface)
+	if err != nil {
+		return nil, err
+	}
+	return firstValidIPNet(i)
+}
+
+// InterfaceMTU returns the MTU of the interface whose address FirstValidAddress returns for the
+// same network interface name.
+func InterfaceMTU(networkInterface string) (int, error) {
+	i, err := findValidInterface(networkInterface)
+	if err != nil {
+		return 0, err
+	}
+	return i.MTU(), nil
+}
+
+// findValidInterface returns the valid interface with the given name, or the first valid
+// interface if the name is empty.
+func findValidInterface(networkInterface string) (NetworkInterface, error) {
 	ifs, err := listValidInterfaces()
 	if err != nil {
 		return nil, fmt.Errorf("list valid network interfaces: %w", err)
@@ -26,11 +46,11 @@ func FirstValidIPNet(networkInterface string) (*net.IPNet, error) {
 		return nil, fmt.Errorf("no valid network interfaces found on this machine")
 	}
 	if networkInterface == "" {
-		return firstValidIPNet(ifs[0])
+		return ifs[0], nil
 	}
 	for _, i := range ifs {
 		if i.Name() == networkInterface {
-			return firstValidIPNet(i)
+			return i, nil
 		}
 	}
 	var ifNames []string
