@@ -170,9 +170,7 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					if removed, warning := currentHost.leaveEtcdCluster(); !removed {
-						logrus.Warn(warning)
-					}
+					warnIfEtcdLeaveNotConfirmed(currentHost.leaveEtcdCluster(ctx))
 				}
 			}
 
@@ -406,9 +404,12 @@ var etcdLeaveRetryDelay = 2 * time.Second
 var etcdCmdTimeout = 30 * time.Second
 
 // runEtcdCommand runs `k0s etcd <args...>` bounded by etcdCmdTimeout, so a
-// call that never gets a quorum response cannot hang the reset.
-func runEtcdCommand(args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), etcdCmdTimeout)
+// call that never gets a quorum response cannot hang the reset. It is also
+// bounded by the reset's own ctx, so cancelling the reset (e.g. Ctrl-C)
+// cancels an in-flight etcd call instead of leaving it to run out its own
+// separate timeout.
+func runEtcdCommand(parent context.Context, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(parent, etcdCmdTimeout)
 	defer cancel()
 	stdout := &bytes.Buffer{}
 	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Context: ctx, Stdout: stdout}, k0sBinPath, append([]string{"etcd"}, args...)...)
@@ -463,10 +464,19 @@ func etcdPeerHost(peerURL string) string {
 	return u.Hostname()
 }
 
+// warnIfEtcdLeaveNotConfirmed logs leaveEtcdCluster's warning when it could
+// not confirm removal. Split out from its ResetCmd call site so that call
+// site's behavior is unit-testable without driving the whole reset command.
+func warnIfEtcdLeaveNotConfirmed(removed bool, warning string) {
+	if !removed {
+		logrus.Warn(warning)
+	}
+}
+
 // leaveEtcdCluster uses k0s to attempt to leave the etcd cluster. It returns
 // whether removal was confirmed and, when it was not, a warning describing
 // the stale membership and how to clean it up from a surviving controller.
-func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
+func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning string) {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
@@ -480,7 +490,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 
 	// Retry member list up to 3 times
 	for i := 0; i < 3; i++ {
-		out, err = runEtcdCommand("member-list")
+		out, err = runEtcdCommand(ctx, "member-list")
 		if err == nil {
 			err = json.Unmarshal([]byte(out), &memberlist)
 			if err == nil {
@@ -515,7 +525,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 	// so it is reported the same as any other failed leave rather than
 	// assumed successful.
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
-		_, leaveErr := runEtcdCommand("leave")
+		_, leaveErr := runEtcdCommand(ctx, "leave")
 		if leaveErr != nil && !strings.Contains(leaveErr.Error(), "member not found") {
 			return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("defensive leave attempt failed: %w", leaveErr))
 		}
@@ -529,7 +539,7 @@ func (h *hostInfo) leaveEtcdCluster() (removed bool, warning string) {
 
 	// Attempt to leave the cluster with retries
 	for i := 0; i < 3; i++ {
-		out, err = runEtcdCommand("leave")
+		out, err = runEtcdCommand(ctx, "leave")
 		if err == nil {
 			return true, ""
 		}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/replicatedhq/embedded-cluster/pkg/helpers"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -197,7 +199,7 @@ func TestLeaveEtcdCluster_SoleMember(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
@@ -219,7 +221,7 @@ func TestLeaveEtcdCluster_Success(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
@@ -250,7 +252,7 @@ func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
@@ -278,7 +280,7 @@ func TestLeaveEtcdCluster_AlreadyRemovedButActuallyStillAMember(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
@@ -308,7 +310,7 @@ func TestLeaveEtcdCluster_AlreadyRemovedButLeaveFailsForUnrelatedReason(t *testi
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
@@ -347,7 +349,7 @@ func TestLeaveEtcdCluster_MemberListKeyIsHostname(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: hostname}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed)
 	assert.Empty(t, warning)
@@ -401,7 +403,7 @@ func TestLeaveEtcdCluster_NeverPassesPeerAddress(t *testing.T) {
 			installFakeHelpers(t, f)
 
 			h := &hostInfo{Hostname: "node-a"}
-			h.leaveEtcdCluster()
+			h.leaveEtcdCluster(context.Background())
 
 			require.NotEmpty(t, leaveArgs, "expected at least one etcd leave call")
 			for _, args := range leaveArgs {
@@ -429,7 +431,7 @@ func TestLeaveEtcdCluster_MemberListFails(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
@@ -457,7 +459,7 @@ func TestLeaveEtcdCluster_EtcdStopped(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
@@ -492,7 +494,7 @@ func TestLeaveEtcdCluster_RemediationUsesEtcdPeerAddressNotHostname(t *testing.T
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: hostname}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	require.False(t, removed)
 	assert.Contains(t, warning, hostname, "the warning should still identify the node by its hostname")
@@ -559,7 +561,7 @@ func TestLeaveEtcdCluster_MemberListBlocks(t *testing.T) {
 	var removed bool
 	var warning string
 	go func() {
-		removed, warning = h.leaveEtcdCluster()
+		removed, warning = h.leaveEtcdCluster(context.Background())
 		close(done)
 	}()
 
@@ -597,7 +599,7 @@ func TestLeaveEtcdCluster_LeaveBlocks(t *testing.T) {
 	var removed bool
 	var warning string
 	go func() {
-		removed, warning = h.leaveEtcdCluster()
+		removed, warning = h.leaveEtcdCluster(context.Background())
 		close(done)
 	}()
 
@@ -629,7 +631,7 @@ func TestLeaveEtcdCluster_LeaveFailsAfterRetries(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	require.False(t, removed)
 	assert.Contains(t, warning, "node-a")
@@ -658,7 +660,7 @@ func TestLeaveEtcdCluster_DirectLeaveMemberNotFound(t *testing.T) {
 	installFakeHelpers(t, f)
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.True(t, removed, "a definitive 'member not found' confirms removal, it is not a failure")
 	assert.Empty(t, warning)
@@ -676,8 +678,81 @@ func TestLeaveEtcdCluster_BinaryMissing(t *testing.T) {
 	k0sBinPath = filepath.Join(t.TempDir(), "k0s-does-not-exist")
 
 	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster()
+	removed, warning := h.leaveEtcdCluster(context.Background())
 
 	assert.False(t, removed, "missing binary means removal was never confirmed")
 	assert.Contains(t, warning, "node-a")
+}
+
+// TestLeaveEtcdCluster_RespectsParentContext covers LOW-2 from the PR #4019
+// review (round 2): runEtcdCommand used to derive its timeout from
+// context.Background(), so cancelling the reset's own context had no effect
+// on an in-flight etcd call -- it would keep running until etcdCmdTimeout
+// fired on its own. Cancelling the parent before the call must stop the
+// member-list retry loop immediately instead of waiting out that separate
+// timeout.
+func TestLeaveEtcdCluster_RespectsParentContext(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	orig := etcdCmdTimeout
+	etcdCmdTimeout = 2 * time.Second
+	t.Cleanup(func() { etcdCmdTimeout = orig })
+
+	f := &fakeHelpers{blockOn: "member-list"}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	done := make(chan struct{})
+	var removed bool
+	var warning string
+	go func() {
+		removed, warning = h.leaveEtcdCluster(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("leaveEtcdCluster did not return promptly on an already-cancelled parent context — runEtcdCommand is not threading it through")
+	}
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "node-a")
+}
+
+// TestWarnIfEtcdLeaveNotConfirmed covers LOW-7 from the PR #4019 review
+// (round 2): ResetCmd's etcd-leave call site (reset.go:~172) only logs
+// leaveEtcdCluster's warning when removal was not confirmed, pulled out into
+// warnIfEtcdLeaveNotConfirmed so that exact call-site behavior is testable
+// directly.
+func TestWarnIfEtcdLeaveNotConfirmed(t *testing.T) {
+	tests := []struct {
+		name    string
+		removed bool
+		warning string
+		wantLog bool
+	}{
+		{name: "not removed logs the warning", removed: false, warning: "stale etcd member for node-a", wantLog: true},
+		{name: "removed logs nothing", removed: true, warning: "", wantLog: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			origOut := logrus.StandardLogger().Out
+			logrus.SetOutput(&buf)
+			t.Cleanup(func() { logrus.SetOutput(origOut) })
+
+			warnIfEtcdLeaveNotConfirmed(tt.removed, tt.warning)
+
+			if tt.wantLog {
+				assert.Contains(t, buf.String(), tt.warning)
+			} else {
+				assert.Empty(t, buf.String())
+			}
+		})
+	}
 }
