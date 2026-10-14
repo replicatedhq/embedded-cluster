@@ -895,7 +895,6 @@ jobs:
   # e2e-docker runs the e2e tests inside a docker container rather than a full VM
   e2e-docker:
     name: E2E docker # this name is used by .github/workflows/automated-prs-manager.yaml
-    if: false # TODO(sc-140103): re-enable once TestMultiNodeAirgapHADisasterRecovery passes
     runs-on: ubuntu-22.04
     needs:
       - output-vars
@@ -908,20 +907,20 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - TestPreflights # kept so the matrix is valid, the job is skipped by if: false
-          # - TestPreflightsNoexec
-          # - TestSingleNodeInstallation
-          # - TestSingleNodeUpgradePreviousStable
-          # - TestUpgradeFromReplicatedAppPreviousK0s
-          # - TestMultiNodeInstallation
-          # - TestSingleNodeDisasterRecovery
-          # - TestSingleNodeLegacyDisasterRecovery
-          # - TestSingleNodeResumeDisasterRecovery
-          # - TestMultiNodeHADisasterRecovery
-          # - TestSingleNodeInstallationNoopUpgrade
-          # - TestCollectSupportBundle
-          # - TestHostCollectSupportBundleInCluster
-          # - TestInstallWithConfigValues
+          - TestPreflights
+          - TestPreflightsNoexec
+          - TestSingleNodeInstallation
+          - TestSingleNodeUpgradePreviousStable
+          - TestUpgradeFromReplicatedAppPreviousK0s
+          - TestMultiNodeInstallation
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeLegacyDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
+          - TestCollectSupportBundle
+          - TestHostCollectSupportBundleInCluster
+          - TestInstallWithConfigValues
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -985,22 +984,22 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          # - TestSingleNodeAirgapAppOnlyUpgrade
-          # - TestSingleNodeAirgapUpgradeSelinux
-          # - TestMultiNodeAirgapUpgradePreviousStable
-          # - TestSingleNodeAirgapDisasterRecovery
+          - TestSingleNodeAirgapAppOnlyUpgrade
+          - TestSingleNodeAirgapUpgradeSelinux
+          - TestMultiNodeAirgapUpgradePreviousStable
+          - TestSingleNodeAirgapDisasterRecovery
           - TestMultiNodeAirgapHADisasterRecovery
-        # include:
-        #   - test: TestVersion
-        #     is-lxd: true
-        #   - test: TestCommandsRequireSudo
-        #     is-lxd: true
-        #   - test: TestProxiedEnvironment
-        #     is-lxd: true
-        #   - test: TestInstallWithMITMProxy
-        #     is-lxd: true
-        #   - test: TestSingleNodeNetworkReport
-        #     continue-on-error: true
+        include:
+          - test: TestVersion
+            is-lxd: true
+          - test: TestCommandsRequireSudo
+            is-lxd: true
+          - test: TestProxiedEnvironment
+            is-lxd: true
+          - test: TestInstallWithMITMProxy
+            is-lxd: true
+          - test: TestSingleNodeNetworkReport
+            continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
