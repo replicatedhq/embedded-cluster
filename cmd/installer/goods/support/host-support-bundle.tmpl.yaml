@@ -243,22 +243,7 @@ spec:
   - run:
       collectorName: "ip-address-stats"
       command: "ip"
-      args: ["-s", "-s", "-d", "address"]
-  - run:
-      collectorName: "tc-qdisc-stats"
-      command: "tc"
-      args: ["-s", "-d", "qdisc", "show"]
-  - run:
-      # ip fragmentation/reassembly, tcp retransmit and softirq backlog counters
-      collectorName: "network-counters"
-      command: "sh"
-      args:
-        - -c
-        - >
-            for f in /proc/net/snmp /proc/net/netstat /proc/net/softnet_stat; do
-            echo "=== $f";
-            cat "$f";
-            done
+      args: ["-s", "-s", "address"]
   - run:
       collectorName: "lspci"
       command: "lspci"
