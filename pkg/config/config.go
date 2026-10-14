@@ -108,6 +108,11 @@ const (
 // different nodes is fragmented. Under load, lost fragments stall TCP connections. The MTU is
 // only ever lowered, and a host MTU that would give an overlay MTU below minCalicoMTU leaves the
 // config unchanged.
+//
+// Setting the MTU to 0 so calico detects it on each node would be a better fix, but it needs a
+// change in k0s first: k0s defaults the calico MTU to 1450 and drops a 0 when the config is
+// written out (omitempty), so a 0 never reaches calico.
+// See https://github.com/k0sproject/k0s/issues/8513
 func SetCalicoMTU(cfg *k0sv1beta1.ClusterConfig, hostMTU int) {
 	if cfg.Spec == nil || cfg.Spec.Network == nil || cfg.Spec.Network.Calico == nil {
 		return
