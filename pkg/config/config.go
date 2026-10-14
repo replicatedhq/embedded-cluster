@@ -93,7 +93,8 @@ func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
 }
 
 const (
-	// calicoVXLANOverhead is the number of bytes VXLAN encapsulation adds to each packet.
+	// calicoVXLANOverhead is the number of bytes IPv4 VXLAN encapsulation adds to each packet, as
+	// documented by calico.
 	calicoVXLANOverhead = 50
 	// minCalicoMTU is the smallest overlay MTU we set, the minimum datagram size every IPv4 host
 	// must accept (RFC 791). A host MTU that would give a smaller overlay MTU is not trusted.
