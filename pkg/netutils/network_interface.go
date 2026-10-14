@@ -12,6 +12,8 @@ type NetworkInterface interface {
 	Flags() net.Flags
 	// Addrs returns the addresses assigned to the interface
 	Addrs() ([]net.Addr, error)
+	// MTU returns the maximum transmission unit of the interface
+	MTU() int
 }
 
 // NetworkInterfaceProvider abstracts the network interface discovery
@@ -43,6 +45,11 @@ func (r *RealNetworkInterface) Flags() net.Flags {
 // Addrs returns the addresses assigned to the interface
 func (r *RealNetworkInterface) Addrs() ([]net.Addr, error) {
 	return r.iface.Addrs()
+}
+
+// MTU returns the maximum transmission unit of the interface
+func (r *RealNetworkInterface) MTU() int {
+	return r.iface.MTU
 }
 
 // RealNetworkInterfaceProvider implements NetworkInterfaceProvider using net.Interfaces

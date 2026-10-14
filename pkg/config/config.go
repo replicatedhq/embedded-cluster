@@ -92,6 +92,40 @@ func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Network.Calico.EnvVars["FELIX_USAGEREPORTINGENABLED"] = "false"
 }
 
+const (
+	// calicoVXLANOverhead is the number of bytes IPv4 VXLAN encapsulation adds to each packet, as
+	// documented by calico.
+	calicoVXLANOverhead = 50
+	// minCalicoMTU is the smallest overlay MTU we set, the minimum datagram size every IPv4 host
+	// must accept (RFC 791). A host MTU that would give a smaller overlay MTU is not trusted.
+	minCalicoMTU = 576
+)
+
+// SetCalicoMTU lowers the calico overlay MTU so that VXLAN encapsulated packets fit the MTU of
+// the host interface. k0s defaults the overlay MTU to 1450, which only fits hosts with an MTU of
+// 1500 or more. On a host with a smaller MTU, calico clamps the VXLAN device to the host MTU minus
+// the VXLAN overhead while pods keep the default MTU, so every full size packet between pods on
+// different nodes is fragmented. Under load, lost fragments stall TCP connections. The MTU is
+// only ever lowered, and a host MTU that would give an overlay MTU below minCalicoMTU leaves the
+// config unchanged.
+//
+// Setting the MTU to 0 so calico detects it on each node would be a better fix, but it needs a
+// change in k0s first: k0s defaults the calico MTU to 1450 and drops a 0 when the config is
+// written out (omitempty), so a 0 never reaches calico.
+// See https://github.com/k0sproject/k0s/issues/8513
+func SetCalicoMTU(cfg *k0sv1beta1.ClusterConfig, hostMTU int) {
+	if cfg.Spec == nil || cfg.Spec.Network == nil || cfg.Spec.Network.Calico == nil {
+		return
+	}
+	mtu := hostMTU - calicoVXLANOverhead
+	if mtu < minCalicoMTU {
+		return
+	}
+	if mtu < cfg.Spec.Network.Calico.MTU {
+		cfg.Spec.Network.Calico.MTU = mtu
+	}
+}
+
 // ApplyHostK0sConfigOverrides detects the host's netfilter backend capability
 // and applies any host-specific overrides to the k0s config.
 func ApplyHostK0sConfigOverrides(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {

@@ -369,3 +369,76 @@ func TestApplyHostK0sConfigOverrides(t *testing.T) {
 		})
 	}
 }
+
+func TestSetCalicoMTU(t *testing.T) {
+	tests := []struct {
+		name     string
+		inputCfg func() *k0sv1beta1.ClusterConfig
+		hostMTU  int
+		wantMTU  int
+	}{
+		{
+			name:     "host mtu 1500 keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  1500,
+			wantMTU:  1450,
+		},
+		{
+			name:     "jumbo host mtu keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  9000,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu 1450 lowers the overlay mtu to fit vxlan",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  1450,
+			wantMTU:  1400,
+		},
+		{
+			name:     "unknown host mtu keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  0,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu at the vxlan overhead keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  50,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu giving an overlay mtu below the minimum keeps the k0s default",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  625,
+			wantMTU:  1450,
+		},
+		{
+			name:     "host mtu giving exactly the minimum overlay mtu is used",
+			inputCfg: func() *k0sv1beta1.ClusterConfig { return RenderK0sConfig("") },
+			hostMTU:  626,
+			wantMTU:  576,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := tt.inputCfg()
+			SetCalicoMTU(cfg, tt.hostMTU)
+			assert.Equal(t, tt.wantMTU, cfg.Spec.Network.Calico.MTU)
+		})
+	}
+
+	t.Run("config without calico is left unchanged", func(t *testing.T) {
+		cfg := &k0sv1beta1.ClusterConfig{Spec: &k0sv1beta1.ClusterSpec{Network: &k0sv1beta1.Network{}}}
+		SetCalicoMTU(cfg, 1450)
+		assert.Nil(t, cfg.Spec.Network.Calico)
+	})
+
+	t.Run("unsupported overrides applied afterwards win", func(t *testing.T) {
+		cfg := RenderK0sConfig("")
+		SetCalicoMTU(cfg, 1450)
+		patched, err := PatchK0sConfig(cfg, "config:\n  spec:\n    network:\n      calico:\n        mtu: 1300\n", false)
+		require.NoError(t, err)
+		assert.Equal(t, 1300, patched.Spec.Network.Calico.MTU)
+	})
+}
