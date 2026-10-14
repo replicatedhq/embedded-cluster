@@ -92,6 +92,24 @@ func enableCalicoNetworkProvider(cfg *k0sv1beta1.ClusterConfig) {
 	cfg.Spec.Network.Calico.EnvVars["FELIX_USAGEREPORTINGENABLED"] = "false"
 }
 
+// calicoVXLANOverhead is the number of bytes VXLAN encapsulation adds to each packet.
+const calicoVXLANOverhead = 50
+
+// SetCalicoMTU lowers the calico overlay MTU so that VXLAN encapsulated packets fit the MTU of
+// the host interface. k0s defaults the overlay MTU to 1450, which only fits hosts with an MTU of
+// 1500 or more. On a host with a smaller MTU, calico clamps the VXLAN device to the host MTU minus
+// the VXLAN overhead while pods keep the default MTU, so every full size packet between pods on
+// different nodes is fragmented. Under load, lost fragments stall TCP connections. The MTU is
+// only ever lowered, and an unknown host MTU (zero or less) leaves the config unchanged.
+func SetCalicoMTU(cfg *k0sv1beta1.ClusterConfig, hostMTU int) {
+	if hostMTU <= 0 || cfg.Spec == nil || cfg.Spec.Network == nil || cfg.Spec.Network.Calico == nil {
+		return
+	}
+	if mtu := hostMTU - calicoVXLANOverhead; mtu < cfg.Spec.Network.Calico.MTU {
+		cfg.Spec.Network.Calico.MTU = mtu
+	}
+}
+
 // ApplyHostK0sConfigOverrides detects the host's netfilter backend capability
 // and applies any host-specific overrides to the k0s config.
 func ApplyHostK0sConfigOverrides(ctx context.Context, cfg *k0sv1beta1.ClusterConfig) error {

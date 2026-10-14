@@ -15,6 +15,7 @@ type mockNetworkInterface struct {
 	flags net.Flags
 	addrs []net.Addr
 	err   error
+	mtu   int
 }
 
 func (m *mockNetworkInterface) Name() string {
@@ -27,6 +28,10 @@ func (m *mockNetworkInterface) Flags() net.Flags {
 
 func (m *mockNetworkInterface) Addrs() ([]net.Addr, error) {
 	return m.addrs, m.err
+}
+
+func (m *mockNetworkInterface) MTU() int {
+	return m.mtu
 }
 
 // Mock NetworkInterfaceProvider implementation for testing
@@ -624,6 +629,78 @@ func TestListAllValidIPAddresses(t *testing.T) {
 
 				assert.ElementsMatch(t, tt.expectedIPs, actualIPs)
 			}
+		})
+	}
+}
+
+func TestInterfaceMTU(t *testing.T) {
+	originalProvider := DefaultNetworkInterfaceProvider
+	defer func() {
+		DefaultNetworkInterfaceProvider = originalProvider
+	}()
+
+	provider := &mockNetworkInterfaceProvider{
+		interfaces: []NetworkInterface{
+			&mockNetworkInterface{
+				name:  "eth0",
+				flags: net.FlagUp,
+				addrs: []net.Addr{
+					&net.IPNet{IP: net.ParseIP("192.168.1.100"), Mask: net.CIDRMask(24, 32)},
+				},
+				mtu: 1500,
+			},
+			&mockNetworkInterface{
+				name:  "eth1",
+				flags: net.FlagUp,
+				addrs: []net.Addr{
+					&net.IPNet{IP: net.ParseIP("10.0.0.50"), Mask: net.CIDRMask(16, 32)},
+				},
+				mtu: 1450,
+			},
+			&mockNetworkInterface{
+				name:  "vxlan.calico",
+				flags: net.FlagUp,
+				addrs: []net.Addr{
+					&net.IPNet{IP: net.ParseIP("10.244.0.1"), Mask: net.CIDRMask(32, 32)},
+				},
+				mtu: 1400,
+			},
+		},
+	}
+
+	tests := []struct {
+		name                  string
+		networkInterface      string
+		wantMTU               int
+		expectedErrorContains string
+	}{
+		{
+			name:             "empty interface name returns the first valid interface mtu",
+			networkInterface: "",
+			wantMTU:          1500,
+		},
+		{
+			name:             "named interface returns its mtu",
+			networkInterface: "eth1",
+			wantMTU:          1450,
+		},
+		{
+			name:                  "invalid interface returns an error",
+			networkInterface:      "vxlan.calico",
+			expectedErrorContains: "interface vxlan.calico not found or is not valid",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			DefaultNetworkInterfaceProvider = provider
+			mtu, err := InterfaceMTU(tt.networkInterface)
+			if tt.expectedErrorContains != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorContains)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMTU, mtu)
 		})
 	}
 }

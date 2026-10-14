@@ -137,6 +137,14 @@ func (k *K0s) NewK0sConfig(networkInterface string, isAirgap bool, podCIDR strin
 	cfg.Spec.Network.PodCIDR = podCIDR
 	cfg.Spec.Network.ServiceCIDR = serviceCIDR
 
+	// the calico network settings are cluster wide, so the first controller's interface sizes
+	// the overlay MTU for the whole cluster. unsupported overrides below can still set it.
+	hostMTU, err := netutils.InterfaceMTU(networkInterface)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find network interface mtu: %w", err)
+	}
+	config.SetCalicoMTU(cfg, hostMTU)
+
 	if err := config.ApplyHostK0sConfigOverrides(context.TODO(), cfg); err != nil {
 		return nil, fmt.Errorf("apply host k0s config overrides: %w", err)
 	}

@@ -14,6 +14,7 @@ type mockNetworkInterface struct {
 	flags net.Flags
 	addrs []net.Addr
 	err   error
+	mtu   int
 }
 
 func (m *mockNetworkInterface) Name() string {
@@ -26,6 +27,10 @@ func (m *mockNetworkInterface) Flags() net.Flags {
 
 func (m *mockNetworkInterface) Addrs() ([]net.Addr, error) {
 	return m.addrs, m.err
+}
+
+func (m *mockNetworkInterface) MTU() int {
+	return m.mtu
 }
 
 // Mock NetworkInterfaceProvider implementation

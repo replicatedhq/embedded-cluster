@@ -25,6 +25,7 @@ type NetworkInterface struct {
 	MockFlags net.Flags
 	MockAddrs []net.Addr
 	MockErr   error
+	MockMTU   int
 }
 
 func (i *NetworkInterface) Name() string {
@@ -37,6 +38,10 @@ func (i *NetworkInterface) Flags() net.Flags {
 
 func (i *NetworkInterface) Addrs() ([]net.Addr, error) {
 	return i.MockAddrs, i.MockErr
+}
+
+func (i *NetworkInterface) MTU() int {
+	return i.MockMTU
 }
 
 // ChooseHostInterfaceImpl is a mock implementation that returns a fixed IP for testing
