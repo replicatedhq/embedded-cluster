@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.5.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/bombsimon/logrusr/v4 v4.2.0
-	github.com/canonical/lxd v0.0.0-20261013111636-c4587e883cd8
+	github.com/canonical/lxd v0.0.0-20261014215752-4bb280714a65
 	github.com/coreos/go-systemd/v22 v22.7.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
