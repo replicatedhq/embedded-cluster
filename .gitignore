@@ -3,6 +3,8 @@ cmd/installer/goods/bins/*
 !cmd/installer/goods/bins/.placeholder
 cmd/installer/goods/internal/bins/*
 !cmd/installer/goods/internal/bins/.placeholder
+cmd/installer/goods/selinux/*
+!cmd/installer/goods/selinux/.placeholder
 cmd/installer/goods/images
 .pre-commit-config.yaml
 vendor
