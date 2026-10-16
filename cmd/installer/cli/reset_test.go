@@ -925,3 +925,68 @@ func TestWarnIfEtcdLeaveNotConfirmed(t *testing.T) {
 		})
 	}
 }
+
+// useK0sControllerFiles points reset at a temp controller unit and k0s config.
+// An empty config or unit means that file doesn't exist.
+func useK0sControllerFiles(t *testing.T, unit bool, config string) {
+	dir := t.TempDir()
+	origUnit, origConfig := k0sControllerUnitPath, k0sConfigPath
+	k0sControllerUnitPath = filepath.Join(dir, "k0scontroller.service")
+	k0sConfigPath = filepath.Join(dir, "k0s.yaml")
+	t.Cleanup(func() { k0sControllerUnitPath, k0sConfigPath = origUnit, origConfig })
+	if unit {
+		require.NoError(t, os.WriteFile(k0sControllerUnitPath, []byte("[Unit]\n"), 0644))
+	}
+	if config != "" {
+		require.NoError(t, os.WriteFile(k0sConfigPath, []byte(config), 0644))
+	}
+}
+
+// TestStoppedControllerEtcdWarning covers resetting a controller whose k0s is
+// stopped. Reset can't leave etcd then, and used to skip it without a word,
+// leaving a stale member behind (sc-139620).
+func TestStoppedControllerEtcdWarning(t *testing.T) {
+	const config = "apiVersion: k0s.k0sproject.io/v1beta1\nkind: ClusterConfig\nspec:\n  storage:\n    etcd:\n      peerAddress: 10.0.0.12\n"
+
+	t.Run("controller with peer address in config", func(t *testing.T) {
+		useK0sControllerFiles(t, true, config)
+		warning, ok := stoppedControllerEtcdWarning("node-a")
+		require.True(t, ok)
+		assert.Contains(t, warning, "k0s is not running on this node")
+		assert.Contains(t, warning, "k0s etcd leave --peer-address 10.0.0.12")
+	})
+
+	t.Run("controller without k0s config", func(t *testing.T) {
+		useK0sControllerFiles(t, true, "")
+		warning, ok := stoppedControllerEtcdWarning("node-a")
+		require.True(t, ok)
+		assert.Contains(t, warning, `run 'k0s etcd member-list' to find "node-a"'s peer address`)
+	})
+
+	t.Run("worker", func(t *testing.T) {
+		useK0sControllerFiles(t, false, config)
+		_, ok := stoppedControllerEtcdWarning("node-a")
+		assert.False(t, ok, "workers have no etcd member to warn about")
+	})
+}
+
+// TestConfiguredEtcdPeerAddress makes sure only an explicitly configured peer
+// address is used, never one filled in from k0s's defaults.
+func TestConfiguredEtcdPeerAddress(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		want   string
+	}{
+		{"set", "spec:\n  storage:\n    etcd:\n      peerAddress: 10.0.0.12\n", "10.0.0.12"},
+		{"not set", "spec:\n  storage:\n    type: etcd\n", ""},
+		{"invalid yaml", "spec: [", ""},
+		{"missing file", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			useK0sControllerFiles(t, true, tt.config)
+			assert.Equal(t, tt.want, configuredEtcdPeerAddress())
+		})
+	}
+}

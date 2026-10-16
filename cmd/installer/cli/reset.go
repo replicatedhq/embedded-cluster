@@ -31,10 +31,19 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 // k0sBinPath is the k0s binary this command stops and resets. Overridden by tests.
 var k0sBinPath = "/usr/local/bin/k0s"
+
+// k0sControllerUnitPath and k0sConfigPath tell reset this node was a
+// controller, and its etcd peer address, when k0s isn't running to say so.
+// Overridden by tests.
+var (
+	k0sControllerUnitPath = "/etc/systemd/system/k0scontroller.service"
+	k0sConfigPath         = runtimeconfig.K0sConfigPath
+)
 
 const (
 	// k0sRunDir holds k0s runtime state: the containerd socket, sandbox shm
@@ -171,6 +180,12 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 
 					// try and leave etcd cluster
 					warnIfEtcdLeaveNotConfirmed(currentHost.leaveEtcdCluster(ctx))
+				} else if currentHost.Status.Role == "" {
+					// k0s status failed, so this may still be a controller
+					// whose etcd member is left behind (sc-139620).
+					if warning, ok := stoppedControllerEtcdWarning(currentHost.Hostname); ok {
+						logrus.Warn(warning)
+					}
 				}
 			}
 
@@ -465,6 +480,41 @@ func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
 			"Run 'k0s etcd leave --peer-address %s' from a surviving controller to remove it.",
 		causeText, hostname, peerAddress,
 	)
+}
+
+// stoppedControllerEtcdWarning returns the stale-member warning for a node
+// whose k0s isn't running, when its k0s controller unit is still installed.
+// Without a running etcd this node can't leave, so all reset can do is say
+// so. The peer address comes from this node's own k0s config, if set.
+func stoppedControllerEtcdWarning(hostname string) (string, bool) {
+	if _, err := os.Stat(k0sControllerUnitPath); err != nil {
+		return "", false
+	}
+	cause := errors.New("k0s is not running on this node, so it could not leave etcd")
+	return staleEtcdMemberWarning(hostname, configuredEtcdPeerAddress(), cause), true
+}
+
+// configuredEtcdPeerAddress reads spec.storage.etcd.peerAddress from the k0s
+// config, or "" if it can't. It skips k0s's config defaults on purpose: they
+// fill in a guessed address, and the warning must only print a real one.
+func configuredEtcdPeerAddress() string {
+	data, err := os.ReadFile(k0sConfigPath)
+	if err != nil {
+		return ""
+	}
+	var cfg struct {
+		Spec struct {
+			Storage struct {
+				Etcd struct {
+					PeerAddress string `json:"peerAddress"`
+				} `json:"etcd"`
+			} `json:"storage"`
+		} `json:"spec"`
+	}
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		return ""
+	}
+	return cfg.Spec.Storage.Etcd.PeerAddress
 }
 
 // etcdPeerHost extracts the host portion from an etcd member-list entry's
