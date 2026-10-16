@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -237,27 +238,43 @@ func TestLeaveEtcdCluster_Success(t *testing.T) {
 // already gone, but the actual removal if the key assumption was wrong). It
 // must not block reset on whatever that defensive attempt returns.
 func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
-	speedUpEtcdLeaveRetries(t)
-	f := &fakeHelpers{
-		runCommandFn: func(bin string, args ...string) (string, error) {
-			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
-				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
+	for name, leaveErr := range map[string]error{
+		"k0s peer not found":    errK0sPeerNotFound("https://node-a:2380"),
+		"etcd member not found": errEtcdMemberNotFound,
+	} {
+		t.Run(name, func(t *testing.T) {
+			speedUpEtcdLeaveRetries(t)
+			f := &fakeHelpers{
+				runCommandFn: func(bin string, args ...string) (string, error) {
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+						return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
+					}
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+						return "", leaveErr
+					}
+					return "", nil
+				},
 			}
-			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
-				return "", errors.New("etcdserver: member not found")
-			}
-			return "", nil
-		},
+			installFakeHelpers(t, f)
+
+			h := &hostInfo{Hostname: "node-a"}
+			removed, warning := h.leaveEtcdCluster(context.Background())
+
+			assert.True(t, removed)
+			assert.Empty(t, warning)
+			assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
+		})
 	}
-	installFakeHelpers(t, f)
-
-	h := &hostInfo{Hostname: "node-a"}
-	removed, warning := h.leaveEtcdCluster(context.Background())
-
-	assert.True(t, removed)
-	assert.Empty(t, warning)
-	assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
 }
+
+// errK0sPeerNotFound is what `k0s etcd leave` returns, via
+// RunCommandWithOptions, when no etcd member has its peer URL.
+func errK0sPeerNotFound(peerURL string) error {
+	return fmt.Errorf("exit status 1: Error: peer not found: %s", peerURL)
+}
+
+// errEtcdMemberNotFound is etcd's MemberRemove error, surfaced by k0s.
+var errEtcdMemberNotFound = errors.New("exit status 1: Error: etcdserver: member not found")
 
 // TestLeaveEtcdCluster_AlreadyRemovedButActuallyStillAMember covers the case
 // the defensive leave attempt in TestLeaveEtcdCluster_AlreadyRemoved guards
@@ -380,7 +397,7 @@ func TestLeaveEtcdCluster_NeverPassesPeerAddress(t *testing.T) {
 		{
 			name:       "defensive leave",
 			memberList: `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`,
-			leaveErr:   errors.New("etcdserver: member not found"),
+			leaveErr:   errK0sPeerNotFound("https://node-a:2380"),
 		},
 	}
 
@@ -701,21 +718,51 @@ func TestLeaveEtcdCluster_LeaveFailsAfterRetries(t *testing.T) {
 	assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
 }
 
-// TestLeaveEtcdCluster_DirectLeaveMemberNotFound covers the direct leave path
-// (this node is still listed in member-list) racing a removal that already
-// completed by the time the leave call reaches etcd. A "member not found"
-// error here is the same definitive confirmation the defensive leave path
-// already trusts (TestLeaveEtcdCluster_AlreadyRemoved) — it must not be
-// treated as just another failed attempt to retry and eventually warn about.
-func TestLeaveEtcdCluster_DirectLeaveMemberNotFound(t *testing.T) {
+// TestLeaveEtcdCluster_DirectLeaveAlreadyGone covers the direct leave path
+// racing a removal that already completed. That's confirmation, not a
+// failure to retry and warn about.
+func TestLeaveEtcdCluster_DirectLeaveAlreadyGone(t *testing.T) {
+	for name, leaveErr := range map[string]error{
+		"k0s peer not found":    errK0sPeerNotFound("https://node-a:2380"),
+		"etcd member not found": errEtcdMemberNotFound,
+	} {
+		t.Run(name, func(t *testing.T) {
+			speedUpEtcdLeaveRetries(t)
+			f := &fakeHelpers{
+				runCommandFn: func(bin string, args ...string) (string, error) {
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+						return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+					}
+					if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+						return "", leaveErr
+					}
+					return "", nil
+				},
+			}
+			installFakeHelpers(t, f)
+
+			h := &hostInfo{Hostname: "node-a"}
+			removed, warning := h.leaveEtcdCluster(context.Background())
+
+			assert.True(t, removed)
+			assert.Empty(t, warning)
+			assert.Equal(t, 1, f.ranCount("etcd leave"), "should not retry once removal is confirmed")
+		})
+	}
+}
+
+// TestLeaveEtcdCluster_DirectLeavePeerNotFoundForOtherAddress covers k0s
+// looking up a peer URL that doesn't match the one member-list has for this
+// node. The member is still there, so reset must warn, not report removal.
+func TestLeaveEtcdCluster_DirectLeavePeerNotFoundForOtherAddress(t *testing.T) {
 	speedUpEtcdLeaveRetries(t)
 	f := &fakeHelpers{
 		runCommandFn: func(bin string, args ...string) (string, error) {
 			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
-				return `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`, nil
+				return `{"members":{"node-a":"https://10.0.0.1:2380","node-b":"https://10.0.0.2:2380"}}`, nil
 			}
 			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
-				return "", errors.New("etcdserver: member not found")
+				return "", errK0sPeerNotFound("https://10.0.0.9:2380")
 			}
 			return "", nil
 		},
@@ -725,9 +772,28 @@ func TestLeaveEtcdCluster_DirectLeaveMemberNotFound(t *testing.T) {
 	h := &hostInfo{Hostname: "node-a"}
 	removed, warning := h.leaveEtcdCluster(context.Background())
 
-	assert.True(t, removed, "a definitive 'member not found' confirms removal, it is not a failure")
-	assert.Empty(t, warning)
-	assert.Equal(t, 1, f.ranCount("etcd leave"), "should not retry once 'member not found' confirms removal")
+	require.False(t, removed)
+	assert.Contains(t, warning, "k0s etcd leave --peer-address 10.0.0.1")
+}
+
+func TestEtcdMemberAlreadyGone(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		peerURL string
+		want    bool
+	}{
+		{"peer not found, no URL known", errK0sPeerNotFound("https://node-a:2380"), "", true},
+		{"peer not found, same URL", errK0sPeerNotFound("https://node-a:2380"), "https://node-a:2380", true},
+		{"peer not found, other URL", errK0sPeerNotFound("https://node-x:2380"), "https://node-a:2380", false},
+		{"etcd member not found", errEtcdMemberNotFound, "https://node-a:2380", true},
+		{"unrelated error", errors.New("connection refused"), "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, etcdMemberAlreadyGone(tt.err, tt.peerURL))
+		})
+	}
 }
 
 // TestLeaveEtcdCluster_BinaryMissing covers resetting a node where the k0s

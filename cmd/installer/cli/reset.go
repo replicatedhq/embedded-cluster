@@ -546,13 +546,11 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 	// leave a real voting member stale. So this is treated as inconclusive
 	// rather than confirmed: make one defensive leave attempt (no retry) — a
 	// harmless no-op if we are truly already gone, but the actual removal if
-	// the key assumption was wrong. A "member not found" error confirms the
-	// no-op case; any other error means the attempt itself is inconclusive,
-	// so it is reported the same as any other failed leave rather than
-	// assumed successful.
+	// the key assumption was wrong. An etcdMemberAlreadyGone error confirms
+	// the no-op case; any other error is reported like any failed leave.
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
 		_, leaveErr := runEtcdCommand(ctx, "leave")
-		if leaveErr != nil && !strings.Contains(leaveErr.Error(), "member not found") {
+		if leaveErr != nil && !etcdMemberAlreadyGone(leaveErr, "") {
 			return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("defensive leave attempt failed: %w", leaveErr))
 		}
 		return true, ""
@@ -575,11 +573,9 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 			return true, ""
 		}
 
-		// Same definitive confirmation the defensive leave attempt above
-		// trusts: a "member not found" error means this node's removal
-		// already completed (e.g. a concurrent leave from elsewhere), not
-		// that this attempt failed.
-		if strings.Contains(err.Error(), "member not found") {
+		// Already removed (e.g. a concurrent leave). Pass our member-list URL
+		// so a "peer not found" for some other address isn't trusted.
+		if etcdMemberAlreadyGone(err, memberlist.Members[h.Hostname]) {
 			return true, ""
 		}
 
@@ -603,6 +599,21 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 var (
 	notFoundRegex = regexp.MustCompile(`nodes ".+" not found`)
 )
+
+// etcdMemberAlreadyGone reports whether `k0s etcd leave` failed because the
+// member is already gone: k0s returns "peer not found: <url>" when its lookup
+// misses, and etcd returns "member not found" if it's removed mid-call. If
+// peerURL is set, "peer not found" only counts when it names that URL.
+func etcdMemberAlreadyGone(err error, peerURL string) bool {
+	msg := err.Error()
+	if strings.Contains(msg, "etcdserver: member not found") {
+		return true
+	}
+	if !strings.Contains(msg, "peer not found") {
+		return false
+	}
+	return peerURL == "" || strings.Contains(msg, peerURL)
+}
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() {
