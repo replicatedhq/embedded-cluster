@@ -490,7 +490,7 @@ func stoppedControllerEtcdWarning(hostname string) (string, bool) {
 	if _, err := os.Stat(k0sControllerUnitPath); err != nil {
 		return "", false
 	}
-	cause := errors.New("k0s is not running on this node, so it could not leave etcd")
+	cause := errors.New("k0s is not running on this node, so it could not leave etcd (ignore this if it was the only controller)")
 	return staleEtcdMemberWarning(hostname, configuredEtcdPeerAddress(), cause), true
 }
 
