@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -262,27 +263,6 @@ func checkWorkerProfile(t *testing.T, tc cluster.Cluster, node int) {
 	}
 }
 
-// waitForSelinuxEnabled waits for selinux to report enabled on the node. The
-// filesystem relabel scheduled by selinux-activate triggers an additional
-// reboot, so ssh may drop while polling.
-func waitForSelinuxEnabled(t *testing.T, tc cluster.Cluster, node int) {
-	t.Logf("%s: waiting for selinux to be enabled on node %d", time.Now().Format(time.RFC3339), node)
-	timeout := time.After(10 * time.Minute)
-	tick := time.Tick(10 * time.Second)
-	for {
-		select {
-		case <-timeout:
-			stdout, stderr, err := tc.RunCommandOnNode(node, []string{"getenforce"})
-			t.Fatalf("timeout waiting for selinux to be enabled on node %d: %v: %s: %s", node, err, stdout, stderr)
-		case <-tick:
-			stdout, _, err := tc.RunCommandOnNode(node, []string{"getenforce"})
-			if err == nil && strings.Contains(stdout, "Permissive") {
-				return
-			}
-		}
-	}
-}
-
 func checkNodeJoinCommand(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("node join command generation on node %d", node)
 	line := []string{"/usr/local/bin/check-node-join-command.sh"}
@@ -363,6 +343,135 @@ func checkPostUpgradeStateWithOptions(t *testing.T, tc cluster.Cluster, opts pos
 // checkContainerdRegistryConfigAbsent asserts the containerd registry drop-in is
 // absent: online installs don't use the in-cluster registry.
 // TODO(k0s-1.37-oldest): drop this check along with the migration.
+// checkSELinuxLabels asserts the selinux labels an install depends on. The test
+// pre-labels nothing, so everything here is applied by the install itself.
+//
+// container-selinux only labels the standard paths (/var/lib/kubelet,
+// /usr/bin/containerd), so without our fcontext rules this whole tree keeps
+// var_lib_t and confined containers cannot read anything mounted out of it.
+// The container_runtime_exec_t entries are set by k0s and made persistent by
+// our rules; asserting them catches both a k0s change and our blanket rule
+// demoting them.
+func checkSELinuxLabels(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying selinux labels on node %d", time.Now().Format(time.RFC3339), node)
+
+	for _, tt := range []struct {
+		path  string
+		field string
+		want  string
+	}{
+		// the host preflight checks the data dir user label, so keep it asserted
+		{"/var/lib/embedded-cluster", "--user", "system_u"},
+		{"/var/lib/embedded-cluster", "--type", "container_var_lib_t"},
+		{"/var/lib/embedded-cluster/bin", "--type", "ec_bin_t"},
+		// openebs-local and seaweedfs are deliberately not asserted. kubelet
+		// creates them as hostPath mounts long after restorecon has run, so
+		// they inherit container_var_lib_t from the data dir rather than the
+		// container_file_t our file contexts name. That only matters to a
+		// later relabel, never to access: the runtime relabels each volume
+		// underneath them with its own mcs categories when it mounts it.
+		// mounted by kotsadm (whole tree) and velero node-agent (kubelet)
+		{"/var/lib/embedded-cluster/k0s", "--type", "container_var_lib_t"},
+		{"/var/lib/embedded-cluster/k0s/kubelet/pods", "--type", "container_var_lib_t"},
+		{"/var/lib/embedded-cluster/k0s/bin/containerd", "--type", "container_runtime_exec_t"},
+		{"/var/lib/embedded-cluster/k0s/bin/runc", "--type", "container_runtime_exec_t"},
+	} {
+		line := []string{"secon", tt.field, "--file", tt.path}
+		stdout, stderr, err := tc.RunCommandOnNode(node, line)
+		if err != nil {
+			t.Fatalf("fail to read selinux %s label of %s on node %d: %v: %s: %s", tt.field, tt.path, node, err, stdout, stderr)
+		}
+		got := strings.TrimSpace(stdout)
+		if got != tt.want {
+			t.Fatalf("selinux %s label of %s on node %d is %q, want %q", tt.field, tt.path, node, got, tt.want)
+		}
+		t.Logf("  %s %s = %s", tt.path, tt.field, got)
+	}
+}
+
+// checkSELinuxConfinement asserts that our workloads actually run confined,
+// which is the part the old test never checked. containerd only labels
+// containers when enable_selinux is set, and neither containerd nor k0s
+// defaults it on, so without our drop-in every container inherits k0s's domain
+// instead of container_t and container-selinux confines nothing.
+func checkSELinuxConfinement(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: verifying selinux confinement on node %d", time.Now().Format(time.RFC3339), node)
+
+	t.Logf("%s: verifying container-selinux is installed", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"rpm -q container-selinux"}); err != nil {
+		t.Fatalf("container-selinux is not installed on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+
+	t.Logf("%s: verifying containerd selinux drop-in", time.Now().Format(time.RFC3339))
+	if stdout, stderr, err := tc.RunCommandOnNode(node, []string{"grep -q 'enable_selinux = true' /etc/k0s/containerd.d/embedded-selinux.toml"}); err != nil {
+		t.Fatalf("containerd selinux drop-in is missing or does not enable selinux on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+
+	// our policy module carries both the file contexts and the allow rules the
+	// bundled workloads need, so its absence means we fell back to semanage
+	t.Logf("%s: verifying the ec selinux policy module is loaded", time.Now().Format(time.RFC3339))
+	stdout, stderr, err := tc.RunCommandOnNode(node, []string{"semodule -l | grep -x ec"})
+	if err != nil {
+		t.Fatalf("the ec selinux policy module is not loaded on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+
+	t.Logf("%s: verifying containerd runs as container_runtime_t", time.Now().Format(time.RFC3339))
+	// ps -eZ prints the process name, not its path, and the trailing anchor
+	// keeps this off the containerd-shim processes.
+	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"ps -eZ | grep -E ' containerd$' | head -1"})
+	if err != nil {
+		t.Fatalf("fail to read containerd process domain on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+	if !strings.Contains(stdout, "container_runtime_t") {
+		t.Fatalf("containerd on node %d is not running as container_runtime_t: %s", node, stdout)
+	}
+
+	// Every pod sandbox should be container_t. If enable_selinux is off,
+	// containerd never sets a label and these inherit k0s's domain instead.
+	t.Logf("%s: verifying pods run as container_t", time.Now().Format(time.RFC3339))
+	stdout, stderr, err = tc.RunCommandOnNode(node, []string{"ps -eZ | grep -c container_t"})
+	if err != nil {
+		t.Fatalf("fail to count container_t processes on node %d: %v: %s: %s", node, err, stdout, stderr)
+	}
+	count, convErr := strconv.Atoi(strings.TrimSpace(stdout))
+	if convErr != nil {
+		t.Fatalf("fail to parse container_t process count %q on node %d: %v", stdout, node, convErr)
+	}
+	if count == 0 {
+		t.Fatalf("no processes are running as container_t on node %d, so nothing is confined", node)
+	}
+	t.Logf("%s: %d processes running as container_t on node %d", time.Now().Format(time.RFC3339), count, node)
+}
+
+// checkNoSELinuxDenials fails on selinux denials from confined containers.
+// Turning on container labeling confines every bundled workload for the first
+// time, so a denial here means an addon needs a label or a tunable it is not
+// getting. module_request is excluded: it is a kernel module autoload probe
+// that falls back harmlessly and that container-selinux normally dontaudits.
+func checkNoSELinuxDenials(t *testing.T, tc cluster.Cluster, node int) {
+	t.Logf("%s: checking for selinux denials on node %d", time.Now().Format(time.RFC3339), node)
+
+	// Both sources: when auditd runs, which it does by default on RHEL, the
+	// kernel hands avc records to it and they never reach the kernel ring
+	// buffer, so journalctl alone silently finds nothing to report.
+	//
+	// Through bash -c because RunCommandOnNode prefixes sudo env, which takes a
+	// command, not a brace group.
+	line := []string{"bash", "-c", `"{ ausearch -m avc -ts boot 2>/dev/null; journalctl -k --no-pager 2>/dev/null | grep 'avc: *denied'; } | grep permissive=0 | grep -v module_request | tail -40 || true"`}
+	stdout, stderr, err := tc.RunCommandOnNode(node, line)
+	if err != nil {
+		// The command ends in `|| true`, so a non-zero exit means it did not
+		// run, not that there were no denials. Skipping here would leave the
+		// sweep silently doing nothing.
+		t.Fatalf("fail to read selinux denials on node %d: %v: %s", node, err, stderr)
+	}
+	if out := strings.TrimSpace(stdout); out != "" {
+		t.Errorf("selinux denials on node %d:\n%s", node, out)
+		return
+	}
+	t.Logf("%s: no enforcing selinux denials on node %d", time.Now().Format(time.RFC3339), node)
+}
+
 func checkContainerdRegistryConfigAbsent(t *testing.T, tc cluster.Cluster, node int) {
 	t.Logf("%s: verifying containerd registry drop-in is absent on node %d", time.Now().Format(time.RFC3339), node)
 	line := []string{"test", "!", "-f", "/etc/k0s/containerd.d/embedded-registry.toml"}
