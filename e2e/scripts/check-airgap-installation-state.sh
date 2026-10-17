@@ -7,6 +7,7 @@ DIR=/usr/local/bin
 main() {
     local version="$1"
     local k8s_version="$2"
+    local expected_app_state="${3:-not-upgraded}"
 
     sleep 10 # wait for kubectl to become available
 
@@ -31,9 +32,28 @@ main() {
     if ! ensure_app_deployed_airgap "$version"; then
         exit 1
     fi
-    if ! ensure_app_not_upgraded; then
-        exit 1
-    fi
+    case "$expected_app_state" in
+        not-upgraded)
+            if ! ensure_app_not_upgraded; then
+                exit 1
+            fi
+            ;;
+        upgraded)
+            if ! ensure_app_upgraded; then
+                exit 1
+            fi
+            # This is an application-only update. Resources present only in the
+            # EC upgrade configuration must not have been installed.
+            if kubectl get ns kube-state-metrics; then
+                echo "found kube-state-metrics namespace after application-only upgrade"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "unknown expected application state: $expected_app_state"
+            exit 1
+            ;;
+    esac
 
     echo "ensure that the admin console branding is available and has the DR label"
     if ! kubectl get cm -n kotsadm kotsadm-application-metadata --show-labels | grep -q 'replicated.com/disaster-recovery=infra'; then
