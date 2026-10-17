@@ -11,5 +11,5 @@ images:
     registry:
         repo: proxy.replicated.com/library/registry
         tag:
-            amd64: 3.1.2-amd64@sha256:43c21636ab52996acc71c364e09251391afa126c79224a4da836f3f63405b956
-            arm64: 3.1.2-arm64@sha256:3ed341f2a55be310561a9bba8b2a248385db0f8de37bde4f6ebe80b3b012529f
+            amd64: 3.1.2-amd64@sha256:cb562dd8adbc8f2e8715563d4124183f6291a5396b372b5e9a0e3ae9930f203d
+            arm64: 3.1.2-arm64@sha256:ee8cba82370e4adb9620f0b08b660aa5eda54286f21bb4fd51a8486f81c03d3b
