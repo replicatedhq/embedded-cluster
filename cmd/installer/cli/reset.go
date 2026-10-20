@@ -596,8 +596,9 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 	// leave a real voting member stale. So this is treated as inconclusive
 	// rather than confirmed: make one defensive leave attempt (no retry) — a
 	// harmless no-op if we are truly already gone, but the actual removal if
-	// the key assumption was wrong. An etcdMemberAlreadyGone error confirms
-	// the no-op case; any other error is reported like any failed leave.
+	// the key assumption was wrong. With no member-list URL to check against,
+	// only etcd's "member not found" confirms the no-op case; anything else,
+	// including k0s's "peer not found", is reported like any failed leave.
 	if _, ok := memberlist.Members[h.Hostname]; !ok {
 		_, leaveErr := runEtcdCommand(ctx, "leave")
 		if leaveErr != nil && !etcdMemberAlreadyGone(leaveErr, "") {
@@ -647,22 +648,22 @@ func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning 
 }
 
 var (
-	notFoundRegex = regexp.MustCompile(`nodes ".+" not found`)
+	notFoundRegex     = regexp.MustCompile(`nodes ".+" not found`)
+	peerNotFoundRegex = regexp.MustCompile(`peer not found: (\S+)`)
 )
 
-// etcdMemberAlreadyGone reports whether `k0s etcd leave` failed because the
-// member is already gone: k0s returns "peer not found: <url>" when its lookup
-// misses, and etcd returns "member not found" if it's removed mid-call. If
-// peerURL is set, "peer not found" only counts when it names that URL.
+// etcdMemberAlreadyGone reports whether `k0s etcd leave` failed because this
+// node's member is already gone. etcd's "member not found" means the member
+// k0s looked up was removed mid-call. k0s's "peer not found: <url>" only
+// counts when <url> is peerURL, this node's URL from member-list: k0s looks
+// up its configured address, which can drift from the member's real one.
 func etcdMemberAlreadyGone(err error, peerURL string) bool {
 	msg := err.Error()
 	if strings.Contains(msg, "etcdserver: member not found") {
 		return true
 	}
-	if !strings.Contains(msg, "peer not found") {
-		return false
-	}
-	return peerURL == "" || strings.Contains(msg, peerURL)
+	m := peerNotFoundRegex.FindStringSubmatch(msg)
+	return peerURL != "" && m != nil && m[1] == peerURL
 }
 
 // drainNode uses k0s to initiate a node drain

@@ -235,36 +235,58 @@ func TestLeaveEtcdCluster_Success(t *testing.T) {
 // The member-list key is assumed to equal h.Hostname exactly; that assumption
 // is unverified, so rather than trusting the absence alone, leaveEtcdCluster
 // still makes one defensive leave attempt (a harmless no-op if we are truly
-// already gone, but the actual removal if the key assumption was wrong). It
-// must not block reset on whatever that defensive attempt returns.
+// already gone, but the actual removal if the key assumption was wrong).
+// etcd's "member not found" from that attempt confirms removal.
 func TestLeaveEtcdCluster_AlreadyRemoved(t *testing.T) {
-	for name, leaveErr := range map[string]error{
-		"k0s peer not found":    errK0sPeerNotFound("https://node-a:2380"),
-		"etcd member not found": errEtcdMemberNotFound,
-	} {
-		t.Run(name, func(t *testing.T) {
-			speedUpEtcdLeaveRetries(t)
-			f := &fakeHelpers{
-				runCommandFn: func(bin string, args ...string) (string, error) {
-					if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
-						return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
-					}
-					if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
-						return "", leaveErr
-					}
-					return "", nil
-				},
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-b":"https://node-b:2380","node-c":"https://node-c:2380"}}`, nil
 			}
-			installFakeHelpers(t, f)
-
-			h := &hostInfo{Hostname: "node-a"}
-			removed, warning := h.leaveEtcdCluster(context.Background())
-
-			assert.True(t, removed)
-			assert.Empty(t, warning)
-			assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
-		})
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errEtcdMemberNotFound
+			}
+			return "", nil
+		},
 	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster(context.Background())
+
+	assert.True(t, removed)
+	assert.Empty(t, warning)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
+}
+
+// TestLeaveEtcdCluster_AlreadyRemovedPeerNotFoundIsInconclusive covers the
+// defensive leave getting k0s's "peer not found". With no member-list entry
+// for this node there's no URL to check that against, and k0s's configured
+// address can drift from the member's real one, so this node may still be a
+// voter under a URL k0s didn't look up. Reset must warn, not claim removal.
+func TestLeaveEtcdCluster_AlreadyRemovedPeerNotFoundIsInconclusive(t *testing.T) {
+	speedUpEtcdLeaveRetries(t)
+	f := &fakeHelpers{
+		runCommandFn: func(bin string, args ...string) (string, error) {
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "member-list" {
+				return `{"members":{"node-a.example":"https://10.0.0.1:2380","node-b":"https://10.0.0.2:2380"}}`, nil
+			}
+			if len(args) == 2 && args[0] == "etcd" && args[1] == "leave" {
+				return "", errK0sPeerNotFound("https://10.0.0.9:2380")
+			}
+			return "", nil
+		},
+	}
+	installFakeHelpers(t, f)
+
+	h := &hostInfo{Hostname: "node-a"}
+	removed, warning := h.leaveEtcdCluster(context.Background())
+
+	require.False(t, removed)
+	assert.Contains(t, warning, "peer not found: https://10.0.0.9:2380")
+	assert.Contains(t, warning, `run 'k0s etcd member-list' to find "node-a"'s peer address`)
+	assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave is a single attempt")
 }
 
 // errK0sPeerNotFound is what `k0s etcd leave` returns, via
@@ -783,7 +805,10 @@ func TestEtcdMemberAlreadyGone(t *testing.T) {
 		peerURL string
 		want    bool
 	}{
-		{"peer not found, no URL known", errK0sPeerNotFound("https://node-a:2380"), "", true},
+		{"peer not found, no URL known", errK0sPeerNotFound("https://node-a:2380"), "", false},
+		{"peer not found, URL is a prefix", errK0sPeerNotFound("https://10.0.0.12:2380"), "https://10.0.0.1", false},
+		// Verbatim from a live `k0s etcd leave` on CMX: a log line, then the error.
+		{"real k0s stderr", errors.New(`exit status 1: time="2026-10-16 04:13:47" level=error msg="Failed to get peer name" peerURL="https://10.0.0.99:2380"` + "\n" + `Error: peer not found: https://10.0.0.99:2380`), "https://10.0.0.99:2380", true},
 		{"peer not found, same URL", errK0sPeerNotFound("https://node-a:2380"), "https://node-a:2380", true},
 		{"peer not found, other URL", errK0sPeerNotFound("https://node-x:2380"), "https://node-a:2380", false},
 		{"etcd member not found", errEtcdMemberNotFound, "https://node-a:2380", true},
