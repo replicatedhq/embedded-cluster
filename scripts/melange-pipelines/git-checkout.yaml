@@ -2,10 +2,10 @@ name: Use source from the local workspace
 
 inputs:
   repository:
-    description: Unused; the repository has already been checked out by the workflow
+    description: Unused; the repository has already been checked out
     required: true
   tag:
-    description: Unused; the workflow checkout determines the source revision
+    description: Unused; the local Git checkout determines the source revision
 
 pipeline:
   - runs: |
