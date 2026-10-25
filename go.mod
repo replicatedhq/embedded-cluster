@@ -27,7 +27,7 @@ require (
 	github.com/k0sproject/k0s v1.36.5-0.20260918181138-c37fe960bdee
 	github.com/mattn/go-isatty v0.0.24
 	github.com/ohler55/ojg v1.28.7
-	github.com/onsi/ginkgo/v2 v2.32.2
+	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.42.1
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/pkg/errors v0.9.1
