@@ -41,6 +41,15 @@ function main() {
     update_k0s_minor_version "$minor_version_minus_1"
     update_k0s_minor_version "$minor_version"
 
+    # Keep only the release range plus one older minor used by upgrade CI.
+    local old_minor
+    for old_minor in $(sed -n 's/^K0S_VERSION_1_\([0-9]*\) = .*/\1/p' versions.mk); do
+        if (( old_minor < minor_version_minus_3 || old_minor > minor_version )); then
+            sed "${SED_ARGS[@]}" "/^K0S_VERSION_1_${old_minor} = /d" versions.mk
+            rm -f "pkg/config/static/metadata-1_${old_minor}.yaml"
+        fi
+    done
+
     # pin to the current major.minor version
     sed "${SED_ARGS[@]}" "s/^K0S_MINOR_VERSION ?= .*$/K0S_MINOR_VERSION ?= $minor_version/" versions.mk
 

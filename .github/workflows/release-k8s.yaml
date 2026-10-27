@@ -1,0 +1,621 @@
+name: Release Kubernetes version
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Derived release version, including the Kubernetes minor
+        required: true
+        type: string
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  get-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag-name: ${{ steps.get-tag.outputs.tag-name }}
+      is-stable: ${{ steps.get-tag.outputs.is-stable }}
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
+      k0s_minor_version: ${{ steps.export.outputs.k0s_minor_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Extract tag name
+        id: get-tag
+        run: |
+          # remove the "refs/tags/" prefix to get the tag that was pushed
+          export RAW_TAG=${{ inputs.version }}
+          # add a 'v' prefix to the tag if it doesn't already have one
+          export V_TAG=$(echo "$RAW_TAG" | sed 's/^[^v]/v&/')
+          # store the tag name in an output for later steps
+          echo "tag-name=${V_TAG}" >> $GITHUB_OUTPUT
+          if [[ "$V_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\+k8s-1\.[0-9]+$ ]]; then
+            echo "is-stable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is-stable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Export k0s version
+        id: export
+        run: |
+          # extract the k0s minor version from the tag (2.8.1+k8s-1.31 -> 31)
+          export K0S_MINOR_VERSION=$(echo "${{ inputs.version }}" | sed 's/.*+k8s-1\.\([0-9]*\).*/\1/')
+          K0S_VERSION="$(make print-K0S_VERSION)"
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "K0S_MINOR_VERSION=\"$K0S_MINOR_VERSION\""
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+          echo "k0s_minor_version=$K0S_MINOR_VERSION" >> "$GITHUB_OUTPUT"
+
+  buildtools:
+    runs-on: ubuntu-latest
+    needs: [get-tag]
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - name: Compile buildtools
+        run: |
+          make buildtools
+
+      - name: Upload buildtools artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: buildtools-${{ inputs.version }}
+          path: output/bin/buildtools
+
+  publish-securebuild:
+    needs: [get-tag]
+    if: needs.get-tag.outputs.is-stable == 'true'
+    uses: ./.github/workflows/publish-securebuild.yml
+    with:
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  # Stable releases wait for SecureBuild. Prereleases must already have images
+  # published under the same Docker Hub naming convention before tagging.
+  resolve-images:
+    runs-on: ubuntu-latest
+    needs: [get-tag, publish-securebuild]
+    if: >-
+      always() && !cancelled() && needs.get-tag.result == 'success' &&
+      (needs.publish-securebuild.result == 'success' ||
+       (needs.get-tag.outputs.is-stable == 'false' && needs.publish-securebuild.result == 'skipped'))
+    outputs:
+      operator: ${{ steps.images.outputs.operator }}
+      local-artifact-mirror: ${{ steps.images.outputs.local-artifact-mirror }}
+    steps:
+      - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+
+      - name: Resolve published images
+        id: images
+        env:
+          VERSION: ${{ needs.get-tag.outputs.tag-name }}
+          REGISTRY_SERVER: docker.io
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USER }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          OPERATOR_IMAGE_NAME: replicated/embedded-cluster-operator-image
+          LOCAL_ARTIFACT_MIRROR_IMAGE_NAME: replicated/embedded-cluster-local-artifact-mirror
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" | crane auth login "$REGISTRY_SERVER" --username "$REGISTRY_USERNAME" --password-stdin
+          tag="${VERSION#v}"
+          tag="${tag/+k8s-/-k8s}"
+          operator="$OPERATOR_IMAGE_NAME:$tag"
+          mirror="$LOCAL_ARTIFACT_MIRROR_IMAGE_NAME:$tag"
+          for output in "operator=$operator" "local-artifact-mirror=$mirror"; do
+            digest=$(crane digest "${output#*=}")
+            echo "$output@$digest" >> "$GITHUB_OUTPUT"
+          done
+
+  publish-operator-chart:
+    runs-on: ubuntu-latest
+    needs: [get-tag, resolve-images]
+    if: always() && !cancelled() && needs.get-tag.result == 'success' && needs.resolve-images.result == 'success'
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    outputs:
+      chart: ${{ steps.operator-chart.outputs.chart }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build and push operator chart
+        id: operator-chart
+        env:
+          HELM_USER: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
+          HELM_PASS: ${{secrets.REPLICATED_LIBRARY_SERVICE_ACCOUNT}}
+          HELM_REGISTRY: registry.replicated.com
+          OPERATOR_IMAGE: ${{ needs.resolve-images.outputs.operator }}
+        run: |
+          operator_image="${OPERATOR_IMAGE%%@*}"
+          make -C operator build-chart \
+            PACKAGE_VERSION=${{ needs.get-tag.outputs.tag-name }} \
+            IMAGE_TAG="${operator_image##*:}"
+          echo "chart=$(cat operator/build/chart)" >> $GITHUB_OUTPUT
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [get-tag, buildtools, resolve-images, publish-operator-chart]
+    if: >-
+      always() && !cancelled() && needs.get-tag.result == 'success' &&
+      needs.buildtools.result == 'success' && needs.resolve-images.result == 'success' &&
+      needs.publish-operator-chart.result == 'success'
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Cache embedded bins
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            output/bins
+          key: bins-cache-${{ inputs.version }}-${{ hashFiles('Makefile', 'versions.mk') }}
+          restore-keys: |
+            bins-cache-
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+
+      - uses: oras-project/setup-oras@5e2f2482b30b0cb3e14e67f89a80c88c659a7c63 # v2
+
+      - uses: imjasonh/setup-crane@feee3b6bb0d4c68370f256a4502498c9227e5c6b # v0.7
+
+      - name: Install dagger
+        run: |
+          curl -fsSL https://dl.dagger.io/dagger/install.sh | sh
+          sudo mv ./bin/dagger /usr/local/bin/dagger
+
+      - name: Download buildtools artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: buildtools-${{ inputs.version }}
+          path: output/bin
+
+      - name: Update embedded-cluster-operator metadata.yaml
+        env:
+          IMAGES_REGISTRY_SERVER: index.docker.io
+          IMAGES_REGISTRY_USER: ${{ secrets.DOCKERHUB_USER }}
+          IMAGES_REGISTRY_PASS: ${{ secrets.DOCKERHUB_PASSWORD }}
+          OPERATOR_CHART: ${{ needs.publish-operator-chart.outputs.chart }}
+          OPERATOR_IMAGE: ${{ needs.resolve-images.outputs.operator }}
+        run: |
+          ./scripts/ci-update-operator-metadata.sh
+
+      - name: Build linux-amd64
+        run: |
+          mkdir -p build
+          make embedded-cluster-linux-amd64 \
+            VERSION=${{ needs.get-tag.outputs.tag-name }} \
+            LOCAL_ARTIFACT_MIRROR_IMAGE=proxy.replicated.com/anonymous/${{ needs.resolve-images.outputs.local-artifact-mirror }}
+          tar -C output/bin -czvf build/embedded-cluster-linux-amd64.tgz embedded-cluster
+
+      - name: Output Metadata
+        run: |
+          mkdir -p build
+          ./output/bin/embedded-cluster version metadata > build/metadata.json
+
+      - name: Cache Staging Files
+        env:
+          S3_BUCKET: "tf-staging-embedded-cluster-bin"
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+        run: |
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
+          mkdir -p operator/build
+          echo "${{ needs.resolve-images.outputs.operator }}" > "operator/build/image-$EC_VERSION"
+
+          ./scripts/ci-upload-binaries.sh
+
+      - name: Cache Prod Files
+        env:
+          S3_BUCKET: "tf-embedded-cluster-binaries"
+          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_EMBEDDED_CLUSTER_UPLOAD_IAM_SECRET }}
+          AWS_REGION: "us-east-1"
+        run: |
+          export EC_VERSION="${{ needs.get-tag.outputs.tag-name }}"
+          mkdir -p operator/build
+          echo "${{ needs.resolve-images.outputs.operator }}" > "operator/build/image-$EC_VERSION"
+
+          ./scripts/ci-upload-binaries.sh
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if gh release view "$RELEASE_VERSION" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_VERSION" build/*.tgz build/metadata.json --clobber
+          else
+            gh release create "$RELEASE_VERSION" --verify-tag --prerelease \
+              --title "$RELEASE_VERSION" build/*.tgz build/metadata.json
+          fi
+
+  find-previous-stable:
+    name: Determine previous stable version
+    runs-on: ubuntu-latest
+    needs:
+      - get-tag
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    outputs:
+      ec_version: ${{ steps.export.outputs.ec_version }}
+      k0s_version: ${{ steps.export.outputs.k0s_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Export k0s version
+        id: export
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          k0s_minor_version=$(make print-K0S_MINOR_VERSION)
+          previous_k0s_minor_version=$(($k0s_minor_version - 1))
+          k0s_majmin_version="1.${previous_k0s_minor_version}"
+
+          EC_VERSION="$(gh release list --repo replicatedhq/embedded-cluster \
+            --exclude-drafts --exclude-pre-releases --limit 100 --json name \
+            --jq '.[] | .name' \
+            | grep "k8s-${k0s_majmin_version}" \
+            | head -n1)"
+
+          gh release download "$EC_VERSION" --repo replicatedhq/embedded-cluster --pattern 'metadata.json'
+          K0S_VERSION="$(jq -r '.Versions.Kubernetes' metadata.json)"
+
+          echo "EC_VERSION=\"$EC_VERSION\""
+          echo "K0S_VERSION=\"$K0S_VERSION\""
+          echo "ec_version=$EC_VERSION" >> "$GITHUB_OUTPUT"
+          echo "k0s_version=$K0S_VERSION" >> "$GITHUB_OUTPUT"
+
+  release-app:
+    name: Create app releases
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    needs:
+      - get-tag
+      - release
+      - find-previous-stable
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Install replicated CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download --repo replicatedhq/replicated --pattern '*linux_amd64.tar.gz' --output replicated.tar.gz
+          tar xf replicated.tar.gz replicated && rm replicated.tar.gz
+          mv replicated /usr/local/bin/replicated
+
+      - name: Create CI releases
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI
+          S3_BUCKET: tf-staging-embedded-cluster-bin
+        run: |
+          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-previous-stable"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
+
+          # install the previous k0s version to ensure an upgrade occurs
+          # we do not actually run k0s upgrade tests on prerelease at present (as we don't build a previous k0s binary)
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-previous-k0s-1"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # install the current k0s version
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # then a noop upgrade
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-noop"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # and finally an app upgrade
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-upgrade"
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
+          ./scripts/ci-release-app.sh
+
+      - name: Create airgap releases
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: CI-airgap
+          S3_BUCKET: tf-staging-embedded-cluster-bin
+        run: |
+          # promote a release containing the previous stable version of embedded-cluster to test upgrades
+          export EC_VERSION="${{ needs.find-previous-stable.outputs.ec_version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-previous-stable"
+          export RELEASE_YAML_DIR=e2e/kots-release-install-stable
+          ./scripts/ci-release-app.sh
+
+          # promote a release with the current k0s version, but call it the previous version to test noop upgrades
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-previous-k0s-1"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # promote a release with the current k0s version
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # then a noop upgrade
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-noop"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+          # and finally an app upgrade
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="appver-${{ inputs.version }}-upgrade"
+          export RELEASE_YAML_DIR=e2e/kots-release-upgrade
+          ./scripts/ci-release-app.sh
+
+      - name: Create Stable release
+        env:
+          REPLICATED_APP: "embedded-cluster-smoke-test-staging-app"
+          REPLICATED_API_TOKEN: ${{ secrets.STAGING_REPLICATED_API_TOKEN }}
+          REPLICATED_API_ORIGIN: "https://api.staging.replicated.com/vendor"
+          APP_CHANNEL: Stable
+          S3_BUCKET: tf-staging-embedded-cluster-bin
+        run: |
+          # create a release in the stable channel of our test app for use by CMX
+          export EC_VERSION="${{ inputs.version }}"
+          export APP_VERSION="${{ inputs.version }}"
+          export RELEASE_YAML_DIR=e2e/kots-release-install
+          ./scripts/ci-release-app.sh
+
+  embedded-cluster-release-builder:
+    name: Build embedded-cluster-release-builder
+    runs-on: ubuntu-latest
+    needs:
+      - get-tag
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Compile embedded-cluster-release-builder
+        run: |
+          make output/bin/embedded-cluster-release-builder
+      - name: Upload embedded-cluster-release-builder artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: embedded-cluster-release-builder-${{ inputs.version }}
+          path: |
+            output/bin/embedded-cluster-release-builder
+
+  download-current:
+    name: Download the current release binary
+    runs-on: ubuntu-latest
+    needs:
+      - get-tag
+      - release-app
+      - embedded-cluster-release-builder
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    steps:
+      - name: Download embedded-cluster-release-builder
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: embedded-cluster-release-builder-${{ inputs.version }}
+          path: output/bin
+      - name: Download current binary
+        env:
+          # staging ci license id
+          LICENSE_ID: 2cQCFfBxG7gXDmq1yAgPSM4OViF
+        run: |
+          export APP_VERSION="appver-${{ inputs.version }}"
+          curl --retry 5 --retry-all-errors -fL -o embedded-cluster-smoke-test-staging-app-ci.tgz "https://ec-e2e-replicated-app.testcluster.net/embedded/embedded-cluster-smoke-test-staging-app/ci/${APP_VERSION}" -H "Authorization: $LICENSE_ID"
+          tar -xzf embedded-cluster-smoke-test-staging-app-ci.tgz
+          mv embedded-cluster-smoke-test-staging-app embedded-cluster
+          mkdir -p output/bin
+          mv embedded-cluster output/bin
+
+          # download the embedded-cluster binary from the github release
+          curl --retry 5 --retry-all-errors -fL -o embedded-cluster-github.tgz "https://github.com/replicatedhq/embedded-cluster/releases/download/${{ inputs.version }}/embedded-cluster-linux-amd64.tgz"
+          tar -xzf embedded-cluster-github.tgz
+          mv embedded-cluster output/bin/embedded-cluster-original
+
+      - name: Upload release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: current-release-${{ inputs.version }}
+          path: |
+            output/bin/embedded-cluster
+            output/bin/embedded-cluster-original
+            output/bin/embedded-cluster-release-builder
+
+  # e2e-docker runs the e2e tests inside a docker container rather than a full VM
+  e2e-docker:
+    name: E2E docker
+    runs-on: ubuntu-22.04
+    needs:
+      - get-tag
+      - release
+      - release-app
+      - download-current
+      - find-previous-stable
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - TestPreflights
+          - TestPreflightsNoexec
+          - TestSingleNodeInstallation
+          - TestSingleNodeUpgradePreviousStable
+          - TestMultiNodeInstallation
+          - TestSingleNodeDisasterRecovery
+          - TestSingleNodeResumeDisasterRecovery
+          - TestMultiNodeHADisasterRecovery
+          - TestSingleNodeInstallationNoopUpgrade
+          - TestCollectSupportBundle
+          - TestHostCollectSupportBundleInCluster
+          - TestInstallWithConfigValues
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download binary
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: current-release-${{ inputs.version }}
+          path: output/bin
+      - name: Setup go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: "**/*.sum"
+      - name: Login to DockerHub to avoid rate limiting
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Free up runner disk space
+        uses: ./.github/actions/free-disk-space
+      - name: Enable required kernel modules
+        run: |
+          sudo modprobe overlay
+          sudo modprobe ip_tables
+          sudo modprobe br_netfilter
+          sudo modprobe nf_conntrack
+      - name: Run test
+        env:
+          SHORT_SHA: ${{ inputs.version }}
+          DR_S3_ENDPOINT: https://s3.amazonaws.com
+          DR_S3_REGION: us-east-1
+          DR_S3_BUCKET: embedded-cluster-e2e-snapshots
+          DR_S3_PREFIX: ${{ matrix.test }}-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          DR_S3_PREFIX_AIRGAP: ${{ matrix.test }}-${{ inputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}-airgap
+          DR_ACCESS_KEY_ID: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          DR_SECRET_ACCESS_KEY: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          EXPECT_K0S_VERSION: ${{ needs.get-tag.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS_1: ${{ needs.get-tag.outputs.k0s_version }}
+          EXPECT_K0S_VERSION_PREVIOUS_STABLE: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          EXPECT_EMBEDDED_CLUSTER_UPGRADE_TARGET_VERSION: ${{ inputs.version }}
+        run: |
+          make e2e-test TEST_NAME=${{ matrix.test }}
+      - name: Troubleshoot
+        if: ${{ !cancelled() }}
+        uses: ./.github/actions/e2e-troubleshoot
+        with:
+          test-name: '${{ matrix.test }}'
+          artifact-suffix: ${{ inputs.version }}
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-22.04
+    needs:
+      - get-tag
+      - release
+      - release-app
+      - download-current
+      - find-previous-stable
+    env:
+      K0S_MINOR_VERSION: ${{ needs.get-tag.outputs.k0s_minor_version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - TestMultiNodeAirgapUpgradePreviousStable
+          - TestSingleNodeAirgapDisasterRecovery
+          - TestMultiNodeAirgapHADisasterRecovery
+          - TestSingleNodeAirgapAppOnlyUpgrade
+          - TestSingleNodeAirgapUpgradeSelinux
+        include:
+          - test: TestVersion
+            is-lxd: true
+          - test: TestCommandsRequireSudo
+            is-lxd: true
+          - test: TestProxiedEnvironment
+            is-lxd: true
+          - test: TestInstallWithMITMProxy
+            is-lxd: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download current binary
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: current-release-${{ inputs.version }}
+          path: output/bin
+
+      - uses: ./.github/actions/e2e
+        with:
+          test-name: '${{ matrix.test }}'
+          artifact-suffix: ${{ inputs.version }}
+          is-lxd: '${{ matrix.is-lxd || false }}'
+          dr-aws-access-key-id: ${{ secrets.TESTIM_AWS_ACCESS_KEY_ID }}
+          dr-aws-secret-access-key: ${{ secrets.TESTIM_AWS_SECRET_ACCESS_KEY }}
+          k0s-version: ${{ needs.get-tag.outputs.k0s_version }}
+          # Release tests use the same k0s binary for noop upgrades.
+          k0s-version-previous-1: ${{ needs.get-tag.outputs.k0s_version }}
+          k0s-version-previous-2: ${{ needs.get-tag.outputs.k0s_version }}
+          k0s-version-previous-3: ${{ needs.get-tag.outputs.k0s_version }}
+          k0s-version-previous-stable: ${{ needs.find-previous-stable.outputs.k0s_version }}
+          version-specifier: ${{ inputs.version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cmx-api-token: ${{ secrets.CMX_REPLICATED_API_TOKEN }}
+          upgrade-target-ec-version: ${{ inputs.version }}
+
+  # this job will validate that all the tests passed
+  validate-release-success:
+    name: Validate success
+    runs-on: ubuntu-latest
+    needs:
+      - e2e
+      - e2e-docker
+      - release
+      - release-app
+    if: ${{ !cancelled() }}
+    steps:
+      # https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context
+      - name: fail if e2e job was not successful
+        if: needs.e2e.result != 'success'
+        run: exit 1
+      - name: fail if e2e-docker job was not successful
+        if: needs.e2e-docker.result != 'success'
+        run: exit 1
+      - name: succeed if everything else passed
+        run: echo "Validation succeeded"
+

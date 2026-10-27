@@ -348,32 +348,27 @@ To upgrade the K0s minor version, the [.github/workflows/dependencies.yaml](.git
 Embedded Cluster maintains support for the current and two previous k8s minor versions, ensuring backward compatibility while supporting the latest features.
 All supported versions are released simultaneously from the main branch using a structured tagging approach that combines the application version with the supported k8s version.
 
-### Release Tagging Strategy
-
-Releases follow the format: `{APP_VERSION}+k8s-{K0S_MINOR_VERSION}`
-
-**Examples:**
-- `2.10.0+k8s-1.33` - Application version 2.10.0 with k8s 1.33.x support
-- `2.10.0+k8s-1.32` - Application version 2.10.0 with k8s 1.32.x support
-- `2.10.0+k8s-1.31` - Application version 2.10.0 with k8s 1.31.x support
-
 ### Release Process
 
-1. **Prepare the release commit** - Ensure all changes are committed and tested
-2. **Create annotated tags** - Tag the same commit with all supported k8s minor versions using annotated tags with descriptive messages:
+1. Prepare and test the release commit on `main`.
+2. Create and push one annotated application version tag:
    ```bash
-   # Tag for k8s 1.33.x support
-   git tag -a 2.10.0+k8s-1.33 -m "Release 2.10.0+k8s-1.33"
-   git push origin 2.10.0+k8s-1.33
-
-   # Tag for k8s 1.32.x support
-   git tag -a 2.10.0+k8s-1.32 -m "Release 2.10.0+k8s-1.32"
-   git push origin 2.10.0+k8s-1.32
-
-   # Tag for k8s 1.31.x support
-   git tag -a 2.10.0+k8s-1.31 -m "Release 2.10.0+k8s-1.31"
-   git push origin 2.10.0+k8s-1.31
+   git tag -a 2.20.0 -m "Release 2.20.0"
+   git push origin 2.20.0
    ```
+3. The Release workflow reads `SUPPORTED_K0S_MINOR_VERSIONS` from `versions.mk`
+   and creates a tag at the same commit for each supported Kubernetes minor,
+   for example `2.20.0+k8s-1.36`, `2.20.0+k8s-1.35`, and `2.20.0+k8s-1.34`.
+   Each version runs the reusable Kubernetes release workflow, publishing its
+   images, chart, installer, metadata, and GitHub release, then running release
+   E2E tests. GitHub releases are initially marked as prereleases.
+4. After all Kubernetes release workflows succeed, one Depot dispatch generates
+   the release notes PR using the application tag (`2.20.0`). This runs only for
+   commits on `main`.
+
+Prerelease app tags such as `2.20.0-rc.1` produce Kubernetes versions such as
+`2.20.0+k8s-1.36-rc.1`. These skip SecureBuild and require images to have already
+been published under the corresponding Docker Hub tags.
 
 ## Special Third-Party Licenses
 

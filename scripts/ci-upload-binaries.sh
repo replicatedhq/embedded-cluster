@@ -19,7 +19,7 @@ require S3_BUCKET "${S3_BUCKET}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
+        EC_VERSION=$(make print-VERSION)
     fi
     if [ -z "${K0S_VERSION:-}" ]; then
         K0S_VERSION=$(make print-K0S_VERSION)
