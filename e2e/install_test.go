@@ -926,9 +926,12 @@ func TestSingleNodeNetworkReport(t *testing.T) {
 		t.Fatalf("failed to collect network report: %v", err)
 	}
 
+	// systemd-resolved can query the proxy's CNAME target separately when
+	// its cached A and AAAA records expire at different times.
 	allowedDomains := map[string]struct{}{
 		"ec-e2e-proxy.testcluster.net":          {},
 		"ec-e2e-replicated-app.testcluster.net": {},
+		"proxy.staging.replicated.com":          {},
 		"*":                                     {}, // Triggered by host preflight wildcard-check
 	}
 
