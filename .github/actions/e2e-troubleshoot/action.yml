@@ -4,6 +4,10 @@ inputs:
   test-name:
     description: 'individual test to troubleshoot'
     required: true
+  artifact-suffix:
+    description: 'Optional suffix to distinguish artifacts from different release versions'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -12,21 +16,21 @@ runs:
     id: upload-host-support-bundle
     uses: actions/upload-artifact@v7
     with:
-      name: ${{ inputs.test-name }}-support-bundle-host.tar.gz
+      name: ${{ inputs.test-name }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}-support-bundle-host.tar.gz
       path: ./e2e/support-bundle-host-*.tar.gz
 
   - name: Upload Cluster Support Bundle
     id: upload-cluster-support-bundle
     uses: actions/upload-artifact@v7
     with:
-      name: ${{ inputs.test-name }}-support-bundle-cluster.tar.gz
+      name: ${{ inputs.test-name }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}-support-bundle-cluster.tar.gz
       path: ./e2e/support-bundle-cluster.tar.gz
 
   - name: Upload Playwright Report
     id: upload-playwright-report
     uses: actions/upload-artifact@v7
     with:
-      name: ${{ inputs.test-name }}-playwright-report.tar.gz
+      name: ${{ inputs.test-name }}${{ inputs.artifact-suffix != '' && format('-{0}', inputs.artifact-suffix) || '' }}-playwright-report.tar.gz
       path: ./e2e/playwright-report.tar.gz
 
   - name: Print instructions for host support bundle

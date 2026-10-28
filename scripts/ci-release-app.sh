@@ -22,7 +22,7 @@ require APP_CHANNEL "${APP_CHANNEL:-}"
 
 function init_vars() {
     if [ -z "${EC_VERSION:-}" ]; then
-        EC_VERSION=$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
+        EC_VERSION=$(make print-VERSION)
     fi
     if [ -z "${APP_VERSION:-}" ]; then
         local short_sha=

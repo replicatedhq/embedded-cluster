@@ -53,7 +53,7 @@ split-underscore = $(word $2,$(subst _, ,$1))
 random-string = $(shell LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c6)
 
 .PHONY: cmd/installer/goods/bins/k0s
-cmd/installer/goods/bins/k0s: check-k0s-version
+cmd/installer/goods/bins/k0s:
 	mkdir -p output/bins
 	if [ "$(K0S_BINARY_SOURCE_OVERRIDE)" != "" ]; then \
 		$(MAKE) output/bins/k0s-override ; \

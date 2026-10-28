@@ -10,7 +10,8 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 ## Version to use for building
-VERSION ?= $(shell git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)
+COMMON_MK_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+VERSION ?= $(shell $(COMMON_MK_DIR)scripts/print-ec-version.sh "$$(git describe --tags --match='[0-9]*.[0-9]*.[0-9]*' --abbrev=4)" "$(K0S_MINOR_VERSION)")
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

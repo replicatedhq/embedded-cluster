@@ -1,0 +1,15 @@
+name: Previous release
+description: Find the previous stable app release in GitHub release order
+inputs:
+  version:
+    description: Current release version
+    required: true
+  token:
+    description: GitHub token with permission to read releases
+    required: true
+outputs:
+  base-version:
+    description: Previous stable release version without the Kubernetes suffix
+runs:
+  using: node24
+  main: index.js
