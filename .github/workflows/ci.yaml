@@ -245,6 +245,10 @@ jobs:
           sudo tee /etc/containers/registries.conf > /dev/null <<'EOF'
           unqualified-search-registries = ["docker.io"]
           EOF
+      - name: Configure inotify limits for multi-node kind
+        run: &configure-kind-inotify |
+          # kind nodes share the host limits; exhaustion crashes kube-proxy.
+          sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=524288
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
@@ -277,6 +281,8 @@ jobs:
           version: ${{ needs.output-vars.outputs.helm_version }}
       - name: Fix registries.conf format
         run: *fix-registries-conf
+      - name: Configure inotify limits for multi-node kind
+        run: *configure-kind-inotify
       - name: Run tests
         run: |
           export VERSION=${{ needs.output-vars.outputs.ec_version }}
