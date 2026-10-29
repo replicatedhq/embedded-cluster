@@ -100,6 +100,20 @@ jobs:
           BASE_VERSION: ${{ steps.previous-release.outputs.base-version }}
           DEPOT_TOKEN: ${{ secrets.DEPOT_CI_DISPATCH_TOKEN }}
         run: |
+          set -euo pipefail
+          kubernetes_versions='[]'
+          for minor in $(make print-SUPPORTED_K0S_MINOR_VERSIONS); do
+            k0s_version=$(make print-K0S_VERSION K0S_MINOR_VERSION="$minor")
+            kubernetes_version="${k0s_version#v}"
+            kubernetes_version="${kubernetes_version%%+*}"
+            kubernetes_versions=$(jq -c --arg version "$kubernetes_version" '. + [$version]' <<< "$kubernetes_versions")
+          done
+          kots_version=$(make print-KOTS_VERSION)
+          custom_params=$(jq -cn \
+            --argjson kubernetes_versions "$kubernetes_versions" \
+            --arg kots_version "${kots_version#v}" \
+            '{kubernetes_versions: $kubernetes_versions, kots_version: $kots_version}')
+
           depot ci dispatch \
             --repo replicatedhq/replicated-docs \
             --workflow release-notes.yml \
@@ -107,4 +121,5 @@ jobs:
             --input event_type=embedded-cluster-release-notes \
             --input version="${GIT_TAG}" \
             --input prev_version="${BASE_VERSION}" \
+            --input custom_params="$custom_params" \
             --input dry_run=false
