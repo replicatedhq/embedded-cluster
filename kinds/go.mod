@@ -6,7 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/k0sproject/dig v0.4.0
 	github.com/k0sproject/k0s v1.36.5-0.20260918181138-c37fe960bdee
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	go.yaml.in/yaml/v3 v3.0.5
 	k8s.io/api v0.36.4
 	k8s.io/apimachinery v0.36.4
