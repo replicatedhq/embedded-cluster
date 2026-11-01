@@ -26,7 +26,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.8.3
 	github.com/k0sproject/k0s v1.36.5-0.20260918181138-c37fe960bdee
 	github.com/mattn/go-isatty v0.0.24
-	github.com/ohler55/ojg v1.28.7
+	github.com/ohler55/ojg v1.28.9
 	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/opencontainers/image-spec v1.1.1
@@ -44,7 +44,7 @@ require (
 	github.com/vmware-tanzu/velero v1.18.4
 	go.podman.io/image/v5 v5.42.0
 	go.uber.org/multierr v1.11.0
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/crypto v0.58.0
 	golang.org/x/term v0.47.0
 	gopkg.in/yaml.v2 v2.4.0
