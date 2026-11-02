@@ -20,15 +20,13 @@ import (
 )
 
 // fakeHelpers records every command and can block one of them until the
-// caller's context is cancelled, reproducing a `k0s reset` stuck on a container
-// runtime call that never returns.
+// caller's context is cancelled, reproducing a k0s call that never returns.
 type fakeHelpers struct {
 	mu      sync.Mutex
 	calls   []string
 	blockOn string
 
-	// runCommandFn, when set, overrides the default RunCommand behavior so a
-	// test can simulate specific binaries/args failing or returning output.
+	// runCommandFn, when set, overrides the default RunCommand behavior.
 	runCommandFn func(bin string, args ...string) (string, error)
 }
 
@@ -50,9 +48,8 @@ func (f *fakeHelpers) ran(prefix string) bool {
 }
 
 // ranCount returns how many recorded calls contain substr. Calls to the fake
-// k0s binary are recorded with its full temp-file path, so unlike ran (which
-// matches binaries invoked by their literal name, e.g. "pkill"), this must
-// match on a substring rather than a prefix.
+// k0s binary are recorded with its full temp-file path, so this must match on
+// a substring rather than a prefix.
 func (f *fakeHelpers) ranCount(substr string) int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -118,9 +115,8 @@ func installFakeHelpers(t *testing.T, f *fakeHelpers) {
 	})
 }
 
-// TestStopAndResetK0s_TimesOut covers the failure Rockwell hit: `k0s reset`
-// blocks forever on a containerd that stopped responding, so reset never
-// returns and every cleanup step after it is skipped. It must give up instead.
+// TestStopAndResetK0s_TimesOut covers `k0s reset` blocking forever on a
+// containerd that stopped responding: it must give up instead.
 func TestStopAndResetK0s_TimesOut(t *testing.T) {
 	origTimeout, origLead := k0sResetTimeout, k0sResetDumpLead
 	k0sResetTimeout, k0sResetDumpLead = 400*time.Millisecond, 200*time.Millisecond
@@ -142,8 +138,8 @@ func TestStopAndResetK0s_TimesOut(t *testing.T) {
 	require.Error(t, err, "should report that k0s reset timed out")
 	assert.Contains(t, err.Error(), "timed out")
 
-	// k0s is asked for a goroutine dump before the deadline kills it; its output
-	// is streamed to the log, so this is what identifies the stuck CRI call.
+	// k0s is asked for a goroutine dump before the deadline kills it, so the
+	// stuck call is recorded in the log.
 	assert.True(t, f.ran("pkill -QUIT -f k0s reset --data-dir"),
 		"should ask k0s for a goroutine dump before the deadline")
 }
@@ -188,7 +184,6 @@ func speedUpEtcdLeaveRetries(t *testing.T) {
 
 // setLogrusOutput sends the global logrus logger's output to w at Info level
 // for the rest of the test, restoring the previous output and level after.
-// No test in this package runs in parallel, so swapping the global is safe.
 func setLogrusOutput(t *testing.T, w io.Writer) {
 	t.Helper()
 	origOut, origLevel := logrus.StandardLogger().Out, logrus.GetLevel()
@@ -246,8 +241,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Equal(t, 1, f.ranCount("etcd leave"), "should actually attempt to leave the cluster")
 	})
 
-	// Hostname missing from member-list: reset still makes one defensive leave,
-	// and etcd's "member not found" from it confirms removal.
+	// Hostname missing from member-list: one defensive leave, and etcd's
+	// "member not found" from it confirms removal.
 	t.Run("AlreadyRemoved", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -271,8 +266,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Equal(t, 1, f.ranCount("etcd leave"), "should make a defensive leave attempt rather than trusting the member-list key match alone")
 	})
 
-	// Defensive leave gets k0s's "peer not found": with no member-list URL to check
-	// it against, the node may still be a voter, so reset warns.
+	// Defensive leave gets k0s's "peer not found": with no member-list URL to
+	// check it against, the node may still be a voter.
 	t.Run("AlreadyRemovedPeerNotFoundIsInconclusive", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -298,7 +293,7 @@ func TestLeaveEtcdCluster(t *testing.T) {
 	})
 
 	// Hostname missing from member-list but the node is still a member: the
-	// defensive leave removes it, with no retry.
+	// defensive leave removes it.
 	t.Run("AlreadyRemovedButActuallyStillAMember", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -322,8 +317,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 	})
 
-	// A defensive leave that fails for another reason (e.g. unreachable etcd)
-	// must warn, not count as removed.
+	// A defensive leave that fails for another reason must warn, not count as
+	// removed.
 	t.Run("AlreadyRemovedButLeaveFailsForUnrelatedReason", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -349,9 +344,7 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Equal(t, 1, f.ranCount("etcd leave"), "the defensive leave attempt should not be retried")
 	})
 
-	// member-list is keyed by hostname: k0s sets etcd's --name to os.Hostname()
-	// and keys the member-list JSON by member name (k0s pkg/component/controller/etcd.go,
-	// cmd/etcd/list.go at the version pinned in go.mod).
+	// member-list is keyed by hostname (k0s sets etcd's --name to os.Hostname()).
 	t.Run("MemberListKeyIsHostname", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		const hostname = "ip-10-0-12-34.us-west-2.compute.internal"
@@ -375,9 +368,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 	})
 
 	// The only etcd command reset may change membership with is a bare
-	// `k0s etcd leave`, which removes this node's own member. Every k0s call in
-	// every outcome must be that or `etcd member-list`: no --peer-address, no
-	// other etcd command, and at most 3 leave attempts.
+	// `k0s etcd leave`: no --peer-address, no other etcd command, and at most
+	// 3 leave attempts.
 	t.Run("OnlyRunsBareEtcdCommands", func(t *testing.T) {
 		const (
 			listed   = `{"members":{"node-a":"https://node-a:2380","node-b":"https://node-b:2380"}}`
@@ -436,7 +428,7 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		}
 	})
 
-	// member-list fails: reset can't tell, so it warns (sc-139620).
+	// member-list fails: reset can't tell, so it warns.
 	t.Run("MemberListFails", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -504,8 +496,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Contains(t, warning, "k0s etcd leave --peer-address node-a")
 	})
 
-	// The remediation command uses the member's etcd peer address from
-	// member-list, not the hostname, since the two can differ.
+	// The remediation command uses the peer address from member-list, not the
+	// hostname, since the two can differ.
 	t.Run("RemediationUsesEtcdPeerAddressNotHostname", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		const hostname = "ip-10-0-12-34.us-west-2.compute.internal"
@@ -654,8 +646,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		}
 	})
 
-	// k0s reports "peer not found" for a different URL than member-list has: the
-	// member is still there, so reset warns.
+	// k0s reports "peer not found" for a different URL than member-list has:
+	// the member is still there, so reset warns.
 	t.Run("DirectLeavePeerNotFoundForOtherAddress", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 		f := &fakeHelpers{
@@ -724,8 +716,7 @@ func TestLeaveEtcdCluster(t *testing.T) {
 		assert.Contains(t, warning, "node-a")
 	})
 
-	// Progress is logged at the start and on each retry, so a long wait doesn't
-	// look like a hang.
+	// Progress is logged at the start and on each retry.
 	t.Run("LogsProgressDuringRetries", func(t *testing.T) {
 		speedUpEtcdLeaveRetries(t)
 
@@ -753,8 +744,8 @@ func TestLeaveEtcdCluster(t *testing.T) {
 	})
 }
 
-// errK0sPeerNotFound is what `k0s etcd leave` returns, via
-// RunCommandWithOptions, when no etcd member has its peer URL.
+// errK0sPeerNotFound is what `k0s etcd leave` returns when no etcd member has
+// its peer URL.
 func errK0sPeerNotFound(peerURL string) error {
 	return fmt.Errorf("exit status 1: Error: peer not found: %s", peerURL)
 }
@@ -763,7 +754,7 @@ func errK0sPeerNotFound(peerURL string) error {
 var errEtcdMemberNotFound = errors.New("exit status 1: Error: etcdserver: member not found")
 
 func TestStaleEtcdMemberWarning(t *testing.T) {
-	// With no known peer address, the warning says how to find it instead of
+	// Without a peer address, the warning says how to find one instead of
 	// printing the hostname as one.
 	t.Run("UnknownPeerAddressDoesNotFabricateRemediationCommand", func(t *testing.T) {
 		const hostname = "node-a"
@@ -912,8 +903,7 @@ func useK0sControllerFiles(t *testing.T, unit bool, config string) {
 }
 
 // TestNoK0sStatusEtcdWarning covers resetting a controller where `k0s status`
-// fails (e.g. k0s is stopped). Reset can't leave etcd then, and used to skip
-// it without a word, leaving a stale member behind (sc-139620).
+// fails, so reset can't leave etcd and must warn instead of skipping silently.
 func TestNoK0sStatusEtcdWarning(t *testing.T) {
 	const config = "apiVersion: k0s.k0sproject.io/v1beta1\nkind: ClusterConfig\nspec:\n  storage:\n    etcd:\n      peerAddress: 10.0.0.12\n"
 
