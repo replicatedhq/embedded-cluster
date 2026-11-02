@@ -256,7 +256,7 @@ func AdditionalInstallFlags(rc runtimeconfig.RuntimeConfig, nodeIP string, hostn
 func AdditionalInstallFlagsController() []string {
 	// Disable konnectivity-server (unused) and the update prober (avoids unintended
 	// outbound connections to an update service we don't need). The update prober can
-	// be disabled on all supported k0s versions (>= 1.33); see k0sproject/k0s#6326.
+	// be disabled on all supported k0s versions (>= 1.34); see k0sproject/k0s#6326.
 	disableComponents := "konnectivity-server," + UpdateProberComponent
 	return []string{
 		"--disable-components", disableComponents,
