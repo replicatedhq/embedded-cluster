@@ -3,16 +3,16 @@
 # The versions are kept up to date by the .github/workflows/dependencies.yaml github actions workflow
 
 # K0S Kubernetes Distribution Versions
-K0S_MINOR_VERSION ?= 36
+K0S_MINOR_VERSION ?= 37
 # Release the current minor and the previous two. CI also needs the previous
 # minor outside this range to exercise upgrades into the supported range.
 SUPPORTED_K0S_MINOR_VERSIONS = $(shell seq $(K0S_MINOR_VERSION) -1 $$(($(K0S_MINOR_VERSION) - 2)))
 
 # K0S Versions
+K0S_VERSION_1_37 = v1.37.1+k0s.0
 K0S_VERSION_1_36 = v1.36.4+k0s.1
 K0S_VERSION_1_35 = v1.35.8+k0s.1
 K0S_VERSION_1_34 = v1.34.11+k0s.1
-K0S_VERSION_1_33 = v1.33.13+k0s.1
 
 # Dynamic version selection
 K0S_VERSION = $(K0S_VERSION_1_$(K0S_MINOR_VERSION))

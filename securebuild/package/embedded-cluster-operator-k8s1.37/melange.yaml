@@ -1,13 +1,13 @@
 package:
-  name: local-artifact-mirror-k8s1.33-head
+  name: embedded-cluster-operator-k8s1.37-head
   version: "1000.0.0"
   epoch: 0
-  description: Local Artifact Mirror
+  description: Embedded Cluster Operator
   copyright:
     - license: Apache-2.0
   dependencies:
     provides:
-      - local-artifact-mirror-k8s1.33=${{package.full-version}}
+      - embedded-cluster-operator-k8s1.37=${{package.full-version}}
 
 var-transforms:
   - from: ${{package.name}}
@@ -38,6 +38,7 @@ environment:
     keyring:
       - https://apk.cve0.io/key/cve0-signing.rsa.pub
     packages:
+      - bash
       - busybox
       - build-base
       - go
@@ -49,15 +50,28 @@ pipeline:
     with:
       repository: https://github.com/replicatedhq/embedded-cluster
       tag: ${{package.version}}+${{vars.k8s-version}}
+
   - name: build-go-binary
     runs: |
-      make -C local-artifact-mirror build-deps build
-
-      mkdir -p ${{targets.destdir}}/usr/bin
-      mkdir -p ${{targets.destdir}}/usr/local/bin
-      cp local-artifact-mirror/bin/local-artifact-mirror-linux-$(go env GOARCH) \
-        ${{targets.destdir}}/usr/bin/local-artifact-mirror
-      # support for legacy path
-      ln -s /usr/bin/local-artifact-mirror ${{targets.destdir}}/usr/local/bin/local-artifact-mirror
+      make -C operator build-deps build \
+        VERSION="${VERSION:-v${{package.version}}+${{vars.k8s-version}}}"
+      cp operator/bin/manager ${{targets.destdir}}/manager
 
   - uses: strip
+
+test:
+  environment:
+    contents:
+      repositories:
+        - https://apk.cve0.io
+      keyring:
+        - https://apk.cve0.io/key/cve0-signing.rsa.pub
+      packages:
+        - ${{package.name}}=${{package.full-version}}
+        - busybox
+  pipeline:
+    - name: Verify operator binary
+      runs: |
+        test -x /manager
+        /manager --help
+        /manager version | grep -F "v${{package.version}}+${{vars.k8s-version}}"
