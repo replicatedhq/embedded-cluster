@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -29,10 +32,18 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	nodeutil "k8s.io/component-helpers/node/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 // k0sBinPath is the k0s binary this command stops and resets. Overridden by tests.
 var k0sBinPath = "/usr/local/bin/k0s"
+
+// Used to detect a controller and its etcd peer address when k0s isn't
+// running to say so. Overridden by tests.
+var (
+	k0sControllerUnitPath = "/etc/systemd/system/k0scontroller.service"
+	k0sConfigPath         = runtimeconfig.K0sConfigPath
+)
 
 const (
 	// k0sRunDir holds k0s runtime state: the containerd socket, sandbox shm
@@ -168,7 +179,12 @@ func ResetCmd(ctx context.Context, appTitle string) *cobra.Command {
 					}
 
 					// try and leave etcd cluster
-					currentHost.leaveEtcdCluster()
+					warnIfEtcdLeaveNotConfirmed(currentHost.leaveEtcdCluster(ctx))
+				} else if currentHost.Status.Role == "" {
+					// k0s status failed, so whether this is a controller is unknown.
+					if warning, ok := noK0sStatusEtcdWarning(currentHost.Hostname); ok {
+						logrus.Warn(warning)
+					}
 				}
 			}
 
@@ -388,12 +404,127 @@ type etcdMembers struct {
 	Members map[string]string `json:"members"`
 }
 
-// leaveEtcdCluster uses k0s to attempt to leave the etcd cluster
-func (h *hostInfo) leaveEtcdCluster() {
+// etcdLeaveRetryDelay is the delay between etcd command retries. Overridden by tests.
+var etcdLeaveRetryDelay = 2 * time.Second
+
+// etcdCmdTimeout bounds each k0s etcd call: k0s sets no deadline of its own,
+// and a call that can't reach quorum (e.g. two controllers reset at once)
+// would otherwise hang the reset forever. Overridden by tests.
+var etcdCmdTimeout = 30 * time.Second
+
+// runEtcdCommand runs `k0s etcd <args...>` with etcdCmdTimeout, honouring the
+// parent context so cancelling the reset cancels an in-flight call.
+func runEtcdCommand(parent context.Context, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(parent, etcdCmdTimeout)
+	defer cancel()
+	stdout := &bytes.Buffer{}
+	err := helpers.RunCommandWithOptions(helpers.RunCommandOptions{Context: ctx, Stdout: stdout}, k0sBinPath, append([]string{"etcd"}, args...)...)
+	return stdout.String(), err
+}
+
+// stripLogLineBreaks removes CR/LF from a value before it is formatted into a
+// log message, so it can't forge extra log lines.
+func stripLogLineBreaks(s string) string {
+	s = strings.ReplaceAll(s, "\r", "")
+	s = strings.ReplaceAll(s, "\n", "")
+	return s
+}
+
+// staleEtcdMemberWarning builds the warning shown when reset can't confirm
+// this node's etcd membership was removed, including the command a surviving
+// controller can run to remove the stale member.
+func staleEtcdMemberWarning(hostname, peerAddress string, cause error) string {
+	hostname = stripLogLineBreaks(hostname)
+	peerAddress = stripLogLineBreaks(peerAddress)
+	// The cause can carry raw k0s output, so it needs the same treatment.
+	causeText := stripLogLineBreaks(cause.Error())
+	// Without a peer address, say how to find one rather than assuming the
+	// hostname is one: `k0s etcd leave --peer-address` matches on the etcd
+	// peer address, which can differ from the hostname.
+	if peerAddress == "" {
+		return fmt.Sprintf(
+			"Unable to confirm this node's etcd membership was removed: %s\n"+
+				"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
+				"From a surviving controller, run 'k0s etcd member-list' to find %q's peer address, "+
+				"then run 'k0s etcd leave --peer-address <that address>' to remove it.",
+			causeText, hostname, hostname,
+		)
+	}
+	return fmt.Sprintf(
+		"Unable to confirm this node's etcd membership was removed: %s\n"+
+			"A stale etcd member for %q may remain in the cluster, which can affect quorum.\n"+
+			"Run 'k0s etcd leave --peer-address %s' from a surviving controller to remove it.",
+		causeText, hostname, peerAddress,
+	)
+}
+
+// noK0sStatusEtcdWarning returns the stale-member warning for a controller
+// whose k0s status is unavailable, so reset can't leave etcd. A missing
+// controller unit means this isn't a controller; any other stat error still
+// warns, since a false warning is safe and a missed one isn't.
+func noK0sStatusEtcdWarning(hostname string) (string, bool) {
+	if _, err := os.Stat(k0sControllerUnitPath); errors.Is(err, fs.ErrNotExist) {
+		return "", false
+	} else if err != nil {
+		logrus.Debugf("checking for %s: %v", k0sControllerUnitPath, err)
+	}
+	cause := errors.New("could not get k0s status on this node, so reset could not leave etcd (k0s may be stopped; ignore this if it was the only controller)")
+	return staleEtcdMemberWarning(hostname, configuredEtcdPeerAddress(), cause), true
+}
+
+// configuredEtcdPeerAddress reads spec.storage.etcd.peerAddress from the k0s
+// config, or "" if it can't. k0s's config defaults are deliberately not
+// applied: only an explicitly configured address is worth printing.
+func configuredEtcdPeerAddress() string {
+	data, err := os.ReadFile(k0sConfigPath)
+	if err != nil {
+		logrus.Debugf("reading %s for the etcd peer address: %v", k0sConfigPath, err)
+		return ""
+	}
+	var cfg struct {
+		Spec struct {
+			Storage struct {
+				Etcd struct {
+					PeerAddress string `json:"peerAddress"`
+				} `json:"etcd"`
+			} `json:"storage"`
+		} `json:"spec"`
+	}
+	if err := k8syaml.Unmarshal(data, &cfg); err != nil {
+		logrus.Debugf("parsing %s for the etcd peer address: %v", k0sConfigPath, err)
+		return ""
+	}
+	return cfg.Spec.Storage.Etcd.PeerAddress
+}
+
+// etcdPeerHost extracts the host from a member-list peer URL
+// ("https://10.0.12.34:2380" -> "10.0.12.34"), the form
+// `k0s etcd leave --peer-address` expects. It falls back to the raw value
+// when unparseable, so a remediation command is still produced.
+func etcdPeerHost(peerURL string) string {
+	u, err := url.Parse(peerURL)
+	if err != nil || u.Hostname() == "" {
+		return peerURL
+	}
+	return u.Hostname()
+}
+
+// warnIfEtcdLeaveNotConfirmed logs leaveEtcdCluster's warning when removal
+// wasn't confirmed.
+func warnIfEtcdLeaveNotConfirmed(removed bool, warning string) {
+	if !removed {
+		logrus.Warn(warning)
+	}
+}
+
+// leaveEtcdCluster uses k0s to attempt to leave the etcd cluster. It returns
+// whether removal was confirmed and, when it was not, a warning describing
+// the stale membership and how to clean it up from a surviving controller.
+func (h *hostInfo) leaveEtcdCluster(ctx context.Context) (removed bool, warning string) {
 	// Check if k0s binary exists
 	if _, err := os.Stat(k0sBinPath); os.IsNotExist(err) {
 		logrus.Debugf("k0s binary not found at %s, skipping etcd leave", k0sBinPath)
-		return
+		return false, staleEtcdMemberWarning(h.Hostname, configuredEtcdPeerAddress(), fmt.Errorf("k0s binary not found at %s; cannot attempt etcd leave", k0sBinPath))
 	}
 
 	// Try to list members with retries
@@ -401,9 +532,14 @@ func (h *hostInfo) leaveEtcdCluster() {
 	var out string
 	var err error
 
-	// Retry member list up to 3 times
+	// Up to 3 attempts, each bounded by etcdCmdTimeout. Log progress so the
+	// wait doesn't look like a hang.
+	logrus.Infof("Confirming this node's etcd membership was removed (listing etcd members)...")
 	for i := 0; i < 3; i++ {
-		out, err = helpers.RunCommand(k0sBinPath, "etcd", "member-list")
+		if i > 0 {
+			logrus.Infof("Retrying etcd member-list (attempt %d/3)...", i+1)
+		}
+		out, err = runEtcdCommand(ctx, "member-list")
 		if err == nil {
 			err = json.Unmarshal([]byte(out), &memberlist)
 			if err == nil {
@@ -411,45 +547,93 @@ func (h *hostInfo) leaveEtcdCluster() {
 			}
 		}
 		if i < 2 { // Don't sleep on last attempt
-			time.Sleep(2 * time.Second)
+			time.Sleep(etcdLeaveRetryDelay)
 		}
 	}
 
 	if err != nil {
-		logrus.Warnf("Unable to list etcd members, continuing with reset: %v", err)
-		return
+		return false, staleEtcdMemberWarning(h.Hostname, configuredEtcdPeerAddress(), fmt.Errorf("listing etcd members: %w", err))
 	}
 
 	// If we're the only member, no need to leave
 	if len(memberlist.Members) == 1 && memberlist.Members[h.Hostname] != "" {
-		return
+		return true, ""
 	}
 
-	// Attempt to leave the cluster with retries
+	// A member list without this node usually means the membership was already
+	// removed, but that assumes etcd keys members by hostname. If that's ever
+	// wrong, trusting the absence would leave a real voting member stale, so
+	// make one defensive leave attempt: only etcd's "member not found"
+	// confirms it was a no-op.
+	if _, ok := memberlist.Members[h.Hostname]; !ok {
+		_, leaveErr := runEtcdCommand(ctx, "leave")
+		if leaveErr != nil && !etcdMemberAlreadyGone(leaveErr, "") {
+			// No config fallback: a configured address may not match any real member.
+			return false, staleEtcdMemberWarning(h.Hostname, "", fmt.Errorf("attempting defensive leave: %w", leaveErr))
+		}
+		return true, ""
+	}
+
+	// The member list confirms this node's entry, so use its peer address in
+	// any remediation command below; it can differ from the hostname.
+	peerAddress := etcdPeerHost(memberlist.Members[h.Hostname])
+
+	logrus.Infof("Leaving the etcd cluster...")
 	for i := 0; i < 3; i++ {
-		out, err = helpers.RunCommand(k0sBinPath, "etcd", "leave")
+		if i > 0 {
+			logrus.Infof("Retrying etcd leave (attempt %d/3)...", i+1)
+		}
+		out, err = runEtcdCommand(ctx, "leave")
 		if err == nil {
-			return
+			return true, ""
 		}
 
-		// Check if the error is due to etcd being stopped
-		if strings.Contains(err.Error(), "etcdserver: server stopped") {
-			logrus.Warnf("Etcd server is stopped, continuing with reset")
-			return
+		// Already removed (e.g. a concurrent leave).
+		if etcdMemberAlreadyGone(err, memberlist.Members[h.Hostname]) {
+			return true, ""
+		}
+
+		// A stopped local etcd can't be asked to leave, but that isn't
+		// evidence the member already left, so warn rather than assume success.
+		if etcdServerStopped(err) {
+			return false, staleEtcdMemberWarning(h.Hostname, peerAddress, errors.New("local etcd server is stopped"))
 		}
 
 		if i < 2 { // Don't sleep on last attempt
-			time.Sleep(2 * time.Second)
+			time.Sleep(etcdLeaveRetryDelay)
 		}
 	}
 
 	// If we get here, we failed to leave after retries
-	logrus.Warnf("Unable to leave etcd cluster after retries (this is often normal during reset): %v, %s", err, out)
+	return false, staleEtcdMemberWarning(h.Hostname, peerAddress, fmt.Errorf("leaving etcd after 3 attempts: %w (%s)", err, out))
 }
 
 var (
-	notFoundRegex = regexp.MustCompile(`nodes ".+" not found`)
+	notFoundRegex     = regexp.MustCompile(`nodes ".+" not found`)
+	peerNotFoundRegex = regexp.MustCompile(`peer not found: (\S+)`)
 )
+
+// etcd errors arrive as stderr text from the k0s subprocess, so they can only
+// be classified by their text. Keep every such match in these two helpers.
+
+// etcdMemberAlreadyGone reports whether `k0s etcd leave` failed because this
+// node's member is already gone. k0s's "peer not found: <url>" only counts
+// when <url> is peerURL, this node's URL from member-list: k0s looks up its
+// configured address, which can drift from the member's real one.
+func etcdMemberAlreadyGone(err error, peerURL string) bool {
+	msg := err.Error()
+	if strings.Contains(msg, "etcdserver: member not found") {
+		return true
+	}
+	m := peerNotFoundRegex.FindStringSubmatch(msg)
+	return peerURL != "" && m != nil && m[1] == peerURL
+}
+
+// etcdServerStopped reports whether `k0s etcd` failed because the local etcd
+// server is stopped.
+func etcdServerStopped(err error) bool {
+	return strings.Contains(err.Error(), "etcdserver: server stopped")
+}
 
 // drainNode uses k0s to initiate a node drain
 func (h *hostInfo) drainNode() {
