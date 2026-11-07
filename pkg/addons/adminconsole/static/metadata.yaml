@@ -5,26 +5,26 @@
 # $ make buildtools
 # $ output/bin/buildtools update addon <addon name>
 #
-version: 1.134.1
+version: 1.134.2
 location: oci://proxy.replicated.com/library/admin-console
 images:
     kotsadm:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm
         tag:
-            amd64: v1.134.1-amd64@sha256:cad263c49504eecf9d2d8a8fd8db48843cee8185e48117191e87f1c25afe895d
-            arm64: v1.134.1-arm64@sha256:703d434806c491d9eab2cf1637373a4bfca34df3c3bf12a208888916c689cd58
+            amd64: v1.134.2-amd64@sha256:d3f348cddff5738255fdf91bd185b7e39a1b6726e44ce8da349863850a989c9a
+            arm64: v1.134.2-arm64@sha256:c74d72cda844200aed36437e978d4f3a3db8fa415962f126483cda6e71b3f2ae
     kotsadm-migrations:
         repo: proxy.replicated.com/anonymous/kotsadm/kotsadm-migrations
         tag:
-            amd64: v1.134.1-amd64@sha256:1e93313ca9b70020edfa20f18977f753e54de51351e0eb4743e7c14078eab528
-            arm64: v1.134.1-arm64@sha256:06b6eed470835d65b18106476c8c6bd6f02e16909e6d5d0e9559d8a8396f724c
+            amd64: v1.134.2-amd64@sha256:7d89ac432db0ab97645853e1093bed2602fc13c5448813282fb353da73f1d218
+            arm64: v1.134.2-arm64@sha256:890198a8a77f3fb1bd85768a31ca274e600e43d1660e889ed63af626519c394c
     kurl-proxy:
         repo: proxy.replicated.com/anonymous/kotsadm/kurl-proxy
         tag:
-            amd64: v1.134.1-amd64@sha256:a467173ffe76c0edb5503fe2437d84c06c2d5378948fe2700c9db8cb8e12effc
-            arm64: v1.134.1-arm64@sha256:32332923154a323cb292caade10fa02051981410e28cd737812188aba64340d9
+            amd64: v1.134.2-amd64@sha256:7188071f16479f8433a7e94f930ee1d5209907b109d3c21479ab81544db68245
+            arm64: v1.134.2-arm64@sha256:689db4779f531650f2fc695627727086318a0d21b94ff0930ad0b2397f82fc77
     rqlite:
         repo: proxy.replicated.com/anonymous/kotsadm/rqlite
         tag:
-            amd64: 10.3.4-amd64@sha256:a4df5091781bdf91e5a0ade57ea14de0576e9b82da67fdd6de883a9fe425f385
-            arm64: 10.3.4-arm64@sha256:4ff935815788f010771cf7d2a48d32096d6045b67ea71bffa41a937f1c646d98
+            amd64: 10.3.4-amd64@sha256:b3e96a077db9961903f78e3bd7c234299126f0cdc590437f8da4a4ff22213691
+            arm64: 10.3.4-arm64@sha256:673d4f74cc0689a1f8dfc4b0baea570b8055fad73ee0ac4d5fd3187e06571f2b
