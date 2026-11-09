@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
+func TestCreateUpgradeJob_NetworkingAndNodeAffinity(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, ecv1beta1.AddToScheme(scheme))
 	require.NoError(t, batchv1.AddToScheme(scheme))
@@ -78,6 +78,10 @@ func TestCreateUpgradeJob_NodeAffinity(t *testing.T) {
 		Name:      "embedded-cluster-upgrade-test-installation",
 	}, job)
 	require.NoError(t, err)
+
+	// The job must survive the networking transition it is responsible for completing.
+	assert.True(t, job.Spec.Template.Spec.HostNetwork, "the updater must retain API access while pod networking is unavailable")
+	assert.Equal(t, corev1.DNSDefault, job.Spec.Template.Spec.DNSPolicy, "the updater must resolve external hosts while CoreDNS is unavailable")
 
 	// Verify that the job has the expected node affinity
 	require.NotNil(t, job.Spec.Template.Spec.Affinity, "Job should have affinity set")
