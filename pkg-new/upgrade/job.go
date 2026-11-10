@@ -160,6 +160,12 @@ func CreateUpgradeJob(
 					},
 				},
 				Spec: corev1.PodSpec{
+					// k0s may replace Calico RBAC before we can update the component
+					// images, temporarily breaking pod networking. Keep the updater's
+					// API access and DNS independent of Calico and CoreDNS so it can
+					// apply the target images and restore networking.
+					HostNetwork: true,
+					DNSPolicy:   corev1.DNSDefault,
 					// The upgrade job can fail if scheduled on a node that hasn't been upgraded yet.
 					// Without this affinity, the job might get scheduled on non-upgraded nodes repeatedly,
 					// potentially hitting the backoff limit (6) and causing the upgrade to fail.
