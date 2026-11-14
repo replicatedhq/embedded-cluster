@@ -7,7 +7,7 @@ require (
 	github.com/k0sproject/dig v0.4.0
 	github.com/k0sproject/k0s v1.37.3-0.20261105112656-d65558bb77e5
 	github.com/stretchr/testify v1.12.1
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	k8s.io/api v0.37.2
 	k8s.io/apimachinery v0.37.2
 	sigs.k8s.io/controller-runtime v0.25.2
