@@ -11,7 +11,7 @@ SUPPORTED_K0S_MINOR_VERSIONS = $(shell seq $(K0S_MINOR_VERSION) -1 $$(($(K0S_MIN
 # K0S Versions
 K0S_VERSION_1_37 = v1.37.2+k0s.1
 K0S_VERSION_1_36 = v1.36.6+k0s.0
-K0S_VERSION_1_35 = v1.35.10+k0s.0
+K0S_VERSION_1_35 = v1.35.10+k0s.1
 K0S_VERSION_1_34 = v1.34.13+k0s.0
 
 # Dynamic version selection
