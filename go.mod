@@ -23,7 +23,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
-	github.com/jedib0t/go-pretty/v6 v6.8.3
+	github.com/jedib0t/go-pretty/v6 v6.9.2
 	github.com/k0sproject/k0s v1.37.3-0.20261105112656-d65558bb77e5
 	github.com/mattn/go-isatty v0.0.24
 	github.com/ohler55/ojg v1.28.9
@@ -325,6 +325,7 @@ require (
 	github.com/prometheus/common v0.72.1 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.23.0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/rubenv/sql-migrate v1.8.1 // indirect
